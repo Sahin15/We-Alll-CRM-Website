@@ -11,6 +11,12 @@ export const departmentApi = {
     api.put(`/departments/${departmentId}/add/${userId}`),
   removeEmployeeFromDepartment: (departmentId, userId) =>
     api.put(`/departments/${departmentId}/remove/${userId}`),
+  bulkAssignEmployees: (departmentId, employeeIds) =>
+    api.put(`/departments/${departmentId}/employees/bulk`, { employeeIds }),
+  setDepartmentHead: (departmentId, userId) =>
+    api.put(`/departments/${departmentId}/head/${userId}`),
+  getDepartmentAnalytics: (id) => api.get(`/departments/${id}/analytics`),
+  getAllDepartmentsAnalytics: () => api.get("/departments/analytics/summary"),
 };
 
 export default departmentApi;

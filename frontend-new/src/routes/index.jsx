@@ -29,6 +29,7 @@ import UserDetails from "../pages/users/UserDetails";
 
 // Department Pages
 import DepartmentList from "../pages/departments/DepartmentList";
+import DepartmentDetails from "../pages/departments/DepartmentDetails";
 
 // Leave Pages
 import MyLeaves from "../pages/leaves/MyLeaves";
@@ -42,12 +43,30 @@ import AttendanceTracking from "../pages/attendance/AttendanceTracking";
 import ClientList from "../pages/clients/ClientList";
 import ClientDetails from "../pages/clients/ClientDetails";
 
+// Lead Pages
+import LeadList from "../pages/leads/LeadList";
+import LeadDetails from "../pages/leads/LeadDetails";
+
 // Project Pages
 import ProjectList from "../pages/projects/ProjectList";
 import ProjectDetails from "../pages/projects/ProjectDetails";
 
 // Profile Pages
 import MyProfile from "../pages/profile/MyProfile";
+
+// Admin Billing Pages
+import AdminBillingDashboard from "../pages/admin/AdminBillingDashboard";
+import ServiceManagement from "../pages/admin/ServiceManagement";
+import PlanManagement from "../pages/admin/PlanManagement";
+import SubscriptionManagement from "../pages/admin/SubscriptionManagement";
+import InvoiceManagement from "../pages/admin/InvoiceManagement";
+import PaymentVerification from "../pages/admin/PaymentVerification";
+
+// Client Billing Pages
+import ClientBillingDashboard from "../pages/client/ClientBillingDashboard";
+import ClientSubscriptions from "../pages/client/ClientSubscriptions";
+import ClientInvoices from "../pages/client/ClientInvoices";
+import ClientPayments from "../pages/client/ClientPayments";
 
 // Error Pages
 import NotFound from "../pages/errors/NotFound";
@@ -116,14 +135,8 @@ const AppRoutes = () => {
         />
 
         {/* Department Management */}
-        <Route
-          path="/departments"
-          element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
-              <DepartmentList />
-            </RoleBasedRoute>
-          }
-        />
+        <Route path="/departments" element={<DepartmentList />} />
+        <Route path="/departments/:id" element={<DepartmentDetails />} />
 
         {/* Leave Management */}
         <Route path="/leaves/my-leaves" element={<MyLeaves />} />
@@ -165,12 +178,122 @@ const AppRoutes = () => {
           }
         />
 
+        {/* Lead Management */}
+        <Route
+          path="/leads"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
+              <LeadList />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/leads/:id"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
+              <LeadDetails />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/leads/:id/edit"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
+              <LeadList />
+            </RoleBasedRoute>
+          }
+        />
+
         {/* Project Management */}
         <Route path="/projects" element={<ProjectList />} />
         <Route path="/projects/:id" element={<ProjectDetails />} />
 
         {/* Profile */}
         <Route path="/profile" element={<MyProfile />} />
+
+        {/* Admin Billing Routes */}
+        <Route
+          path="/admin/billing"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+              <AdminBillingDashboard />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/admin/services"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+              <ServiceManagement />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/admin/plans"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+              <PlanManagement />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/admin/subscriptions"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+              <SubscriptionManagement />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/admin/invoices"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+              <InvoiceManagement />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/admin/payments"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+              <PaymentVerification />
+            </RoleBasedRoute>
+          }
+        />
+
+        {/* Client Billing Routes */}
+        <Route
+          path="/client/billing"
+          element={
+            <RoleBasedRoute allowedRoles={["client"]}>
+              <ClientBillingDashboard />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/client/subscriptions"
+          element={
+            <RoleBasedRoute allowedRoles={["client"]}>
+              <ClientSubscriptions />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/client/invoices"
+          element={
+            <RoleBasedRoute allowedRoles={["client"]}>
+              <ClientInvoices />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/client/payments"
+          element={
+            <RoleBasedRoute allowedRoles={["client"]}>
+              <ClientPayments />
+            </RoleBasedRoute>
+          }
+        />
 
         {/* Error Pages */}
         <Route path="/unauthorized" element={<Unauthorized />} />

@@ -26,8 +26,19 @@ const ClientList = () => {
     name: "",
     email: "",
     phone: "",
+    whatsappnumber: "",
     company: "",
+    ownername: "",
     address: "",
+    industry: "",
+    website: "",
+    targetAudience: "",
+    audienceGender: "",
+    previousChallenges: "",
+    legalGuidelines: "",
+    yearlyTurnover: "",
+    expectations: "",
+    serviceCompany: "",
   });
   const navigate = useNavigate();
 
@@ -61,8 +72,19 @@ const ClientList = () => {
         name: client.name,
         email: client.email,
         phone: client.phone || "",
+        whatsappnumber: client.whatsappnumber || "",
         company: client.company || "",
+        ownername: client.ownername || "",
         address: client.address || "",
+        industry: client.industry || "",
+        website: client.website || "",
+        targetAudience: client.targetAudience || "",
+        audienceGender: client.audienceGender || "",
+        previousChallenges: client.previousChallenges || "",
+        legalGuidelines: client.legalGuidelines || "",
+        yearlyTurnover: client.yearlyTurnover || "",
+        expectations: client.expectations || "",
+        serviceCompany: client.serviceCompany || "",
       });
     } else {
       setEditMode(false);
@@ -71,8 +93,19 @@ const ClientList = () => {
         name: "",
         email: "",
         phone: "",
+        whatsappnumber: "",
         company: "",
+        ownername: "",
         address: "",
+        industry: "",
+        website: "",
+        targetAudience: "",
+        audienceGender: "",
+        previousChallenges: "",
+        legalGuidelines: "",
+        yearlyTurnover: "",
+        expectations: "",
+        serviceCompany: "",
       });
     }
     setShowModal(true);
@@ -86,8 +119,18 @@ const ClientList = () => {
       name: "",
       email: "",
       phone: "",
+      whatsappnumber: "",
       company: "",
+      ownername: "",
       address: "",
+      industry: "",
+      website: "",
+      targetAudience: "",
+      audienceGender: "",
+      previousChallenges: "",
+      legalGuidelines: "",
+      yearlyTurnover: "",
+      expectations: "",
     });
   };
 
@@ -159,6 +202,7 @@ const ClientList = () => {
                       <th>Email</th>
                       <th>Phone</th>
                       <th>Company</th>
+                      <th>Service Company</th>
                       <th>Created Date</th>
                       <th>Actions</th>
                     </tr>
@@ -171,6 +215,21 @@ const ClientList = () => {
                           <td>{client.email}</td>
                           <td>{client.phone || "N/A"}</td>
                           <td>{client.company || "N/A"}</td>
+                          <td>
+                            {client.serviceCompany ? (
+                              <Badge
+                                bg={
+                                  client.serviceCompany === "We Alll"
+                                    ? "primary"
+                                    : "info"
+                                }
+                              >
+                                {client.serviceCompany}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted">Not Set</span>
+                            )}
+                          </td>
                           <td>{formatDate(client.createdAt)}</td>
                           <td>
                             <div className="btn-group" role="group">
@@ -259,7 +318,7 @@ const ClientList = () => {
                 <Form.Group className="mb-3">
                   <Form.Label>Phone</Form.Label>
                   <Form.Control
-                    type="tel"
+                    type="number"
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
@@ -267,6 +326,21 @@ const ClientList = () => {
                   />
                 </Form.Group>
               </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>WhatsApp</Form.Label>
+                  <Form.Control
+                    type="number"
+                    name="whatsappnumber"
+                    value={formData.whatsappnumber}
+                    onChange={handleChange}
+                    placeholder="Enter WhatsApp number"
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Company</Form.Label>
@@ -277,6 +351,39 @@ const ClientList = () => {
                     onChange={handleChange}
                     placeholder="Enter company name"
                   />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Owner Name</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="ownername"
+                    value={formData.ownername}
+                    onChange={handleChange}
+                    placeholder="Enter owner name"
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row>
+              <Col md={12}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Service Company *</Form.Label>
+                  <Form.Select
+                    name="serviceCompany"
+                    value={formData.serviceCompany}
+                    onChange={handleChange}
+                    required
+                  >
+                    <option value="">Select which company's services</option>
+                    <option value="We Alll">We Alll</option>
+                    <option value="Kolkata Digital">Kolkata Digital</option>
+                  </Form.Select>
+                  <Form.Text className="text-muted">
+                    Select which company's services this client will be using. Plans and services will be filtered based on this selection.
+                  </Form.Text>
                 </Form.Group>
               </Col>
             </Row>
@@ -290,6 +397,114 @@ const ClientList = () => {
                 value={formData.address}
                 onChange={handleChange}
                 placeholder="Enter full address"
+              />
+            </Form.Group>
+
+            <h5 className="mt-4 mb-3">Business Information</h5>
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Industry/Business Category</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="industry"
+                    value={formData.industry}
+                    onChange={handleChange}
+                    placeholder="Enter industry or business category"
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Website URL</Form.Label>
+                  <Form.Control
+                    type="url"
+                    name="website"
+                    value={formData.website}
+                    onChange={handleChange}
+                    placeholder="https://example.com"
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Target Audience</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="targetAudience"
+                    value={formData.targetAudience}
+                    onChange={handleChange}
+                    placeholder="Describe your target audience"
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Audience Gender</Form.Label>
+                  <Form.Select
+                    name="audienceGender"
+                    value={formData.audienceGender}
+                    onChange={handleChange}
+                  >
+                    <option value="">Select gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Both">Both</option>
+                    <option value="Other">Other</option>
+                    <option value="Not Applicable">Not Applicable</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Monthly Marketing Budget</Form.Label>
+              <Form.Control
+                type="number"
+                name="yearlyTurnover"
+                value={formData.yearlyTurnover}
+                onChange={handleChange}
+                placeholder="Enter yearly turnover"
+              />
+            </Form.Group>
+
+            <h5 className="mt-4 mb-3">Marketing Information</h5>
+            <Form.Group className="mb-3">
+              <Form.Label>Previous Challenges</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                name="previousChallenges"
+                value={formData.previousChallenges}
+                onChange={handleChange}
+                placeholder="What challenges have you faced with previous agencies or marketing efforts?"
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Legal Guidelines</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={2}
+                name="legalGuidelines"
+                value={formData.legalGuidelines}
+                onChange={handleChange}
+                placeholder="Any legal or regulatory guidelines we should be aware of?"
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Expectations</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                name="expectations"
+                value={formData.expectations}
+                onChange={handleChange}
+                placeholder="What do you expect from us?"
               />
             </Form.Group>
           </Modal.Body>

@@ -1,0 +1,49 @@
+.company-switcher {
+  display: inline-flex;
+  background-color: #f8f9fa;
+  border-radius: 25px;
+  padding: 4px;
+  gap: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.company-btn {
+  padding: 8px 20px;
+  border: none;
+  background-color: transparent;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6c757d;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.company-btn:hover {
+  color: #495057;
+}
+
+.company-btn.active {
+  background-color: #007bff;
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+}
+
+.company-btn:focus {
+  outline: none;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .company-switcher {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .company-btn {
+    flex: 1;
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}

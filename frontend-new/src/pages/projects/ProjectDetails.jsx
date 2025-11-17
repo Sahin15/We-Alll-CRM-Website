@@ -8,6 +8,8 @@ import {
   Badge,
   ListGroup,
   Table,
+  Form,
+  Modal,
 } from "react-bootstrap";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -20,12 +22,20 @@ import {
 import { toast } from "react-toastify";
 import { projectApi } from "../../api/projectApi";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
+import { useAuth } from "../../context/AuthContext";
 
 const ProjectDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [newStatus, setNewStatus] = useState("");
+  const [newProgress, setNewProgress] = useState(0);
+
+  // Check if user can edit (admin, superadmin, hod)
+  const canEdit = ["admin", "superadmin", "hod"].includes(user?.role);
 
   useEffect(() => {
     fetchProjectDetails();
@@ -36,7 +46,15 @@ const ProjectDetails = () => {
       const response = await projectApi.getProjectById(id);
       setProject(response.data);
     } catch (error) {
-      toast.error("Failed to fetch project details");
+      console.error("Project fetch error:", error);
+      if (error.response?.status === 403) {
+        toast.error(
+          "Access denied. You can only view projects you are assigned to."
+        );
+        navigate("/projects");
+      } else {
+        toast.error("Failed to fetch project details");
+      }
     } finally {
       setLoading(false);
     }
@@ -70,9 +88,37 @@ const ProjectDetails = () => {
   }
 
   const calculateProgress = () => {
+    if (project.progress) return project.progress;
     if (project.status === "Completed") return 100;
     if (project.status === "In Progress") return 50;
     return 0;
+  };
+
+  const handleShowStatusModal = () => {
+    setNewStatus(project.status);
+    setNewProgress(project.progress || calculateProgress());
+    setShowStatusModal(true);
+  };
+
+  const handleUpdateStatus = async (e) => {
+    e.preventDefault();
+    try {
+      // Use the specific progress update endpoint for better control
+      await projectApi.updateProjectProgress(id, newProgress);
+      // Also update the status if it changed
+      if (newStatus !== project.status) {
+        await projectApi.updateProject(id, { status: newStatus });
+      }
+      toast.success("Project status updated successfully");
+      setShowStatusModal(false);
+      fetchProjectDetails();
+    } catch (error) {
+      console.error("Update error:", error);
+      toast.error(
+        "Failed to update project status: " +
+          (error.response?.data?.message || error.message)
+      );
+    }
   };
 
   return (
@@ -91,10 +137,31 @@ const ProjectDetails = () => {
           <h2>Project Details</h2>
         </Col>
         <Col className="text-end">
-          <Button variant="primary" onClick={() => navigate("/projects")}>
-            <FaEdit className="me-2" />
-            Edit Project
-          </Button>
+          {canEdit && (
+            <>
+              <Button
+                variant="warning"
+                className="me-2"
+                onClick={handleShowStatusModal}
+              >
+                <FaEdit className="me-2" />
+                Update Status
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => navigate(`/projects/${id}/edit`)}
+              >
+                <FaEdit className="me-2" />
+                Edit Project
+              </Button>
+            </>
+          )}
+          {/* Show a view-only message for employees */}
+          {!canEdit && (
+            <Button variant="outline-secondary" disabled>
+              View Only
+            </Button>
+          )}
         </Col>
       </Row>
 
@@ -297,6 +364,69 @@ const ProjectDetails = () => {
           )}
         </Col>
       </Row>
+
+      {/* Update Status Modal */}
+      <Modal show={showStatusModal} onHide={() => setShowStatusModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Update Project Status</Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleUpdateStatus}>
+          <Modal.Body>
+            <Form.Group className="mb-3">
+              <Form.Label>Project Status</Form.Label>
+              <Form.Select
+                value={newStatus}
+                onChange={(e) => setNewStatus(e.target.value)}
+                required
+              >
+                <option value="Pending">Pending</option>
+                <option value="In Progress">In Progress</option>
+                <option value="On Hold">On Hold</option>
+                <option value="Completed">Completed</option>
+                <option value="Cancelled">Cancelled</option>
+              </Form.Select>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Progress ({newProgress}%)</Form.Label>
+              <Form.Range
+                min="0"
+                max="100"
+                value={newProgress}
+                onChange={(e) => setNewProgress(parseInt(e.target.value))}
+              />
+              <div className="d-flex justify-content-between">
+                <small className="text-muted">0%</small>
+                <small className="text-muted">100%</small>
+              </div>
+            </Form.Group>
+
+            <div className="progress" style={{ height: "25px" }}>
+              <div
+                className="progress-bar bg-primary"
+                role="progressbar"
+                style={{ width: `${newProgress}%` }}
+                aria-valuenow={newProgress}
+                aria-valuemin="0"
+                aria-valuemax="100"
+              >
+                {newProgress}%
+              </div>
+            </div>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button
+              variant="secondary"
+              onClick={() => setShowStatusModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit">
+              Update Status
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
     </Container>
   );
 };

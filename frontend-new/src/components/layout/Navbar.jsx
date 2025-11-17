@@ -3,14 +3,42 @@ import {
   Container,
   Nav,
   NavDropdown,
+  Image,
 } from "react-bootstrap";
-import { FaBars, FaBell, FaUserCircle } from "react-icons/fa";
+import { FaBars, FaUserCircle } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import CompanySwitcher from "../admin/CompanySwitcher";
+import NotificationBell from "../admin/NotificationBell";
 
 const Navbar = ({ toggleSidebar }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Check if user has permission to see company switcher
+  const canSwitchCompany =
+    user?.role === "admin" ||
+    user?.role === "superadmin" ||
+    user?.role === "accounts";
+
+  // Define billing-related routes where company switcher should appear
+  const BILLING_ROUTES = [
+    "/admin/billing",
+    "/admin/services",
+    "/admin/plans",
+    "/admin/subscriptions",
+    "/admin/invoices",
+    "/admin/payments",
+  ];
+
+  // Check if current page is a billing-related page
+  const isBillingPage = BILLING_ROUTES.some((route) =>
+    location.pathname.startsWith(route)
+  );
+
+  // Show company switcher only on billing pages for authorized users
+  const showCompanySwitcher = canSwitchCompany && isBillingPage;
 
   const handleLogout = () => {
     logout();
@@ -24,18 +52,35 @@ const Navbar = ({ toggleSidebar }) => {
           <FaBars size={20} />
         </button>
 
+        {/* Company Switcher - visible only on billing pages for authorized users */}
+        {showCompanySwitcher && (
+          <div className="mx-auto">
+            <CompanySwitcher />
+          </div>
+        )}
+
         <Nav className="ms-auto align-items-center">
-          <Nav.Link href="#notifications" className="position-relative me-3">
-            <FaBell size={20} />
-            <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-              3
-            </span>
-          </Nav.Link>
+          {/* Notification Bell */}
+          <div className="me-3">
+            <NotificationBell />
+          </div>
 
           <NavDropdown
             title={
-              <span>
-                <FaUserCircle size={24} className="me-2" />
+              <span className="d-flex align-items-center">
+                {user?.profilePicture ? (
+                  <Image
+                    src={user.profilePicture}
+                    alt={user.name}
+                    roundedCircle
+                    width={32}
+                    height={32}
+                    className="me-2"
+                    style={{ objectFit: "cover" }}
+                  />
+                ) : (
+                  <FaUserCircle size={24} className="me-2" />
+                )}
                 {user?.name || "User"}
               </span>
             }

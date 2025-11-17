@@ -9,6 +9,7 @@ import {
   FaUserTie,
   FaProjectDiagram,
   FaUser,
+  FaMoneyBillWave,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import "./Sidebar.css";
@@ -31,6 +32,60 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
         "client",
         "hod",
       ],
+    },
+    {
+      path: "/leads",
+      icon: <FaUserTie />,
+      label: "Leads",
+      roles: ["admin", "superadmin", "accounts"],
+    },
+    {
+      path: "/clients",
+      icon: <FaUserTie />,
+      label: "Clients",
+      roles: ["admin", "superadmin", "accounts"],
+    },
+    {
+      path: "/admin/billing",
+      icon: <FaMoneyBillWave />,
+      label: "Billing",
+      roles: ["admin", "superadmin", "accounts"],
+    },
+    {
+      path: "/admin/services",
+      icon: <FaMoneyBillWave />,
+      label: "Services",
+      roles: ["admin", "superadmin", "accounts"],
+    },
+    {
+      path: "/admin/plans",
+      icon: <FaMoneyBillWave />,
+      label: "Plans",
+      roles: ["admin", "superadmin", "accounts"],
+    },
+    {
+      path: "/admin/subscriptions",
+      icon: <FaMoneyBillWave />,
+      label: "Subscriptions",
+      roles: ["admin", "superadmin", "accounts"],
+    },
+    {
+      path: "/admin/invoices",
+      icon: <FaMoneyBillWave />,
+      label: "Invoices",
+      roles: ["admin", "superadmin", "accounts"],
+    },
+    {
+      path: "/admin/payments",
+      icon: <FaMoneyBillWave />,
+      label: "Payments",
+      roles: ["admin", "superadmin", "accounts"],
+    },
+    {
+      path: "/projects",
+      icon: <FaProjectDiagram />,
+      label: "Projects",
+      roles: ["admin", "superadmin", "employee", "hod"],
     },
     {
       path: "/users",
@@ -67,18 +122,6 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       icon: <FaClock />,
       label: "Attendance Tracking",
       roles: ["admin", "superadmin", "hr", "hod"],
-    },
-    {
-      path: "/clients",
-      icon: <FaUserTie />,
-      label: "Clients",
-      roles: ["admin", "superadmin"],
-    },
-    {
-      path: "/projects",
-      icon: <FaProjectDiagram />,
-      label: "Projects",
-      roles: ["admin", "superadmin", "employee", "hod"],
     },
     {
       path: "/profile",

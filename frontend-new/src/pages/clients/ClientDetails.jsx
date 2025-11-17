@@ -20,6 +20,7 @@ import {
 import { toast } from "react-toastify";
 import { clientApi } from "../../api/clientApi";
 import { projectApi } from "../../api/projectApi";
+import { subscriptionAPI } from "../../services/api";
 import { formatDate } from "../../utils/helpers";
 
 const ClientDetails = () => {
@@ -27,11 +28,13 @@ const ClientDetails = () => {
   const navigate = useNavigate();
   const [client, setClient] = useState(null);
   const [projects, setProjects] = useState([]);
+  const [subscriptions, setSubscriptions] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchClientDetails();
     fetchClientProjects();
+    fetchClientSubscriptions();
   }, [id]);
 
   const fetchClientDetails = async () => {
@@ -55,6 +58,15 @@ const ClientDetails = () => {
       setProjects(clientProjects);
     } catch (error) {
       console.error("Failed to fetch projects:", error);
+    }
+  };
+
+  const fetchClientSubscriptions = async () => {
+    try {
+      const response = await subscriptionAPI.getAll({ client: id });
+      setSubscriptions(response.data || []);
+    } catch (error) {
+      console.error("Failed to fetch subscriptions:", error);
     }
   };
 
@@ -110,7 +122,7 @@ const ClientDetails = () => {
 
       <Row className="g-4">
         <Col lg={4}>
-          <Card className="shadow-sm">
+          <Card className="shadow-sm h-100">
             <Card.Header className="bg-primary text-white">
               <h5 className="mb-0">Client Information</h5>
             </Card.Header>
@@ -136,6 +148,16 @@ const ClientDetails = () => {
                     <a href={`tel:${client.phone}`}>{client.phone}</a>
                   </ListGroup.Item>
                 )}
+                {client.whatsappnumber && (
+                  <ListGroup.Item className="px-0">
+                    <FaPhone className="me-2 text-primary" />
+                    <strong>WhatsApp:</strong>
+                    <br />
+                    <a href={`tel:${client.whatsappnumber}`}>
+                      {client.whatsappnumber}
+                    </a>
+                  </ListGroup.Item>
+                )}
 
                 {client.company && (
                   <ListGroup.Item className="px-0">
@@ -143,6 +165,15 @@ const ClientDetails = () => {
                     <strong>Company:</strong>
                     <br />
                     {client.company}
+                  </ListGroup.Item>
+                )}
+
+                {client.ownername && (
+                  <ListGroup.Item className="px-0">
+                    <FaBuilding className="me-2 text-primary" />
+                    <strong>Owner Name:</strong>
+                    <br />
+                    {client.ownername}
                   </ListGroup.Item>
                 )}
 
@@ -172,6 +203,239 @@ const ClientDetails = () => {
         </Col>
 
         <Col lg={8}>
+          <Row className="g-4">
+            <Col lg={12}>
+              <Card className="shadow-sm">
+                <Card.Header className="bg-info text-white">
+                  <h5 className="mb-0">Business Information</h5>
+                </Card.Header>
+                <Card.Body>
+                  <ListGroup variant="flush">
+                    {client.industry ? (
+                      <ListGroup.Item className="px-0">
+                        <strong>Industry:</strong>
+                        <br />
+                        {client.industry}
+                      </ListGroup.Item>
+                    ) : (
+                      <ListGroup.Item className="px-0">
+                        <strong>Industry:</strong>
+                        <br />
+                        <span className="text-muted">Not provided</span>
+                      </ListGroup.Item>
+                    )}
+
+                    {client.website ? (
+                      <ListGroup.Item className="px-0">
+                        <strong>Website:</strong>
+                        <br />
+                        <a
+                          href={client.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {client.website}
+                        </a>
+                      </ListGroup.Item>
+                    ) : (
+                      <ListGroup.Item className="px-0">
+                        <strong>Website:</strong>
+                        <br />
+                        <span className="text-muted">Not provided</span>
+                      </ListGroup.Item>
+                    )}
+
+                    {client.yearlyTurnover ? (
+                      <ListGroup.Item className="px-0">
+                        <strong>Yearly Turnover:</strong>
+                        <br />₹{" "}
+                        {client.yearlyTurnover.toLocaleString("en-IN")}
+                      </ListGroup.Item>
+                    ) : (
+                      <ListGroup.Item className="px-0">
+                        <strong>Yearly Turnover:</strong>
+                        <br />
+                        <span className="text-muted">Not provided</span>
+                      </ListGroup.Item>
+                    )}
+                  </ListGroup>
+                </Card.Body>
+              </Card>
+            </Col>
+
+            <Col lg={12}>
+              <Card className="shadow-sm">
+                <Card.Header className="bg-success text-white">
+                  <h5 className="mb-0">Marketing Information</h5>
+                </Card.Header>
+                <Card.Body>
+                  <ListGroup variant="flush">
+                    {client.targetAudience ? (
+                      <ListGroup.Item className="px-0">
+                        <strong>Target Audience:</strong>
+                        <br />
+                        {client.targetAudience}
+                      </ListGroup.Item>
+                    ) : (
+                      <ListGroup.Item className="px-0">
+                        <strong>Target Audience:</strong>
+                        <br />
+                        <span className="text-muted">Not provided</span>
+                      </ListGroup.Item>
+                    )}
+
+                    {client.audienceGender ? (
+                      <ListGroup.Item className="px-0">
+                        <strong>Audience Gender:</strong>
+                        <br />
+                        <Badge bg="secondary">{client.audienceGender}</Badge>
+                      </ListGroup.Item>
+                    ) : (
+                      <ListGroup.Item className="px-0">
+                        <strong>Audience Gender:</strong>
+                        <br />
+                        <span className="text-muted">Not provided</span>
+                      </ListGroup.Item>
+                    )}
+
+                    {client.previousChallenges ? (
+                      <ListGroup.Item className="px-0">
+                        <strong>Previous Challenges:</strong>
+                        <br />
+                        <small>{client.previousChallenges}</small>
+                      </ListGroup.Item>
+                    ) : (
+                      <ListGroup.Item className="px-0">
+                        <strong>Previous Challenges:</strong>
+                        <br />
+                        <span className="text-muted">Not provided</span>
+                      </ListGroup.Item>
+                    )}
+
+                    {client.legalGuidelines ? (
+                      <ListGroup.Item className="px-0">
+                        <strong>Legal Guidelines:</strong>
+                        <br />
+                        <small>{client.legalGuidelines}</small>
+                      </ListGroup.Item>
+                    ) : (
+                      <ListGroup.Item className="px-0">
+                        <strong>Legal Guidelines:</strong>
+                        <br />
+                        <span className="text-muted">Not provided</span>
+                      </ListGroup.Item>
+                    )}
+
+                    {client.expectations ? (
+                      <ListGroup.Item className="px-0">
+                        <strong>Expectations:</strong>
+                        <br />
+                        <small>{client.expectations}</small>
+                      </ListGroup.Item>
+                    ) : (
+                      <ListGroup.Item className="px-0">
+                        <strong>Expectations:</strong>
+                        <br />
+                        <span className="text-muted">Not provided</span>
+                      </ListGroup.Item>
+                    )}
+                  </ListGroup>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+        </Col>
+      </Row>
+
+      <Row className="g-4 mt-2">
+        <Col lg={12}>
+          <Card className="shadow-sm">
+            <Card.Header className="bg-warning text-dark">
+              <h5 className="mb-0">Company Services & Subscriptions</h5>
+            </Card.Header>
+            <Card.Body>
+              {subscriptions.length > 0 ? (
+                <ListGroup variant="flush">
+                  {subscriptions.map((subscription) => (
+                    <ListGroup.Item
+                      key={subscription._id}
+                      className="d-flex justify-content-between align-items-start"
+                    >
+                      <div className="flex-grow-1">
+                        <div className="d-flex align-items-center gap-2 mb-2">
+                          <Badge
+                            bg={
+                              subscription.company === "We Alll"
+                                ? "primary"
+                                : "info"
+                            }
+                            className="px-3 py-2"
+                          >
+                            {subscription.company}
+                          </Badge>
+                          <Badge
+                            bg={
+                              subscription.status === "active"
+                                ? "success"
+                                : subscription.status === "pending"
+                                ? "warning"
+                                : subscription.status === "suspended"
+                                ? "danger"
+                                : "secondary"
+                            }
+                          >
+                            {subscription.status}
+                          </Badge>
+                        </div>
+                        <h6 className="mb-1">
+                          {subscription.planSnapshot?.name || "Plan"}
+                        </h6>
+                        <small className="text-muted">
+                          Subscription #{subscription.subscriptionNumber}
+                        </small>
+                        <br />
+                        <small className="text-muted">
+                          Billing: {subscription.billingCycle} | Amount: ₹
+                          {subscription.totalAmount?.toLocaleString("en-IN")}
+                        </small>
+                        <br />
+                        <small className="text-muted">
+                          Started: {formatDate(subscription.startDate)}
+                          {subscription.nextBillingDate && (
+                            <> | Next Billing: {formatDate(subscription.nextBillingDate)}</>
+                          )}
+                        </small>
+                      </div>
+                      <div className="d-flex flex-column gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline-primary"
+                          onClick={() =>
+                            navigate(`/admin/subscriptions/${subscription._id}`)
+                          }
+                        >
+                          View Details
+                        </Button>
+                      </div>
+                    </ListGroup.Item>
+                  ))}
+                </ListGroup>
+              ) : (
+                <div className="text-center py-5 text-muted">
+                  <p>No active subscriptions found for this client</p>
+                  <small>
+                    This client has not subscribed to any services from We Alll
+                    or Kolkata Digital yet.
+                  </small>
+                </div>
+              )}
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      <Row className="g-4 mt-2">
+        <Col lg={12}>
           <Card className="shadow-sm">
             <Card.Header className="bg-white">
               <h5 className="mb-0">Projects ({projects.length})</h5>

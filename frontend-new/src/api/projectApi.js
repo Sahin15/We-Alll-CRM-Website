@@ -6,6 +6,9 @@ export const projectApi = {
   getMyProjects: () => api.get("/projects/my-projects"),
   getProjectById: (id) => api.get(`/projects/${id}`),
   createProject: (data) => api.post("/projects", data),
+  updateProject: (id, data) => api.put(`/projects/${id}`, data),
+  updateProjectProgress: (id, progress) =>
+    api.put(`/projects/${id}/progress`, { progress }),
   updateProjectStatus: (id, status) =>
     api.put(`/projects/${id}/status`, { status }),
   assignUserToProject: (projectId, userId) =>

@@ -1,0 +1,28 @@
+# Backend
+backend/node_modules
+backend/.env
+backend/.env.*
+backend/logs
+backend/uploads
+backend/dist
+backend/.git
+
+# Frontend
+frontend-new/node_modules
+frontend-new/.env
+frontend-new/.env.*
+frontend-new/dist
+frontend-new/build
+frontend-new/.git
+
+# General
+.git
+.gitignore
+*.md
+.DS_Store
+.vscode
+.idea
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

@@ -1,0 +1,103 @@
+.image-upload-container {
+  width: 100%;
+}
+
+.upload-area {
+  border: 2px dashed #dee2e6;
+  border-radius: 8px;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: #f8f9fa;
+  min-height: 250px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.upload-area:hover {
+  border-color: #0d6efd;
+  background-color: #e7f1ff;
+}
+
+.upload-area.drag-active {
+  border-color: #0d6efd;
+  background-color: #e7f1ff;
+  border-style: solid;
+}
+
+.upload-prompt h5 {
+  margin-bottom: 10px;
+  color: #212529;
+}
+
+.upload-prompt p {
+  margin-bottom: 5px;
+}
+
+.upload-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-container {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.preview-image-wrapper {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.preview-image {
+  max-width: 100%;
+  max-height: 400px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.upload-success-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: white;
+  padding: 8px 12px;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.preview-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .upload-area {
+    padding: 30px 15px;
+    min-height: 200px;
+  }
+
+  .preview-image {
+    max-height: 300px;
+  }
+
+  .preview-actions {
+    flex-direction: column;
+  }
+
+  .preview-actions button {
+    width: 100%;
+  }
+}
