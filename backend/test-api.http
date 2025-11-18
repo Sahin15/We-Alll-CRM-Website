@@ -1,0 +1,182 @@
+### CRM Backend API Testing
+
+### Variables
+@baseUrl = http://localhost:5000/api
+@token = YOUR_TOKEN_HERE
+
+### 1. Register a new user
+POST {{baseUrl}}/users/register
+Content-Type: application/json
+
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "password123",
+  "role": "employee",
+  "phone": "+1234567890",
+  "position": "Software Developer"
+}
+
+### 2. Login
+POST {{baseUrl}}/users/login
+Content-Type: application/json
+
+{
+  "email": "john@example.com",
+  "password": "password123"
+}
+
+### 3. Get all users (requires authentication)
+GET {{baseUrl}}/users
+Authorization: Bearer {{token}}
+
+### 4. Get user profile
+GET {{baseUrl}}/users/me
+Authorization: Bearer {{token}}
+
+### 5. Update user profile
+PUT {{baseUrl}}/users/profile
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "phone": "+9876543210",
+  "address": {
+    "street": "123 Main St",
+    "city": "New York",
+    "state": "NY",
+    "zipCode": "10001",
+    "country": "USA"
+  }
+}
+
+### 6. Request password reset
+POST {{baseUrl}}/users/request-password-reset
+Content-Type: application/json
+
+{
+  "email": "john@example.com"
+}
+
+### 7. Reset password (use token from step 6)
+POST {{baseUrl}}/users/reset-password/YOUR_RESET_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "password": "newpassword123"
+}
+
+### 8. Change password (authenticated)
+PUT {{baseUrl}}/users/change-password
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "currentPassword": "password123",
+  "newPassword": "newpassword456"
+}
+
+### 9. Create Department
+POST {{baseUrl}}/departments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Engineering",
+  "description": "Software Development Team"
+}
+
+### 10. Get all departments
+GET {{baseUrl}}/departments
+Authorization: Bearer {{token}}
+
+### 11. Create Client
+POST {{baseUrl}}/clients
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Acme Corp",
+  "email": "contact@acme.com",
+  "phone": "+1234567890",
+  "company": "Acme Corporation",
+  "address": "123 Business Ave"
+}
+
+### 12. Get all clients
+GET {{baseUrl}}/clients
+Authorization: Bearer {{token}}
+
+### 13. Create Project
+POST {{baseUrl}}/projects
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Website Redesign",
+  "client": "CLIENT_ID_HERE",
+  "description": "Complete website redesign project",
+  "endDate": "2025-12-31"
+}
+
+### 14. Get all projects
+GET {{baseUrl}}/projects
+Authorization: Bearer {{token}}
+
+### 15. Create Leave Request
+POST {{baseUrl}}/leaves
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "leaveType": "vacation",
+  "startDate": "2025-11-15",
+  "endDate": "2025-11-20",
+  "reason": "Family vacation"
+}
+
+### 16. Get my leave requests
+GET {{baseUrl}}/leaves/my-leaves
+Authorization: Bearer {{token}}
+
+### 17. Get all leave requests (HR/Admin)
+GET {{baseUrl}}/leaves
+Authorization: Bearer {{token}}
+
+### 18. Approve leave request (HR/Admin)
+PUT {{baseUrl}}/leaves/LEAVE_REQUEST_ID/approve
+Authorization: Bearer {{token}}
+
+### 19. Clock In
+POST {{baseUrl}}/attendance/clock-in
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "location": {
+    "latitude": 40.7128,
+    "longitude": -74.0060,
+    "address": "New York, NY"
+  }
+}
+
+### 20. Clock Out
+POST {{baseUrl}}/attendance/clock-out
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "notes": "Completed daily tasks"
+}
+
+### 21. Get my attendance
+GET {{baseUrl}}/attendance/my-attendance
+Authorization: Bearer {{token}}
+
+### 22. Get all attendance (HR/Admin)
+GET {{baseUrl}}/attendance
+Authorization: Bearer {{token}}
+
+### 23. Get attendance summary
+GET {{baseUrl}}/attendance/summary/EMPLOYEE_ID?month=11&year=2025
+Authorization: Bearer {{token}}

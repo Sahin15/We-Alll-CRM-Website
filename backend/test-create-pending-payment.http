@@ -1,0 +1,59 @@
+### Test Payment Verification Feature
+### This file helps you create test pending payments
+
+### Step 1: Login as admin to get token
+POST http://localhost:5000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "admin123"
+}
+
+### Step 2: Get list of clients (copy a client ID)
+GET http://localhost:5000/api/clients
+Authorization: Bearer YOUR_TOKEN_HERE
+
+### Step 3: Get list of subscriptions (copy a subscription ID)
+GET http://localhost:5000/api/subscriptions
+Authorization: Bearer YOUR_TOKEN_HERE
+
+### Step 4: Submit a payment for verification (as admin or client)
+### Replace CLIENT_ID and SUBSCRIPTION_ID with actual IDs from steps 2 and 3
+POST http://localhost:5000/api/payments/submit-verification
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "subscriptionId": "SUBSCRIPTION_ID_HERE",
+  "amount": 5000,
+  "paymentMethod": "upi",
+  "upiDetails": {
+    "upiId": "test@paytm",
+    "transactionId": "TXN123456789"
+  },
+  "paymentProof": "https://via.placeholder.com/600x400?text=Payment+Proof",
+  "notes": "Payment made via UPI. Please verify."
+}
+
+### Step 5: View pending payments
+GET http://localhost:5000/api/payments/pending-verification
+Authorization: Bearer YOUR_TOKEN_HERE
+
+### Step 6: Verify a payment (replace PAYMENT_ID)
+PUT http://localhost:5000/api/payments/PAYMENT_ID_HERE/verify
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "adminNotes": "Payment verified successfully. All details match."
+}
+
+### Step 7: Reject a payment (replace PAYMENT_ID)
+PUT http://localhost:5000/api/payments/PAYMENT_ID_HERE/reject
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "rejectionReason": "Payment proof is unclear. Please resubmit with clear screenshot."
+}

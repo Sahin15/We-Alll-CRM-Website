@@ -1,0 +1,408 @@
+### Refined Billing System - API Testing
+### Phase 1: Core Backend Testing
+
+@baseUrl = http://localhost:5000/api
+@token = YOUR_AUTH_TOKEN_HERE
+
+###############################################
+# 1. SERVICE MANAGEMENT
+###############################################
+
+### Create Service - SEO Optimization (We Alll)
+POST {{baseUrl}}/services
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "SEO Optimization",
+  "company": "We Alll",
+  "category": "SEO",
+  "description": "Complete SEO optimization for your website",
+  "basePrice": 5000,
+  "allowedBillingCycles": ["monthly", "quarterly", "yearly"],
+  "features": [
+    "Keyword Research",
+    "On-page Optimization",
+    "Technical SEO",
+    "Monthly Reports"
+  ],
+  "specifications": {
+    "deliveryTime": "Ongoing",
+    "revisions": 0,
+    "supportType": "Email & Phone",
+    "teamSize": "1 dedicated SEO specialist"
+  },
+  "tags": ["seo", "optimization", "ranking"],
+  "isPopular": true,
+  "displayOrder": 1
+}
+
+### Create Service - Social Media Management (We Alll)
+POST {{baseUrl}}/services
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "Social Media Management",
+  "company": "We Alll",
+  "category": "Social Media",
+  "description": "Complete social media management across platforms",
+  "basePrice": 4000,
+  "allowedBillingCycles": ["monthly", "quarterly"],
+  "features": [
+    "Content Creation",
+    "Post Scheduling",
+    "Community Management",
+    "Analytics Reports"
+  ],
+  "specifications": {
+    "deliveryTime": "Daily",
+    "revisions": 2,
+    "supportType": "24/7 Support",
+    "teamSize": "Team of 2"
+  },
+  "tags": ["social", "media", "marketing"],
+  "isPopular": true,
+  "displayOrder": 2
+}
+
+### Create Service - Google Ads Management (We Alll)
+POST {{baseUrl}}/services
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "Google Ads Management",
+  "company": "We Alll",
+  "category": "PPC",
+  "description": "Professional Google Ads campaign management",
+  "basePrice": 8000,
+  "allowedBillingCycles": ["monthly"],
+  "features": [
+    "Campaign Setup",
+    "Keyword Optimization",
+    "A/B Testing",
+    "Performance Reports"
+  ],
+  "specifications": {
+    "deliveryTime": "Ongoing",
+    "revisions": 0,
+    "supportType": "Email & Phone",
+    "teamSize": "1 PPC specialist"
+  },
+  "tags": ["ppc", "google-ads", "advertising"],
+  "displayOrder": 3
+}
+
+### Get All Services
+GET {{baseUrl}}/services
+
+### Get Services by Company
+GET {{baseUrl}}/services?company=We Alll
+
+### Get Services by Category
+GET {{baseUrl}}/services/by-category?company=We Alll
+
+### Get Service Categories
+GET {{baseUrl}}/services/categories?company=We Alll
+
+### Get Single Service
+GET {{baseUrl}}/services/SERVICE_ID_HERE
+
+### Update Service
+PUT {{baseUrl}}/services/SERVICE_ID_HERE
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "basePrice": 5500,
+  "isPopular": false
+}
+
+### Toggle Service Status
+PATCH {{baseUrl}}/services/SERVICE_ID_HERE/toggle-status
+Authorization: Bearer {{token}}
+
+### Delete Service
+DELETE {{baseUrl}}/services/SERVICE_ID_HERE
+Authorization: Bearer {{token}}
+
+###############################################
+# 2. PLAN MANAGEMENT (Service-Based)
+###############################################
+
+### Create Plan - Starter Package (We Alll)
+POST {{baseUrl}}/plans
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "Starter Package",
+  "company": "We Alll",
+  "description": "Perfect for small businesses starting their digital journey",
+  "serviceIds": [
+    "SERVICE_ID_SEO",
+    "SERVICE_ID_SOCIAL_MEDIA"
+  ],
+  "customPrices": {},
+  "additionalFeatures": [
+    "Monthly Strategy Call",
+    "Priority Support"
+  ],
+  "planType": "basic",
+  "discount": 500,
+  "discountType": "fixed",
+  "displayOrder": 1
+}
+
+### Create Plan - Premium Package (We Alll)
+POST {{baseUrl}}/plans
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "Premium Package",
+  "company": "We Alll",
+  "description": "Complete digital marketing solution",
+  "serviceIds": [
+    "SERVICE_ID_SEO",
+    "SERVICE_ID_SOCIAL_MEDIA",
+    "SERVICE_ID_GOOGLE_ADS"
+  ],
+  "customPrices": {
+    "SERVICE_ID_SEO": 4500
+  },
+  "overridePrice": 15000,
+  "additionalFeatures": [
+    "Weekly Strategy Calls",
+    "Dedicated Account Manager",
+    "Priority Support",
+    "Custom Reports"
+  ],
+  "planType": "premium",
+  "isPopular": true,
+  "displayOrder": 2
+}
+
+### Get All Plans
+GET {{baseUrl}}/plans
+
+### Get Plans by Company
+GET {{baseUrl}}/plans?company=We Alll
+
+### Get Plans for Comparison (Client View)
+GET {{baseUrl}}/plans/comparison?company=We Alll
+
+### Get Single Plan
+GET {{baseUrl}}/plans/PLAN_ID_HERE
+
+### Update Plan
+PUT {{baseUrl}}/plans/PLAN_ID_HERE
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "Starter Package - Updated",
+  "discount": 1000,
+  "isPopular": true
+}
+
+### Add Service to Plan
+POST {{baseUrl}}/plans/PLAN_ID_HERE/services
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "serviceId": "SERVICE_ID_HERE",
+  "customPrice": 3500
+}
+
+### Remove Service from Plan
+DELETE {{baseUrl}}/plans/PLAN_ID_HERE/services/SERVICE_ID_HERE
+Authorization: Bearer {{token}}
+
+### Update Service Price in Plan
+PATCH {{baseUrl}}/plans/PLAN_ID_HERE/services/SERVICE_ID_HERE/price
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "customPrice": 4000
+}
+
+### Toggle Plan Status
+PUT {{baseUrl}}/plans/PLAN_ID_HERE/toggle-status
+Authorization: Bearer {{token}}
+
+### Delete Plan
+DELETE {{baseUrl}}/plans/PLAN_ID_HERE
+Authorization: Bearer {{token}}
+
+###############################################
+# 3. NOTIFICATIONS
+###############################################
+
+### Create Notification
+POST {{baseUrl}}/notifications
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "recipient": "CLIENT_USER_ID",
+  "recipientType": "client",
+  "type": "payment_due",
+  "title": "Payment Due Reminder",
+  "message": "Your payment of ₹20,060 is due on January 15, 2025",
+  "data": {
+    "invoiceId": "INVOICE_ID_HERE",
+    "amount": 20060,
+    "dueDate": "2025-01-15",
+    "company": "We Alll"
+  },
+  "priority": "high",
+  "channels": {
+    "inApp": true,
+    "email": true
+  }
+}
+
+### Get User Notifications
+GET {{baseUrl}}/notifications
+Authorization: Bearer {{token}}
+
+### Get Unread Notifications
+GET {{baseUrl}}/notifications?isRead=false
+Authorization: Bearer {{token}}
+
+### Get Unread Count
+GET {{baseUrl}}/notifications/unread-count
+Authorization: Bearer {{token}}
+
+### Mark Notification as Read
+PATCH {{baseUrl}}/notifications/NOTIFICATION_ID_HERE/read
+Authorization: Bearer {{token}}
+
+### Mark All as Read
+PATCH {{baseUrl}}/notifications/read-all
+Authorization: Bearer {{token}}
+
+### Delete Notification
+DELETE {{baseUrl}}/notifications/NOTIFICATION_ID_HERE
+Authorization: Bearer {{token}}
+
+###############################################
+# 4. COMPLETE WORKFLOW TEST
+###############################################
+
+### Step 1: Create Services for "We Alll"
+# Run the service creation requests above
+
+### Step 2: Create Plans from Services
+# Run the plan creation requests above
+
+### Step 3: View Plans for Client
+GET {{baseUrl}}/plans/comparison?company=We Alll
+
+### Step 4: Client Selects Plan and Creates Subscription
+# (This will be in subscription controller - already exists)
+
+### Step 5: Admin Creates Invoice
+# (This will be in invoice controller - already exists)
+
+### Step 6: Client Submits Payment
+# (This will be in payment controller - already exists)
+
+### Step 7: Admin Verifies Payment
+# (This will be in payment controller - already exists)
+
+###############################################
+# 5. KOLKATA DIGITAL COMPANY
+###############################################
+
+### Create Service - Web Development (Kolkata Digital)
+POST {{baseUrl}}/services
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "Custom Web Development",
+  "company": "Kolkata Digital",
+  "category": "Web Development",
+  "description": "Custom website development with modern technologies",
+  "basePrice": 50000,
+  "allowedBillingCycles": ["one-time"],
+  "features": [
+    "Custom Design",
+    "Responsive Layout",
+    "CMS Integration",
+    "SEO Optimized",
+    "3 Months Support"
+  ],
+  "specifications": {
+    "deliveryTime": "30-45 days",
+    "revisions": 3,
+    "supportType": "Email & Phone",
+    "teamSize": "Team of 3"
+  },
+  "tags": ["web", "development", "website"],
+  "isPopular": true,
+  "displayOrder": 1
+}
+
+### Get Kolkata Digital Services
+GET {{baseUrl}}/services?company=Kolkata Digital
+
+### Create Plan for Kolkata Digital
+POST {{baseUrl}}/plans
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "Website Development Package",
+  "company": "Kolkata Digital",
+  "description": "Complete website development with ongoing support",
+  "serviceIds": [
+    "SERVICE_ID_WEB_DEV"
+  ],
+  "additionalFeatures": [
+    "Free Domain for 1 Year",
+    "Free SSL Certificate",
+    "Google Analytics Setup"
+  ],
+  "planType": "standard",
+  "displayOrder": 1
+}
+
+###############################################
+# NOTES
+###############################################
+
+# 1. Replace placeholders:
+#    - YOUR_AUTH_TOKEN_HERE
+#    - SERVICE_ID_HERE
+#    - PLAN_ID_HERE
+#    - CLIENT_USER_ID
+#    - INVOICE_ID_HERE
+#    - NOTIFICATION_ID_HERE
+
+# 2. Test sequence:
+#    a. Create services for both companies
+#    b. Create plans from services
+#    c. Test plan modifications
+#    d. Test notifications
+#    e. Verify company filtering
+
+# 3. Validation checks:
+#    - Auto price calculation
+#    - Billing cycle intersection
+#    - Service deletion prevention
+#    - Plan deletion prevention
+#    - Company isolation
+
+# 4. Expected behaviors:
+#    - Plans auto-calculate price from services
+#    - Override price takes precedence
+#    - Custom service prices override base prices
+#    - Billing cycles are intersection of all services
+#    - Cannot delete service used in plans
+#    - Cannot delete plan used in subscriptions
