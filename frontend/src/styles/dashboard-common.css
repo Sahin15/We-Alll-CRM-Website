@@ -1,0 +1,236 @@
+/* Common Dashboard Styles - Hover Effects and Animations */
+
+/* Card hover effects */
+.dashboard-card,
+.stat-card,
+.shadow-sm {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Subtle top accent line on hover */
+.dashboard-card::before,
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+  border-radius: 0.375rem 0.375rem 0 0;
+}
+
+.dashboard-card:hover::before,
+.stat-card:hover::before {
+  transform: scaleX(1);
+}
+
+/* Hover effect - lift and shadow */
+.dashboard-card:hover,
+.stat-card:hover,
+.shadow-sm:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Icon hover effects with color-specific shadows */
+.stat-card .bg-success,
+.stat-card .bg-info,
+.stat-card .bg-warning,
+.stat-card .bg-primary,
+.stat-card .bg-danger {
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover .bg-success {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(25, 135, 84, 0.2);
+}
+
+.stat-card:hover .bg-info {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(13, 202, 240, 0.2);
+}
+
+.stat-card:hover .bg-warning {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(255, 193, 7, 0.2);
+}
+
+.stat-card:hover .bg-primary {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(13, 110, 253, 0.2);
+}
+
+.stat-card:hover .bg-danger {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.2);
+}
+
+/* List items hover effect */
+.list-group-item {
+  transition: all 0.2s ease;
+}
+
+.list-group-item:hover {
+  background-color: rgba(102, 126, 234, 0.04);
+  transform: translateX(4px);
+}
+
+/* Button hover effects */
+.btn {
+  transition: all 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Badge hover effects */
+.badge {
+  transition: all 0.2s ease;
+}
+
+.badge:hover {
+  transform: scale(1.05);
+}
+
+/* Icon scale on card hover */
+.dashboard-card .fs-4,
+.stat-card .fs-4 {
+  transition: all 0.3s ease;
+}
+
+.dashboard-card:hover .fs-4,
+.stat-card:hover .fs-4 {
+  transform: scale(1.08);
+}
+
+/* Clickable card cursor */
+.cursor-pointer {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.cursor-pointer:hover {
+  transform: translateY(-6px) !important;
+  box-shadow: 0 12px 24px rgba(13, 202, 240, 0.25) !important;
+}
+
+/* Table row hover */
+.table-hover tbody tr {
+  transition: all 0.2s ease;
+}
+
+.table-hover tbody tr:hover {
+  background-color: rgba(102, 126, 234, 0.04);
+  transform: scale(1.01);
+}
+
+/* Card body hover for clickable cards */
+.card[style*="cursor: pointer"]:hover,
+.card[style*="cursor:pointer"]:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Smooth transitions for all interactive elements */
+a, button, .btn, .badge, .card {
+  transition: all 0.2s ease;
+}
+
+/* Quick Stats Widget Styles */
+.quick-stats-widget {
+  position: relative;
+  overflow: hidden;
+}
+
+.quick-stats-widget::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100px;
+  height: 100px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  transform: translate(30%, -30%);
+  transition: all 0.3s ease;
+}
+
+.quick-stats-widget:hover::after {
+  transform: translate(20%, -20%) scale(1.2);
+}
+
+/* Quick stats value animation */
+.quick-stats-widget h4 {
+  transition: all 0.3s ease;
+}
+
+.quick-stats-widget:hover h4 {
+  transform: scale(1.05);
+  color: inherit;
+}
+
+/* Trend badge animation */
+.quick-stats-widget .badge {
+  transition: all 0.3s ease;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.quick-stats-widget:hover .badge {
+  animation: none;
+  transform: scale(1.1);
+}
+
+/* Icon container glow effect */
+.quick-stats-widget .bg-opacity-10 {
+  transition: all 0.3s ease;
+}
+
+.quick-stats-widget:hover .bg-success.bg-opacity-10 {
+  box-shadow: 0 0 15px rgba(25, 135, 84, 0.3);
+}
+
+.quick-stats-widget:hover .bg-primary.bg-opacity-10 {
+  box-shadow: 0 0 15px rgba(13, 110, 253, 0.3);
+}
+
+.quick-stats-widget:hover .bg-warning.bg-opacity-10 {
+  box-shadow: 0 0 15px rgba(255, 193, 7, 0.3);
+}
+
+.quick-stats-widget:hover .bg-info.bg-opacity-10 {
+  box-shadow: 0 0 15px rgba(13, 202, 240, 0.3);
+}
+
+.quick-stats-widget:hover .bg-danger.bg-opacity-10 {
+  box-shadow: 0 0 15px rgba(220, 53, 69, 0.3);
+}
+
+/* Compact widget spacing */
+.quick-stats-widget .card-body {
+  padding: 1rem !important;
+}
+
+/* Responsive font sizes for widgets */
+@media (max-width: 768px) {
+  .quick-stats-widget h4 {
+    font-size: 1.5rem;
+  }
+  
+  .quick-stats-widget small {
+    font-size: 0.65rem;
+  }
+}

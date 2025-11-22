@@ -89,7 +89,7 @@ npm run dev
 
 ### 3. Setup Frontend
 ```bash
-cd frontend-new
+cd frontend
 npm install
 # Edit .env with API URL
 npm run dev
@@ -141,7 +141,7 @@ cd crm-website
 
 # Configure environment
 nano backend/.env.production
-nano frontend-new/.env.production
+nano frontend/.env.production
 
 # Start with Docker
 docker-compose up -d --build
@@ -167,7 +167,7 @@ crm-website/
 │   ├── Dockerfile          # Docker config
 │   └── package.json
 │
-├── frontend-new/           # React frontend
+├── frontend/               # React frontend
 │   ├── src/
 │   │   ├── components/     # React components
 │   │   ├── pages/          # Page components
@@ -282,7 +282,7 @@ cd backend
 npm test
 
 # Frontend tests (coming soon)
-cd frontend-new
+cd frontend
 npm test
 ```
 

@@ -1,0 +1,129 @@
+### Document Management API Tests
+### Make sure to replace USER_ID and TOKEN with actual values
+
+@baseUrl = http://localhost:5000/api
+@token = YOUR_JWT_TOKEN_HERE
+@userId = USER_ID_HERE
+
+### 1. Health Check
+GET {{baseUrl}}/health
+
+### 2. Upload Offer Letter
+POST {{baseUrl}}/users/{{userId}}/documents/upload
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="offer_letter.pdf"
+Content-Type: application/pdf
+
+< ./test-files/offer_letter.pdf
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="documentType"
+
+offerLetter
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 3. Upload Agreement
+POST {{baseUrl}}/users/{{userId}}/documents/upload
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="agreement.pdf"
+Content-Type: application/pdf
+
+< ./test-files/agreement.pdf
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="documentType"
+
+agreement
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 4. Upload Salary Slip
+POST {{baseUrl}}/users/{{userId}}/documents/upload
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="salary_slip_jan_2024.pdf"
+Content-Type: application/pdf
+
+< ./test-files/salary_slip.pdf
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="documentType"
+
+salarySlip
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="month"
+
+January
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="year"
+
+2024
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 5. Get Document Status (All Employees)
+GET {{baseUrl}}/users/documents/status
+Authorization: Bearer {{token}}
+
+### 6. Get My Documents (Employee View)
+GET {{baseUrl}}/users/me/documents
+Authorization: Bearer {{token}}
+
+### 7. Get Pending Approvals
+GET {{baseUrl}}/users/documents/pending
+Authorization: Bearer {{token}}
+
+### 8. Delete Offer Letter
+DELETE {{baseUrl}}/users/{{userId}}/documents/offerLetter
+Authorization: Bearer {{token}}
+
+### 9. Delete Salary Slip
+DELETE {{baseUrl}}/users/{{userId}}/documents/salarySlip?month=January&year=2024
+Authorization: Bearer {{token}}
+
+### 10. Test Invalid File Type (Should Fail)
+POST {{baseUrl}}/users/{{userId}}/documents/upload
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test.txt"
+Content-Type: text/plain
+
+This is a test file
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="documentType"
+
+offerLetter
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 11. Test Missing Document Type (Should Fail)
+POST {{baseUrl}}/users/{{userId}}/documents/upload
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test.pdf"
+Content-Type: application/pdf
+
+< ./test-files/test.pdf
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 12. Test Salary Slip Without Month/Year (Should Fail)
+POST {{baseUrl}}/users/{{userId}}/documents/upload
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="salary.pdf"
+Content-Type: application/pdf
+
+< ./test-files/salary.pdf
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="documentType"
+
+salarySlip
+------WebKitFormBoundary7MA4YWxkTrZu0gW--

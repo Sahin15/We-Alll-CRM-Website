@@ -34,14 +34,37 @@ export const createProject = async (req, res) => {
 // Get all projects
 export const getProjects = async (req, res) => {
   try {
-    const projects = await Project.find()
+    let query = {};
+    
+    // Employees can only see projects they are assigned to
+    if (req.user.role === "employee") {
+      query = { assignedUsers: req.user.id };
+    }
+    
+    // Clients can only see their own projects
+    if (req.user.role === "client") {
+      const clientByEmail = await Client.findOne({
+        email: req.user.email,
+      }).select("_id");
+      
+      if (clientByEmail) {
+        query = { client: clientByEmail._id };
+      } else {
+        // Client not found, return empty array
+        return res.status(200).json([]);
+      }
+    }
+    
+    // Admin, superadmin, hr, hod, manager can see all projects
+    const projects = await Project.find(query)
       .populate("client", "name email")
-      .populate("assignedUsers", "name email role");
+      .populate("assignedUsers", "name email role")
+      .sort({ createdAt: -1 });
 
     res.status(200).json(projects);
   } catch (error) {
-    console.error("Error in getProjects:", error.message);
-    res.status(500).json({ message: "Server error" });
+    console.error("Error in getProjects:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -130,12 +153,17 @@ export const getProjectById = async (req, res) => {
   try {
     const { id } = req.params;
 
+    console.log(`📋 Fetching project ${id} for user ${req.user.email} (${req.user.role})`);
+
     const project = await Project.findById(id)
       .populate("client", "name email")
       .populate("assignedUsers", "name email role")
       .populate("tasks.assignedTo", "name email");
 
-    if (!project) return res.status(404).json({ message: "Project not found" });
+    if (!project) {
+      console.log(`❌ Project ${id} not found`);
+      return res.status(404).json({ message: "Project not found" });
+    }
 
     if (req.user.role === "client") {
       const clientByEmail = await Client.findOne({
@@ -150,16 +178,25 @@ export const getProjectById = async (req, res) => {
     }
 
     // Employees can only see projects they are assigned to
-    if (
-      req.user.role === "employee" &&
-      !project.assignedUsers.some((user) => user.toString() === req.user.id)
-    ) {
-      return res
-        .status(403)
-        .json({
-          message:
-            "Access denied. You can only view projects you are assigned to.",
+    if (req.user.role === "employee") {
+      const assignedUserIds = project.assignedUsers.map(user => {
+        const userId = user._id || user;
+        return userId.toString();
+      });
+      
+      console.log(`👥 Project assigned users:`, assignedUserIds);
+      console.log(`👤 Current user ID:`, req.user.id);
+      
+      const isAssigned = assignedUserIds.includes(req.user.id);
+      
+      if (!isAssigned) {
+        console.log(`❌ Access denied - user not assigned to project`);
+        return res.status(403).json({
+          message: "Access denied. You can only view projects you are assigned to.",
         });
+      }
+      
+      console.log(`✅ Access granted - user is assigned to project`);
     }
 
     return res.status(200).json(project);

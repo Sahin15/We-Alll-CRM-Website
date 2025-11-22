@@ -57,7 +57,7 @@ export const createInvoice = async (req, res) => {
         ? {
             name: "We Alll",
             address:
-              "1 East Surdaha, 254/150, 254/159, Basudevpur Purba, North Twenty Four Parganas, West Bengal, 743127",
+              "1 East Gurdaha, 254/159, 254/159, Basudevpur Purba, North Twenty Four Parganas, West Bengal, 743127",
             phone: 1234567890,
             email: "accounts@wealll.com",
             gstin: "19MYNPS0053A1Z7",

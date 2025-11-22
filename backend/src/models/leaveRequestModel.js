@@ -43,7 +43,6 @@ const leaveRequestSchema = new mongoose.Schema(
     },
     numberOfDays: {
       type: Number,
-      required: true,
     },
     attachments: [
       {

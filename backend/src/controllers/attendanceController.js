@@ -4,7 +4,7 @@ import Attendance from "../models/attendanceModel.js";
 export const clockIn = async (req, res) => {
   try {
     const employee = req.user.id;
-    const { location } = req.body;
+    const location = req.body?.location || null;
 
     // Get today's date at midnight for comparison
     const today = new Date();
@@ -20,26 +20,57 @@ export const clockIn = async (req, res) => {
     });
 
     if (existingAttendance) {
-      return res
-        .status(400)
-        .json({ message: "You have already clocked in today" });
+      const clockInTime = new Date(existingAttendance.clockIn).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      return res.status(400).json({ 
+        message: `You've already clocked in today at ${clockInTime}`,
+        type: 'already_clocked_in',
+        clockInTime: existingAttendance.clockIn
+      });
     }
 
+    // Check if clock-in is late (after 10:30 AM)
+    const clockInTime = new Date();
+    const clockInHour = clockInTime.getHours();
+    const clockInMinute = clockInTime.getMinutes();
+    
+    // Late if after 10:30 AM (10 hours 30 minutes)
+    const isLate = clockInHour > 10 || (clockInHour === 10 && clockInMinute > 30);
+    
+    // Create attendance with date at midnight for consistency with unique index
     const attendance = await Attendance.create({
       employee,
-      date: new Date(),
-      clockIn: new Date(),
+      date: today, // Use today at midnight, not new Date()
+      clockIn: clockInTime,
       location,
-      status: "present",
+      status: isLate ? "late" : "present",
     });
 
     res.status(201).json({
-      message: "Clocked in successfully",
+      message: isLate 
+        ? "Clocked in successfully (Late entry)" 
+        : "Clocked in successfully",
       attendance,
+      isLate,
     });
   } catch (error) {
-    console.error("Error in clockIn:", error.message);
-    res.status(500).json({ message: "Server error" });
+    console.error("Error in clockIn:", error);
+    
+    // Handle duplicate key error
+    if (error.code === 11000) {
+      return res.status(400).json({ 
+        message: "You've already clocked in today. Please refresh the page to see your current status.",
+        type: 'duplicate_entry'
+      });
+    }
+    
+    res.status(500).json({ 
+      message: "Server error", 
+      error: error.message,
+      details: error.toString()
+    });
   }
 };
 
@@ -47,7 +78,7 @@ export const clockIn = async (req, res) => {
 export const clockOut = async (req, res) => {
   try {
     const employee = req.user.id;
-    const { notes } = req.body;
+    const notes = req.body?.notes || null;
 
     // Get today's date at midnight for comparison
     const today = new Date();
@@ -62,15 +93,22 @@ export const clockOut = async (req, res) => {
     });
 
     if (!attendance) {
-      return res
-        .status(404)
-        .json({ message: "No clock-in record found for today" });
+      return res.status(404).json({ 
+        message: "You haven't clocked in yet today. Please clock in first.",
+        type: 'not_clocked_in'
+      });
     }
 
     if (attendance.clockOut) {
-      return res
-        .status(400)
-        .json({ message: "You have already clocked out today" });
+      const clockOutTime = new Date(attendance.clockOut).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      return res.status(400).json({ 
+        message: `You've already clocked out today at ${clockOutTime}. See you tomorrow!`,
+        type: 'already_clocked_out',
+        clockOutTime: attendance.clockOut
+      });
     }
 
     attendance.clockOut = new Date();
@@ -91,13 +129,25 @@ export const clockOut = async (req, res) => {
 // Get all attendance records (Admin/HR)
 export const getAllAttendance = async (req, res) => {
   try {
-    const { startDate, endDate, employee, status } = req.query;
+    const { startDate, endDate, date, employee, status } = req.query;
 
     let filter = {};
 
     if (employee) filter.employee = employee;
     if (status) filter.status = status;
-    if (startDate && endDate) {
+    
+    // Handle single date filter (for specific day)
+    if (date) {
+      const targetDate = new Date(date);
+      const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
+      const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999));
+      filter.date = {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      };
+    }
+    // Handle date range filter
+    else if (startDate && endDate) {
       filter.date = {
         $gte: new Date(startDate),
         $lte: new Date(endDate),

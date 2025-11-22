@@ -71,6 +71,16 @@ notificationSchema.methods.markAsRead = function () {
   return this.save();
 };
 
+// Static method to get unread count
+notificationSchema.statics.getUnreadCount = async function (userId) {
+  return await this.countDocuments({ user: userId, isRead: false });
+};
+
+// Static method to create notification
+notificationSchema.statics.createNotification = async function (data) {
+  return await this.create(data);
+};
+
 // Indexes for performance
 notificationSchema.index({ user: 1, isRead: 1 });
 notificationSchema.index({ user: 1, createdAt: -1 });

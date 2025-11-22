@@ -6,6 +6,8 @@ export const createLeaveRequest = async (req, res) => {
     const { leaveType, startDate, endDate, reason, attachments } = req.body;
     const employee = req.user.id;
 
+    console.log("📝 Creating leave request:", { leaveType, startDate, endDate, reason, employee });
+
     if (!leaveType || !startDate || !endDate || !reason) {
       return res.status(400).json({ message: "All fields are required" });
     }
@@ -23,16 +25,22 @@ export const createLeaveRequest = async (req, res) => {
       startDate,
       endDate,
       reason,
-      attachments,
+      attachments: attachments || [],
     });
+
+    console.log("✅ Leave request created successfully:", leaveRequest._id);
 
     res.status(201).json({
       message: "Leave request submitted successfully",
       leaveRequest,
     });
   } catch (error) {
-    console.error("Error in createLeaveRequest:", error.message);
-    res.status(500).json({ message: "Server error" });
+    console.error("❌ Error in createLeaveRequest:", error);
+    res.status(500).json({ 
+      message: "Server error", 
+      error: error.message,
+      details: error.errors ? Object.keys(error.errors).map(key => error.errors[key].message) : []
+    });
   }
 };
 
@@ -43,14 +51,21 @@ export const getAllLeaveRequests = async (req, res) => {
     const filter = status ? { status } : {};
 
     const leaveRequests = await LeaveRequest.find(filter)
-      .populate("employee", "name email department position")
+      .populate({
+        path: "employee",
+        select: "name email designation employeeId department",
+        populate: {
+          path: "department",
+          select: "name"
+        }
+      })
       .populate("approvedBy", "name email")
       .sort({ createdAt: -1 });
 
     res.status(200).json(leaveRequests);
   } catch (error) {
-    console.error("Error in getAllLeaveRequests:", error.message);
-    res.status(500).json({ message: "Server error" });
+    console.error("Error in getAllLeaveRequests:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -74,7 +89,14 @@ export const getMyLeaveRequests = async (req, res) => {
 export const getLeaveRequestById = async (req, res) => {
   try {
     const leaveRequest = await LeaveRequest.findById(req.params.id)
-      .populate("employee", "name email department position")
+      .populate({
+        path: "employee",
+        select: "name email designation employeeId department",
+        populate: {
+          path: "department",
+          select: "name"
+        }
+      })
       .populate("approvedBy", "name email");
 
     if (!leaveRequest) {
@@ -83,8 +105,8 @@ export const getLeaveRequestById = async (req, res) => {
 
     res.status(200).json(leaveRequest);
   } catch (error) {
-    console.error("Error in getLeaveRequestById:", error.message);
-    res.status(500).json({ message: "Server error" });
+    console.error("Error in getLeaveRequestById:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -92,6 +114,7 @@ export const getLeaveRequestById = async (req, res) => {
 export const approveLeaveRequest = async (req, res) => {
   try {
     const { id } = req.params;
+    const { approvalComment } = req.body;
     const approvedBy = req.user.id;
 
     const leaveRequest = await LeaveRequest.findById(id);
@@ -109,6 +132,9 @@ export const approveLeaveRequest = async (req, res) => {
     leaveRequest.status = "approved";
     leaveRequest.approvedBy = approvedBy;
     leaveRequest.approvedDate = new Date();
+    if (approvalComment) {
+      leaveRequest.rejectionReason = approvalComment; // Reusing field for approval comments
+    }
 
     await leaveRequest.save();
 

@@ -22,6 +22,12 @@ import serviceRoutes from "./routes/serviceRoutes.js";
 import clientDashboardRoutes from "./routes/clientDashboardRoutes.js";
 import adminDashboardRoutes from "./routes/adminDashboardRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
+import announcementRoutes from "./routes/announcementRoutes.js";
+import taskRoutes from "./routes/taskRoutes.js";
+import meetingRoutes from "./routes/meetingRoutes.js";
+import activityRoutes from "./routes/activityRoutes.js";
+import policyRoutes from "./routes/policyRoutes.js";
+import documentRoutes from "./routes/documentRoutes.js";
 import { initializeCronJobs } from "./config/cronJobs.js";
 
 dotenv.config();
@@ -63,6 +69,12 @@ app.use("/api/services", serviceRoutes);
 app.use("/api/client-dashboard", clientDashboardRoutes);
 app.use("/api/admin-dashboard", adminDashboardRoutes);
 app.use("/api/upload", uploadRoutes);
+app.use("/api/announcements", announcementRoutes);
+app.use("/api/tasks", taskRoutes);
+app.use("/api/meetings", meetingRoutes);
+app.use("/api/activities", activityRoutes);
+app.use("/api/policies", policyRoutes);
+app.use("/api/documents", documentRoutes);
 
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;

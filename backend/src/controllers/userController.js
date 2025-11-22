@@ -158,21 +158,54 @@ export const getUserById = async (req, res) => {
 export const updateUserProfile = async (req, res) => {
   try {
     const userId = req.user.id; // From auth middleware
-    const { name, phone, address, position, dateOfBirth, emergencyContact } =
-      req.body;
+    const { 
+      name, phone, dateOfBirth, gender, bloodGroup,
+      currentAddress, permanentAddress,
+      emergencyContact,
+      governmentIds,
+      bankDetails,
+      // Legacy fields
+      address, position 
+    } = req.body;
 
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Update fields if provided
+    // Update basic information
     if (name) user.name = name;
     if (phone) user.phone = phone;
+    if (dateOfBirth) user.dateOfBirth = dateOfBirth;
+    if (gender) user.gender = gender;
+    if (bloodGroup) user.bloodGroup = bloodGroup;
+    
+    // Update addresses
+    if (currentAddress) user.currentAddress = currentAddress;
+    if (permanentAddress) user.permanentAddress = permanentAddress;
+    
+    // Update emergency contact
+    if (emergencyContact) user.emergencyContact = emergencyContact;
+    
+    // Update government IDs (employees can update their own)
+    if (governmentIds) {
+      user.governmentIds = {
+        ...user.governmentIds,
+        ...governmentIds
+      };
+    }
+    
+    // Update bank details (employees can update their own)
+    if (bankDetails) {
+      user.bankDetails = {
+        ...user.bankDetails,
+        ...bankDetails
+      };
+    }
+    
+    // Legacy fields (backward compatibility)
     if (address) user.address = address;
     if (position) user.position = position;
-    if (dateOfBirth) user.dateOfBirth = dateOfBirth;
-    if (emergencyContact) user.emergencyContact = emergencyContact;
 
     await user.save();
 
@@ -183,8 +216,13 @@ export const updateUserProfile = async (req, res) => {
         name: user.name,
         email: user.email,
         phone: user.phone,
-        address: user.address,
-        position: user.position,
+        dateOfBirth: user.dateOfBirth,
+        gender: user.gender,
+        currentAddress: user.currentAddress,
+        permanentAddress: user.permanentAddress,
+        emergencyContact: user.emergencyContact,
+        governmentIds: user.governmentIds,
+        bankDetails: user.bankDetails,
       },
     });
   } catch (error) {
@@ -197,46 +235,29 @@ export const updateUserProfile = async (req, res) => {
 export const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      name,
-      email,
-      password,
-      role,
-      phone,
-      position,
-      address,
-      dateOfBirth,
-      emergencyContact,
-    } = req.body;
+    const updateData = { ...req.body };
 
-    console.log("Updating user:", id, "with data:", {
-      name,
-      email,
-      role,
-      phone,
-      position,
-    });
+    console.log("Updating user:", id, "with data:", updateData);
 
     const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Update fields if provided
-    if (name) user.name = name;
-    if (email) user.email = email;
-    if (role) user.role = role;
-    if (phone) user.phone = phone;
-    if (position) user.position = position;
-    if (address) user.address = address;
-    if (dateOfBirth) user.dateOfBirth = dateOfBirth;
-    if (emergencyContact) user.emergencyContact = emergencyContact;
-
-    // Only update password if provided
-    if (password) {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      user.password = hashedPassword;
+    // Remove password from updateData if empty
+    if (!updateData.password) {
+      delete updateData.password;
+    } else {
+      // Hash password if provided
+      updateData.password = await bcrypt.hash(updateData.password, 10);
     }
+
+    // Update user with all provided fields
+    Object.keys(updateData).forEach((key) => {
+      if (updateData[key] !== undefined && updateData[key] !== null) {
+        user[key] = updateData[key];
+      }
+    });
 
     await user.save();
 

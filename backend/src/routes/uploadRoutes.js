@@ -4,6 +4,8 @@ import {
   deletePaymentProof,
   uploadMultipleImages,
   uploadProfilePicture,
+  uploadDocument,
+  deleteDocument,
 } from "../controllers/uploadController.js";
 import { upload, handleMulterError } from "../middleware/uploadMiddleware.js";
 import { protect } from "../middleware/authMiddleware.js";
@@ -46,6 +48,22 @@ router.post(
   upload.array("images", 5), // Max 5 images
   handleMulterError,
   uploadMultipleImages
+);
+
+// Upload employee document
+router.post(
+  "/document",
+  protect,
+  upload.single("file"),
+  handleMulterError,
+  uploadDocument
+);
+
+// Delete employee document
+router.delete(
+  "/document",
+  protect,
+  deleteDocument
 );
 
 export default router;
