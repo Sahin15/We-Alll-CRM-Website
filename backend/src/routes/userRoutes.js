@@ -26,8 +26,8 @@ import {
 
 const router = express.Router();
 
-// Public registration disabled - Only admins can add users from inside the app
-// router.post("/register", registerUser);
+// Registration endpoint - used by admins to add users (not public)
+router.post("/register", protect, authorizeRoles("admin", "superadmin", "hr"), registerUser);
 router.post("/login", loginUser);
 router.get("/", protect, getUsers);
 router.get("/employees", protect, async (req, res) => {

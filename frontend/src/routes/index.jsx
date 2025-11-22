@@ -119,11 +119,12 @@ const AppRoutes = () => {
       {/* Public Routes */}
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<Login />} />
-        {/* Registration disabled - Only admins can add users from inside the app */}
-        {/* <Route path="/register" element={<Register />} /> */}
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
       </Route>
+      
+      {/* Registration route - Only accessible from inside app by admins */}
+      <Route path="/register" element={<Register />} />
 
       {/* Protected Routes */}
       <Route
