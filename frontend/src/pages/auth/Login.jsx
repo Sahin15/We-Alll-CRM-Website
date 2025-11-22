@@ -80,12 +80,13 @@ const Login = () => {
             {loading ? "Signing in..." : "Sign In"}
           </Button>
 
-          <div className="text-center">
+          {/* Registration disabled - Only admins can add users */}
+          {/* <div className="text-center">
             <span className="text-muted">Don't have an account? </span>
             <Link to="/register" className="text-decoration-none">
               Sign up
             </Link>
-          </div>
+          </div> */}
         </Form>
       </Card.Body>
     </Card>
