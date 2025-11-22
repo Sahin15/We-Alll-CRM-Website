@@ -96,7 +96,6 @@ const ProjectList = () => {
   const fetchUsers = async () => {
     try {
       const response = await userApi.getAllUsers();
-      console.log("Users loaded:", response.data);
       setUsers(response.data);
     } catch (error) {
       console.error("Failed to fetch users:", error);

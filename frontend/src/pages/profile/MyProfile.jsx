@@ -7,7 +7,6 @@ const MyProfile = () => {
   const { user, refreshUser } = useAuth();
 
   const handleProfilePictureUpdate = async (imageUrl) => {
-    console.log("🔄 Profile picture updated, refreshing user data...");
     // Refresh user data from server
     await refreshUser();
   };

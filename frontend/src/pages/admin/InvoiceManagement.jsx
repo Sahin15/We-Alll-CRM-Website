@@ -95,12 +95,10 @@ const InvoiceManagement = () => {
 
   const fetchSubscriptions = async () => {
     try {
-      console.log("Fetching subscriptions for company:", selectedCompany);
       const response = await subscriptionAPI.getAll({
         company: selectedCompany,
         status: "active",
       });
-      console.log("Subscriptions fetched:", response.data);
       setSubscriptions(response.data || []);
     } catch (error) {
       console.error("Error fetching subscriptions:", error);
@@ -334,16 +332,12 @@ const InvoiceManagement = () => {
       status: "draft",
     };
 
-    console.log("Submitting invoice data:", invoiceData);
-
     try {
       if (editMode) {
         const response = await invoiceAPI.update(currentInvoice._id, invoiceData);
-        console.log("Invoice updated:", response.data);
         toast.success("Invoice updated successfully");
       } else {
         const response = await invoiceAPI.create(invoiceData);
-        console.log("Invoice created:", response.data);
         toast.success("Invoice created successfully");
       }
       handleCloseModal();

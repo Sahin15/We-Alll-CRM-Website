@@ -133,7 +133,6 @@ const MyProfileEnhanced = () => {
     try {
       setLoading(true);
       const response = await api.get('/users/me');
-      console.log('Profile API Response:', response.data);
       const userData = response.data.user;
       
       if (!userData) {
@@ -187,7 +186,6 @@ const MyProfileEnhanced = () => {
       
       setIsProfileComplete(isComplete);
       checkCriticalInfoLock(userData);
-      console.log('Profile state set successfully. Is complete:', isComplete);
     } catch (error) {
       console.error('Error fetching profile:', error);
       console.error('Error details:', error.response?.data);
