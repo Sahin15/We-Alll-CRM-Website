@@ -205,6 +205,45 @@ const userSchema = new mongoose.Schema(
   }
 );
 
+// Middleware to prevent superadmin deletion
+userSchema.pre('findOneAndDelete', async function(next) {
+  const docToDelete = await this.model.findOne(this.getFilter());
+  if (docToDelete && docToDelete.role === 'superadmin') {
+    throw new Error('Cannot delete superadmin account');
+  }
+  next();
+});
+
+userSchema.pre('deleteOne', async function(next) {
+  const docToDelete = await this.model.findOne(this.getFilter());
+  if (docToDelete && docToDelete.role === 'superadmin') {
+    throw new Error('Cannot delete superadmin account');
+  }
+  next();
+});
+
+userSchema.pre('remove', function(next) {
+  if (this.role === 'superadmin') {
+    throw new Error('Cannot delete superadmin account');
+  }
+  next();
+});
+
+// Middleware to prevent superadmin role modification
+userSchema.pre('save', function(next) {
+  if (this.isModified('role') && !this.isNew) {
+    // Get the original document
+    this.constructor.findById(this._id).then(original => {
+      if (original && original.role === 'superadmin' && this.role !== 'superadmin') {
+        throw new Error('Cannot modify superadmin role');
+      }
+      next();
+    }).catch(next);
+  } else {
+    next();
+  }
+});
+
 const User = mongoose.model("User", userSchema);
 
 export default User;
