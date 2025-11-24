@@ -155,8 +155,11 @@ export const uploadDocument = async (req, res) => {
       return res.status(400).json({ message: "Invalid document type" });
     }
 
+    // Import document upload utility
+    const { uploadDocumentToS3 } = await import("../utils/documentUpload.js");
+    
     // Upload to S3 in documents folder
-    const documentUrl = await uploadImageToS3(
+    const documentUrl = await uploadDocumentToS3(
       req.file.buffer,
       req.file.originalname,
       req.file.mimetype,
