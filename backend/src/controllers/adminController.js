@@ -3,7 +3,8 @@ import User from "../models/userModel.js";
 // Get all users (Admin only)
 export const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select("-password");
+    const users = await User.find()
+      .select("-password +governmentIds.aadhaarNumber +governmentIds.panNumber +governmentIds.uanNumber +governmentIds.esicNumber +bankDetails.accountNumber +salary");
     res.status(200).json(users);
   } catch (error) {
     console.error("Error in getAllUsers:", error.message);
@@ -29,6 +30,11 @@ export const updateUserRole = async (req, res) => {
     // Protect superadmin role from being changed
     if (user.role === "superadmin") {
       return res.status(403).json({ message: "Cannot modify superadmin role" });
+    }
+
+    // Prevent promoting users TO superadmin role
+    if (role === "superadmin") {
+      return res.status(403).json({ message: "Cannot promote users to superadmin role. Use create-superadmin script instead." });
     }
 
     user.role = role;

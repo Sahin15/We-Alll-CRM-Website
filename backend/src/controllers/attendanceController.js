@@ -36,8 +36,20 @@ export const clockIn = async (req, res) => {
     const clockInHour = clockInTime.getHours();
     const clockInMinute = clockInTime.getMinutes();
     
-    // Late if after 10:30 AM (10 hours 30 minutes)
-    const isLate = clockInHour > 10 || (clockInHour === 10 && clockInMinute > 30);
+    // Determine status based on clock-in time
+    let status = "present";
+    let message = "Clocked in successfully";
+    
+    // After 12:00 PM (noon) = Half day
+    if (clockInHour >= 12) {
+      status = "half-day";
+      message = "Clocked in successfully (Half day - arrived after 12:00 PM)";
+    }
+    // After 10:30 AM but before 12:00 PM = Late
+    else if (clockInHour > 10 || (clockInHour === 10 && clockInMinute > 30)) {
+      status = "late";
+      message = "Clocked in successfully (Late entry)";
+    }
     
     // Create attendance with date at midnight for consistency with unique index
     const attendance = await Attendance.create({
@@ -45,15 +57,14 @@ export const clockIn = async (req, res) => {
       date: today, // Use today at midnight, not new Date()
       clockIn: clockInTime,
       location,
-      status: isLate ? "late" : "present",
+      status: status,
     });
 
     res.status(201).json({
-      message: isLate 
-        ? "Clocked in successfully (Late entry)" 
-        : "Clocked in successfully",
+      message: message,
       attendance,
-      isLate,
+      isLate: status === "late",
+      isHalfDay: status === "half-day",
     });
   } catch (error) {
     console.error("Error in clockIn:", error);

@@ -136,6 +136,99 @@ const DocumentUploadSection = ({ employeeId }) => {
         <strong>Document Management:</strong> Upload and manage employee documents including offer letter, agreement, and salary slips.
       </Alert>
 
+      {/* Employee-Uploaded Documents */}
+      <h6 className="mb-3">Employee Documents</h6>
+      <Row className="mb-4">
+        <Col md={6}>
+          <Card className="mb-3 border-primary">
+            <Card.Body>
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <h6 className="mb-0">Aadhaar Card</h6>
+                {documents.aadhaarDoc ? (
+                  <Badge bg="success">
+                    <FaCheck className="me-1" />
+                    Uploaded
+                  </Badge>
+                ) : (
+                  <Badge bg="secondary">
+                    <FaTimes className="me-1" />
+                    Not Uploaded
+                  </Badge>
+                )}
+              </div>
+              {documents.aadhaarDoc ? (
+                <div className="d-flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline-primary"
+                    href={documents.aadhaarDoc}
+                    target="_blank"
+                  >
+                    <FaEye className="me-1" />
+                    View
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline-info"
+                    href={documents.aadhaarDoc}
+                    download
+                  >
+                    <FaDownload className="me-1" />
+                    Download
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-muted mb-0 small">Employee has not uploaded Aadhaar card</p>
+              )}
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={6}>
+          <Card className="mb-3 border-primary">
+            <Card.Body>
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <h6 className="mb-0">PAN Card</h6>
+                {documents.panDoc ? (
+                  <Badge bg="success">
+                    <FaCheck className="me-1" />
+                    Uploaded
+                  </Badge>
+                ) : (
+                  <Badge bg="secondary">
+                    <FaTimes className="me-1" />
+                    Not Uploaded
+                  </Badge>
+                )}
+              </div>
+              {documents.panDoc ? (
+                <div className="d-flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline-primary"
+                    href={documents.panDoc}
+                    target="_blank"
+                  >
+                    <FaEye className="me-1" />
+                    View
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline-info"
+                    href={documents.panDoc}
+                    download
+                  >
+                    <FaDownload className="me-1" />
+                    Download
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-muted mb-0 small">Employee has not uploaded PAN card</p>
+              )}
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
       {/* HR-Uploaded Documents */}
       <h6 className="mb-3">Company Documents</h6>
       <Row className="mb-4">

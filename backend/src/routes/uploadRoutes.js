@@ -8,6 +8,7 @@ import {
   deleteDocument,
 } from "../controllers/uploadController.js";
 import { upload, handleMulterError } from "../middleware/uploadMiddleware.js";
+import { uploadDocument as uploadDocMiddleware, handleDocumentUploadError } from "../middleware/documentMiddleware.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
 
@@ -54,8 +55,8 @@ router.post(
 router.post(
   "/document",
   protect,
-  upload.single("file"),
-  handleMulterError,
+  uploadDocMiddleware.single("file"),
+  handleDocumentUploadError,
   uploadDocument
 );
 

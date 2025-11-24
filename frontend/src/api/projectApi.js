@@ -7,6 +7,7 @@ export const projectApi = {
   getProjectById: (id) => api.get(`/projects/${id}`),
   createProject: (data) => api.post("/projects", data),
   updateProject: (id, data) => api.put(`/projects/${id}`, data),
+  deleteProject: (id) => api.delete(`/projects/${id}`),
   updateProjectProgress: (id, progress) =>
     api.put(`/projects/${id}/progress`, { progress }),
   updateProjectStatus: (id, status) =>

@@ -11,7 +11,9 @@
     "test": "cross-env NODE_ENV=test jest --runInBand",
     "seed": "node src/seed/seedRoles.js",
     "seed:policies": "node src/seeders/policySeed.js",
-    "create-superadmin": "node scripts/createSuperAdmin.js"
+    "create-superadmin": "node scripts/createSuperAdmin.js",
+    "reset-superadmin-password": "node scripts/resetSuperAdminPassword.js",
+    "demote-superadmin": "node scripts/demoteSuperAdmin.js"
   },
   "author": "Sahin",
   "license": "MIT",

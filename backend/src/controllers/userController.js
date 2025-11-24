@@ -139,7 +139,7 @@ export const loginUser = async (req, res) => {
 export const getUserById = async (req, res) => {
   try {
     const user = await User.findById(req.params.id)
-      .select("-password")
+      .select("-password +governmentIds.aadhaarNumber +governmentIds.panNumber +governmentIds.uanNumber +governmentIds.esicNumber +bankDetails.accountNumber +salary")
       .populate("department", "name")
       .populate("manager", "name email");
 

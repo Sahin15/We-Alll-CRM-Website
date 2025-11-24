@@ -418,12 +418,16 @@ const UserDetails = () => {
                       {user.bankDetails?.bankName ? (
                         <ListGroup variant="flush">
                           <ListGroup.Item className="d-flex justify-content-between">
-                            <span className="text-muted">Bank Name:</span>
-                            <strong>{user.bankDetails.bankName}</strong>
+                            <span className="text-muted">Account Number:</span>
+                            <strong>{user.bankDetails.accountNumber || "N/A"}</strong>
                           </ListGroup.Item>
                           <ListGroup.Item className="d-flex justify-content-between">
                             <span className="text-muted">Account Holder:</span>
                             <strong>{user.bankDetails.accountHolderName || user.name}</strong>
+                          </ListGroup.Item>
+                          <ListGroup.Item className="d-flex justify-content-between">
+                            <span className="text-muted">Bank Name:</span>
+                            <strong>{user.bankDetails.bankName}</strong>
                           </ListGroup.Item>
                           <ListGroup.Item className="d-flex justify-content-between">
                             <span className="text-muted">IFSC Code:</span>
@@ -457,11 +461,11 @@ const UserDetails = () => {
                       <ListGroup variant="flush">
                         <ListGroup.Item className="d-flex justify-content-between">
                           <span className="text-muted">PAN Number:</span>
-                          <strong>{user.governmentIds?.panNumber ? "••••••" + user.governmentIds.panNumber.slice(-4) : "N/A"}</strong>
+                          <strong>{user.governmentIds?.panNumber || "N/A"}</strong>
                         </ListGroup.Item>
                         <ListGroup.Item className="d-flex justify-content-between">
                           <span className="text-muted">Aadhaar Number:</span>
-                          <strong>{user.governmentIds?.aadhaarNumber ? "•••• •••• " + user.governmentIds.aadhaarNumber.slice(-4) : "N/A"}</strong>
+                          <strong>{user.governmentIds?.aadhaarNumber || "N/A"}</strong>
                         </ListGroup.Item>
                         <ListGroup.Item className="d-flex justify-content-between">
                           <span className="text-muted">UAN Number:</span>
