@@ -102,7 +102,7 @@ const EmployeeList = () => {
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this employee?")) {
       try {
-        await api.delete(`/users/${id}`);
+        await api.delete(`/admin/users/${id}`);
         toast.success("Employee deleted successfully");
         fetchEmployees();
       } catch (error) {
