@@ -156,8 +156,8 @@ const AddEmployee = () => {
       const submitData = {
         ...formData,
         role: "employee",
-        department: formData.department || undefined,
-        reportingManager: formData.reportingManager || undefined,
+        department: formData.department || null,
+        reportingManager: formData.reportingManager || null,
       };
       
       await api.post("/users/register", submitData);
