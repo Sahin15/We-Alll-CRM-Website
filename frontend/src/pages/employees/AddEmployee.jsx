@@ -158,7 +158,7 @@ const AddEmployee = () => {
         role: "employee",
       };
       
-      await api.post("/users", submitData);
+      await api.post("/users/register", submitData);
       toast.success("Employee added successfully");
       navigate("/employees");
     } catch (error) {
