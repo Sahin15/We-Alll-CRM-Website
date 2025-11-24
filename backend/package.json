@@ -10,7 +10,8 @@
     "lint": "eslint . --ext .js",
     "test": "cross-env NODE_ENV=test jest --runInBand",
     "seed": "node src/seed/seedRoles.js",
-    "seed:policies": "node src/seeders/policySeed.js"
+    "seed:policies": "node src/seeders/policySeed.js",
+    "create-superadmin": "node scripts/createSuperAdmin.js"
   },
   "author": "Sahin",
   "license": "MIT",

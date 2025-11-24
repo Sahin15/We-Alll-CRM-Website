@@ -367,14 +367,18 @@ const EmployeeList = () => {
                               <FaEdit className="me-2" />
                               Edit
                             </Dropdown.Item>
-                            <Dropdown.Divider />
-                            <Dropdown.Item
-                              className="text-danger"
-                              onClick={() => handleDelete(employee._id)}
-                            >
-                              <FaTrash className="me-2" />
-                              Delete
-                            </Dropdown.Item>
+                            {employee.role !== "superadmin" && (
+                              <>
+                                <Dropdown.Divider />
+                                <Dropdown.Item
+                                  className="text-danger"
+                                  onClick={() => handleDelete(employee._id)}
+                                >
+                                  <FaTrash className="me-2" />
+                                  Delete
+                                </Dropdown.Item>
+                              </>
+                            )}
                           </Dropdown.Menu>
                         </Dropdown>
                       </td>

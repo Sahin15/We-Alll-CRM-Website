@@ -292,13 +292,15 @@ const SuperAdminDashboard = () => {
                               >
                                 <FaEdit />
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="outline-danger"
-                                onClick={() => handleDelete(user._id)}
-                              >
-                                <FaTrash />
-                              </Button>
+                              {user.role !== "superadmin" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline-danger"
+                                  onClick={() => handleDelete(user._id)}
+                                >
+                                  <FaTrash />
+                                </Button>
+                              )}
                             </div>
                           </td>
                         </tr>

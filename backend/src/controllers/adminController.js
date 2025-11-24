@@ -26,6 +26,11 @@ export const updateUserRole = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Protect superadmin role from being changed
+    if (user.role === "superadmin") {
+      return res.status(403).json({ message: "Cannot modify superadmin role" });
+    }
+
     user.role = role;
     await user.save();
 
@@ -41,11 +46,17 @@ export const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const user = await User.findByIdAndDelete(id);
+    const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Protect superadmin from being deleted
+    if (user.role === "superadmin") {
+      return res.status(403).json({ message: "Cannot delete superadmin account" });
+    }
+
+    await User.findByIdAndDelete(id);
     res.status(200).json({ message: "User deleted successfully" });
   } catch (error) {
     console.error("Error in deleteUser:", error.message);
