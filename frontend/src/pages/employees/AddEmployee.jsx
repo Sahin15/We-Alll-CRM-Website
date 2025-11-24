@@ -152,10 +152,12 @@ const AddEmployee = () => {
     try {
       setLoading(true);
       
-      // Prepare data
+      // Prepare data - remove empty strings for ObjectId fields
       const submitData = {
         ...formData,
         role: "employee",
+        department: formData.department || undefined,
+        reportingManager: formData.reportingManager || undefined,
       };
       
       await api.post("/users/register", submitData);
