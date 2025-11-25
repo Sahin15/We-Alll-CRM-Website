@@ -1,0 +1,704 @@
+/* ============================================
+   SPECIFIC PAGES MOBILE RESPONSIVE STYLES
+   ============================================ */
+
+/* ============================================
+   GLOBAL MOBILE CARD STYLES
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Ensure all cards have light background on mobile */
+  .card {
+    background-color: #ffffff !important;
+  }
+  
+  .card-body {
+    background-color: transparent !important;
+  }
+  
+  .card-header {
+    background-color: #f8f9fa !important;
+  }
+  
+  /* Remove any dark backgrounds */
+  .bg-dark {
+    background-color: #ffffff !important;
+    color: #212529 !important;
+  }
+  
+  /* Table headers light on mobile */
+  .table thead th {
+    background-color: #f8f9fa !important;
+    color: #212529 !important;
+  }
+  
+  .table thead {
+    background-color: #f8f9fa !important;
+  }
+  
+  /* Table body light */
+  .table tbody {
+    background-color: #ffffff !important;
+  }
+  
+  .table tbody td {
+    background-color: #ffffff !important;
+    color: #212529 !important;
+  }
+  
+  /* Form controls */
+  .form-control,
+  .form-select,
+  input,
+  select,
+  textarea {
+    background-color: #ffffff !important;
+    color: #212529 !important;
+  }
+  
+  /* Labels */
+  .form-label,
+  label {
+    color: #212529 !important;
+  }
+  
+  /* Any text */
+  .text-white {
+    color: #212529 !important;
+  }
+}
+
+/* ============================================
+   1. PROFILE PAGE MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Profile header banner */
+  .profile-header-banner {
+    padding: 20px 16px !important;
+  }
+  
+  .profile-header-banner h2 {
+    font-size: 1.25rem !important;
+  }
+  
+  .profile-header-banner p {
+    font-size: 0.875rem;
+  }
+  
+  .profile-header-banner .fs-2 {
+    font-size: 1.75rem !important;
+  }
+  
+  /* Profile picture section */
+  .profile-picture-section {
+    margin-bottom: 20px;
+  }
+  
+  .profile-picture-section img {
+    width: 100px !important;
+    height: 100px !important;
+  }
+  
+  .profile-picture-section .badge {
+    font-size: 0.75rem;
+    padding: 6px 10px;
+  }
+  
+  /* Profile info cards */
+  .profile-info-card {
+    margin-bottom: 16px;
+  }
+  
+  .profile-info-card .card-body {
+    padding: 16px !important;
+  }
+  
+  .profile-info-card h4 {
+    font-size: 1.25rem !important;
+  }
+  
+  .profile-info-card .badge {
+    font-size: 0.8rem;
+    padding: 8px 12px;
+  }
+  
+  /* Profile action buttons */
+  .profile-actions .btn {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+  
+  .profile-actions .d-grid {
+    gap: 10px !important;
+  }
+}
+
+/* ============================================
+   2. SETTINGS PAGE MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Settings page header */
+  .settings-header h2 {
+    font-size: 1.5rem !important;
+  }
+  
+  .settings-header p {
+    font-size: 0.875rem;
+  }
+  
+  /* Settings tabs */
+  .settings-tabs .nav-tabs {
+    border-bottom: 2px solid #dee2e6;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 20px !important;
+  }
+  
+  .settings-tabs .nav-link {
+    font-size: 0.875rem;
+    padding: 10px 14px;
+    white-space: nowrap;
+  }
+  
+  /* Settings sections */
+  .settings-section {
+    margin-bottom: 24px;
+  }
+  
+  .settings-section h5 {
+    font-size: 1rem !important;
+    margin-bottom: 16px;
+  }
+  
+  .settings-section h6 {
+    font-size: 0.9rem !important;
+    margin-bottom: 12px;
+  }
+  
+  /* Settings cards */
+  .settings-card {
+    margin-bottom: 16px;
+  }
+  
+  .settings-card .card-body {
+    padding: 16px !important;
+  }
+}
+
+/* ============================================
+   3. USER DETAILS PAGE MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* User header */
+  .user-details-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+  
+  .user-details-header .btn {
+    width: 100%;
+  }
+  
+  /* User profile card */
+  .user-profile-card .row {
+    flex-direction: column;
+  }
+  
+  .user-profile-card .text-center {
+    margin-bottom: 20px;
+  }
+  
+  .user-profile-card img {
+    width: 100px !important;
+    height: 100px !important;
+  }
+  
+  /* User info sections */
+  .user-info-section {
+    margin-bottom: 20px;
+  }
+  
+  .user-info-section h6 {
+    font-size: 0.9rem !important;
+    margin-bottom: 12px;
+  }
+  
+  .user-info-section .list-group-item {
+    padding: 12px;
+    font-size: 0.875rem;
+  }
+}
+
+/* ============================================
+   4. EMPLOYEE LIST PAGE MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Employee list header */
+  .employee-list-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+  
+  .employee-list-header .btn {
+    width: 100%;
+  }
+  
+  /* Employee filters */
+  .employee-filters {
+    margin-bottom: 16px;
+  }
+  
+  .employee-filters .form-control,
+  .employee-filters .form-select {
+    margin-bottom: 10px;
+  }
+  
+  /* Employee cards (alternative to table) */
+  .employee-card {
+    margin-bottom: 12px;
+    padding: 14px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+  }
+  
+  .employee-card img {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .employee-card h6 {
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+  }
+  
+  .employee-card small {
+    font-size: 0.75rem;
+  }
+  
+  .employee-card .badge {
+    font-size: 0.65rem;
+    padding: 3px 6px;
+  }
+}
+
+/* ============================================
+   4A. ATTENDANCE STATISTICS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Attendance summary header */
+  .border-primary .card-header h5 {
+    font-size: 1rem !important;
+  }
+  
+  .border-primary .card-header small {
+    font-size: 0.75rem;
+  }
+  
+  /* Statistics cards */
+  .border-primary .card-body .card {
+    margin-bottom: 10px;
+  }
+  
+  .border-primary .card-body .card h2 {
+    font-size: 1.75rem !important;
+  }
+  
+  .border-primary .card-body .card small {
+    font-size: 0.75rem;
+  }
+  
+  .border-primary .card-body .card .badge {
+    font-size: 0.65rem;
+    padding: 4px 8px;
+  }
+  
+  /* Bottom stats row */
+  .border-primary .card-body h5 {
+    font-size: 1.25rem !important;
+  }
+  
+  .border-primary .card-body .p-2 {
+    padding: 8px !important;
+  }
+}
+
+/* ============================================
+   5. PROJECT DETAILS PAGE MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Project header */
+  .project-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+  
+  .project-header h2 {
+    font-size: 1.5rem !important;
+  }
+  
+  .project-header .btn-group {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .project-header .btn {
+    width: 100%;
+    margin-bottom: 8px;
+  }
+  
+  /* Project stats */
+  .project-stats .col-6 {
+    margin-bottom: 12px;
+  }
+  
+  .project-stats .card-body {
+    padding: 12px !important;
+  }
+  
+  .project-stats h3 {
+    font-size: 1.5rem !important;
+  }
+  
+  /* Project timeline */
+  .project-timeline {
+    padding-left: 20px;
+  }
+  
+  .project-timeline-item {
+    padding: 12px;
+    font-size: 0.875rem;
+  }
+  
+  .project-timeline-item::before {
+    width: 10px;
+    height: 10px;
+    left: -25px;
+  }
+}
+
+/* ============================================
+   6. ANNOUNCEMENTS PAGE MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Announcement card */
+  .announcement-card {
+    margin-bottom: 12px;
+  }
+  
+  .announcement-card .card-body {
+    padding: 14px !important;
+  }
+  
+  .announcement-card h5 {
+    font-size: 1rem !important;
+  }
+  
+  .announcement-card .badge {
+    font-size: 0.65rem;
+    padding: 3px 6px;
+  }
+  
+  /* Announcement filters */
+  .announcement-filters {
+    flex-direction: column !important;
+    gap: 10px;
+  }
+  
+  .announcement-filters .form-control,
+  .announcement-filters .form-select {
+    width: 100% !important;
+  }
+}
+
+/* ============================================
+   7. TIME TRACKING PAGE MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Timer display */
+  .timer-display {
+    padding: 20px 16px !important;
+  }
+  
+  .timer-display h1 {
+    font-size: 2rem !important;
+  }
+  
+  .timer-display .btn {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+  
+  /* Time entries */
+  .time-entry {
+    padding: 12px;
+    margin-bottom: 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+  }
+  
+  .time-entry h6 {
+    font-size: 0.9rem;
+  }
+  
+  .time-entry small {
+    font-size: 0.75rem;
+  }
+}
+
+/* ============================================
+   8. REPORTS PAGE MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Report filters */
+  .report-filters {
+    margin-bottom: 16px;
+  }
+  
+  .report-filters .row > div {
+    margin-bottom: 12px;
+  }
+  
+  /* Report cards */
+  .report-card {
+    margin-bottom: 12px;
+  }
+  
+  .report-card .card-body {
+    padding: 14px !important;
+  }
+  
+  .report-card h3 {
+    font-size: 1.5rem !important;
+  }
+  
+  /* Charts */
+  .chart-container {
+    height: 250px !important;
+    margin-bottom: 16px;
+  }
+}
+
+/* ============================================
+   9. DASHBOARD WIDGETS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Quick stats widget */
+  .quick-stats-widget {
+    margin-bottom: 12px;
+  }
+  
+  .quick-stats-widget .card-body {
+    padding: 14px !important;
+  }
+  
+  .quick-stats-widget h4 {
+    font-size: 1.5rem !important;
+  }
+  
+  .quick-stats-widget small {
+    font-size: 0.7rem !important;
+  }
+  
+  /* Activity feed */
+  .activity-feed {
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  
+  .activity-item {
+    padding: 10px;
+    font-size: 0.875rem;
+  }
+  
+  .activity-item .icon {
+    width: 32px;
+    height: 32px;
+    font-size: 0.9rem;
+  }
+}
+
+/* ============================================
+   10. BREADCRUMBS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .breadcrumb {
+    font-size: 0.8rem;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+  }
+  
+  .breadcrumb-item {
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .breadcrumb-item + .breadcrumb-item::before {
+    padding: 0 6px;
+  }
+}
+
+/* ============================================
+   11. PAGE HEADER MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Generic page header */
+  .page-header {
+    margin-bottom: 20px;
+  }
+  
+  .page-header h1,
+  .page-header h2 {
+    font-size: 1.5rem !important;
+  }
+  
+  .page-header p {
+    font-size: 0.875rem;
+  }
+  
+  .page-header .d-flex {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+  
+  .page-header .btn {
+    width: 100%;
+  }
+}
+
+/* ============================================
+   12. EMPTY STATES MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .empty-state {
+    padding: 40px 20px !important;
+  }
+  
+  .empty-state svg,
+  .empty-state .icon {
+    font-size: 3rem !important;
+  }
+  
+  .empty-state h5 {
+    font-size: 1.1rem !important;
+  }
+  
+  .empty-state p {
+    font-size: 0.875rem;
+  }
+  
+  .empty-state .btn {
+    width: 100%;
+  }
+}
+
+/* ============================================
+   13. SEARCH RESULTS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .search-result-item {
+    padding: 12px;
+    margin-bottom: 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+  }
+  
+  .search-result-item h6 {
+    font-size: 0.95rem;
+  }
+  
+  .search-result-item small {
+    font-size: 0.75rem;
+  }
+  
+  .search-result-item .badge {
+    font-size: 0.65rem;
+  }
+}
+
+/* ============================================
+   14. NOTIFICATION PAGE MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .notification-item {
+    padding: 12px;
+    border-bottom: 1px solid #dee2e6;
+  }
+  
+  .notification-item .icon {
+    width: 36px;
+    height: 36px;
+    font-size: 0.9rem;
+  }
+  
+  .notification-item h6 {
+    font-size: 0.9rem;
+  }
+  
+  .notification-item small {
+    font-size: 0.75rem;
+  }
+  
+  .notification-item .btn {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+  }
+}
+
+/* ============================================
+   15. LANDSCAPE ORIENTATION
+   ============================================ */
+
+@media (max-width: 767.98px) and (orientation: landscape) {
+  .profile-header-banner {
+    padding: 16px !important;
+  }
+  
+  .page-header h2 {
+    font-size: 1.25rem !important;
+  }
+  
+  .chart-container {
+    height: 200px !important;
+  }
+}
+
+/* ============================================
+   16. PRINT STYLES
+   ============================================ */
+
+@media print {
+  .profile-actions,
+  .page-header .btn,
+  .breadcrumb,
+  .settings-tabs {
+    display: none !important;
+  }
+  
+  .card {
+    break-inside: avoid;
+    box-shadow: none;
+    border: 1px solid #ddd;
+  }
+}

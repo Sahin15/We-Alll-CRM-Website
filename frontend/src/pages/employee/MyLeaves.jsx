@@ -3,6 +3,8 @@ import { Container, Row, Col, Card, Button, Table, Badge, Modal, Form, ProgressB
 import { FaPlus, FaCalendarAlt, FaUmbrellaBeach, FaHospital, FaPlane } from "react-icons/fa";
 import toast from "../../utils/toast";
 import api from "../../services/api";
+import "../../styles/table-mobile.css";
+import "../../styles/modal-mobile.css";
 
 const MyLeaves = () => {
   const [leaves, setLeaves] = useState([]);
@@ -146,7 +148,7 @@ const MyLeaves = () => {
 
       {/* Leave Balance Cards */}
       <Row className="mb-4">
-        <Col md={6} className="mb-3">
+        <Col xs={12} md={6} className="mb-3">
           <Card className="border-0 shadow-sm h-100">
             <Card.Body>
               <div className="d-flex align-items-center mb-3">
@@ -168,7 +170,7 @@ const MyLeaves = () => {
           </Card>
         </Col>
 
-        <Col md={6} className="mb-3">
+        <Col xs={12} md={6} className="mb-3">
           <Card className="border-0 shadow-sm h-100">
             <Card.Body>
               <div className="d-flex align-items-center mb-3">
@@ -195,7 +197,7 @@ const MyLeaves = () => {
 
       {/* Leave Balance Summary */}
       <Row className="mb-4">
-        <Col md={3} className="mb-3">
+        <Col xs={6} sm={6} md={3} className="mb-3">
           <Card className="border-0 shadow-sm">
             <Card.Body className="text-center">
               <h6 className="text-muted">Total Annual Leave</h6>
@@ -205,7 +207,7 @@ const MyLeaves = () => {
             </Card.Body>
           </Card>
         </Col>
-        <Col md={3} className="mb-3">
+        <Col xs={6} sm={6} md={3} className="mb-3">
           <Card className="border-0 shadow-sm">
             <Card.Body className="text-center">
               <h6 className="text-muted">Used</h6>
@@ -215,7 +217,7 @@ const MyLeaves = () => {
             </Card.Body>
           </Card>
         </Col>
-        <Col md={3} className="mb-3">
+        <Col xs={6} sm={6} md={3} className="mb-3">
           <Card className="border-0 shadow-sm">
             <Card.Body className="text-center">
               <h6 className="text-muted">Remaining</h6>
@@ -225,7 +227,7 @@ const MyLeaves = () => {
             </Card.Body>
           </Card>
         </Col>
-        <Col md={3} className="mb-3">
+        <Col xs={6} sm={6} md={3} className="mb-3">
           <Card className="border-0 shadow-sm">
             <Card.Body className="text-center">
               <h6 className="text-muted">Pending Approval</h6>
@@ -254,14 +256,14 @@ const MyLeaves = () => {
                   </div>
                 </div>
               ) : (
-                <Table responsive hover>
+                <Table responsive hover className="leave-table">
                   <thead>
                     <tr>
                       <th>Leave Type</th>
                       <th>Start Date</th>
                       <th>End Date</th>
                       <th>Days</th>
-                      <th>Reason</th>
+                      <th className="hide-mobile">Reason</th>
                       <th>Status</th>
                     </tr>
                   </thead>
@@ -276,12 +278,12 @@ const MyLeaves = () => {
                       leaves.map((leave) => (
                         <tr key={leave._id}>
                           <td>{leave.leaveType}</td>
-                          <td>{new Date(leave.startDate).toLocaleDateString()}</td>
-                          <td>{new Date(leave.endDate).toLocaleDateString()}</td>
+                          <td className="date-cell">{new Date(leave.startDate).toLocaleDateString()}</td>
+                          <td className="date-cell">{new Date(leave.endDate).toLocaleDateString()}</td>
                           <td>
                             {Math.ceil((new Date(leave.endDate) - new Date(leave.startDate)) / (1000 * 60 * 60 * 24)) + 1}
                           </td>
-                          <td>{leave.reason}</td>
+                          <td className="reason-cell hide-mobile">{leave.reason}</td>
                           <td>{getStatusBadge(leave.status)}</td>
                         </tr>
                       ))
@@ -295,7 +297,7 @@ const MyLeaves = () => {
       </Row>
 
       {/* Apply Leave Modal */}
-      <Modal show={showModal} onHide={handleCloseModal} size="lg">
+      <Modal show={showModal} onHide={handleCloseModal} size="lg" centered>
         <Modal.Header closeButton>
           <Modal.Title>Apply for Leave</Modal.Title>
         </Modal.Header>
@@ -317,7 +319,7 @@ const MyLeaves = () => {
               </Form.Select>
             </Form.Group>
             <Row>
-              <Col md={6}>
+              <Col xs={12} md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Start Date *</Form.Label>
                   <Form.Control
@@ -329,7 +331,7 @@ const MyLeaves = () => {
                   />
                 </Form.Group>
               </Col>
-              <Col md={6}>
+              <Col xs={12} md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>End Date *</Form.Label>
                   <Form.Control
@@ -369,12 +371,14 @@ const MyLeaves = () => {
             </Form.Group>
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="secondary" onClick={handleCloseModal}>
-              Cancel
-            </Button>
-            <Button variant="primary" type="submit">
-              Submit Application
-            </Button>
+            <div className="d-flex flex-column flex-sm-row gap-2 w-100">
+              <Button variant="secondary" onClick={handleCloseModal} className="w-mobile-100">
+                Cancel
+              </Button>
+              <Button variant="primary" type="submit" className="w-mobile-100">
+                Submit Application
+              </Button>
+            </div>
           </Modal.Footer>
         </Form>
       </Modal>

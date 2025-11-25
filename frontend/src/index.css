@@ -1,5 +1,9 @@
 /* Import common dashboard styles */
 @import './styles/dashboard-common.css';
+/* Import responsive utilities */
+@import './styles/responsive.css';
+/* Import mobile polish and optimizations */
+@import './styles/polish-mobile.css';
 
 :root {
   --primary-color: #667eea;
@@ -54,9 +58,17 @@ code {
   margin-left: 0;
 }
 
-@media (max-width: 768px) {
+/* Mobile responsive adjustments */
+@media (max-width: 991.98px) {
   .main-content {
     margin-left: 0;
+    padding: 12px;
+  }
+}
+
+@media (min-width: 576px) and (max-width: 991.98px) {
+  .main-content {
+    padding: 16px;
   }
 }
 
@@ -127,6 +139,14 @@ code {
 .btn-custom:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(102, 126, 234, 0.25);
+}
+
+/* Mobile button adjustments */
+@media (max-width: 575.98px) {
+  .btn-custom {
+    padding: 12px 16px;
+    width: 100%;
+  }
 }
 
 .btn-primary {

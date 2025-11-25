@@ -124,6 +124,7 @@ const QuickClockInOut = ({ variant = "light", size = "sm", showLabel = true }) =
   };
 
   const handleConfirm = () => {
+    setShowConfirm(false); // Close modal before action
     if (action === "in") {
       handleClockIn();
     } else {
@@ -295,7 +296,13 @@ const QuickClockInOut = ({ variant = "light", size = "sm", showLabel = true }) =
       `}</style>
 
       {/* Confirmation Modal */}
-      <Modal show={showConfirm} onHide={() => setShowConfirm(false)} centered>
+      <Modal 
+        show={showConfirm} 
+        onHide={() => setShowConfirm(false)} 
+        centered
+        backdrop="static"
+        keyboard={false}
+      >
         <Modal.Header closeButton>
           <Modal.Title>
             {action === "in" ? "Clock In" : "Clock Out"}

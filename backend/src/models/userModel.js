@@ -60,6 +60,18 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    funBadge: {
+      type: String,
+      enum: ["Team Member", "Contributor", "Team Player", "Rockstar", "Rising Star", "Go-Getter"],
+      default: function() {
+        // Randomly assign a fun badge for employees
+        if (this.role === 'employee') {
+          const badges = ["Team Member", "Contributor", "Team Player", "Rockstar", "Rising Star", "Go-Getter"];
+          return badges[Math.floor(Math.random() * badges.length)];
+        }
+        return "Team Member";
+      }
+    },
     department: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Department",

@@ -1,9 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Container, Row, Col, Card, Button, Badge, Modal, Form } from "react-bootstrap";
-import { FaClock, FaCalendarAlt, FaTasks, FaChartLine, FaFileAlt, FaShieldAlt, FaTimes } from "react-icons/fa";
+import { FaClock, FaCalendarAlt, FaTasks, FaChartLine, FaFileAlt, FaShieldAlt } from "react-icons/fa";
 import toast from "../../utils/toast";
 import api from "../../services/api";
 import GreetingBanner from "../../components/common/GreetingBanner";
+import ConfirmModal from "../../components/common/ConfirmModal";
+import "../../styles/dashboard-mobile.css";
+import "../../styles/modal-mobile.css";
 
 // ============================================
 // 📅 WORK SCHEDULE CONFIGURATION
@@ -56,7 +59,22 @@ const EmployeeDashboard = () => {
   });
   const [clockedIn, setClockedIn] = useState(false);
   const [clockInTime, setClockInTime] = useState(null);
+  
+  // Use refs to track current values without causing re-renders
+  const clockedInRef = useRef(false);
+  const clockInTimeRef = useRef(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // Helper functions to update both state and ref
+  const updateClockedIn = (value) => {
+    clockedInRef.current = value;
+    setClockedIn(value);
+  };
+  
+  const updateClockInTime = (value) => {
+    clockInTimeRef.current = value;
+    setClockInTime(value);
+  };
   const [recentTasks, setRecentTasks] = useState([]);
   const [todaysMeetings, setTodaysMeetings] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
@@ -66,6 +84,9 @@ const EmployeeDashboard = () => {
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
   const [showTasksModal, setShowTasksModal] = useState(false);
   const [showWorkHoursModal, setShowWorkHoursModal] = useState(false);
+  const [showClockInConfirm, setShowClockInConfirm] = useState(false);
+  const [showClockOutConfirm, setShowClockOutConfirm] = useState(false);
+  const [clockActionLoading, setClockActionLoading] = useState(false);
   
   const [leaveFormData, setLeaveFormData] = useState({
     leaveType: 'personal',
@@ -106,15 +127,22 @@ const EmployeeDashboard = () => {
       setCurrentTime(new Date());
     }, 1000);
 
+    // Update work hours every minute
+    const workHoursTimer = setInterval(() => {
+      updateWorkHours();
+    }, 60000); // Update every minute
+
     // Listen for attendance updates from navbar
     const handleAttendanceUpdate = (event) => {
       const { type, data } = event.detail;
       if (type === 'clockIn') {
-        setClockedIn(true);
-        setClockInTime(new Date(data.clockIn));
+        updateClockedIn(true);
+        updateClockInTime(new Date(data.clockIn));
+        updateWorkHours(); // Update immediately on clock in
       } else if (type === 'clockOut') {
-        setClockedIn(false);
-        setClockInTime(null);
+        updateClockedIn(false);
+        updateClockInTime(null);
+        fetchDashboardData(); // Refresh to get final hours
       }
     };
 
@@ -122,9 +150,52 @@ const EmployeeDashboard = () => {
 
     return () => {
       clearInterval(timer);
+      clearInterval(workHoursTimer);
       window.removeEventListener('attendanceUpdate', handleAttendanceUpdate);
     };
   }, []);
+
+  const updateWorkHours = async () => {
+    // Calculate current work hours including today's ongoing session
+    try {
+      const response = await api.get('/attendance/my-attendance');
+      const attendanceRecords = response.data;
+      
+      const now = new Date();
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
+      startOfWeek.setHours(0, 0, 0, 0);
+      
+      const thisWeekRecords = attendanceRecords.filter(record => 
+        new Date(record.date) >= startOfWeek
+      );
+      
+      // Calculate hours from completed days
+      let totalHours = thisWeekRecords.reduce((sum, record) => {
+        // Skip today's record as we'll calculate it separately
+        const recordDate = new Date(record.date).toDateString();
+        const todayDate = now.toDateString();
+        if (recordDate === todayDate) return sum;
+        return sum + (record.workHours || 0);
+      }, 0);
+      
+      // Add today's ongoing hours if clocked in (use refs to avoid stale closure)
+      if (clockedInRef.current && clockInTimeRef.current) {
+        const todayHours = (now - clockInTimeRef.current) / (1000 * 60 * 60); // Convert to hours
+        totalHours += todayHours;
+      }
+      
+      const daysWorkedThisWeek = thisWeekRecords.filter(r => r.clockIn).length;
+      
+      setStats(prev => ({
+        ...prev,
+        hoursThisWeek: Math.round(totalHours * 10) / 10,
+        daysWorkedThisWeek: clockedInRef.current ? Math.max(daysWorkedThisWeek, 1) : daysWorkedThisWeek
+      }));
+    } catch (error) {
+      console.error("Error updating work hours:", error);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -136,12 +207,12 @@ const EmployeeDashboard = () => {
         
         if (response.data && response.data.clockIn) {
           // Already clocked in today
-          setClockedIn(!response.data.clockOut); // True if not clocked out yet
-          setClockInTime(new Date(response.data.clockIn));
+          updateClockedIn(!response.data.clockOut); // True if not clocked out yet
+          updateClockInTime(new Date(response.data.clockIn));
         } else {
           // No attendance record for today
-          setClockedIn(false);
-          setClockInTime(null);
+          updateClockedIn(false);
+          updateClockInTime(null);
         }
         
         // Fetch task stats and attendance stats
@@ -238,8 +309,8 @@ const EmployeeDashboard = () => {
         }
       } catch (attendanceError) {
         // No attendance record or error
-        setClockedIn(false);
-        setClockInTime(null);
+        updateClockedIn(false);
+        updateClockInTime(null);
         
         // Try to fetch other stats even if attendance fails
         try {
@@ -293,13 +364,20 @@ const EmployeeDashboard = () => {
     }
   };
 
+  const handleClockInClick = () => {
+    setShowClockInConfirm(true);
+  };
+
   const handleClockIn = async () => {
+    setShowClockInConfirm(false);
+    setClockActionLoading(true);
+    
     try {
       const response = await api.post("/attendance/clock-in");
       const attendance = response.data.attendance;
       
-      setClockedIn(true);
-      setClockInTime(new Date(attendance.clockIn));
+      updateClockedIn(true);
+      updateClockInTime(new Date(attendance.clockIn));
       toast.clockIn();
       
       // Trigger event for other components
@@ -326,16 +404,25 @@ const EmployeeDashboard = () => {
         const errorMessage = error.response?.data?.message || "Failed to clock in. Please try again.";
         toast.error(errorMessage);
       }
+    } finally {
+      setClockActionLoading(false);
     }
   };
 
+  const handleClockOutClick = () => {
+    setShowClockOutConfirm(true);
+  };
+
   const handleClockOut = async () => {
+    setShowClockOutConfirm(false);
+    setClockActionLoading(true);
+    
     try {
       const response = await api.post("/attendance/clock-out");
       const attendance = response.data.attendance || response.data;
       
-      setClockedIn(false);
-      setClockInTime(null);
+      updateClockedIn(false);
+      updateClockInTime(null);
       toast.clockOut();
       
       // Trigger event for other components
@@ -364,6 +451,8 @@ const EmployeeDashboard = () => {
         const errorMessage = error.response?.data?.message || "Failed to clock out. Please try again.";
         toast.error(errorMessage);
       }
+    } finally {
+      setClockActionLoading(false);
     }
   };
 
@@ -612,7 +701,7 @@ const EmployeeDashboard = () => {
 
       {/* Quick Stats */}
       <Row className="mb-4">
-        <Col md={3} className="mb-3">
+        <Col xs={12} sm={6} md={3} className="mb-3">
           <Card 
             className="dashboard-card stat-card border-0 shadow-sm h-100 cursor-pointer"
             onClick={handleAttendanceCardClick}
@@ -633,7 +722,7 @@ const EmployeeDashboard = () => {
           </Card>
         </Col>
 
-        <Col md={3} className="mb-3">
+        <Col xs={12} sm={6} md={3} className="mb-3">
           <Card 
             className="dashboard-card stat-card border-0 shadow-sm h-100 cursor-pointer" 
             onClick={handleLeaveCardClick}
@@ -654,7 +743,7 @@ const EmployeeDashboard = () => {
           </Card>
         </Col>
 
-        <Col md={3} className="mb-3">
+        <Col xs={12} sm={6} md={3} className="mb-3">
           <Card 
             className="dashboard-card stat-card border-0 shadow-sm h-100 cursor-pointer"
             onClick={handleTasksCardClick}
@@ -675,7 +764,7 @@ const EmployeeDashboard = () => {
           </Card>
         </Col>
 
-        <Col md={3} className="mb-3">
+        <Col xs={12} sm={6} md={3} className="mb-3">
           <Card 
             className="dashboard-card stat-card border-0 shadow-sm h-100 cursor-pointer"
             onClick={handleWorkHoursCardClick}
@@ -708,7 +797,7 @@ const EmployeeDashboard = () => {
 
       {/* Clock In/Out Section */}
       <Row className="mb-4">
-        <Col md={6} className="mb-3">
+        <Col xs={12} md={6} className="mb-3">
           <Card className="dashboard-card action-card border-0 shadow-sm h-100">
             <Card.Body>
               <h5 className="mb-3">
@@ -737,8 +826,9 @@ const EmployeeDashboard = () => {
                     <Button
                       variant="danger"
                       size="lg"
-                      onClick={handleClockOut}
+                      onClick={handleClockOutClick}
                       className="px-5"
+                      disabled={clockActionLoading}
                     >
                       Clock Out
                     </Button>
@@ -754,8 +844,9 @@ const EmployeeDashboard = () => {
                     <Button
                       variant="success"
                       size="lg"
-                      onClick={handleClockIn}
+                      onClick={handleClockInClick}
                       className="px-5"
+                      disabled={clockActionLoading}
                     >
                       Clock In
                     </Button>
@@ -766,7 +857,7 @@ const EmployeeDashboard = () => {
           </Card>
         </Col>
 
-        <Col md={6} className="mb-3">
+        <Col xs={12} md={6} className="mb-3">
           <Card className="dashboard-card action-card border-0 shadow-sm h-100">
             <Card.Body>
               <h5 className="mb-3">Quick Actions</h5>
@@ -796,7 +887,7 @@ const EmployeeDashboard = () => {
 
       {/* Today's Schedule */}
       <Row className="mb-4">
-        <Col md={6} className="mb-3">
+        <Col xs={12} md={6} className="mb-3">
           <Card className="dashboard-card content-card border-0 shadow-sm h-100">
             <Card.Body className="d-flex flex-column">
               <h5 className="mb-3">Today's Meetings</h5>
@@ -850,7 +941,7 @@ const EmployeeDashboard = () => {
           </Card>
         </Col>
 
-        <Col md={6} className="mb-3">
+        <Col xs={12} md={6} className="mb-3">
           <Card className="dashboard-card content-card border-0 shadow-sm h-100">
             <Card.Body className="d-flex flex-column">
               <h5 className="mb-3">My Tasks</h5>
@@ -905,7 +996,7 @@ const EmployeeDashboard = () => {
 
       {/* Recent Activities & Company Policies */}
       <Row className="mb-4">
-        <Col md={6} className="mb-3">
+        <Col xs={12} md={6} className="mb-3">
           <Card className="dashboard-card content-card border-0 shadow-sm h-100">
             <Card.Body className="d-flex flex-column">
               <h5 className="mb-3">Recent Activities</h5>
@@ -974,7 +1065,7 @@ const EmployeeDashboard = () => {
         </Col>
 
         {/* Company Policies */}
-        <Col md={6} className="mb-3">
+        <Col xs={12} md={6} className="mb-3">
           <Card className="dashboard-card content-card border-0 shadow-sm h-100">
             <Card.Body className="d-flex flex-column">
               <div className="d-flex justify-content-between align-items-center mb-3">
@@ -1231,7 +1322,7 @@ const EmployeeDashboard = () => {
       `}</style>
 
       {/* Leave Application Modal */}
-      <Modal show={showLeaveModal} onHide={() => setShowLeaveModal(false)} centered>
+      <Modal show={showLeaveModal} onHide={() => setShowLeaveModal(false)} centered className="leave-modal">
         <Modal.Header closeButton>
           <Modal.Title>
             <FaCalendarAlt className="me-2" />
@@ -1292,11 +1383,11 @@ const EmployeeDashboard = () => {
               />
             </Form.Group>
 
-            <div className="d-flex justify-content-end gap-2">
-              <Button variant="secondary" onClick={() => setShowLeaveModal(false)}>
+            <div className="d-flex flex-column flex-sm-row justify-content-end gap-2">
+              <Button variant="secondary" onClick={() => setShowLeaveModal(false)} className="w-mobile-100">
                 Cancel
               </Button>
-              <Button variant="primary" type="submit">
+              <Button variant="primary" type="submit" className="w-mobile-100">
                 Submit Application
               </Button>
             </div>
@@ -1305,7 +1396,7 @@ const EmployeeDashboard = () => {
       </Modal>
 
       {/* Leave Details Modal */}
-      <Modal show={showLeaveDetailsModal} onHide={() => setShowLeaveDetailsModal(false)} size="lg" centered>
+      <Modal show={showLeaveDetailsModal} onHide={() => setShowLeaveDetailsModal(false)} size="lg" centered className="details-modal">
         <Modal.Header closeButton>
           <Modal.Title>
             <FaCalendarAlt className="me-2 text-info" />
@@ -1315,7 +1406,7 @@ const EmployeeDashboard = () => {
         <Modal.Body>
           {/* Summary Cards */}
           <Row className="mb-4">
-            <Col md={4}>
+            <Col xs={12} sm={4} md={4}>
               <Card className="border-0 bg-light">
                 <Card.Body className="text-center">
                   <h6 className="text-muted mb-2">Total Leave</h6>
@@ -1324,7 +1415,7 @@ const EmployeeDashboard = () => {
                 </Card.Body>
               </Card>
             </Col>
-            <Col md={4}>
+            <Col xs={12} sm={4} md={4}>
               <Card className="border-0 bg-light">
                 <Card.Body className="text-center">
                   <h6 className="text-muted mb-2">Used</h6>
@@ -1333,7 +1424,7 @@ const EmployeeDashboard = () => {
                 </Card.Body>
               </Card>
             </Col>
-            <Col md={4}>
+            <Col xs={12} sm={4} md={4}>
               <Card className="border-0 bg-light">
                 <Card.Body className="text-center">
                   <h6 className="text-muted mb-2">Remaining</h6>
@@ -1404,10 +1495,10 @@ const EmployeeDashboard = () => {
           )}
 
           {/* Quick Actions */}
-          <div className="mt-4 d-flex gap-2">
+          <div className="mt-4 d-flex flex-column flex-sm-row gap-2">
             <Button 
               variant="primary" 
-              className="flex-grow-1"
+              className="flex-grow-1 w-mobile-100"
               onClick={() => {
                 setShowLeaveDetailsModal(false);
                 setShowLeaveModal(true);
@@ -1418,6 +1509,7 @@ const EmployeeDashboard = () => {
             </Button>
             <Button 
               variant="outline-primary"
+              className="w-mobile-100"
               onClick={() => window.location.href = '/employee/leaves'}
             >
               View All Leaves
@@ -1427,7 +1519,7 @@ const EmployeeDashboard = () => {
       </Modal>
 
       {/* Attendance Details Modal */}
-      <Modal show={showAttendanceModal} onHide={() => setShowAttendanceModal(false)} size="lg" centered>
+      <Modal show={showAttendanceModal} onHide={() => setShowAttendanceModal(false)} size="lg" centered className="details-modal">
         <Modal.Header closeButton>
           <Modal.Title>
             <FaClock className="me-2 text-success" />
@@ -1734,6 +1826,37 @@ const EmployeeDashboard = () => {
           </div>
         </Modal.Body>
       </Modal>
+
+      {/* Clock In Confirmation Modal */}
+      <ConfirmModal
+        show={showClockInConfirm}
+        onHide={() => setShowClockInConfirm(false)}
+        onConfirm={handleClockIn}
+        title="Clock In Confirmation"
+        message="Are you ready to start your workday?"
+        subMessage="This will record your clock-in time."
+        confirmText="Clock In"
+        confirmVariant="success"
+        icon="clock"
+        loading={clockActionLoading}
+      />
+
+      {/* Clock Out Confirmation Modal */}
+      <ConfirmModal
+        show={showClockOutConfirm}
+        onHide={() => setShowClockOutConfirm(false)}
+        onConfirm={handleClockOut}
+        title="Clock Out Confirmation"
+        message="Are you done for the day?"
+        subMessage="This will record your clock-out time and calculate your work hours."
+        confirmText="Clock Out"
+        confirmVariant="danger"
+        icon="clock"
+        loading={clockActionLoading}
+        additionalInfo={clockInTime && (
+          <><strong>Clock In Time:</strong> {formatTime(clockInTime)}</>
+        )}
+      />
     </Container>
   );
 };

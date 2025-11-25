@@ -1,0 +1,623 @@
+/* ============================================
+   FORM MOBILE RESPONSIVE STYLES
+   ============================================ */
+
+/* ============================================
+   1. FORM CONTROLS MOBILE OPTIMIZATION
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* All form controls */
+  .form-control,
+  .form-select {
+    font-size: 16px !important; /* Prevents zoom on iOS */
+    padding: 12px !important;
+    min-height: 48px;
+    border-radius: 8px;
+  }
+  
+  /* Textarea */
+  textarea.form-control {
+    min-height: 100px;
+    font-size: 16px !important;
+  }
+  
+  /* Form labels */
+  .form-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: #495057;
+  }
+  
+  /* Form groups */
+  .form-group,
+  .mb-3 {
+    margin-bottom: 16px !important;
+  }
+  
+  /* Form text (helper text) */
+  .form-text {
+    font-size: 0.75rem;
+    margin-top: 4px;
+  }
+  
+  /* Required asterisk */
+  .text-danger {
+    font-size: 1rem;
+  }
+}
+
+/* ============================================
+   2. FORM LAYOUT MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Stack form rows */
+  .row .col-md-6,
+  .row .col-md-4,
+  .row .col-md-3 {
+    margin-bottom: 16px;
+  }
+  
+  /* Form sections */
+  form .row {
+    margin-bottom: 0;
+  }
+  
+  /* Section headings */
+  form h6 {
+    font-size: 1rem;
+    margin-top: 24px;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e9ecef;
+  }
+  
+  form h6:first-child {
+    margin-top: 0;
+  }
+}
+
+/* ============================================
+   3. TABS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .nav-tabs {
+    border-bottom: 2px solid #dee2e6;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 20px !important;
+  }
+  
+  .nav-tabs .nav-link {
+    font-size: 0.875rem;
+    padding: 10px 14px;
+    white-space: nowrap;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: #6c757d;
+  }
+  
+  .nav-tabs .nav-link.active {
+    border-bottom-color: #667eea;
+    background: transparent;
+    font-weight: 600;
+    color: #667eea;
+  }
+  
+  .tab-content {
+    padding-top: 0;
+  }
+  
+  .tab-pane {
+    animation: fadeIn 0.3s ease;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+}
+
+/* ============================================
+   4. FORM BUTTONS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Action buttons container */
+  form .d-flex.gap-2,
+  form .d-flex.justify-content-end {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+  
+  form .d-flex.gap-2 .btn,
+  form .d-flex.justify-content-end .btn {
+    width: 100% !important;
+    margin: 0 !important;
+  }
+  
+  /* Submit buttons */
+  form button[type="submit"] {
+    order: -1; /* Put submit button first on mobile */
+  }
+  
+  /* Button sizing */
+  form .btn {
+    min-height: 48px;
+    font-size: 0.95rem;
+    padding: 12px 20px;
+  }
+  
+  form .btn-sm {
+    min-height: 40px;
+    font-size: 0.85rem;
+    padding: 10px 16px;
+  }
+}
+
+/* ============================================
+   5. INPUT GROUPS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .input-group {
+    flex-wrap: nowrap;
+  }
+  
+  .input-group .form-control {
+    min-width: 0;
+    flex: 1;
+  }
+  
+  .input-group-text {
+    font-size: 0.875rem;
+    padding: 10px 12px;
+  }
+  
+  .input-group .btn {
+    min-height: 48px;
+    padding: 10px 16px;
+  }
+}
+
+/* ============================================
+   6. CHECKBOX & RADIO MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .form-check {
+    min-height: 44px;
+    padding-left: 2rem;
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  
+  .form-check-input {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-top: 0;
+    margin-left: -2rem;
+    flex-shrink: 0;
+  }
+  
+  .form-check-label {
+    font-size: 0.875rem;
+    padding-left: 8px;
+    cursor: pointer;
+  }
+  
+  /* Switch */
+  .form-switch .form-check-input {
+    width: 2.5rem;
+    height: 1.25rem;
+  }
+}
+
+/* ============================================
+   7. FILE INPUT MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .form-control[type="file"] {
+    font-size: 0.875rem;
+    padding: 10px;
+  }
+  
+  .form-control[type="file"]::file-selector-button {
+    padding: 8px 12px;
+    font-size: 0.875rem;
+    margin-right: 10px;
+    border-radius: 6px;
+  }
+}
+
+/* ============================================
+   8. DATE & TIME INPUTS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"] {
+    font-size: 16px !important; /* Prevents zoom */
+    padding: 12px !important;
+    min-height: 48px;
+  }
+  
+  /* Date picker icon */
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+  }
+}
+
+/* ============================================
+   9. SELECT DROPDOWN MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .form-select {
+    font-size: 16px !important;
+    padding: 12px 36px 12px 12px !important;
+    min-height: 48px;
+    background-size: 16px 12px;
+    background-position: right 12px center;
+  }
+  
+  .form-select option {
+    font-size: 16px;
+    padding: 10px;
+  }
+}
+
+/* ============================================
+   10. FORM VALIDATION MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .invalid-feedback,
+  .valid-feedback {
+    font-size: 0.75rem;
+    margin-top: 4px;
+  }
+  
+  .form-control.is-invalid,
+  .form-select.is-invalid {
+    border-color: #dc3545;
+    padding-right: 40px;
+    background-position: right 12px center;
+  }
+  
+  .form-control.is-valid,
+  .form-select.is-valid {
+    border-color: #198754;
+    padding-right: 40px;
+    background-position: right 12px center;
+  }
+}
+
+/* ============================================
+   11. FORM CARD MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  form .card {
+    border-radius: 12px;
+    margin-bottom: 16px;
+  }
+  
+  form .card-body {
+    padding: 16px !important;
+  }
+  
+  form .card-header {
+    padding: 12px 16px !important;
+    font-size: 1rem;
+  }
+  
+  form .card-footer {
+    padding: 12px 16px !important;
+  }
+}
+
+/* ============================================
+   12. FORM HEADER MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Page header with back button */
+  .d-flex.justify-content-between.align-items-center {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+  
+  .d-flex.align-items-center {
+    width: 100%;
+  }
+  
+  .d-flex.align-items-center .btn {
+    margin-right: 12px !important;
+  }
+  
+  /* Form title */
+  form h2 {
+    font-size: 1.5rem !important;
+  }
+  
+  form h2 svg {
+    font-size: 1.25rem;
+  }
+  
+  form p.text-muted {
+    font-size: 0.875rem;
+  }
+}
+
+/* ============================================
+   13. FLOATING LABELS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .form-floating {
+    margin-bottom: 16px;
+  }
+  
+  .form-floating > .form-control,
+  .form-floating > .form-select {
+    font-size: 16px !important;
+    padding: 16px 12px 8px;
+    min-height: 58px;
+  }
+  
+  .form-floating > label {
+    font-size: 0.875rem;
+    padding: 16px 12px;
+  }
+  
+  .form-floating > .form-control:focus ~ label,
+  .form-floating > .form-control:not(:placeholder-shown) ~ label,
+  .form-floating > .form-select ~ label {
+    font-size: 0.75rem;
+    padding: 4px 12px;
+  }
+}
+
+/* ============================================
+   14. RANGE INPUT MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .form-range {
+    height: 1.5rem;
+    padding: 0;
+  }
+  
+  .form-range::-webkit-slider-thumb {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+  
+  .form-range::-moz-range-thumb {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+}
+
+/* ============================================
+   15. MULTI-STEP FORM MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .progress {
+    height: 8px;
+    margin-bottom: 20px;
+  }
+  
+  .step-indicator {
+    font-size: 0.75rem;
+    margin-bottom: 16px;
+  }
+  
+  .step-indicator .step {
+    padding: 8px 12px;
+    font-size: 0.75rem;
+  }
+}
+
+/* ============================================
+   16. FORM GRID MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Ensure all form columns stack */
+  .row > [class*="col-"] {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+  
+  /* Remove column gaps on mobile */
+  .row.g-3 {
+    --bs-gutter-x: 0;
+    --bs-gutter-y: 16px;
+  }
+}
+
+/* ============================================
+   17. INLINE FORMS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .row-cols-auto {
+    flex-direction: column !important;
+  }
+  
+  .row-cols-auto > * {
+    width: 100% !important;
+    margin-bottom: 12px;
+  }
+  
+  .d-inline-flex {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100%;
+  }
+}
+
+/* ============================================
+   18. FORM ALERTS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  form .alert {
+    font-size: 0.875rem;
+    padding: 12px;
+    margin-bottom: 16px;
+    border-radius: 8px;
+  }
+  
+  form .alert-heading {
+    font-size: 1rem;
+    margin-bottom: 8px;
+  }
+}
+
+/* ============================================
+   19. FORM SPINNER/LOADING MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  form .spinner-border {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+  
+  form .spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+  }
+  
+  .text-center.py-5 {
+    padding: 40px 16px !important;
+  }
+}
+
+/* ============================================
+   20. FORM BORDER & DIVIDERS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  form .border-top {
+    margin-top: 20px !important;
+    padding-top: 16px !important;
+  }
+  
+  form .border-bottom {
+    margin-bottom: 20px !important;
+    padding-bottom: 16px !important;
+  }
+  
+  form hr {
+    margin: 20px 0;
+  }
+}
+
+/* ============================================
+   21. ACCESSIBILITY - FOCUS STATES
+   ============================================ */
+
+@media (max-width: 767.98px) {
+  .form-control:focus,
+  .form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+  }
+  
+  .btn:focus {
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+  }
+}
+
+/* ============================================
+   22. FORM DISABLED STATE MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .form-control:disabled,
+  .form-select:disabled {
+    background-color: #e9ecef;
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+  
+  .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+/* ============================================
+   23. FORM PLACEHOLDER MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .form-control::placeholder {
+    font-size: 0.875rem;
+    color: #6c757d;
+    opacity: 0.7;
+  }
+}
+
+/* ============================================
+   24. LANDSCAPE ORIENTATION
+   ============================================ */
+
+@media (max-width: 767.98px) and (orientation: landscape) {
+  .form-control,
+  .form-select {
+    min-height: 44px;
+    padding: 10px 12px !important;
+  }
+  
+  form .btn {
+    min-height: 44px;
+    padding: 10px 16px;
+  }
+  
+  form h6 {
+    margin-top: 16px;
+    margin-bottom: 12px;
+  }
+}
+
+/* ============================================
+   25. PRINT STYLES
+   ============================================ */
+
+@media print {
+  form .btn,
+  form .nav-tabs,
+  .form-text {
+    display: none !important;
+  }
+  
+  .form-control,
+  .form-select {
+    border: 1px solid #000;
+    padding: 4px;
+    font-size: 10pt;
+  }
+  
+  form .card {
+    break-inside: avoid;
+    box-shadow: none;
+    border: 1px solid #ddd;
+  }
+}

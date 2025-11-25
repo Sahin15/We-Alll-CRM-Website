@@ -1,0 +1,601 @@
+/* ============================================
+   DASHBOARD MOBILE RESPONSIVE STYLES
+   ============================================ */
+
+/* ============================================
+   1. STAT CARDS MOBILE OPTIMIZATION
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Stat cards - compact mobile view */
+  .stat-card {
+    margin-bottom: 12px !important;
+  }
+  
+  .stat-card .card-body {
+    padding: 14px !important;
+  }
+  
+  .stat-card h3 {
+    font-size: 1.5rem !important;
+    margin-bottom: 4px !important;
+  }
+  
+  .stat-card h6 {
+    font-size: 0.8rem !important;
+    margin-bottom: 8px !important;
+  }
+  
+  .stat-card small {
+    font-size: 0.7rem !important;
+    line-height: 1.3;
+  }
+  
+  /* Icon container - smaller on mobile */
+  .stat-card .bg-opacity-10 {
+    padding: 10px !important;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .stat-card .fs-4 {
+    font-size: 1.1rem !important;
+  }
+  
+  /* Progress bar in stat cards */
+  .stat-card .progress {
+    height: 5px !important;
+    margin-bottom: 6px !important;
+  }
+  
+  /* Flex layout adjustments */
+  .stat-card .d-flex {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+  
+  .stat-card .d-flex.justify-content-between {
+    width: 100%;
+  }
+  
+  .stat-card .d-flex.justify-content-between > div:first-child {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+  
+  .stat-card .d-flex.justify-content-between > div:last-child {
+    align-self: flex-end;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 576px) and (max-width: 767.98px) {
+  .stat-card .card-body {
+    padding: 16px !important;
+  }
+  
+  .stat-card h3 {
+    font-size: 1.75rem !important;
+  }
+}
+
+/* ============================================
+   2. CLOCK IN/OUT SECTION MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .action-card .card-body {
+    padding: 16px !important;
+  }
+  
+  .action-card h5 {
+    font-size: 1rem !important;
+    margin-bottom: 16px !important;
+  }
+  
+  /* Time display */
+  .action-card h2 {
+    font-size: 1.75rem !important;
+  }
+  
+  /* Clock in/out buttons */
+  .action-card .btn-lg {
+    width: 100%;
+    padding: 14px 20px !important;
+    font-size: 1rem !important;
+  }
+  
+  /* Badge sizing */
+  .action-card .badge {
+    font-size: 0.8rem !important;
+    padding: 8px 16px !important;
+  }
+  
+  /* Working hours display */
+  .action-card .text-primary.fw-bold {
+    font-size: 1rem !important;
+  }
+}
+
+/* ============================================
+   3. QUICK ACTIONS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Quick action buttons */
+  .action-card .d-grid .btn {
+    padding: 14px 16px !important;
+    font-size: 0.9rem !important;
+    text-align: left;
+  }
+  
+  .action-card .d-grid .btn svg {
+    font-size: 1rem;
+  }
+  
+  .action-card .d-grid {
+    gap: 10px !important;
+  }
+}
+
+/* ============================================
+   4. CONTENT CARDS MOBILE (Meetings, Tasks, etc.)
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .content-card {
+    margin-bottom: 12px !important;
+  }
+  
+  .content-card .card-body {
+    padding: 14px !important;
+  }
+  
+  .content-card h5 {
+    font-size: 1rem !important;
+    margin-bottom: 12px !important;
+  }
+  
+  .content-card h6 {
+    font-size: 0.9rem !important;
+    margin-bottom: 4px !important;
+  }
+  
+  /* List items */
+  .content-card .list-group-item {
+    padding: 12px 0 !important;
+    font-size: 0.875rem;
+  }
+  
+  .content-card .list-group-item h6 {
+    font-size: 0.875rem !important;
+  }
+  
+  .content-card .list-group-item small {
+    font-size: 0.75rem !important;
+  }
+  
+  /* Empty state */
+  .content-card .text-center.py-5 {
+    padding: 30px 10px !important;
+  }
+  
+  .content-card .text-center .fs-1 {
+    font-size: 2rem !important;
+  }
+  
+  /* Scrollable lists */
+  .content-card .list-group-flush {
+    max-height: 300px !important;
+  }
+  
+  /* Badge in list items */
+  .content-card .badge {
+    font-size: 0.65rem !important;
+    padding: 4px 8px !important;
+  }
+  
+  /* Meeting/Task items - stack on mobile */
+  .content-card .d-flex.justify-content-between {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+  
+  .content-card .d-flex.justify-content-between .badge {
+    margin-top: 6px;
+    margin-left: 0 !important;
+  }
+}
+
+/* ============================================
+   5. MODAL MOBILE OPTIMIZATION
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Modal sizing */
+  .modal-dialog {
+    margin: 10px;
+    max-width: calc(100% - 20px);
+  }
+  
+  .modal-content {
+    border-radius: 12px;
+  }
+  
+  .modal-header {
+    padding: 14px 16px;
+  }
+  
+  .modal-title {
+    font-size: 1.1rem !important;
+  }
+  
+  .modal-title svg {
+    font-size: 1rem;
+  }
+  
+  .modal-body {
+    padding: 16px;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+  }
+  
+  .modal-footer {
+    padding: 12px 16px;
+    flex-direction: column;
+  }
+  
+  .modal-footer .btn {
+    width: 100%;
+    margin: 4px 0 !important;
+  }
+  
+  .modal-footer .gap-2 {
+    gap: 8px !important;
+    width: 100%;
+  }
+  
+  .modal-footer .gap-2 .btn {
+    flex: 1;
+  }
+  
+  /* Leave Details Modal - Summary Cards */
+  .modal-body .row .col-md-4 {
+    margin-bottom: 10px;
+  }
+  
+  .modal-body .card h2 {
+    font-size: 1.75rem !important;
+  }
+  
+  .modal-body .card h6 {
+    font-size: 0.8rem !important;
+  }
+  
+  /* Modal list items */
+  .modal-body .list-group-item {
+    padding: 12px !important;
+  }
+  
+  .modal-body .list-group-item h6 {
+    font-size: 0.875rem !important;
+  }
+  
+  /* Modal buttons */
+  .modal-body .d-flex.gap-2 {
+    flex-direction: column !important;
+  }
+  
+  .modal-body .d-flex.gap-2 .btn {
+    width: 100% !important;
+  }
+}
+
+/* ============================================
+   6. FORM ELEMENTS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Form groups */
+  .modal-body .form-group,
+  .modal-body .mb-3 {
+    margin-bottom: 14px !important;
+  }
+  
+  /* Form labels */
+  .modal-body .form-label {
+    font-size: 0.875rem !important;
+    margin-bottom: 6px !important;
+  }
+  
+  /* Form controls */
+  .modal-body .form-control,
+  .modal-body .form-select {
+    font-size: 16px !important; /* Prevents zoom on iOS */
+    padding: 12px !important;
+    min-height: 48px;
+  }
+  
+  /* Textarea */
+  .modal-body textarea.form-control {
+    min-height: 100px;
+  }
+}
+
+/* ============================================
+   7. GREETING BANNER MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .greeting-banner {
+    padding: 16px 12px !important;
+    margin-bottom: 16px !important;
+  }
+  
+  .greeting-banner h2 {
+    font-size: 1.5rem !important;
+  }
+  
+  .greeting-banner p {
+    font-size: 0.875rem !important;
+  }
+}
+
+/* ============================================
+   8. DASHBOARD CONTAINER MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .dashboard-container {
+    padding: 12px !important;
+  }
+  
+  /* Row spacing */
+  .dashboard-container .row {
+    margin-bottom: 0 !important;
+  }
+  
+  .dashboard-container .mb-4 {
+    margin-bottom: 16px !important;
+  }
+  
+  .dashboard-container .mb-3 {
+    margin-bottom: 12px !important;
+  }
+}
+
+/* ============================================
+   9. POLICY CARDS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Policy list items */
+  .content-card .list-group-item .fs-4 {
+    font-size: 1.5rem !important;
+  }
+  
+  .content-card .list-group-item .d-flex {
+    flex-direction: row !important;
+    align-items: flex-start !important;
+  }
+  
+  /* Policy description truncation */
+  .content-card .list-group-item p {
+    font-size: 0.8rem !important;
+    line-height: 1.4;
+  }
+  
+  /* Policy metadata */
+  .content-card .list-group-item .d-flex.justify-content-between:last-child {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 4px;
+  }
+}
+
+/* ============================================
+   10. ACTIVITY ITEMS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Activity list items */
+  .content-card .list-group-item .d-flex.align-items-center {
+    flex-wrap: wrap;
+  }
+  
+  .content-card .list-group-item .bg-opacity-10 {
+    width: 36px;
+    height: 36px;
+    padding: 8px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .content-card .list-group-item .bg-opacity-10 svg {
+    font-size: 1rem;
+  }
+  
+  /* Time ago - move to new line on very small screens */
+  .content-card .list-group-item small:last-child {
+    width: 100%;
+    margin-top: 6px;
+    display: block;
+  }
+}
+
+/* ============================================
+   11. PROGRESS BARS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .progress {
+    height: 6px !important;
+  }
+  
+  .modal-body .progress {
+    height: 8px !important;
+  }
+}
+
+/* ============================================
+   12. BUTTON GROUPS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Stack button groups */
+  .d-flex.gap-2:has(.btn) {
+    flex-direction: column !important;
+  }
+  
+  .d-flex.gap-2:has(.btn) .btn {
+    width: 100% !important;
+  }
+  
+  /* Quick action buttons */
+  .d-grid.gap-2 {
+    gap: 10px !important;
+  }
+}
+
+/* ============================================
+   13. HOVER EFFECTS - DISABLE ON TOUCH
+   ============================================ */
+
+@media (hover: none) and (pointer: coarse) {
+  /* Disable hover animations on touch devices */
+  .dashboard-card:hover {
+    transform: none !important;
+  }
+  
+  .stat-card:hover .bg-opacity-10 {
+    transform: none !important;
+  }
+  
+  .content-card .list-group-item:hover {
+    transform: none !important;
+  }
+  
+  /* Keep active state for touch feedback */
+  .dashboard-card:active {
+    transform: scale(0.98) !important;
+  }
+  
+  .btn:active {
+    transform: scale(0.97) !important;
+  }
+}
+
+/* ============================================
+   14. LANDSCAPE ORIENTATION
+   ============================================ */
+
+@media (max-width: 767.98px) and (orientation: landscape) {
+  /* Reduce vertical spacing in landscape */
+  .dashboard-container {
+    padding: 8px !important;
+  }
+  
+  .card {
+    margin-bottom: 8px !important;
+  }
+  
+  .modal-body {
+    max-height: calc(100vh - 150px);
+  }
+  
+  /* Stat cards in landscape - 2 columns */
+  .stat-card {
+    min-height: auto !important;
+  }
+}
+
+/* ============================================
+   15. VERY SMALL SCREENS (< 360px)
+   ============================================ */
+
+@media (max-width: 359.98px) {
+  .dashboard-container {
+    padding: 8px !important;
+  }
+  
+  .card-body {
+    padding: 10px !important;
+  }
+  
+  .stat-card h3 {
+    font-size: 1.25rem !important;
+  }
+  
+  .stat-card h6 {
+    font-size: 0.75rem !important;
+  }
+  
+  .btn {
+    font-size: 0.85rem !important;
+    padding: 10px 14px !important;
+  }
+}
+
+/* ============================================
+   16. LOADING SPINNER MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .spinner-container {
+    min-height: 300px !important;
+  }
+  
+  .spinner-border {
+    width: 2rem !important;
+    height: 2rem !important;
+  }
+}
+
+/* ============================================
+   17. CONFIRM MODAL MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .confirm-modal .modal-body {
+    padding: 20px 16px !important;
+  }
+  
+  .confirm-modal .fs-1 {
+    font-size: 2.5rem !important;
+  }
+  
+  .confirm-modal h5 {
+    font-size: 1.1rem !important;
+  }
+  
+  .confirm-modal .alert {
+    font-size: 0.875rem !important;
+    padding: 10px !important;
+  }
+}
+
+/* ============================================
+   18. ACCESSIBILITY - TOUCH TARGETS
+   ============================================ */
+
+@media (max-width: 767.98px) {
+  /* Ensure all interactive elements are touch-friendly */
+  .btn,
+  .list-group-item,
+  .nav-link,
+  .dropdown-item,
+  a {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+  
+  /* Clickable cards */
+  .cursor-pointer {
+    min-height: 60px;
+  }
+}

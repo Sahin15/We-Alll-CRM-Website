@@ -289,6 +289,76 @@ const EmployeeList = () => {
       {/* Employee Table */}
       <Card className="border-0 shadow-sm">
         <Card.Body>
+          <style>{`
+            /* Fix dropdown z-index and make it solid */
+            .action-dropdown-menu {
+              background-color: #ffffff !important;
+              opacity: 1 !important;
+              pointer-events: auto !important;
+              z-index: 9999 !important;
+              position: fixed !important;
+              box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+              border: 1px solid rgba(0, 0, 0, 0.15) !important;
+              min-width: 150px;
+              padding: 0.5rem 0;
+            }
+            
+            /* Ensure dropdown shows on top */
+            .dropdown-menu.show {
+              display: block !important;
+              pointer-events: auto !important;
+              background-color: #ffffff !important;
+              opacity: 1 !important;
+              z-index: 9999 !important;
+              position: fixed !important;
+            }
+            
+            /* Make dropdown items solid */
+            .action-dropdown-menu .dropdown-item {
+              background-color: #ffffff !important;
+              cursor: pointer !important;
+              pointer-events: auto !important;
+            }
+            
+            .action-dropdown-menu .dropdown-item:hover {
+              background-color: #f8f9fa !important;
+            }
+            
+            .action-dropdown-menu .dropdown-divider {
+              background-color: #dee2e6 !important;
+              opacity: 1 !important;
+            }
+            
+            /* Fix dropdown toggle */
+            .action-dropdown-toggle {
+              pointer-events: auto !important;
+              cursor: pointer !important;
+            }
+            
+            /* Table rows should not create stacking context */
+            .table tbody tr {
+              position: static;
+            }
+            
+            .table tbody tr:hover {
+              background-color: rgba(0, 0, 0, 0.02);
+            }
+            
+            /* Dropdown container */
+            .dropdown {
+              position: static;
+            }
+            
+            .dropdown.show {
+              position: static;
+            }
+            
+            /* Prevent any transparency */
+            .dropdown-menu {
+              backdrop-filter: none !important;
+              -webkit-backdrop-filter: none !important;
+            }
+          `}</style>
           <div className="table-responsive">
             <Table hover>
               <thead className="bg-light">
@@ -342,27 +412,30 @@ const EmployeeList = () => {
                       <td>{formatDate(employee.joiningDate || employee.hireDate)}</td>
                       <td>{getStatusBadge(employee.status)}</td>
                       <td>
-                        <Dropdown>
+                        <Dropdown align="end">
                           <Dropdown.Toggle
                             variant="outline-secondary"
                             size="sm"
                             id={`dropdown-${employee._id}`}
+                            className="action-dropdown-toggle"
                           >
                             Actions
                           </Dropdown.Toggle>
-                          <Dropdown.Menu>
+                          <Dropdown.Menu className="action-dropdown-menu">
                             <Dropdown.Item
-                              onClick={() =>
-                                navigate(`/employees/${employee._id}`)
-                              }
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/employees/${employee._id}`);
+                              }}
                             >
                               <FaEye className="me-2" />
                               View Details
                             </Dropdown.Item>
                             <Dropdown.Item
-                              onClick={() =>
-                                navigate(`/employees/${employee._id}/edit`)
-                              }
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/employees/${employee._id}/edit`);
+                              }}
                             >
                               <FaEdit className="me-2" />
                               Edit
@@ -372,7 +445,10 @@ const EmployeeList = () => {
                                 <Dropdown.Divider />
                                 <Dropdown.Item
                                   className="text-danger"
-                                  onClick={() => handleDelete(employee._id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDelete(employee._id);
+                                  }}
                                 >
                                   <FaTrash className="me-2" />
                                   Delete

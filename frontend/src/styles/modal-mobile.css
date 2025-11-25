@@ -1,0 +1,592 @@
+/* ============================================
+   MODAL MOBILE RESPONSIVE STYLES
+   ============================================ */
+
+/* ============================================
+   1. MODAL DIALOG MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .modal-dialog {
+    margin: 10px;
+    max-width: calc(100% - 20px);
+    min-height: calc(100vh - 20px);
+    display: flex;
+    align-items: center;
+  }
+  
+  .modal-content {
+    border-radius: 12px;
+    max-height: calc(100vh - 20px);
+    display: flex;
+    flex-direction: column;
+  }
+  
+  /* Large modals */
+  .modal-dialog.modal-lg {
+    max-width: calc(100% - 20px);
+  }
+  
+  /* Extra large modals */
+  .modal-dialog.modal-xl {
+    max-width: calc(100% - 20px);
+  }
+  
+  /* Small modals */
+  .modal-dialog.modal-sm {
+    max-width: calc(100% - 40px);
+  }
+  
+  /* Fullscreen on mobile */
+  .modal-fullscreen-sm-down {
+    margin: 0;
+    max-width: 100%;
+    min-height: 100vh;
+  }
+  
+  .modal-fullscreen-sm-down .modal-content {
+    border-radius: 0;
+    max-height: 100vh;
+    height: 100vh;
+  }
+}
+
+/* ============================================
+   2. MODAL HEADER MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .modal-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid #dee2e6;
+  }
+  
+  .modal-title {
+    font-size: 1.1rem !important;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  
+  .modal-title svg {
+    font-size: 1rem;
+  }
+  
+  /* Close button */
+  .modal-header .btn-close {
+    padding: 8px;
+    margin: -8px -8px -8px auto;
+    width: 32px;
+    height: 32px;
+    background-size: 16px;
+  }
+}
+
+/* ============================================
+   3. MODAL BODY MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .modal-body {
+    padding: 16px;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    flex: 1;
+  }
+  
+  /* Scrollbar for modal body */
+  .modal-body::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .modal-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+  }
+  
+  .modal-body::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+  }
+  
+  /* Modal body content */
+  .modal-body h5 {
+    font-size: 1rem !important;
+  }
+  
+  .modal-body h6 {
+    font-size: 0.9rem !important;
+  }
+  
+  .modal-body p {
+    font-size: 0.875rem;
+  }
+  
+  /* Text center content */
+  .modal-body .text-center {
+    padding: 20px 10px !important;
+  }
+  
+  .modal-body .text-center .fs-1 {
+    font-size: 2.5rem !important;
+  }
+  
+  .modal-body .text-center h5 {
+    font-size: 1.1rem !important;
+  }
+}
+
+/* ============================================
+   4. MODAL FOOTER MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .modal-footer {
+    padding: 12px 16px;
+    border-top: 1px solid #dee2e6;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .modal-footer .btn {
+    width: 100%;
+    margin: 0 !important;
+    min-height: 48px;
+    font-size: 0.95rem;
+  }
+  
+  /* Primary button first on mobile */
+  .modal-footer .btn-primary,
+  .modal-footer .btn-success,
+  .modal-footer .btn-danger {
+    order: -1;
+  }
+  
+  /* Gap between buttons */
+  .modal-footer > * + * {
+    margin-top: 8px;
+  }
+}
+
+/* ============================================
+   5. MODAL FORMS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Form inside modal */
+  .modal-body form .row {
+    margin-bottom: 0;
+  }
+  
+  .modal-body form .col-md-6,
+  .modal-body form .col-md-4,
+  .modal-body form .col-md-3 {
+    margin-bottom: 14px;
+  }
+  
+  .modal-body .form-group,
+  .modal-body .mb-3 {
+    margin-bottom: 14px !important;
+  }
+  
+  .modal-body .form-control,
+  .modal-body .form-select {
+    font-size: 16px !important;
+    padding: 12px !important;
+    min-height: 48px;
+  }
+  
+  .modal-body textarea.form-control {
+    min-height: 100px;
+  }
+  
+  .modal-body .form-label {
+    font-size: 0.875rem;
+    margin-bottom: 6px;
+  }
+}
+
+/* ============================================
+   6. MODAL TABLES MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .modal-body .table {
+    font-size: 0.75rem;
+  }
+  
+  .modal-body .table th,
+  .modal-body .table td {
+    padding: 8px 6px;
+  }
+  
+  .modal-body .table-responsive {
+    margin: 0 -16px;
+    padding: 0 16px;
+  }
+  
+  .modal-body .badge {
+    font-size: 0.65rem;
+    padding: 3px 6px;
+  }
+}
+
+/* ============================================
+   7. MODAL LISTS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .modal-body .list-group-item {
+    padding: 12px;
+    font-size: 0.875rem;
+  }
+  
+  .modal-body .list-group-item h6 {
+    font-size: 0.875rem !important;
+  }
+  
+  .modal-body .list-group-item small {
+    font-size: 0.75rem !important;
+  }
+}
+
+/* ============================================
+   8. MODAL ALERTS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .modal-body .alert {
+    font-size: 0.875rem;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    border-radius: 8px;
+  }
+  
+  .modal-body .alert-heading {
+    font-size: 1rem;
+    margin-bottom: 6px;
+  }
+}
+
+/* ============================================
+   9. MODAL CARDS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .modal-body .card {
+    margin-bottom: 12px;
+    border-radius: 8px;
+  }
+  
+  .modal-body .card-body {
+    padding: 12px !important;
+  }
+  
+  .modal-body .card h6 {
+    font-size: 0.8rem !important;
+  }
+  
+  .modal-body .card h2,
+  .modal-body .card h3 {
+    font-size: 1.5rem !important;
+  }
+}
+
+/* ============================================
+   10. MODAL PROGRESS BARS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .modal-body .progress {
+    height: 8px;
+    margin-bottom: 8px;
+  }
+  
+  .modal-body .form-range {
+    height: 1.5rem;
+  }
+}
+
+/* ============================================
+   11. CONFIRM MODAL MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Confirm modal specific */
+  .confirm-modal .modal-body {
+    padding: 20px 16px !important;
+  }
+  
+  .confirm-modal .text-center {
+    padding: 16px 10px !important;
+  }
+  
+  .confirm-modal .fs-1 {
+    font-size: 2.5rem !important;
+  }
+  
+  .confirm-modal h5 {
+    font-size: 1.1rem !important;
+    margin-bottom: 12px !important;
+  }
+  
+  .confirm-modal p {
+    font-size: 0.875rem;
+  }
+  
+  .confirm-modal .alert {
+    font-size: 0.875rem !important;
+    padding: 10px !important;
+    margin-bottom: 0 !important;
+  }
+}
+
+/* ============================================
+   12. MODAL BACKDROP MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .modal-backdrop {
+    background-color: rgba(0, 0, 0, 0.6);
+  }
+  
+  .modal-backdrop.show {
+    opacity: 0.6;
+  }
+}
+
+/* ============================================
+   13. MODAL ANIMATIONS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .modal.fade .modal-dialog {
+    transition: transform 0.3s ease-out;
+    transform: translate(0, -50px);
+  }
+  
+  .modal.show .modal-dialog {
+    transform: none;
+  }
+}
+
+/* ============================================
+   14. MODAL TABS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .modal-body .nav-tabs {
+    border-bottom: 2px solid #dee2e6;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 16px !important;
+  }
+  
+  .modal-body .nav-tabs .nav-link {
+    font-size: 0.875rem;
+    padding: 10px 14px;
+    white-space: nowrap;
+  }
+  
+  .modal-body .tab-content {
+    padding-top: 0;
+  }
+}
+
+/* ============================================
+   15. MODAL IMAGES MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .modal-body img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+  }
+  
+  .modal-body .img-thumbnail {
+    padding: 4px;
+  }
+}
+
+/* ============================================
+   16. MODAL SPINNERS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .modal-body .spinner-border {
+    width: 2rem;
+    height: 2rem;
+  }
+  
+  .modal-body .spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+  }
+  
+  .modal-body .text-center.py-5 {
+    padding: 30px 16px !important;
+  }
+}
+
+/* ============================================
+   17. MODAL BADGES & PILLS MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .modal-body .badge {
+    font-size: 0.7rem;
+    padding: 4px 8px;
+  }
+  
+  .modal-title .badge {
+    font-size: 0.65rem;
+    padding: 3px 6px;
+  }
+}
+
+/* ============================================
+   18. MODAL BUTTONS GROUP MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .modal-body .btn-group {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .modal-body .btn-group .btn {
+    width: 100%;
+    border-radius: 8px !important;
+    margin-bottom: 8px;
+  }
+  
+  .modal-body .btn-group .btn:last-child {
+    margin-bottom: 0;
+  }
+}
+
+/* ============================================
+   19. MODAL SCROLLABLE MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .modal-dialog-scrollable {
+    max-height: calc(100vh - 20px);
+  }
+  
+  .modal-dialog-scrollable .modal-content {
+    max-height: calc(100vh - 20px);
+  }
+  
+  .modal-dialog-scrollable .modal-body {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ============================================
+   20. MODAL CENTERED MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .modal-dialog-centered {
+    min-height: calc(100vh - 20px);
+  }
+  
+  .modal-dialog-centered::before {
+    height: calc(100vh - 20px);
+  }
+}
+
+/* ============================================
+   21. MODAL STATIC BACKDROP MOBILE
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  .modal[data-bs-backdrop="static"] .modal-dialog {
+    transform: scale(1);
+  }
+  
+  .modal[data-bs-backdrop="static"].show .modal-dialog {
+    animation: modalShake 0.3s;
+  }
+  
+  @keyframes modalShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-10px); }
+    75% { transform: translateX(10px); }
+  }
+}
+
+/* ============================================
+   22. LANDSCAPE ORIENTATION
+   ============================================ */
+
+@media (max-width: 767.98px) and (orientation: landscape) {
+  .modal-dialog {
+    margin: 5px;
+    max-width: calc(100% - 10px);
+  }
+  
+  .modal-content {
+    max-height: calc(100vh - 10px);
+  }
+  
+  .modal-body {
+    max-height: calc(100vh - 150px);
+    padding: 12px;
+  }
+  
+  .modal-header,
+  .modal-footer {
+    padding: 10px 12px;
+  }
+  
+  .modal-title {
+    font-size: 1rem !important;
+  }
+}
+
+/* ============================================
+   23. MODAL HOVER EFFECTS - DISABLE ON TOUCH
+   ============================================ */
+
+@media (hover: none) and (pointer: coarse) {
+  .modal-footer .btn:hover {
+    transform: none;
+  }
+  
+  .modal-footer .btn:active {
+    transform: scale(0.98);
+  }
+}
+
+/* ============================================
+   24. MODAL ACCESSIBILITY
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Ensure focus is visible */
+  .modal-content:focus {
+    outline: 2px solid #667eea;
+    outline-offset: 2px;
+  }
+  
+  /* Touch-friendly close button */
+  .modal-header .btn-close {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* ============================================
+   25. MODAL PRINT STYLES
+   ============================================ */
+
+@media print {
+  .modal,
+  .modal-backdrop {
+    display: none !important;
+  }
+}

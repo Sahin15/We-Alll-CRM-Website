@@ -9,6 +9,8 @@ import { useAuth } from "../../context/AuthContext";
 import ProfilePictureUpload from "../../components/profile/ProfilePictureUpload";
 import api from "../../services/api";
 import toast from "../../utils/toast";
+import "../../styles/pages-mobile.css";
+import "../../styles/modal-mobile.css";
 
 const MyProfile = () => {
   const { user, refreshUser } = useAuth();
@@ -111,28 +113,44 @@ const MyProfile = () => {
     }
   };
 
-  const getRoleBadge = (role) => {
+  const getRoleBadge = (role, funBadge) => {
     const badges = {
       superadmin: { bg: 'danger', icon: <FaCrown />, text: 'Super Administrator' },
       admin: { bg: 'primary', icon: <FaShieldAlt />, text: 'Administrator' },
       hr: { bg: 'info', icon: <FaUsers />, text: 'HR Manager' },
       hod: { bg: 'success', icon: <FaUserShield />, text: 'Head of Department' }
     };
-    return badges[role] || { bg: 'secondary', icon: null, text: role };
+    
+    // For employees, use their fun badge
+    if (role === 'employee') {
+      const funBadgeIcons = {
+        'Team Member': { bg: 'primary', icon: <FaUserShield /> },
+        'Contributor': { bg: 'success', icon: <FaCheckCircle /> },
+        'Team Player': { bg: 'info', icon: <FaUsers /> },
+        'Rockstar': { bg: 'warning', icon: <FaCrown /> },
+        'Rising Star': { bg: 'danger', icon: <FaChartLine /> },
+        'Go-Getter': { bg: 'dark', icon: <FaProjectDiagram /> }
+      };
+      
+      const badgeInfo = funBadgeIcons[funBadge] || funBadgeIcons['Team Member'];
+      return { ...badgeInfo, text: funBadge || 'Team Member' };
+    }
+    
+    return badges[role] || { bg: 'secondary', icon: <FaUserShield />, text: role };
   };
 
-  const roleBadge = getRoleBadge(user?.role);
+  const roleBadge = getRoleBadge(user?.role, user?.funBadge);
 
   return (
     <Container fluid className="py-4">
       {/* Header Banner */}
-      <Card className="border-0 shadow-sm mb-4" style={{ 
+      <Card className="border-0 shadow-sm mb-4 profile-header-banner" style={{ 
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         color: 'white'
       }}>
         <Card.Body className="p-4">
           <Row className="align-items-center">
-            <Col md={8}>
+            <Col xs={12} md={8} className="mb-3 mb-md-0">
               <div className="d-flex align-items-center">
                 {roleBadge.icon && <span className="me-3" style={{ fontSize: '2.5rem' }}>{roleBadge.icon}</span>}
                 <div>
@@ -141,7 +159,7 @@ const MyProfile = () => {
                 </div>
               </div>
             </Col>
-            <Col md={4} className="text-end">
+            <Col xs={12} md={4} className="text-md-end">
               <Badge bg="light" text="dark" className="px-3 py-2">
                 <FaCheckCircle className="me-2" />
                 Active Session
@@ -153,10 +171,10 @@ const MyProfile = () => {
 
       <Row>
         {/* Left Column - Profile Card */}
-        <Col lg={4}>
-          <Card className="border-0 shadow-sm mb-4">
+        <Col xs={12} lg={4} className="mb-4 mb-lg-0">
+          <Card className="border-0 shadow-sm mb-4 profile-info-card">
             <Card.Body className="text-center p-4">
-              <div className="position-relative d-inline-block mb-3">
+              <div className="position-relative d-inline-block mb-3 profile-picture-section">
                 <ProfilePictureUpload
                   currentImage={user?.profilePicture}
                   onUploadSuccess={handleProfilePictureUpdate}
@@ -177,7 +195,7 @@ const MyProfile = () => {
                 {roleBadge.icon} {roleBadge.text}
               </Badge>
 
-              <div className="d-grid gap-2 mt-4">
+              <div className="d-grid gap-2 mt-4 profile-actions">
                 <Button variant="primary" onClick={() => setShowEditModal(true)}>
                   <FaEdit className="me-2" />
                   Edit Profile
@@ -354,7 +372,7 @@ const MyProfile = () => {
       </Row>
 
       {/* Edit Profile Modal */}
-      <Modal show={showEditModal} onHide={() => setShowEditModal(false)} centered>
+      <Modal show={showEditModal} onHide={() => setShowEditModal(false)} centered className="edit-profile-modal">
         <Modal.Header closeButton>
           <Modal.Title>
             <FaEdit className="me-2" />
@@ -393,18 +411,20 @@ const MyProfile = () => {
             </Form.Group>
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowEditModal(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" type="submit" disabled={saving}>
-              {saving ? 'Saving...' : <><FaSave className="me-2" />Save Changes</>}
-            </Button>
+            <div className="d-flex flex-column flex-sm-row gap-2 w-100">
+              <Button variant="secondary" onClick={() => setShowEditModal(false)} className="w-mobile-100">
+                Cancel
+              </Button>
+              <Button variant="primary" type="submit" disabled={saving} className="w-mobile-100">
+                {saving ? 'Saving...' : <><FaSave className="me-2" />Save Changes</>}
+              </Button>
+            </div>
           </Modal.Footer>
         </Form>
       </Modal>
 
       {/* Change Password Modal */}
-      <Modal show={showPasswordModal} onHide={() => setShowPasswordModal(false)} centered>
+      <Modal show={showPasswordModal} onHide={() => setShowPasswordModal(false)} centered className="change-password-modal">
         <Modal.Header closeButton>
           <Modal.Title>
             <FaKey className="me-2" />
@@ -444,12 +464,14 @@ const MyProfile = () => {
             </Form.Group>
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowPasswordModal(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" type="submit" disabled={saving}>
-              {saving ? 'Changing...' : <><FaKey className="me-2" />Change Password</>}
-            </Button>
+            <div className="d-flex flex-column flex-sm-row gap-2 w-100">
+              <Button variant="secondary" onClick={() => setShowPasswordModal(false)} className="w-mobile-100">
+                Cancel
+              </Button>
+              <Button variant="primary" type="submit" disabled={saving} className="w-mobile-100">
+                {saving ? 'Changing...' : <><FaKey className="me-2" />Change Password</>}
+              </Button>
+            </div>
           </Modal.Footer>
         </Form>
       </Modal>

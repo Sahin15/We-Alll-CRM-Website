@@ -3,6 +3,7 @@ import { Table } from "react-bootstrap";
 import { FaSortUp, FaSortDown, FaSort } from "react-icons/fa";
 import LoadingSpinner from "./LoadingSpinner";
 import Pagination from "./Pagination";
+import "../../styles/table-mobile.css";
 
 const DataTable = ({
   columns,
@@ -77,7 +78,7 @@ const DataTable = ({
   }
 
   return (
-    <>
+    <div className="data-table-container">
       <Table striped={striped} hover={hover} responsive={responsive}>
         <thead>
           <tr>
@@ -124,19 +125,21 @@ const DataTable = ({
       </Table>
 
       {paginated && data.length > 0 && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-          itemsPerPage={itemsPerPage}
-          onItemsPerPageChange={(value) => {
-            setItemsPerPage(value);
-            setCurrentPage(1);
-          }}
-          totalItems={sortedData.length}
-        />
+        <div className="pagination-controls">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            itemsPerPage={itemsPerPage}
+            onItemsPerPageChange={(value) => {
+              setItemsPerPage(value);
+              setCurrentPage(1);
+            }}
+            totalItems={sortedData.length}
+          />
+        </div>
       )}
-    </>
+    </div>
   );
 };
 

@@ -1,0 +1,662 @@
+/* ============================================
+   MOBILE POLISH & FINAL OPTIMIZATIONS
+   ============================================ */
+
+/* ============================================
+   1. SMOOTH SCROLLING & PERFORMANCE
+   ============================================ */
+
+@media (max-width: 767.98px) {
+  /* Enable smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Optimize scrolling performance */
+  * {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+  
+  /* Reduce motion for users who prefer it */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ============================================
+   2. TOUCH FEEDBACK IMPROVEMENTS
+   ============================================ */
+
+@media (max-width: 767.98px) {
+  /* Better touch feedback for buttons */
+  .btn:active {
+    transform: scale(0.97);
+    transition: transform 0.1s ease;
+  }
+  
+  /* Card touch feedback */
+  .card:active {
+    transform: scale(0.99);
+    transition: transform 0.1s ease;
+  }
+  
+  /* Link touch feedback */
+  a:active {
+    opacity: 0.7;
+  }
+  
+  /* Remove tap highlight on iOS */
+  button,
+  a,
+  input,
+  textarea,
+  select {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* ============================================
+   3. SAFE AREA INSETS (Notched Devices)
+   ============================================ */
+
+@supports (padding: max(0px)) {
+  @media (max-width: 767.98px) {
+    body {
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+    }
+    
+    .navbar,
+    .sidebar,
+    .main-content {
+      padding-left: max(12px, env(safe-area-inset-left));
+      padding-right: max(12px, env(safe-area-inset-right));
+    }
+    
+    .modal-content {
+      margin-left: env(safe-area-inset-left);
+      margin-right: env(safe-area-inset-right);
+    }
+    
+    /* Bottom safe area for fixed elements */
+    .fixed-bottom {
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
+    }
+  }
+}
+
+/* ============================================
+   4. FONT RENDERING OPTIMIZATION
+   ============================================ */
+
+@media (max-width: 767.98px) {
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  
+  /* Prevent text size adjustment on orientation change */
+  html {
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+  }
+}
+
+/* ============================================
+   5. IMAGE OPTIMIZATION
+   ============================================ */
+
+@media (max-width: 767.98px) {
+  img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+  
+  /* Lazy loading optimization */
+  img[loading="lazy"] {
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  
+  img[loading="lazy"].loaded {
+    opacity: 1;
+  }
+  
+  /* Avatar images */
+  .avatar,
+  .profile-picture,
+  img[class*="avatar"],
+  img[class*="profile"] {
+    object-fit: cover;
+    border-radius: 50%;
+  }
+}
+
+/* ============================================
+   6. FOCUS VISIBLE (Accessibility)
+   ============================================ */
+
+@media (max-width: 767.98px) {
+  /* Better focus indicators */
+  *:focus-visible {
+    outline: 2px solid #667eea;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  
+  /* Remove focus outline for mouse users */
+  *:focus:not(:focus-visible) {
+    outline: none;
+  }
+  
+  /* Skip to content link */
+  .skip-to-content {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: #667eea;
+    color: white;
+    padding: 8px 16px;
+    text-decoration: none;
+    z-index: 9999;
+  }
+  
+  .skip-to-content:focus {
+    top: 0;
+  }
+}
+
+/* ============================================
+   7. LOADING STATES
+   ============================================ */
+
+@media (max-width: 767.98px) {
+  /* Skeleton loading */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      #f0f0f0 25%,
+      #e0e0e0 50%,
+      #f0f0f0 75%
+    );
+    background-size: 200% 100%;
+    animation: loading 1.5s ease-in-out infinite;
+  }
+  
+  @keyframes loading {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+  
+  /* Spinner optimization */
+  .spinner-border {
+    border-width: 2px;
+  }
+  
+  .spinner-border-sm {
+    border-width: 1px;
+  }
+}
+
+/* ============================================
+   8. ERROR STATES
+   ============================================ */
+
+@media (max-width: 767.98px) {
+  .error-message {
+    padding: 12px;
+    background: #fee;
+    border: 1px solid #fcc;
+    border-radius: 8px;
+    color: #c33;
+    font-size: 0.875rem;
+  }
+  
+  .error-icon {
+    color: #c33;
+    font-size: 1.5rem;
+  }
+  
+  /* Form validation errors */
+  .invalid-feedback {
+    display: block;
+    font-size: 0.75rem;
+    margin-top: 4px;
+  }
+}
+
+/* ============================================
+   9. SUCCESS STATES
+   ============================================ */
+
+@media (max-width: 767.98px) {
+  .success-message {
+    padding: 12px;
+    background: #efe;
+    border: 1px solid #cfc;
+    border-radius: 8px;
+    color: #3c3;
+    font-size: 0.875rem;
+  }
+  
+  .success-icon {
+    color: #3c3;
+    font-size: 1.5rem;
+  }
+}
+
+/* ============================================
+   10. NETWORK STATUS INDICATOR
+   ============================================ */
+
+@media (max-width: 767.98px) {
+  .offline-indicator {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #ff9800;
+    color: white;
+    padding: 8px;
+    text-align: center;
+    font-size: 0.875rem;
+    z-index: 9999;
+    transform: translateY(-100%);
+    transition: transform 0.3s ease;
+  }
+  
+  .offline-indicator.show {
+    transform: translateY(0);
+  }
+}
+
+/* ============================================
+   11. PULL TO REFRESH INDICATOR
+   ============================================ */
+
+@media (max-width: 767.98px) {
+  .pull-to-refresh {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100%);
+    background: white;
+    padding: 12px 20px;
+    border-radius: 0 0 12px 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: transform 0.3s ease;
+    z-index: 9998;
+  }
+  
+  .pull-to-refresh.active {
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ============================================
+   12. SWIPE GESTURES FEEDBACK
+   ============================================ */
+
+@media (max-width: 767.98px) {
+  .swipeable {
+    touch-action: pan-y;
+    user-select: none;
+  }
+  
+  .swipe-indicator {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  
+  .swipe-indicator.left {
+    left: 10px;
+  }
+  
+  .swipe-indicator.right {
+    right: 10px;
+  }
+  
+  .swipeable.swiping .swipe-indicator {
+    opacity: 1;
+  }
+}
+
+/* ============================================
+   13. BOTTOM NAVIGATION (If Needed)
+   ============================================ */
+
+@media (max-width: 767.98px) {
+  .bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-top: 1px solid #dee2e6;
+    padding: 8px 0;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    display: flex;
+    justify-content: space-around;
+    z-index: 1030;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  .bottom-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px;
+    color: #6c757d;
+    text-decoration: none;
+    font-size: 0.75rem;
+    transition: color 0.2s;
+  }
+  
+  .bottom-nav-item.active {
+    color: #667eea;
+  }
+  
+  .bottom-nav-item svg {
+    font-size: 1.25rem;
+    margin-bottom: 4px;
+  }
+}
+
+/* ============================================
+   14. FLOATING ACTION BUTTON
+   ============================================ */
+
+@media (max-width: 767.98px) {
+  .fab {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    z-index: 1029;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  
+  .fab:active {
+    transform: scale(0.95);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+  }
+  
+  /* FAB with safe area */
+  .fab {
+    bottom: max(20px, env(safe-area-inset-bottom));
+  }
+}
+
+/* ============================================
+   15. TOAST NOTIFICATIONS MOBILE
+   ============================================ */
+
+@media (max-width: 767.98px) {
+  .Toastify__toast-container {
+    width: calc(100% - 20px);
+    left: 10px;
+    right: 10px;
+    margin: 0;
+  }
+  
+  .Toastify__toast {
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 0.875rem;
+    margin-bottom: 10px;
+  }
+  
+  .Toastify__toast-icon {
+    width: 20px;
+  }
+}
+
+/* ============================================
+   16. CONTEXT MENU MOBILE
+   ============================================ */
+
+@media (max-width: 767.98px) {
+  .context-menu {
+    position: fixed;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    padding: 8px 0;
+    min-width: 200px;
+    z-index: 9999;
+  }
+  
+  .context-menu-item {
+    padding: 12px 16px;
+    font-size: 0.875rem;
+    color: #212529;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .context-menu-item:active {
+    background: #f8f9fa;
+  }
+  
+  .context-menu-divider {
+    height: 1px;
+    background: #dee2e6;
+    margin: 4px 0;
+  }
+}
+
+/* ============================================
+   17. SEARCH OVERLAY MOBILE
+   ============================================ */
+
+@media (max-width: 767.98px) {
+  .search-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: white;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+  }
+  
+  .search-overlay.active {
+    transform: translateY(0);
+  }
+  
+  .search-overlay-header {
+    padding: 12px;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .search-overlay-input {
+    flex: 1;
+    border: none;
+    font-size: 16px;
+    padding: 8px;
+  }
+  
+  .search-overlay-input:focus {
+    outline: none;
+  }
+  
+  .search-overlay-results {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+  }
+}
+
+/* ============================================
+   18. BADGE POSITIONING
+   ============================================ */
+
+@media (max-width: 767.98px) {
+  .badge-notification {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    background: #dc3545;
+    color: white;
+    font-size: 0.65rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    border: 2px solid white;
+  }
+}
+
+/* ============================================
+   19. RIPPLE EFFECT
+   ============================================ */
+
+@media (max-width: 767.98px) {
+  .ripple {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .ripple::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+  }
+  
+  .ripple:active::after {
+    width: 300px;
+    height: 300px;
+  }
+}
+
+/* ============================================
+   20. DARK MODE SUPPORT (Optional)
+   ============================================ */
+
+@media (max-width: 767.98px) and (prefers-color-scheme: dark) {
+  /* Add dark mode styles if needed */
+  body {
+    background: #1a1a1a;
+    color: #e0e0e0;
+  }
+  
+  .card {
+    background: #2a2a2a;
+    border-color: #3a3a3a;
+  }
+  
+  .modal-content {
+    background: #2a2a2a;
+    color: #e0e0e0;
+  }
+  
+  .form-control,
+  .form-select {
+    background: #3a3a3a;
+    border-color: #4a4a4a;
+    color: #e0e0e0;
+  }
+}
+
+/* ============================================
+   21. PRINT OPTIMIZATION
+   ============================================ */
+
+@media print {
+  /* Hide unnecessary elements */
+  .navbar,
+  .sidebar,
+  .btn,
+  .modal,
+  .toast,
+  .fab,
+  .bottom-nav,
+  .pull-to-refresh,
+  .offline-indicator {
+    display: none !important;
+  }
+  
+  /* Optimize for printing */
+  body {
+    background: white;
+    color: black;
+  }
+  
+  .card {
+    break-inside: avoid;
+    box-shadow: none;
+    border: 1px solid #ddd;
+  }
+  
+  /* Expand all content */
+  .main-content {
+    margin-left: 0 !important;
+    padding: 0 !important;
+  }
+}
+
+/* ============================================
+   22. PERFORMANCE OPTIMIZATIONS
+   ============================================ */
+
+@media (max-width: 767.98px) {
+  /* Use GPU acceleration for animations */
+  .animated {
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+  
+  /* Optimize repaints */
+  .card,
+  .btn,
+  .modal {
+    contain: layout style paint;
+  }
+}

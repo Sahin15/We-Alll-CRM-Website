@@ -16,6 +16,7 @@ import { FaSave, FaArrowLeft, FaUser } from "react-icons/fa";
 import { toast } from "react-toastify";
 import api from "../../services/api";
 import DocumentUploadSection from "../../components/employees/DocumentUploadSection";
+import "../../styles/form-mobile.css";
 
 const EditEmployee = () => {
   const { id } = useParams();
@@ -50,6 +51,7 @@ const EditEmployee = () => {
         
         employeeId: employee.employeeId || "",
         designation: employee.designation || employee.position || "",
+        funBadge: employee.funBadge || "Team Member",
         department: employee.department?._id || "",
         joiningDate: employee.joiningDate ? new Date(employee.joiningDate).toISOString().split('T')[0] : "",
         employmentType: employee.employmentType || "full-time",
@@ -162,12 +164,82 @@ const EditEmployee = () => {
 
     try {
       setSaving(true);
-      await api.put(`/users/${id}`, formData);
+      
+      // Clean up the data - only send fields that have values
+      const cleanedData = {
+        name: formData.name,
+        email: formData.email,
+        status: formData.status,
+        role: formData.role,
+      };
+      
+      // Add optional fields only if they have values
+      if (formData.phone) cleanedData.phone = formData.phone;
+      if (formData.dateOfBirth) cleanedData.dateOfBirth = formData.dateOfBirth;
+      if (formData.gender) cleanedData.gender = formData.gender;
+      if (formData.bloodGroup) cleanedData.bloodGroup = formData.bloodGroup;
+      
+      if (formData.employeeId) cleanedData.employeeId = formData.employeeId;
+      if (formData.designation) cleanedData.designation = formData.designation;
+      if (formData.funBadge && formData.role === 'employee') cleanedData.funBadge = formData.funBadge;
+      if (formData.department) cleanedData.department = formData.department;
+      if (formData.joiningDate) cleanedData.joiningDate = formData.joiningDate;
+      if (formData.employmentType) cleanedData.employmentType = formData.employmentType;
+      if (formData.reportingManager) cleanedData.reportingManager = formData.reportingManager;
+      
+      // Only include address if at least one field is filled
+      if (formData.currentAddress && (
+        formData.currentAddress.street || 
+        formData.currentAddress.city || 
+        formData.currentAddress.state || 
+        formData.currentAddress.pincode
+      )) {
+        cleanedData.currentAddress = formData.currentAddress;
+      }
+      
+      if (formData.permanentAddress && (
+        formData.permanentAddress.street || 
+        formData.permanentAddress.city || 
+        formData.permanentAddress.state || 
+        formData.permanentAddress.pincode
+      )) {
+        cleanedData.permanentAddress = formData.permanentAddress;
+      }
+      
+      // Only include emergency contact if at least name or phone is filled
+      if (formData.emergencyContact && (
+        formData.emergencyContact.name || 
+        formData.emergencyContact.phone
+      )) {
+        cleanedData.emergencyContact = formData.emergencyContact;
+      }
+      
+      // Only include bank details if at least one field is filled
+      if (formData.bankDetails && (
+        formData.bankDetails.accountNumber || 
+        formData.bankDetails.ifscCode || 
+        formData.bankDetails.bankName
+      )) {
+        cleanedData.bankDetails = formData.bankDetails;
+      }
+      
+      // Only include government IDs if at least one field is filled
+      if (formData.governmentIds && (
+        formData.governmentIds.panNumber || 
+        formData.governmentIds.aadhaarNumber || 
+        formData.governmentIds.uanNumber || 
+        formData.governmentIds.esicNumber
+      )) {
+        cleanedData.governmentIds = formData.governmentIds;
+      }
+      
+      await api.put(`/users/${id}`, cleanedData);
       toast.success("Employee updated successfully");
       navigate(`/employees/${id}`);
     } catch (error) {
       console.error("Error updating employee:", error);
-      toast.error(error.response?.data?.message || "Failed to update employee");
+      const errorMessage = error.response?.data?.message || "Failed to update employee";
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -233,7 +305,7 @@ const EditEmployee = () => {
               {/* Basic Information Tab */}
               <Tab eventKey="basic" title="Basic Information">
                 <Row>
-                  <Col md={6}>
+                  <Col xs={12} md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>
                         Full Name <span className="text-danger">*</span>
@@ -247,7 +319,7 @@ const EditEmployee = () => {
                       />
                     </Form.Group>
                   </Col>
-                  <Col md={6}>
+                  <Col xs={12} md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>
                         Email <span className="text-danger">*</span>
@@ -261,7 +333,7 @@ const EditEmployee = () => {
                       />
                     </Form.Group>
                   </Col>
-                  <Col md={6}>
+                  <Col xs={12} md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Phone Number</Form.Label>
                       <Form.Control
@@ -272,7 +344,7 @@ const EditEmployee = () => {
                       />
                     </Form.Group>
                   </Col>
-                  <Col md={6}>
+                  <Col xs={12} md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Status</Form.Label>
                       <Form.Select
@@ -286,7 +358,7 @@ const EditEmployee = () => {
                       </Form.Select>
                     </Form.Group>
                   </Col>
-                  <Col md={4}>
+                  <Col xs={12} sm={6} md={4}>
                     <Form.Group className="mb-3">
                       <Form.Label>Date of Birth</Form.Label>
                       <Form.Control
@@ -297,7 +369,7 @@ const EditEmployee = () => {
                       />
                     </Form.Group>
                   </Col>
-                  <Col md={4}>
+                  <Col xs={12} sm={6} md={4}>
                     <Form.Group className="mb-3">
                       <Form.Label>Gender</Form.Label>
                       <Form.Select
@@ -313,7 +385,7 @@ const EditEmployee = () => {
                       </Form.Select>
                     </Form.Group>
                   </Col>
-                  <Col md={4}>
+                  <Col xs={12} sm={6} md={4}>
                     <Form.Group className="mb-3">
                       <Form.Label>Blood Group</Form.Label>
                       <Form.Select
@@ -339,7 +411,7 @@ const EditEmployee = () => {
               {/* Job Details Tab */}
               <Tab eventKey="job" title="Job Details">
                 <Row>
-                  <Col md={6}>
+                  <Col xs={12} md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Employee ID</Form.Label>
                       <Form.Control
@@ -361,6 +433,28 @@ const EditEmployee = () => {
                       />
                     </Form.Group>
                   </Col>
+                  {formData.role === 'employee' && (
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Fun Badge 🎯</Form.Label>
+                        <Form.Select
+                          name="funBadge"
+                          value={formData.funBadge}
+                          onChange={handleChange}
+                        >
+                          <option value="Team Member">Team Member</option>
+                          <option value="Contributor">Contributor</option>
+                          <option value="Team Player">Team Player</option>
+                          <option value="Rockstar">Rockstar</option>
+                          <option value="Rising Star">Rising Star</option>
+                          <option value="Go-Getter">Go-Getter</option>
+                        </Form.Select>
+                        <Form.Text className="text-muted">
+                          Assign a fun badge to this employee
+                        </Form.Text>
+                      </Form.Group>
+                    </Col>
+                  )}
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Department</Form.Label>
@@ -429,7 +523,7 @@ const EditEmployee = () => {
               <Tab eventKey="address" title="Address & Contact">
                 <h6 className="mb-3">Current Address</h6>
                 <Row>
-                  <Col md={12}>
+                  <Col xs={12}>
                     <Form.Group className="mb-3">
                       <Form.Label>Street Address</Form.Label>
                       <Form.Control
@@ -440,7 +534,7 @@ const EditEmployee = () => {
                       />
                     </Form.Group>
                   </Col>
-                  <Col md={6}>
+                  <Col xs={12} md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>City</Form.Label>
                       <Form.Control
@@ -488,7 +582,7 @@ const EditEmployee = () => {
 
                 <h6 className="mb-3 mt-4">Emergency Contact</h6>
                 <Row>
-                  <Col md={6}>
+                  <Col xs={12} md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Contact Name</Form.Label>
                       <Form.Control
@@ -539,7 +633,7 @@ const EditEmployee = () => {
               <Tab eventKey="bank" title="Bank & IDs">
                 <h6 className="mb-3">Bank Details</h6>
                 <Row>
-                  <Col md={6}>
+                  <Col xs={12} md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Account Number</Form.Label>
                       <Form.Control
@@ -609,7 +703,7 @@ const EditEmployee = () => {
 
                 <h6 className="mb-3 mt-4">Government IDs</h6>
                 <Row>
-                  <Col md={6}>
+                  <Col xs={12} md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>PAN Number</Form.Label>
                       <Form.Control
@@ -663,15 +757,16 @@ const EditEmployee = () => {
             </Tabs>
 
             {/* Action Buttons */}
-            <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+            <div className="d-flex flex-column flex-sm-row justify-content-end gap-2 mt-4 pt-3 border-top">
               <Button
                 variant="outline-secondary"
                 onClick={() => navigate(`/employees/${id}`)}
                 disabled={saving}
+                className="w-mobile-100"
               >
                 Cancel
               </Button>
-              <Button type="submit" variant="primary" disabled={saving}>
+              <Button type="submit" variant="primary" disabled={saving} className="w-mobile-100">
                 {saving ? (
                   <>
                     <Spinner animation="border" size="sm" className="me-2" />

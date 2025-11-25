@@ -23,6 +23,7 @@ import StatCard from "../../components/dashboard/StatCard";
 import RecentActivity from "../../components/dashboard/RecentActivity";
 import QuickActions from "../../components/dashboard/QuickActions";
 import GreetingBanner from "../../components/common/GreetingBanner";
+import QuickClockInOut from "../../components/attendance/QuickClockInOut";
 import LeaveManagement from "../../components/hr/LeaveManagement";
 import TaskManagement from "../../components/hr/TaskManagement";
 import MeetingManagement from "../../components/hr/MeetingManagement";
@@ -236,6 +237,24 @@ const HRDashboard = () => {
   return (
     <Container fluid className="py-3">
       <GreetingBanner subtitle="Manage your workforce efficiently" />
+
+      {/* Clock In/Out Widget */}
+      <Row className="mb-4">
+        <Col>
+          <Card className="border-0 shadow-sm">
+            <Card.Body className="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 className="mb-1">
+                  <FaClock className="me-2 text-primary" />
+                  Quick Attendance
+                </h6>
+                <small className="text-muted">Clock in/out for today</small>
+              </div>
+              <QuickClockInOut variant="primary" size="md" showLabel={true} />
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
 
       <Row className="g-4 mb-4">
         <Col lg={3} md={6}>

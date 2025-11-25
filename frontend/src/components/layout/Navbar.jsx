@@ -10,6 +10,7 @@ import {
   Badge,
   ListGroup,
   Spinner,
+  Modal,
 } from "react-bootstrap";
 import { 
   FaBars, 
@@ -22,6 +23,8 @@ import {
   FaTasks,
   FaCalendarAlt,
   FaFileAlt,
+  FaSignOutAlt,
+  FaExclamationTriangle,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -40,6 +43,7 @@ const Navbar = ({ toggleSidebar }) => {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [imageLoadError, setImageLoadError] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const searchRef = useRef(null);
 
   // Reset image load error when user profile picture changes
@@ -71,9 +75,18 @@ const Navbar = ({ toggleSidebar }) => {
   // Show company switcher only on billing pages for authorized users
   const showCompanySwitcher = canSwitchCompany && isBillingPage;
 
-  const handleLogout = () => {
+  const handleLogoutClick = () => {
+    setShowLogoutModal(true);
+  };
+
+  const handleLogoutConfirm = () => {
+    setShowLogoutModal(false);
     logout();
     navigate("/login");
+  };
+
+  const handleLogoutCancel = () => {
+    setShowLogoutModal(false);
   };
 
   // Close search results when clicking outside
@@ -110,8 +123,14 @@ const Navbar = ({ toggleSidebar }) => {
       // Search Users (for HR, Admin, SuperAdmin)
       if (['hr', 'admin', 'superadmin'].includes(user?.role)) {
         try {
-          const usersRes = await api.get(`/users?search=${query}`);
-          const users = usersRes.data.slice(0, 3);
+          const usersRes = await api.get(`/users`);
+          const users = usersRes.data
+            .filter(u => 
+              u.name?.toLowerCase().includes(query.toLowerCase()) ||
+              u.email?.toLowerCase().includes(query.toLowerCase()) ||
+              u.employeeId?.toLowerCase().includes(query.toLowerCase())
+            )
+            .slice(0, 3);
           users.forEach(u => {
             results.push({
               type: 'user',
@@ -230,7 +249,7 @@ const Navbar = ({ toggleSidebar }) => {
 
   return (
     <BSNavbar 
-      className="shadow-sm py-2" 
+      className="shadow-sm py-2 mobile-navbar" 
       sticky="top"
       style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -238,13 +257,14 @@ const Navbar = ({ toggleSidebar }) => {
         zIndex: 1030
       }}
     >
-      <Container fluid>
+      <Container fluid className="px-2 px-md-3">
         {/* Left Section: Menu Toggle */}
         <div className="d-flex align-items-center">
           <button 
-            className="btn btn-link text-white p-2" 
+            className="btn btn-link text-white p-2 touch-target" 
             onClick={toggleSidebar}
             style={{ fontSize: '1.2rem' }}
+            aria-label="Toggle sidebar"
           >
             <FaBars />
           </button>
@@ -291,7 +311,8 @@ const Navbar = ({ toggleSidebar }) => {
                   backgroundColor: 'white',
                   maxHeight: '400px',
                   overflowY: 'auto',
-                  zIndex: 1050,
+                  zIndex: 10000,
+                  position: 'absolute',
                 }}
               >
                 <ListGroup variant="flush">
@@ -335,17 +356,17 @@ const Navbar = ({ toggleSidebar }) => {
         )}
 
         {/* Right Section: Quick Actions, Notifications, User Menu */}
-        <Nav className="ms-auto align-items-center">
+        <Nav className="ms-auto align-items-center gap-1 gap-md-2">
           {/* Clock In/Out for Employees, HR, HOD, and Accounts */}
           {['employee', 'hr', 'hod', 'accounts'].includes(user?.role) && (
-            <div className="d-none d-xl-flex me-3">
+            <div className="d-none d-xl-flex me-2">
               <QuickClockInOut />
             </div>
           )}
 
           {/* Quick Actions for other roles */}
           {quickActions.length > 0 && (
-            <div className="d-none d-xl-flex me-3">
+            <div className="d-none d-xl-flex me-2">
               {quickActions.map((action, index) => (
                 <Button
                   key={index}
@@ -368,7 +389,7 @@ const Navbar = ({ toggleSidebar }) => {
           )}
 
           {/* Notification Bell */}
-          <div className="me-3">
+          <div className="me-1 me-md-2">
             <NotificationBell />
           </div>
 
@@ -407,7 +428,7 @@ const Navbar = ({ toggleSidebar }) => {
                     {user?.name?.split(' ')[0] || "User"}
                   </span>
                   <span className="text-white-50" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>
-                    {user?.role?.toUpperCase()}
+                    {user?.role === 'employee' ? (user?.funBadge || 'Team Member').toUpperCase() : user?.role?.toUpperCase()}
                   </span>
                 </div>
               </div>
@@ -422,8 +443,8 @@ const Navbar = ({ toggleSidebar }) => {
                 {user?.email || "No email"}
               </div>
               <div className="mt-1">
-                <Badge bg="primary" className="text-capitalize">
-                  {user?.role}
+                <Badge bg="primary">
+                  {user?.role === 'employee' ? (user?.funBadge || 'Team Member') : user?.role.charAt(0).toUpperCase() + user?.role.slice(1)}
                 </Badge>
               </div>
             </div>
@@ -444,13 +465,92 @@ const Navbar = ({ toggleSidebar }) => {
               Settings
             </NavDropdown.Item>
             <NavDropdown.Divider />
-            <NavDropdown.Item onClick={handleLogout}>Logout</NavDropdown.Item>
+            <NavDropdown.Item onClick={handleLogoutClick}>Logout</NavDropdown.Item>
           </NavDropdown>
         </Nav>
       </Container>
 
-      {/* Custom CSS for dropdown styling */}
+      {/* Logout Confirmation Modal */}
+      <Modal 
+        show={showLogoutModal} 
+        onHide={handleLogoutCancel}
+        centered
+        backdrop="static"
+      >
+        <Modal.Header closeButton className="border-0 pb-0">
+          <Modal.Title className="d-flex align-items-center">
+            <div 
+              className="rounded-circle p-3 me-3"
+              style={{
+                background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+              }}
+            >
+              <FaSignOutAlt className="text-white" size={24} />
+            </div>
+            <span>Confirm Logout</span>
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="pt-2 pb-4">
+          <p className="mb-0 text-muted" style={{ fontSize: '1.05rem' }}>
+            Are you sure you want to logout? You'll need to sign in again to access your account.
+          </p>
+        </Modal.Body>
+        <Modal.Footer className="border-0 pt-0">
+          <Button 
+            variant="light" 
+            onClick={handleLogoutCancel}
+            className="px-4"
+            style={{
+              fontWeight: '500',
+              borderRadius: '8px'
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            variant="danger" 
+            onClick={handleLogoutConfirm}
+            className="px-4"
+            style={{
+              fontWeight: '600',
+              borderRadius: '8px',
+              background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+              border: 'none',
+              boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+            }}
+          >
+            <FaSignOutAlt className="me-2" />
+            Logout
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Custom CSS for dropdown styling and mobile responsiveness */}
       <style>{`
+        /* Mobile Navbar Adjustments */
+        @media (max-width: 575.98px) {
+          .mobile-navbar {
+            min-height: 60px !important;
+            padding: 8px 0 !important;
+          }
+          
+          .mobile-navbar .container-fluid {
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+          }
+          
+          .mobile-navbar .btn-link {
+            padding: 8px !important;
+            font-size: 1.1rem !important;
+          }
+          
+          .mobile-navbar .nav {
+            gap: 4px !important;
+          }
+        }
+        
+
         /* User Dropdown Toggle Button */
         .user-dropdown .dropdown-toggle {
           background: rgba(255, 255, 255, 0.15) !important;
@@ -461,6 +561,29 @@ const Navbar = ({ toggleSidebar }) => {
           display: flex !important;
           align-items: center !important;
           backdrop-filter: blur(10px) !important;
+        }
+        
+        /* Mobile adjustments for user dropdown */
+        @media (max-width: 575.98px) {
+          .user-dropdown .dropdown-toggle {
+            padding: 4px 8px 4px 4px !important;
+            border-radius: 25px !important;
+          }
+          
+          .profile-avatar,
+          .profile-avatar-placeholder {
+            width: 36px !important;
+            height: 36px !important;
+          }
+          
+          .profile-initials {
+            font-size: 14px !important;
+          }
+          
+          .profile-status-indicator {
+            width: 10px !important;
+            height: 10px !important;
+          }
         }
         
         .user-dropdown .dropdown-toggle:hover {
@@ -496,6 +619,17 @@ const Navbar = ({ toggleSidebar }) => {
           min-width: 280px !important;
           overflow: hidden !important;
           animation: dropdownSlideIn 0.3s ease-out !important;
+        }
+        
+        /* Mobile dropdown adjustments */
+        @media (max-width: 575.98px) {
+          .user-dropdown .dropdown-menu {
+            min-width: 260px !important;
+            margin-top: 8px !important;
+            border-radius: 12px !important;
+            right: 0 !important;
+            left: auto !important;
+          }
         }
         
         @keyframes dropdownSlideIn {

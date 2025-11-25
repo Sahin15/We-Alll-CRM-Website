@@ -22,13 +22,18 @@ import {
 import { toast } from "react-toastify";
 import { attendanceApi } from "../../api/attendanceApi";
 import { formatDate, formatDateTime, getStatusVariant } from "../../utils/helpers";
+import ConfirmModal from "../../components/common/ConfirmModal";
 import * as XLSX from "xlsx";
+import "../../styles/table-mobile.css";
+import "../../styles/modal-mobile.css";
 
 const MyAttendance = () => {
   const [attendances, setAttendances] = useState([]);
   const [todayAttendance, setTodayAttendance] = useState(null);
   const [loading, setLoading] = useState(true);
   const [clockingIn, setClockingIn] = useState(false);
+  const [showClockInConfirm, setShowClockInConfirm] = useState(false);
+  const [showClockOutConfirm, setShowClockOutConfirm] = useState(false);
   const [dateRange, setDateRange] = useState({
     startDate: new Date(new Date().setDate(1)).toISOString().split("T")[0],
     endDate: new Date().toISOString().split("T")[0],
@@ -66,6 +71,7 @@ const MyAttendance = () => {
       const present = data.filter((a) => a.status === "present").length;
       const absent = data.filter((a) => a.status === "absent").length;
       const late = data.filter((a) => a.status === "late").length;
+      const halfDay = data.filter((a) => a.status === "half-day").length;
       const totalHours = data.reduce((sum, a) => sum + (a.workHours || 0), 0);
       const overtime = data.reduce((sum, a) => sum + (a.overtime || 0), 0);
 
@@ -73,6 +79,7 @@ const MyAttendance = () => {
         present,
         absent,
         late,
+        halfDay,
         totalHours: totalHours.toFixed(2),
         overtime: overtime.toFixed(2),
         total: data.length,
@@ -108,7 +115,13 @@ const MyAttendance = () => {
     setCalendarView(calendar);
   };
 
+  const handleClockInClick = () => {
+    setShowClockInConfirm(true);
+  };
+
   const handleClockIn = async () => {
+    setShowClockInConfirm(false);
+    
     try {
       setClockingIn(true);
       await attendanceApi.clockIn({
@@ -126,7 +139,13 @@ const MyAttendance = () => {
     }
   };
 
+  const handleClockOutClick = () => {
+    setShowClockOutConfirm(true);
+  };
+
   const handleClockOut = async () => {
+    setShowClockOutConfirm(false);
+    
     try {
       setClockingIn(true);
       await attendanceApi.clockOut("End of day");
@@ -185,7 +204,7 @@ const MyAttendance = () => {
 
       {/* Today's Status Card */}
       <Row className="mb-4">
-        <Col lg={6}>
+        <Col xs={12} lg={6} className="mb-3 mb-lg-0">
           <Card className="shadow-sm border-0">
             <Card.Body>
               <h5 className="mb-3">
@@ -194,9 +213,18 @@ const MyAttendance = () => {
               </h5>
 
               {status === "not-clocked-in" && (
-                <Alert variant="warning">
-                  You haven't clocked in today. Click below to start your workday.
-                </Alert>
+                <>
+                  <Alert variant="warning">
+                    You haven't clocked in today. Click below to start your workday.
+                  </Alert>
+                  <Alert variant="info" className="mb-3">
+                    <small>
+                      <strong>Current Time:</strong> {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      <br />
+                      <strong>Note:</strong> Clock-in after 10:30 AM = Late | After 12:00 PM = Half Day
+                    </small>
+                  </Alert>
+                </>
               )}
 
               {status === "clocked-in" && (
@@ -213,6 +241,11 @@ const MyAttendance = () => {
 
               {todayAttendance && (
                 <div className="mb-3">
+                  <div className="mb-2">
+                    <Badge bg={getStatusVariant(todayAttendance.status)} className="px-3 py-2">
+                      Status: {todayAttendance.status.toUpperCase()}
+                    </Badge>
+                  </div>
                   <Row>
                     <Col>
                       <p className="mb-1 text-muted">Clock In</p>
@@ -241,7 +274,7 @@ const MyAttendance = () => {
                   <Button
                     variant="primary"
                     size="lg"
-                    onClick={handleClockIn}
+                    onClick={handleClockInClick}
                     disabled={clockingIn}
                   >
                     <FaClock className="me-2" />
@@ -253,7 +286,7 @@ const MyAttendance = () => {
                   <Button
                     variant="danger"
                     size="lg"
-                    onClick={handleClockOut}
+                    onClick={handleClockOutClick}
                     disabled={clockingIn}
                   >
                     <FaSignOutAlt className="me-2" />
@@ -272,7 +305,7 @@ const MyAttendance = () => {
         </Col>
 
         {/* Statistics Card */}
-        <Col lg={6}>
+        <Col xs={12} lg={6}>
           <Card className="shadow-sm border-0 h-100">
             <Card.Body>
               <h5 className="mb-3">
@@ -281,28 +314,40 @@ const MyAttendance = () => {
               </h5>
               {stats && (
                 <Row className="text-center">
-                  <Col xs={6} className="mb-3">
+                  <Col xs={6} md={3} className="mb-3">
                     <div className="border-end">
                       <h3 className="text-success mb-0">{stats.present}</h3>
                       <small className="text-muted">Present</small>
                     </div>
                   </Col>
-                  <Col xs={6} className="mb-3">
-                    <div>
-                      <h3 className="text-danger mb-0">{stats.absent}</h3>
-                      <small className="text-muted">Absent</small>
-                    </div>
-                  </Col>
-                  <Col xs={6}>
+                  <Col xs={6} md={3} className="mb-3">
                     <div className="border-end">
                       <h3 className="text-warning mb-0">{stats.late}</h3>
                       <small className="text-muted">Late</small>
                     </div>
                   </Col>
-                  <Col xs={6}>
+                  <Col xs={6} md={3} className="mb-3">
+                    <div className="border-end">
+                      <h3 className="text-info mb-0">{stats.halfDay}</h3>
+                      <small className="text-muted">Half Day</small>
+                    </div>
+                  </Col>
+                  <Col xs={6} md={3} className="mb-3">
                     <div>
-                      <h3 className="text-info mb-0">{stats.totalHours}</h3>
+                      <h3 className="text-danger mb-0">{stats.absent}</h3>
+                      <small className="text-muted">Absent</small>
+                    </div>
+                  </Col>
+                  <Col xs={6} className="mb-2">
+                    <div className="border-end">
+                      <h4 className="text-primary mb-0">{stats.totalHours}</h4>
                       <small className="text-muted">Total Hours</small>
+                    </div>
+                  </Col>
+                  <Col xs={6} className="mb-2">
+                    <div>
+                      <h4 className="text-secondary mb-0">{stats.total}</h4>
+                      <small className="text-muted">Total Days</small>
                     </div>
                   </Col>
                 </Row>
@@ -313,8 +358,8 @@ const MyAttendance = () => {
       </Row>
 
       {/* Filters */}
-      <Row className="mb-3">
-        <Col md={3}>
+      <Row className="mb-3 filter-controls">
+        <Col xs={12} sm={6} md={3} className="mb-2 mb-md-0">
           <Form.Group>
             <Form.Label>Start Date</Form.Label>
             <Form.Control
@@ -325,7 +370,7 @@ const MyAttendance = () => {
             />
           </Form.Group>
         </Col>
-        <Col md={3}>
+        <Col xs={12} sm={6} md={3} className="mb-2 mb-md-0">
           <Form.Group>
             <Form.Label>End Date</Form.Label>
             <Form.Control
@@ -336,8 +381,8 @@ const MyAttendance = () => {
             />
           </Form.Group>
         </Col>
-        <Col md={3} className="d-flex align-items-end">
-          <Button variant="outline-success" onClick={handleExport} className="w-100">
+        <Col xs={12} md={3} className="d-flex align-items-end">
+          <Button variant="outline-success" onClick={handleExport} className="w-100 w-mobile-100">
             <FaDownload className="me-2" />
             Export to Excel
           </Button>
@@ -356,14 +401,14 @@ const MyAttendance = () => {
                   </div>
                 </div>
               ) : (
-                <Table responsive hover>
+                <Table responsive hover className="attendance-table">
                   <thead>
                     <tr>
                       <th>Date</th>
                       <th>Clock In</th>
                       <th>Clock Out</th>
                       <th>Work Hours</th>
-                      <th>Overtime</th>
+                      <th className="hide-mobile">Overtime</th>
                       <th>Status</th>
                     </tr>
                   </thead>
@@ -371,7 +416,7 @@ const MyAttendance = () => {
                     {attendances.length > 0 ? (
                       attendances.map((attendance) => (
                         <tr key={attendance._id}>
-                          <td>{formatDate(attendance.date)}</td>
+                          <td className="date-cell">{formatDate(attendance.date)}</td>
                           <td>{formatDateTime(attendance.clockIn)}</td>
                           <td>
                             {attendance.clockOut
@@ -379,7 +424,7 @@ const MyAttendance = () => {
                               : <Badge bg="warning">In Progress</Badge>}
                           </td>
                           <td>{attendance.workHours || 0} hrs</td>
-                          <td>{attendance.overtime || 0} hrs</td>
+                          <td className="hide-mobile">{attendance.overtime || 0} hrs</td>
                           <td>
                             <Badge bg={getStatusVariant(attendance.status)}>
                               {attendance.status}
