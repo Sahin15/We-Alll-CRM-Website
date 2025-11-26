@@ -93,8 +93,13 @@ const EmployeeLayout = () => {
         {!isMobile && (
           <Col 
             md={collapsed ? 1 : 2} 
-            className="bg-light border-end vh-100 position-sticky top-0"
-            style={{ transition: 'all 0.3s' }}
+            className="bg-light border-end position-sticky top-0"
+            style={{ 
+              transition: 'all 0.3s',
+              height: '100vh',
+              overflowY: 'auto',
+              overflowX: 'hidden'
+            }}
           >
             <div className="p-3">
               <button

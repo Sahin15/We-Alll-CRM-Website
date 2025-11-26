@@ -1,5 +1,5 @@
 import { Container, Row, Col } from "react-bootstrap";
-import { FaHeart, FaGithub, FaLinkedin, FaEnvelope, FaUser } from "react-icons/fa";
+import { FaHeart, FaGithub, FaLinkedin, FaEnvelope, FaUser, FaFacebook, FaInstagram } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
 import { useAuth } from "../../context/AuthContext";
 
@@ -8,7 +8,7 @@ const Footer = () => {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="footer mt-auto" style={{ width: '100vw', position: 'relative', left: '50%', right: '50%', marginLeft: '-50vw', marginRight: '-50vw', zIndex: 1040 }}>
+    <footer className="footer mt-auto" style={{ zIndex: 1040 }}>
       <div 
         className="footer-gradient py-3"
         style={{
@@ -107,6 +107,24 @@ const Footer = () => {
             <Col md={6} className="text-center text-md-end">
               <div className="d-flex gap-3 justify-content-center justify-content-md-end">
                 <a 
+                  href="https://www.facebook.com/share/v/15Pi4LKHzLr/" 
+                  className="text-white footer-social-link"
+                  aria-label="Facebook"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <FaFacebook size={16} />
+                </a>
+                <a 
+                  href="https://www.instagram.com/wealll_official?igsh=MXkybmh3Z2x0b2Vrcg==" 
+                  className="text-white footer-social-link"
+                  aria-label="Instagram"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <FaInstagram size={16} />
+                </a>
+                <a 
                   href="mailto:contact@wealll.com" 
                   className="text-white footer-social-link"
                   aria-label="Email"
@@ -200,19 +218,26 @@ const Footer = () => {
           .footer {
             margin-left: 0 !important;
             margin-right: 0 !important;
+            width: 100% !important;
           }
 
           .footer-gradient {
-            padding: 1.5rem 0 !important;
+            padding: 1rem 0.5rem !important;
+          }
+          
+          .footer-gradient .container-fluid {
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
           }
 
           .footer-link {
-            font-size: 0.75rem !important;
+            font-size: 0.7rem !important;
+            padding: 4px 0 !important;
           }
 
           .footer-social-link {
-            width: 32px;
-            height: 32px;
+            width: 36px;
+            height: 36px;
           }
 
           .footer-social-link svg {
@@ -223,7 +248,7 @@ const Footer = () => {
           /* Stack footer sections on mobile */
           .footer-gradient .row .col-md-6 {
             text-align: center !important;
-            margin-bottom: 1rem;
+            margin-bottom: 0.75rem;
           }
 
           .footer-gradient .row .col-md-6:last-child {
@@ -233,6 +258,12 @@ const Footer = () => {
           /* Center align all content on mobile */
           .footer-gradient .d-flex {
             justify-content: center !important;
+            flex-wrap: wrap;
+          }
+          
+          /* Reduce gap on mobile */
+          .footer-gradient .d-flex.gap-3 {
+            gap: 0.75rem !important;
           }
         }
 

@@ -50,6 +50,9 @@ const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
     
     // Lunch Time Messages (12 PM - 2 PM)
     const lunchMessages = [
+      { type: 'lunch', icon: <FaRocket />, text: "Lunch time — pet bhi khush, mood bhi fresh." },
+      { type: 'lunch', icon: <FaRocket />, text: "Kaam baad mein, pehle khaana! 🍽️" },
+      { type: 'lunch', icon: <FaRocket />, text: "Tiffin ka dhakkan khulte hi duniya beautiful ho jati hai." },
       { type: 'lunch', icon: <FaRocket />, text: "Lunch time! Khana khao, khush raho! 🍽️" },
       { type: 'lunch', icon: <FaRocket />, text: "Time to refuel! Your stomach called, it wants biryani 🍛" },
       { type: 'lunch', icon: <FaRocket />, text: "Lunch break = Best break! Bon appétit! 😋" },
@@ -57,6 +60,9 @@ const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
       { type: 'lunch', icon: <FaRocket />, text: "Lunch o'clock! Remember: A happy tummy = A happy mind! 🥗" },
       { type: 'lunch', icon: <FaRocket />, text: "Zomato moment! Order something yummy! 🍔" },
       { type: 'lunch', icon: <FaRocket />, text: "Lunch break! Because hangry is not a good look! 😅" },
+      { type: 'lunch', icon: <FaRocket />, text: "Lunch break: Peace ka official sponsor." },
+      { type: 'lunch', icon: <FaRocket />, text: "Khane ka pyaar sabse saccha." },
+      { type: 'lunch', icon: <FaRocket />, text: "Aaj lunch me kya drama hai?" },
       { type: 'lunch', icon: <FaRocket />, text: "Food time! Treat yourself, you deserve it! 🍜" },
       { type: 'lunch', icon: <FaRocket />, text: "Lunch calling! Dal chawal or pizza? Choose wisely! 🍕🍚" },
       { type: 'lunch', icon: <FaRocket />, text: "Khana time! Don't skip meals, your body needs fuel! 🥘" },
@@ -65,6 +71,10 @@ const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
       { type: 'lunch', icon: <FaRocket />, text: "Lunch hour! Time to feed the beast within! 🦁" },
       { type: 'lunch', icon: <FaRocket />, text: "Bhookh lagi badi zor se! Go grab that meal! 🍴" },
       { type: 'lunch', icon: <FaRocket />, text: "Lunch = Happiness on a plate! Dig in! 🍛" },
+      { type: 'lunch', icon: <FaRocket />, text: "Pet: ‘Boss, time ho gaya!" },
+      { type: 'lunch', icon: <FaRocket />, text: "Office ka best moment? Lunch ka bell." },
+      { type: 'lunch', icon: <FaRocket />, text: "Paratha + sabzi = Love story." },
+      { type: 'lunch', icon: <FaRocket />, text: "Calories ka hisab shaam ko dekh lenge." },
     ];
     
     // Tea Break Messages (4 PM - 5 PM)
@@ -164,12 +174,18 @@ const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
     
     // Office Jokes
     const jokes = [
+      { type: 'joke', icon: <FaStar />, text: "WiFi slow? Dil bhi toot jata hai. 🐛" },
+      { type: 'joke', icon: <FaStar />, text: "Office AC: Kabhi thand, kabhi zyada thand. " },
+      { type: 'joke', icon: <FaStar />, text: "Boss bole: ‘Kaam khatam hua?, Me: ‘Hona chahiye tha." },
+      { type: 'joke', icon: <FaStar />, text: "Mera password bhi thak chuka hai — har jagah login karna padta hai." },
       { type: 'joke', icon: <FaStar />, text: "Why do programmers prefer dark mode? Because light attracts bugs! 🐛" },
       { type: 'joke', icon: <FaRocket />, text: "I told my computer I needed a break... now it won't stop sending me Kit-Kat ads! 🍫" },
       { type: 'joke', icon: <FaStar />, text: "Why did the developer go broke? Because he used up all his cache! 💰" },
       { type: 'joke', icon: <FaRocket />, text: "My code doesn't always work, but when it does, I don't know why! 😅" },
       { type: 'joke', icon: <FaStar />, text: "There are 10 types of people: Those who understand binary and those who don't! 😄" },
+      { type: 'joke', icon: <FaRocket />, text: "Chai bina kaam? Janam janam ka rishta hi kya!" },
       { type: 'joke', icon: <FaRocket />, text: "I'm not lazy, I'm just on energy-saving mode! 🔋" },
+      { type: 'joke', icon: <FaRocket />, text: "Lunch break ke baad kaam slow nahi hota… ruk jata hai." },
       { type: 'joke', icon: <FaStar />, text: "Why do Java developers wear glasses? Because they can't C#! 👓" },
       { type: 'joke', icon: <FaRocket />, text: "I would tell you a UDP joke, but you might not get it! 📡" },
       { type: 'joke', icon: <FaStar />, text: "How many programmers does it take to change a light bulb? None, it's a hardware problem! 💡" },
@@ -179,6 +195,10 @@ const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
       { type: 'joke', icon: <FaStar />, text: "I speak fluent sarcasm and broken code! 💻" },
       { type: 'joke', icon: <FaRocket />, text: "Ctrl+Z is my favorite life hack! ⌨️" },
       { type: 'joke', icon: <FaStar />, text: "I'm not arguing, I'm just explaining why I'm right! 😏" },
+      { type: 'joke', icon: <FaRocket />, text: "Monday ka dard… coffee hi samajh sakti hai. 😄" },
+      { type: 'joke', icon: <FaStar />, text: "Laptop bol raha: ‘Bas kar bhai, garam ho raha hoon! 💻" },
+      { type: 'joke', icon: <FaRocket />, text: "Aaj ka target: kaam se zyada calm rehna. ⌨️" },
+      { type: 'joke', icon: <FaStar />, text: "Meeting lambi ho to neend automatic ON ho jati hai. 😏" },
     ];
     
     // Hindi Messages (Zomato Style)
@@ -246,7 +266,10 @@ const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
           
           {/* Fun Message Section */}
           {funMessage && (
-            <div className="fun-message-box mt-2">
+            <div className="fun-message-box mt-2" data-type={funMessage.type}>
+              <span className="sparkle"></span>
+              <span className="sparkle"></span>
+              <span className="sparkle"></span>
               <div className="d-flex align-items-center justify-content-center">
                 <span className="fun-icon me-2">{funMessage.icon}</span>
                 <div className="fun-message-text">
@@ -342,47 +365,206 @@ const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
         }
         
         .date-badge {
-          background: rgba(255,255,255,0.15);
-          padding: 4px 12px;
-          border-radius: 20px;
-          backdrop-filter: blur(10px);
-          border: 1px solid rgba(255,255,255,0.2);
-          font-size: 0.9rem;
+          background: rgba(255,255,255,0.35);
+          padding: 6px 16px;
+          border-radius: 25px;
+          backdrop-filter: blur(15px);
+          border: 2px solid rgba(255,255,255,0.5);
+          font-size: 0.95rem;
+          font-weight: 600;
+          box-shadow: 
+            0 4px 12px rgba(0,0,0,0.15),
+            inset 0 1px 0 rgba(255,255,255,0.4);
+          transition: all 0.3s ease;
+          letter-spacing: 0.3px;
         }
         
-        /* Fun Message Box - Ultra Premium Design */
+        .date-badge:hover {
+          background: rgba(255,255,255,0.45);
+          transform: scale(1.05);
+          box-shadow: 
+            0 6px 16px rgba(0,0,0,0.2),
+            inset 0 1px 0 rgba(255,255,255,0.5);
+        }
+        
+        /* Fun Message Box - Premium Design with Dynamic Colors */
         .fun-message-box {
           background: linear-gradient(135deg, 
-            rgba(255,255,255,0.3) 0%, 
-            rgba(255,255,255,0.18) 50%,
-            rgba(255,255,255,0.25) 100%
+            rgba(255,215,0,0.35) 0%, 
+            rgba(255,235,150,0.25) 50%,
+            rgba(255,215,0,0.3) 100%
           );
           backdrop-filter: blur(20px) saturate(180%);
-          border: 2px solid rgba(255,255,255,0.5);
+          border: 2px solid rgba(255,215,0,0.5);
           border-radius: 14px;
           padding: 14px 18px;
-          animation: slideInBounce 0.8s ease-out, floatBox 6s ease-in-out infinite;
+          animation: slideInBounce 0.8s ease-out, pulseGlow 3s ease-in-out infinite;
           box-shadow: 
-            0 10px 30px rgba(0,0,0,0.2),
-            0 4px 12px rgba(0,0,0,0.1),
-            inset 0 2px 0 rgba(255,255,255,0.4),
-            inset 0 -2px 0 rgba(0,0,0,0.1);
+            0 10px 30px rgba(255,215,0,0.25),
+            0 4px 12px rgba(255,215,0,0.15),
+            inset 0 2px 0 rgba(255,235,150,0.4),
+            inset 0 -2px 0 rgba(218,165,32,0.2);
           position: relative;
           overflow: hidden;
           transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
-        .fun-message-box:hover {
-          transform: translateY(-3px) scale(1.01);
+        /* Dynamic Color Schemes Based on Message Type */
+        .fun-message-box[data-type="morning"] {
+          background: linear-gradient(135deg, 
+            rgba(255,193,7,0.35) 0%, 
+            rgba(255,235,59,0.25) 50%,
+            rgba(255,193,7,0.3) 100%
+          );
+          border-color: rgba(255,193,7,0.6);
           box-shadow: 
-            0 15px 40px rgba(0,0,0,0.25),
-            0 6px 16px rgba(0,0,0,0.15),
-            inset 0 2px 0 rgba(255,255,255,0.5),
-            inset 0 -2px 0 rgba(0,0,0,0.1);
-          border-color: rgba(255,255,255,0.6);
+            0 10px 30px rgba(255,193,7,0.3),
+            0 4px 12px rgba(255,193,7,0.2),
+            inset 0 2px 0 rgba(255,235,59,0.5),
+            inset 0 -2px 0 rgba(255,152,0,0.2);
         }
         
-        /* Animated gradient background */
+        .fun-message-box[data-type="lunch"] {
+          background: linear-gradient(135deg, 
+            rgba(255,87,34,0.35) 0%, 
+            rgba(255,152,0,0.25) 50%,
+            rgba(255,87,34,0.3) 100%
+          );
+          border-color: rgba(255,87,34,0.6);
+          box-shadow: 
+            0 10px 30px rgba(255,87,34,0.3),
+            0 4px 12px rgba(255,87,34,0.2),
+            inset 0 2px 0 rgba(255,152,0,0.5),
+            inset 0 -2px 0 rgba(230,74,25,0.2);
+        }
+        
+        .fun-message-box[data-type="tea"] {
+          background: linear-gradient(135deg, 
+            rgba(121,85,72,0.35) 0%, 
+            rgba(141,110,99,0.25) 50%,
+            rgba(121,85,72,0.3) 100%
+          );
+          border-color: rgba(141,110,99,0.6);
+          box-shadow: 
+            0 10px 30px rgba(121,85,72,0.3),
+            0 4px 12px rgba(121,85,72,0.2),
+            inset 0 2px 0 rgba(161,136,127,0.5),
+            inset 0 -2px 0 rgba(93,64,55,0.2);
+        }
+        
+        .fun-message-box[data-type="evening"] {
+          background: linear-gradient(135deg, 
+            rgba(103,58,183,0.35) 0%, 
+            rgba(156,39,176,0.25) 50%,
+            rgba(103,58,183,0.3) 100%
+          );
+          border-color: rgba(103,58,183,0.6);
+          box-shadow: 
+            0 10px 30px rgba(103,58,183,0.3),
+            0 4px 12px rgba(103,58,183,0.2),
+            inset 0 2px 0 rgba(156,39,176,0.5),
+            inset 0 -2px 0 rgba(81,45,168,0.2);
+        }
+        
+        .fun-message-box[data-type="quote"] {
+          background: linear-gradient(135deg, 
+            rgba(33,150,243,0.35) 0%, 
+            rgba(3,169,244,0.25) 50%,
+            rgba(33,150,243,0.3) 100%
+          );
+          border-color: rgba(33,150,243,0.6);
+          box-shadow: 
+            0 10px 30px rgba(33,150,243,0.3),
+            0 4px 12px rgba(33,150,243,0.2),
+            inset 0 2px 0 rgba(100,181,246,0.5),
+            inset 0 -2px 0 rgba(25,118,210,0.2);
+        }
+        
+        .fun-message-box[data-type="fact"] {
+          background: linear-gradient(135deg, 
+            rgba(0,150,136,0.35) 0%, 
+            rgba(0,188,212,0.25) 50%,
+            rgba(0,150,136,0.3) 100%
+          );
+          border-color: rgba(0,150,136,0.6);
+          box-shadow: 
+            0 10px 30px rgba(0,150,136,0.3),
+            0 4px 12px rgba(0,150,136,0.2),
+            inset 0 2px 0 rgba(77,182,172,0.5),
+            inset 0 -2px 0 rgba(0,121,107,0.2);
+        }
+        
+        .fun-message-box[data-type="message"] {
+          background: linear-gradient(135deg, 
+            rgba(76,175,80,0.35) 0%, 
+            rgba(139,195,74,0.25) 50%,
+            rgba(76,175,80,0.3) 100%
+          );
+          border-color: rgba(76,175,80,0.6);
+          box-shadow: 
+            0 10px 30px rgba(76,175,80,0.3),
+            0 4px 12px rgba(76,175,80,0.2),
+            inset 0 2px 0 rgba(129,199,132,0.5),
+            inset 0 -2px 0 rgba(56,142,60,0.2);
+        }
+        
+        .fun-message-box[data-type="joke"] {
+          background: linear-gradient(135deg, 
+            rgba(255,152,0,0.35) 0%, 
+            rgba(255,193,7,0.25) 50%,
+            rgba(255,152,0,0.3) 100%
+          );
+          border-color: rgba(255,152,0,0.6);
+          box-shadow: 
+            0 10px 30px rgba(255,152,0,0.3),
+            0 4px 12px rgba(255,152,0,0.2),
+            inset 0 2px 0 rgba(255,213,79,0.5),
+            inset 0 -2px 0 rgba(245,124,0,0.2);
+        }
+        
+        .fun-message-box[data-type="hindi"] {
+          background: linear-gradient(135deg, 
+            rgba(233,30,99,0.35) 0%, 
+            rgba(244,67,54,0.25) 50%,
+            rgba(233,30,99,0.3) 100%
+          );
+          border-color: rgba(233,30,99,0.6);
+          box-shadow: 
+            0 10px 30px rgba(233,30,99,0.3),
+            0 4px 12px rgba(233,30,99,0.2),
+            inset 0 2px 0 rgba(240,98,146,0.5),
+            inset 0 -2px 0 rgba(194,24,91,0.2);
+        }
+        
+        .fun-message-box:hover {
+          transform: translateY(-5px) scale(1.02) rotateX(2deg);
+          box-shadow: 
+            0 20px 50px rgba(255,215,0,0.35),
+            0 8px 20px rgba(255,215,0,0.25),
+            inset 0 2px 0 rgba(255,235,150,0.6),
+            inset 0 -2px 0 rgba(218,165,32,0.3);
+          border-color: rgba(255,215,0,0.7);
+          animation: slideInBounce 0.8s ease-out, pulseGlow 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes pulseGlow {
+          0%, 100% {
+            box-shadow: 
+              0 10px 30px rgba(255,215,0,0.25),
+              0 4px 12px rgba(255,215,0,0.15),
+              inset 0 2px 0 rgba(255,235,150,0.4),
+              inset 0 -2px 0 rgba(218,165,32,0.2);
+          }
+          50% {
+            box-shadow: 
+              0 12px 35px rgba(255,215,0,0.3),
+              0 6px 16px rgba(255,215,0,0.2),
+              inset 0 2px 0 rgba(255,235,150,0.5),
+              inset 0 -2px 0 rgba(218,165,32,0.25);
+          }
+        }
+        
+        /* Animated gradient background - Enhanced */
         .fun-message-box::before {
           content: '';
           position: absolute;
@@ -392,48 +574,102 @@ const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
           height: 200%;
           background: radial-gradient(
             circle at center,
-            rgba(255,255,255,0.15) 0%,
-            transparent 50%
+            rgba(255,255,255,0.2) 0%,
+            rgba(255,255,255,0.1) 30%,
+            transparent 60%
           );
-          animation: rotateGradient 8s linear infinite;
+          animation: rotateGradient 10s linear infinite, pulse 4s ease-in-out infinite;
           z-index: 0;
         }
         
-        /* Shine effect */
+        /* Shine effect - Enhanced with multiple passes */
         .fun-message-box::after {
           content: '';
           position: absolute;
           top: 0;
-          left: -100%;
-          width: 50%;
+          left: -150%;
+          width: 80%;
           height: 100%;
           background: linear-gradient(90deg, 
-            transparent, 
-            rgba(255,255,255,0.4), 
-            transparent
+            transparent 0%, 
+            rgba(255,255,255,0.1) 25%,
+            rgba(255,255,255,0.5) 50%,
+            rgba(255,255,255,0.1) 75%,
+            transparent 100%
           );
-          animation: shine 4s ease-in-out infinite;
+          animation: shine 5s ease-in-out infinite;
           z-index: 1;
+          transform: skewX(-20deg);
+        }
+        
+        /* Sparkle effect */
+        .fun-message-box .sparkle {
+          position: absolute;
+          width: 4px;
+          height: 4px;
+          background: white;
+          border-radius: 50%;
+          box-shadow: 0 0 10px rgba(255,255,255,0.8);
+          animation: sparkle 3s ease-in-out infinite;
+          z-index: 3;
+        }
+        
+        .fun-message-box .sparkle:nth-child(1) {
+          top: 20%;
+          left: 15%;
+          animation-delay: 0s;
+        }
+        
+        .fun-message-box .sparkle:nth-child(2) {
+          top: 70%;
+          left: 80%;
+          animation-delay: 1s;
+        }
+        
+        .fun-message-box .sparkle:nth-child(3) {
+          top: 40%;
+          right: 20%;
+          animation-delay: 2s;
         }
         
         @keyframes rotateGradient {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
+          0% { transform: rotate(0deg) scale(1); }
+          50% { transform: rotate(180deg) scale(1.1); }
+          100% { transform: rotate(360deg) scale(1); }
         }
         
-        @keyframes floatBox {
-          0%, 100% {
-            transform: translateY(0);
-          }
-          50% {
-            transform: translateY(-3px);
-          }
+        @keyframes pulse {
+          0%, 100% { opacity: 0.8; }
+          50% { opacity: 1; }
         }
         
         @keyframes shine {
-          0% { left: -100%; }
-          20% { left: 100%; }
-          100% { left: 100%; }
+          0% { 
+            left: -150%; 
+            opacity: 0;
+          }
+          10% {
+            opacity: 1;
+          }
+          20% { 
+            left: 150%; 
+            opacity: 0;
+          }
+          100% { 
+            left: 150%; 
+            opacity: 0;
+          }
+        }
+        
+        @keyframes sparkle {
+          0%, 100% {
+            opacity: 0;
+            transform: scale(0);
+          }
+          50% {
+            opacity: 1;
+            transform: scale(1.5);
+          }
         }
         
         @keyframes slideInBounce {
@@ -456,12 +692,16 @@ const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
         }
         
         .fun-icon {
-          font-size: 1.6rem;
+          font-size: 1.8rem;
           color: #ffd700;
           filter: drop-shadow(0 4px 8px rgba(255,215,0,0.5));
-          animation: iconPulseGlow 2.5s ease-in-out infinite;
+          animation: iconPulseGlow 2.5s ease-in-out infinite, iconFloat 4s ease-in-out infinite;
           position: relative;
           z-index: 2;
+        }
+        
+        .fun-message-box:hover .fun-icon {
+          animation: iconPulseGlow 1s ease-in-out infinite, iconFloat 2s ease-in-out infinite, iconSpin 2s linear infinite;
         }
         
         @keyframes iconPulseGlow {
@@ -470,64 +710,107 @@ const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
             filter: drop-shadow(0 4px 8px rgba(255,215,0,0.5));
           }
           25% {
-            transform: scale(1.15) rotate(-5deg);
+            transform: scale(1.2) rotate(-8deg);
             filter: drop-shadow(0 6px 12px rgba(255,215,0,0.7));
           }
           50% {
-            transform: scale(1.1) rotate(0deg);
-            filter: drop-shadow(0 8px 16px rgba(255,215,0,0.8));
+            transform: scale(1.15) rotate(0deg);
+            filter: drop-shadow(0 8px 16px rgba(255,215,0,0.9));
           }
           75% {
-            transform: scale(1.15) rotate(5deg);
+            transform: scale(1.2) rotate(8deg);
             filter: drop-shadow(0 6px 12px rgba(255,215,0,0.7));
           }
         }
         
+        @keyframes iconFloat {
+          0%, 100% {
+            transform: translateY(0px);
+          }
+          50% {
+            transform: translateY(-8px);
+          }
+        }
+        
+        @keyframes iconSpin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        
         .fun-message-text {
-          color: #ffffff;
+          color: #1A1A1A !important;
           font-size: 1.05rem;
-          line-height: 1.6;
+          line-height: 1.8;
           font-style: italic;
-          font-weight: 700;
+          font-weight: 800;
           position: relative;
           z-index: 2;
           letter-spacing: 0.5px;
           text-align: center;
-          background: linear-gradient(135deg, 
-            #ffffff 0%, 
-            #f0f0f0 50%, 
-            #ffffff 100%
-          );
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.6))
-                  drop-shadow(0 0 12px rgba(255,255,255,0.3))
-                  drop-shadow(0 0 20px rgba(255,255,255,0.2));
-          animation: textShine 4s ease-in-out infinite, textFloat 3s ease-in-out infinite;
-          text-transform: none;
+          text-shadow: 
+            1px 1px 3px rgba(255, 215, 0, 0.8),
+            -1px -1px 3px rgba(255, 215, 0, 0.8),
+            0 0 15px rgba(255, 215, 0, 0.6),
+            2px 2px 8px rgba(255, 215, 0, 0.9),
+            0 0 25px rgba(255, 215, 0, 0.4);
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+          animation: textGlow 3s ease-in-out infinite;
+          display: inline-block;
         }
         
-        @keyframes textShine {
-          0%, 100% {
-            filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.6))
-                    drop-shadow(0 0 12px rgba(255,255,255,0.3))
-                    drop-shadow(0 0 20px rgba(255,255,255,0.2));
+        /* Individual letter bounce animation */
+        .bounce-letter {
+          display: inline-block;
+          transition: all 0.2s ease;
+        }
+        
+        .fun-message-box:hover .bounce-letter {
+          animation: letterBounce 0.6s ease-in-out;
+          animation-fill-mode: both;
+        }
+        
+        @keyframes letterBounce {
+          0% {
+            transform: translateY(0) scale(1);
           }
-          50% {
-            filter: drop-shadow(2px 2px 6px rgba(0,0,0,0.7))
-                    drop-shadow(0 0 18px rgba(255,255,255,0.4))
-                    drop-shadow(0 0 30px rgba(255,255,255,0.3));
+          20% {
+            transform: translateY(-12px) scale(1.15) rotate(-3deg);
+          }
+          40% {
+            transform: translateY(-6px) scale(1.1) rotate(2deg);
+          }
+          60% {
+            transform: translateY(-8px) scale(1.12) rotate(-1deg);
+          }
+          80% {
+            transform: translateY(-3px) scale(1.05) rotate(1deg);
+          }
+          100% {
+            transform: translateY(0) scale(1) rotate(0deg);
           }
         }
         
-        @keyframes textFloat {
+        /* Enhanced text glow on hover */
+        .fun-message-box:hover .fun-message-text {
+          animation: textGlow 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes textGlow {
           0%, 100% {
-            transform: translateY(0);
+            text-shadow: 
+              1px 1px 3px rgba(255, 215, 0, 0.8),
+              -1px -1px 3px rgba(255, 215, 0, 0.8),
+              0 0 15px rgba(255, 215, 0, 0.6),
+              2px 2px 8px rgba(255, 215, 0, 0.9),
+              0 0 25px rgba(255, 215, 0, 0.4);
           }
           50% {
-            transform: translateY(-2px);
+            text-shadow: 
+              1px 1px 5px rgba(255, 215, 0, 1),
+              -1px -1px 5px rgba(255, 215, 0, 1),
+              0 0 25px rgba(255, 215, 0, 0.8),
+              2px 2px 12px rgba(255, 215, 0, 1),
+              0 0 35px rgba(255, 215, 0, 0.6);
           }
         }
         

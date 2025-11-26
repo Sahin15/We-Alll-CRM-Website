@@ -20,8 +20,8 @@
     background-color: #f8f9fa !important;
   }
   
-  /* Remove any dark backgrounds */
-  .bg-dark {
+  /* Remove any dark backgrounds from cards only */
+  .card .bg-dark {
     background-color: #ffffff !important;
     color: #212529 !important;
   }
@@ -62,8 +62,14 @@
     color: #212529 !important;
   }
   
-  /* Any text */
-  .text-white {
+  /* Keep navbar and footer text white */
+  .navbar .text-white,
+  .footer .text-white {
+    color: #ffffff !important;
+  }
+  
+  /* Card text should be dark */
+  .card .text-white {
     color: #212529 !important;
   }
 }
@@ -700,5 +706,114 @@
     break-inside: avoid;
     box-shadow: none;
     border: 1px solid #ddd;
+  }
+}
+
+
+/* ============================================
+   FIX CARD ICON ALIGNMENT ON MOBILE
+   ============================================ */
+
+@media (max-width: 767.98px) {
+  /* Fix stat cards with icons */
+  .card-body .d-flex.justify-content-between.align-items-center {
+    flex-direction: row !important;
+    align-items: center !important;
+  }
+  
+  /* Ensure icons stay on the right */
+  .card-body .d-flex.justify-content-between > div:last-child {
+    flex-shrink: 0;
+  }
+  
+  /* Make icon containers smaller on mobile */
+  .card-body .bg-primary.bg-opacity-10,
+  .card-body .bg-success.bg-opacity-10,
+  .card-body .bg-info.bg-opacity-10,
+  .card-body .bg-warning.bg-opacity-10,
+  .card-body .bg-danger.bg-opacity-10,
+  .card-body .bg-secondary.bg-opacity-10 {
+    padding: 0.5rem !important;
+    min-width: 40px;
+    min-height: 40px;
+  }
+  
+  /* Reduce icon size on mobile */
+  .card-body .fs-4 {
+    font-size: 1.25rem !important;
+  }
+  
+  /* Reduce card padding on mobile */
+  .card-body {
+    padding: 0.75rem !important;
+  }
+  
+  /* Make text smaller on mobile */
+  .card-body h3 {
+    font-size: 1.5rem !important;
+  }
+  
+  .card-body p {
+    font-size: 0.8rem !important;
+  }
+}
+
+
+/* ============================================
+   REMOVE BLACK BACKGROUNDS ON MOBILE
+   ============================================ */
+
+@media (max-width: 767.98px) {
+  /* Remove black modal backdrops */
+  .modal-backdrop {
+    background-color: rgba(255, 255, 255, 0.8) !important;
+  }
+  
+  /* Ensure modals have white background */
+  .modal-content {
+    background-color: #ffffff !important;
+  }
+  
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    background-color: #ffffff !important;
+    color: #212529 !important;
+  }
+  
+  /* Remove black from offcanvas */
+  .offcanvas {
+    background-color: #ffffff !important;
+  }
+  
+  .offcanvas-header,
+  .offcanvas-body {
+    background-color: #ffffff !important;
+    color: #212529 !important;
+  }
+  
+  /* Remove black from dropdowns */
+  .dropdown-menu {
+    background-color: #ffffff !important;
+  }
+  
+  .dropdown-item {
+    color: #212529 !important;
+  }
+  
+  /* Remove black from tooltips */
+  .tooltip-inner {
+    background-color: #ffffff !important;
+    color: #212529 !important;
+    border: 1px solid #dee2e6;
+  }
+  
+  /* Remove black from popovers */
+  .popover {
+    background-color: #ffffff !important;
+  }
+  
+  .popover-body {
+    color: #212529 !important;
   }
 }

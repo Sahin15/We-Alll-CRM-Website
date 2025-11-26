@@ -274,31 +274,73 @@ const Navbar = ({ toggleSidebar }) => {
         {!showCompanySwitcher && (
           <div className="mx-auto d-none d-lg-block position-relative" style={{ maxWidth: '500px', width: '100%' }} ref={searchRef}>
             <Form onSubmit={handleSearch}>
-              <InputGroup>
+              <InputGroup 
+                className="search-bar-container"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.15) 100%)',
+                  borderRadius: '24px',
+                  overflow: 'hidden',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                  border: '1px solid rgba(255, 255, 255, 0.4)',
+                  backdropFilter: 'blur(15px)',
+                  transition: 'all 0.3s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.15)';
+                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.25) 100%)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.15) 100%)';
+                }}
+              >
                 <Form.Control
                   type="text"
-                  placeholder="Search users, tasks, policies... (Ctrl+K)"
+                  placeholder="🔍 Search anything... users, tasks, policies"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => searchQuery.length >= 2 && setShowSearchResults(true)}
                   className="border-0"
                   style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                    backgroundColor: 'transparent',
                     color: 'white',
-                    backdropFilter: 'blur(10px)',
+                    fontSize: '14px',
+                    paddingLeft: '20px',
+                    paddingRight: '8px',
+                    fontWeight: '400',
                   }}
                 />
+                {searchQuery && (
+                  <Button 
+                    variant="link"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setShowSearchResults(false);
+                    }}
+                    style={{
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      color: 'rgba(255, 255, 255, 0.7)',
+                      padding: '0 8px',
+                      fontSize: '18px',
+                    }}
+                  >
+                    ✕
+                  </Button>
+                )}
                 <Button 
-                  variant="light" 
+                  variant="link" 
                   type="submit"
                   disabled={isSearching}
                   style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                    backgroundColor: 'transparent',
                     border: 'none',
-                    color: 'white'
+                    color: 'white',
+                    paddingRight: '16px',
+                    fontSize: '16px',
                   }}
                 >
-                  {isSearching ? <Spinner animation="border" size="sm" /> : <FaSearch />}
+                  {isSearching ? <Spinner animation="border" size="sm" style={{ color: 'white' }} /> : <FaSearch />}
                 </Button>
               </InputGroup>
             </Form>
@@ -308,11 +350,13 @@ const Navbar = ({ toggleSidebar }) => {
               <div 
                 className="position-absolute w-100 mt-2 shadow-lg rounded"
                 style={{
-                  backgroundColor: 'white',
+                  background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
                   maxHeight: '400px',
                   overflowY: 'auto',
                   zIndex: 10000,
                   position: 'absolute',
+                  border: '1px solid rgba(102, 126, 234, 0.2)',
+                  backdropFilter: 'blur(10px)',
                 }}
               >
                 <ListGroup variant="flush">
@@ -323,7 +367,17 @@ const Navbar = ({ toggleSidebar }) => {
                         action
                         onClick={() => handleResultClick(result.path)}
                         className="d-flex align-items-center py-3"
-                        style={{ cursor: 'pointer' }}
+                        style={{ 
+                          cursor: 'pointer',
+                          backgroundColor: 'transparent',
+                          transition: 'all 0.2s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
                       >
                         <div className="me-3" style={{ fontSize: '1.2rem' }}>
                           {result.icon}
@@ -332,13 +386,22 @@ const Navbar = ({ toggleSidebar }) => {
                           <div className="fw-semibold">{result.title}</div>
                           <small className="text-muted">{result.subtitle}</small>
                         </div>
-                        <Badge bg="light" text="dark" className="text-capitalize">
+                        <Badge 
+                          className="text-capitalize"
+                          style={{
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            color: 'white',
+                          }}
+                        >
                           {result.type}
                         </Badge>
                       </ListGroup.Item>
                     ))
                   ) : (
-                    <ListGroup.Item className="text-center text-muted py-3">
+                    <ListGroup.Item 
+                      className="text-center text-muted py-3"
+                      style={{ backgroundColor: 'transparent' }}
+                    >
                       No results found
                     </ListGroup.Item>
                   )}
