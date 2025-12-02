@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import Attendance from '../src/models/attendanceModel.js';
+import User from '../src/models/userModel.js';
 
 dotenv.config();
 
