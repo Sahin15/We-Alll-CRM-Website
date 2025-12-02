@@ -333,32 +333,75 @@ export const updateProject = async (req, res) => {
   }
 };
 
-// Update project progress
+// Helper function to calculate project progress based on work assignments
+export const calculateProjectProgress = async (projectId) => {
+  try {
+    const Slot = (await import('../models/slotModel.js')).default;
+    
+    // Get all work assignments for this project
+    const allSlots = await Slot.find({ project: projectId });
+    
+    if (allSlots.length === 0) {
+      return 0; // No work assignments yet
+    }
+    
+    // Count completed work (status: Approved or Completed)
+    const completedSlots = allSlots.filter(slot => 
+      slot.status === 'Approved' || 
+      slot.status === 'Completed' ||
+      slot.designStatus === 'Approved' // Legacy support
+    );
+    
+    // Calculate percentage
+    const progress = Math.round((completedSlots.length / allSlots.length) * 100);
+    
+    return progress;
+  } catch (error) {
+    console.error('Error calculating project progress:', error);
+    return 0;
+  }
+};
+
+// Update project progress (manual or auto-calculate)
 export const updateProjectProgress = async (req, res) => {
   try {
     const { id } = req.params;
-    const { progress } = req.body;
-
-    if (typeof progress !== "number" || progress < 0 || progress > 100) {
-      return res
-        .status(400)
-        .json({ message: "Progress must be a number between 0 and 100" });
-    }
+    const { progress, autoCalculate } = req.body;
 
     const project = await Project.findById(id);
     if (!project) return res.status(404).json({ message: "Project not found" });
 
-    project.progress = progress;
+    let newProgress;
+    
+    // Auto-calculate progress based on work assignments
+    if (autoCalculate) {
+      newProgress = await calculateProjectProgress(id);
+    } else {
+      // Manual progress update
+      if (typeof progress !== "number" || progress < 0 || progress > 100) {
+        return res
+          .status(400)
+          .json({ message: "Progress must be a number between 0 and 100" });
+      }
+      newProgress = progress;
+    }
 
-    if (progress === 0) project.status = "Pending";
-    else if (progress > 0 && progress < 100) project.status = "In Progress";
-    else if (progress === 100) project.status = "Completed";
+    project.progress = newProgress;
+
+    // Auto-update status based on progress
+    if (newProgress === 0) project.status = "Pending";
+    else if (newProgress > 0 && newProgress < 100) project.status = "In Progress";
+    else if (newProgress === 100) project.status = "Completed";
 
     await project.save();
 
     return res
       .status(200)
-      .json({ message: "Project progress updated", project });
+      .json({ 
+        message: autoCalculate ? "Project progress auto-calculated" : "Project progress updated", 
+        project,
+        progress: newProgress
+      });
   } catch (error) {
     console.error("Error in updateProjectProgress:", error.message);
     return res.status(500).json({ message: "Server error" });

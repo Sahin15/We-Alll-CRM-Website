@@ -318,6 +318,24 @@ export const createSlot = async (req, res) => {
       .populate('assignedTo', 'name email designation')
       .populate('createdBy', 'name');
 
+    // Auto-update project progress when new work assignment is created
+    if (project) {
+      try {
+        const { calculateProjectProgress } = await import('./projectController.js');
+        const newProgress = await calculateProjectProgress(project);
+        
+        const projectDoc = await Project.findById(project);
+        if (projectDoc) {
+          projectDoc.progress = newProgress;
+          if (newProgress > 0) projectDoc.status = "In Progress";
+          await projectDoc.save();
+          console.log(`✅ Auto-updated project progress: ${newProgress}%`);
+        }
+      } catch (error) {
+        console.error('Error auto-updating project progress:', error);
+      }
+    }
+
     // Send notification to assigned employee
     if (populatedSlot.assignedTo) {
       notifySlotAssigned(populatedSlot, populatedSlot.assignedTo).catch(err => 
@@ -462,13 +480,35 @@ export const updateSlotStatus = async (req, res) => {
       .populate('createdBy', 'name')
       .populate('approvedBy', 'name');
 
-    // Notify project head about status update
+    // Auto-update project progress when work assignment status changes
     if (updatedSlot.project?._id) {
-      const project = await Project.findById(updatedSlot.project._id).populate('projectHead');
-      if (project?.projectHead && project.projectHead._id.toString() !== req.user._id.toString()) {
-        notifyProjectHeadStatusUpdate(updatedSlot, project.projectHead, newStatus).catch(err =>
-          console.error('Failed to send status update notification:', err)
-        );
+      try {
+        const { calculateProjectProgress } = await import('./projectController.js');
+        const newProgress = await calculateProjectProgress(updatedSlot.project._id);
+        
+        const project = await Project.findById(updatedSlot.project._id);
+        if (project) {
+          project.progress = newProgress;
+          
+          // Auto-update project status based on progress
+          if (newProgress === 0) project.status = "Pending";
+          else if (newProgress > 0 && newProgress < 100) project.status = "In Progress";
+          else if (newProgress === 100) project.status = "Completed";
+          
+          await project.save();
+          console.log(`✅ Auto-updated project progress: ${newProgress}%`);
+        }
+        
+        // Notify project head about status update
+        const populatedProject = await Project.findById(updatedSlot.project._id).populate('projectHead');
+        if (populatedProject?.projectHead && populatedProject.projectHead._id.toString() !== req.user._id.toString()) {
+          notifyProjectHeadStatusUpdate(updatedSlot, populatedProject.projectHead, newStatus).catch(err =>
+            console.error('Failed to send status update notification:', err)
+          );
+        }
+      } catch (error) {
+        console.error('Error auto-updating project progress:', error);
+        // Don't fail the request if progress update fails
       }
     }
 
