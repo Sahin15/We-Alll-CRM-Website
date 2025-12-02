@@ -348,11 +348,13 @@ export const updateSlotStatus = async (req, res) => {
       .populate('createdBy', 'name');
 
     // Notify project head about status update
-    const project = await Project.findById(updatedSlot.project._id).populate('projectHead');
-    if (project?.projectHead && project.projectHead._id.toString() !== req.user._id.toString()) {
-      notifyProjectHeadStatusUpdate(updatedSlot, project.projectHead, designStatus).catch(err =>
-        console.error('Failed to send status update notification:', err)
-      );
+    if (updatedSlot.project?._id) {
+      const project = await Project.findById(updatedSlot.project._id).populate('projectHead');
+      if (project?.projectHead && project.projectHead._id.toString() !== req.user._id.toString()) {
+        notifyProjectHeadStatusUpdate(updatedSlot, project.projectHead, designStatus).catch(err =>
+          console.error('Failed to send status update notification:', err)
+        );
+      }
     }
 
     res.json({
