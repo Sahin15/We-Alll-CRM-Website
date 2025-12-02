@@ -61,7 +61,7 @@ export const canEditSlot = async (req, res, next) => {
     }
 
     // Check if user is the project head
-    if (slot.project.projectHead && slot.project.projectHead.toString() === req.user._id.toString()) {
+    if (slot.project?.projectHead && slot.project.projectHead.toString() === req.user._id.toString()) {
       return next();
     }
 
@@ -98,7 +98,7 @@ export const canDeleteSlot = async (req, res, next) => {
     }
 
     // Check if user is the project head
-    if (slot.project.projectHead && slot.project.projectHead.toString() === req.user._id.toString()) {
+    if (slot.project?.projectHead && slot.project.projectHead.toString() === req.user._id.toString()) {
       return next();
     }
 
@@ -135,7 +135,7 @@ export const canViewSlot = async (req, res, next) => {
     }
 
     // Project head can view slots in their project
-    if (slot.project.projectHead && slot.project.projectHead.toString() === req.user._id.toString()) {
+    if (slot.project?.projectHead && slot.project.projectHead.toString() === req.user._id.toString()) {
       return next();
     }
 
@@ -182,7 +182,7 @@ export const canUpdateStatus = async (req, res, next) => {
     }
 
     // Project head can update slot status
-    if (slot.project.projectHead && slot.project.projectHead.toString() === req.user._id.toString()) {
+    if (slot.project?.projectHead && slot.project.projectHead.toString() === req.user._id.toString()) {
       return next();
     }
 
@@ -224,7 +224,7 @@ export const canUploadCreative = async (req, res, next) => {
     }
 
     // Project head can upload to slots in their project
-    if (slot.project.projectHead && slot.project.projectHead.toString() === req.user._id.toString()) {
+    if (slot.project?.projectHead && slot.project.projectHead.toString() === req.user._id.toString()) {
       return next();
     }
 
