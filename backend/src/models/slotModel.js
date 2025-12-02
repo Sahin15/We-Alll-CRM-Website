@@ -14,25 +14,48 @@ const slotSchema = new mongoose.Schema(
       required: true,
     },
 
-    // Post Details
+    // Universal Work Assignment Fields
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    description: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    workType: {
+      type: String,
+      required: true,
+      enum: [
+        // Digital Marketing
+        "Social Media Post", "Campaign", "Ad Creative", "Content Writing",
+        // Development
+        "Feature Development", "Bug Fix", "Code Review", "Testing", "Deployment",
+        // Design
+        "Logo Design", "Banner Design", "Brochure Design", "UI/UX Design", "Illustration",
+        // Video
+        "Video Editing", "Animation", "Motion Graphics", "Filming", "Post Production",
+        // General
+        "Research", "Documentation", "Meeting", "Training", "Other"
+      ],
+    },
+    priority: {
+      type: String,
+      enum: ["Low", "Medium", "High", "Urgent"],
+      default: "Medium",
+    },
+
+    // Legacy Fields (Optional - for backward compatibility with existing digital marketing slots)
     postType: {
       type: String,
       enum: ["SMP", "Reel", "Story", "Carousel", "Video Post", "Text Post", "Poll"],
-      required: true,
     },
     platforms: {
       type: [String],
-      enum: ["Facebook", "Instagram", "LinkedIn", "Twitter", "YouTube", "Pinterest"],
-      required: true,
-      validate: {
-        validator: function (v) {
-          return v && v.length > 0;
-        },
-        message: "At least one platform is required",
-      },
+      enum: ["Facebook", "Instagram", "LinkedIn", "Twitter", "YouTube", "Pinterest", "TikTok", "Other"],
     },
-
-    // Content Details
     contentBucket: {
       type: String,
       enum: [
@@ -45,7 +68,6 @@ const slotSchema = new mongoose.Schema(
         "Engagement Post",
         "Promotional Offer",
       ],
-      required: true,
     },
     occasion: {
       type: String,
@@ -53,7 +75,6 @@ const slotSchema = new mongoose.Schema(
     },
     brief: {
       type: String,
-      required: true,
       trim: true,
     },
     caption: {
@@ -76,28 +97,86 @@ const slotSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    designDeadline: {
+    startDate: {
+      type: Date,
+    },
+    dueDate: {
       type: Date,
       required: true,
+    },
+    
+    // Legacy deadline fields (for backward compatibility)
+    designDeadline: {
+      type: Date,
     },
     postingDate: {
       type: Date,
-      required: true,
     },
 
-    // Status Tracking
+    // Universal Status Tracking
+    status: {
+      type: String,
+      enum: ["Pending", "In Progress", "Review", "Revision", "Approved", "Completed", "Cancelled"],
+      default: "Pending",
+    },
+    
+    // Legacy status fields (for backward compatibility)
     designStatus: {
       type: String,
       enum: ["Planned", "In Design", "Ready for Review", "Approved", "Revision Needed"],
-      default: "Planned",
     },
     postingStatus: {
       type: String,
       enum: ["Scheduled", "Posted", "Failed"],
-      default: "Scheduled",
+    },
+    
+    // Approval Workflow
+    approvalStatus: {
+      type: String,
+      enum: ["Pending", "Approved", "Rejected"],
+      default: "Pending",
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    approvedAt: {
+      type: Date,
+    },
+    rejectionReason: {
+      type: String,
+      trim: true,
     },
 
-    // Creatives and References
+    // Attachments and Files (Universal)
+    attachments: [
+      {
+        name: {
+          type: String,
+          required: true,
+        },
+        url: {
+          type: String,
+          required: true,
+        },
+        type: {
+          type: String,
+          enum: ["image", "video", "document", "code", "design", "other"],
+          default: "other",
+        },
+        size: Number,
+        uploadedAt: {
+          type: Date,
+          default: Date.now,
+        },
+        uploadedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+      },
+    ],
+    
+    // Legacy field (for backward compatibility)
     creatives: [
       {
         type: {
@@ -118,6 +197,12 @@ const slotSchema = new mongoose.Schema(
     referenceLinks: {
       type: [String],
       default: [],
+    },
+    
+    // Department-Specific Metadata (Flexible)
+    metadata: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
     },
 
     // Comments and Feedback

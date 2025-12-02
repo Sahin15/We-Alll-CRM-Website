@@ -185,8 +185,19 @@ export const getSlotById = async (req, res) => {
 export const createSlot = async (req, res) => {
   try {
     const {
+      // Universal fields
       client,
       project,
+      title,
+      description,
+      workType,
+      priority,
+      assignedTo,
+      startDate,
+      dueDate,
+      metadata,
+      
+      // Legacy fields (for backward compatibility)
       postType,
       platforms,
       contentBucket,
@@ -195,16 +206,26 @@ export const createSlot = async (req, res) => {
       caption,
       hashtags,
       referenceLinks,
-      assignedTo,
       designDeadline,
       postingDate
     } = req.body;
 
-    // Validate required fields
-    if (!project || !postType || !platforms || !brief || !assignedTo || !designDeadline || !postingDate) {
+    // Determine if this is new format or legacy format
+    const isNewFormat = title && description && workType && dueDate;
+    const isLegacyFormat = postType && platforms && brief && designDeadline && postingDate;
+
+    // Validate required fields based on format
+    if (!isNewFormat && !isLegacyFormat) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide all required fields'
+        message: 'Please provide required fields: title, description, workType, assignedTo, dueDate'
+      });
+    }
+
+    if (!project || !assignedTo) {
+      return res.status(400).json({
+        success: false,
+        message: 'Project and assignedTo are required'
       });
     }
 
@@ -226,23 +247,70 @@ export const createSlot = async (req, res) => {
       });
     }
 
-    // Create slot
-    const slot = await Slot.create({
+    // Prepare slot data
+    const slotData = {
       client: client || projectExists.client,
       project,
-      postType,
-      platforms,
-      contentBucket,
-      occasion,
-      brief,
-      caption,
-      hashtags,
-      referenceLinks,
       assignedTo,
-      designDeadline,
-      postingDate,
-      createdBy: req.user._id
-    });
+      createdBy: req.user._id,
+    };
+
+    // Handle new format
+    if (isNewFormat) {
+      slotData.title = title;
+      slotData.description = description;
+      slotData.workType = workType;
+      slotData.priority = priority || 'Medium';
+      slotData.startDate = startDate;
+      slotData.dueDate = dueDate;
+      slotData.status = 'Pending';
+      slotData.metadata = metadata || {};
+      
+      // If legacy fields provided, add them too
+      if (postType) slotData.postType = postType;
+      if (platforms) slotData.platforms = platforms;
+      if (contentBucket) slotData.contentBucket = contentBucket;
+      if (occasion) slotData.occasion = occasion;
+      if (brief) slotData.brief = brief;
+      if (caption) slotData.caption = caption;
+      if (hashtags) slotData.hashtags = hashtags;
+      if (referenceLinks) slotData.referenceLinks = referenceLinks;
+      if (designDeadline) slotData.designDeadline = designDeadline;
+      if (postingDate) slotData.postingDate = postingDate;
+    } 
+    // Handle legacy format (convert to new format)
+    else {
+      slotData.title = brief.substring(0, 100);
+      slotData.description = brief;
+      slotData.workType = 'Social Media Post';
+      slotData.priority = 'Medium';
+      slotData.dueDate = designDeadline;
+      slotData.status = 'Pending';
+      
+      // Keep legacy fields
+      slotData.postType = postType;
+      slotData.platforms = platforms;
+      slotData.contentBucket = contentBucket;
+      slotData.occasion = occasion;
+      slotData.brief = brief;
+      slotData.caption = caption;
+      slotData.hashtags = hashtags;
+      slotData.referenceLinks = referenceLinks;
+      slotData.designDeadline = designDeadline;
+      slotData.postingDate = postingDate;
+      slotData.designStatus = 'Planned';
+      
+      // Store legacy-specific data in metadata
+      slotData.metadata = {
+        platforms,
+        postType,
+        postingDate,
+        contentBucket
+      };
+    }
+
+    // Create slot
+    const slot = await Slot.create(slotData);
 
     const populatedSlot = await Slot.findById(slot._id)
       .populate('client', 'name')
@@ -259,14 +327,14 @@ export const createSlot = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Slot created successfully',
+      message: 'Work assignment created successfully',
       data: populatedSlot
     });
   } catch (error) {
     console.error('Error creating slot:', error);
     res.status(500).json({
       success: false,
-      message: 'Error creating slot',
+      message: 'Error creating work assignment',
       error: error.message
     });
   }
@@ -320,12 +388,15 @@ export const updateSlot = async (req, res) => {
 // @access  Private (Assigned Employee)
 export const updateSlotStatus = async (req, res) => {
   try {
-    const { designStatus } = req.body;
+    const { status, designStatus, approvalStatus, rejectionReason } = req.body;
 
-    if (!designStatus) {
+    // Support both new 'status' and legacy 'designStatus'
+    const newStatus = status || designStatus;
+
+    if (!newStatus) {
       return res.status(400).json({
         success: false,
-        message: 'Design status is required'
+        message: 'Status is required'
       });
     }
 
@@ -334,24 +405,68 @@ export const updateSlotStatus = async (req, res) => {
     if (!slot) {
       return res.status(404).json({
         success: false,
-        message: 'Slot not found'
+        message: 'Work assignment not found'
       });
     }
 
-    slot.designStatus = designStatus;
+    // Update status (new format)
+    if (status) {
+      slot.status = status;
+      
+      // Map new status to legacy designStatus for backward compatibility
+      const statusMap = {
+        'Pending': 'Planned',
+        'In Progress': 'In Design',
+        'Review': 'Ready for Review',
+        'Approved': 'Approved',
+        'Revision': 'Revision Needed',
+        'Completed': 'Approved'
+      };
+      slot.designStatus = statusMap[status] || 'Planned';
+    }
+    
+    // Update legacy designStatus
+    if (designStatus) {
+      slot.designStatus = designStatus;
+      
+      // Map legacy status to new status
+      const legacyMap = {
+        'Planned': 'Pending',
+        'In Design': 'In Progress',
+        'Ready for Review': 'Review',
+        'Approved': 'Approved',
+        'Revision Needed': 'Revision'
+      };
+      slot.status = legacyMap[designStatus] || 'Pending';
+    }
+
+    // Handle approval workflow
+    if (approvalStatus) {
+      slot.approvalStatus = approvalStatus;
+      if (approvalStatus === 'Approved') {
+        slot.approvedBy = req.user._id;
+        slot.approvedAt = new Date();
+        slot.status = 'Approved';
+      } else if (approvalStatus === 'Rejected') {
+        slot.status = 'Revision';
+        slot.rejectionReason = rejectionReason;
+      }
+    }
+
     await slot.save();
 
     const updatedSlot = await Slot.findById(slot._id)
       .populate('client', 'name')
       .populate('project', 'name')
       .populate('assignedTo', 'name email designation')
-      .populate('createdBy', 'name');
+      .populate('createdBy', 'name')
+      .populate('approvedBy', 'name');
 
     // Notify project head about status update
     if (updatedSlot.project?._id) {
       const project = await Project.findById(updatedSlot.project._id).populate('projectHead');
       if (project?.projectHead && project.projectHead._id.toString() !== req.user._id.toString()) {
-        notifyProjectHeadStatusUpdate(updatedSlot, project.projectHead, designStatus).catch(err =>
+        notifyProjectHeadStatusUpdate(updatedSlot, project.projectHead, newStatus).catch(err =>
           console.error('Failed to send status update notification:', err)
         );
       }
