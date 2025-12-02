@@ -290,11 +290,26 @@ const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
       
       <style>{`
         .greeting-banner {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          background: linear-gradient(270deg, #4F46E5, #7C3AED, #EC4899, #7C3AED, #4F46E5);
+          background-size: 400% 400%;
+          animation: gradientShift 8s ease infinite;
           border: none;
           border-radius: 16px;
           overflow: hidden;
           position: relative;
+          box-shadow: 0 10px 30px rgba(79, 70, 229, 0.3);
+        }
+        
+        @keyframes gradientShift {
+          0% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+          100% {
+            background-position: 0% 50%;
+          }
         }
         
         .greeting-banner .card-body {
@@ -339,29 +354,34 @@ const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
         .greeting-text {
           font-weight: 700;
           font-size: 1.75rem;
-          text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+          text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
           animation: fadeInUp 0.6s ease-out;
+          color: #FFFFFF !important;
         }
         
         .greeting-subtitle {
           font-size: 1rem;
           animation: fadeInUp 0.8s ease-out;
-          text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+          text-shadow: 1px 1px 4px rgba(0,0,0,0.3);
+          color: rgba(255, 255, 255, 0.95) !important;
         }
         
         .user-name {
-          background: rgba(255,255,255,0.2);
-          padding: 2px 12px;
+          background: rgba(255,255,255,0.25);
+          padding: 4px 14px;
           border-radius: 20px;
           display: inline-block;
           backdrop-filter: blur(10px);
-          border: 1px solid rgba(255,255,255,0.3);
+          border: 1px solid rgba(255,255,255,0.4);
           transition: all 0.3s ease;
+          color: #FFFFFF !important;
+          font-weight: 600;
         }
         
         .user-name:hover {
-          background: rgba(255,255,255,0.3);
+          background: rgba(255,255,255,0.35);
           transform: scale(1.05);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
         
         .date-badge {
@@ -390,20 +410,20 @@ const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
         /* Fun Message Box - Premium Design with Dynamic Colors */
         .fun-message-box {
           background: linear-gradient(135deg, 
-            rgba(255,215,0,0.35) 0%, 
-            rgba(255,235,150,0.25) 50%,
-            rgba(255,215,0,0.3) 100%
+            rgba(30, 64, 175, 0.95) 0%, 
+            rgba(67, 56, 202, 0.95) 50%,
+            rgba(109, 40, 217, 0.95) 100%
           );
           backdrop-filter: blur(20px) saturate(180%);
-          border: 2px solid rgba(255,215,0,0.5);
+          border: 2px solid rgba(255,255,255,0.4);
           border-radius: 14px;
           padding: 14px 18px;
           animation: slideInBounce 0.8s ease-out, pulseGlow 3s ease-in-out infinite;
           box-shadow: 
-            0 10px 30px rgba(255,215,0,0.25),
-            0 4px 12px rgba(255,215,0,0.15),
-            inset 0 2px 0 rgba(255,235,150,0.4),
-            inset 0 -2px 0 rgba(218,165,32,0.2);
+            0 10px 30px rgba(30, 64, 175, 0.5),
+            0 4px 12px rgba(67, 56, 202, 0.4),
+            inset 0 2px 0 rgba(255,255,255,0.25),
+            inset 0 -2px 0 rgba(0,0,0,0.2);
           position: relative;
           overflow: hidden;
           transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -738,20 +758,19 @@ const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
         }
         
         .fun-message-text {
-          color: #1A1A1A !important;
+          color: #FFFFFF !important;
           font-size: 1.05rem;
           line-height: 1.8;
           font-style: italic;
-          font-weight: 800;
+          font-weight: 700;
           position: relative;
           z-index: 2;
           letter-spacing: 0.5px;
           text-align: center;
           text-shadow: 
-            1px 1px 3px rgba(255, 215, 0, 0.8),
-            -1px -1px 3px rgba(255, 215, 0, 0.8),
-            0 0 15px rgba(255, 215, 0, 0.6),
-            2px 2px 8px rgba(255, 215, 0, 0.9),
+            2px 2px 8px rgba(0, 0, 0, 0.6),
+            0 0 15px rgba(0, 0, 0, 0.4),
+            1px 1px 3px rgba(0, 0, 0, 0.8),
             0 0 25px rgba(255, 215, 0, 0.4);
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
           animation: textGlow 3s ease-in-out infinite;

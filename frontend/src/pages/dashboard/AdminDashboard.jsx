@@ -132,7 +132,8 @@ const AdminDashboard = () => {
       const projects = projectRes.data || [];
       const departments = departmentRes.data || [];
       
-      const employees = users.filter(u => u.role === 'employee');
+      // Include both employees AND HoDs in employee count (HoDs are also employees)
+      const employees = users.filter(u => u.role === 'employee' || u.role === 'hod');
       const activeProjects = projects.filter(p => p.status === 'active' || p.status === 'in-progress');
       const completedProjects = projects.filter(p => p.status === 'completed');
       const onHoldProjects = projects.filter(p => p.status === 'on-hold');
@@ -158,7 +159,10 @@ const AdminDashboard = () => {
       
       try {
         const attendanceRes = await attendanceApi.getAllAttendance({ date: today });
-        presentToday = attendanceRes.data?.filter(a => a.status === 'present').length || 0;
+        // Count all who clocked in (present, late, half-day) as "present today"
+        presentToday = attendanceRes.data?.filter(a => 
+          a.status === 'present' || a.status === 'late' || a.status === 'half-day'
+        ).length || 0;
         lateToday = attendanceRes.data?.filter(a => a.status === 'late').length || 0;
         
         const allLeavesRes = await leaveApi.getAllLeaves('approved');

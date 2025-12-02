@@ -14,6 +14,18 @@ const projectSchema = new mongoose.Schema(
     description: {
       type: String,
     },
+    // Department assignment
+    department: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department",
+    },
+    departmentAssignedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    departmentAssignedAt: {
+      type: Date,
+    },
     startDate: {
       type: Date,
       default: Date.now,
@@ -40,6 +52,18 @@ const projectSchema = new mongoose.Schema(
     budget: {
       type: Number,
       default: 0,
+    },
+    // Head of Project (HoP) - assigned by HoD
+    projectHead: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    projectHeadAssignedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    projectHeadAssignedAt: {
+      type: Date,
     },
     milestones: [
       {
@@ -80,6 +104,39 @@ const projectSchema = new mongoose.Schema(
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
+      },
+    ],
+    // Team members with roles (assigned by HoP)
+    teamMembers: [
+      {
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        role: {
+          type: String,
+          enum: [
+            "developer",
+            "designer",
+            "content-writer",
+            "social-media-manager",
+            "seo-specialist",
+            "video-editor",
+            "graphic-designer",
+            "copywriter",
+            "other",
+          ],
+          default: "other",
+        },
+        assignedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        assignedAt: {
+          type: Date,
+          default: Date.now,
+        },
       },
     ],
     services: {

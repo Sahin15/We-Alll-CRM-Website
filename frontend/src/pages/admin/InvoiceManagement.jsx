@@ -434,12 +434,24 @@ const InvoiceManagement = () => {
     {
       key: "issueDate",
       label: "Issue Date",
-      render: (value) => new Date(value).toLocaleDateString(),
+      render: (value) => {
+        const date = new Date(value);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+      },
     },
     {
       key: "dueDate",
       label: "Due Date",
-      render: (value) => new Date(value).toLocaleDateString(),
+      render: (value) => {
+        const date = new Date(value);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+      },
     },
     {
       key: "status",
@@ -508,14 +520,17 @@ const InvoiceManagement = () => {
         </Col>
       </Row>
 
-      <Row className="mb-3">
-        <Col md={4}>
-          <SearchBar
-            placeholder="Search invoices..."
-            onSearch={setSearchTerm}
-          />
+      <Row className="mb-3 align-items-end">
+        <Col md={6} lg={4}>
+          <Form.Group>
+            <Form.Label className="small text-muted">Search</Form.Label>
+            <SearchBar
+              placeholder="Search invoices..."
+              onSearch={setSearchTerm}
+            />
+          </Form.Group>
         </Col>
-        <Col md={3}>
+        <Col md={6} lg={3}>
           <FilterDropdown
             label="Status"
             options={[

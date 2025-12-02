@@ -47,7 +47,8 @@ const AttendanceTracking = () => {
   const fetchUsers = async () => {
     try {
       const response = await userApi.getAllUsers();
-      setUsers(response.data.filter((u) => u.role === "employee"));
+      // Include both employees and HoDs (HoDs are also employees)
+      setUsers(response.data.filter((u) => u.role === "employee" || u.role === "hod"));
     } catch (error) {
       console.error("Error fetching users:", error);
     }

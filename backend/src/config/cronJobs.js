@@ -4,6 +4,8 @@ import Payment from "../models/paymentModel.js";
 import Client from "../models/clientModel.js";
 import User from "../models/userModel.js";
 import Notification from "../models/notificationModel.js";
+import Slot from "../models/slotModel.js";
+import { notifySlotDeadlineApproaching, notifySlotOverdue } from "../utils/slotNotifications.js";
 
 // Helper: create notification for a user
 const createNotificationForUser = async (
@@ -308,6 +310,66 @@ const checkPlanRenewals = async () => {
   }
 };
 
+// Cron job: Check slot deadlines and send reminders
+const checkSlotDeadlines = async () => {
+  try {
+    const now = new Date();
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const threeDaysLater = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+
+    // Find slots with design deadline tomorrow (1 day reminder)
+    const slotsDueTomorrow = await Slot.find({
+      designDeadline: {
+        $gte: new Date(tomorrow.setHours(0, 0, 0, 0)),
+        $lte: new Date(tomorrow.setHours(23, 59, 59, 999)),
+      },
+      designStatus: { $nin: ['Approved', 'Posted'] },
+      postingStatus: { $ne: 'Posted' }
+    }).populate('assignedTo', 'name email');
+
+    for (const slot of slotsDueTomorrow) {
+      if (slot.assignedTo) {
+        await notifySlotDeadlineApproaching(slot, slot.assignedTo);
+      }
+    }
+
+    // Find slots with design deadline in 3 days
+    const slotsDueIn3Days = await Slot.find({
+      designDeadline: {
+        $gte: new Date(threeDaysLater.setHours(0, 0, 0, 0)),
+        $lte: new Date(threeDaysLater.setHours(23, 59, 59, 999)),
+      },
+      designStatus: { $nin: ['Approved', 'Posted'] },
+      postingStatus: { $ne: 'Posted' }
+    }).populate('assignedTo', 'name email');
+
+    for (const slot of slotsDueIn3Days) {
+      if (slot.assignedTo) {
+        await notifySlotDeadlineApproaching(slot, slot.assignedTo);
+      }
+    }
+
+    // Find overdue slots (past design deadline and not approved/posted)
+    const overdueSlots = await Slot.find({
+      designDeadline: { $lt: now },
+      designStatus: { $nin: ['Approved', 'Posted'] },
+      postingStatus: { $ne: 'Posted' }
+    }).populate('assignedTo', 'name email');
+
+    for (const slot of overdueSlots) {
+      if (slot.assignedTo) {
+        await notifySlotOverdue(slot, slot.assignedTo);
+      }
+    }
+
+    console.log(
+      `✅ Slot deadline checks completed: ${slotsDueTomorrow.length} due tomorrow, ${slotsDueIn3Days.length} due in 3 days, ${overdueSlots.length} overdue`
+    );
+  } catch (error) {
+    console.error("Error in checkSlotDeadlines:", error.message);
+  }
+};
+
 // Schedule cron jobs
 export const initializeCronJobs = () => {
   // Run daily at 9 AM: Check bills due soon (7 days and 3 days)
@@ -328,7 +390,13 @@ export const initializeCronJobs = () => {
     checkPlanRenewals();
   });
 
+  // Run daily at 7 AM: Check slot deadlines and send reminders
+  cron.schedule("0 7 * * *", () => {
+    console.log("⏰ Running scheduled job: checkSlotDeadlines");
+    checkSlotDeadlines();
+  });
+
   console.log(
-    "✅ Cron jobs initialized: Bill reminders, Overdue checks, Plan renewals"
+    "✅ Cron jobs initialized: Bill reminders, Overdue checks, Plan renewals, Slot deadlines"
   );
 };

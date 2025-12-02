@@ -4,7 +4,7 @@ import { protect, authorize } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Admin dashboard stats
-router.get("/stats", protect, authorize("admin"), getAdminDashboardStats);
+// Admin dashboard stats - accessible by admin, superadmin, and accounts roles
+router.get("/stats", protect, authorize("admin", "superadmin", "accounts"), getAdminDashboardStats);
 
 export default router;

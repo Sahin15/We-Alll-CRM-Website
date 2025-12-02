@@ -252,9 +252,10 @@ const Navbar = ({ toggleSidebar }) => {
       className="shadow-sm py-2 mobile-navbar" 
       sticky="top"
       style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%)',
         minHeight: '70px',
-        zIndex: 1030
+        zIndex: 1030,
+        borderRadius: '0 0 0 16px',
       }}
     >
       <Container fluid className="px-2 px-md-3">

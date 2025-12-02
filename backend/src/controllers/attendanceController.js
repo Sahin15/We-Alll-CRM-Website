@@ -36,20 +36,26 @@ export const clockIn = async (req, res) => {
     const clockInHour = clockInTime.getHours();
     const clockInMinute = clockInTime.getMinutes();
     
-    // Determine status based on clock-in time
-    let status = "present";
-    let message = "Clocked in successfully";
+    // Simple and clear logic
+    let status;
+    let message;
     
-    // After 12:00 PM (noon) = Half day
+    // Check time and set status
     if (clockInHour >= 12) {
+      // 12:00 PM or later = Half day
       status = "half-day";
       message = "Clocked in successfully (Half day - arrived after 12:00 PM)";
-    }
-    // After 10:30 AM but before 12:00 PM = Late
-    else if (clockInHour > 10 || (clockInHour === 10 && clockInMinute > 30)) {
+    } else if (clockInHour > 10 || (clockInHour === 10 && clockInMinute > 30)) {
+      // After 10:30 AM = Late
       status = "late";
       message = "Clocked in successfully (Late entry)";
+    } else {
+      // 10:30 AM or before = Present
+      status = "present";
+      message = "Clocked in successfully";
     }
+    
+    console.log(`⏰ Clock-in: ${clockInHour}:${String(clockInMinute).padStart(2, '0')} → Status: ${status}`);
     
     // Create attendance with date at midnight for consistency with unique index
     const attendance = await Attendance.create({
@@ -59,6 +65,8 @@ export const clockIn = async (req, res) => {
       location,
       status: status,
     });
+
+    console.log(`✅ Attendance created with status: ${attendance.status}`);
 
     res.status(201).json({
       message: message,

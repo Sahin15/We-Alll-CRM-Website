@@ -61,7 +61,8 @@ const DepartmentList = () => {
     try {
       setLoading(true);
       const response = await departmentApi.getAllDepartments();
-      let deptData = response.data;
+      // The API returns the array directly, not wrapped in { data: [] }
+      let deptData = Array.isArray(response) ? response : (response.data || []);
 
       // Filter departments based on user role
       if (isEmployee && user.department) {
@@ -75,7 +76,9 @@ const DepartmentList = () => {
 
       setDepartments(deptData);
     } catch (error) {
+      console.error("Failed to fetch departments:", error);
       toast.error("Failed to fetch departments");
+      setDepartments([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
@@ -92,19 +95,29 @@ const DepartmentList = () => {
 
   const fetchAnalytics = async () => {
     try {
-      const response = await departmentApi.getAllDepartmentsAnalytics();
-      setAnalytics(response.data);
+      // Check if the function exists before calling
+      if (typeof departmentApi.getAllDepartmentsAnalytics === 'function') {
+        const response = await departmentApi.getAllDepartmentsAnalytics();
+        // The API already returns response.data, so use it directly
+        setAnalytics(response);
+      } else {
+        console.warn('getAllDepartmentsAnalytics function not available');
+        setAnalytics(null);
+      }
     } catch (error) {
       console.error("Failed to fetch analytics:", error);
+      setAnalytics(null);
     }
   };
 
   const fetchDepartmentAnalytics = async (id) => {
     try {
       const response = await departmentApi.getDepartmentAnalytics(id);
-      setSelectedDeptAnalytics(response.data);
+      // The API already returns response.data, so use it directly
+      setSelectedDeptAnalytics(response);
       setShowAnalyticsModal(true);
     } catch (error) {
+      console.error("Failed to fetch department analytics:", error);
       toast.error("Failed to fetch department analytics");
     }
   };
@@ -311,7 +324,7 @@ const DepartmentList = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {departments.length > 0 ? (
+                    {departments && departments.length > 0 ? (
                       departments.map((dept) => (
                         <tr key={dept._id}>
                           <td>

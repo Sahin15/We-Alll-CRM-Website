@@ -18,11 +18,13 @@ import {
   FaEye,
   FaTimes,
   FaUserPlus,
+  FaArrowLeft,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
 import { projectApi } from "../../api/projectApi";
+import { departmentApi } from "../../api/departmentApi";
 import { clientApi } from "../../api/clientApi";
 import { userApi } from "../../api/userApi";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
@@ -31,7 +33,7 @@ const ProjectList = () => {
   const { user } = useAuth();
   const [projects, setProjects] = useState([]);
   const [clients, setClients] = useState([]);
-  const [users, setUsers] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -39,34 +41,33 @@ const ProjectList = () => {
   const [formData, setFormData] = useState({
     name: "",
     client: "",
+    department: "",
     description: "",
     startDate: "",
     endDate: "",
-    status: "Pending",
-    assignedUsers: [],
   });
-  const [availableUsers, setAvailableUsers] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchProjects();
     fetchClients();
-    fetchUsers();
+    fetchDepartments();
   }, []);
 
   const fetchProjects = async () => {
     try {
       setLoading(true);
       const response = await projectApi.getAllProjects();
-      setProjects(response.data);
+      // response is already the data array from the API
+      setProjects(Array.isArray(response) ? response : []);
     } catch (error) {
       console.error("Project fetch error:", error);
       if (error.response?.status === 403) {
         toast.info("You can only view projects you are assigned to");
-        setProjects([]);
       } else {
         toast.error("Failed to fetch projects");
       }
+      setProjects([]);
     } finally {
       setLoading(false);
     }
@@ -75,42 +76,46 @@ const ProjectList = () => {
   const fetchClients = async () => {
     // Only fetch clients if user has permission (not employee role)
     if (user?.role === 'employee') {
-      console.log("Skipping client fetch - employee role doesn't have access");
+      setClients([]);
       return;
     }
     
     try {
       const response = await clientApi.getAllClients();
-      console.log("Clients loaded:", response.data);
-      setClients(response.data);
+      setClients(response.data || []);
     } catch (error) {
       console.error("Failed to fetch clients:", error);
       // Only show error if it's not a permission issue (403)
       if (error.response?.status !== 403) {
         toast.error("Failed to load clients");
       }
-      // Silently fail for permission errors - user doesn't have access
+      setClients([]);
     }
   };
 
-  const fetchUsers = async () => {
+  const fetchDepartments = async () => {
     try {
-      const response = await userApi.getAllUsers();
-      setUsers(response.data);
+      const response = await departmentApi.getAllDepartments();
+      // Backend returns array directly, not wrapped in data
+      const depts = Array.isArray(response) ? response : (response.data || []);
+      console.log('Fetched departments:', depts);
+      setDepartments(depts);
     } catch (error) {
-      console.error("Failed to fetch users:", error);
-      toast.error("Failed to load users");
+      console.error("Failed to fetch departments:", error);
+      setDepartments([]);
     }
   };
+
+
 
   const handleShowModal = (project = null) => {
     if (project) {
       setEditMode(true);
       setCurrentProject(project);
-      const assignedIds = project.assignedUsers?.map((u) => u._id || u) || [];
       setFormData({
         name: project.name,
-        client: project.client?._id || project.client,
+        client: project.client?._id || project.client || "",
+        department: project.department?._id || project.department || "",
         description: project.description || "",
         startDate: project.startDate
           ? new Date(project.startDate).toISOString().split("T")[0]
@@ -118,24 +123,18 @@ const ProjectList = () => {
         endDate: project.endDate
           ? new Date(project.endDate).toISOString().split("T")[0]
           : "",
-        status: project.status,
-        assignedUsers: assignedIds,
       });
-      // Set available users (not yet assigned)
-      setAvailableUsers(users.filter((u) => !assignedIds.includes(u._id)));
     } else {
       setEditMode(false);
       setCurrentProject(null);
       setFormData({
         name: "",
         client: "",
+        department: "",
         description: "",
         startDate: "",
         endDate: "",
-        status: "Pending",
-        assignedUsers: [],
       });
-      setAvailableUsers(users);
     }
     setShowModal(true);
   };
@@ -147,11 +146,10 @@ const ProjectList = () => {
     setFormData({
       name: "",
       client: "",
+      department: "",
       description: "",
       startDate: "",
       endDate: "",
-      status: "Pending",
-      assignedUsers: [],
     });
   };
 
@@ -200,29 +198,20 @@ const ProjectList = () => {
     }
   };
 
-  const handleAddUser = (userId) => {
-    if (!formData.assignedUsers.includes(userId)) {
-      setFormData({
-        ...formData,
-        assignedUsers: [...formData.assignedUsers, userId],
-      });
-      setAvailableUsers(availableUsers.filter((u) => u._id !== userId));
-    }
-  };
 
-  const handleRemoveUser = (userId) => {
-    setFormData({
-      ...formData,
-      assignedUsers: formData.assignedUsers.filter((id) => id !== userId),
-    });
-    const userToAdd = users.find((u) => u._id === userId);
-    if (userToAdd) {
-      setAvailableUsers([...availableUsers, userToAdd]);
-    }
-  };
 
   return (
     <Container fluid>
+      <Button
+        variant="outline-secondary"
+        size="sm"
+        onClick={() => navigate(-1)}
+        className="mb-3"
+      >
+        <FaArrowLeft className="me-2" />
+        Back
+      </Button>
+      
       <Row className="mb-4">
         <Col>
           <h2>
@@ -382,17 +371,16 @@ const ProjectList = () => {
             </Form.Group>
 
             <Form.Group className="mb-3">
-              <Form.Label>Client *</Form.Label>
+              <Form.Label>Client (Optional)</Form.Label>
               <Form.Select
                 name="client"
                 value={formData.client}
                 onChange={handleChange}
-                required
               >
                 <option value="">
                   {clients.length === 0
-                    ? "No clients available - Add client first"
-                    : "Select a client"}
+                    ? "No clients available"
+                    : "Select a client (optional)"}
                 </option>
                 {clients.map((client) => (
                   <option key={client._id} value={client._id}>
@@ -400,12 +388,9 @@ const ProjectList = () => {
                   </option>
                 ))}
               </Form.Select>
-              {clients.length === 0 && (
-                <Form.Text className="text-danger">
-                  No clients found. Please create a client first or check your
-                  permissions.
-                </Form.Text>
-              )}
+              <Form.Text className="text-muted">
+                You can assign a client later if needed
+              </Form.Text>
             </Form.Group>
 
             <Form.Group className="mb-3">
@@ -447,95 +432,29 @@ const ProjectList = () => {
             </Row>
 
             <Form.Group className="mb-3">
-              <Form.Label>Status *</Form.Label>
+              <Form.Label>Department *</Form.Label>
               <Form.Select
-                name="status"
-                value={formData.status}
+                name="department"
+                value={formData.department}
                 onChange={handleChange}
                 required
               >
-                <option value="Pending">Pending</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Completed">Completed</option>
+                <option value="">Select Department</option>
+                {departments.map((dept) => (
+                  <option key={dept._id} value={dept._id}>
+                    {dept.name}
+                  </option>
+                ))}
               </Form.Select>
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Team Members</Form.Label>
-
-              {/* Assigned Members */}
-              {formData.assignedUsers.length > 0 && (
-                <Card className="mb-3">
-                  <Card.Header className="bg-light py-2">
-                    <small className="text-muted">Assigned Members</small>
-                  </Card.Header>
-                  <ListGroup variant="flush">
-                    {formData.assignedUsers.map((userId) => {
-                      const user = users.find((u) => u._id === userId);
-                      return user ? (
-                        <ListGroup.Item
-                          key={userId}
-                          className="d-flex justify-content-between align-items-center py-2"
-                          style={{ backgroundColor: "#f0f0f0" }}
-                        >
-                          <div>
-                            <strong>{user.name}</strong>
-                            <br />
-                            <small className="text-muted">
-                              {user.email} • {user.role}
-                            </small>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="outline-danger"
-                            onClick={() => handleRemoveUser(userId)}
-                          >
-                            <FaTimes /> Remove
-                          </Button>
-                        </ListGroup.Item>
-                      ) : null;
-                    })}
-                  </ListGroup>
-                </Card>
+              {departments.length === 0 && (
+                <Form.Text className="text-danger">
+                  No departments found. Please create departments first.
+                </Form.Text>
               )}
-
-              {/* Available Members */}
-              {availableUsers.length > 0 ? (
-                <Card>
-                  <Card.Header className="bg-light py-2">
-                    <small className="text-muted">Available Members</small>
-                  </Card.Header>
-                  <ListGroup
-                    variant="flush"
-                    style={{ maxHeight: "200px", overflowY: "auto" }}
-                  >
-                    {availableUsers.map((user) => (
-                      <ListGroup.Item
-                        key={user._id}
-                        className="d-flex justify-content-between align-items-center py-2"
-                      >
-                        <div>
-                          <strong>{user.name}</strong>
-                          <br />
-                          <small className="text-muted">
-                            {user.email} • {user.role}
-                          </small>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="outline-primary"
-                          onClick={() => handleAddUser(user._id)}
-                        >
-                          <FaUserPlus /> Add
-                        </Button>
-                      </ListGroup.Item>
-                    ))}
-                  </ListGroup>
-                </Card>
-              ) : (
-                <p className="text-muted text-center py-2">
-                  All users have been assigned
-                </p>
+              {departments.length > 0 && (
+                <Form.Text className="text-muted">
+                  The HoD of this department will manage the project
+                </Form.Text>
               )}
             </Form.Group>
           </Modal.Body>

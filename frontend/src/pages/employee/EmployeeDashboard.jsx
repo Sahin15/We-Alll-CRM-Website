@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { Container, Row, Col, Card, Button, Badge, Modal, Form } from "react-bootstrap";
 import { FaClock, FaCalendarAlt, FaTasks, FaChartLine, FaFileAlt, FaShieldAlt } from "react-icons/fa";
+import { useAuth } from "../../context/AuthContext";
 import toast from "../../utils/toast";
 import api from "../../services/api";
 import GreetingBanner from "../../components/common/GreetingBanner";
 import ConfirmModal from "../../components/common/ConfirmModal";
+import HoDSection from "../../components/dashboard/HoDSection";
+import HoPSection from "../../components/dashboard/HoPSection";
 import "../../styles/dashboard-mobile.css";
 import "../../styles/modal-mobile.css";
 
@@ -48,6 +51,7 @@ const WORK_HOURS = {
 // ============================================
 
 const EmployeeDashboard = () => {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     attendanceToday: null,
@@ -698,6 +702,16 @@ const EmployeeDashboard = () => {
     <Container fluid className="py-4 dashboard-container">
       {/* Greeting Banner */}
       <GreetingBanner subtitle="Welcome to your dashboard" />
+
+      {/* HoD Section - Shows if user is Head of Department */}
+      {user && (user.isHeadOfDepartment || user.headOfDepartment) && (
+        <HoDSection user={user} />
+      )}
+
+      {/* HoP Section - Shows if user is Head of Project */}
+      {user && user.headOfProjects && user.headOfProjects.length > 0 && (
+        <HoPSection user={user} />
+      )}
 
       {/* Quick Stats */}
       <Row className="mb-4">

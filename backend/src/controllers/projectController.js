@@ -1,48 +1,140 @@
 import Project from "../models/projectModel.js";
 import User from "../models/userModel.js";
 import Client from "../models/clientModel.js";
+import Department from "../models/departmentModel.js";
+
+// Helper function to check if user has access to a project
+const userHasProjectAccess = async (userId, userRole, project) => {
+  // Admin, superadmin, hr, manager have full access
+  if (['admin', 'superadmin', 'hr', 'manager'].includes(userRole)) {
+    return true;
+  }
+
+  // Get user details
+  const user = await User.findById(userId);
+  
+  // Check if user is HoD of the project's department
+  const isHoD = user.isHeadOfDepartment && 
+                user.headOfDepartment && 
+                project.department &&
+                user.headOfDepartment.toString() === project.department.toString();
+  
+  // Check if user is HoP (project head)
+  // Handle both populated and non-populated projectHead
+  const projectHeadId = project.projectHead?._id || project.projectHead;
+  const isHoP = projectHeadId && projectHeadId.toString() === userId.toString();
+  
+  // Check if user is assigned to the project
+  const isAssigned = project.assignedUsers && 
+                     project.assignedUsers.some(u => {
+                       const uid = u._id || u;
+                       return uid.toString() === userId.toString();
+                     });
+  
+  console.log(`🔍 Access check for ${userId}:`, { isHoD, isHoP, isAssigned });
+  
+  return isHoD || isHoP || isAssigned;
+};
 
 // Create new project
 export const createProject = async (req, res) => {
   try {
-    const { name, client, description, endDate, assignedUsers } = req.body;
+    const { 
+      name, 
+      client, 
+      department,
+      description, 
+      startDate,
+      endDate, 
+      budget,
+      status,
+      priority,
+      assignedUsers 
+    } = req.body;
 
-    if (!name || !client) {
+    if (!name || !description) {
       return res
         .status(400)
-        .json({ message: "Project name and client are required" });
+        .json({ message: "Project name and description are required" });
+    }
+
+    if (!department) {
+      return res
+        .status(400)
+        .json({ message: "Department is required" });
     }
 
     const project = await Project.create({
       name,
-      client,
+      client: client || null,
+      department,
       description,
-      endDate,
-      assignedUsers,
+      startDate: startDate || null,
+      endDate: endDate || null,
+      budget: budget || 0,
+      status: status || "Pending",
+      priority: priority || "medium",
+      assignedUsers: assignedUsers || [],
     });
+
+    // Add project to department's projects array
+    await Department.findByIdAndUpdate(department, {
+      $addToSet: { projects: project._id },
+    });
+
+    // Populate and return
+    const populatedProject = await Project.findById(project._id)
+      .populate("client", "name email")
+      .populate("department", "name")
+      .populate("projectHead", "name email");
 
     res.status(201).json({
       message: "Project created successfully",
-      project,
+      project: populatedProject,
     });
   } catch (error) {
     console.error("Error in createProject:", error.message);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
 // Get all projects
 export const getProjects = async (req, res) => {
   try {
+    console.log('📋 getProjects called by:', req.user?.email, req.user?.role);
+    
     let query = {};
     
-    // Employees can only see projects they are assigned to
-    if (req.user.role === "employee") {
-      query = { assignedUsers: req.user.id };
-    }
+    // Check if user is HoD (Head of Department)
+    const user = await User.findById(req.user.id);
+    const isHoD = user.isHeadOfDepartment && user.headOfDepartment;
     
+    console.log('📋 User check:', {
+      isHoD,
+      headOfDepartment: user.headOfDepartment
+    });
+    
+    // HoDs can see their department's projects
+    if (req.user.role === "employee" && isHoD) {
+      query = {
+        $or: [
+          { assignedUsers: req.user.id }, // Projects they're assigned to
+          { department: user.headOfDepartment }, // Projects in their department
+          { projectHead: req.user.id } // Projects they lead
+        ]
+      };
+    }
+    // Regular employees can see projects they are assigned to OR projects they lead
+    else if (req.user.role === "employee") {
+      query = {
+        $or: [
+          { assignedUsers: req.user.id }, // Projects they're assigned to
+          { projectHead: req.user.id } // Projects they lead as HoP
+        ]
+      };
+    }
     // Clients can only see their own projects
-    if (req.user.role === "client") {
+    else if (req.user.role === "client") {
       const clientByEmail = await Client.findOne({
         email: req.user.email,
       }).select("_id");
@@ -55,15 +147,31 @@ export const getProjects = async (req, res) => {
       }
     }
     
+    console.log('📋 Query:', query);
+    
     // Admin, superadmin, hr, hod, manager can see all projects
     const projects = await Project.find(query)
       .populate("client", "name email")
+      .populate("department", "name")
+      .populate("projectHead", "name email")
       .populate("assignedUsers", "name email role")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean(); // Use lean() for better performance and to avoid populate issues
 
+    console.log('📋 Found projects:', projects.length);
+    
+    if (projects.length > 0) {
+      console.log('📋 First project:', {
+        name: projects[0].name,
+        department: projects[0].department?.name,
+        status: projects[0].status
+      });
+    }
+    
     res.status(200).json(projects);
   } catch (error) {
-    console.error("Error in getProjects:", error);
+    console.error("❌ Error in getProjects:", error);
+    console.error("❌ Error stack:", error.stack);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -157,6 +265,8 @@ export const getProjectById = async (req, res) => {
 
     const project = await Project.findById(id)
       .populate("client", "name email")
+      .populate("department", "name")
+      .populate("projectHead", "name email designation")
       .populate("assignedUsers", "name email role")
       .populate("tasks.assignedTo", "name email");
 
@@ -177,26 +287,22 @@ export const getProjectById = async (req, res) => {
       }
     }
 
-    // Employees can only see projects they are assigned to
+    // Employees can only see projects they have access to
     if (req.user.role === "employee") {
-      const assignedUserIds = project.assignedUsers.map(user => {
-        const userId = user._id || user;
-        return userId.toString();
-      });
+      console.log(`🔍 Checking access for user ${req.user.id} (${req.user.email})`);
+      console.log(`🔍 Project Head: ${project.projectHead?._id || project.projectHead}`);
+      console.log(`🔍 Assigned Users:`, project.assignedUsers?.map(u => u._id || u));
       
-      console.log(`👥 Project assigned users:`, assignedUserIds);
-      console.log(`👤 Current user ID:`, req.user.id);
+      const hasAccess = await userHasProjectAccess(req.user.id, req.user.role, project);
       
-      const isAssigned = assignedUserIds.includes(req.user.id);
-      
-      if (!isAssigned) {
-        console.log(`❌ Access denied - user not assigned to project`);
+      if (!hasAccess) {
+        console.log(`❌ Access denied - user doesn't have access to project`);
         return res.status(403).json({
           message: "Access denied. You can only view projects you are assigned to.",
         });
       }
       
-      console.log(`✅ Access granted - user is assigned to project`);
+      console.log(`✅ Access granted - user has access to project`);
     }
 
     return res.status(200).json(project);
@@ -431,5 +537,446 @@ export const deleteProject = async (req, res) => {
   } catch (error) {
     console.error("Error in deleteProject:", error.message);
     return res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+// Assign Project Head
+export const assignProjectHead = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
+
+    // Find project
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    // Find user and verify they are an employee
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.role === "client") {
+      return res.status(400).json({ message: "Clients cannot be assigned as project heads" });
+    }
+
+    // Assign project head
+    project.projectHead = userId;
+    await project.save();
+
+    await project.populate("projectHead", "name email designation");
+
+    res.status(200).json({
+      message: "Project head assigned successfully",
+      project,
+    });
+  } catch (error) {
+    console.error("Error in assignProjectHead:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Remove Project Head
+export const removeProjectHead = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    project.projectHead = null;
+    await project.save();
+
+    res.status(200).json({
+      message: "Project head removed successfully",
+      project,
+    });
+  } catch (error) {
+    console.error("Error in removeProjectHead:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// ============================================
+// HoP (Head of Project) Management - Enhanced
+// ============================================
+
+/**
+ * Assign project to department
+ * Only Admin/SuperAdmin can do this
+ */
+export const assignProjectToDepartment = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { departmentId } = req.body;
+
+    if (!departmentId) {
+      return res.status(400).json({
+        success: false,
+        message: "Department ID is required",
+      });
+    }
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
+      });
+    }
+
+    // Update project
+    project.department = departmentId;
+    project.departmentAssignedBy = req.user._id;
+    project.departmentAssignedAt = new Date();
+    await project.save();
+
+    // Add project to department's projects array
+    await Department.findByIdAndUpdate(departmentId, {
+      $addToSet: { projects: projectId },
+    });
+
+    const updatedProject = await Project.findById(projectId)
+      .populate("department", "name")
+      .populate("departmentAssignedBy", "name email");
+
+    res.status(200).json({
+      success: true,
+      message: "Project assigned to department successfully",
+      data: updatedProject,
+    });
+  } catch (error) {
+    console.error("Error in assignProjectToDepartment:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error assigning project to department",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Assign Head of Project (HoP)
+ * Only HoD of the project's department can do this
+ */
+export const assignHoP = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    const project = await Project.findById(projectId).populate("department");
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Verify user is in the department
+    if (
+      project.department &&
+      user.department &&
+      user.department.toString() !== project.department._id.toString()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "User must be a member of the project's department",
+      });
+    }
+
+    // Remove from previous HoP's headOfProjects array
+    if (project.projectHead) {
+      await User.findByIdAndUpdate(project.projectHead, {
+        $pull: { headOfProjects: projectId },
+      });
+    }
+
+    // Update project
+    project.projectHead = userId;
+    project.projectHeadAssignedBy = req.user._id;
+    project.projectHeadAssignedAt = new Date();
+    await project.save();
+
+    // Update user's headOfProjects array
+    await User.findByIdAndUpdate(userId, {
+      $addToSet: { headOfProjects: projectId },
+    });
+
+    const updatedProject = await Project.findById(projectId)
+      .populate("projectHead", "name email designation")
+      .populate("projectHeadAssignedBy", "name email")
+      .populate("department", "name");
+
+    res.status(200).json({
+      success: true,
+      message: "Head of Project assigned successfully",
+      data: updatedProject,
+    });
+  } catch (error) {
+    console.error("Error in assignHoP:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error assigning Head of Project",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Add team member to project
+ * Only HoP can do this
+ */
+export const addTeamMember = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { userId, role } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Check if user is already a team member
+    const existingMember = project.teamMembers.find(
+      (member) => member.user.toString() === userId
+    );
+
+    if (existingMember) {
+      return res.status(400).json({
+        success: false,
+        message: "User is already a team member",
+      });
+    }
+
+    // Add team member
+    project.teamMembers.push({
+      user: userId,
+      role: role || "other",
+      assignedBy: req.user._id,
+      assignedAt: new Date(),
+    });
+
+    // Also add to assignedUsers for backward compatibility
+    if (!project.assignedUsers.includes(userId)) {
+      project.assignedUsers.push(userId);
+    }
+
+    await project.save();
+
+    // Update user's assignedProjects array
+    await User.findByIdAndUpdate(userId, {
+      $addToSet: { assignedProjects: projectId },
+    });
+
+    const updatedProject = await Project.findById(projectId)
+      .populate("teamMembers.user", "name email designation")
+      .populate("teamMembers.assignedBy", "name email")
+      .populate("projectHead", "name email");
+
+    res.status(200).json({
+      success: true,
+      message: "Team member added successfully",
+      data: updatedProject,
+    });
+  } catch (error) {
+    console.error("Error in addTeamMember:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error adding team member",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Remove team member from project
+ * Only HoP can do this
+ */
+export const removeTeamMember = async (req, res) => {
+  try {
+    const { projectId, userId } = req.params;
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
+      });
+    }
+
+    // Remove from teamMembers
+    project.teamMembers = project.teamMembers.filter(
+      (member) => member.user.toString() !== userId
+    );
+
+    // Remove from assignedUsers
+    project.assignedUsers = project.assignedUsers.filter(
+      (id) => id.toString() !== userId
+    );
+
+    await project.save();
+
+    // Update user's assignedProjects array
+    await User.findByIdAndUpdate(userId, {
+      $pull: { assignedProjects: projectId },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Team member removed successfully",
+      data: project,
+    });
+  } catch (error) {
+    console.error("Error in removeTeamMember:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error removing team member",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Get project team
+ */
+export const getProjectTeam = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+
+    const project = await Project.findById(projectId)
+      .populate("teamMembers.user", "name email designation employeeId")
+      .populate("teamMembers.assignedBy", "name email")
+      .populate("projectHead", "name email designation");
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        projectHead: project.projectHead,
+        teamMembers: project.teamMembers,
+        totalMembers: project.teamMembers.length,
+      },
+    });
+  } catch (error) {
+    console.error("Error in getProjectTeam:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching project team",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Get projects where user is HoP
+ */
+export const getMyLeadingProjects = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const projects = await Project.find({ projectHead: userId })
+      .populate("client", "name email")
+      .populate("department", "name")
+      .populate("teamMembers.user", "name email designation")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: projects,
+      total: projects.length,
+    });
+  } catch (error) {
+    console.error("Error in getMyLeadingProjects:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching leading projects",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Get projects in my department (for HoD)
+ */
+export const getMyDepartmentProjects = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).populate("headOfDepartment");
+
+    if (!user.isHeadOfDepartment || !user.headOfDepartment) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not a Head of Department",
+      });
+    }
+
+    const projects = await Project.find({
+      department: user.headOfDepartment._id,
+    })
+      .populate("client", "name email")
+      .populate("projectHead", "name email designation")
+      .populate("teamMembers.user", "name email")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: projects,
+      total: projects.length,
+      department: user.headOfDepartment,
+    });
+  } catch (error) {
+    console.error("Error in getMyDepartmentProjects:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching department projects",
+      error: error.message,
+    });
   }
 };

@@ -19,25 +19,25 @@ import { authorizeRoles } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
-// Admin and superadmin can manage clients
-router.post("/", protect, authorizeRoles("admin", "superadmin"), createClient);
-router.get("/", protect, authorizeRoles("admin", "superadmin"), getClients);
+// Admin, superadmin, and hr can manage clients
+router.post("/", protect, authorizeRoles("admin", "superadmin", "hr"), createClient);
+router.get("/", protect, authorizeRoles("admin", "superadmin", "hr"), getClients);
 router.get(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin"),
+  authorizeRoles("admin", "superadmin", "hr"),
   getClientById
 );
 router.put(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin"),
+  authorizeRoles("admin", "superadmin", "hr"),
   updateClient
 );
 router.delete(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin"),
+  authorizeRoles("admin", "superadmin", "hr"),
   deleteClient
 );
 

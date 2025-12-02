@@ -339,3 +339,283 @@ export const getAllDepartmentsAnalytics = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+// ============================================
+// HoD (Head of Department) Management
+// ============================================
+
+/**
+ * Assign Head of Department
+ * Only Admin/SuperAdmin/HR can assign HoD
+ */
+export const assignHoD = async (req, res) => {
+  try {
+    const { departmentId } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    // Find department and user
+    const department = await Department.findById(departmentId);
+    const user = await User.findById(userId);
+
+    if (!department) {
+      return res.status(404).json({
+        success: false,
+        message: "Department not found",
+      });
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Check if user is in the department
+    if (!department.employees.includes(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: "User must be a member of the department first",
+      });
+    }
+
+    // Remove HoD status from previous head if exists
+    if (department.head) {
+      const previousHead = await User.findById(department.head);
+      if (previousHead) {
+        previousHead.isHeadOfDepartment = false;
+        previousHead.headOfDepartment = null;
+        await previousHead.save();
+      }
+    }
+
+    // Update department
+    department.head = userId;
+    department.headAssignedBy = req.user._id;
+    department.headAssignedAt = new Date();
+    await department.save();
+
+    // Update user
+    user.isHeadOfDepartment = true;
+    user.headOfDepartment = departmentId;
+    await user.save();
+
+    const updatedDepartment = await Department.findById(departmentId)
+      .populate("head", "name email designation")
+      .populate("headAssignedBy", "name email")
+      .populate("employees", "name email designation");
+
+    res.status(200).json({
+      success: true,
+      message: "Head of Department assigned successfully",
+      data: updatedDepartment,
+    });
+  } catch (error) {
+    console.error("Error in assignHoD:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error assigning Head of Department",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Remove Head of Department
+ */
+export const removeHoD = async (req, res) => {
+  try {
+    const { departmentId } = req.params;
+
+    const department = await Department.findById(departmentId);
+
+    if (!department) {
+      return res.status(404).json({
+        success: false,
+        message: "Department not found",
+      });
+    }
+
+    if (!department.head) {
+      return res.status(400).json({
+        success: false,
+        message: "Department has no Head assigned",
+      });
+    }
+
+    // Update user
+    const user = await User.findById(department.head);
+    if (user) {
+      user.isHeadOfDepartment = false;
+      user.headOfDepartment = null;
+      await user.save();
+    }
+
+    // Update department
+    department.head = null;
+    department.headAssignedBy = null;
+    department.headAssignedAt = null;
+    await department.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Head of Department removed successfully",
+      data: department,
+    });
+  } catch (error) {
+    console.error("Error in removeHoD:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error removing Head of Department",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Get all projects in a department
+ * Accessible by HoD
+ */
+export const getDepartmentProjects = async (req, res) => {
+  try {
+    const { departmentId } = req.params;
+
+    const department = await Department.findById(departmentId)
+      .populate({
+        path: "projects",
+        populate: [
+          { path: "projectHead", select: "name email designation" },
+          { path: "client", select: "name email" },
+          { path: "teamMembers.user", select: "name email designation" },
+        ],
+      })
+      .populate("head", "name email designation");
+
+    if (!department) {
+      return res.status(404).json({
+        success: false,
+        message: "Department not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        department: {
+          _id: department._id,
+          name: department.name,
+          head: department.head,
+        },
+        projects: department.projects,
+        totalProjects: department.projects.length,
+      },
+    });
+  } catch (error) {
+    console.error("Error in getDepartmentProjects:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching department projects",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Get department members
+ */
+export const getDepartmentMembers = async (req, res) => {
+  try {
+    const { departmentId } = req.params;
+
+    const department = await Department.findById(departmentId)
+      .populate("employees", "name email designation employeeId status")
+      .populate("head", "name email designation");
+
+    if (!department) {
+      return res.status(404).json({
+        success: false,
+        message: "Department not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        department: {
+          _id: department._id,
+          name: department.name,
+          head: department.head,
+        },
+        members: department.employees,
+        totalMembers: department.employees.length,
+      },
+    });
+  } catch (error) {
+    console.error("Error in getDepartmentMembers:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching department members",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Get department statistics
+ * For HoD dashboard
+ */
+export const getDepartmentStats = async (req, res) => {
+  try {
+    const { departmentId } = req.params;
+
+    const department = await Department.findById(departmentId)
+      .populate("employees", "name status")
+      .populate("projects");
+
+    if (!department) {
+      return res.status(404).json({
+        success: false,
+        message: "Department not found",
+      });
+    }
+
+    // Calculate stats
+    const totalMembers = department.employees.length;
+    const activeMembers = department.employees.filter(
+      (e) => e.status === "active"
+    ).length;
+    const totalProjects = department.projects.length;
+    const activeProjects = department.projects.filter(
+      (p) => p.status === "In Progress"
+    ).length;
+    const completedProjects = department.projects.filter(
+      (p) => p.status === "Completed"
+    ).length;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalMembers,
+        activeMembers,
+        totalProjects,
+        activeProjects,
+        completedProjects,
+        pendingProjects: totalProjects - activeProjects - completedProjects,
+      },
+    });
+  } catch (error) {
+    console.error("Error in getDepartmentStats:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching department statistics",
+      error: error.message,
+    });
+  }
+};

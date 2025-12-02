@@ -16,14 +16,25 @@ import {
   addDeliverable,
   updateDeliverable,
   deleteProject,
+  assignProjectHead,
+  removeProjectHead,
+  assignProjectToDepartment,
+  assignHoP,
+  addTeamMember,
+  removeTeamMember,
+  getProjectTeam,
+  getMyLeadingProjects,
+  getMyDepartmentProjects,
 } from "../controllers/projectController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { canAssignHoP } from "../middleware/hodMiddleware.js";
+import { isHoPOfProject, canManageProject } from "../middleware/hopMiddleware.js";
 
 const router = express.Router();
 
-// Create new project (Admin / Manager)
-router.post("/", protect, authorizeRoles("admin", "manager"), createProject);
+// Create new project (Admin / SuperAdmin / HR / Manager)
+router.post("/", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), createProject);
 
 // Get all projects (Admin / Manager / User)
 router.get("/", protect, getProjects);
@@ -50,14 +61,68 @@ router.put(
   removeUserFromProject
 );
 
+// Assign and remove project head
+router.put(
+  "/:projectId/project-head",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr", "hod"),
+  assignProjectHead
+);
+router.delete(
+  "/:projectId/project-head",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr", "hod"),
+  removeProjectHead
+);
+
+// HoD/HoP Management Routes
+router.post(
+  "/:projectId/assign-department",
+  protect,
+  authorizeRoles("admin", "superadmin"),
+  assignProjectToDepartment
+);
+router.post(
+  "/:projectId/assign-hop",
+  protect,
+  canAssignHoP,
+  assignHoP
+);
+
+// Team Management (HoP, HoD, Admin)
+router.post(
+  "/:projectId/team/add",
+  protect,
+  canManageProject,
+  addTeamMember
+);
+router.delete(
+  "/:projectId/team/:userId",
+  protect,
+  canManageProject,
+  removeTeamMember
+);
+router.get(
+  "/:projectId/team",
+  protect,
+  canManageProject,
+  getProjectTeam
+);
+
 // Get logged-in user's projects
 router.get("/my-projects", protect, getProjectsForUser);
+
+// HoP Routes - Get projects where I'm the head
+router.get("/my-leading", protect, getMyLeadingProjects);
+
+// HoD Routes - Get projects in my department
+router.get("/my-department", protect, getMyDepartmentProjects);
 
 // Get single project (clients restricted to own)
 router.get(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "manager", "employee", "client"),
+  authorizeRoles("admin", "superadmin", "manager", "hod", "employee", "client"),
   getProjectById
 );
 
@@ -65,7 +130,7 @@ router.get(
 router.put(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "manager", "hod"),
+  authorizeRoles("admin", "superadmin", "hr", "manager", "hod"),
   updateProject
 );
 
@@ -123,7 +188,7 @@ router.put(
 router.delete(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin"),
+  authorizeRoles("admin", "superadmin", "hr"),
   deleteProject
 );
 

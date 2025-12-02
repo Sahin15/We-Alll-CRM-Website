@@ -3,16 +3,28 @@ import { FaHeart, FaGithub, FaLinkedin, FaEnvelope, FaUser, FaFacebook, FaInstag
 import { FaXTwitter } from "react-icons/fa6";
 import { useAuth } from "../../context/AuthContext";
 
-const Footer = () => {
+const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
   const { user } = useAuth();
   const currentYear = new Date().getFullYear();
 
+  // Calculate margin based on sidebar state
+  const footerMargin = isMobile ? '0' : (sidebarCollapsed ? '70px' : '250px');
+
   return (
-    <footer className="footer mt-auto" style={{ zIndex: 1040 }}>
+    <footer 
+      className="footer mt-auto" 
+      style={{ 
+        zIndex: 1040,
+        marginLeft: footerMargin,
+        transition: 'margin-left 0.3s ease',
+        width: isMobile ? '100%' : `calc(100% - ${footerMargin})`,
+      }}
+    >
       <div 
         className="footer-gradient py-3"
         style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%)',
+          borderRadius: isMobile ? '0' : '16px 0 0 0',
         }}
       >
         <Container fluid className="px-4">

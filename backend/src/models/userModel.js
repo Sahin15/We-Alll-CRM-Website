@@ -76,6 +76,29 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Department",
     },
+    // Head of Department tracking
+    isHeadOfDepartment: {
+      type: Boolean,
+      default: false,
+    },
+    headOfDepartment: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department",
+    },
+    // Head of Project tracking
+    headOfProjects: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Project",
+      },
+    ],
+    // Projects where user is a team member
+    assignedProjects: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Project",
+      },
+    ],
     joiningDate: {
       type: Date,
     },

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Nav } from "react-bootstrap";
 import { Link, useLocation } from "react-router-dom";
 import {
@@ -6,6 +6,7 @@ import {
   FaUsers,
   FaBuilding,
   FaCalendarAlt,
+  FaCalendar,
   FaClock,
   FaUserTie,
   FaProjectDiagram,
@@ -17,6 +18,7 @@ import {
   FaBoxes,
   FaClipboardList,
   FaCreditCard,
+  FaTasks,
   FaReceipt,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
@@ -26,12 +28,29 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
   const location = useLocation();
   const { user } = useAuth();
   const [expandedGroups, setExpandedGroups] = useState({});
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 991);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 991);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const toggleGroup = (groupId) => {
     setExpandedGroups(prev => ({
       ...prev,
       [groupId]: !prev[groupId]
     }));
+  };
+
+  // Auto-close sidebar on mobile when a link is clicked
+  const handleLinkClick = () => {
+    if (isMobile && !collapsed) {
+      toggleSidebar();
+    }
   };
 
   const menuItems = [
@@ -45,12 +64,6 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       path: "/leads",
       icon: <FaUserTie />,
       label: "Leads",
-      roles: ["admin", "superadmin", "accounts"],
-    },
-    {
-      path: "/clients",
-      icon: <FaUserTie />,
-      label: "Clients",
       roles: ["admin", "superadmin", "accounts"],
     },
     {
@@ -96,7 +109,25 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       path: "/projects",
       icon: <FaProjectDiagram />,
       label: "Projects",
-      roles: ["admin", "superadmin", "employee", "hod"],
+      roles: ["admin", "superadmin", "hr", "employee", "hod"],
+    },
+    {
+      path: "/content-calendar",
+      icon: <FaCalendar />,
+      label: "Content Calendar",
+      roles: ["admin", "superadmin", "hod"],
+    },
+    {
+      path: "/employee/my-work",
+      icon: <FaTasks />,
+      label: "My Work",
+      roles: ["employee", "admin", "superadmin", "hr", "hod"],
+    },
+    {
+      path: "/employee/slots",
+      icon: <FaClipboardList />,
+      label: "My Slots",
+      roles: ["employee", "admin", "superadmin", "hr", "hod"],
     },
     {
       id: "team",
@@ -114,6 +145,11 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           path: "/employees",
           icon: <FaUsers />,
           label: "Employees",
+        },
+        {
+          path: "/clients",
+          icon: <FaUserTie />,
+          label: "Clients",
         },
         {
           path: "/departments",
@@ -242,6 +278,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
                           className={`sidebar-link sidebar-sublink ${
                             location.pathname === child.path ? "active" : ""
                           }`}
+                          onClick={handleLinkClick}
                         >
                           <span className="sidebar-icon">{child.icon}</span>
                           <span className="sidebar-label">{child.label}</span>
@@ -261,6 +298,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
                 className={`sidebar-link ${
                   location.pathname === item.path ? "active" : ""
                 }`}
+                onClick={handleLinkClick}
               >
                 <span className="sidebar-icon">{item.icon}</span>
                 {!collapsed && (

@@ -22,9 +22,12 @@ import HRDashboard from "../pages/dashboard/HRDashboard";
 import AccountsDashboard from "../pages/dashboard/AccountsDashboard";
 import EmployeeDashboard from "../pages/employee/EmployeeDashboard";
 import ClientDashboard from "../pages/dashboard/ClientDashboard";
+import HoDDashboard from "../pages/hod/HoDDashboard";
 
 // Employee Pages
 import MyProjects from "../pages/employee/MyProjects";
+import MySlots from "../pages/employee/MySlots";
+import MyWork from "../pages/employee/MyWork";
 import TeamDirectory from "../pages/employee/TeamDirectory";
 import Announcements from "../pages/employee/Announcements";
 import EmployeeMyAttendance from "../pages/employee/MyAttendance";
@@ -71,6 +74,9 @@ import LeadDetails from "../pages/leads/LeadDetails";
 import ProjectList from "../pages/projects/ProjectList";
 import ProjectDetails from "../pages/projects/ProjectDetails";
 
+// Calendar Pages
+import ContentCalendar from "../pages/calendar/ContentCalendar";
+
 // Profile Pages
 import MyProfile from "../pages/profile/MyProfile";
 
@@ -110,6 +116,7 @@ const AppRoutes = () => {
       case "client":
         return <ClientDashboard />;
       default:
+        // Employee dashboard with HoD/HoP sections if applicable
         return <EmployeeDashboard />;
     }
   };
@@ -218,9 +225,11 @@ const AppRoutes = () => {
 
         {/* Employee Portal Routes */}
         <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
+        <Route path="/employee/my-work" element={<MyWork />} />
         <Route path="/employee/attendance" element={<EmployeeMyAttendance />} />
         <Route path="/employee/leaves" element={<EmployeeMyLeaves />} />
         <Route path="/employee/projects" element={<MyProjects />} />
+        <Route path="/employee/slots" element={<MySlots />} />
         <Route path="/employee/tasks" element={<MyTasks />} />
         <Route path="/employee/time-tracking" element={<TimeTracking />} />
         <Route path="/employee/team" element={<TeamDirectory />} />
@@ -254,12 +263,20 @@ const AppRoutes = () => {
             </RoleBasedRoute>
           }
         />
+        <Route
+          path="/hod/dashboard"
+          element={
+            <RoleBasedRoute allowedRoles={["hod"]}>
+              <HoDDashboard />
+            </RoleBasedRoute>
+          }
+        />
 
         {/* Client Management */}
         <Route
           path="/clients"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
               <ClientList />
             </RoleBasedRoute>
           }
@@ -267,7 +284,7 @@ const AppRoutes = () => {
         <Route
           path="/clients/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
               <ClientDetails />
             </RoleBasedRoute>
           }
@@ -302,6 +319,16 @@ const AppRoutes = () => {
         {/* Project Management */}
         <Route path="/projects" element={<ProjectList />} />
         <Route path="/projects/:id" element={<ProjectDetails />} />
+
+        {/* Content Calendar */}
+        <Route
+          path="/content-calendar"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hod", "employee"]}>
+              <ContentCalendar />
+            </RoleBasedRoute>
+          }
+        />
 
         {/* Profile - Role-based routing */}
         <Route 

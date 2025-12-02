@@ -89,8 +89,10 @@ const HRDashboard = () => {
       // Fetch department data
       const departmentRes = await departmentApi.getAllDepartments();
 
-      // Count only today's present employees
-      const todayPresentCount = attendanceRes.data?.filter((a) => a.status === "present").length || 0;
+      // Count all who clocked in today (present, late, half-day) as "present today"
+      const todayPresentCount = attendanceRes.data?.filter((a) => 
+        a.status === "present" || a.status === "late" || a.status === "half-day"
+      ).length || 0;
       
       // Count today's late entries
       const todayLateCount = attendanceRes.data?.filter((a) => a.status === "late").length || 0;
@@ -100,8 +102,9 @@ const HRDashboard = () => {
       setLateEntries(lateEntriesData);
 
       setStats({
+        // Include both employees AND HoDs in employee count (HoDs are also employees)
         employees:
-          usersRes.data?.filter((u) => u.role === "employee").length || 0,
+          usersRes.data?.filter((u) => u.role === "employee" || u.role === "hod").length || 0,
         pendingLeaves: leaveRes.data?.length || 0,
         presentToday: todayPresentCount,
         departments: departmentRes.data?.length || 0,

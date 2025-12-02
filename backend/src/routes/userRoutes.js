@@ -50,7 +50,9 @@ router.get("/me", protect, async (req, res) => {
       .select('+governmentIds.aadhaarNumber +governmentIds.panNumber +governmentIds.uanNumber +governmentIds.esicNumber')
       .select('+bankDetails.accountNumber')
       .populate('department', 'name')
-      .populate('reportingManager', 'name email');
+      .populate('reportingManager', 'name email')
+      .populate('headOfDepartment', 'name')
+      .populate('headOfProjects', 'name');
     
     if (!user) {
       return res.status(404).json({ message: "User not found" });

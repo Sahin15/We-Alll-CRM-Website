@@ -26,70 +26,338 @@ const getTransporter = () => {
   });
 };
 
-// Generate invoice PDF buffer
+// Generate GST Tax Invoice PDF buffer (matching exact format)
 const generateInvoicePDF = async (bill) => {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 40 });
+    const doc = new PDFDocument({ 
+      margin: 30,
+      size: 'A4'
+    });
     const chunks = [];
     doc.on("data", (c) => chunks.push(c));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", (err) => reject(err));
 
-    // Header
-    doc.fontSize(20).text("Invoice", { align: "right" });
-    doc.moveDown();
-    doc.fontSize(12).text(`Invoice #: ${bill.billNumber}`);
-    doc.text(`Issue Date: ${bill.issueDate?.toISOString()?.slice(0, 10)}`);
-    doc.text(`Due Date: ${bill.dueDate?.toISOString()?.slice(0, 10)}`);
-    doc.moveDown();
+    const pageWidth = doc.page.width - 60; // Account for margins
+    let yPos = 50;
 
-    // Client
-    doc.fontSize(14).text("Bill To:");
-    doc.fontSize(12).text(`${bill.client?.name || "Client"}`);
-    doc.text(`${bill.client?.email || ""}`);
-    doc.moveDown();
+    // Title and Original Copy
+    doc.fontSize(16).font('Helvetica-Bold').text('Tax Invoice', 250, yPos, { align: 'center' });
+    doc.fontSize(9).font('Helvetica').text('(ORIGINAL FOR RECIPIENT)', 400, yPos);
+    yPos += 30;
 
-    // Items
-    doc.fontSize(14).text("Items:");
-    doc.moveDown(0.5);
+    // Main border
+    doc.rect(30, yPos, pageWidth, 650).stroke();
+
+    // Top section with company and invoice details
+    const topSectionHeight = 120;
+    doc.rect(30, yPos, pageWidth, topSectionHeight).stroke();
+    
+    // Vertical divider for top section
+    doc.moveTo(350, yPos).lineTo(350, yPos + topSectionHeight).stroke();
+
+    // Left side - Company Details (Seller)
+    let leftX = 35;
+    let leftY = yPos + 5;
+    doc.fontSize(10).font('Helvetica-Bold').text('We Alll', leftX, leftY);
+    leftY += 12;
+    doc.fontSize(8).font('Helvetica').text('1 East Gurdaha, 254/150, 254/150,', leftX, leftY);
+    leftY += 10;
+    doc.text('Basudevpur Purba, North Twenty Four Parganas,', leftX, leftY);
+    leftY += 10;
+    doc.text('West Bengal, 743127', leftX, leftY);
+    leftY += 10;
+    doc.text('GSTIN/UIN: 19MYNPS0053A1Z7', leftX, leftY);
+    leftY += 10;
+    doc.text('State Name  : West Bengal, Code : 19', leftX, leftY);
+    leftY += 10;
+    doc.text('E-Mail : accounts@wealll.com', leftX, leftY);
+
+    // Right side - Invoice Details
+    let rightX = 355;
+    let rightY = yPos + 5;
+    
+    // Invoice No row
+    doc.rect(350, yPos, pageWidth - 320, 15).stroke();
+    doc.fontSize(8).font('Helvetica-Bold').text('Invoice No.', rightX, rightY);
+    doc.fontSize(8).font('Helvetica').text(bill.billNumber || 'N/A', 450, rightY);
+    doc.fontSize(8).font('Helvetica-Bold').text('Dated', 500, rightY);
+    rightY += 15;
+
+    // Date row
+    doc.rect(350, yPos + 15, pageWidth - 320, 15).stroke();
+    doc.fontSize(8).font('Helvetica').text(bill.issueDate?.toISOString()?.slice(0, 10) || '', 450, rightY);
+    doc.fontSize(8).font('Helvetica-Bold').text('Other References', 500, rightY);
+    rightY += 15;
+
+    // Reference row
+    doc.rect(350, yPos + 30, pageWidth - 320, 15).stroke();
+    doc.fontSize(8).font('Helvetica-Bold').text('Reference No. & Date.', rightX, rightY);
+    rightY += 15;
+
+    // Buyer Order row
+    doc.rect(350, yPos + 45, pageWidth - 320, 15).stroke();
+    doc.fontSize(8).font('Helvetica').text(bill.project?.name || '', 450, rightY);
+    doc.fontSize(8).font('Helvetica-Bold').text("Buyer's Order No.", rightX, rightY);
+    doc.fontSize(8).font('Helvetica-Bold').text('Dated', 500, rightY);
+    rightY += 15;
+
+    yPos += topSectionHeight;
+
+    // Buyer section
+    const buyerSectionHeight = 80;
+    doc.rect(30, yPos, pageWidth, buyerSectionHeight).stroke();
+    doc.moveTo(350, yPos).lineTo(350, yPos + buyerSectionHeight).stroke();
+
+    leftY = yPos + 5;
+    doc.fontSize(8).font('Helvetica-Bold').text('Buyer (Bill to)', leftX, leftY);
+    leftY += 12;
+    doc.fontSize(9).font('Helvetica-Bold').text(bill.client?.name?.toUpperCase() || 'CLIENT NAME', leftX, leftY);
+    leftY += 12;
+    doc.fontSize(8).font('Helvetica').text(bill.client?.address || 'Client Address', leftX, leftY, { width: 300 });
+    leftY += 20;
+    doc.text(`GSTIN/UIN        : ${bill.client?.gstin || 'N/A'}`, leftX, leftY);
+    leftY += 10;
+    doc.text(`State Name       : ${bill.client?.state || 'N/A'}, Code : ${bill.client?.stateCode || 'N/A'}`, leftX, leftY);
+
+    yPos += buyerSectionHeight;
+
+    // Items table header
+    const tableTop = yPos;
+    doc.rect(30, tableTop, pageWidth, 20).stroke();
+    
+    // Table columns
+    doc.moveTo(50, tableTop).lineTo(50, tableTop + 20).stroke();
+    doc.moveTo(350, tableTop).lineTo(350, tableTop + 20).stroke();
+    doc.moveTo(450, tableTop).lineTo(450, tableTop + 20).stroke();
+
+    doc.fontSize(8).font('Helvetica-Bold');
+    doc.text('Sl', 32, tableTop + 6);
+    doc.text('No', 32, tableTop + 12);
+    doc.text('Particulars', 180, tableTop + 8);
+    doc.text('HSN/SAC', 360, tableTop + 8);
+    doc.text('Amount', 490, tableTop + 8);
+
+    yPos = tableTop + 20;
+
+    // Items rows
+    const itemsHeight = 350;
+    doc.rect(30, yPos, pageWidth, itemsHeight).stroke();
+    doc.moveTo(50, yPos).lineTo(50, yPos + itemsHeight).stroke();
+    doc.moveTo(350, yPos).lineTo(350, yPos + itemsHeight).stroke();
+    doc.moveTo(450, yPos).lineTo(450, yPos + itemsHeight).stroke();
+
+    let itemY = yPos + 10;
     bill.items.forEach((item, idx) => {
-      doc
-        .fontSize(12)
-        .text(
-          `${idx + 1}. ${item.description} - Qty: ${
-            item.quantity
-          } x Rate: ${item.rate.toFixed(2)} = ${item.amount.toFixed(2)}`
-        );
+      doc.fontSize(8).font('Helvetica').text((idx + 1).toString(), 35, itemY);
+      
+      // Item description
+      doc.fontSize(9).font('Helvetica-Bold').text(item.description, 55, itemY, { width: 280 });
+      itemY += 12;
+      doc.fontSize(8).font('Helvetica').text(`${item.quantity} x Rs ${item.rate.toFixed(2)} = Rs ${item.amount.toFixed(2)}`, 55, itemY);
+      
+      // HSN/SAC
+      doc.text(item.hsnCode || '9983', 360, itemY - 12);
+      
+      // Amount
+      doc.text(item.amount.toFixed(2), 460, itemY - 12, { width: 100, align: 'right' });
+      
+      itemY += 20;
+
+      // GST breakdown (CGST + SGST)
+      const cgstRate = (bill.taxRate || 18) / 2;
+      const cgstAmount = (item.amount * cgstRate) / 100;
+      
+      doc.fontSize(8).font('Helvetica').text(`Output CGST @ ${cgstRate}%`, 300, itemY);
+      doc.text(cgstAmount.toFixed(2), 460, itemY, { width: 100, align: 'right' });
+      itemY += 10;
+      
+      doc.text(`Output SGST @ ${cgstRate}%`, 300, itemY);
+      doc.text(cgstAmount.toFixed(2), 460, itemY, { width: 100, align: 'right' });
+      itemY += 25;
     });
-    doc.moveDown();
 
-    // Totals
-    doc.text(`Subtotal: ${Number(bill.subtotal || 0).toFixed(2)}`);
-    doc.text(
-      `Discount (${bill.discountType}): ${Number(
-        bill.discountAmount || 0
-      ).toFixed(2)}`
-    );
-    doc.text(
-      `Tax (${bill.taxRate}%): ${Number(bill.taxAmount || 0).toFixed(2)}`
-    );
-    doc.fontSize(13).text(`Total: ${Number(bill.totalAmount || 0).toFixed(2)}`);
-    doc.moveDown();
+    yPos += itemsHeight;
 
-    if (bill.notes) {
-      doc.fontSize(12).text("Notes:");
-      doc.text(bill.notes);
-    }
+    // Total row
+    doc.rect(30, yPos, pageWidth, 20).stroke();
+    doc.moveTo(450, yPos).lineTo(450, yPos + 20).stroke();
+    doc.fontSize(9).font('Helvetica-Bold').text('Total', 400, yPos + 6);
+    doc.text(`₹ ${bill.totalAmount.toFixed(2)}`, 460, yPos + 6, { width: 100, align: 'right' });
 
-    if (bill.termsAndConditions) {
-      doc.moveDown();
-      doc.fontSize(12).text("Terms:");
-      doc.text(bill.termsAndConditions);
-    }
+    yPos += 20;
+
+    // Amount in words
+    doc.rect(30, yPos, pageWidth, 15).stroke();
+    doc.fontSize(8).font('Helvetica-Bold').text('Amount Chargeable (in words)', 35, yPos + 4);
+    yPos += 15;
+
+    doc.rect(30, yPos, pageWidth, 15).stroke();
+    const amountInWords = numberToWords(bill.totalAmount);
+    doc.fontSize(9).font('Helvetica-Bold').text(`INR ${amountInWords} Only`, 35, yPos + 4);
+    yPos += 15;
+
+    // Tax breakdown table
+    doc.rect(30, yPos, pageWidth, 15).stroke();
+    const colWidths = [80, 100, 80, 80, 80, 115];
+    let xPos = 30;
+    
+    doc.fontSize(7).font('Helvetica-Bold');
+    doc.text('HSN/SAC', xPos + 5, yPos + 4);
+    xPos += colWidths[0];
+    doc.moveTo(xPos, yPos).lineTo(xPos, yPos + 45).stroke();
+    
+    doc.text('Taxable', xPos + 5, yPos + 4);
+    doc.text('Value', xPos + 10, yPos + 9);
+    xPos += colWidths[1];
+    doc.moveTo(xPos, yPos).lineTo(xPos, yPos + 45).stroke();
+    
+    doc.text('CGST', xPos + 15, yPos + 2);
+    doc.text('Rate', xPos + 10, yPos + 8);
+    doc.text('Amount', xPos + 5, yPos + 12);
+    xPos += colWidths[2];
+    doc.moveTo(xPos, yPos).lineTo(xPos, yPos + 45).stroke();
+    
+    doc.text('SGST/UTGST', xPos + 5, yPos + 2);
+    doc.text('Rate', xPos + 10, yPos + 8);
+    doc.text('Amount', xPos + 5, yPos + 12);
+    xPos += colWidths[3];
+    doc.moveTo(xPos, yPos).lineTo(xPos, yPos + 45).stroke();
+    
+    doc.text('Total', xPos + 15, yPos + 2);
+    doc.text('Tax Amount', xPos + 5, yPos + 9);
+    
+    yPos += 15;
+    doc.rect(30, yPos, pageWidth, 15).stroke();
+
+    // Tax values
+    xPos = 30;
+    const cgstRate = (bill.taxRate || 18) / 2;
+    const cgstAmount = bill.taxAmount / 2;
+    
+    doc.fontSize(8).font('Helvetica');
+    doc.text(bill.items[0]?.hsnCode || '9983', xPos + 15, yPos + 4);
+    xPos += colWidths[0];
+    doc.text(bill.subtotal.toFixed(2), xPos + 20, yPos + 4);
+    xPos += colWidths[1];
+    doc.text(`${cgstRate}%`, xPos + 15, yPos + 4);
+    doc.text(cgstAmount.toFixed(2), xPos + 5, yPos + 9);
+    xPos += colWidths[2];
+    doc.text(`${cgstRate}%`, xPos + 15, yPos + 4);
+    doc.text(cgstAmount.toFixed(2), xPos + 5, yPos + 9);
+    xPos += colWidths[3];
+    doc.text(bill.taxAmount.toFixed(2), xPos + 15, yPos + 4);
+
+    yPos += 15;
+    doc.rect(30, yPos, pageWidth, 15).stroke();
+    
+    // Total row
+    xPos = 30;
+    doc.fontSize(8).font('Helvetica-Bold');
+    doc.text('Total', xPos + 15, yPos + 4);
+    xPos += colWidths[0];
+    doc.text(bill.subtotal.toFixed(2), xPos + 20, yPos + 4);
+    xPos += colWidths[1];
+    doc.text(cgstAmount.toFixed(2), xPos + 15, yPos + 4);
+    xPos += colWidths[2];
+    doc.text(cgstAmount.toFixed(2), xPos + 15, yPos + 4);
+    xPos += colWidths[3];
+    doc.text(bill.taxAmount.toFixed(2), xPos + 15, yPos + 4);
+
+    yPos += 15;
+
+    // Tax amount in words
+    doc.rect(30, yPos, pageWidth, 15).stroke();
+    const taxInWords = numberToWords(bill.taxAmount);
+    doc.fontSize(8).font('Helvetica-Bold').text(`Tax Amount (in words) :  INR ${taxInWords} Only`, 35, yPos + 4);
+
+    yPos += 15;
+
+    // Bank details and signature section
+    doc.rect(30, yPos, pageWidth, 80).stroke();
+    doc.moveTo(350, yPos).lineTo(350, yPos + 80).stroke();
+
+    // Bank details
+    leftY = yPos + 5;
+    doc.fontSize(9).font('Helvetica-Bold').text("Company's Bank Details", leftX, leftY);
+    leftY += 12;
+    doc.fontSize(8).font('Helvetica');
+    doc.text("A/c Holder's Name  : We Alll", leftX, leftY);
+    leftY += 10;
+    doc.text("Bank Name          : State Bank of India", leftX, leftY);
+    leftY += 10;
+    doc.text("A/c No.            : 43288356277", leftX, leftY);
+    leftY += 10;
+    doc.text("Branch & IFS Code  : SHYAMNAGAR(GARULIA) & SBIN0016920", leftX, leftY);
+    leftY += 10;
+    doc.fontSize(7).text("for We Alll", leftX, leftY);
+
+    // Signature
+    rightY = yPos + 5;
+    doc.fontSize(8).font('Helvetica').text('Authorised Signatory', 480, yPos + 60);
+
+    yPos += 80;
+
+    // Declaration
+    doc.rect(30, yPos, pageWidth, 30).stroke();
+    doc.fontSize(8).font('Helvetica-Bold').text('Declaration', 35, yPos + 5);
+    doc.fontSize(7).font('Helvetica').text('We declare that this invoice shows the actual price of the', 35, yPos + 15);
+    doc.text('Services described and that all particulars are true and correct.', 35, yPos + 22);
+
+    // Footer
+    doc.fontSize(8).font('Helvetica-Oblique').text('This is a Computer Generated Invoice', 200, yPos + 40);
 
     doc.end();
   });
 };
+
+// Helper function to convert number to words
+function numberToWords(num) {
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+
+  if (num === 0) return 'Zero';
+
+  const numStr = Math.floor(num).toString();
+  const len = numStr.length;
+
+  if (len > 7) return 'Number too large';
+
+  const padded = numStr.padStart(7, '0');
+  const crore = parseInt(padded.substring(0, 2));
+  const lakh = parseInt(padded.substring(2, 4));
+  const thousand = parseInt(padded.substring(4, 5));
+  const hundred = parseInt(padded.substring(5, 6));
+  const ten = parseInt(padded.substring(6, 7));
+
+  let words = '';
+
+  if (crore > 0) {
+    if (crore < 10) words += ones[crore] + ' Crore ';
+    else if (crore < 20) words += teens[crore - 10] + ' Crore ';
+    else words += tens[Math.floor(crore / 10)] + ' ' + ones[crore % 10] + ' Crore ';
+  }
+
+  if (lakh > 0) {
+    if (lakh < 10) words += ones[lakh] + ' Lakh ';
+    else if (lakh < 20) words += teens[lakh - 10] + ' Lakh ';
+    else words += tens[Math.floor(lakh / 10)] + ' ' + ones[lakh % 10] + ' Lakh ';
+  }
+
+  if (thousand > 0) words += ones[thousand] + ' Thousand ';
+
+  if (hundred > 0) words += ones[hundred] + ' Hundred ';
+
+  const lastTwo = parseInt(padded.substring(5, 7));
+  if (lastTwo > 0) {
+    if (lastTwo < 10) words += ones[lastTwo];
+    else if (lastTwo < 20) words += teens[lastTwo - 10];
+    else words += tens[Math.floor(lastTwo / 10)] + ' ' + ones[lastTwo % 10];
+  }
+
+  return words.trim();
+}
 
 // Create bill
 export const createBill = async (req, res) => {
