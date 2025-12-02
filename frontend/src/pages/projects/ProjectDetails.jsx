@@ -29,7 +29,7 @@ import { projectApi } from "../../api/projectApi";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
 import { useAuth } from "../../context/AuthContext";
 import SlotList from "../../components/projects/SlotList";
-import CreateSlotForm from "../../components/projects/CreateSlotForm";
+import CreateWorkAssignmentForm from "../../components/projects/CreateWorkAssignmentForm";
 import SlotDetails from "../../components/projects/SlotDetails";
 import SlotCalendar from "../../components/calendar/SlotCalendar";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
@@ -749,7 +749,7 @@ const ProjectDetails = () => {
             {isProjectHead && slotView === "list" && (
               <Button variant="primary" size="sm" onClick={() => setShowCreateSlotModal(true)}>
                 <FaClipboardList className="me-2" />
-                Create Slot
+                Create Work Assignment
               </Button>
             )}
           </div>
@@ -993,8 +993,8 @@ const ProjectDetails = () => {
         </Form>
       </Modal>
 
-      {/* Create Slot Modal */}
-      <CreateSlotForm
+      {/* Create Work Assignment Modal */}
+      <CreateWorkAssignmentForm
         show={showCreateSlotModal}
         onHide={() => setShowCreateSlotModal(false)}
         onSubmit={handleCreateSlot}

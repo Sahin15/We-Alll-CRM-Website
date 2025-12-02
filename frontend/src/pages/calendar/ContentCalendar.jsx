@@ -8,7 +8,7 @@ import * as slotApi from '../../api/slotApi';
 import taskApi from '../../api/taskApi';
 import { projectApi } from '../../api/projectApi';
 import { userApi } from '../../api/userApi';
-import SimpleTaskForm from '../../components/projects/SimpleTaskForm';
+import CreateWorkAssignmentForm from '../../components/projects/CreateWorkAssignmentForm';
 import WorkItemDetails from '../../components/work/WorkItemDetails';
 import toast from '../../utils/toast';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
@@ -612,8 +612,8 @@ const ContentCalendar = () => {
         </Modal.Footer>
       </Modal>
 
-      {/* Create Task Modal */}
-      <SimpleTaskForm
+      {/* Create Work Assignment Modal */}
+      <CreateWorkAssignmentForm
         show={showCreateModal}
         onHide={() => {
           setShowCreateModal(false);
