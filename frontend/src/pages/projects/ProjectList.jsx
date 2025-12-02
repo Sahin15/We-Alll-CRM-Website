@@ -168,6 +168,13 @@ const ProjectList = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Only Admin/SuperAdmin/HR/Manager can create projects
+    if (!editMode && !['admin', 'superadmin', 'hr', 'manager'].includes(user?.role)) {
+      toast.error("You don't have permission to create projects");
+      return;
+    }
+    
     try {
       if (editMode) {
         await projectApi.updateProject(currentProject._id, formData);
@@ -221,7 +228,7 @@ const ProjectList = () => {
             <p className="text-muted mb-0">Projects you are assigned to</p>
           )}
         </Col>
-        {user?.role !== 'employee' && (
+        {['admin', 'superadmin', 'hr', 'manager'].includes(user?.role) && (
           <Col className="text-end">
             <Button variant="primary" onClick={() => handleShowModal()}>
               <FaPlus className="me-2" />
