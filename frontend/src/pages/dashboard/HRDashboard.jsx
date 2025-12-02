@@ -94,11 +94,15 @@ const HRDashboard = () => {
         a.status === "present" || a.status === "late" || a.status === "half-day"
       ).length || 0;
       
-      // Count today's late entries
-      const todayLateCount = attendanceRes.data?.filter((a) => a.status === "late").length || 0;
+      // Count today's late entries (including half-day)
+      const todayLateCount = attendanceRes.data?.filter((a) => 
+        a.status === "late" || a.status === "half-day"
+      ).length || 0;
       
-      // Get late entries with employee details
-      const lateEntriesData = attendanceRes.data?.filter((a) => a.status === "late") || [];
+      // Get late and half-day entries with employee details
+      const lateEntriesData = attendanceRes.data?.filter((a) => 
+        a.status === "late" || a.status === "half-day"
+      ) || [];
       setLateEntries(lateEntriesData);
 
       setStats({
@@ -171,7 +175,8 @@ const HRDashboard = () => {
   const handleEmployeesCardClick = async () => {
     try {
       const response = await userApi.getAllUsers();
-      const employees = response.data.filter(u => u.role === 'employee');
+      // Include both employees AND HoDs
+      const employees = response.data.filter(u => u.role === 'employee' || u.role === 'hod');
       setEmployeesList(employees);
       setShowEmployeesModal(true);
     } catch (error) {
@@ -294,7 +299,7 @@ const HRDashboard = () => {
         <Col lg={3} md={6}>
           <div onClick={handleLateEntriesCardClick} style={{ cursor: 'pointer', height: '100%' }}>
             <StatCard
-              title="Late Entries Today"
+              title="Late & Half Day"
               value={stats.lateToday}
               icon={<FaClock />}
               bgColor="danger"
@@ -496,12 +501,12 @@ const HRDashboard = () => {
       {/* Late Entries Modal */}
       <Modal show={showLateModal} onHide={() => setShowLateModal(false)} size="lg" centered>
         <Modal.Header closeButton>
-          <Modal.Title><FaClock className="me-2 text-danger" />Late Entries Today ({lateEntries.length})</Modal.Title>
+          <Modal.Title><FaClock className="me-2 text-danger" />Late & Half Day Entries Today ({lateEntries.length})</Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ maxHeight: '500px', overflowY: 'auto' }}>
           {lateEntries.length === 0 ? (
             <div className="text-center py-4">
-              <p className="text-muted">No late entries today</p>
+              <p className="text-muted">No late or half-day entries today</p>
             </div>
           ) : (
             <Table responsive hover>
@@ -537,7 +542,9 @@ const HRDashboard = () => {
                         <small className="text-muted">10:30 AM</small>
                       </td>
                       <td>
-                        <Badge bg="danger">Late</Badge>
+                        <Badge bg={entry.status === 'half-day' ? 'info' : 'danger'}>
+                          {entry.status === 'half-day' ? 'Half Day' : 'Late'}
+                        </Badge>
                       </td>
                     </tr>
                   );
