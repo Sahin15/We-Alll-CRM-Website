@@ -8,7 +8,12 @@ import "./styles/toast.css";
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true
+      }}
+    >
       <AuthProvider>
         <CompanyProvider>
           <NotificationProvider>

@@ -24,11 +24,16 @@ api.interceptors.request.use(
   }
 );
 
-// Get all slots with filters
+// Get all slots with filters and pagination
 export const getAllSlots = async (filters = {}) => {
   try {
     const params = new URLSearchParams();
     
+    // Pagination
+    if (filters.page) params.append('page', filters.page);
+    if (filters.limit) params.append('limit', filters.limit);
+    
+    // Filters
     if (filters.project) params.append('project', filters.project);
     if (filters.assignedTo) params.append('assignedTo', filters.assignedTo);
     if (filters.status) params.append('status', filters.status);
@@ -38,7 +43,23 @@ export const getAllSlots = async (filters = {}) => {
     if (filters.search) params.append('search', filters.search);
 
     const response = await api.get(`/slots?${params.toString()}`);
-    return response.data;
+    
+    // Handle both old and new response formats
+    if (response.data.pagination) {
+      return response.data; // New format with pagination
+    } else {
+      // Old format - convert to new format for backward compatibility
+      return {
+        success: true,
+        data: response.data,
+        pagination: {
+          page: 1,
+          limit: response.data.length,
+          total: response.data.length,
+          pages: 1
+        }
+      };
+    }
   } catch (error) {
     throw error.response?.data || error;
   }
@@ -97,7 +118,11 @@ export const updateSlot = async (slotId, slotData) => {
 // Update slot status
 export const updateSlotStatus = async (slotId, status) => {
   try {
-    const response = await api.patch(`/slots/${slotId}/status`, { designStatus: status });
+    // Send both status and designStatus for backward compatibility
+    const response = await api.patch(`/slots/${slotId}/status`, { 
+      status: status,
+      designStatus: status 
+    });
     return response.data;
   } catch (error) {
     throw error.response?.data || error;

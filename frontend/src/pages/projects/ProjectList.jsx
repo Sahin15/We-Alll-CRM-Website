@@ -58,8 +58,17 @@ const ProjectList = () => {
     try {
       setLoading(true);
       const response = await projectApi.getAllProjects();
-      // response is already the data array from the API
-      setProjects(Array.isArray(response) ? response : []);
+      
+      // Handle both old and new response formats
+      if (response.data && Array.isArray(response.data)) {
+        // New paginated format
+        setProjects(response.data);
+      } else if (Array.isArray(response)) {
+        // Old format
+        setProjects(response);
+      } else {
+        setProjects([]);
+      }
     } catch (error) {
       console.error("Project fetch error:", error);
       if (error.response?.status === 403) {
@@ -82,7 +91,17 @@ const ProjectList = () => {
     
     try {
       const response = await clientApi.getAllClients();
-      setClients(response.data || []);
+      
+      // Handle both old and new response formats
+      if (response.data && Array.isArray(response.data)) {
+        // New paginated format
+        setClients(response.data);
+      } else if (Array.isArray(response)) {
+        // Old format
+        setClients(response);
+      } else {
+        setClients([]);
+      }
     } catch (error) {
       console.error("Failed to fetch clients:", error);
       // Only show error if it's not a permission issue (403)

@@ -38,8 +38,13 @@ const AnnouncementManagement = () => {
     title: "",
     content: "",
     type: "general",
-    priority: "normal"
+    priority: "normal",
+    isPinned: false
   });
+  
+  // Delete confirmation modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [announcementToDelete, setAnnouncementToDelete] = useState(null);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -109,7 +114,8 @@ const AnnouncementManagement = () => {
       title: "",
       content: "",
       type: "general",
-      priority: "normal"
+      priority: "normal",
+      isPinned: false
     });
     setShowModal(true);
   };
@@ -127,19 +133,25 @@ const AnnouncementManagement = () => {
       title: announcement.title,
       content: announcement.content,
       type: announcement.type,
-      priority: announcement.priority || "normal"
+      priority: announcement.priority || "normal",
+      isPinned: announcement.isPinned || false
     });
     setShowModal(true);
   };
 
-  const handleDeleteAnnouncement = async (announcementId) => {
-    if (!window.confirm("Are you sure you want to delete this announcement?")) {
-      return;
-    }
+  const handleDeleteClick = (announcement) => {
+    setAnnouncementToDelete(announcement);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteAnnouncement = async () => {
+    if (!announcementToDelete) return;
 
     try {
-      await api.delete(`/announcements/${announcementId}`);
+      await api.delete(`/announcements/${announcementToDelete._id}`);
       toast.success("Announcement deleted successfully");
+      setShowDeleteModal(false);
+      setAnnouncementToDelete(null);
       fetchAnnouncements();
     } catch (error) {
       console.error("Error deleting announcement:", error);
@@ -312,10 +324,13 @@ const AnnouncementManagement = () => {
                   </thead>
                   <tbody>
                     {(showAll ? filteredAnnouncements : filteredAnnouncements.slice(0, 5)).map((announcement) => (
-                    <tr key={announcement._id}>
+                    <tr key={announcement._id} style={{ backgroundColor: announcement.isPinned ? 'rgba(255, 193, 7, 0.05)' : 'transparent' }}>
                       <td>
                         <div>
-                          <div className="fw-bold">{announcement.title}</div>
+                          <div className="fw-bold">
+                            {announcement.isPinned && <span className="me-2">📌</span>}
+                            {announcement.title}
+                          </div>
                           <small className="text-muted">
                             {announcement.content?.substring(0, 80)}
                             {announcement.content?.length > 80 ? "..." : ""}
@@ -348,7 +363,7 @@ const AnnouncementManagement = () => {
                           <Button
                             size="sm"
                             variant="outline-danger"
-                            onClick={() => handleDeleteAnnouncement(announcement._id)}
+                            onClick={() => handleDeleteClick(announcement)}
                           >
                             <FaTrash />
                           </Button>
@@ -483,6 +498,31 @@ const AnnouncementManagement = () => {
                   </Form.Group>
                 </Col>
               </Row>
+
+              <Form.Group className="mb-3">
+                <Form.Label className="d-block mb-2">Pin Announcement</Form.Label>
+                <div className="d-flex gap-4">
+                  <Form.Check
+                    type="radio"
+                    id="pin-yes"
+                    name="isPinned"
+                    label="📌 Pin to Top"
+                    checked={formData.isPinned === true}
+                    onChange={() => setFormData({ ...formData, isPinned: true })}
+                  />
+                  <Form.Check
+                    type="radio"
+                    id="pin-no"
+                    name="isPinned"
+                    label="Unpin"
+                    checked={formData.isPinned === false}
+                    onChange={() => setFormData({ ...formData, isPinned: false })}
+                  />
+                </div>
+                <Form.Text className="text-muted">
+                  Pinned announcements will always appear at the top
+                </Form.Text>
+              </Form.Group>
             </Form>
           )}
         </Modal.Body>
@@ -505,6 +545,57 @@ const AnnouncementManagement = () => {
               )}
             </Button>
           )}
+        </Modal.Footer>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal 
+        show={showDeleteModal} 
+        onHide={() => setShowDeleteModal(false)}
+        centered
+        className="delete-confirmation-modal"
+      >
+        <Modal.Header closeButton className="border-0 pb-0">
+          <Modal.Title className="w-100 text-center">
+            <div className="text-danger mb-2">
+              <FaTrash size={48} />
+            </div>
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="text-center px-4">
+          <h5 className="mb-3">Delete Announcement?</h5>
+          <p className="text-muted mb-2">
+            Are you sure you want to delete this announcement?
+          </p>
+          {announcementToDelete && (
+            <div className="bg-light p-3 rounded mb-3">
+              <strong className="d-block mb-1">{announcementToDelete.title}</strong>
+              <small className="text-muted">
+                {announcementToDelete.content?.substring(0, 100)}
+                {announcementToDelete.content?.length > 100 ? "..." : ""}
+              </small>
+            </div>
+          )}
+          <p className="text-danger small mb-0">
+            <strong>⚠️ This action cannot be undone</strong>
+          </p>
+        </Modal.Body>
+        <Modal.Footer className="border-0 justify-content-center gap-2">
+          <Button 
+            variant="outline-secondary" 
+            onClick={() => setShowDeleteModal(false)}
+            className="px-4"
+          >
+            Cancel
+          </Button>
+          <Button 
+            variant="danger" 
+            onClick={handleDeleteAnnouncement}
+            className="px-4"
+          >
+            <FaTrash className="me-2" />
+            Delete
+          </Button>
         </Modal.Footer>
       </Modal>
     </>

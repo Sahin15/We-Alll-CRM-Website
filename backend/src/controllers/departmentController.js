@@ -1,5 +1,16 @@
 import Department from "../models/departmentModel.js";
 import User from "../models/userModel.js";
+import logger from '../utils/logger.js';
+
+// Simple in-memory cache for departments (they rarely change)
+let departmentCache = null;
+let cacheTime = null;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+const clearDepartmentCache = () => {
+  departmentCache = null;
+  cacheTime = null;
+};
 
 // Create new department
 export const createDepartment = async (req, res) => {
@@ -21,26 +32,41 @@ export const createDepartment = async (req, res) => {
       head,
     });
 
+    clearDepartmentCache(); // Clear cache when department is created
+    
     res.status(201).json({
       message: "Department created successfully",
       department,
     });
   } catch (error) {
-    console.error("Error in createDepartment:", error.message);
+    logger.error("Error in createDepartment:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
 
-// Get all departments
+// Get all departments (with caching - optimized)
 export const getDepartments = async (req, res) => {
   try {
+    // Check cache
+    if (departmentCache && cacheTime && Date.now() - cacheTime < CACHE_TTL) {
+      logger.info('Returning cached departments');
+      return res.status(200).json(departmentCache);
+    }
+    
+    logger.info('Fetching departments from database');
+    
     const departments = await Department.find()
+      .select('name description head status employees')
       .populate("head", "name email")
-      .populate("employees", "name email position");
+      .lean();
+
+    // Update cache
+    departmentCache = departments;
+    cacheTime = Date.now();
 
     res.status(200).json(departments);
   } catch (error) {
-    console.error("Error in getDepartments:", error.message);
+    logger.error("Error in getDepartments:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -78,12 +104,14 @@ export const updateDepartment = async (req, res) => {
       return res.status(404).json({ message: "Department not found" });
     }
 
+    clearDepartmentCache(); // Clear cache when department is updated
+    
     res.status(200).json({
       message: "Department updated successfully",
       department,
     });
   } catch (error) {
-    console.error("Error in updateDepartment:", error.message);
+    logger.error("Error in updateDepartment:", error);
     res.status(500).json({ message: "Server error" });
   }
 };

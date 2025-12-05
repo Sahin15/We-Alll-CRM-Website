@@ -40,11 +40,11 @@ const MySlots = () => {
 
   // Get unique values for filters
   const uniqueStatuses = useMemo(() => {
-    return [...new Set(mySlots.map((slot) => slot.designStatus))];
+    return [...new Set(mySlots.map((slot) => slot.status || slot.designStatus).filter(Boolean))];
   }, [mySlots]);
 
   const uniqueProjects = useMemo(() => {
-    return [...new Set(mySlots.map((slot) => slot.project.name))];
+    return [...new Set(mySlots.map((slot) => slot.project?.name).filter(Boolean))];
   }, [mySlots]);
 
   // Filter and search logic
@@ -55,22 +55,24 @@ const MySlots = () => {
     if (searchTerm) {
       filtered = filtered.filter(
         (slot) =>
-          slot.brief.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          slot.caption.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          slot.occasion.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          slot.project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          slot.client.name.toLowerCase().includes(searchTerm.toLowerCase())
+          slot.brief?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          slot.caption?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          slot.occasion?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          slot.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          slot.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          slot.project?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          slot.client?.name?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
     // Status filter
     if (filterStatus !== "all") {
-      filtered = filtered.filter((slot) => slot.designStatus === filterStatus);
+      filtered = filtered.filter((slot) => (slot.status || slot.designStatus) === filterStatus);
     }
 
     // Project filter
     if (filterProject !== "all") {
-      filtered = filtered.filter((slot) => slot.project.name === filterProject);
+      filtered = filtered.filter((slot) => slot.project?.name === filterProject);
     }
 
     // Sort
@@ -78,13 +80,14 @@ const MySlots = () => {
       let aValue, bValue;
 
       switch (sortBy) {
-        case "postingDate":
-          aValue = new Date(a.postingDate);
-          bValue = new Date(b.postingDate);
+        case "dueDate":
+          aValue = new Date(a.dueDate || a.designDeadline || a.postingDate);
+          bValue = new Date(b.dueDate || b.designDeadline || b.postingDate);
           break;
-        case "designDeadline":
-          aValue = new Date(a.designDeadline);
-          bValue = new Date(b.designDeadline);
+        case "priority":
+          const priorityOrder = { 'Urgent': 0, 'High': 1, 'Medium': 2, 'Normal': 2, 'Low': 3 };
+          aValue = priorityOrder[a.priority] ?? 2;
+          bValue = priorityOrder[b.priority] ?? 2;
           break;
         case "status":
           aValue = a.designStatus;
@@ -106,33 +109,26 @@ const MySlots = () => {
     today.setHours(0, 0, 0, 0);
 
     const overdue = mySlots.filter((slot) => {
-      const designDeadline = new Date(slot.designDeadline);
-      const postingDate = new Date(slot.postingDate);
-      const designOverdue =
-        designDeadline < today && slot.designStatus !== "Approved" && slot.postingStatus !== "Posted";
-      const postingOverdue = postingDate < today && slot.postingStatus !== "Posted";
-      return designOverdue || postingOverdue;
+      const dueDate = new Date(slot.dueDate || slot.designDeadline || slot.postingDate);
+      const isComplete = slot.status === 'Approved' || slot.status === 'Completed' || 
+                        slot.designStatus === 'Approved' || slot.postingStatus === 'Posted';
+      return dueDate < today && !isComplete;
     });
 
     const dueToday = mySlots.filter((slot) => {
-      const designDeadline = new Date(slot.designDeadline);
-      return (
-        designDeadline.toDateString() === today.toDateString() &&
-        slot.designStatus !== "Approved" &&
-        slot.postingStatus !== "Posted"
-      );
+      const dueDate = new Date(slot.dueDate || slot.designDeadline || slot.postingDate);
+      const isComplete = slot.status === 'Approved' || slot.status === 'Completed' || 
+                        slot.designStatus === 'Approved' || slot.postingStatus === 'Posted';
+      return dueDate.toDateString() === today.toDateString() && !isComplete;
     });
 
     const dueThisWeek = mySlots.filter((slot) => {
-      const designDeadline = new Date(slot.designDeadline);
+      const dueDate = new Date(slot.dueDate || slot.designDeadline || slot.postingDate);
       const weekFromNow = new Date(today);
       weekFromNow.setDate(weekFromNow.getDate() + 7);
-      return (
-        designDeadline >= today &&
-        designDeadline <= weekFromNow &&
-        slot.designStatus !== "Approved" &&
-        slot.postingStatus !== "Posted"
-      );
+      const isComplete = slot.status === 'Approved' || slot.status === 'Completed' || 
+                        slot.designStatus === 'Approved' || slot.postingStatus === 'Posted';
+      return dueDate >= today && dueDate <= weekFromNow && !isComplete;
     });
 
     return {
@@ -369,9 +365,9 @@ const MySlots = () => {
 
             <Col md={4}>
               <Form.Select value={sortBy} onChange={(e) => setSortBy(e.target.value)} size="sm">
-                <option value="postingDate">Sort by Posting Date</option>
-                <option value="designDeadline">Sort by Design Deadline</option>
+                <option value="dueDate">Sort by Due Date</option>
                 <option value="status">Sort by Status</option>
+                <option value="priority">Sort by Priority</option>
               </Form.Select>
             </Col>
 
@@ -403,11 +399,10 @@ const MySlots = () => {
             <thead className="table-light">
               <tr>
                 <th>Project / Client</th>
-                <th>Post Type</th>
-                <th>Platforms</th>
-                <th>Occasion</th>
-                <th>Design Deadline</th>
-                <th>Posting Date</th>
+                <th>Work Type</th>
+                <th>Details</th>
+                <th>Priority</th>
+                <th>Due Date</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -415,10 +410,10 @@ const MySlots = () => {
             <tbody>
               {filteredSlots.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="text-center py-4 text-muted">
+                  <td colSpan="7" className="text-center py-4 text-muted">
                     {mySlots.length === 0
-                      ? "No slots assigned to you yet."
-                      : "No slots match your search criteria."}
+                      ? "No work assignments yet."
+                      : "No work matches your search criteria."}
                   </td>
                 </tr>
               ) : (
@@ -429,31 +424,40 @@ const MySlots = () => {
                   >
                     <td>
                       <div>
-                        <strong>{slot.project.name}</strong>
-                        <div className="text-muted small">{slot.client.name}</div>
+                        <strong>{slot.project?.name || 'No Project'}</strong>
+                        <div className="text-muted small">{slot.client?.name || 'No Client'}</div>
                       </div>
                     </td>
                     <td>
-                      <Badge bg="secondary">{slot.postType}</Badge>
+                      <Badge bg="secondary">{slot.workType || slot.postType || 'Work'}</Badge>
+                      {slot.platforms && slot.platforms.length > 0 && (
+                        <div className="mt-1">
+                          {slot.platforms.map((platform) => (
+                            <Badge key={platform} bg="info" size="sm" className="me-1">
+                              {platform}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
                     </td>
                     <td>
-                      <div className="d-flex flex-wrap gap-1">
-                        {slot.platforms.map((platform) => (
-                          <Badge key={platform} bg="info" className="text-white">
-                            {platform}
-                          </Badge>
-                        ))}
+                      <div className="text-truncate" style={{ maxWidth: "250px" }} title={slot.title || slot.brief || slot.description}>
+                        {slot.title || slot.brief || slot.description || "-"}
                       </div>
+                      {slot.occasion && <small className="text-muted d-block">{slot.occasion}</small>}
                     </td>
                     <td>
-                      <div className="text-truncate" style={{ maxWidth: "150px" }} title={slot.occasion}>
-                        {slot.occasion || "-"}
-                      </div>
-                      <small className="text-muted">{slot.contentBucket}</small>
+                      <Badge bg={
+                        (slot.priority || '').toLowerCase().includes('urgent') ? 'danger' :
+                        (slot.priority || '').toLowerCase().includes('high') ? 'warning' :
+                        (slot.priority || '').toLowerCase().includes('low') ? 'secondary' : 'info'
+                      }>
+                        {slot.priority || slot.contentBucket || 'Normal'}
+                      </Badge>
                     </td>
                     <td>
                       <div className={isDueToday(slot) ? "fw-bold text-warning" : ""}>
-                        {formatDate(slot.designDeadline)}
+                        {formatDate(slot.dueDate || slot.designDeadline)}
                       </div>
                       {isDueToday(slot) && (
                         <Badge bg="warning" className="mt-1">
@@ -462,11 +466,11 @@ const MySlots = () => {
                       )}
                     </td>
                     <td>
-                      <small>{formatDate(slot.postingDate)}</small>
+                      <small>{formatDate(slot.postingDate) || '-'}</small>
                     </td>
                     <td>
-                      <Badge bg="light" text="dark" style={{ backgroundColor: statusColors[slot.designStatus] }}>
-                        {slot.designStatus}
+                      <Badge bg="light" text="dark" style={{ backgroundColor: statusColors[slot.status || slot.designStatus] }}>
+                        {slot.status || slot.designStatus}
                       </Badge>
                       {isOverdue(slot) && (
                         <Badge bg="danger" className="mt-1 d-block">

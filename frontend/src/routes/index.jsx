@@ -33,6 +33,7 @@ import Announcements from "../pages/employee/Announcements";
 import EmployeeMyAttendance from "../pages/employee/MyAttendance";
 import EmployeeMyLeaves from "../pages/employee/MyLeaves";
 import MyTasks from "../pages/employee/MyTasks";
+import EmployeeAttendanceReport from "../pages/employee/EmployeeAttendanceReport";
 import TimeTracking from "../pages/employee/TimeTracking";
 import MyProfileEnhanced from "../pages/employee/MyProfileEnhanced";
 import Policies from "../pages/employee/Policies";
@@ -227,6 +228,7 @@ const AppRoutes = () => {
         <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
         <Route path="/employee/my-work" element={<MyWork />} />
         <Route path="/employee/attendance" element={<EmployeeMyAttendance />} />
+        <Route path="/employee/attendance-report/:employeeId" element={<EmployeeAttendanceReport />} />
         <Route path="/employee/leaves" element={<EmployeeMyLeaves />} />
         <Route path="/employee/projects" element={<MyProjects />} />
         <Route path="/employee/slots" element={<MySlots />} />

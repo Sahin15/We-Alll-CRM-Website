@@ -1,0 +1,210 @@
+/* Workload Card Styles */
+
+.workload-card {
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
+  background: white;
+  width: 100%;
+  height: 100%;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.workload-card > .card-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 1rem;
+}
+
+.workload-card.clickable {
+  cursor: pointer;
+  position: relative;
+}
+
+.workload-card.clickable::after {
+  content: "Click to assign";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 0.7rem;
+  color: #6b7280;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.workload-card.clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: rgba(102, 126, 234, 0.5);
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.03) 0%, rgba(255, 255, 255, 1) 100%);
+}
+
+.workload-card.clickable:hover::after {
+  opacity: 1;
+}
+
+.workload-card.clickable:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.workload-card.selected {
+  border-color: #667eea !important;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(255, 255, 255, 1) 100%);
+}
+
+.workload-card.selected::before {
+  content: "✓ Selected";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #667eea;
+  background: rgba(102, 126, 234, 0.1);
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
+  border: 1px solid rgba(102, 126, 234, 0.3);
+}
+
+/* Capacity-based background tints */
+.workload-card.capacity-available {
+  border-left: 4px solid #10B981;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.02) 0%, rgba(255, 255, 255, 1) 100%);
+}
+
+.workload-card.capacity-busy {
+  border-left: 4px solid #F59E0B;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.02) 0%, rgba(255, 255, 255, 1) 100%);
+}
+
+.workload-card.capacity-overloaded {
+  border-left: 4px solid #EF4444;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.02) 0%, rgba(255, 255, 255, 1) 100%);
+}
+
+/* Workload Metrics */
+.workload-metrics {
+  margin-top: 0.5rem;
+}
+
+.metric-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.metric-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+  transition: background 0.2s ease;
+}
+
+.metric-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.metric-label {
+  font-size: 0.7rem;
+  color: #6b7280;
+  font-weight: 500;
+  text-align: center;
+  margin-bottom: 0.25rem;
+}
+
+.metric-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+/* Task Details */
+.task-details {
+  background: rgba(0, 0, 0, 0.01);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.task-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 0.6rem;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.task-title {
+  font-size: 0.8rem;
+  color: #374151;
+  font-weight: 500;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 0.5rem;
+}
+
+.task-status {
+  font-size: 0.65rem;
+  padding: 0.2rem 0.5rem;
+  white-space: nowrap;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .metric-row {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .metric-item {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 0.6rem 0.75rem;
+  }
+
+  .metric-label {
+    text-align: left;
+    margin-bottom: 0;
+  }
+
+  .metric-value {
+    font-size: 1.1rem;
+  }
+}
+
+/* Animation for loading state */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.workload-card.loading {
+  animation: pulse 1.5s ease-in-out infinite;
+}

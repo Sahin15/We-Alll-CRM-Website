@@ -1,0 +1,176 @@
+/* Workload Indicator Styles */
+
+.workload-indicator {
+  font-weight: 600;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.workload-indicator:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* Size Variants */
+.workload-indicator-sm {
+  font-size: 0.7rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.workload-indicator-sm .indicator-icon {
+  font-size: 0.7rem;
+}
+
+.workload-indicator-md {
+  font-size: 0.75rem;
+  padding: 0.35rem 0.65rem;
+}
+
+.workload-indicator-md .indicator-icon {
+  font-size: 0.75rem;
+}
+
+.workload-indicator-lg {
+  font-size: 0.85rem;
+  padding: 0.45rem 0.75rem;
+}
+
+.workload-indicator-lg .indicator-icon {
+  font-size: 0.85rem;
+}
+
+/* Capacity-specific styles */
+.workload-indicator-available {
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
+  border: none;
+}
+
+.workload-indicator-busy {
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important;
+  border: none;
+}
+
+.workload-indicator-overloaded {
+  background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%) !important;
+  border: none;
+  animation: pulse-danger 2s ease-in-out infinite;
+}
+
+.workload-indicator-unknown {
+  background: #6B7280 !important;
+  border: none;
+}
+
+/* Overdue Badge */
+.overdue-badge {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.3);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  margin-left: 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+/* Tooltip Styles */
+.workload-tooltip {
+  text-align: left;
+  min-width: 180px;
+}
+
+.tooltip-header {
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.tooltip-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+}
+
+.tooltip-row span {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.tooltip-row strong {
+  color: white;
+  font-weight: 600;
+}
+
+/* Animations */
+@keyframes pulse-danger {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
+}
+
+/* Icon Styles */
+.indicator-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.indicator-label {
+  display: inline-block;
+}
+
+/* Responsive */
+@media (max-width: 576px) {
+  .workload-indicator-md {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.55rem;
+  }
+  
+  .workload-indicator-lg {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.65rem;
+  }
+}
+
+/* Compact mode (icon only) */
+.workload-indicator.icon-only {
+  padding: 0.4rem;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.workload-indicator.icon-only .indicator-label {
+  display: none;
+}
+
+/* Accessibility */
+.workload-indicator:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+}
+
+/* Dark mode support (optional) */
+@media (prefers-color-scheme: dark) {
+  .workload-indicator {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+  
+  .workload-indicator:hover {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  }
+}

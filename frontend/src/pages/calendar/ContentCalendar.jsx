@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Container, Row, Col, Card, Button, Form, Badge, Modal, Dropdown, Alert } from 'react-bootstrap';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
-import { FaCalendarAlt, FaFilter, FaPlus, FaDownload, FaPrint } from 'react-icons/fa';
+import { FaCalendarAlt, FaFilter, FaPlus, FaDownload, FaPrint, FaUsers } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import * as slotApi from '../../api/slotApi';
 import taskApi from '../../api/taskApi';
 import { projectApi } from '../../api/projectApi';
 import { userApi } from '../../api/userApi';
+import departmentApi from '../../api/departmentApi';
 import CreateWorkAssignmentForm from '../../components/projects/CreateWorkAssignmentForm';
 import WorkItemDetails from '../../components/work/WorkItemDetails';
 import toast from '../../utils/toast';
@@ -22,10 +23,12 @@ const ContentCalendar = () => {
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   
   // Filter states
   const [filters, setFilters] = useState({
+    department: '',
     project: '',
     employee: '',
     status: '',
@@ -68,13 +71,36 @@ const ContentCalendar = () => {
     loadData();
   }, []);
 
+  // Filter projects by department
+  const filteredProjects = useMemo(() => {
+    if (!filters.department) {
+      return projects; // Show all if no department selected
+    }
+    
+    return projects.filter(project => {
+      const projectDeptId = project.department?._id || project.department;
+      return projectDeptId === filters.department;
+    });
+  }, [projects, filters.department]);
+
+  // Filter employees by department (for HoD, show only department employees)
+  const filteredEmployees = useMemo(() => {
+    // If HoD, only show employees from their department
+    if (user?.role === 'hod' && user?.headOfDepartment) {
+      const hodDeptId = user.headOfDepartment._id || user.headOfDepartment;
+      return employees.filter(emp => {
+        const empDeptId = emp.department?._id || emp.department;
+        return empDeptId === hodDeptId;
+      });
+    }
+    
+    // For other roles, show all employees
+    return employees;
+  }, [employees, user]);
+
   useEffect(() => {
-    console.log('🔄 useEffect triggered - projects.length:', projects.length);
     if (projects.length > 0) {
-      console.log('✅ Projects loaded, calling loadSlots()');
       loadSlots();
-    } else {
-      console.log('⏳ Waiting for projects to load...');
     }
   }, [filters, projects]);
 
@@ -82,30 +108,37 @@ const ContentCalendar = () => {
     try {
       setLoading(true);
       
-      console.log('🔄 Loading projects and employees...');
-      
-      // Load projects, employees in parallel
-      const [projectsRes, employeesRes] = await Promise.all([
+      // Load projects, employees, departments in parallel
+      const [projectsRes, employeesRes, departmentsRes] = await Promise.all([
         projectApi.getAllProjects(),
-        userApi.getAllUsers()
+        userApi.getAllUsers(),
+        departmentApi.getAllDepartments().catch(err => {
+          console.error('Error loading departments:', err);
+          return []; // Fail gracefully
+        })
       ]);
       
-      console.log('📋 Projects response:', projectsRes);
-      console.log('📋 Projects type:', Array.isArray(projectsRes) ? 'Array' : typeof projectsRes);
-      
-      // getAllProjects returns the array directly, not wrapped in {data: [...]}
+      // Handle different response formats
       const projectsArray = Array.isArray(projectsRes) ? projectsRes : (projectsRes.data || []);
       const employeesArray = Array.isArray(employeesRes) ? employeesRes : (employeesRes.data || []);
-      
-      console.log('📊 Projects count:', projectsArray.length);
+      const departmentsArray = Array.isArray(departmentsRes) ? departmentsRes : (departmentsRes.data || []);
       
       setProjects(projectsArray);
       setEmployees(employeesArray.filter(u => 
         ['employee', 'admin', 'superadmin', 'hod'].includes(u.role)
       ));
+      setDepartments(departmentsArray);
+      
+      // Auto-select department for HoD users
+      if (user?.role === 'hod' && user?.headOfDepartment) {
+        setFilters(prev => ({
+          ...prev,
+          department: user.headOfDepartment._id || user.headOfDepartment
+        }));
+      }
       
     } catch (error) {
-      console.error('❌ Error loading data:', error);
+      console.error('Error loading data:', error);
       toast.error('Failed to load data');
     } finally {
       setLoading(false);
@@ -114,31 +147,47 @@ const ContentCalendar = () => {
 
   const loadSlots = async () => {
     try {
-      console.log('🔄 Loading slots and tasks with filters:', filters);
-      
       // Load both slots and tasks in parallel
       const [slotsResponse, tasksResponse] = await Promise.all([
         slotApi.getAllSlots(filters),
-        taskApi.getMyTasks() // Load user's tasks
+        taskApi.getMyTasks()
       ]);
       
-      console.log('✅ Slots API response:', slotsResponse);
-      console.log('✅ Tasks API response:', tasksResponse);
-      console.log('📊 Slots count:', slotsResponse.data?.length);
-      console.log('📊 Tasks count:', tasksResponse.data?.length);
-      
-      setSlots(slotsResponse.data || []);
-      setTasks(tasksResponse.data || []);
-      
-      if (slotsResponse.data && slotsResponse.data.length > 0) {
-        console.log('📋 First slot:', slotsResponse.data[0]);
+      // Handle different response formats for slots
+      let slotsData = [];
+      if (Array.isArray(slotsResponse)) {
+        slotsData = slotsResponse;
+      } else if (slotsResponse?.data) {
+        // Check if data is an array or object
+        if (Array.isArray(slotsResponse.data)) {
+          slotsData = slotsResponse.data;
+        } else if (typeof slotsResponse.data === 'object' && slotsResponse.data !== null) {
+          // If data is an object (like {success: true, count: X, data: [...]}), extract the nested data
+          slotsData = slotsResponse.data.data || [];
+        }
       }
-      if (tasksResponse.data && tasksResponse.data.length > 0) {
-        console.log('📋 First task:', tasksResponse.data[0]);
+      
+      // Apply department filter on client-side if department is selected but not project
+      if (filters.department && !filters.project) {
+        const filteredProjectIds = new Set(filteredProjects.map(p => p._id));
+        slotsData = slotsData.filter(slot => {
+          const slotProjectId = slot.project?._id || slot.project;
+          return filteredProjectIds.has(slotProjectId);
+        });
       }
+      
+      // Handle different response formats for tasks
+      let tasksData = [];
+      if (Array.isArray(tasksResponse)) {
+        tasksData = tasksResponse;
+      } else if (tasksResponse?.data && Array.isArray(tasksResponse.data)) {
+        tasksData = tasksResponse.data;
+      }
+      
+      setSlots(slotsData);
+      setTasks(tasksData);
     } catch (error) {
-      console.error('❌ Error loading data:', error);
-      console.error('❌ Error details:', error.response?.data || error.message);
+      console.error('Error loading calendar data:', error);
       toast.error('Failed to load calendar data');
     }
   };
@@ -210,8 +259,21 @@ const ContentCalendar = () => {
     setFilters(prev => ({ ...prev, [field]: value }));
   };
 
+  // Check if user can change department filter
+  const canChangeDepartment = useMemo(() => {
+    // Only HR, Manager, Admin, Superadmin can change departments
+    // HoD is locked to their department
+    return ['hr', 'manager', 'admin', 'superadmin'].includes(user?.role);
+  }, [user]);
+
   const clearFilters = () => {
+    // For HoD, keep their department filter locked
+    const baseDepartment = (user?.role === 'hod' && user?.headOfDepartment) 
+      ? (user.headOfDepartment._id || user.headOfDepartment)
+      : '';
+    
     setFilters({
+      department: baseDepartment,
       project: '',
       employee: '',
       status: '',
@@ -389,20 +451,95 @@ const ContentCalendar = () => {
         </Col>
       </Row>
 
+      {/* HoD Department Members Section */}
+      {user?.role === 'hod' && filteredEmployees.length > 0 && (
+        <Card className="mb-3 border-primary">
+          <Card.Header className="bg-primary bg-opacity-10">
+            <div className="d-flex justify-content-between align-items-center">
+              <h6 className="mb-0">
+                <FaUsers className="me-2" />
+                My Department Team ({filteredEmployees.length} members)
+              </h6>
+            </div>
+          </Card.Header>
+          <Card.Body className="py-2">
+            <div className="d-flex flex-wrap gap-2">
+              {filteredEmployees.map(employee => (
+                <Badge 
+                  key={employee._id} 
+                  bg="light" 
+                  text="dark" 
+                  className="px-3 py-2"
+                  style={{ fontSize: '0.85rem' }}
+                >
+                  {employee.name}
+                  {employee.designation && (
+                    <small className="text-muted ms-1">• {employee.designation}</small>
+                  )}
+                </Badge>
+              ))}
+            </div>
+          </Card.Body>
+        </Card>
+      )}
+
       {/* Filters */}
       {showFilters && (
-        <Card className="mb-4 filter-panel">
-          <Card.Body>
-            <Row className="g-3">
-              <Col md={2}>
-                <Form.Group>
-                  <Form.Label>Project</Form.Label>
+        <Card className="mb-4" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+          <Card.Body style={{ padding: '0.75rem' }}>
+            {/* First Row - Main Filters */}
+            <Row className="g-2 mb-2" style={{ rowGap: '0.5rem' }}>
+              {/* Department Filter - Only for HR/Manager/Admin/Superadmin */}
+              {canChangeDepartment && (
+                <Col xl={2} lg={2} md={3} sm={6} xs={12}>
+                  <Form.Group className="mb-0">
+                    <Form.Label style={{ fontSize: '0.8rem', fontWeight: '600', marginBottom: '0.25rem' }}>Department</Form.Label>
+                    <Form.Select
+                      value={filters.department}
+                      onChange={(e) => handleFilterChange('department', e.target.value)}
+                      size="sm"
+                    >
+                      <option value="">All Departments</option>
+                      {departments.map(dept => (
+                        <option key={dept._id} value={dept._id}>
+                          {dept.name}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+              )}
+              
+              {/* Department Display - For HoD (read-only) */}
+              {!canChangeDepartment && user?.role === 'hod' && (
+                <Col xl={2} lg={2} md={3} sm={6} xs={12}>
+                  <Form.Group className="mb-0">
+                    <Form.Label style={{ fontSize: '0.8rem', fontWeight: '600', marginBottom: '0.25rem' }}>Department</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={departments.find(d => d._id === filters.department)?.name || 'Your Department'}
+                      disabled
+                      readOnly
+                      size="sm"
+                    />
+                    <Form.Text className="text-muted" style={{ fontSize: '0.7rem' }}>
+                      Locked to your dept
+                    </Form.Text>
+                  </Form.Group>
+                </Col>
+              )}
+              
+              <Col xl={2} lg={2} md={3} sm={6} xs={12}>
+                <Form.Group className="mb-0">
+                  <Form.Label style={{ fontSize: '0.8rem', fontWeight: '600', marginBottom: '0.25rem' }}>Project</Form.Label>
                   <Form.Select
                     value={filters.project}
                     onChange={(e) => handleFilterChange('project', e.target.value)}
+                    size="sm"
                   >
                     <option value="">All Projects</option>
-                    {projects.map(project => (
+                    {/* Show only department projects for HoD */}
+                    {(user?.role === 'hod' ? filteredProjects : (filters.department ? filteredProjects : projects)).map(project => (
                       <option key={project._id} value={project._id}>
                         {project.name}
                       </option>
@@ -410,15 +547,18 @@ const ContentCalendar = () => {
                   </Form.Select>
                 </Form.Group>
               </Col>
-              <Col md={2}>
-                <Form.Group>
-                  <Form.Label>Employee</Form.Label>
+              
+              <Col xl={2} lg={2} md={3} sm={6} xs={12}>
+                <Form.Group className="mb-0">
+                  <Form.Label style={{ fontSize: '0.8rem', fontWeight: '600', marginBottom: '0.25rem' }}>Employee</Form.Label>
                   <Form.Select
                     value={filters.employee}
                     onChange={(e) => handleFilterChange('employee', e.target.value)}
+                    size="sm"
                   >
                     <option value="">All Employees</option>
-                    {employees.map(employee => (
+                    {/* Show only department employees for HoD */}
+                    {filteredEmployees.map(employee => (
                       <option key={employee._id} value={employee._id}>
                         {employee.name}
                       </option>
@@ -426,12 +566,14 @@ const ContentCalendar = () => {
                   </Form.Select>
                 </Form.Group>
               </Col>
-              <Col md={2}>
-                <Form.Group>
-                  <Form.Label>Status</Form.Label>
+              
+              <Col xl={2} lg={2} md={3} sm={6} xs={12}>
+                <Form.Group className="mb-0">
+                  <Form.Label style={{ fontSize: '0.8rem', fontWeight: '600', marginBottom: '0.25rem' }}>Status</Form.Label>
                   <Form.Select
                     value={filters.status}
                     onChange={(e) => handleFilterChange('status', e.target.value)}
+                    size="sm"
                   >
                     <option value="">All Statuses</option>
                     {Object.keys(statusColors).map(status => (
@@ -440,45 +582,32 @@ const ContentCalendar = () => {
                   </Form.Select>
                 </Form.Group>
               </Col>
-              <Col md={2}>
-                <Form.Group>
-                  <Form.Label>Platform</Form.Label>
-                  <Form.Select
-                    value={filters.platform}
-                    onChange={(e) => handleFilterChange('platform', e.target.value)}
-                  >
-                    <option value="">All Platforms</option>
-                    {Object.keys(platformColors).map(platform => (
-                      <option key={platform} value={platform}>{platform}</option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              <Col md={2}>
-                <Form.Group>
-                  <Form.Label>Start Date</Form.Label>
-                  <Form.Control
-                    type="date"
-                    value={filters.startDate}
-                    onChange={(e) => handleFilterChange('startDate', e.target.value)}
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={2}>
-                <Form.Group>
-                  <Form.Label>End Date</Form.Label>
+              
+              <Col xl={2} lg={2} md={3} sm={6} xs={12}>
+                <Form.Group className="mb-0">
+                  <Form.Label style={{ fontSize: '0.8rem', fontWeight: '600', marginBottom: '0.25rem' }}>Due Date</Form.Label>
                   <Form.Control
                     type="date"
                     value={filters.endDate}
                     onChange={(e) => handleFilterChange('endDate', e.target.value)}
+                    size="sm"
                   />
                 </Form.Group>
               </Col>
             </Row>
-            <Row className="mt-3">
+            
+            {/* Clear Filters Button */}
+            <Row>
               <Col>
-                <Button variant="outline-secondary" size="sm" onClick={clearFilters}>
+                <Button 
+                  variant="outline-secondary" 
+                  size="sm" 
+                  onClick={clearFilters}
+                >
                   Clear Filters
+                  {Object.values(filters).filter(v => v !== '').length > 0 && 
+                    ` (${Object.values(filters).filter(v => v !== '').length})`
+                  }
                 </Button>
               </Col>
             </Row>
@@ -548,9 +677,19 @@ const ContentCalendar = () => {
             views={['month', 'week', 'day']}
             defaultView="month"
             popup
+            popupOffset={{ x: 0, y: 5 }}
+            showMultiDayTimes
+            step={60}
+            timeslots={1}
             tooltipAccessor={(event) => {
-              const type = event.resource.eventType === 'start' ? 'Start Date' : 'Due Date';
-              return `${type}: ${event.resource.brief} - ${event.resource.designStatus}`;
+              const item = event.resource;
+              const type = item.eventType === 'start' ? 'Start' : 'Due';
+              const title = item.title || item.brief || 'Work Item';
+              const status = item.status || item.designStatus || 'Pending';
+              return `${type}: ${title} - ${status}`;
+            }}
+            messages={{
+              showMore: (count) => `+${count} more`
             }}
           />
           {calendarEvents.length === 0 && (
@@ -561,7 +700,18 @@ const ContentCalendar = () => {
                 </div>
                 <div className="calendar-empty-text">No tasks found</div>
                 <div className="calendar-empty-subtext">
-                  Create a new task or adjust your filters
+                  {filters.department ? (
+                    <>
+                      No tasks found for{' '}
+                      <strong>
+                        {departments.find(d => d._id === filters.department)?.name || 'selected department'}
+                      </strong>
+                      <br />
+                      Try adjusting your filters or create a new task
+                    </>
+                  ) : (
+                    'Create a new task or adjust your filters'
+                  )}
                 </div>
               </div>
             </div>
@@ -581,12 +731,16 @@ const ContentCalendar = () => {
         <Modal.Body>
           <p className="text-muted mb-3">Choose a project to create a slot for:</p>
           <div className="d-grid gap-2">
-            {projects.length === 0 ? (
+            {/* Show filtered projects if department filter is active */}
+            {(filters.department ? filteredProjects : projects).length === 0 ? (
               <Alert variant="warning">
-                No projects available. Please create a project first.
+                {filters.department 
+                  ? `No projects available in ${departments.find(d => d._id === filters.department)?.name || 'selected department'}. Please select a different department or create a project.`
+                  : 'No projects available. Please create a project first.'
+                }
               </Alert>
             ) : (
-              projects.map((project) => (
+              (filters.department ? filteredProjects : projects).map((project) => (
                 <Button
                   key={project._id}
                   variant="outline-primary"
@@ -621,7 +775,8 @@ const ContentCalendar = () => {
         }}
         onSubmit={handleCreateSlot}
         project={selectedProject}
-        employees={employees}
+        employees={filteredEmployees}
+        currentUser={user}
       />
 
       {/* Work Item Details Modal */}

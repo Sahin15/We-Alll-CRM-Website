@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Container, Row, Col, Card, Button, Badge, Modal, Form } from "react-bootstrap";
-import { FaClock, FaCalendarAlt, FaTasks, FaChartLine, FaFileAlt, FaShieldAlt } from "react-icons/fa";
+import { FaClock, FaCalendarAlt, FaTasks, FaChartLine, FaFileAlt, FaShieldAlt, FaBullhorn } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import toast from "../../utils/toast";
 import api from "../../services/api";
@@ -8,6 +8,7 @@ import GreetingBanner from "../../components/common/GreetingBanner";
 import ConfirmModal from "../../components/common/ConfirmModal";
 import HoDSection from "../../components/dashboard/HoDSection";
 import HoPSection from "../../components/dashboard/HoPSection";
+import QuickAnnouncements from "../../components/dashboard/QuickAnnouncements";
 import "../../styles/dashboard-mobile.css";
 import "../../styles/modal-mobile.css";
 
@@ -243,7 +244,51 @@ const EmployeeDashboard = () => {
           // Fetch recent activities
           try {
             const activitiesResponse = await api.get('/activities/my-activities?limit=5');
-            setRecentActivities(activitiesResponse.data);
+            let activities = activitiesResponse.data || [];
+            
+            // Also fetch recent announcements and add to activities
+            try {
+              const announcementsResponse = await api.get('/announcements');
+              if (announcementsResponse.data && announcementsResponse.data.length > 0) {
+                const recentAnnouncements = announcementsResponse.data.slice(0, 2).map(announcement => ({
+                  _id: `announcement-${announcement._id}`,
+                  type: 'announcement',
+                  title: 'New Announcement',
+                  description: announcement.title,
+                  color: announcement.type === 'important' ? 'danger' : announcement.type === 'urgent' ? 'warning' : 'info',
+                  createdAt: announcement.createdAt
+                }));
+                activities = [...recentAnnouncements, ...activities];
+              }
+            } catch (announcementError) {
+              console.log('No announcements or error fetching announcements');
+            }
+            
+            // Also fetch recent projects assigned to user's department
+            try {
+              const projectsResponse = await api.get('/projects');
+              if (projectsResponse.data && projectsResponse.data.length > 0) {
+                const userDepartment = user?.department;
+                const recentProjects = projectsResponse.data
+                  .filter(project => project.department === userDepartment)
+                  .slice(0, 1)
+                  .map(project => ({
+                    _id: `project-${project._id}`,
+                    type: 'project',
+                    title: 'New Project',
+                    description: `${project.name} assigned to ${project.department}`,
+                    color: 'primary',
+                    createdAt: project.createdAt
+                  }));
+                activities = [...recentProjects, ...activities];
+              }
+            } catch (projectError) {
+              console.log('No projects or error fetching projects');
+            }
+            
+            // Sort by date and limit to 5
+            activities.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            setRecentActivities(activities.slice(0, 5));
           } catch (actError) {
             console.log('No activities or error fetching activities');
           }
@@ -1008,6 +1053,13 @@ const EmployeeDashboard = () => {
         </Col>
       </Row>
 
+      {/* Announcements */}
+      <Row className="mb-4">
+        <Col xs={12}>
+          <QuickAnnouncements />
+        </Col>
+      </Row>
+
       {/* Recent Activities & Company Policies */}
       <Row className="mb-4">
         <Col xs={12} md={6} className="mb-3">
@@ -1020,6 +1072,10 @@ const EmployeeDashboard = () => {
                   {recentActivities.slice(0, 3).map((activity) => {
                     const getIcon = () => {
                       switch (activity.type) {
+                        case 'announcement':
+                          return <FaBullhorn className={`text-${activity.color}`} />;
+                        case 'project':
+                          return <FaTasks className={`text-${activity.color}`} />;
                         case 'leave_approved':
                         case 'leave_rejected':
                         case 'leave_applied':
@@ -1146,29 +1202,35 @@ const EmployeeDashboard = () => {
                     return (
                       <div key={policy._id} className="list-group-item px-0">
                         <div className="d-flex align-items-start">
-                          <div className="me-3 fs-4">
+                          <div className="me-3 fs-4 flex-shrink-0">
                             {getCategoryIcon()}
                           </div>
-                          <div className="flex-grow-1">
-                            <div className="d-flex justify-content-between align-items-start">
-                              <h6 className="mb-1">{policy.title}</h6>
+                          <div className="flex-grow-1 overflow-hidden">
+                            <div className="d-flex justify-content-between align-items-start gap-2">
+                              <h6 className="mb-1 text-truncate" style={{ maxWidth: '70%' }}>
+                                {policy.title}
+                              </h6>
                               {policy.priority !== 'low' && (
-                                <Badge bg={getPriorityColor()} className="ms-2">
+                                <Badge bg={getPriorityColor()} className="flex-shrink-0">
                                   {policy.priority}
                                 </Badge>
                               )}
                             </div>
-                            <p className="text-muted mb-1 small">
-                              {policy.description.length > 80 
-                                ? `${policy.description.substring(0, 80)}...` 
-                                : policy.description
-                              }
+                            <p className="text-muted mb-1 small" style={{ 
+                              wordBreak: 'break-word',
+                              overflowWrap: 'break-word',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden'
+                            }}>
+                              {policy.description}
                             </p>
-                            <div className="d-flex justify-content-between align-items-center">
-                              <small className="text-muted">
+                            <div className="d-flex justify-content-between align-items-center flex-wrap gap-1">
+                              <small className="text-muted text-truncate" style={{ maxWidth: '60%' }}>
                                 By {policy.createdBy?.name || 'Admin'}
                               </small>
-                              <small className="text-muted">
+                              <small className="text-muted flex-shrink-0">
                                 {getTimeAgo(policy.createdAt)}
                               </small>
                             </div>

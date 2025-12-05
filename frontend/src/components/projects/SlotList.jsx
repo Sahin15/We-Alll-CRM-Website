@@ -3,26 +3,44 @@ import { Table, Button, Badge, Form, InputGroup, Row, Col, Card } from "react-bo
 import { FaPlus, FaSearch, FaEye, FaEdit, FaTrash, FaFilter } from "react-icons/fa";
 import { statusColors } from "../../data/mockSlots";
 
-const SlotList = ({ slots = [], onCreateSlot, onViewSlot, onEditSlot, onDeleteSlot, isProjectHead = false }) => {
+const SlotList = ({ slots = [], onCreateSlot, onViewSlot, onEditSlot, onDeleteSlot, isProjectHead = false, project = null }) => {
+  
+  // Determine department type
+  const departmentName = project?.department?.name?.toLowerCase() || '';
+  const isDigitalMarketing = departmentName.includes('marketing');
+  const isDevelopment = departmentName.includes('development');
+  const isDesign = departmentName.includes('design');
+  const isVideo = departmentName.includes('video');
+  
+  // Styles to prevent flickering
+  const tableRowStyle = {
+    transition: 'background-color 0.15s ease',
+  };
+  
+  const tableRowHoverStyle = {
+    backgroundColor: 'rgba(0, 0, 0, 0.02)',
+    cursor: 'pointer',
+  };
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPlatform, setFilterPlatform] = useState("all");
   const [filterEmployee, setFilterEmployee] = useState("all");
   const [sortBy, setSortBy] = useState("postingDate");
   const [sortOrder, setSortOrder] = useState("asc");
+  const [hoveredRow, setHoveredRow] = useState(null);
 
   // Get unique values for filters
   const uniqueStatuses = useMemo(() => {
-    return [...new Set(slots.map((slot) => slot.designStatus))];
+    return [...new Set(slots.map((slot) => slot.designStatus || slot.status).filter(Boolean))];
   }, [slots]);
 
   const uniquePlatforms = useMemo(() => {
-    const allPlatforms = slots.flatMap((slot) => slot.platforms);
-    return [...new Set(allPlatforms)];
+    const allPlatforms = slots.flatMap((slot) => slot.platforms || []);
+    return [...new Set(allPlatforms.filter(Boolean))];
   }, [slots]);
 
   const uniqueEmployees = useMemo(() => {
-    return [...new Set(slots.map((slot) => slot.assignedTo.name))];
+    return [...new Set(slots.map((slot) => slot.assignedTo?.name).filter(Boolean))];
   }, [slots]);
 
   // Filter and search logic
@@ -164,16 +182,19 @@ const SlotList = ({ slots = [], onCreateSlot, onViewSlot, onEditSlot, onDeleteSl
               </Form.Select>
             </Col>
 
-            <Col md={3}>
-              <Form.Select value={filterPlatform} onChange={(e) => setFilterPlatform(e.target.value)} size="sm">
-                <option value="all">All Platforms</option>
-                {uniquePlatforms.map((platform) => (
-                  <option key={platform} value={platform}>
-                    {platform}
-                  </option>
-                ))}
-              </Form.Select>
-            </Col>
+            {/* Platform Filter - Only for Digital Marketing */}
+            {isDigitalMarketing && (
+              <Col md={3}>
+                <Form.Select value={filterPlatform} onChange={(e) => setFilterPlatform(e.target.value)} size="sm">
+                  <option value="all">All Platforms</option>
+                  {uniquePlatforms.map((platform) => (
+                    <option key={platform} value={platform}>
+                      {platform}
+                    </option>
+                  ))}
+                </Form.Select>
+              </Col>
+            )}
 
             <Col md={3}>
               <Form.Select value={filterEmployee} onChange={(e) => setFilterEmployee(e.target.value)} size="sm">
@@ -216,15 +237,18 @@ const SlotList = ({ slots = [], onCreateSlot, onViewSlot, onEditSlot, onDeleteSl
       {/* Slots Table */}
       <Card>
         <div className="table-responsive">
-          <Table hover className="mb-0">
+          <Table className="mb-0">
             <thead className="table-light">
               <tr>
-                <th>Posting Date</th>
-                <th>Post Type</th>
-                <th>Platforms</th>
-                <th>Occasion</th>
+                <th>Title</th>
+                <th>Work Type</th>
+                {isDigitalMarketing && <th>Platforms</th>}
+                {isDevelopment && <th>Tech Stack</th>}
+                {isDesign && <th>Design Type</th>}
+                {isVideo && <th>Video Type</th>}
                 <th>Assigned To</th>
-                <th>Design Deadline</th>
+                <th>Due Date</th>
+                <th>Priority</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -232,50 +256,103 @@ const SlotList = ({ slots = [], onCreateSlot, onViewSlot, onEditSlot, onDeleteSl
             <tbody>
               {filteredSlots.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="text-center py-4 text-muted">
-                    No slots found. {isProjectHead && "Click 'Create Slot' to add your first content piece!"}
+                  <td colSpan={isDigitalMarketing ? "10" : "9"} className="text-center py-4 text-muted">
+                    No work assignments found. {isProjectHead && "Click 'Create Work Assignment' to add your first task!"}
                   </td>
                 </tr>
               ) : (
                 filteredSlots.map((slot) => (
-                  <tr key={slot._id} className={isOverdue(slot) ? "table-danger" : ""}>
+                  <tr 
+                    key={slot._id} 
+                    className={isOverdue(slot) ? "table-danger" : ""}
+                    style={{
+                      ...tableRowStyle,
+                      ...(hoveredRow === slot._id ? tableRowHoverStyle : {})
+                    }}
+                    onMouseEnter={() => setHoveredRow(slot._id)}
+                    onMouseLeave={() => setHoveredRow(null)}
+                  >
+                    {/* Title */}
                     <td>
-                      <div className="fw-semibold">{formatDate(slot.postingDate)}</div>
+                      <div className="fw-semibold text-truncate" style={{ maxWidth: "200px" }} title={slot.title}>
+                        {slot.title}
+                      </div>
                       {isOverdue(slot) && (
                         <Badge bg="danger" className="mt-1">
                           Overdue
                         </Badge>
                       )}
                     </td>
+                    
+                    {/* Work Type */}
                     <td>
-                      <Badge bg="secondary">{slot.postType}</Badge>
+                      <Badge bg="secondary">{slot.workType}</Badge>
                     </td>
+                    
+                    {/* Digital Marketing - Platforms */}
+                    {isDigitalMarketing && (
+                      <td>
+                        <div className="d-flex flex-wrap gap-1">
+                          {slot.platforms?.map((platform) => (
+                            <Badge key={platform} bg="info" className="text-white">
+                              {platform}
+                            </Badge>
+                          )) || '-'}
+                        </div>
+                      </td>
+                    )}
+                    
+                    {/* Development - Tech Stack */}
+                    {isDevelopment && (
+                      <td>
+                        <small className="text-muted">
+                          {slot.metadata?.techStack || '-'}
+                        </small>
+                      </td>
+                    )}
+                    
+                    {/* Design - Design Type */}
+                    {isDesign && (
+                      <td>
+                        <Badge bg="info">
+                          {slot.metadata?.designType || '-'}
+                        </Badge>
+                      </td>
+                    )}
+                    
+                    {/* Video - Video Type */}
+                    {isVideo && (
+                      <td>
+                        <Badge bg="info">
+                          {slot.metadata?.videoType || '-'}
+                        </Badge>
+                      </td>
+                    )}
+                    
+                    {/* Assigned To */}
+                    <td>{slot.assignedTo?.name || 'Unassigned'}</td>
+                    
+                    {/* Due Date */}
                     <td>
-                      <div className="d-flex flex-wrap gap-1">
-                        {slot.platforms.map((platform) => (
-                          <Badge key={platform} bg="info" className="text-white">
-                            {platform}
-                          </Badge>
-                        ))}
-                      </div>
+                      <small>{formatDate(slot.dueDate)}</small>
                     </td>
+                    
+                    {/* Priority */}
                     <td>
-                      <div className="text-truncate" style={{ maxWidth: "150px" }} title={slot.occasion}>
-                        {slot.occasion || "-"}
-                      </div>
-                      <small className="text-muted">{slot.contentBucket}</small>
-                    </td>
-                    <td>{slot.assignedTo.name}</td>
-                    <td>
-                      <small>{formatDate(slot.designDeadline)}</small>
-                    </td>
-                    <td>
-                      <Badge bg="light" text="dark" style={{ backgroundColor: statusColors[slot.designStatus] }}>
-                        {slot.designStatus}
+                      <Badge bg={
+                        slot.priority === 'Urgent' ? 'danger' :
+                        slot.priority === 'High' ? 'warning' :
+                        slot.priority === 'Medium' ? 'info' : 'secondary'
+                      }>
+                        {slot.priority}
                       </Badge>
-                      <div className="mt-1">
-                        <small className="text-muted">{slot.postingStatus}</small>
-                      </div>
+                    </td>
+                    
+                    {/* Status */}
+                    <td>
+                      <Badge bg="light" text="dark" style={{ backgroundColor: statusColors[slot.status || slot.designStatus] }}>
+                        {slot.status || slot.designStatus}
+                      </Badge>
                     </td>
                     <td>
                       <div className="d-flex gap-2">

@@ -77,17 +77,19 @@ const ProjectDetails = () => {
 
   // Check if user is project head
   const isProjectHead = canEdit || (project?.projectHead?._id === user?._id);
+  
+  // Check if user is a team member
+  const isTeamMember = project?.teamMembers?.some(
+    member => member.user?._id === user?._id || member.user === user?._id
+  ) || project?.assignedUsers?.some(
+    userId => userId === user?._id || userId._id === user?._id
+  );
 
   useEffect(() => {
     fetchProjectDetails();
     fetchEmployees();
+    loadProjectSlots(); // Load slots once when component mounts or id changes
   }, [id]);
-
-  useEffect(() => {
-    if (project) {
-      loadProjectSlots();
-    }
-  }, [project]);
 
   const fetchEmployees = async () => {
     try {
@@ -352,14 +354,32 @@ const ProjectDetails = () => {
     }
   };
 
-  const handleViewSlot = (slot) => {
-    setSelectedSlot(slot);
-    setShowSlotDetailsModal(true);
+  const handleViewSlot = async (slot) => {
+    // Fetch full slot details to ensure project and client are populated
+    try {
+      const response = await slotApi.getSlotById(slot._id);
+      setSelectedSlot(response.data);
+      setShowSlotDetailsModal(true);
+    } catch (error) {
+      console.error('Error fetching slot details:', error);
+      // Fallback to using the slot as-is
+      setSelectedSlot(slot);
+      setShowSlotDetailsModal(true);
+    }
   };
 
-  const handleEditSlot = (slot) => {
-    setSelectedSlot(slot);
-    setShowSlotDetailsModal(true);
+  const handleEditSlot = async (slot) => {
+    // Fetch full slot details to ensure project and client are populated
+    try {
+      const response = await slotApi.getSlotById(slot._id);
+      setSelectedSlot(response.data);
+      setShowSlotDetailsModal(true);
+    } catch (error) {
+      console.error('Error fetching slot details:', error);
+      // Fallback to using the slot as-is
+      setSelectedSlot(slot);
+      setShowSlotDetailsModal(true);
+    }
   };
 
   const handleDeleteSlot = (slot) => {
@@ -746,10 +766,10 @@ const ProjectDetails = () => {
                 Calendar View
               </Button>
             </div>
-            {isProjectHead && slotView === "list" && (
+            {(isProjectHead || isTeamMember) && slotView === "list" && (
               <Button variant="primary" size="sm" onClick={() => setShowCreateSlotModal(true)}>
                 <FaClipboardList className="me-2" />
-                Create Work Assignment
+                {isProjectHead ? 'Create Work Assignment' : 'Create My Work'}
               </Button>
             )}
           </div>
@@ -765,6 +785,7 @@ const ProjectDetails = () => {
                   onEditSlot={handleEditSlot}
                   onDeleteSlot={handleDeleteSlot}
                   isProjectHead={isProjectHead}
+                  project={project}
                 />
               </Card.Body>
             </Card>
@@ -1000,6 +1021,7 @@ const ProjectDetails = () => {
         onSubmit={handleCreateSlot}
         project={project}
         employees={employees}
+        currentUser={user}
       />
 
       {/* Slot Details Modal */}

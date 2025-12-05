@@ -86,8 +86,8 @@ export const canManageProject = async (req, res, next) => {
       });
     }
 
-    // Admin and superadmin can always manage projects
-    if (["admin", "superadmin"].includes(userRole)) {
+    // Admin, superadmin, and HR can always manage projects
+    if (["admin", "superadmin", "hr"].includes(userRole)) {
       const project = await Project.findById(projectId).populate("department");
       if (!project) {
         return res.status(404).json({
@@ -97,7 +97,7 @@ export const canManageProject = async (req, res, next) => {
       }
       req.hopProject = project;
       req.canManage = true;
-      req.manageRole = "admin";
+      req.manageRole = userRole === "hr" ? "hr" : "admin";
       return next();
     }
 

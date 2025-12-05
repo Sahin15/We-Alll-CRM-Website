@@ -11,7 +11,8 @@ const WorkItemDetails = ({ show, onHide, item, type, onUpdate, currentUser }) =>
   useEffect(() => {
     if (item) {
       if (type === 'slot') {
-        setStatus(item.designStatus || 'Planned');
+        // Support both new and legacy status fields
+        setStatus(item.status || item.designStatus || 'Pending');
       } else {
         setStatus(item.status || 'todo');
       }
@@ -99,20 +100,28 @@ const WorkItemDetails = ({ show, onHide, item, type, onUpdate, currentUser }) =>
     const isManager = ['admin', 'superadmin', 'hod', 'hop'].includes(currentUser?.role);
     const currentStatus = item.designStatus;
     
-    // Employee can only move forward in workflow
+    // Employee workflow: Can only submit for review, cannot approve themselves
     const employeeStatusOptions = [
-      { value: 'Planned', label: 'To Do', disabled: false },
-      { value: 'In Design', label: 'In Progress', disabled: false },
-      { value: 'Ready for Review', label: 'Ready for Review', disabled: false }
+      { value: 'Pending', label: '📋 To Do', disabled: false },
+      { value: 'Planned', label: '📋 To Do (Legacy)', disabled: false },
+      { value: 'In Progress', label: '⚙️ Working On It', disabled: false },
+      { value: 'In Design', label: '⚙️ Working On It (Legacy)', disabled: false },
+      { value: 'Review', label: '✅ Submit for Approval', disabled: false },
+      { value: 'Ready for Review', label: '✅ Submit for Approval (Legacy)', disabled: false }
     ];
     
-    // Manager can approve or request revision
+    // Manager/HoP/HoD: Can approve or request revision
     const managerStatusOptions = [
-      { value: 'Planned', label: 'To Do', disabled: false },
-      { value: 'In Design', label: 'In Progress', disabled: false },
-      { value: 'Ready for Review', label: 'Ready for Review', disabled: false },
-      { value: 'Revision Needed', label: 'Needs Revision (Request Changes)', disabled: false },
-      { value: 'Approved', label: 'Approved (Complete)', disabled: false }
+      { value: 'Pending', label: '📋 To Do', disabled: false },
+      { value: 'Planned', label: '📋 To Do (Legacy)', disabled: false },
+      { value: 'In Progress', label: '⚙️ In Progress', disabled: false },
+      { value: 'In Design', label: '⚙️ In Progress (Legacy)', disabled: false },
+      { value: 'Review', label: '👀 Under Review', disabled: false },
+      { value: 'Ready for Review', label: '👀 Under Review (Legacy)', disabled: false },
+      { value: 'Revision', label: '🔄 Request Revision', disabled: false },
+      { value: 'Revision Needed', label: '🔄 Request Revision (Legacy)', disabled: false },
+      { value: 'Approved', label: '✅ Approve & Complete', disabled: false },
+      { value: 'Completed', label: '✅ Mark as Completed', disabled: false }
     ];
     
     const statusOptions = isManager ? managerStatusOptions : employeeStatusOptions;
@@ -121,19 +130,24 @@ const WorkItemDetails = ({ show, onHide, item, type, onUpdate, currentUser }) =>
       <Modal show={show} onHide={onHide} size="lg">
         <Modal.Header closeButton>
           <Modal.Title>
-            <Badge bg="success" className="me-2">Content Task</Badge>
-            {item.brief || 'Untitled Task'}
+            <Badge bg="success" className="me-2">{item.workType || 'Work Assignment'}</Badge>
+            {item.title || item.brief || 'Untitled Task'}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <div className="mb-4">
             <div className="d-flex gap-2 mt-2 align-items-center flex-wrap">
-              <Badge bg={getStatusColor(item.designStatus)}>
-                {item.designStatus || 'Planned'}
+              <Badge bg={getStatusColor(item.status || item.designStatus)}>
+                {item.status || item.designStatus || 'Pending'}
               </Badge>
-              <Badge bg={getPriorityColor(item.contentBucket)}>
-                {item.contentBucket || 'Normal Priority'}
+              <Badge bg={getPriorityColor(item.priority || item.contentBucket)}>
+                {item.priority || item.contentBucket || 'Normal Priority'}
               </Badge>
+              {item.approvalStatus && (
+                <Badge bg={item.approvalStatus === 'Approved' ? 'success' : item.approvalStatus === 'Rejected' ? 'danger' : 'warning'}>
+                  {item.approvalStatus === 'Approved' ? '✅ Approved' : item.approvalStatus === 'Rejected' ? '❌ Rejected' : '⏳ Pending Approval'}
+                </Badge>
+              )}
               {canEdit && !isEditing && (
                 <Button 
                   variant="outline-primary" 
@@ -168,18 +182,26 @@ const WorkItemDetails = ({ show, onHide, item, type, onUpdate, currentUser }) =>
                 </Form.Select>
               </Form.Group>
               
-              {status === 'Revision Needed' && (
-                <Alert variant="warning" className="mb-3">
+              {(status === 'Review' || status === 'Ready for Review') && !isManager && (
+                <Alert variant="info" className="mb-3">
                   <small>
-                    <strong>Note:</strong> This will send the task back to the employee for revisions.
+                    <strong>📤 Submitting for Approval:</strong> Your work will be sent to HoP/HoD for review. They will either approve it or request revisions.
                   </small>
                 </Alert>
               )}
               
-              {status === 'Approved' && (
+              {(status === 'Revision' || status === 'Revision Needed') && isManager && (
+                <Alert variant="warning" className="mb-3">
+                  <small>
+                    <strong>🔄 Requesting Revision:</strong> This will send the work back to the employee with feedback for changes.
+                  </small>
+                </Alert>
+              )}
+              
+              {(status === 'Approved' || status === 'Completed') && isManager && (
                 <Alert variant="success" className="mb-3">
                   <small>
-                    <strong>Note:</strong> This will mark the task as completed.
+                    <strong>✅ Approving Work:</strong> This will mark the work as completed and update project progress.
                   </small>
                 </Alert>
               )}
@@ -255,8 +277,8 @@ const WorkItemDetails = ({ show, onHide, item, type, onUpdate, currentUser }) =>
               <div className="d-flex align-items-start">
                 <FaCalendar className="me-2 mt-1 text-success" />
                 <div>
-                  <small className="text-muted d-block">Design Deadline</small>
-                  <strong>{formatDate(item.designDeadline)}</strong>
+                  <small className="text-muted d-block">Due Date</small>
+                  <strong>{formatDate(item.dueDate || item.designDeadline)}</strong>
                 </div>
               </div>
             </Col>

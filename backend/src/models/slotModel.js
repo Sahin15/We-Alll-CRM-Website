@@ -102,7 +102,10 @@ const slotSchema = new mongoose.Schema(
     },
     dueDate: {
       type: Date,
-      required: true,
+      required: function() {
+        // Only required when creating new slots, not when updating
+        return this.isNew;
+      },
     },
     
     // Legacy deadline fields (for backward compatibility)
@@ -123,7 +126,7 @@ const slotSchema = new mongoose.Schema(
     // Legacy status fields (for backward compatibility)
     designStatus: {
       type: String,
-      enum: ["Planned", "In Design", "Ready for Review", "Approved", "Revision Needed"],
+      enum: ["Planned", "In Design", "Ready for Review", "Approved", "Revision Needed", "Needs Revision"],
     },
     postingStatus: {
       type: String,
@@ -274,6 +277,14 @@ slotSchema.virtual("isOverdue").get(function () {
 // Ensure virtuals are included in JSON
 slotSchema.set("toJSON", { virtuals: true });
 slotSchema.set("toObject", { virtuals: true });
+
+// Add indexes for faster queries (CRITICAL for performance)
+slotSchema.index({ project: 1, dueDate: 1 });
+slotSchema.index({ assignedTo: 1, status: 1 });
+slotSchema.index({ status: 1, dueDate: 1 });
+slotSchema.index({ project: 1, status: 1 });
+slotSchema.index({ dueDate: 1 });
+slotSchema.index({ createdBy: 1 });
 
 const Slot = mongoose.model("Slot", slotSchema);
 

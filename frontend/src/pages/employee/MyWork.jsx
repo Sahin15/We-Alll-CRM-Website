@@ -234,6 +234,8 @@ const MyWork = () => {
       if (selectedItem && selectedItem._id === itemId) {
         const updatedItem = { ...selectedItem };
         if (type === 'slot') {
+          // Update both status fields for compatibility
+          updatedItem.status = newStatus;
           updatedItem.designStatus = newStatus;
         } else {
           updatedItem.status = newStatus;

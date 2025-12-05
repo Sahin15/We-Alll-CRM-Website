@@ -1,0 +1,243 @@
+/* Personal Workload Summary Styles */
+
+.personal-workload-card {
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  background: white;
+}
+
+.personal-workload-card .card-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 12px 12px 0 0;
+  padding: 1rem 1.5rem;
+  border: none;
+}
+
+.personal-workload-card .card-header h5 {
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.capacity-badge {
+  font-size: 0.75rem;
+  padding: 0.4rem 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* Summary Stats */
+.workload-summary-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.03) 0%, rgba(255, 255, 255, 1) 100%);
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.summary-stat {
+  text-align: center;
+  padding: 0.75rem;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+}
+
+.summary-stat:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+}
+
+.summary-stat .stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+}
+
+.summary-stat .stat-label {
+  font-size: 0.8rem;
+  color: #6b7280;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* Task Groups */
+.task-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.task-group {
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.task-group:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.task-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  background: rgba(0, 0, 0, 0.02);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.task-group-header:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.task-group-header:active {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.group-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #1f2937;
+}
+
+/* Task Group Variants */
+.overdue-group {
+  border-left: 4px solid #EF4444;
+}
+
+.overdue-group .task-group-header {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(255, 255, 255, 1) 100%);
+}
+
+.today-group {
+  border-left: 4px solid #F59E0B;
+}
+
+.today-group .task-group-header {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(255, 255, 255, 1) 100%);
+}
+
+.week-group {
+  border-left: 4px solid #3B82F6;
+}
+
+.week-group .task-group-header {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(255, 255, 255, 1) 100%);
+}
+
+.later-group {
+  border-left: 4px solid #6B7280;
+}
+
+.later-group .task-group-header {
+  background: linear-gradient(135deg, rgba(107, 114, 128, 0.05) 0%, rgba(255, 255, 255, 1) 100%);
+}
+
+/* Task List */
+.task-list {
+  padding: 0.75rem;
+  background: white;
+}
+
+.task-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.875rem 1rem;
+  background: rgba(0, 0, 0, 0.01);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  margin-bottom: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.task-item:last-child {
+  margin-bottom: 0;
+}
+
+.task-item:hover {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(102, 126, 234, 0.3);
+  transform: translateX(4px);
+}
+
+.task-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-title {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-meta {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.task-meta small {
+  font-size: 0.75rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .workload-summary-stats {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .summary-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: left;
+  }
+
+  .summary-stat .stat-value {
+    font-size: 1.5rem;
+  }
+
+  .summary-stat .stat-label {
+    text-align: left;
+  }
+
+  .task-group-header {
+    padding: 0.875rem 1rem;
+  }
+
+  .task-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .task-item .badge {
+    align-self: flex-start;
+  }
+}
+
+/* Collapse Animation */
+.collapse {
+  transition: height 0.3s ease;
+}
+
+.collapsing {
+  transition: height 0.3s ease;
+}

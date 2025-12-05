@@ -12,11 +12,32 @@ const getAuthHeader = () => {
 // Project CRUD Operations
 // ============================================
 
-export const getAllProjects = async () => {
+export const getAllProjects = async (params = {}) => {
   const response = await axios.get(`${API_URL}/projects`, {
     headers: getAuthHeader(),
+    params
   });
-  return response.data;
+  
+  // Handle both old and new response formats
+  if (response.data.pagination) {
+    // New paginated format
+    return response.data;
+  } else if (Array.isArray(response.data)) {
+    // Old format - convert to new format for backward compatibility
+    return {
+      success: true,
+      data: response.data,
+      pagination: {
+        page: 1,
+        limit: response.data.length,
+        total: response.data.length,
+        pages: 1
+      }
+    };
+  } else {
+    // Fallback
+    return response.data;
+  }
 };
 
 export const getProjectById = async (id) => {

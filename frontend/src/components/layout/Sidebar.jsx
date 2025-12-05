@@ -20,6 +20,7 @@ import {
   FaCreditCard,
   FaTasks,
   FaReceipt,
+  FaBullhorn,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import "./Sidebar.css";
@@ -127,6 +128,12 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       path: "/employee/slots",
       icon: <FaClipboardList />,
       label: "My Slots",
+      roles: ["employee", "admin", "superadmin", "hr", "hod"],
+    },
+    {
+      path: "/employee/announcements",
+      icon: <FaBullhorn />,
+      label: "Announcements",
       roles: ["employee", "admin", "superadmin", "hr", "hod"],
     },
     {

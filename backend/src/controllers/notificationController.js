@@ -59,8 +59,8 @@ export const getUserNotifications = async (req, res) => {
     if (priority) filter.priority = priority;
 
     const notifications = await Notification.find(filter)
-      .sort({ createdAt: -1 })
-      .limit(50);
+      .sort({ createdAt: -1 });
+      // No limit - show all notifications
 
     const unreadCount = await Notification.getUnreadCount(req.user.id);
 

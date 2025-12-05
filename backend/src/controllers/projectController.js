@@ -2,6 +2,9 @@ import Project from "../models/projectModel.js";
 import User from "../models/userModel.js";
 import Client from "../models/clientModel.js";
 import Department from "../models/departmentModel.js";
+import logger from '../utils/logger.js';
+import { optimizedProjectPopulate, buildTextSearch } from '../utils/queryOptimizer.js';
+import { canViewAllProjects } from '../utils/permissions.js';
 
 // Helper function to check if user has access to a project
 const userHasProjectAccess = async (userId, userRole, project) => {
@@ -101,77 +104,68 @@ export const createProject = async (req, res) => {
 // Get all projects
 export const getProjects = async (req, res) => {
   try {
-    console.log('📋 getProjects called by:', req.user?.email, req.user?.role);
+    logger.info('getProjects called by:', req.user?.email, req.user?.role);
+    
+    const { search } = req.query;
     
     let query = {};
     
-    // Check if user is HoD (Head of Department)
-    const user = await User.findById(req.user.id);
-    const isHoD = user.isHeadOfDepartment && user.headOfDepartment;
-    
-    console.log('📋 User check:', {
-      isHoD,
-      headOfDepartment: user.headOfDepartment
-    });
-    
-    // HoDs can see their department's projects
-    if (req.user.role === "employee" && isHoD) {
-      query = {
-        $or: [
-          { assignedUsers: req.user.id }, // Projects they're assigned to
-          { department: user.headOfDepartment }, // Projects in their department
-          { projectHead: req.user.id } // Projects they lead
-        ]
-      };
-    }
-    // Regular employees can see projects they are assigned to OR projects they lead
-    else if (req.user.role === "employee") {
-      query = {
-        $or: [
-          { assignedUsers: req.user.id }, // Projects they're assigned to
-          { projectHead: req.user.id } // Projects they lead as HoP
-        ]
-      };
-    }
-    // Clients can only see their own projects
-    else if (req.user.role === "client") {
-      const clientByEmail = await Client.findOne({
-        email: req.user.email,
-      }).select("_id");
+    // Admin, superadmin, hr, hod, manager can see all projects
+    if (!canViewAllProjects(req.user.role)) {
+      // Check if user is HoD (Head of Department)
+      const user = await User.findById(req.user.id).select('isHeadOfDepartment headOfDepartment').lean();
+      const isHoD = user?.isHeadOfDepartment && user?.headOfDepartment;
       
-      if (clientByEmail) {
+      // HoDs can see their department's projects (HoD role or employee with HoD flag)
+      if ((req.user.role === "employee" || req.user.role === "hod") && isHoD) {
+        query = {
+          $or: [
+            { assignedUsers: req.user.id },
+            { department: user.headOfDepartment },
+            { projectHead: req.user.id }
+          ]
+        };
+      }
+      // Regular employees can see projects they are assigned to OR projects they lead
+      else if (req.user.role === "employee" || req.user.role === "hod") {
+        query = {
+          $or: [
+            { assignedUsers: req.user.id },
+            { projectHead: req.user.id }
+          ]
+        };
+      }
+      // Clients can only see their own projects
+      else if (req.user.role === "client") {
+        const clientByEmail = await Client.findOne({ email: req.user.email }).select("_id").lean();
+        
+        if (!clientByEmail) {
+          return res.status(200).json([]);
+        }
         query = { client: clientByEmail._id };
-      } else {
-        // Client not found, return empty array
-        return res.status(200).json([]);
       }
     }
     
-    console.log('📋 Query:', query);
-    
-    // Admin, superadmin, hr, hod, manager can see all projects
-    const projects = await Project.find(query)
-      .populate("client", "name email")
-      .populate("department", "name")
-      .populate("projectHead", "name email")
-      .populate("assignedUsers", "name email role")
-      .sort({ createdAt: -1 })
-      .lean(); // Use lean() for better performance and to avoid populate issues
-
-    console.log('📋 Found projects:', projects.length);
-    
-    if (projects.length > 0) {
-      console.log('📋 First project:', {
-        name: projects[0].name,
-        department: projects[0].department?.name,
-        status: projects[0].status
-      });
+    // Add search filter
+    if (search) {
+      Object.assign(query, buildTextSearch(search, ['name', 'description']));
     }
     
+    logger.info('Query:', query);
+    
+    // Optimized query WITHOUT pagination (backward compatible)
+    const projects = await Project.find(query)
+      .select('name client department projectHead status progress startDate endDate')
+      .populate(optimizedProjectPopulate())
+      .sort({ createdAt: -1 })
+      .lean();
+
+    logger.success(`Found ${projects.length} projects`);
+    
+    // Return simple array (backward compatible)
     res.status(200).json(projects);
   } catch (error) {
-    console.error("❌ Error in getProjects:", error);
-    console.error("❌ Error stack:", error.stack);
+    logger.error("Error in getProjects:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -261,53 +255,42 @@ export const getProjectById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    console.log(`📋 Fetching project ${id} for user ${req.user.email} (${req.user.role})`);
+    logger.info(`Fetching project ${id} for user ${req.user.email} (${req.user.role})`);
 
     const project = await Project.findById(id)
       .populate("client", "name email")
       .populate("department", "name")
       .populate("projectHead", "name email designation")
       .populate("assignedUsers", "name email role")
-      .populate("tasks.assignedTo", "name email");
+      .populate("tasks.assignedTo", "name email")
+      .lean();
 
     if (!project) {
-      console.log(`❌ Project ${id} not found`);
       return res.status(404).json({ message: "Project not found" });
     }
 
+    // Client access check
     if (req.user.role === "client") {
-      const clientByEmail = await Client.findOne({
-        email: req.user.email,
-      }).select("_id");
-      if (
-        !clientByEmail ||
-        project.client._id.toString() !== clientByEmail._id.toString()
-      ) {
+      const clientByEmail = await Client.findOne({ email: req.user.email }).select("_id").lean();
+      if (!clientByEmail || project.client._id.toString() !== clientByEmail._id.toString()) {
         return res.status(403).json({ message: "Access denied" });
       }
     }
 
-    // Employees can only see projects they have access to
-    if (req.user.role === "employee") {
-      console.log(`🔍 Checking access for user ${req.user.id} (${req.user.email})`);
-      console.log(`🔍 Project Head: ${project.projectHead?._id || project.projectHead}`);
-      console.log(`🔍 Assigned Users:`, project.assignedUsers?.map(u => u._id || u));
-      
+    // Employee access check (includes HoD)
+    if (!canViewAllProjects(req.user.role) && (req.user.role === "employee" || req.user.role === "hod")) {
       const hasAccess = await userHasProjectAccess(req.user.id, req.user.role, project);
       
       if (!hasAccess) {
-        console.log(`❌ Access denied - user doesn't have access to project`);
         return res.status(403).json({
           message: "Access denied. You can only view projects you are assigned to.",
         });
       }
-      
-      console.log(`✅ Access granted - user has access to project`);
     }
 
     return res.status(200).json(project);
   } catch (error) {
-    console.error("Error in getProjectById:", error.message);
+    logger.error("Error in getProjectById:", error.message);
     return res.status(500).json({ message: "Server error" });
   }
 };

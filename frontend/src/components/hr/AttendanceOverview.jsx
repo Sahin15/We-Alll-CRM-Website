@@ -26,6 +26,18 @@ import { toast } from "react-toastify";
 import api from "../../services/api";
 import { formatDate } from "../../utils/helpers";
 
+// Add styles for clickable cards
+const cardHoverStyle = {
+  cursor: 'pointer',
+  transition: 'all 0.3s ease',
+  position: 'relative'
+};
+
+const cardHoverActiveStyle = {
+  transform: 'translateY(-4px)',
+  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+};
+
 const AttendanceOverview = () => {
   const [attendance, setAttendance] = useState([]);
   const [filteredAttendance, setFilteredAttendance] = useState([]);
@@ -43,7 +55,8 @@ const AttendanceOverview = () => {
     clockIn: "",
     clockOut: "",
     status: "present",
-    notes: ""
+    notes: "",
+    reason: "" // Reason for manual modification
   });
 
   // Filters
@@ -192,7 +205,8 @@ const AttendanceOverview = () => {
       clockIn: "",
       clockOut: "",
       status: "present",
-      notes: ""
+      notes: "",
+      reason: ""
     });
     setShowModal(true);
   };
@@ -220,7 +234,8 @@ const AttendanceOverview = () => {
       clockIn: extractTime(att.clockIn),
       clockOut: extractTime(att.clockOut),
       status: att.status,
-      notes: att.notes || ""
+      notes: att.notes || "",
+      reason: "" // Reset reason for new edit
     });
     setShowModal(true);
   };
@@ -230,6 +245,11 @@ const AttendanceOverview = () => {
 
     if (!formData.employeeId || !formData.date) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+
+    if (modalMode === "edit" && (!formData.reason || formData.reason.trim() === '')) {
+      toast.error("Please provide a reason for manual modification");
       return;
     }
 
@@ -244,7 +264,8 @@ const AttendanceOverview = () => {
           clockIn: formData.clockIn ? `${formData.date}T${formData.clockIn}:00` : `${formData.date}T09:00:00`,
           clockOut: formData.clockOut ? `${formData.date}T${formData.clockOut}:00` : undefined,
           status: formData.status,
-          notes: formData.notes
+          notes: formData.notes,
+          reason: formData.reason || "Manual entry by HR"
         };
         await api.post("/attendance/manual", attendanceData);
         toast.success("Attendance record created successfully");
@@ -254,7 +275,8 @@ const AttendanceOverview = () => {
           clockIn: formData.clockIn ? `${formData.date}T${formData.clockIn}:00` : undefined,
           clockOut: formData.clockOut ? `${formData.date}T${formData.clockOut}:00` : undefined,
           status: formData.status,
-          notes: formData.notes
+          notes: formData.notes,
+          reason: formData.reason // Required for edits
         };
         await api.put(`/attendance/${selectedAttendance._id}`, attendanceData);
         toast.success("Attendance record updated successfully");
@@ -351,34 +373,106 @@ const AttendanceOverview = () => {
           </div>
           <Row className="mb-4">
             <Col md={3}>
-              <Card className="border-0 bg-success bg-opacity-10">
+              <Card 
+                className={`border-0 bg-success bg-opacity-10 ${statusFilter === 'present' ? 'border border-success border-2' : ''}`}
+                style={cardHoverStyle}
+                onClick={() => setStatusFilter(statusFilter === 'present' ? '' : 'present')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
                 <Card.Body className="text-center">
                   <h3 className="mb-0 text-success">{stats.present}</h3>
-                  <small className="text-muted">Present</small>
+                  <small className="text-muted d-block">Present</small>
+                  <small className="text-success" style={{ fontSize: '0.7rem' }}>Click to filter</small>
+                  {statusFilter === 'present' && (
+                    <div className="mt-2">
+                      <Badge bg="success" className="w-100">✓ Filtered</Badge>
+                    </div>
+                  )}
                 </Card.Body>
               </Card>
             </Col>
             <Col md={3}>
-              <Card className="border-0 bg-danger bg-opacity-10">
+              <Card 
+                className={`border-0 bg-danger bg-opacity-10 ${statusFilter === 'absent' ? 'border border-danger border-2' : ''}`}
+                style={cardHoverStyle}
+                onClick={() => setStatusFilter(statusFilter === 'absent' ? '' : 'absent')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
                 <Card.Body className="text-center">
                   <h3 className="mb-0 text-danger">{stats.absent}</h3>
-                  <small className="text-muted">Absent</small>
+                  <small className="text-muted d-block">Absent</small>
+                  <small className="text-danger" style={{ fontSize: '0.7rem' }}>Click to filter</small>
+                  {statusFilter === 'absent' && (
+                    <div className="mt-2">
+                      <Badge bg="danger" className="w-100">✓ Filtered</Badge>
+                    </div>
+                  )}
                 </Card.Body>
               </Card>
             </Col>
             <Col md={3}>
-              <Card className="border-0 bg-warning bg-opacity-10">
+              <Card 
+                className={`border-0 bg-warning bg-opacity-10 ${statusFilter === 'late' ? 'border border-warning border-2' : ''}`}
+                style={cardHoverStyle}
+                onClick={() => setStatusFilter(statusFilter === 'late' ? '' : 'late')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
                 <Card.Body className="text-center">
                   <h3 className="mb-0 text-warning">{stats.late}</h3>
-                  <small className="text-muted">Late</small>
+                  <small className="text-muted d-block">Late</small>
+                  <small className="text-warning" style={{ fontSize: '0.7rem' }}>Click to filter</small>
+                  {statusFilter === 'late' && (
+                    <div className="mt-2">
+                      <Badge bg="warning" className="w-100">✓ Filtered</Badge>
+                    </div>
+                  )}
                 </Card.Body>
               </Card>
             </Col>
             <Col md={3}>
-              <Card className="border-0 bg-info bg-opacity-10">
+              <Card 
+                className={`border-0 bg-info bg-opacity-10 ${statusFilter === '' ? 'border border-info border-2' : ''}`}
+                style={cardHoverStyle}
+                onClick={() => setStatusFilter('')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
                 <Card.Body className="text-center">
                   <h3 className="mb-0 text-info">{stats.total}</h3>
-                  <small className="text-muted">Total</small>
+                  <small className="text-muted d-block">Total</small>
+                  <small className="text-info" style={{ fontSize: '0.7rem' }}>Click to show all</small>
+                  {statusFilter === '' && (
+                    <div className="mt-2">
+                      <Badge bg="info" className="w-100">✓ Showing All</Badge>
+                    </div>
+                  )}
                 </Card.Body>
               </Card>
             </Col>
@@ -480,7 +574,14 @@ const AttendanceOverview = () => {
                 </thead>
                 <tbody>
                   {filteredAttendance.map((att) => (
-                    <tr key={att._id}>
+                    <tr 
+                      key={att._id}
+                      style={{
+                        backgroundColor: att.isManuallyModified ? 'rgba(255, 193, 7, 0.1)' : 'transparent',
+                        borderLeft: att.isManuallyModified ? '3px solid #ffc107' : 'none'
+                      }}
+                      title={att.isManuallyModified ? 'This record has been manually modified' : ''}
+                    >
                       <td>
                         <div className="d-flex align-items-center">
                           <FaUser className="text-muted me-2" />
@@ -620,6 +721,72 @@ const AttendanceOverview = () => {
                   </Col>
                 </Row>
               )}
+
+              {/* Manual Modification Indicator */}
+              {selectedAttendance.isManuallyModified && (
+                <Alert variant="warning" className="mb-3">
+                  <div className="d-flex align-items-center mb-2">
+                    <FaEdit className="me-2" />
+                    <strong>This record has been manually modified</strong>
+                  </div>
+                  {selectedAttendance.originalStatus && (
+                    <small>
+                      Original Status: <Badge bg="secondary">{selectedAttendance.originalStatus}</Badge>
+                      {selectedAttendance.originalClockIn && (
+                        <> • Original Clock In: {formatTime(selectedAttendance.originalClockIn)}</>
+                      )}
+                    </small>
+                  )}
+                </Alert>
+              )}
+
+              {/* Modification History */}
+              {selectedAttendance.modificationHistory && selectedAttendance.modificationHistory.length > 0 && (
+                <Row className="mb-3">
+                  <Col md={12}>
+                    <strong>Modification History:</strong>
+                    <div className="mt-2">
+                      {selectedAttendance.modificationHistory.map((mod, index) => (
+                        <Card key={index} className="mb-2 border-warning">
+                          <Card.Body className="py-2">
+                            <div className="d-flex justify-content-between align-items-start">
+                              <div>
+                                <small className="text-muted">
+                                  Modified by: <strong>{mod.modifiedBy?.name || 'Unknown'}</strong>
+                                  {mod.modifiedBy?.role && ` (${mod.modifiedBy.role})`}
+                                </small>
+                                <br />
+                                <small className="text-muted">
+                                  Date: {new Date(mod.modifiedAt).toLocaleString()}
+                                </small>
+                                <br />
+                                <small>
+                                  <strong>Reason:</strong> {mod.reason}
+                                </small>
+                                {mod.changes && (
+                                  <div className="mt-1">
+                                    <small className="text-muted">
+                                      {mod.changes.oldStatus !== mod.changes.newStatus && (
+                                        <>Status: {mod.changes.oldStatus} → {mod.changes.newStatus}<br /></>
+                                      )}
+                                      {mod.changes.oldClockIn !== mod.changes.newClockIn && (
+                                        <>Clock In: {formatTime(mod.changes.oldClockIn)} → {formatTime(mod.changes.newClockIn)}<br /></>
+                                      )}
+                                      {mod.changes.oldClockOut !== mod.changes.newClockOut && (
+                                        <>Clock Out: {formatTime(mod.changes.oldClockOut)} → {formatTime(mod.changes.newClockOut)}</>
+                                      )}
+                                    </small>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </Card.Body>
+                        </Card>
+                      ))}
+                    </div>
+                  </Col>
+                </Row>
+              )}
             </>
           ) : (
             <Form onSubmit={handleSubmit}>
@@ -695,12 +862,30 @@ const AttendanceOverview = () => {
                 <Form.Label>Notes</Form.Label>
                 <Form.Control
                   as="textarea"
-                  rows={3}
+                  rows={2}
                   placeholder="Add any notes or comments..."
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 />
               </Form.Group>
+
+              {modalMode === "edit" && (
+                <Form.Group className="mb-3">
+                  <Form.Label className="text-danger">Reason for Modification *</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={2}
+                    placeholder="Required: Explain why you are modifying this attendance record..."
+                    value={formData.reason}
+                    onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                    required
+                    className="border-warning"
+                  />
+                  <Form.Text className="text-muted">
+                    ⚠️ This modification will be tracked and visible to administrators
+                  </Form.Text>
+                </Form.Group>
+              )}
             </Form>
           )}
         </Modal.Body>

@@ -3,6 +3,7 @@ import { Container, Row, Col, Card, Table, Badge, Form } from "react-bootstrap";
 import { toast } from "react-toastify";
 import { attendanceApi } from "../../api/attendanceApi";
 import { userApi } from "../../api/userApi";
+import { useAuth } from "../../context/AuthContext";
 import {
   formatDate,
   formatDateTime,
@@ -12,6 +13,7 @@ import "../../styles/pages-mobile.css";
 import "../../styles/table-mobile.css";
 
 const AttendanceTracking = () => {
+  const { user } = useAuth();
   const [attendances, setAttendances] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +34,7 @@ const AttendanceTracking = () => {
   });
   
   const [activeFilter, setActiveFilter] = useState('today'); // Track active filter
+  const [statusFilter, setStatusFilter] = useState(null); // Filter by status when card clicked
   
   // Filter users based on search term
   const filteredUsers = users.filter(user => 
@@ -47,8 +50,18 @@ const AttendanceTracking = () => {
   const fetchUsers = async () => {
     try {
       const response = await userApi.getAllUsers();
-      // Include both employees and HoDs (HoDs are also employees)
-      setUsers(response.data.filter((u) => u.role === "employee" || u.role === "hod"));
+      let employeeList = response.data.filter((u) => u.role === "employee" || u.role === "hod");
+      
+      // If user is HoD, filter to show only their department employees
+      if (user.role === 'hod' && user.headOfDepartment) {
+        employeeList = employeeList.filter((u) => 
+          u.department === user.headOfDepartment || 
+          u.department?._id === user.headOfDepartment ||
+          u._id === user._id // Include the HoD themselves
+        );
+      }
+      
+      setUsers(employeeList);
     } catch (error) {
       console.error("Error fetching users:", error);
     }
@@ -87,10 +100,38 @@ const AttendanceTracking = () => {
       try {
         setLoading(true);
         const params = {};
-        if (value) params.employee = value; // Use the new value directly
+        
+        if (value) {
+          // Employee selected - show current month data
+          params.employee = value;
+          
+          const now = new Date();
+          const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+          const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+          const startDate = firstDay.toISOString().split('T')[0];
+          const endDate = lastDay.toISOString().split('T')[0];
+          
+          params.startDate = startDate;
+          params.endDate = endDate;
+          
+          // Update filters to show the month dates
+          newFilters.startDate = startDate;
+          newFilters.endDate = endDate;
+          setFilters(newFilters);
+          setActiveFilter('month');
+        } else {
+          // No employee selected - show today's data for all
+          const today = getTodayDate();
+          params.startDate = today;
+          params.endDate = today;
+          
+          newFilters.startDate = today;
+          newFilters.endDate = today;
+          setFilters(newFilters);
+          setActiveFilter('today');
+        }
+        
         if (newFilters.status) params.status = newFilters.status;
-        if (newFilters.startDate) params.startDate = newFilters.startDate;
-        if (newFilters.endDate) params.endDate = newFilters.endDate;
 
         const response = await attendanceApi.getAllAttendance(params);
         setAttendances(response.data);
@@ -442,50 +483,85 @@ const AttendanceTracking = () => {
                 )}
                 <Row className="text-center">
                   <Col xs={6} md={3} className="mb-3">
-                    <Card className="border-success h-100">
+                    <Card 
+                      className={`border-success h-100 ${statusFilter === 'present' ? 'bg-success bg-opacity-10' : ''}`}
+                      style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                      onClick={() => setStatusFilter(statusFilter === 'present' ? null : 'present')}
+                      onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                      onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                    >
                       <Card.Body>
                         <h2 className="text-success mb-1">{stats.present}</h2>
                         <small className="text-muted">On Time</small>
                         <div className="mt-2">
                           <Badge bg="success">Present</Badge>
                         </div>
+                        {statusFilter === 'present' && <small className="d-block mt-2 text-success">✓ Filtered</small>}
                       </Card.Body>
                     </Card>
                   </Col>
                   <Col xs={6} md={3} className="mb-3">
-                    <Card className="border-warning h-100">
+                    <Card 
+                      className={`border-warning h-100 ${statusFilter === 'late' ? 'bg-warning bg-opacity-10' : ''}`}
+                      style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                      onClick={() => setStatusFilter(statusFilter === 'late' ? null : 'late')}
+                      onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                      onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                    >
                       <Card.Body>
                         <h2 className="text-warning mb-1">{stats.late}</h2>
                         <small className="text-muted">Late Arrivals</small>
                         <div className="mt-2">
                           <Badge bg="warning">10:31 AM - 11:59 AM</Badge>
                         </div>
+                        {statusFilter === 'late' && <small className="d-block mt-2 text-warning">✓ Filtered</small>}
                       </Card.Body>
                     </Card>
                   </Col>
                   <Col xs={6} md={3} className="mb-3">
-                    <Card className="border-info h-100">
+                    <Card 
+                      className={`border-info h-100 ${statusFilter === 'half-day' ? 'bg-info bg-opacity-10' : ''}`}
+                      style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                      onClick={() => setStatusFilter(statusFilter === 'half-day' ? null : 'half-day')}
+                      onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                      onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                    >
                       <Card.Body>
                         <h2 className="text-info mb-1">{stats.halfDay}</h2>
                         <small className="text-muted">Half Day</small>
                         <div className="mt-2">
                           <Badge bg="info">After 12:00 PM</Badge>
                         </div>
+                        {statusFilter === 'half-day' && <small className="d-block mt-2 text-info">✓ Filtered</small>}
                       </Card.Body>
                     </Card>
                   </Col>
                   <Col xs={6} md={3} className="mb-3">
-                    <Card className="border-danger h-100">
+                    <Card 
+                      className={`border-danger h-100 ${statusFilter === 'absent' ? 'bg-danger bg-opacity-10' : ''}`}
+                      style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                      onClick={() => setStatusFilter(statusFilter === 'absent' ? null : 'absent')}
+                      onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                      onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                    >
                       <Card.Body>
                         <h2 className="text-danger mb-1">{stats.absent}</h2>
                         <small className="text-muted">Absent</small>
                         <div className="mt-2">
                           <Badge bg="danger">No Clock-in</Badge>
                         </div>
+                        {statusFilter === 'absent' && <small className="d-block mt-2 text-danger">✓ Filtered</small>}
                       </Card.Body>
                     </Card>
                   </Col>
                 </Row>
+                {statusFilter && (
+                  <div className="text-center mb-3">
+                    <small className="text-muted">
+                      Click the card again to clear filter
+                    </small>
+                  </div>
+                )}
                 <hr />
                 <Row className="text-center">
                   <Col xs={6} md={3}>
@@ -554,7 +630,9 @@ const AttendanceTracking = () => {
                   </thead>
                   <tbody>
                     {attendances.length > 0 ? (
-                      attendances.map((attendance) => (
+                      attendances
+                        .filter(attendance => !statusFilter || attendance.status === statusFilter)
+                        .map((attendance) => (
                         <tr key={attendance._id}>
                           <td>{attendance.employee?.name || "N/A"}</td>
                           <td>{formatDate(attendance.date)}</td>

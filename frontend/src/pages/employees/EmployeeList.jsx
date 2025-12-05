@@ -21,6 +21,7 @@ import {
   FaFilter,
   FaDownload,
   FaUsers,
+  FaClock,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -430,6 +431,15 @@ const EmployeeList = () => {
                             >
                               <FaEye className="me-2" />
                               View Details
+                            </Dropdown.Item>
+                            <Dropdown.Item
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/employee/attendance-report/${employee._id}`);
+                              }}
+                            >
+                              <FaClock className="me-2" />
+                              View Attendance
                             </Dropdown.Item>
                             <Dropdown.Item
                               onClick={(e) => {

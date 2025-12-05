@@ -122,7 +122,7 @@ router.get("/my-department", protect, getMyDepartmentProjects);
 router.get(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "manager", "hod", "employee", "client"),
+  authorizeRoles("admin", "superadmin", "hr", "manager", "hod", "employee", "client"),
   getProjectById
 );
 

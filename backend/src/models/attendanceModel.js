@@ -22,7 +22,7 @@ const attendanceSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ["present", "absent", "half-day", "late", "on-leave"],
-      default: "present",
+      // NO DEFAULT - will be calculated based on clockIn time
     },
     workHours: {
       type: Number,
@@ -45,14 +45,109 @@ const attendanceSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    // Manual override tracking
+    isManuallyModified: {
+      type: Boolean,
+      default: false,
+    },
+    originalStatus: {
+      type: String,
+      enum: ["present", "absent", "half-day", "late", "on-leave"],
+    },
+    originalClockIn: {
+      type: Date,
+    },
+    modificationHistory: [
+      {
+        modifiedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        modifiedAt: {
+          type: Date,
+          default: Date.now,
+        },
+        reason: {
+          type: String,
+          required: true,
+        },
+        changes: {
+          oldStatus: String,
+          newStatus: String,
+          oldClockIn: Date,
+          newClockIn: Date,
+          oldClockOut: Date,
+          newClockOut: Date,
+        },
+      },
+    ],
   },
   {
     timestamps: true,
   }
 );
 
-// Calculate work hours when clocking out
+// Method to track manual modifications
+attendanceSchema.methods.trackManualModification = function(modifiedBy, reason, changes) {
+  // Store original values if this is the first modification
+  if (!this.isManuallyModified) {
+    this.originalStatus = this.status;
+    this.originalClockIn = this.clockIn;
+    this.isManuallyModified = true;
+  }
+  
+  // Add to modification history
+  this.modificationHistory.push({
+    modifiedBy,
+    modifiedAt: new Date(),
+    reason,
+    changes,
+  });
+  
+  console.log(`[ATTENDANCE] Manual modification tracked by ${modifiedBy}: ${reason}`);
+};
+
+// Method to calculate status based on clock-in time
+attendanceSchema.methods.calculateStatus = function() {
+  // Don't override if status is manually set to absent or on-leave
+  if (this.status === 'absent' || this.status === 'on-leave') {
+    return this.status;
+  }
+  
+  if (!this.clockIn) {
+    return 'absent';
+  }
+  
+  const clockInTime = new Date(this.clockIn);
+  const clockInHour = clockInTime.getHours();
+  const clockInMinute = clockInTime.getMinutes();
+  
+  // CRITICAL BUSINESS RULES:
+  // - Before or at 10:30 AM = Present
+  // - After 10:30 AM but before 12:00 PM = Late
+  // - At or after 12:00 PM = Half-day
+  
+  if (clockInHour >= 12) {
+    // 12:00 PM or later = Half day
+    return "half-day";
+  } else if (clockInHour > 10 || (clockInHour === 10 && clockInMinute > 30)) {
+    // After 10:30 AM = Late
+    return "late";
+  } else {
+    // 10:30 AM or before = Present
+    return "present";
+  }
+};
+
+// PRE-SAVE HOOK: Always calculate status and work hours
 attendanceSchema.pre("save", function (next) {
+  // 1. Calculate status based on clockIn time (if not manually set to absent/on-leave)
+  if (this.clockIn && (!this.status || !['absent', 'on-leave'].includes(this.status))) {
+    this.status = this.calculateStatus();
+    console.log(`[ATTENDANCE] Calculated status: ${this.status} for clockIn: ${this.clockIn}`);
+  }
+  
+  // 2. Calculate work hours when clocking out
   if (this.clockIn && this.clockOut) {
     const diffTime = Math.abs(this.clockOut - this.clockIn);
     const diffHours = diffTime / (1000 * 60 * 60);
@@ -63,11 +158,16 @@ attendanceSchema.pre("save", function (next) {
       this.overtime = parseFloat((diffHours - 8).toFixed(2));
     }
   }
+  
   next();
 });
 
 // Compound index for employee and date to ensure one record per day
+// Add indexes for faster queries
 attendanceSchema.index({ employee: 1, date: 1 }, { unique: true });
+attendanceSchema.index({ date: -1 }); // For date range queries
+attendanceSchema.index({ employee: 1, status: 1 }); // For filtering by status
+attendanceSchema.index({ status: 1, date: -1 }); // For status reports
 
 const Attendance = mongoose.model("Attendance", attendanceSchema);
 

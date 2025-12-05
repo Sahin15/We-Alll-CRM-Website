@@ -1,39 +1,40 @@
 import Slot from '../models/slotModel.js';
 import Project from '../models/projectModel.js';
+import logger from '../utils/logger.js';
+import { canCreateWorkAssignment } from '../utils/permissions.js';
 
-// Check if user can create slots (Project Head, Admin, Superadmin)
+// Check if user can create slots (Project Head, Admin, Superadmin, or Team Member for themselves)
 export const canCreateSlot = async (req, res, next) => {
   try {
-    const { project } = req.body;
+    const { project, assignedTo } = req.body;
 
-    // Superadmin and Admin can create slots for any project
-    if (req.user.role === 'superadmin' || req.user.role === 'admin') {
-      return next();
+    if (!project) {
+      return res.status(400).json({
+        success: false,
+        message: 'Project is required'
+      });
     }
 
-    // Check if user is the project head
-    if (project) {
-      const projectDoc = await Project.findById(project);
-      
-      if (!projectDoc) {
-        return res.status(404).json({
-          success: false,
-          message: 'Project not found'
-        });
-      }
+    const projectDoc = await Project.findById(project).select('projectHead teamMembers department').lean();
+    
+    if (!projectDoc) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
 
-      // Check if user is the project head
-      if (projectDoc.projectHead && projectDoc.projectHead.toString() === req.user._id.toString()) {
-        return next();
-      }
+    // Use centralized permission check
+    if (canCreateWorkAssignment(req.user, projectDoc, assignedTo)) {
+      return next();
     }
 
     return res.status(403).json({
       success: false,
-      message: 'You do not have permission to create slots for this project'
+      message: 'You do not have permission to create work assignments for this project.'
     });
   } catch (error) {
-    console.error('Error in canCreateSlot middleware:', error);
+    logger.error('Error in canCreateSlot middleware:', error);
     return res.status(500).json({
       success: false,
       message: 'Error checking permissions',
@@ -55,8 +56,8 @@ export const canEditSlot = async (req, res, next) => {
       });
     }
 
-    // Superadmin and Admin can edit any slot
-    if (req.user.role === 'superadmin' || req.user.role === 'admin') {
+    // Superadmin, Admin, and HoD can edit any slot
+    if (['superadmin', 'admin', 'hod'].includes(req.user.role)) {
       return next();
     }
 
@@ -92,8 +93,8 @@ export const canDeleteSlot = async (req, res, next) => {
       });
     }
 
-    // Superadmin and Admin can delete any slot
-    if (req.user.role === 'superadmin' || req.user.role === 'admin') {
+    // Superadmin, Admin, and HoD can delete any slot
+    if (['superadmin', 'admin', 'hod'].includes(req.user.role)) {
       return next();
     }
 
@@ -129,8 +130,8 @@ export const canViewSlot = async (req, res, next) => {
       });
     }
 
-    // Superadmin and Admin can view any slot
-    if (req.user.role === 'superadmin' || req.user.role === 'admin') {
+    // Superadmin, Admin, and HoD can view any slot
+    if (['superadmin', 'admin', 'hod'].includes(req.user.role)) {
       return next();
     }
 
@@ -176,8 +177,8 @@ export const canUpdateStatus = async (req, res, next) => {
       });
     }
 
-    // Superadmin and Admin can update any slot status
-    if (req.user.role === 'superadmin' || req.user.role === 'admin') {
+    // Superadmin, Admin, and HoD can update any slot status
+    if (['superadmin', 'admin', 'hod'].includes(req.user.role)) {
       return next();
     }
 
@@ -190,6 +191,13 @@ export const canUpdateStatus = async (req, res, next) => {
     if (slot.assignedTo && slot.assignedTo.toString() === req.user._id.toString()) {
       return next();
     }
+
+    console.log('Permission denied for user:', {
+      userId: req.user._id,
+      userRole: req.user.role,
+      slotAssignedTo: slot.assignedTo?.toString(),
+      projectHead: slot.project?.projectHead?.toString()
+    });
 
     return res.status(403).json({
       success: false,
@@ -218,8 +226,8 @@ export const canUploadCreative = async (req, res, next) => {
       });
     }
 
-    // Superadmin and Admin can upload to any slot
-    if (req.user.role === 'superadmin' || req.user.role === 'admin') {
+    // Superadmin, Admin, and HoD can upload to any slot
+    if (['superadmin', 'admin', 'hod'].includes(req.user.role)) {
       return next();
     }
 

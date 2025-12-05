@@ -339,20 +339,6 @@ const HRDashboard = () => {
         </Col>
       </Row>
 
-      {/* Document Management - Critical HR Function */}
-      <Row className="mb-4">
-        <Col>
-          <DocumentManagement />
-        </Col>
-      </Row>
-
-      {/* Employee Directory */}
-      <Row className="mb-4">
-        <Col>
-          <EmployeeDirectory />
-        </Col>
-      </Row>
-
       {/* Calendar View */}
       <Row className="mb-4">
         <Col>
@@ -391,6 +377,20 @@ const HRDashboard = () => {
         </Col>
         <Col lg={7}>
           <ReportsAnalytics />
+        </Col>
+      </Row>
+
+      {/* Document Management - Moved to Bottom */}
+      <Row className="mb-4">
+        <Col>
+          <DocumentManagement />
+        </Col>
+      </Row>
+
+      {/* Employee Directory - Moved to Bottom */}
+      <Row className="mb-4">
+        <Col>
+          <EmployeeDirectory />
         </Col>
       </Row>
 

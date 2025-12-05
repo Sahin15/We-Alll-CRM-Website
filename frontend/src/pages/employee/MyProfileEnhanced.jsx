@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Form, Button, Tab, Tabs, Alert, Modal } from 'react-bootstrap';
-import { FaSave, FaLock, FaTrash, FaEye, FaTimes } from 'react-icons/fa';
+import { FaSave, FaLock, FaTrash, FaEye, FaTimes, FaClock, FaExternalLinkAlt } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 import toast from '../../utils/toast';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 
 const MyProfileEnhanced = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('basic');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1419,6 +1421,77 @@ const MyProfileEnhanced = () => {
                   <p className="mt-2 text-muted">Uploading document...</p>
                 </div>
               )}
+            </Card.Body>
+          </Card>
+        </Tab>
+
+        {/* Attendance Tab */}
+        <Tab eventKey="attendance" title={<><FaClock className="me-2" />Attendance</>}>
+          <Card>
+            <Card.Header className="bg-white">
+              <div className="d-flex justify-content-between align-items-center">
+                <h5 className="mb-0">
+                  <FaClock className="me-2 text-primary" />
+                  My Attendance Records
+                </h5>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => navigate(`/employee/attendance-report/${user?._id}`)}
+                >
+                  <FaExternalLinkAlt className="me-2" />
+                  View Full Report
+                </Button>
+              </div>
+            </Card.Header>
+            <Card.Body>
+              <Alert variant="info" className="mb-4">
+                <div className="d-flex align-items-center">
+                  <FaClock className="fs-4 me-3" />
+                  <div>
+                    <strong>View Your Complete Attendance Report</strong>
+                    <p className="mb-0 mt-1">
+                      Click "View Full Report" to see your month-wise attendance records, 
+                      including clock-in/out times, work hours, and detailed statistics.
+                    </p>
+                  </div>
+                </div>
+              </Alert>
+
+              <div className="text-center py-5">
+                <FaClock className="text-muted" style={{ fontSize: '4rem', opacity: 0.3 }} />
+                <h5 className="mt-3 mb-3">Attendance Report</h5>
+                <p className="text-muted mb-4">
+                  Access your complete attendance history with detailed statistics,<br />
+                  clock-in/out times, and export options for your records.
+                </p>
+                <Button
+                  variant="primary"
+                  size="lg"
+                  onClick={() => navigate(`/employee/attendance-report/${user?._id}`)}
+                >
+                  <FaExternalLinkAlt className="me-2" />
+                  Open Attendance Report
+                </Button>
+              </div>
+
+              <Row className="mt-4">
+                <Col md={12}>
+                  <Card className="border-0 bg-light">
+                    <Card.Body>
+                      <h6 className="mb-3">What's included in the report:</h6>
+                      <ul className="mb-0">
+                        <li>Month-wise attendance records</li>
+                        <li>Summary statistics (Present, Late, Half-day, Absent)</li>
+                        <li>Detailed clock-in and clock-out times</li>
+                        <li>Total work hours and averages</li>
+                        <li>Export to CSV or PDF for your records</li>
+                        <li>Modification history (if any changes were made)</li>
+                      </ul>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              </Row>
             </Card.Body>
           </Card>
         </Tab>

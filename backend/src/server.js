@@ -30,6 +30,7 @@ import policyRoutes from "./routes/policyRoutes.js";
 import documentRoutes from "./routes/documentRoutes.js";
 import slotRoutes from "./routes/slotRoutes.js";
 import workRoutes from "./routes/workRoutes.js";
+import workloadRoutes from "./routes/workloadRoutes.js";
 import { initializeCronJobs } from "./config/cronJobs.js";
 
 dotenv.config();
@@ -79,6 +80,7 @@ app.use("/api/policies", policyRoutes);
 app.use("/api/documents", documentRoutes);
 app.use("/api/slots", slotRoutes);
 app.use("/api/work", workRoutes);
+app.use("/api/workload", workloadRoutes);
 
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;

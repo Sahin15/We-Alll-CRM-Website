@@ -167,6 +167,13 @@ const projectSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Add indexes for faster queries
+projectSchema.index({ client: 1, status: 1 });
+projectSchema.index({ department: 1, status: 1 });
+projectSchema.index({ projectHead: 1 });
+projectSchema.index({ status: 1 });
+projectSchema.index({ assignedUsers: 1 });
+
 const Project = mongoose.model("Project", projectSchema);
 export default Project;
 

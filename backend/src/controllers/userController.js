@@ -2,6 +2,8 @@ import jwt from "jsonwebtoken";
 import User from "../models/userModel.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import logger from '../utils/logger.js';
+import { buildTextSearch } from '../utils/queryOptimizer.js';
 
 //generate token
 const generateToken = (id) => {
@@ -16,7 +18,7 @@ export const registerUser = async (req, res) => {
     const { name, email, password, role, phone, department, position } =
       req.body;
 
-    console.log("Registration attempt:", { name, email, role });
+    logger.info("Registration attempt:", { name, email, role });
 
     if (!name || !email || !password) {
       return res
@@ -46,7 +48,7 @@ export const registerUser = async (req, res) => {
       position,
     });
 
-    console.log("User created successfully:", user._id);
+    logger.success("User created successfully:", user._id);
 
     res.status(201).json({
       message: "User registered successfully",
@@ -61,22 +63,48 @@ export const registerUser = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error in registerUser:", error.message);
-    console.error("Full error:", error);
+    logger.error("Error in registerUser:", error);
     res.status(500).json({ message: "Server error: " + error.message });
   }
 };
 
-// Get all users (for testing or admin panel)
+// Get all users (optimized but backward compatible)
 export const getUsers = async (req, res) => {
   try {
-    const users = await User.find()
-      .select("-password")
-      .populate("department", "name")
-      .populate("manager", "name email");
+    const { search, role, department, status } = req.query;
+    
+    let query = {};
+    
+    // Search filter
+    if (search) {
+      Object.assign(query, buildTextSearch(search, ['name', 'email', 'phone']));
+    }
+    
+    // Role filter
+    if (role) query.role = role;
+    
+    // Department filter
+    if (department) query.department = department;
+    
+    // Status filter
+    if (status) query.status = status;
+    
+    logger.info('getUsers query:', query);
+    
+    // Optimized query WITHOUT pagination (backward compatible)
+    const users = await User.find(query)
+      .select('name email role department phone status designation')
+      .populate('department', 'name')
+      .populate('manager', 'name email')
+      .sort({ createdAt: -1 })
+      .lean();
+    
+    logger.success(`Found ${users.length} users`);
+    
+    // Return simple array (backward compatible)
     res.status(200).json(users);
   } catch (error) {
-    console.error("Error in getUsers:", error.message);
+    logger.error("Error in getUsers:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -86,7 +114,7 @@ export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    console.log("Login attempt for email:", email);
+    logger.info("Login attempt for email:", email);
 
     if (!email || !password) {
       return res.status(400).json({ message: "All fields are required" });
@@ -94,30 +122,21 @@ export const loginUser = async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
-      console.log("User not found for email:", email);
+      logger.warn("User not found for email:", email);
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
-    console.log("User found:", {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-    });
+    logger.info("User found:", user.email);
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      console.log("Password mismatch for user:", user.email);
+      logger.warn("Password mismatch for user:", user.email);
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
     const token = generateToken(user._id);
 
-    console.log("Login successful for user:", {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    });
+    logger.success("Login successful for user:", user.email);
 
     res.status(200).json({
       message: "Login successful",
@@ -134,7 +153,7 @@ export const loginUser = async (req, res) => {
       token,
     });
   } catch (error) {
-    console.error("Error in loginUser:", error.message);
+    logger.error("Error in loginUser:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -153,7 +172,7 @@ export const getUserById = async (req, res) => {
 
     res.status(200).json(user);
   } catch (error) {
-    console.error("Error in getUserById:", error.message);
+    logger.error("Error in getUserById:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -230,7 +249,7 @@ export const updateUserProfile = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error in updateUserProfile:", error.message);
+    logger.error("Error in updateUserProfile:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -241,7 +260,7 @@ export const updateUser = async (req, res) => {
     const { id } = req.params;
     const updateData = { ...req.body };
 
-    console.log("Updating user:", id, "with data:", updateData);
+    logger.info("Updating user:", id);
 
     const user = await User.findById(id);
     if (!user) {
@@ -265,7 +284,7 @@ export const updateUser = async (req, res) => {
 
     await user.save();
 
-    console.log("User updated successfully:", user._id);
+    logger.success("User updated successfully:", user._id);
 
     res.status(200).json({
       message: "User updated successfully",
@@ -280,8 +299,7 @@ export const updateUser = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error in updateUser:", error.message);
-    console.error("Full error:", error);
+    logger.error("Error in updateUser:", error);
     res.status(500).json({ message: "Server error: " + error.message });
   }
 };
@@ -311,7 +329,7 @@ export const updateUserStatus = async (req, res) => {
       user,
     });
   } catch (error) {
-    console.error("Error in updateUserStatus:", error.message);
+    logger.error("Error in updateUserStatus:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -360,7 +378,7 @@ export const requestPasswordReset = async (req, res) => {
       resetUrl, // Remove in production
     });
   } catch (error) {
-    console.error("Error in requestPasswordReset:", error.message);
+    logger.error("Error in requestPasswordReset:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -410,7 +428,7 @@ export const resetPassword = async (req, res) => {
       message: "Password reset successfully",
     });
   } catch (error) {
-    console.error("Error in resetPassword:", error.message);
+    logger.error("Error in resetPassword:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -454,7 +472,7 @@ export const changePassword = async (req, res) => {
       message: "Password changed successfully",
     });
   } catch (error) {
-    console.error("Error in changePassword:", error.message);
+    logger.error("Error in changePassword:", error);
     res.status(500).json({ message: "Server error" });
   }
 };

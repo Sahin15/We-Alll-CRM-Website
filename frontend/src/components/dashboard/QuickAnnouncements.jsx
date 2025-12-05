@@ -1,15 +1,36 @@
-import { Card, ListGroup, Badge, Button } from 'react-bootstrap';
-import { FaBullhorn, FaPlus, FaEye } from 'react-icons/fa';
+import { useState, useEffect } from 'react';
+import { Card, ListGroup, Badge, Button, Spinner } from 'react-bootstrap';
+import { FaBullhorn, FaEye } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
+import api from '../../services/api';
 
-const QuickAnnouncements = ({ announcements = [], onAnnouncementClick }) => {
+const QuickAnnouncements = ({ onAnnouncementClick }) => {
   const navigate = useNavigate();
+  const [announcements, setAnnouncements] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAnnouncements();
+  }, []);
+
+  const fetchAnnouncements = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/announcements');
+      setAnnouncements(response.data || []);
+    } catch (error) {
+      console.error('Error fetching announcements:', error);
+      setAnnouncements([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAnnouncementClick = (announcement) => {
     if (onAnnouncementClick) {
       onAnnouncementClick(announcement);
     } else {
-      navigate('/announcements');
+      navigate('/employee/announcements');
     }
   };
 
@@ -34,7 +55,7 @@ const QuickAnnouncements = ({ announcements = [], onAnnouncementClick }) => {
   };
 
   return (
-    <Card className="border-0 shadow-sm h-100">
+    <Card className="dashboard-card border-0 shadow-sm h-100">
       <Card.Body>
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h5 className="mb-0">
@@ -44,21 +65,33 @@ const QuickAnnouncements = ({ announcements = [], onAnnouncementClick }) => {
           <Button 
             size="sm" 
             variant="outline-primary"
-            onClick={() => navigate('/announcements')}
+            onClick={() => navigate('/employee/announcements')}
           >
-            <FaPlus className="me-1" />New
+            <FaEye className="me-1" />View All
           </Button>
         </div>
-        <ListGroup variant="flush" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-          {displayAnnouncements.slice(0, 5).map((announcement) => (
+        
+        {loading ? (
+          <div className="text-center py-5">
+            <Spinner animation="border" size="sm" />
+          </div>
+        ) : (
+          <ListGroup variant="flush" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+            {displayAnnouncements.slice(0, 5).map((announcement) => (
             <ListGroup.Item 
               key={announcement._id || announcement.id} 
               className="px-0 py-3 border-bottom cursor-pointer"
               onClick={() => handleAnnouncementClick(announcement)}
-              style={{ transition: 'all 0.2s ease' }}
+              style={{ 
+                transition: 'all 0.2s ease',
+                backgroundColor: announcement.isPinned ? 'rgba(255, 193, 7, 0.05)' : 'transparent'
+              }}
             >
               <div className="d-flex justify-content-between align-items-start mb-2">
-                <h6 className="mb-0">{announcement.title}</h6>
+                <h6 className="mb-0">
+                  {announcement.isPinned && <span className="me-2">📌</span>}
+                  {announcement.title}
+                </h6>
                 {getTypeBadge(announcement.type)}
               </div>
               <p className="text-muted mb-2 small">
@@ -73,8 +106,10 @@ const QuickAnnouncements = ({ announcements = [], onAnnouncementClick }) => {
               </div>
             </ListGroup.Item>
           ))}
-        </ListGroup>
-        {displayAnnouncements.length === 0 && (
+          </ListGroup>
+        )}
+        
+        {!loading && displayAnnouncements.length === 0 && (
           <div className="text-center py-4 text-muted">
             <FaBullhorn style={{ fontSize: '2rem', opacity: 0.3 }} />
             <p className="mt-2 mb-0">No announcements</p>

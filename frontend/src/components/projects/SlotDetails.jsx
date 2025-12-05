@@ -229,10 +229,10 @@ const SlotDetails = ({ show, onHide, slot, onUpdate, isProjectHead = false, curr
             <Alert variant="info" className="mb-3">
               <Row>
                 <Col md={6}>
-                  <strong>Project:</strong> {slot.project.name}
+                  <strong>Project:</strong> {slot.project?.name || 'N/A'}
                 </Col>
                 <Col md={6}>
-                  <strong>Client:</strong> {slot.client.name}
+                  <strong>Client:</strong> {slot.client?.name || 'N/A'}
                 </Col>
               </Row>
             </Alert>
@@ -242,189 +242,260 @@ const SlotDetails = ({ show, onHide, slot, onUpdate, isProjectHead = false, curr
               <Card.Body>
                 <Row className="g-3">
                   <Col md={3}>
-                    <div className="text-muted small">Design Status</div>
+                    <div className="text-muted small">Work Type</div>
+                    <Badge bg="secondary">{slot.workType || slot.postType}</Badge>
+                  </Col>
+                  <Col md={3}>
+                    <div className="text-muted small">Status</div>
                     {isEditing && isProjectHead ? (
                       <Form.Select
-                        name="designStatus"
-                        value={formData.designStatus}
+                        name="status"
+                        value={formData.status || formData.designStatus}
                         onChange={handleChange}
                         size="sm"
                       >
-                        {designStatuses.map((status) => (
-                          <option key={status} value={status}>
-                            {status}
-                          </option>
-                        ))}
+                        <option value="Pending">Pending</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Review">Review</option>
+                        <option value="Revision">Revision</option>
+                        <option value="Approved">Approved</option>
+                        <option value="Completed">Completed</option>
                       </Form.Select>
                     ) : (
-                      <Badge bg="light" text="dark" style={{ backgroundColor: statusColors[slot.designStatus] }}>
-                        {slot.designStatus}
+                      <Badge bg="light" text="dark" style={{ backgroundColor: statusColors[slot.status || slot.designStatus] }}>
+                        {slot.status || slot.designStatus}
                       </Badge>
                     )}
                   </Col>
                   <Col md={3}>
-                    <div className="text-muted small">Posting Status</div>
-                    <Badge bg="secondary">{slot.postingStatus}</Badge>
-                  </Col>
-                  <Col md={3}>
-                    <div className="text-muted small">
-                      <FaClock className="me-1" />
-                      Design Deadline
-                    </div>
-                    <div className="fw-semibold">{formatDate(slot.designDeadline)}</div>
+                    <div className="text-muted small">Priority</div>
+                    <Badge bg={
+                      slot.priority === 'Urgent' ? 'danger' :
+                      slot.priority === 'High' ? 'warning' :
+                      slot.priority === 'Medium' ? 'info' : 'secondary'
+                    }>
+                      {slot.priority || 'Medium'}
+                    </Badge>
                   </Col>
                   <Col md={3}>
                     <div className="text-muted small">
                       <FaCalendar className="me-1" />
-                      Posting Date
+                      Due Date
                     </div>
-                    <div className="fw-semibold">{formatDate(slot.postingDate)}</div>
+                    <div className="fw-semibold">{formatDate(slot.dueDate || slot.postingDate)}</div>
                   </Col>
                 </Row>
               </Card.Body>
             </Card>
 
             <Row className="g-3">
-              {/* Post Type */}
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Post Type</Form.Label>
-                  {isEditing && isProjectHead ? (
-                    <Form.Select name="postType" value={formData.postType} onChange={handleChange}>
-                      {postTypes.map((type) => (
-                        <option key={type} value={type}>
-                          {type}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  ) : (
-                    <div>
-                      <Badge bg="secondary">{slot.postType}</Badge>
-                    </div>
-                  )}
-                </Form.Group>
-              </Col>
-
-              {/* Content Bucket */}
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Content Bucket</Form.Label>
-                  {isEditing && isProjectHead ? (
-                    <Form.Select name="contentBucket" value={formData.contentBucket} onChange={handleChange}>
-                      {contentBuckets.map((bucket) => (
-                        <option key={bucket} value={bucket}>
-                          {bucket}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  ) : (
-                    <div>{slot.contentBucket}</div>
-                  )}
-                </Form.Group>
-              </Col>
-
-              {/* Platforms */}
+              {/* Title */}
               <Col md={12}>
                 <Form.Group>
-                  <Form.Label>Platforms</Form.Label>
-                  {isEditing && isProjectHead ? (
-                    <div>
-                      <div className="d-flex flex-wrap gap-2 mb-2">
-                        {platforms.map((platform) => (
-                          <Form.Check
-                            key={platform}
-                            type="checkbox"
-                            id={`edit-platform-${platform}`}
-                            label={platform}
-                            checked={formData.platforms.includes(platform)}
-                            onChange={() => handlePlatformChange(platform)}
-                          />
+                  <Form.Label>Title</Form.Label>
+                  <div className="fw-semibold">{slot.title || slot.brief?.substring(0, 100)}</div>
+                </Form.Group>
+              </Col>
+
+              {/* Description */}
+              <Col md={12}>
+                <Form.Group>
+                  <Form.Label>Description</Form.Label>
+                  <Card>
+                    <Card.Body>{slot.description || slot.brief}</Card.Body>
+                  </Card>
+                </Form.Group>
+              </Col>
+
+              {/* Digital Marketing Fields */}
+              {slot.platforms && slot.platforms.length > 0 && (
+                <>
+                  <Col md={12}>
+                    <Form.Group>
+                      <Form.Label>Platforms</Form.Label>
+                      <div className="d-flex flex-wrap gap-1">
+                        {slot.platforms.map((platform) => (
+                          <Badge key={platform} bg="info" className="text-white">
+                            {platform}
+                          </Badge>
                         ))}
                       </div>
-                      {errors.platforms && <div className="text-danger small">{errors.platforms}</div>}
-                    </div>
-                  ) : (
-                    <div className="d-flex flex-wrap gap-1">
-                      {slot.platforms.map((platform) => (
-                        <Badge key={platform} bg="info" className="text-white">
-                          {platform}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </Form.Group>
-              </Col>
+                    </Form.Group>
+                  </Col>
 
-              {/* Occasion */}
-              <Col md={12}>
-                <Form.Group>
-                  <Form.Label>Occasion / Campaign</Form.Label>
-                  {isEditing && isProjectHead ? (
-                    <Form.Control
-                      type="text"
-                      name="occasion"
-                      value={formData.occasion}
-                      onChange={handleChange}
-                      placeholder="e.g., Diwali 2025"
-                    />
-                  ) : (
-                    <div>{slot.occasion || "-"}</div>
+                  {slot.postType && (
+                    <Col md={6}>
+                      <Form.Group>
+                        <Form.Label>Post Type</Form.Label>
+                        <div><Badge bg="secondary">{slot.postType}</Badge></div>
+                      </Form.Group>
+                    </Col>
                   )}
-                </Form.Group>
-              </Col>
 
-              {/* Brief */}
-              <Col md={12}>
-                <Form.Group>
-                  <Form.Label>Brief / Creative Idea</Form.Label>
-                  {isEditing && isProjectHead ? (
-                    <Form.Control
-                      as="textarea"
-                      rows={3}
-                      name="brief"
-                      value={formData.brief}
-                      onChange={handleChange}
-                      isInvalid={!!errors.brief}
-                    />
-                  ) : (
-                    <Card>
-                      <Card.Body>{slot.brief}</Card.Body>
-                    </Card>
+                  {slot.occasion && (
+                    <Col md={6}>
+                      <Form.Group>
+                        <Form.Label>Occasion / Campaign</Form.Label>
+                        <div>{slot.occasion}</div>
+                      </Form.Group>
+                    </Col>
                   )}
-                </Form.Group>
-              </Col>
 
-              {/* Caption */}
-              <Col md={12}>
-                <Form.Group>
-                  <Form.Label>Caption</Form.Label>
-                  {isEditing ? (
-                    <Form.Control
-                      as="textarea"
-                      rows={3}
-                      name="caption"
-                      value={formData.caption}
-                      onChange={handleChange}
-                    />
-                  ) : (
-                    <Card>
-                      <Card.Body>{slot.caption || <em className="text-muted">No caption yet</em>}</Card.Body>
-                    </Card>
+                  {slot.caption && (
+                    <Col md={12}>
+                      <Form.Group>
+                        <Form.Label>Caption</Form.Label>
+                        <Card>
+                          <Card.Body>{slot.caption}</Card.Body>
+                        </Card>
+                      </Form.Group>
+                    </Col>
                   )}
-                </Form.Group>
-              </Col>
 
-              {/* Hashtags */}
-              <Col md={12}>
-                <Form.Group>
-                  <Form.Label>Hashtags</Form.Label>
-                  {isEditing ? (
-                    <Form.Control type="text" name="hashtags" value={formData.hashtags} onChange={handleChange} />
-                  ) : (
-                    <div>{slot.hashtags || <em className="text-muted">No hashtags</em>}</div>
+                  {slot.hashtags && (
+                    <Col md={12}>
+                      <Form.Group>
+                        <Form.Label>Hashtags</Form.Label>
+                        <div>{slot.hashtags}</div>
+                      </Form.Group>
+                    </Col>
                   )}
-                </Form.Group>
-              </Col>
+                </>
+              )}
+
+              {/* Development Fields */}
+              {slot.metadata?.repository && (
+                <>
+                  <Col md={6}>
+                    <Form.Group>
+                      <Form.Label>Repository</Form.Label>
+                      <div>
+                        <a href={`https://${slot.metadata.repository}`} target="_blank" rel="noopener noreferrer">
+                          {slot.metadata.repository}
+                        </a>
+                      </div>
+                    </Form.Group>
+                  </Col>
+
+                  {slot.metadata.branch && (
+                    <Col md={6}>
+                      <Form.Group>
+                        <Form.Label>Branch</Form.Label>
+                        <div><Badge bg="secondary">{slot.metadata.branch}</Badge></div>
+                      </Form.Group>
+                    </Col>
+                  )}
+
+                  {slot.metadata.pullRequestUrl && (
+                    <Col md={12}>
+                      <Form.Group>
+                        <Form.Label>Pull Request</Form.Label>
+                        <div>
+                          <a href={slot.metadata.pullRequestUrl} target="_blank" rel="noopener noreferrer">
+                            {slot.metadata.pullRequestUrl}
+                          </a>
+                        </div>
+                      </Form.Group>
+                    </Col>
+                  )}
+
+                  {slot.metadata.techStack && (
+                    <Col md={6}>
+                      <Form.Group>
+                        <Form.Label>Tech Stack</Form.Label>
+                        <div>{slot.metadata.techStack}</div>
+                      </Form.Group>
+                    </Col>
+                  )}
+
+                  {slot.metadata.estimatedHours && (
+                    <Col md={6}>
+                      <Form.Group>
+                        <Form.Label>Estimated Hours</Form.Label>
+                        <div>{slot.metadata.estimatedHours} hours</div>
+                      </Form.Group>
+                    </Col>
+                  )}
+                </>
+              )}
+
+              {/* Design Fields */}
+              {slot.metadata?.designType && (
+                <>
+                  <Col md={6}>
+                    <Form.Group>
+                      <Form.Label>Design Type</Form.Label>
+                      <div><Badge bg="info">{slot.metadata.designType}</Badge></div>
+                    </Form.Group>
+                  </Col>
+
+                  {slot.metadata.dimensions && (
+                    <Col md={6}>
+                      <Form.Group>
+                        <Form.Label>Dimensions</Form.Label>
+                        <div>{slot.metadata.dimensions}</div>
+                      </Form.Group>
+                    </Col>
+                  )}
+
+                  {slot.metadata.fileFormat && (
+                    <Col md={6}>
+                      <Form.Group>
+                        <Form.Label>File Format</Form.Label>
+                        <div>{slot.metadata.fileFormat}</div>
+                      </Form.Group>
+                    </Col>
+                  )}
+
+                  {slot.metadata.colorScheme && (
+                    <Col md={6}>
+                      <Form.Group>
+                        <Form.Label>Color Scheme</Form.Label>
+                        <div>{slot.metadata.colorScheme}</div>
+                      </Form.Group>
+                    </Col>
+                  )}
+                </>
+              )}
+
+              {/* Video Fields */}
+              {slot.metadata?.videoType && (
+                <>
+                  <Col md={6}>
+                    <Form.Group>
+                      <Form.Label>Video Type</Form.Label>
+                      <div><Badge bg="info">{slot.metadata.videoType}</Badge></div>
+                    </Form.Group>
+                  </Col>
+
+                  {slot.metadata.duration && (
+                    <Col md={6}>
+                      <Form.Group>
+                        <Form.Label>Duration</Form.Label>
+                        <div>{slot.metadata.duration}</div>
+                      </Form.Group>
+                    </Col>
+                  )}
+
+                  {slot.metadata.resolution && (
+                    <Col md={6}>
+                      <Form.Group>
+                        <Form.Label>Resolution</Form.Label>
+                        <div>{slot.metadata.resolution}</div>
+                      </Form.Group>
+                    </Col>
+                  )}
+
+                  {slot.metadata.aspectRatio && (
+                    <Col md={6}>
+                      <Form.Group>
+                        <Form.Label>Aspect Ratio</Form.Label>
+                        <div>{slot.metadata.aspectRatio}</div>
+                      </Form.Group>
+                    </Col>
+                  )}
+                </>
+              )}
 
               {/* Assigned To */}
               <Col md={6}>
@@ -434,8 +505,10 @@ const SlotDetails = ({ show, onHide, slot, onUpdate, isProjectHead = false, curr
                     Assigned To
                   </Form.Label>
                   <div>
-                    <strong>{slot.assignedTo.name}</strong>
-                    <div className="text-muted small">{slot.assignedTo.designation}</div>
+                    <strong>{slot.assignedTo?.name || 'Unassigned'}</strong>
+                    {slot.assignedTo?.designation && (
+                      <div className="text-muted small">{slot.assignedTo.designation}</div>
+                    )}
                   </div>
                 </Form.Group>
               </Col>
@@ -445,8 +518,10 @@ const SlotDetails = ({ show, onHide, slot, onUpdate, isProjectHead = false, curr
                 <Form.Group>
                   <Form.Label>Created By</Form.Label>
                   <div>
-                    <strong>{slot.createdBy.name}</strong>
-                    <div className="text-muted small">{formatTimestamp(slot.createdAt)}</div>
+                    <strong>{slot.createdBy?.name || 'Unknown'}</strong>
+                    {slot.createdAt && (
+                      <div className="text-muted small">{formatTimestamp(slot.createdAt)}</div>
+                    )}
                   </div>
                 </Form.Group>
               </Col>

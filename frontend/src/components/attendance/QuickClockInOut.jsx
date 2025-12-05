@@ -37,7 +37,9 @@ const QuickClockInOut = ({ variant = "light", size = "sm", showLabel = true }) =
       const response = await api.get("/attendance/today");
       setTodayAttendance(response.data);
     } catch (error) {
-      // No attendance for today yet
+      // No attendance for today yet or access denied
+      // Silently handle - user might not have clocked in yet
+      console.log("No attendance record for today or access denied");
       setTodayAttendance(null);
     }
   };

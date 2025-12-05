@@ -40,7 +40,22 @@ const NotificationBell = () => {
       await markAsRead(notification._id);
     }
 
-    // Navigate to relevant page based on notification type and data
+    // Navigate to relevant page based on notification type or link
+    // First check if notification has a direct link
+    if (notification.link) {
+      navigate(notification.link);
+      setShow(false);
+      return;
+    }
+
+    // Then check notification type
+    if (notification.type === 'announcement' || notification.type === 'urgent') {
+      navigate('/employee/announcements');
+      setShow(false);
+      return;
+    }
+
+    // Navigate based on notification data
     if (notification.data) {
       // Admin/Billing notifications
       if (notification.data.invoiceId) {
@@ -70,6 +85,10 @@ const NotificationBell = () => {
       else if (notification.data.projectId) {
         navigate(`/projects/${notification.data.projectId}`);
       }
+      // Announcement notifications
+      else if (notification.data.announcementId) {
+        navigate(`/employee/announcements`);
+      }
     }
 
     setShow(false);
@@ -82,6 +101,15 @@ const NotificationBell = () => {
 
   const getNotificationIcon = (type) => {
     const icons = {
+      // Announcements (different types)
+      announcement: "📢",
+      urgent: "⚠️",
+      important: "❗",
+      general: "ℹ️",
+      event: "📅",
+      holiday: "🎉",
+      policy: "📋",
+      
       // Billing/Payment
       payment_due: "💰",
       payment_submitted: "📝",
@@ -93,33 +121,50 @@ const NotificationBell = () => {
       subscription_cancelled: "🚫",
       plan_updated: "📋",
       service_added: "➕",
+      
       // Leave Management
       leave_requested: "📅",
       leave_approved: "✅",
       leave_rejected: "❌",
       leave_cancelled: "🚫",
+      
       // Task Management
       task_assigned: "📋",
       task_completed: "✅",
       task_overdue: "⏰",
       task_updated: "📝",
+      task_reminder: "🔔",
+      
       // Attendance
       attendance_late: "⏰",
       attendance_absent: "❌",
       attendance_reminder: "🔔",
+      attendance_approved: "✅",
+      
       // Employee/HR
       employee_joined: "👋",
       employee_left: "👋",
       document_uploaded: "📄",
       document_approved: "✅",
+      document_rejected: "❌",
+      
       // Projects
       project_assigned: "🎯",
       project_completed: "🎉",
       project_deadline: "⏰",
+      project_updated: "📝",
+      
+      // Meetings
+      meeting_scheduled: "📅",
+      meeting_reminder: "🔔",
+      meeting_cancelled: "🚫",
+      
       // General
-      announcement: "📢",
       reminder: "🔔",
-      general: "ℹ️",
+      info: "ℹ️",
+      success: "✅",
+      warning: "⚠️",
+      error: "❌",
     };
     return icons[type] || "ℹ️";
   };

@@ -7,8 +7,10 @@ import {
   notifyProjectHeadCreativeUploaded,
   notifySlotComment 
 } from '../utils/slotNotifications.js';
+import logger from '../utils/logger.js';
+import { optimizedSlotPopulate, buildTextSearch, buildDateRangeQuery } from '../utils/queryOptimizer.js';
 
-// @desc    Get all slots (with filters)
+// @desc    Get all slots (optimized but backward compatible)
 // @route   GET /api/slots
 // @access  Private
 export const getAllSlots = async (req, res) => {
@@ -23,67 +25,41 @@ export const getAllSlots = async (req, res) => {
       search 
     } = req.query;
 
+    // Build query
     let query = {};
 
-    // SIMPLIFIED: Just apply filters, no complex permission logic for now
-    // TODO: Add proper permission filtering later
-
-    // Filter by project
     if (project) query.project = project;
-
-    // Filter by assigned employee
     if (assignedTo) query.assignedTo = assignedTo;
-
-    // Filter by design status
-    if (status) query.designStatus = status;
-
-    // Filter by platform
+    if (status) query.status = status;
     if (platform) query.platforms = platform;
 
-    // Filter by date range
-    if (startDate || endDate) {
-      query.postingDate = {};
-      if (startDate) query.postingDate.$gte = new Date(startDate);
-      if (endDate) query.postingDate.$lte = new Date(endDate);
-    }
+    // Date range filter
+    Object.assign(query, buildDateRangeQuery(startDate, endDate, 'dueDate'));
 
-    // Search in brief, caption, occasion, hashtags
+    // Search filter
     if (search) {
-      query.$or = [
-        { brief: { $regex: search, $options: 'i' } },
-        { caption: { $regex: search, $options: 'i' } },
-        { occasion: { $regex: search, $options: 'i' } },
-        { hashtags: { $regex: search, $options: 'i' } }
-      ];
+      Object.assign(query, buildTextSearch(search, ['title', 'description', 'brief', 'occasion']));
     }
 
-    console.log('📋 getAllSlots - User:', req.user.email, 'Role:', req.user.role);
-    console.log('📋 Query:', JSON.stringify(query, null, 2));
+    logger.info('getAllSlots - User:', req.user.email);
 
+    // Optimized query WITHOUT pagination (backward compatible)
     const slots = await Slot.find(query)
-      .populate('client', 'name')
-      .populate('project', 'name')
-      .populate('assignedTo', 'name email designation')
-      .populate('createdBy', 'name')
-      .sort({ postingDate: 1 });
+      .select('title description status priority dueDate assignedTo project client workType brief designStatus postingDate')
+      .populate(optimizedSlotPopulate())
+      .sort({ dueDate: 1 })
+      .lean();
 
-    console.log('📋 Found', slots.length, 'slots');
-    if (slots.length > 0) {
-      console.log('📋 First slot:', {
-        brief: slots[0].brief?.substring(0, 30),
-        designDeadline: slots[0].designDeadline,
-        postingDate: slots[0].postingDate,
-        project: slots[0].project?.name
-      });
-    }
+    logger.success(`Found ${slots.length} slots`);
 
+    // Return simple response (backward compatible)
     res.json({
       success: true,
       count: slots.length,
       data: slots
     });
   } catch (error) {
-    console.error('❌ Error fetching slots:', error);
+    logger.error('Error fetching slots:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching slots',
@@ -92,10 +68,36 @@ export const getAllSlots = async (req, res) => {
   }
 };
 
-// @desc    Get slots by project
+// @desc    Get slots by project (optimized but backward compatible)
 // @route   GET /api/slots/project/:projectId
 // @access  Private
 export const getSlotsByProject = async (req, res) => {
+  try {
+    const slots = await Slot.find({ project: req.params.projectId })
+      .select('title description status priority dueDate assignedTo workType project client metadata platforms postType occasion')
+      .populate('assignedTo', 'name email designation')
+      .populate('project', 'name')
+      .populate('client', 'name')
+      .sort({ dueDate: 1 })
+      .lean();
+
+    res.json({
+      success: true,
+      count: slots.length,
+      data: slots
+    });
+  } catch (error) {
+    logger.error('Error fetching project slots:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching slots',
+      error: error.message
+    });
+  }
+};
+
+// Legacy function - keeping for backward compatibility
+export const getSlotsByProjectLegacy = async (req, res) => {
   try {
     const slots = await Slot.find({ project: req.params.projectId })
       .populate('client', 'name')
@@ -429,7 +431,11 @@ export const updateSlotStatus = async (req, res) => {
 
     // Update status (new format)
     if (status) {
-      slot.status = status;
+      // Validate status is in the enum
+      const validStatuses = ["Pending", "In Progress", "Review", "Revision", "Approved", "Completed", "Cancelled"];
+      if (validStatuses.includes(status)) {
+        slot.status = status;
+      }
       
       // Map new status to legacy designStatus for backward compatibility
       const statusMap = {
@@ -440,12 +446,20 @@ export const updateSlotStatus = async (req, res) => {
         'Revision': 'Revision Needed',
         'Completed': 'Approved'
       };
-      slot.designStatus = statusMap[status] || 'Planned';
+      
+      const mappedDesignStatus = statusMap[status];
+      if (mappedDesignStatus) {
+        slot.designStatus = mappedDesignStatus;
+      }
     }
     
     // Update legacy designStatus
     if (designStatus) {
-      slot.designStatus = designStatus;
+      // Validate designStatus is in the enum
+      const validDesignStatuses = ["Planned", "In Design", "Ready for Review", "Approved", "Revision Needed", "Needs Revision"];
+      if (validDesignStatuses.includes(designStatus)) {
+        slot.designStatus = designStatus;
+      }
       
       // Map legacy status to new status
       const legacyMap = {
@@ -453,9 +467,14 @@ export const updateSlotStatus = async (req, res) => {
         'In Design': 'In Progress',
         'Ready for Review': 'Review',
         'Approved': 'Approved',
-        'Revision Needed': 'Revision'
+        'Revision Needed': 'Revision',
+        'Needs Revision': 'Revision'
       };
-      slot.status = legacyMap[designStatus] || 'Pending';
+      
+      const mappedStatus = legacyMap[designStatus];
+      if (mappedStatus) {
+        slot.status = mappedStatus;
+      }
     }
 
     // Handle approval workflow
@@ -471,7 +490,7 @@ export const updateSlotStatus = async (req, res) => {
       }
     }
 
-    await slot.save();
+    await slot.save({ validateModifiedOnly: true });
 
     const updatedSlot = await Slot.findById(slot._id)
       .populate('client', 'name')

@@ -56,7 +56,8 @@ const SlotCalendar = ({ slots = [], onSlotClick, onDateClick, canCreateSlot = fa
     dateToCheck.setHours(0, 0, 0, 0);
 
     return slots.filter((slot) => {
-      const slotDate = new Date(slot.postingDate);
+      // Support both postingDate (legacy) and dueDate (new)
+      const slotDate = new Date(slot.dueDate || slot.postingDate);
       slotDate.setHours(0, 0, 0, 0);
       return slotDate.getTime() === dateToCheck.getTime();
     });
@@ -79,12 +80,12 @@ const SlotCalendar = ({ slots = [], onSlotClick, onDateClick, canCreateSlot = fa
   // Get status color for slot
   const getSlotColor = (slot) => {
     // Check if overdue
-    const slotDate = new Date(slot.postingDate);
+    const slotDate = new Date(slot.dueDate || slot.postingDate);
     slotDate.setHours(0, 0, 0, 0);
-    if (slotDate < today && slot.postingStatus !== "Posted") {
+    if (slotDate < today && slot.status !== "Completed" && slot.status !== "Approved" && slot.postingStatus !== "Posted") {
       return "#dc3545"; // Red for overdue
     }
-    return statusColors[slot.designStatus] || "#6c757d";
+    return statusColors[slot.status || slot.designStatus] || "#6c757d";
   };
 
   // Handle date click
@@ -130,11 +131,13 @@ const SlotCalendar = ({ slots = [], onSlotClick, onDateClick, canCreateSlot = fa
                           e.stopPropagation();
                           onSlotClick && onSlotClick(slot);
                         }}
-                        title={`${slot.postType} - ${slot.occasion || slot.contentBucket}`}
+                        title={`${slot.workType || slot.postType} - ${slot.title || slot.occasion || slot.contentBucket}`}
                       >
                         <span className="slot-text">
-                          {slot.postType} - {slot.platforms[0]}
-                          {slot.platforms.length > 1 && ` +${slot.platforms.length - 1}`}
+                          {slot.workType || slot.postType}
+                          {slot.platforms && slot.platforms.length > 0 && ` - ${slot.platforms[0]}`}
+                          {slot.platforms && slot.platforms.length > 1 && ` +${slot.platforms.length - 1}`}
+                          {!slot.platforms && slot.assignedTo && ` - ${slot.assignedTo.name}`}
                         </span>
                       </div>
                     ))}

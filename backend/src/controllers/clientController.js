@@ -4,6 +4,8 @@ import Bill from "../models/billModel.js";
 import Payment from "../models/paymentModel.js";
 import Notification from "../models/notificationModel.js";
 import User from "../models/userModel.js";
+import logger from '../utils/logger.js';
+import { buildTextSearch } from '../utils/queryOptimizer.js';
 
 // Add new client
 export const createClient = async (req, res) => {
@@ -59,18 +61,44 @@ export const createClient = async (req, res) => {
       client,
     });
   } catch (error) {
-    console.error("Error creating client:", error.message);
+    logger.error("Error creating client:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
 
-// Get all clients
+// Get all clients (optimized but backward compatible)
 export const getClients = async (req, res) => {
   try {
-    const clients = await Client.find().populate("createdBy", "name email");
+    const { search, status, industry } = req.query;
+    
+    let query = {};
+    
+    // Search filter
+    if (search) {
+      Object.assign(query, buildTextSearch(search, ['name', 'email', 'company', 'ownername']));
+    }
+    
+    // Status filter
+    if (status) query.status = status;
+    
+    // Industry filter
+    if (industry) query.industry = industry;
+    
+    logger.info('getClients query:', query);
+    
+    // Optimized query WITHOUT pagination (backward compatible)
+    const clients = await Client.find(query)
+      .select('name email phone company status industry createdAt')
+      .populate('createdBy', 'name email')
+      .sort({ createdAt: -1 })
+      .lean();
+    
+    logger.success(`Found ${clients.length} clients`);
+    
+    // Return simple array (backward compatible)
     res.status(200).json(clients);
   } catch (error) {
-    console.error("Error fetching clients:", error.message);
+    logger.error("Error fetching clients:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -85,7 +113,7 @@ export const getClientById = async (req, res) => {
     if (!client) return res.status(404).json({ message: "Client not found" });
     res.status(200).json(client);
   } catch (error) {
-    console.error("Error fetching client:", error.message);
+    logger.error("Error fetching client:", error);
     res.status(500).json({ message: "Server error" });
   }
 };

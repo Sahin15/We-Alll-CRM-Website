@@ -1,34 +1,66 @@
-# 🚀 CRM System - Complete Business Management Solution
+# 🏢 ERP/CRM Management System
 
-A full-stack CRM system built with MERN stack (MongoDB, Express, React, Node.js) featuring billing management, payment verification, invoice generation, and multi-company support.
+A comprehensive Enterprise Resource Planning and Customer Relationship Management system built with MERN stack (MongoDB, Express, React, Node.js) for modern businesses.
 
 ---
 
 ## ✨ Features
 
-### 🎯 Core Features
-- **Multi-Company Support** - Manage multiple companies with easy switching
-- **Service Management** - Create and manage services with pricing tiers
-- **Plan Builder** - Build custom plans with multiple services
-- **Invoice Generation** - Create and send invoices with PDF export
-- **Payment Verification** - Admin workflow for payment approval
-- **Dashboard Analytics** - Revenue tracking and business insights
-- **Notification System** - Real-time notifications for important events
-- **Profile Management** - User profiles with picture upload
+### 👥 User Management
+- Multi-role system (Admin, HR, HoD, HoP, Employee, Client)
+- Role-based access control and permissions
+- User profile management with picture upload
+- Department and team management
 
-### 🔐 Security
-- JWT Authentication
-- Role-based access control (Admin, Client)
-- Secure file uploads to AWS S3
-- Environment-based configuration
+### ⏰ Attendance System
+- Clock in/out functionality
+- Manual attendance modifications (HR)
+- Attendance reports and analytics
+- Department attendance overview
+- Late arrival tracking
 
-### 💼 Business Features
-- Subscription management
-- Billing cycle tracking
-- Payment proof uploads
-- Invoice status tracking
+### 🏖️ Leave Management
+- Leave request submission
+- Approval workflow
+- Leave balance tracking
+- Leave history and reports
+
+### 📁 Project Management
+- Project creation and management
+- Team assignment
+- Task/slot management
+- Progress tracking
+- Workload balancing
+
+### 📋 Work Assignment
+- Task creation with priorities
+- Smart employee assignment
+- Workload indicators
+- Department-specific work forms
+- Approval workflows
+
+### 📢 Communication
+- Company-wide announcements
+- Targeted announcements by role/department
+- Real-time notification system
+- Notification routing and icons
+
+### 📅 Calendar & Scheduling
+- Content calendar
+- Event scheduling
+- Task deadlines
+
+### 💰 Billing & Invoicing
+- Client billing management
+- Invoice generation with PDF export
+- Payment tracking
 - Revenue analytics
-- Popular services/plans tracking
+
+### 📊 Dashboards
+- Role-based dashboards
+- Real-time data visualization
+- Performance metrics
+- Workload analytics
 
 ---
 
@@ -37,53 +69,55 @@ A full-stack CRM system built with MERN stack (MongoDB, Express, React, Node.js)
 ### Frontend
 - **React 18** - UI framework
 - **Vite** - Build tool
-- **React Bootstrap 5** - UI components
+- **React Bootstrap** - UI components
 - **React Router v6** - Routing
 - **Axios** - HTTP client
 - **Context API** - State management
 - **React Toastify** - Notifications
+- **Chart.js** - Data visualization
 
 ### Backend
-- **Node.js 20** - Runtime
-- **Express 5** - Web framework
+- **Node.js** - Runtime environment
+- **Express** - Web framework
 - **MongoDB** - Database
 - **Mongoose** - ODM
 - **JWT** - Authentication
-- **Sharp** - Image processing
+- **Bcrypt** - Password hashing
+- **Multer** - File uploads
 - **AWS S3** - File storage
-- **Nodemailer** - Email (optional)
 
 ### DevOps
-- **PM2** - Process manager
-- **Nginx** - Web server
+- **PM2** - Process manager (optional)
 - **Docker** - Containerization (optional)
-- **Let's Encrypt** - SSL certificates
 
 ---
 
 ## 📋 Prerequisites
 
-- Node.js 20.x or higher
-- MongoDB (Atlas or local)
-- AWS S3 account
-- npm or yarn
+- Node.js 18.x or higher
+- MongoDB (Atlas or local installation)
+- npm or yarn package manager
 
 ---
 
-## 🚀 Quick Start (Development)
+## 🚀 Quick Start
 
 ### 1. Clone Repository
 ```bash
-git clone https://github.com/yourusername/crm-website.git
-cd crm-website
+git clone https://github.com/yourusername/erp-crm-system.git
+cd erp-crm-system
 ```
 
 ### 2. Setup Backend
 ```bash
 cd backend
 npm install
+
+# Create .env file
 cp .env.example .env
-# Edit .env with your credentials
+# Edit .env with your MongoDB URI and JWT secret
+
+# Start backend server
 npm run dev
 ```
 
@@ -91,251 +125,257 @@ npm run dev
 ```bash
 cd frontend
 npm install
-# Edit .env with API URL
+
+# Create .env file with backend API URL
+echo "VITE_API_URL=http://localhost:5000/api" > .env
+
+# Start frontend development server
 npm run dev
 ```
 
 ### 4. Access Application
-- Frontend: http://localhost:5173
-- Backend: http://localhost:5000
+- **Frontend:** http://localhost:5173
+- **Backend API:** http://localhost:5000
 
----
-
-## 🌐 Production Deployment
-
-### 📚 Complete Deployment Guides Available!
-
-We have comprehensive step-by-step guides for deploying your CRM system:
-
-### 🎯 Start Here:
-👉 **[docs/DEPLOYMENT_QUICK_START.md](./docs/DEPLOYMENT_QUICK_START.md)**
-- Choose your deployment method
-- Compare options
-- Get cost estimates
-- Quick setup instructions
-
-### 📖 Detailed Guides:
-
-1. **[Simple Deployment Guide](./docs/SERVER_DEPLOYMENT_GUIDE.md)** (Recommended for beginners)
-   - Traditional deployment with PM2 + Nginx
-   - Step-by-step instructions
-   - ~45 minutes setup time
-   - $12-15/month cost
-
-2. **[Docker Deployment Guide](./docs/DOCKER_DEPLOYMENT_GUIDE.md)** (Recommended for production)
-   - Containerized deployment
-   - Easy updates and scaling
-   - ~45 minutes setup time
-   - $12-15/month cost
-
-3. **[Deployment Checklist](./docs/DEPLOYMENT_CHECKLIST.md)**
-   - Complete checklist for deployment
-   - Testing procedures
-   - Maintenance schedule
-
-### 🐳 Docker Quick Start:
-```bash
-# Clone and configure
-git clone https://github.com/yourusername/crm-website.git
-cd crm-website
-
-# Configure environment
-nano backend/.env.production
-nano frontend/.env.production
-
-# Start with Docker
-docker-compose up -d --build
-
-# Access at http://your_server_ip:3000
-```
+### 5. Default Login
+After seeding the database, use these credentials:
+- **Admin:** admin@company.com / password
+- **HR:** hr@company.com / password
+- **Employee:** employee@company.com / password
 
 ---
 
 ## 📁 Project Structure
 
 ```
-crm-website/
+erp-crm-system/
 ├── backend/                 # Node.js backend
 │   ├── src/
+│   │   ├── config/         # Configuration files
 │   │   ├── controllers/    # Route controllers
 │   │   ├── models/         # MongoDB models
 │   │   ├── routes/         # API routes
-│   │   ├── middleware/     # Custom middleware
-│   │   ├── utils/          # Utility functions
+│   │   ├── middleware/     # Authentication & validation
+│   │   ├── services/       # Business logic
+│   │   ├── utils/          # Helper functions
 │   │   └── server.js       # Entry point
 │   ├── .env.example        # Environment template
-│   ├── Dockerfile          # Docker config
 │   └── package.json
 │
 ├── frontend/               # React frontend
 │   ├── src/
-│   │   ├── components/     # React components
+│   │   ├── api/            # API integration
+│   │   ├── components/     # Reusable components
+│   │   ├── context/        # State management
 │   │   ├── pages/          # Page components
-│   │   ├── context/        # Context providers
-│   │   ├── services/       # API services
+│   │   ├── routes/         # Routing configuration
+│   │   ├── services/       # Frontend services
+│   │   ├── styles/         # CSS files
+│   │   ├── utils/          # Helper functions
 │   │   └── App.jsx         # Main app
 │   ├── .env                # Environment config
-│   ├── Dockerfile          # Docker config
 │   └── package.json
 │
-├── docs/                   # Documentation
-│   ├── README.md           # Docs index
-│   ├── DEPLOYMENT_QUICK_START.md
-│   ├── SERVER_DEPLOYMENT_GUIDE.md
-│   ├── DOCKER_DEPLOYMENT_GUIDE.md
-│   └── ...more guides
-│
-├── docker-compose.yml      # Docker Compose config
-└── README.md              # This file
+├── .gitignore
+└── README.md               # This file
 ```
 
 ---
 
-## 🎯 Key Features Implemented
+## 👥 User Roles & Permissions
 
-### ✅ Completed (Tasks 1-7):
-- [x] Project structure and infrastructure
-- [x] Company context and multi-company support
-- [x] Notification system with real-time updates
-- [x] Shared components (DataTable, SearchBar, Filters, etc.)
-- [x] Complete API service layer
-- [x] Service Management (CRUD)
-- [x] Plan Management with wizard builder
-- [x] Invoice Management with PDF generation
-- [x] Payment Verification workflow
-- [x] Admin Dashboard with analytics
-- [x] Profile picture upload (AWS S3)
-
-### 📋 In Progress (Tasks 8-18):
-- [ ] Responsive design enhancements
-- [ ] Accessibility improvements
-- [ ] Advanced data table features
-- [ ] Performance optimization
-- [ ] Comprehensive testing
-- [ ] Final documentation
+| Role | Key Permissions |
+|------|----------------|
+| **Admin** | Full system access, user management, system settings |
+| **HR** | Employee management, attendance tracking, leave approvals |
+| **HoD** (Head of Department) | Department oversight, team management, attendance review |
+| **HoP** (Head of Project) | Project management, task assignment, team coordination |
+| **Employee** | Personal dashboard, attendance, task management, leave requests |
+| **Client** | Project view, billing information, communication |
 
 ---
 
 ## 🔧 Configuration
 
-### Backend Environment Variables (.env):
+### Backend Environment Variables (.env)
 ```env
-MONGO_URI=mongodb://localhost:27017/crm-database
-JWT_SECRET=your_jwt_secret_key
-JWT_EXPIRE=30d
-AWS_ACCESS_KEY_ID=your_aws_key
-AWS_SECRET_ACCESS_KEY=your_aws_secret
-AWS_REGION=us-east-1
-AWS_S3_BUCKET_NAME=crm-payment-proofs
-PORT=5000
+# Server
 NODE_ENV=development
+PORT=5000
+
+# Database
+MONGO_URI=mongodb://localhost:27017/erp-crm
+
+# Authentication
+JWT_SECRET=your_super_secret_jwt_key_here
+JWT_EXPIRE=30d
+
+# AWS S3 (Optional - for file uploads)
+AWS_ACCESS_KEY_ID=your_aws_access_key
+AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+AWS_REGION=us-east-1
+AWS_S3_BUCKET_NAME=your-bucket-name
+
+# Email (Optional - for notifications)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
 ```
 
-### Frontend Environment Variables (.env):
+### Frontend Environment Variables (.env)
 ```env
 VITE_API_URL=http://localhost:5000/api
 ```
 
 ---
 
-## 📊 API Documentation
+## 📊 API Endpoints
 
 ### Authentication
 - `POST /api/auth/register` - Register new user
 - `POST /api/auth/login` - Login user
 - `GET /api/auth/me` - Get current user
+- `PUT /api/auth/update-profile` - Update profile
 
-### Services
-- `GET /api/services` - Get all services
-- `POST /api/services` - Create service
-- `PUT /api/services/:id` - Update service
-- `DELETE /api/services/:id` - Delete service
+### Users
+- `GET /api/users` - Get all users
+- `GET /api/users/:id` - Get user by ID
+- `POST /api/users` - Create user
+- `PUT /api/users/:id` - Update user
+- `DELETE /api/users/:id` - Delete user
 
-### Plans
-- `GET /api/plans` - Get all plans
-- `POST /api/plans` - Create plan
-- `PUT /api/plans/:id` - Update plan
-- `DELETE /api/plans/:id` - Delete plan
+### Attendance
+- `POST /api/attendance/clock-in` - Clock in
+- `POST /api/attendance/clock-out` - Clock out
+- `GET /api/attendance` - Get attendance records
+- `GET /api/attendance/stats` - Get attendance statistics
+- `PUT /api/attendance/:id` - Update attendance (HR only)
 
-### Invoices
-- `GET /api/invoices` - Get all invoices
-- `POST /api/invoices` - Create invoice
-- `POST /api/invoices/:id/send` - Send invoice
-- `GET /api/invoices/:id/pdf` - Generate PDF
+### Leaves
+- `GET /api/leaves` - Get leave requests
+- `POST /api/leaves` - Create leave request
+- `PUT /api/leaves/:id/approve` - Approve leave
+- `PUT /api/leaves/:id/reject` - Reject leave
 
-### Payments
-- `GET /api/payments` - Get all payments
-- `GET /api/payments/pending-verification` - Get pending payments
-- `PUT /api/payments/:id/verify` - Verify payment
-- `PUT /api/payments/:id/reject` - Reject payment
+### Projects
+- `GET /api/projects` - Get all projects
+- `POST /api/projects` - Create project
+- `PUT /api/projects/:id` - Update project
+- `DELETE /api/projects/:id` - Delete project
 
-*Full API documentation coming soon*
+### Tasks/Work
+- `GET /api/tasks` - Get tasks
+- `POST /api/tasks` - Create task
+- `PUT /api/tasks/:id` - Update task
+- `DELETE /api/tasks/:id` - Delete task
 
----
+### Announcements
+- `GET /api/announcements` - Get announcements
+- `POST /api/announcements` - Create announcement
+- `PUT /api/announcements/:id` - Update announcement
+- `DELETE /api/announcements/:id` - Delete announcement
 
-## 🧪 Testing
-
-### Run Tests:
-```bash
-# Backend tests
-cd backend
-npm test
-
-# Frontend tests (coming soon)
-cd frontend
-npm test
-```
-
----
-
-## 📈 Performance
-
-- Page load time: < 3 seconds
-- API response time: < 500ms
-- Image optimization: Automatic (Sharp)
-- Caching: Nginx static file caching
-- Database: Indexed queries
+### Notifications
+- `GET /api/notifications` - Get user notifications
+- `PUT /api/notifications/:id/read` - Mark as read
+- `PUT /api/notifications/read-all` - Mark all as read
 
 ---
 
 ## 🔒 Security Features
 
-- JWT token authentication
-- Password hashing (bcrypt)
+- **JWT Authentication** - Secure token-based authentication
+- **Password Hashing** - Bcrypt password encryption
+- **Role-Based Access Control** - Granular permissions system
+- **Input Validation** - Server-side validation for all inputs
+- **CORS Configuration** - Controlled cross-origin requests
+- **XSS Protection** - Sanitized user inputs
+- **MongoDB Injection Prevention** - Mongoose schema validation
+
+---
+
+## 🧪 Testing
+
+```bash
+# Backend tests
+cd backend
+npm test
+
+# Frontend tests
+cd frontend
+npm test
+
+# Run linting
+npm run lint
+```
+
+---
+
+## 📈 Performance Optimization
+
+- Lazy loading for routes and components
+- Image optimization
+- API response caching
+- Database query optimization with indexes
+- Pagination for large datasets
+- Debounced search inputs
+
+---
+
+## 🚀 Deployment
+
+### Production Build
+
+**Backend:**
+```bash
+cd backend
+npm install --production
+npm start
+```
+
+**Frontend:**
+```bash
+cd frontend
+npm run build
+# Serve the dist/ folder with a web server
+```
+
+### Environment Setup for Production
+- Set `NODE_ENV=production`
+- Use strong JWT secret
+- Configure production MongoDB URI
+- Set up CORS for your domain
+- Enable HTTPS/SSL
+
+---
+
+## 🗺️ Roadmap
+
+### ✅ Completed
+- User authentication & authorization
 - Role-based access control
-- Input validation and sanitization
-- CORS configuration
-- Rate limiting (optional)
-- SQL injection prevention (Mongoose)
-- XSS protection
-- HTTPS/SSL support
+- Attendance management system
+- Leave management system
+- Project management
+- Work assignment system
+- Announcements & notifications
+- Dashboard analytics
+- Workload management
 
----
+### 🚧 In Progress
+- Mobile responsiveness improvements
+- Performance optimization
+- Advanced reporting
 
-## 💰 Deployment Costs
-
-### Monthly Costs:
-- **Server:** $12/month (DigitalOcean 2GB)
-- **Domain:** $1/month ($12/year)
-- **MongoDB Atlas:** Free (512MB tier)
-- **AWS S3:** $1-2/month
-- **SSL:** Free (Let's Encrypt)
-
-**Total: ~$14-16/month**
-
----
-
-## 📚 Documentation
-
-All documentation is in the `docs/` folder:
-
-- **[Documentation Index](./docs/README.md)** - Complete docs overview
-- **[Deployment Quick Start](./docs/DEPLOYMENT_QUICK_START.md)** - Start here!
-- **[Server Deployment Guide](./docs/SERVER_DEPLOYMENT_GUIDE.md)** - Traditional deployment
-- **[Docker Deployment Guide](./docs/DOCKER_DEPLOYMENT_GUIDE.md)** - Docker deployment
-- **[Deployment Checklist](./docs/DEPLOYMENT_CHECKLIST.md)** - Deployment checklist
-- **[Feature Analysis](./docs/TASKS_2-6_ANALYSIS.md)** - What's been built
-- **[AWS S3 Setup](./docs/AWS_S3_CONFIGURATION_COMPLETE.md)** - S3 configuration
+### 📋 Planned
+- Email notifications
+- Real-time updates with WebSockets
+- Mobile application
+- Advanced analytics dashboard
+- API documentation with Swagger
+- Automated testing suite
+- CI/CD pipeline
 
 ---
 
@@ -353,68 +393,33 @@ Contributions are welcome! Please follow these steps:
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.
 
 ---
 
 ## 👨‍💻 Author
 
-**Sahin Mondal**
+**Your Name**
+- GitHub: [@yourusername](https://github.com/yourusername)
+- Email: your.email@example.com
 
 ---
 
 ## 🙏 Acknowledgments
 
-- React team for the amazing framework
-- MongoDB team for the database
-- AWS for S3 storage
-- Bootstrap team for UI components
+- MERN Stack community
+- React Bootstrap team
+- MongoDB team
 - All open-source contributors
 
 ---
 
 ## 📞 Support
 
-For deployment help or issues:
-1. Check the [documentation](./docs/README.md)
-2. Review the [troubleshooting guides](./docs/SERVER_DEPLOYMENT_GUIDE.md#troubleshooting)
-3. Open an issue on GitHub
-
----
-
-## 🗺️ Roadmap
-
-### Phase 1: Core Features ✅ COMPLETE
-- Authentication & Authorization
-- Service & Plan Management
-- Invoice & Payment System
-- Dashboard Analytics
-
-### Phase 2: Enhancements (Current)
-- Responsive design
-- Accessibility
-- Performance optimization
-- Comprehensive testing
-
-### Phase 3: Advanced Features (Future)
-- Email notifications
-- Advanced reporting
-- Mobile app
-- API documentation
-- Automated testing
-- CI/CD pipeline
-
----
-
-## 🎉 Ready to Deploy?
-
-1. **Read the guides:** Start with [DEPLOYMENT_QUICK_START.md](./docs/DEPLOYMENT_QUICK_START.md)
-2. **Choose your method:** Simple or Docker deployment
-3. **Follow step-by-step:** Complete deployment guide
-4. **Test everything:** Use the deployment checklist
-5. **Go live:** Launch your CRM system!
-
-**Good luck! 🚀**
+For issues or questions:
+- Open an issue on GitHub
+- Check existing documentation
+- Contact the development team
 
 ---
 
