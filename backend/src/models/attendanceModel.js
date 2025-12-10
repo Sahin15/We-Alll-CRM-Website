@@ -162,18 +162,24 @@ attendanceSchema.methods.calculateStatus = function() {
 // PRE-SAVE HOOK: Always calculate status and work hours
 attendanceSchema.pre("save", function (next) {
   try {
+    console.log(`[ATTENDANCE] PRE-SAVE: Processing attendance record...`);
+    console.log(`[ATTENDANCE] PRE-SAVE: Current status: ${this.status}, clockIn: ${this.clockIn}, isManuallyModified: ${this.isManuallyModified}`);
+    
     // 1. ALWAYS calculate status based on clockIn time (unless manually set to absent/on-leave)
     if (this.clockIn) {
-      // Only skip calculation if manually set to absent or on-leave
+      // Only skip calculation if manually set to absent or on-leave AND it's manually modified
       const isManualAbsentOrLeave = (this.status === 'absent' || this.status === 'on-leave') && this.isManuallyModified;
       
       if (!isManualAbsentOrLeave) {
+        const oldStatus = this.status;
         const newStatus = this.calculateStatus();
-        console.log(`[ATTENDANCE] PRE-SAVE: Calculating status for clockIn: ${this.clockIn} → ${newStatus}`);
+        console.log(`[ATTENDANCE] PRE-SAVE: Status calculation: ${oldStatus} → ${newStatus}`);
         this.status = newStatus;
       } else {
-        console.log(`[ATTENDANCE] PRE-SAVE: Skipping calculation - manually set to ${this.status}`);
+        console.log(`[ATTENDANCE] PRE-SAVE: ⚠️  Skipping calculation - manually set to ${this.status}`);
       }
+    } else {
+      console.log(`[ATTENDANCE] PRE-SAVE: ⚠️  No clockIn time found`);
     }
     
     // 2. Calculate work hours when clocking out
@@ -186,11 +192,14 @@ attendanceSchema.pre("save", function (next) {
       if (diffHours > 8) {
         this.overtime = parseFloat((diffHours - 8).toFixed(2));
       }
+      
+      console.log(`[ATTENDANCE] PRE-SAVE: Work hours calculated: ${this.workHours}`);
     }
     
+    console.log(`[ATTENDANCE] PRE-SAVE: ✅ Final status: ${this.status}`);
     next();
   } catch (error) {
-    console.error('[ATTENDANCE] Error in pre-save hook:', error);
+    console.error('[ATTENDANCE] ❌ Error in pre-save hook:', error);
     next(error);
   }
 });

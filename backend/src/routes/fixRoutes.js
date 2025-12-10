@@ -5,6 +5,11 @@ import { protect, authorize } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
+// Simple test route (no auth)
+router.get("/test", (req, res) => {
+  res.json({ message: "Fix routes are working!", timestamp: new Date() });
+});
+
 // Fix attendance status for recent records
 router.post("/fix-attendance", protect, authorize("admin", "superadmin", "hr"), async (req, res) => {
   try {
@@ -159,6 +164,64 @@ router.get("/check-departments", protect, authorize("admin", "superadmin", "hr")
       message: "Error checking department assignments",
       error: error.message
     });
+  }
+});
+
+// Debug endpoint to test attendance status calculation (no auth required)
+router.get("/debug-attendance-status", async (req, res) => {
+  try {
+    const { time } = req.query; // Format: "14:30"
+    
+    if (!time) {
+      return res.status(400).json({ 
+        message: "Please provide time parameter (e.g., ?time=14:30)"
+      });
+    }
+    
+    // Parse time
+    const [hours, minutes] = time.split(':').map(Number);
+    if (isNaN(hours) || isNaN(minutes)) {
+      return res.status(400).json({ 
+        message: "Invalid time format. Use HH:MM (e.g., 14:30)"
+      });
+    }
+    
+    const totalMinutes = hours * 60 + minutes;
+    
+    // Apply the same logic as the model
+    let calculatedStatus;
+    if (totalMinutes >= 720) {
+      calculatedStatus = "half-day"; // 12:00 PM or later
+    } else if (totalMinutes > 630) {
+      calculatedStatus = "late"; // 10:31 AM to 11:59 AM
+    } else {
+      calculatedStatus = "present"; // 00:00 to 10:30 AM
+    }
+    
+    res.status(200).json({
+      inputTime: time,
+      hours: hours,
+      minutes: minutes,
+      totalMinutes: totalMinutes,
+      calculatedStatus: calculatedStatus,
+      rules: {
+        present: "00:00 - 10:30 (0-630 minutes)",
+        late: "10:31 - 11:59 (631-719 minutes)", 
+        halfDay: "12:00+ (720+ minutes)"
+      },
+      testCases: {
+        "09:00": "present",
+        "10:30": "present", 
+        "10:31": "late",
+        "11:59": "late",
+        "12:00": "half-day",
+        "14:30": "half-day"
+      }
+    });
+    
+  } catch (error) {
+    console.error("Error in debug attendance status:", error);
+    res.status(500).json({ message: "Server error" });
   }
 });
 

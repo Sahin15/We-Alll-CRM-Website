@@ -31,7 +31,7 @@ import documentRoutes from "./routes/documentRoutes.js";
 import workloadRoutes from "./routes/workloadRoutes.js";
 import workItemRoutes from "./routes/workItemRoutes.js";
 import calendarRoutes from "./routes/calendarRoutes.js";
-import fixRoutes from "./routes/fixRoutes.js";
+// import fixRoutes from "./routes/fixRoutes.js"; // Temporarily disabled
 // Legacy routes removed - use workItemRoutes instead
 // Old: taskRoutes, slotRoutes, workRoutes → New: workItemRoutes
 import { initializeCronJobs } from "./config/cronJobs.js";
@@ -96,7 +96,7 @@ app.use("/api/documents", apiLimiter, documentRoutes);
 app.use("/api/workload", apiLimiter, workloadRoutes);
 app.use("/api/work-items", apiLimiter, workItemRoutes);
 app.use("/api/calendar", apiLimiter, calendarRoutes);
-app.use("/api/fix", apiLimiter, fixRoutes);
+// app.use("/api/fix", apiLimiter, fixRoutes); // Temporarily disabled
 // Legacy routes removed:
 // - /api/tasks → use /api/work-items
 // - /api/slots → use /api/work-items

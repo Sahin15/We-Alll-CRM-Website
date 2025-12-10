@@ -13,6 +13,8 @@ import {
   deleteAttendance,
   getAttendanceReport,
   getTodayAttendance,
+  recalculateTodayStatus,
+  debugStatusCalculation,
   downloadAttendancePDF,
 } from "../controllers/attendanceController.js";
 import { protect } from "../middleware/authMiddleware.js";
@@ -25,6 +27,8 @@ router.post("/clock-in", protect, clockIn);
 router.post("/clock-out", protect, clockOut);
 router.get("/my-attendance", protect, getMyAttendance);
 router.get("/today", protect, getTodayAttendance);
+router.post("/recalculate-today", protect, recalculateTodayStatus);
+router.get("/debug-status", debugStatusCalculation); // No auth for testing
 
 // Reports
 router.get(

@@ -47,13 +47,22 @@ export const clockIn = async (req, res) => {
     
     // Create attendance with date at midnight for consistency with unique index
     // Status will be calculated by the pre-save hook in the model
-    const attendance = await Attendance.create({
+    console.log(`[CLOCK-IN] Creating attendance for ${req.user.name} (${req.user.role}) at ${clockInTime.toLocaleString()}`);
+    
+    // Create attendance object without status - let the model calculate it
+    const attendanceData = {
       employee,
       date: today, // Use today at midnight, not new Date()
       clockIn: clockInTime,
       location,
-      // NO status field - let the model calculate it
-    });
+      // Explicitly NO status field - model will calculate it
+    };
+    
+    console.log(`[CLOCK-IN] Attendance data:`, attendanceData);
+    
+    const attendance = await Attendance.create(attendanceData);
+
+    console.log(`[CLOCK-IN] ✅ Attendance created with status: ${attendance.status} for ${req.user.name} (${req.user.role})`);
 
     // Determine message based on calculated status
     let message;
@@ -643,6 +652,110 @@ export const getTodayAttendance = async (req, res) => {
     res.status(200).json(attendance);
   } catch (error) {
     console.error("Error in getTodayAttendance:", error.message);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Debug endpoint to test status calculation (no auth required)
+export const debugStatusCalculation = async (req, res) => {
+  try {
+    const { time } = req.query; // Format: "14:30"
+    
+    if (!time) {
+      return res.status(400).json({ 
+        message: "Please provide time parameter (e.g., ?time=14:30)"
+      });
+    }
+    
+    // Parse time
+    const [hours, minutes] = time.split(':').map(Number);
+    if (isNaN(hours) || isNaN(minutes)) {
+      return res.status(400).json({ 
+        message: "Invalid time format. Use HH:MM (e.g., 14:30)"
+      });
+    }
+    
+    const totalMinutes = hours * 60 + minutes;
+    
+    // Apply the same logic as the model
+    let calculatedStatus;
+    if (totalMinutes >= 720) {
+      calculatedStatus = "half-day"; // 12:00 PM or later
+    } else if (totalMinutes > 630) {
+      calculatedStatus = "late"; // 10:31 AM to 11:59 AM
+    } else {
+      calculatedStatus = "present"; // 00:00 to 10:30 AM
+    }
+    
+    res.status(200).json({
+      inputTime: time,
+      hours: hours,
+      minutes: minutes,
+      totalMinutes: totalMinutes,
+      calculatedStatus: calculatedStatus,
+      rules: {
+        present: "00:00 - 10:30 (0-630 minutes)",
+        late: "10:31 - 11:59 (631-719 minutes)", 
+        halfDay: "12:00+ (720+ minutes)"
+      }
+    });
+    
+  } catch (error) {
+    console.error("Error in debugStatusCalculation:", error.message);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Force recalculate today's attendance status
+export const recalculateTodayStatus = async (req, res) => {
+  try {
+    const employee = req.user.id;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const attendance = await Attendance.findOne({
+      employee,
+      date: {
+        $gte: today,
+        $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+      },
+    });
+
+    if (!attendance) {
+      return res.status(404).json({ 
+        message: "No attendance record found for today"
+      });
+    }
+
+    // Force recalculate status
+    const oldStatus = attendance.status;
+    const newStatus = attendance.calculateStatus();
+    
+    console.log(`[RECALCULATE] ${req.user.name}: ${oldStatus} → ${newStatus}`);
+    
+    if (oldStatus !== newStatus) {
+      attendance.status = newStatus;
+      await attendance.save();
+      
+      res.status(200).json({
+        message: `Status recalculated: ${oldStatus} → ${newStatus}`,
+        attendance,
+        changed: true,
+        oldStatus,
+        newStatus
+      });
+    } else {
+      res.status(200).json({
+        message: "Status is already correct",
+        attendance,
+        changed: false,
+        status: newStatus
+      });
+    }
+    
+  } catch (error) {
+    console.error("Error in recalculateTodayStatus:", error.message);
     res.status(500).json({ message: "Server error" });
   }
 };
