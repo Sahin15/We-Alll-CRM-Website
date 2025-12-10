@@ -33,7 +33,7 @@ import AnnouncementManagement from "../../components/hr/AnnouncementManagement";
 import QuickStatsWidgets from "../../components/hr/QuickStatsWidgets";
 import EmployeeDirectory from "../../components/hr/EmployeeDirectory";
 import NotificationCenter from "../../components/hr/NotificationCenter";
-import CalendarView from "../../components/hr/CalendarView";
+
 import ReportsAnalytics from "../../components/hr/ReportsAnalytics";
 import DocumentManagement from "../../components/hr/DocumentManagement";
 import { useAuth } from "../../context/AuthContext";
@@ -339,12 +339,7 @@ const HRDashboard = () => {
         </Col>
       </Row>
 
-      {/* Calendar View */}
-      <Row className="mb-4">
-        <Col>
-          <CalendarView />
-        </Col>
-      </Row>
+
 
       {/* Meeting Management - Full Width */}
       <Row className="mb-4">

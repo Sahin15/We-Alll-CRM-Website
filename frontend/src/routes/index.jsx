@@ -26,18 +26,16 @@ import HoDDashboard from "../pages/hod/HoDDashboard";
 
 // Employee Pages
 import MyProjects from "../pages/employee/MyProjects";
-import MySlots from "../pages/employee/MySlots";
-import MyWork from "../pages/employee/MyWork";
+import MyWorkPage from "../pages/employee/MyWorkPage";
 import TeamDirectory from "../pages/employee/TeamDirectory";
 import Announcements from "../pages/employee/Announcements";
 import EmployeeMyAttendance from "../pages/employee/MyAttendance";
 import EmployeeMyLeaves from "../pages/employee/MyLeaves";
-import MyTasks from "../pages/employee/MyTasks";
 import EmployeeAttendanceReport from "../pages/employee/EmployeeAttendanceReport";
 import TimeTracking from "../pages/employee/TimeTracking";
-import MyProfileEnhanced from "../pages/employee/MyProfileEnhanced";
 import Policies from "../pages/employee/Policies";
 import Settings from "../pages/employee/Settings";
+// Removed old imports: MySlots, MyWork, MyTasks, MyProfileEnhanced
 import HRSettings from "../pages/hr/HRSettings";
 import AdminSettings from "../pages/admin/AdminSettings";
 import HODSettings from "../pages/hod/HODSettings";
@@ -50,6 +48,7 @@ import UserDetails from "../pages/users/UserDetails";
 import EmployeeList from "../pages/employees/EmployeeList";
 import AddEmployee from "../pages/employees/AddEmployee";
 import EditEmployee from "../pages/employees/EditEmployee";
+import EmployeeWorkDetails from "../pages/employees/EmployeeWorkDetails";
 
 // Department Pages
 import DepartmentList from "../pages/departments/DepartmentList";
@@ -73,10 +72,13 @@ import LeadDetails from "../pages/leads/LeadDetails";
 
 // Project Pages
 import ProjectList from "../pages/projects/ProjectList";
+import ProjectListPage from "../pages/projects/ProjectListPage";
 import ProjectDetails from "../pages/projects/ProjectDetails";
+import ProjectWorkspace from "../pages/projects/ProjectWorkspace";
 
 // Calendar Pages
-import ContentCalendar from "../pages/calendar/ContentCalendar";
+import CalendarPage from "../pages/calendar/CalendarPage";
+// Removed old import: ContentCalendar
 
 // Profile Pages
 import MyProfile from "../pages/profile/MyProfile";
@@ -190,6 +192,14 @@ const AppRoutes = () => {
           }
         />
         <Route
+          path="/employees/:id/work"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
+              <EmployeeWorkDetails />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
           path="/employees/:id"
           element={
             <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
@@ -226,19 +236,18 @@ const AppRoutes = () => {
 
         {/* Employee Portal Routes */}
         <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
-        <Route path="/employee/my-work" element={<MyWork />} />
+        <Route path="/employee/my-work" element={<MyWorkPage />} />
         <Route path="/employee/attendance" element={<EmployeeMyAttendance />} />
         <Route path="/employee/attendance-report/:employeeId" element={<EmployeeAttendanceReport />} />
         <Route path="/employee/leaves" element={<EmployeeMyLeaves />} />
         <Route path="/employee/projects" element={<MyProjects />} />
-        <Route path="/employee/slots" element={<MySlots />} />
-        <Route path="/employee/tasks" element={<MyTasks />} />
         <Route path="/employee/time-tracking" element={<TimeTracking />} />
         <Route path="/employee/team" element={<TeamDirectory />} />
         <Route path="/employee/announcements" element={<Announcements />} />
         <Route path="/employee/policies" element={<Policies />} />
         <Route path="/employee/settings" element={<Settings />} />
-        <Route path="/employee/profile" element={<MyProfileEnhanced />} />
+        <Route path="/employee/profile" element={<MyProfile />} />
+        {/* Removed old routes: /my-work-old, /slots, /tasks */}
 
         {/* Settings Routes for Different Roles */}
         <Route
@@ -319,31 +328,27 @@ const AppRoutes = () => {
         />
 
         {/* Project Management */}
-        <Route path="/projects" element={<ProjectList />} />
-        <Route path="/projects/:id" element={<ProjectDetails />} />
+        <Route path="/projects" element={<ProjectListPage />} />
+        <Route path="/projects-old" element={<ProjectList />} />
+        <Route path="/projects/:id" element={<ProjectWorkspace />} />
+        <Route path="/projects/:id/old" element={<ProjectDetails />} />
 
-        {/* Content Calendar */}
+        {/* Calendar Views */}
+        <Route path="/calendar" element={<CalendarPage />} />
+        {/* Calendar - Unified for all roles */}
         <Route
-          path="/content-calendar"
+          path="/calendar"
           element={
             <RoleBasedRoute allowedRoles={["admin", "superadmin", "hod", "employee"]}>
-              <ContentCalendar />
+              <CalendarPage />
             </RoleBasedRoute>
           }
         />
 
-        {/* Profile - Role-based routing */}
-        <Route 
-          path="/profile" 
-          element={
-            ['employee', 'hr', 'hod', 'accounts'].includes(user?.role) ? 
-              <MyProfileEnhanced /> : 
-              <MyProfile />
-          } 
-        />
-        
-        {/* Redirect old profile to employee profile for employees */}
-        <Route path="/my-profile" element={<MyProfileEnhanced />} />
+        {/* Profile - Unified */}
+        <Route path="/profile" element={<MyProfile />} />
+        <Route path="/my-profile" element={<MyProfile />} />
+        {/* Removed old routes: /content-calendar, MyProfileEnhanced */}
 
         {/* Admin Billing Routes */}
         <Route

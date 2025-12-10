@@ -42,6 +42,10 @@ const userHasProjectAccess = async (userId, userRole, project) => {
 // Create new project
 export const createProject = async (req, res) => {
   try {
+    console.log('=== CREATE PROJECT REQUEST ===');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    console.log('User:', req.user?.email, req.user?.role);
+    
     const { 
       name, 
       client, 
@@ -52,13 +56,14 @@ export const createProject = async (req, res) => {
       budget,
       status,
       priority,
+      projectHead,
       assignedUsers 
     } = req.body;
 
-    if (!name || !description) {
+    if (!name) {
       return res
         .status(400)
-        .json({ message: "Project name and description are required" });
+        .json({ message: "Project name is required" });
     }
 
     if (!department) {
@@ -67,18 +72,32 @@ export const createProject = async (req, res) => {
         .json({ message: "Department is required" });
     }
 
+    // Prepare assigned users array
+    let finalAssignedUsers = assignedUsers || [];
+    
+    // If projectHead is provided and not already in assignedUsers, add them
+    if (projectHead && !finalAssignedUsers.includes(projectHead)) {
+      finalAssignedUsers.push(projectHead);
+    }
+
+    console.log('Creating project with createdBy:', req.user._id, req.user.email);
+    
     const project = await Project.create({
       name,
       client: client || null,
       department,
-      description,
+      description: description || '',
       startDate: startDate || null,
       endDate: endDate || null,
       budget: budget || 0,
       status: status || "Pending",
       priority: priority || "medium",
-      assignedUsers: assignedUsers || [],
+      projectHead: projectHead || null,
+      assignedUsers: finalAssignedUsers,
+      createdBy: req.user._id, // Track who created the project
     });
+    
+    console.log('Project created with ID:', project._id, 'createdBy:', project.createdBy);
 
     // Add project to department's projects array
     await Department.findByIdAndUpdate(department, {
@@ -89,14 +108,20 @@ export const createProject = async (req, res) => {
     const populatedProject = await Project.findById(project._id)
       .populate("client", "name email")
       .populate("department", "name")
-      .populate("projectHead", "name email");
+      .populate("projectHead", "name email")
+      .populate("assignedUsers", "name email")
+      .populate("createdBy", "name email");
+
+    console.log('Populated project createdBy:', populatedProject.createdBy);
+    logger.info(`Project created: ${project._id} by ${req.user.email}`);
 
     res.status(201).json({
       message: "Project created successfully",
       project: populatedProject,
     });
   } catch (error) {
-    console.error("Error in createProject:", error.message);
+    console.error("Error in createProject:", error);
+    logger.error("Error in createProject:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -155,15 +180,55 @@ export const getProjects = async (req, res) => {
     
     // Optimized query WITHOUT pagination (backward compatible)
     const projects = await Project.find(query)
-      .select('name client department projectHead status progress startDate endDate')
       .populate(optimizedProjectPopulate())
       .sort({ createdAt: -1 })
       .lean();
+    
+    if (projects.length > 0) {
+      console.log('📊 Raw project from DB:', {
+        name: projects[0].name,
+        assignedUsers: projects[0].assignedUsers,
+        assignedUsersLength: projects[0].assignedUsers?.length
+      });
+    }
 
-    logger.success(`Found ${projects.length} projects`);
+    // Add work item statistics to each project
+    const WorkItem = (await import('../models/workItemModel.js')).default;
+    const projectsWithStats = await Promise.all(
+      projects.map(async (project) => {
+        const workItems = await WorkItem.find({ project: project._id }).select('status').lean();
+        const totalItems = workItems.length;
+        const doneItems = workItems.filter(item => item.status === 'Done').length;
+        
+        return {
+          ...project,
+          workItemStats: {
+            total: totalItems,
+            done: doneItems
+          }
+        };
+      })
+    );
+
+    logger.success(`Found ${projects.length} projects with stats`);
+    
+    // Debug: Log first project to verify assignedUsers
+    if (projectsWithStats.length > 0) {
+      console.log('📊 Sample project being returned:', {
+        name: projectsWithStats[0].name,
+        assignedUsers: projectsWithStats[0].assignedUsers,
+        assignedUsersCount: projectsWithStats[0].assignedUsers?.length,
+        assignedUsersType: typeof projectsWithStats[0].assignedUsers,
+        isArray: Array.isArray(projectsWithStats[0].assignedUsers)
+      });
+    }
+    
+    // Additional check: verify all projects have assignedUsers
+    const projectsWithMembers = projectsWithStats.filter(p => p.assignedUsers && p.assignedUsers.length > 0);
+    console.log(`📊 Projects with members: ${projectsWithMembers.length} out of ${projectsWithStats.length}`);
     
     // Return simple array (backward compatible)
-    res.status(200).json(projects);
+    res.status(200).json(projectsWithStats);
   } catch (error) {
     logger.error("Error in getProjects:", error);
     res.status(500).json({ message: "Server error", error: error.message });
@@ -262,6 +327,7 @@ export const getProjectById = async (req, res) => {
       .populate("department", "name")
       .populate("projectHead", "name email designation")
       .populate("assignedUsers", "name email role")
+      .populate("createdBy", "name email")
       .populate("tasks.assignedTo", "name email")
       .lean();
 

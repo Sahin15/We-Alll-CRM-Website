@@ -13,6 +13,7 @@ import {
   deleteAttendance,
   getAttendanceReport,
   getTodayAttendance,
+  downloadAttendancePDF,
 } from "../controllers/attendanceController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
@@ -31,6 +32,14 @@ router.get(
   protect,
   authorizeRoles("admin", "superadmin", "hr", "hod"),
   getAttendanceReport
+);
+
+// PDF Download
+router.get(
+  "/download-pdf",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr", "hod"),
+  downloadAttendancePDF
 );
 
 // Admin/HR routes

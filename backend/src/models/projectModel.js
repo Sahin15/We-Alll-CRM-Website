@@ -9,7 +9,7 @@ const projectSchema = new mongoose.Schema(
     client: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Client",
-      required: true,
+      required: false,
     },
     description: {
       type: String,
@@ -117,17 +117,85 @@ const projectSchema = new mongoose.Schema(
         role: {
           type: String,
           enum: [
+            // Development roles
             "developer",
+            "frontend-developer",
+            "backend-developer",
+            "fullstack-developer",
+            "qa-tester",
+            
+            // Design roles
             "designer",
-            "content-writer",
-            "social-media-manager",
-            "seo-specialist",
-            "video-editor",
+            "ui-designer",
+            "ux-designer",
             "graphic-designer",
+            "video-editor",
+            
+            // Social Media Marketing roles
+            "social-media-manager",
+            "content-creator",
             "copywriter",
+            "ads-specialist",
+            "caption-writer",
+            "photo-editor",
+            "video-creator",
+            "posting-manager",
+            "community-manager",
+            
+            // Content roles
+            "content-writer",
+            "seo-specialist",
+            "blog-writer",
+            
+            // Other roles
+            "project-coordinator",
+            "client-liaison",
             "other",
           ],
           default: "other",
+        },
+        // Department-specific specialization
+        specialization: {
+          type: String,
+          enum: [
+            // Social Media specializations
+            "facebook-ads",
+            "instagram-content",
+            "linkedin-posts",
+            "twitter-management",
+            "youtube-videos",
+            "tiktok-content",
+            "pinterest-pins",
+            
+            // Development specializations
+            "react-frontend",
+            "node-backend",
+            "mobile-app",
+            "database-design",
+            "api-development",
+            
+            // Design specializations
+            "logo-design",
+            "web-design",
+            "print-design",
+            "video-editing",
+            "animation",
+            
+            // General
+            "general",
+          ],
+          default: "general",
+        },
+        // Work capacity and availability
+        workCapacity: {
+          type: Number,
+          default: 100, // Percentage of full capacity
+          min: 0,
+          max: 100,
+        },
+        isActive: {
+          type: Boolean,
+          default: true,
         },
         assignedBy: {
           type: mongoose.Schema.Types.ObjectId,
@@ -162,6 +230,11 @@ const projectSchema = new mongoose.Schema(
     tags: {
       type: [String],
       default: [],
+    },
+    // Track who created the project
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
     },
   },
   { timestamps: true }

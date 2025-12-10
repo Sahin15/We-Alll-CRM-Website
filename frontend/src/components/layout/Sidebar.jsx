@@ -107,27 +107,21 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       ],
     },
     {
-      path: "/projects",
-      icon: <FaProjectDiagram />,
-      label: "Projects",
-      roles: ["admin", "superadmin", "hr", "employee", "hod"],
-    },
-    {
-      path: "/content-calendar",
-      icon: <FaCalendar />,
-      label: "Content Calendar",
-      roles: ["admin", "superadmin", "hod"],
-    },
-    {
       path: "/employee/my-work",
       icon: <FaTasks />,
       label: "My Work",
       roles: ["employee", "admin", "superadmin", "hr", "hod"],
     },
     {
-      path: "/employee/slots",
-      icon: <FaClipboardList />,
-      label: "My Slots",
+      path: "/projects",
+      icon: <FaProjectDiagram />,
+      label: "Projects",
+      roles: ["admin", "superadmin", "hr", "employee", "hod"],
+    },
+    {
+      path: "/calendar",
+      icon: <FaCalendar />,
+      label: "Calendar",
       roles: ["employee", "admin", "superadmin", "hr", "hod"],
     },
     {

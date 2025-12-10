@@ -23,6 +23,7 @@ import {
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import api from "../../services/api";
+import workItemApi from "../../api/workItemApi";
 
 const TaskManagement = () => {
   const [tasks, setTasks] = useState([]);
@@ -74,22 +75,24 @@ const TaskManagement = () => {
   const fetchTasks = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/tasks/all");
-      const allTasks = response.data;
+      // TODO: Need backend endpoint for admins to get all work items
+      // For now, showing only current user's tasks
+      const response = await workItemApi.getMyWork({ type: 'task' });
+      const allTasks = response.data || [];
       
       setTasks(allTasks);
       
       // Calculate statistics
       setStats({
-        todo: allTasks.filter(t => t.status === "todo").length,
-        inProgress: allTasks.filter(t => t.status === "in-progress").length,
-        done: allTasks.filter(t => t.status === "done").length,
+        todo: allTasks.filter(t => t.status === "To Do").length,
+        inProgress: allTasks.filter(t => t.status === "In Progress").length,
+        done: allTasks.filter(t => t.status === "Done").length,
         total: allTasks.length
       });
     } catch (error) {
       console.error("Error fetching tasks:", error);
       if (error.response?.status === 403) {
-        toast.error("You don't have permission to view all tasks");
+        toast.error("You don't have permission to view tasks");
       } else {
         toast.error("Failed to fetch tasks");
       }

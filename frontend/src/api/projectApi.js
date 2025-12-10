@@ -44,6 +44,7 @@ export const getProjectById = async (id) => {
   const response = await axios.get(`${API_URL}/projects/${id}`, {
     headers: getAuthHeader(),
   });
+  // Backend returns project directly, not wrapped in data
   return response.data;
 };
 
@@ -183,6 +184,39 @@ export const updateProjectProgress = async (id, progress) => {
   return response.data;
 };
 
+// ============================================
+// Project Workspace
+// ============================================
+
+export const getProjectWorkspace = async (id) => {
+  const response = await axios.get(`${API_URL}/projects/${id}/workspace`, {
+    headers: getAuthHeader(),
+  });
+  return response.data;
+};
+
+export const getWorkBoard = async (id) => {
+  const response = await axios.get(`${API_URL}/projects/${id}/work-board`, {
+    headers: getAuthHeader(),
+  });
+  return response.data;
+};
+
+export const getTeamWorkload = async (id) => {
+  const response = await axios.get(`${API_URL}/projects/${id}/team-workload`, {
+    headers: getAuthHeader(),
+  });
+  return response.data;
+};
+
+export const getProjectWorkItems = async (id, params = {}) => {
+  const response = await axios.get(`${API_URL}/work-items/my-work`, {
+    headers: getAuthHeader(),
+    params: { project: id, ...params }
+  });
+  return response.data;
+};
+
 export const projectApi = {
   getAllProjects,
   getProjectById,
@@ -201,6 +235,10 @@ export const projectApi = {
   getMyProjects,
   updateProjectStatus,
   updateProjectProgress,
+  getProjectWorkspace,
+  getWorkBoard,
+  getTeamWorkload,
+  getProjectWorkItems,
 };
 
 export default projectApi;

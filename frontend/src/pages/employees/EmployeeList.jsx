@@ -435,11 +435,11 @@ const EmployeeList = () => {
                             <Dropdown.Item
                               onClick={(e) => {
                                 e.stopPropagation();
-                                navigate(`/employee/attendance-report/${employee._id}`);
+                                navigate(`/employees/${employee._id}/work`);
                               }}
                             >
-                              <FaClock className="me-2" />
-                              View Attendance
+                              <FaUsers className="me-2" />
+                              View Working Details
                             </Dropdown.Item>
                             <Dropdown.Item
                               onClick={(e) => {

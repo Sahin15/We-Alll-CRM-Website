@@ -21,19 +21,12 @@ import {
   FaUser,
   FaCalendar,
   FaBuilding,
-  FaClipboardList,
   FaUserTie,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { projectApi } from "../../api/projectApi";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
 import { useAuth } from "../../context/AuthContext";
-import SlotList from "../../components/projects/SlotList";
-import CreateWorkAssignmentForm from "../../components/projects/CreateWorkAssignmentForm";
-import SlotDetails from "../../components/projects/SlotDetails";
-import SlotCalendar from "../../components/calendar/SlotCalendar";
-import ConfirmDialog from "../../components/common/ConfirmDialog";
-import * as slotApi from "../../api/slotApi";
 import { userApi } from "../../api/userApi";
 
 const ProjectDetails = () => {
@@ -47,15 +40,6 @@ const ProjectDetails = () => {
   const [newProgress, setNewProgress] = useState(0);
   const [activeTab, setActiveTab] = useState("overview");
 
-  // Slot management states
-  const [showCreateSlotModal, setShowCreateSlotModal] = useState(false);
-  const [showSlotDetailsModal, setShowSlotDetailsModal] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState(null);
-  const [projectSlots, setProjectSlots] = useState([]);
-  const [slotView, setSlotView] = useState("list"); // 'list' or 'calendar'
-  const [slotsLoading, setSlotsLoading] = useState(false);
-  const [employees, setEmployees] = useState([]);
-
   // Team member management states
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [availableMembers, setAvailableMembers] = useState([]);
@@ -67,10 +51,7 @@ const ProjectDetails = () => {
   const [selectedHoPId, setSelectedHoPId] = useState("");
   const [isAssigningHoP, setIsAssigningHoP] = useState(false);
   
-  // Confirmation dialog states
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [slotToDelete, setSlotToDelete] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+
 
   // Check if user can edit (admin, superadmin, hod)
   const canEdit = ["admin", "superadmin", "hod"].includes(user?.role);
@@ -87,52 +68,38 @@ const ProjectDetails = () => {
 
   useEffect(() => {
     fetchProjectDetails();
-    fetchEmployees();
-    loadProjectSlots(); // Load slots once when component mounts or id changes
   }, [id]);
-
-  const fetchEmployees = async () => {
-    try {
-      const response = await userApi.getAllUsers();
-      // Filter only employees (not clients)
-      const employeeList = response.data.filter(u => 
-        ['employee', 'admin', 'superadmin', 'hod'].includes(u.role)
-      );
-      setEmployees(employeeList);
-    } catch (error) {
-      console.error("Error fetching employees:", error);
-      setEmployees([]);
-    }
-  };
-
-  const loadProjectSlots = async () => {
-    try {
-      setSlotsLoading(true);
-      const response = await slotApi.getSlotsByProject(id);
-      setProjectSlots(response.data || []);
-    } catch (error) {
-      console.error("Error loading slots:", error);
-      toast.error("Failed to load slots");
-      setProjectSlots([]);
-    } finally {
-      setSlotsLoading(false);
-    }
-  };
 
   const fetchProjectDetails = async () => {
     try {
       const response = await projectApi.getProjectById(id);
-      // response is already the project data from the API
-      setProject(response);
+      console.log("Project API response:", response); // Debug log
+      
+      // Handle different response formats
+      const projectData = response?.data || response;
+      
+      if (projectData) {
+        setProject(projectData);
+      } else {
+        console.error("No project data in response:", response);
+        toast.error("Project data not found");
+        setProject(null);
+      }
     } catch (error) {
       console.error("Project fetch error:", error);
+      console.error("Error response:", error.response);
+      
       if (error.response?.status === 403) {
         toast.error(
           "Access denied. You can only view projects you are assigned to."
         );
         navigate("/projects");
+      } else if (error.response?.status === 404) {
+        toast.error("Project not found");
+        setProject(null);
       } else {
         toast.error("Failed to fetch project details");
+        setProject(null);
       }
     } finally {
       setLoading(false);
@@ -146,27 +113,48 @@ const ProjectDetails = () => {
       const allUsers = response.data || [];
       
       // Filter out users who are already team members
-      const currentMemberIds = project?.assignedUsers?.map(u => u._id) || [];
-      const projectHeadId = project?.projectHead?._id;
+      const assignedUserIds = project?.assignedUsers?.map(u => u._id || u) || [];
+      const teamMemberIds = project?.teamMembers?.map(m => m.user?._id || m.user || m._id || m) || [];
+      const currentMemberIds = [...assignedUserIds, ...teamMemberIds];
+      const projectHeadId = project?.projectHead?._id || project?.projectHead;
       const projectDeptId = project?.department?._id || project?.department;
       
+      console.log('Project department:', projectDeptId);
+      console.log('Current member IDs:', currentMemberIds);
+      console.log('Project head ID:', projectHeadId);
+      
       const available = allUsers.filter(u => {
-        // Exclude if already a team member
-        if (currentMemberIds.includes(u._id)) return false;
-        
-        // Exclude if project head
-        if (u._id === projectHeadId) return false;
-        
-        // Include only if from same department (or no department filter if project has no department)
-        if (projectDeptId) {
-          const userDeptId = u.department?._id || u.department;
-          return userDeptId === projectDeptId;
+        // Only include employees and HoDs (exclude admins, clients, superadmins)
+        if (u.role !== 'employee' && u.role !== 'hod') {
+          return false;
         }
         
+        // Exclude if already a team member
+        if (currentMemberIds.includes(u._id)) {
+          return false;
+        }
+        
+        // Exclude if project head
+        if (u._id === projectHeadId) {
+          return false;
+        }
+        
+        // Include only if from same department
+        if (projectDeptId) {
+          const userDeptId = u.department?._id || u.department;
+          const matches = userDeptId === projectDeptId;
+          if (!matches) {
+            console.log(`User ${u.name} excluded: dept ${userDeptId} !== ${projectDeptId}`);
+          }
+          return matches;
+        }
+        
+        // If no department on project, still only show employees/HoDs
         return true;
       });
       
       setAvailableMembers(available);
+      console.log('Filtered available members:', available.map(u => ({ name: u.name, dept: u.department })));
     } catch (error) {
       console.error("Failed to fetch available members:", error);
       toast.error("Failed to load available members");
@@ -332,100 +320,6 @@ const ProjectDetails = () => {
           (error.response?.data?.message || error.message)
       );
     }
-  };
-
-  // Slot handlers
-  const handleCreateSlot = async (slotData) => {
-    try {
-      const payload = {
-        client: project.client._id || project.client,
-        project: id,
-        ...slotData
-      };
-      
-      const response = await slotApi.createSlot(payload);
-      toast.success("Slot created successfully!");
-      loadProjectSlots(); // Reload slots
-      return response.data;
-    } catch (error) {
-      console.error("Error creating slot:", error);
-      toast.error(error.message || "Failed to create slot");
-      throw error;
-    }
-  };
-
-  const handleViewSlot = async (slot) => {
-    // Fetch full slot details to ensure project and client are populated
-    try {
-      const response = await slotApi.getSlotById(slot._id);
-      setSelectedSlot(response.data);
-      setShowSlotDetailsModal(true);
-    } catch (error) {
-      console.error('Error fetching slot details:', error);
-      // Fallback to using the slot as-is
-      setSelectedSlot(slot);
-      setShowSlotDetailsModal(true);
-    }
-  };
-
-  const handleEditSlot = async (slot) => {
-    // Fetch full slot details to ensure project and client are populated
-    try {
-      const response = await slotApi.getSlotById(slot._id);
-      setSelectedSlot(response.data);
-      setShowSlotDetailsModal(true);
-    } catch (error) {
-      console.error('Error fetching slot details:', error);
-      // Fallback to using the slot as-is
-      setSelectedSlot(slot);
-      setShowSlotDetailsModal(true);
-    }
-  };
-
-  const handleDeleteSlot = (slot) => {
-    setSlotToDelete(slot);
-    setShowDeleteConfirm(true);
-  };
-
-  const confirmDeleteSlot = async () => {
-    setIsDeleting(true);
-    try {
-      await slotApi.deleteSlot(slotToDelete._id);
-      toast.success("Slot deleted successfully!");
-      setShowDeleteConfirm(false);
-      setSlotToDelete(null);
-      loadProjectSlots(); // Reload slots
-    } catch (error) {
-      console.error("Error deleting slot:", error);
-      toast.error(error.message || "Failed to delete slot");
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const handleUpdateSlot = async (updatedSlot) => {
-    try {
-      await slotApi.updateSlot(updatedSlot._id, updatedSlot);
-      toast.success("Slot updated successfully!");
-      loadProjectSlots(); // Reload slots
-    } catch (error) {
-      console.error("Error updating slot:", error);
-      toast.error(error.message || "Failed to update slot");
-      throw error;
-    }
-  };
-
-  // Calculate slot statistics from loaded slots
-  const slotStats = {
-    total: projectSlots?.length || 0,
-    posted: projectSlots?.filter(s => s.postingStatus === 'Posted').length || 0,
-    inProgress: projectSlots?.filter(s => 
-      ['Planned', 'In Design', 'Ready for Review', 'Needs Revision', 'Approved'].includes(s.designStatus)
-    ).length || 0,
-    overdue: projectSlots?.filter(s => {
-      const now = new Date();
-      return new Date(s.postingDate) < now && s.postingStatus !== 'Posted';
-    }).length || 0
   };
 
   return (
@@ -700,110 +594,7 @@ const ProjectDetails = () => {
           </Row>
         </Tab>
 
-        {/* Content Slots Tab */}
-        <Tab
-          eventKey="slots"
-          title={
-            <span>
-              <FaClipboardList className="me-2" />
-              Content Slots ({projectSlots.length})
-            </span>
-          }
-        >
-          {/* Slot Statistics */}
-          <Row className="g-3 mb-4">
-            <Col md={3}>
-              <Card className="text-center">
-                <Card.Body>
-                  <h3 className="mb-0">{slotStats.total}</h3>
-                  <small className="text-muted">Total Slots</small>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col md={3}>
-              <Card className="text-center">
-                <Card.Body>
-                  <h3 className="mb-0 text-success">{slotStats.posted}</h3>
-                  <small className="text-muted">Posted</small>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col md={3}>
-              <Card className="text-center">
-                <Card.Body>
-                  <h3 className="mb-0 text-warning">{slotStats.inProgress}</h3>
-                  <small className="text-muted">In Progress</small>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col md={3}>
-              <Card className="text-center">
-                <Card.Body>
-                  <h3 className="mb-0 text-danger">{slotStats.overdue}</h3>
-                  <small className="text-muted">Overdue</small>
-                </Card.Body>
-              </Card>
-            </Col>
-          </Row>
 
-          {/* View Toggle */}
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <div className="btn-group" role="group">
-              <Button
-                variant={slotView === "list" ? "primary" : "outline-primary"}
-                size="sm"
-                onClick={() => setSlotView("list")}
-              >
-                <FaClipboardList className="me-2" />
-                List View
-              </Button>
-              <Button
-                variant={slotView === "calendar" ? "primary" : "outline-primary"}
-                size="sm"
-                onClick={() => setSlotView("calendar")}
-              >
-                <FaCalendar className="me-2" />
-                Calendar View
-              </Button>
-            </div>
-            {(isProjectHead || isTeamMember) && slotView === "list" && (
-              <Button variant="primary" size="sm" onClick={() => setShowCreateSlotModal(true)}>
-                <FaClipboardList className="me-2" />
-                {isProjectHead ? 'Create Work Assignment' : 'Create My Work'}
-              </Button>
-            )}
-          </div>
-
-          {/* List View */}
-          {slotView === "list" && (
-            <Card>
-              <Card.Body>
-                <SlotList
-                  slots={projectSlots}
-                  onCreateSlot={() => setShowCreateSlotModal(true)}
-                  onViewSlot={handleViewSlot}
-                  onEditSlot={handleEditSlot}
-                  onDeleteSlot={handleDeleteSlot}
-                  isProjectHead={isProjectHead}
-                  project={project}
-                />
-              </Card.Body>
-            </Card>
-          )}
-
-          {/* Calendar View */}
-          {slotView === "calendar" && (
-            <SlotCalendar
-              slots={projectSlots}
-              onSlotClick={handleViewSlot}
-              onDateClick={(date) => {
-                // TODO: Pre-fill posting date when creating slot
-                setShowCreateSlotModal(true);
-              }}
-              canCreateSlot={isProjectHead}
-            />
-          )}
-        </Tab>
 
         {/* Team Tab */}
         <Tab
@@ -1013,53 +804,6 @@ const ProjectDetails = () => {
           </Modal.Footer>
         </Form>
       </Modal>
-
-      {/* Create Work Assignment Modal */}
-      <CreateWorkAssignmentForm
-        show={showCreateSlotModal}
-        onHide={() => setShowCreateSlotModal(false)}
-        onSubmit={handleCreateSlot}
-        project={project}
-        employees={employees}
-        currentUser={user}
-      />
-
-      {/* Slot Details Modal */}
-      {selectedSlot && (
-        <SlotDetails
-          show={showSlotDetailsModal}
-          onHide={() => {
-            setShowSlotDetailsModal(false);
-            setSelectedSlot(null);
-          }}
-          slot={selectedSlot}
-          onUpdate={handleUpdateSlot}
-          isProjectHead={isProjectHead}
-          currentUser={user}
-        />
-      )}
-
-      {/* Delete Confirmation Dialog */}
-      <ConfirmDialog
-        show={showDeleteConfirm}
-        onHide={() => {
-          if (!isDeleting) {
-            setShowDeleteConfirm(false);
-            setSlotToDelete(null);
-          }
-        }}
-        onConfirm={confirmDeleteSlot}
-        title="Delete Slot"
-        message={
-          slotToDelete
-            ? `Are you sure you want to delete the slot "${slotToDelete.postType} - ${slotToDelete.occasion || slotToDelete.contentBucket}"? This action cannot be undone.`
-            : "Are you sure you want to delete this slot?"
-        }
-        confirmText="Delete"
-        cancelText="Cancel"
-        variant="danger"
-        isLoading={isDeleting}
-      />
 
       {/* Add Team Member Modal */}
       <Modal show={showAddMemberModal} onHide={() => setShowAddMemberModal(false)}>

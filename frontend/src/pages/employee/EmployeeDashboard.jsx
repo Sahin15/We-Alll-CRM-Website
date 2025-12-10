@@ -4,6 +4,7 @@ import { FaClock, FaCalendarAlt, FaTasks, FaChartLine, FaFileAlt, FaShieldAlt, F
 import { useAuth } from "../../context/AuthContext";
 import toast from "../../utils/toast";
 import api from "../../services/api";
+import workItemApi from "../../api/workItemApi";
 import GreetingBanner from "../../components/common/GreetingBanner";
 import ConfirmModal from "../../components/common/ConfirmModal";
 import HoDSection from "../../components/dashboard/HoDSection";
@@ -125,20 +126,33 @@ const EmployeeDashboard = () => {
   });
 
   useEffect(() => {
-    fetchDashboardData();
+    let isMounted = true;
+    
+    const loadData = async () => {
+      if (isMounted) {
+        await fetchDashboardData();
+      }
+    };
+    
+    loadData();
     
     // Update current time every second
     const timer = setInterval(() => {
-      setCurrentTime(new Date());
+      if (isMounted) {
+        setCurrentTime(new Date());
+      }
     }, 1000);
 
     // Update work hours every minute
     const workHoursTimer = setInterval(() => {
-      updateWorkHours();
+      if (isMounted) {
+        updateWorkHours();
+      }
     }, 60000); // Update every minute
 
     // Listen for attendance updates from navbar
     const handleAttendanceUpdate = (event) => {
+      if (!isMounted) return;
       const { type, data } = event.detail;
       if (type === 'clockIn') {
         updateClockedIn(true);
@@ -154,6 +168,7 @@ const EmployeeDashboard = () => {
     window.addEventListener('attendanceUpdate', handleAttendanceUpdate);
 
     return () => {
+      isMounted = false;
       clearInterval(timer);
       clearInterval(workHoursTimer);
       window.removeEventListener('attendanceUpdate', handleAttendanceUpdate);
@@ -222,13 +237,13 @@ const EmployeeDashboard = () => {
         
         // Fetch task stats and attendance stats
         try {
-          const tasksResponse = await api.get('/tasks/my-tasks');
-          const allTasks = tasksResponse.data;
-          const pendingTasks = allTasks.filter(t => t.status !== 'done').length;
+          const tasksResponse = await workItemApi.getMyWork({ type: 'task' });
+          const allTasks = tasksResponse.data || [];
+          const pendingTasks = allTasks.filter(t => t.status !== 'Done').length;
           
           // Get top 3 pending tasks sorted by due date
           const topTasks = allTasks
-            .filter(t => t.status !== 'done')
+            .filter(t => t.status !== 'Done')
             .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
             .slice(0, 3);
           setRecentTasks(topTasks);
@@ -363,13 +378,13 @@ const EmployeeDashboard = () => {
         
         // Try to fetch other stats even if attendance fails
         try {
-          const tasksResponse = await api.get('/tasks/my-tasks');
-          const allTasks = tasksResponse.data;
-          const pendingTasks = allTasks.filter(t => t.status !== 'done').length;
+          const tasksResponse = await workItemApi.getMyWork({ type: 'task' });
+          const allTasks = tasksResponse.data || [];
+          const pendingTasks = allTasks.filter(t => t.status !== 'Done').length;
           
           // Get top 3 pending tasks sorted by due date
           const topTasks = allTasks
-            .filter(t => t.status !== 'done')
+            .filter(t => t.status !== 'Done')
             .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
             .slice(0, 3);
           setRecentTasks(topTasks);
@@ -676,12 +691,12 @@ const EmployeeDashboard = () => {
 
   const handleTasksCardClick = async () => {
     try {
-      const response = await api.get('/tasks/my-tasks');
-      const allTasks = response.data;
+      const response = await workItemApi.getMyWork({ type: 'task' });
+      const allTasks = response.data || [];
       
-      const pending = allTasks.filter(t => t.status === 'pending' || t.status === 'todo');
-      const inProgress = allTasks.filter(t => t.status === 'in-progress');
-      const completed = allTasks.filter(t => t.status === 'done' || t.status === 'completed');
+      const pending = allTasks.filter(t => t.status === 'To Do');
+      const inProgress = allTasks.filter(t => t.status === 'In Progress');
+      const completed = allTasks.filter(t => t.status === 'Done');
       
       setTasksDetails({
         all: allTasks,

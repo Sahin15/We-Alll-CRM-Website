@@ -1,0 +1,226 @@
+/* Department Calendar View Styles */
+.department-calendar-view {
+  padding: 0;
+}
+
+.department-calendar-view .card {
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.department-calendar-view .card-header {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  font-weight: 600;
+}
+
+/* Timeline View Styles */
+.timeline-view {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.timeline-stage {
+  border-left: 3px solid #e9ecef;
+  padding-left: 1rem;
+  margin-left: 0.5rem;
+}
+
+.timeline-stage:last-child {
+  border-left: none;
+}
+
+.stage-items {
+  margin-left: 1rem;
+}
+
+.stage-item {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  transition: all 0.2s ease;
+}
+
+.stage-item:hover {
+  background-color: #e9ecef;
+  border-color: #adb5bd;
+  transform: translateX(2px);
+}
+
+/* Kanban View Styles */
+.kanban-view {
+  min-height: 500px;
+}
+
+.kanban-column {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.kanban-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 0.75rem;
+  border-radius: 8px 8px 0 0;
+}
+
+.kanban-body {
+  background-color: white;
+  min-height: 400px;
+  max-height: 500px;
+  overflow-y: auto;
+  border-radius: 0 0 8px 8px;
+}
+
+.kanban-card {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid #e9ecef;
+}
+
+.kanban-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Calendar Event Styles */
+.rbc-event {
+  border-radius: 4px;
+  border: none;
+  padding: 2px 5px;
+  font-size: 0.85rem;
+}
+
+.rbc-event.rbc-selected {
+  background-color: #495057 !important;
+}
+
+.rbc-event-content {
+  font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .department-calendar-view .d-flex.gap-2 {
+    flex-direction: column;
+    gap: 0.5rem !important;
+  }
+  
+  .kanban-view .d-flex {
+    flex-direction: column;
+  }
+  
+  .kanban-column {
+    min-width: 100% !important;
+    margin-bottom: 1rem;
+  }
+  
+  .timeline-view {
+    max-height: 400px;
+  }
+}
+
+/* Filter Controls */
+.filter-controls {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.filter-controls .dropdown-toggle {
+  font-size: 0.875rem;
+  padding: 0.25rem 0.75rem;
+}
+
+/* Analytics Cards */
+.analytics-card {
+  text-align: center;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.analytics-card h3 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.analytics-card p {
+  font-size: 0.875rem;
+  opacity: 0.9;
+  margin: 0;
+}
+
+/* Workflow Legend */
+.workflow-legend .badge {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 0.5rem;
+}
+
+/* Loading States */
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+}
+
+/* Print Styles */
+@media print {
+  .department-calendar-view .d-flex.gap-2,
+  .department-calendar-view .dropdown,
+  .department-calendar-view .btn {
+    display: none !important;
+  }
+  
+  .department-calendar-view .card {
+    box-shadow: none;
+    border: 1px solid #dee2e6;
+  }
+  
+  .kanban-view,
+  .timeline-view {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .department-calendar-view .card {
+    background-color: #2d3748;
+    color: #e2e8f0;
+  }
+  
+  .department-calendar-view .card-header {
+    background-color: #4a5568;
+    border-color: #4a5568;
+  }
+  
+  .stage-item {
+    background-color: #4a5568;
+    border-color: #718096;
+    color: #e2e8f0;
+  }
+  
+  .kanban-column {
+    background-color: #4a5568;
+  }
+  
+  .kanban-body {
+    background-color: #2d3748;
+  }
+  
+  .kanban-card {
+    background-color: #4a5568;
+    border-color: #718096;
+    color: #e2e8f0;
+  }
+}

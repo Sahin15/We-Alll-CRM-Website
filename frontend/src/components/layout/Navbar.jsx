@@ -33,6 +33,7 @@ import CompanySwitcher from "../admin/CompanySwitcher";
 import NotificationBell from "../admin/NotificationBell";
 import QuickClockInOut from "../attendance/QuickClockInOut";
 import api from "../../services/api";
+import workItemApi from "../../api/workItemApi";
 
 const Navbar = ({ toggleSidebar }) => {
   const { user, logout } = useAuth();
@@ -147,8 +148,8 @@ const Navbar = ({ toggleSidebar }) => {
 
       // Search Tasks (for all users)
       try {
-        const tasksRes = await api.get(`/tasks/my-tasks`);
-        const tasks = tasksRes.data
+        const tasksRes = await workItemApi.getMyWork({ type: 'task' });
+        const tasks = (tasksRes.data || [])
           .filter(t => t.title?.toLowerCase().includes(query.toLowerCase()))
           .slice(0, 3);
         tasks.forEach(t => {
@@ -157,7 +158,7 @@ const Navbar = ({ toggleSidebar }) => {
             icon: <FaTasks className="text-info" />,
             title: t.title,
             subtitle: `Due: ${t.dueDate ? new Date(t.dueDate).toLocaleDateString() : 'No due date'}`,
-            path: user?.role === 'employee' ? '/employee/tasks' : '/tasks',
+            path: '/employee/my-work',
           });
         });
       } catch (err) {

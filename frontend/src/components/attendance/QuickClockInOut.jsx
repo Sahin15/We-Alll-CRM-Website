@@ -13,10 +13,10 @@ const QuickClockInOut = ({ variant = "light", size = "sm", showLabel = true }) =
   useEffect(() => {
     fetchTodayAttendance();
     
-    // Poll for attendance updates every 30 seconds
+    // Poll for attendance updates every 5 minutes (reduced from 30s to avoid rate limiting)
     const pollInterval = setInterval(() => {
       fetchTodayAttendance();
-    }, 30000);
+    }, 300000); // 5 minutes
     
     // Listen for attendance updates from other components
     const handleAttendanceUpdate = (event) => {

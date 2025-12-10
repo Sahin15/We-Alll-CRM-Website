@@ -109,57 +109,85 @@ attendanceSchema.methods.trackManualModification = function(modifiedBy, reason, 
 
 // Method to calculate status based on clock-in time
 attendanceSchema.methods.calculateStatus = function() {
-  // Don't override if status is manually set to absent or on-leave
-  if (this.status === 'absent' || this.status === 'on-leave') {
-    return this.status;
-  }
-  
-  if (!this.clockIn) {
-    return 'absent';
-  }
-  
-  const clockInTime = new Date(this.clockIn);
-  const clockInHour = clockInTime.getHours();
-  const clockInMinute = clockInTime.getMinutes();
-  
-  // CRITICAL BUSINESS RULES:
-  // - Before or at 10:30 AM = Present
-  // - After 10:30 AM but before 12:00 PM = Late
-  // - At or after 12:00 PM = Half-day
-  
-  if (clockInHour >= 12) {
-    // 12:00 PM or later = Half day
-    return "half-day";
-  } else if (clockInHour > 10 || (clockInHour === 10 && clockInMinute > 30)) {
-    // After 10:30 AM = Late
-    return "late";
-  } else {
-    // 10:30 AM or before = Present
-    return "present";
+  try {
+    // Don't override if status is manually set to absent or on-leave
+    if (this.status === 'absent' || this.status === 'on-leave') {
+      return this.status;
+    }
+    
+    if (!this.clockIn) {
+      return 'absent';
+    }
+    
+    const clockInTime = new Date(this.clockIn);
+    
+    // Validate date
+    if (isNaN(clockInTime.getTime())) {
+      console.error('[STATUS] Invalid clockIn date:', this.clockIn);
+      return 'present'; // Default to present if date is invalid
+    }
+    
+    const clockInHour = clockInTime.getHours();
+    const clockInMinute = clockInTime.getMinutes();
+    
+    // Convert to total minutes for easier comparison
+    const totalMinutes = clockInHour * 60 + clockInMinute;
+    
+    // SIMPLE BUSINESS RULES:
+    // - 00:00 to 10:30 (0-630 minutes) = Present
+    // - 10:31 to 11:59 (631-719 minutes) = Late
+    // - 12:00 onwards (720+ minutes) = Half-day
+    
+    if (totalMinutes >= 720) {
+      // 12:00 PM (720 minutes) or later = Half day
+      console.log(`[STATUS] ${clockInHour}:${clockInMinute} (${totalMinutes} min) = HALF-DAY`);
+      return "half-day";
+    } else if (totalMinutes > 630) {
+      // 10:31 AM (631 minutes) to 11:59 AM (719 minutes) = Late
+      console.log(`[STATUS] ${clockInHour}:${clockInMinute} (${totalMinutes} min) = LATE`);
+      return "late";
+    } else {
+      // 00:00 to 10:30 AM (0-630 minutes) = Present
+      console.log(`[STATUS] ${clockInHour}:${clockInMinute} (${totalMinutes} min) = PRESENT`);
+      return "present";
+    }
+  } catch (error) {
+    console.error('[STATUS] Error calculating status:', error);
+    return 'present'; // Default to present on error
   }
 };
 
 // PRE-SAVE HOOK: Always calculate status and work hours
 attendanceSchema.pre("save", function (next) {
-  // 1. Calculate status based on clockIn time (if not manually set to absent/on-leave)
-  if (this.clockIn && (!this.status || !['absent', 'on-leave'].includes(this.status))) {
-    this.status = this.calculateStatus();
-    console.log(`[ATTENDANCE] Calculated status: ${this.status} for clockIn: ${this.clockIn}`);
-  }
-  
-  // 2. Calculate work hours when clocking out
-  if (this.clockIn && this.clockOut) {
-    const diffTime = Math.abs(this.clockOut - this.clockIn);
-    const diffHours = diffTime / (1000 * 60 * 60);
-    this.workHours = parseFloat(diffHours.toFixed(2));
-
-    // Calculate overtime (assuming 8 hours is standard)
-    if (diffHours > 8) {
-      this.overtime = parseFloat((diffHours - 8).toFixed(2));
+  try {
+    // 1. Calculate status based on clockIn time (if not manually set to absent/on-leave)
+    if (this.clockIn) {
+      // Only calculate if status is not set OR if it's not manually set to absent/on-leave
+      const shouldCalculate = !this.status || (this.status !== 'absent' && this.status !== 'on-leave');
+      
+      if (shouldCalculate) {
+        this.status = this.calculateStatus();
+        console.log(`[ATTENDANCE] Calculated status: ${this.status} for clockIn: ${this.clockIn}`);
+      }
     }
+    
+    // 2. Calculate work hours when clocking out
+    if (this.clockIn && this.clockOut) {
+      const diffTime = Math.abs(this.clockOut - this.clockIn);
+      const diffHours = diffTime / (1000 * 60 * 60);
+      this.workHours = parseFloat(diffHours.toFixed(2));
+
+      // Calculate overtime (assuming 8 hours is standard)
+      if (diffHours > 8) {
+        this.overtime = parseFloat((diffHours - 8).toFixed(2));
+      }
+    }
+    
+    next();
+  } catch (error) {
+    console.error('[ATTENDANCE] Error in pre-save hook:', error);
+    next(error);
   }
-  
-  next();
 });
 
 // Compound index for employee and date to ensure one record per day

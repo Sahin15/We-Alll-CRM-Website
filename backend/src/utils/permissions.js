@@ -105,7 +105,8 @@ export const isEmployee = (userRole) => {
 
 /**
  * Check if user can clock in/out
+ * HR staff are also employees and should be able to clock in/out
  */
 export const canClockInOut = (userRole) => {
-  return isEmployee(userRole);
+  return ['employee', 'hod', 'hr'].includes(userRole);
 };

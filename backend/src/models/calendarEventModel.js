@@ -1,0 +1,391 @@
+import mongoose from "mongoose";
+
+const calendarEventSchema = new mongoose.Schema(
+  {
+    // Basic Event Information
+    title: {
+      type: String,
+      required: [true, "Event title is required"],
+      trim: true,
+    },
+    description: {
+      type: String,
+      trim: true,
+    },
+    
+    // Event Type and Source
+    eventType: {
+      type: String,
+      enum: [
+        "work-item",        // Work item deadline/milestone
+        "project-milestone", // Project milestone
+        "meeting",          // Team meeting
+        "deadline",         // General deadline
+        "review",          // Review session
+        "presentation",    // Client presentation
+        "launch",          // Product/campaign launch
+        "holiday",         // Company holiday
+        "training",        // Training session
+        "other"            // Other events
+      ],
+      required: true,
+    },
+    
+    // Source References
+    sourceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      refPath: "sourceModel",
+    },
+    sourceModel: {
+      type: String,
+      enum: ["WorkItem", "Project", "Meeting", "User"],
+    },
+    
+    // Date and Time
+    startDate: {
+      type: Date,
+      required: [true, "Start date is required"],
+      index: true,
+    },
+    endDate: {
+      type: Date,
+      required: [true, "End date is required"],
+      index: true,
+    },
+    isAllDay: {
+      type: Boolean,
+      default: false,
+    },
+    
+    // Recurrence
+    isRecurring: {
+      type: Boolean,
+      default: false,
+    },
+    recurrenceRule: {
+      frequency: {
+        type: String,
+        enum: ["daily", "weekly", "monthly", "yearly"],
+      },
+      interval: {
+        type: Number,
+        default: 1,
+      },
+      endDate: Date,
+      daysOfWeek: [Number], // 0-6 (Sunday-Saturday)
+    },
+    
+    // Participants and Assignments
+    assignedTo: [{
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+      },
+      role: String, // Their role in this event
+      isRequired: {
+        type: Boolean,
+        default: true,
+      },
+      responseStatus: {
+        type: String,
+        enum: ["pending", "accepted", "declined", "tentative"],
+        default: "pending",
+      },
+    }],
+    
+    // Department and Project Context
+    department: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department",
+      index: true,
+    },
+    project: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Project",
+      index: true,
+    },
+    client: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Client",
+    },
+    
+    // Workflow Context (for work items)
+    workflowStage: {
+      type: String,
+    },
+    workflowType: {
+      type: String,
+    },
+    
+    // Status and Priority
+    status: {
+      type: String,
+      enum: ["scheduled", "in-progress", "completed", "cancelled", "postponed"],
+      default: "scheduled",
+      index: true,
+    },
+    priority: {
+      type: String,
+      enum: ["low", "medium", "high", "urgent"],
+      default: "medium",
+    },
+    
+    // Visual Properties
+    color: {
+      type: String,
+      default: "#3B82F6", // Blue
+    },
+    backgroundColor: {
+      type: String,
+      default: "#EBF4FF", // Light blue
+    },
+    
+    // Location and Resources
+    location: {
+      type: String,
+      trim: true,
+    },
+    isVirtual: {
+      type: Boolean,
+      default: false,
+    },
+    meetingUrl: {
+      type: String,
+      trim: true,
+    },
+    
+    // Notifications and Reminders
+    reminders: [{
+      type: {
+        type: String,
+        enum: ["email", "push", "sms"],
+        default: "email",
+      },
+      minutesBefore: {
+        type: Number,
+        default: 15, // 15 minutes before
+      },
+      sent: {
+        type: Boolean,
+        default: false,
+      },
+    }],
+    
+    // Attachments and Resources
+    attachments: [{
+      name: String,
+      url: String,
+      type: String,
+      size: Number,
+      uploadedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      uploadedAt: {
+        type: Date,
+        default: Date.now,
+      },
+    }],
+    
+    // Comments and Notes
+    notes: [{
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      text: String,
+      createdAt: {
+        type: Date,
+        default: Date.now,
+      },
+    }],
+    
+    // Tracking and Analytics
+    timeTracking: {
+      estimatedDuration: {
+        type: Number, // in minutes
+        default: 0,
+      },
+      actualDuration: {
+        type: Number, // in minutes
+        default: 0,
+      },
+      startedAt: Date,
+      completedAt: Date,
+    },
+    
+    // Visibility and Access Control
+    visibility: {
+      type: String,
+      enum: ["public", "department", "project", "private"],
+      default: "project",
+    },
+    
+    // Auto-generated events
+    isAutoGenerated: {
+      type: Boolean,
+      default: false,
+    },
+    autoGeneratedBy: {
+      type: String, // "work-item-deadline", "project-milestone", etc.
+    },
+    
+    // Metadata
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    lastModifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    
+    // Tags for filtering
+    tags: [{
+      type: String,
+      trim: true,
+      lowercase: true,
+    }],
+  },
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
+);
+
+// Indexes for performance
+calendarEventSchema.index({ startDate: 1, endDate: 1 });
+calendarEventSchema.index({ department: 1, startDate: 1 });
+calendarEventSchema.index({ project: 1, startDate: 1 });
+calendarEventSchema.index({ "assignedTo.user": 1, startDate: 1 });
+calendarEventSchema.index({ eventType: 1, status: 1 });
+calendarEventSchema.index({ createdBy: 1 });
+
+// Virtual for duration in minutes
+calendarEventSchema.virtual("durationMinutes").get(function () {
+  if (this.startDate && this.endDate) {
+    return Math.round((this.endDate - this.startDate) / (1000 * 60));
+  }
+  return 0;
+});
+
+// Virtual for checking if event is overdue
+calendarEventSchema.virtual("isOverdue").get(function () {
+  if (this.status === "completed" || this.status === "cancelled") {
+    return false;
+  }
+  return new Date() > this.endDate;
+});
+
+// Pre-save middleware to set colors based on event type and workflow
+calendarEventSchema.pre("save", function (next) {
+  if (this.isNew || this.isModified("eventType") || this.isModified("workflowStage")) {
+    // Set colors based on workflow stage or event type
+    if (this.workflowStage && this.workflowType === "social-media-advanced") {
+      const stageColors = {
+        planning: "#6B7280",
+        "content-creation": "#3B82F6",
+        "caption-writing": "#8B5CF6",
+        "ads-setup": "#F59E0B",
+        review: "#EF4444",
+        posting: "#10B981",
+        monitoring: "#06B6D4",
+      };
+      this.color = stageColors[this.workflowStage] || "#3B82F6";
+    } else {
+      // Default colors by event type
+      const typeColors = {
+        "work-item": "#3B82F6",
+        "project-milestone": "#10B981",
+        meeting: "#8B5CF6",
+        deadline: "#EF4444",
+        review: "#F59E0B",
+        presentation: "#06B6D4",
+        launch: "#10B981",
+        holiday: "#6B7280",
+        training: "#8B5CF6",
+      };
+      this.color = typeColors[this.eventType] || "#3B82F6";
+    }
+  }
+  next();
+});
+
+// Static method to create event from work item
+calendarEventSchema.statics.createFromWorkItem = async function (workItem) {
+  const event = new this({
+    title: workItem.title,
+    description: workItem.description,
+    eventType: "work-item",
+    sourceId: workItem._id,
+    sourceModel: "WorkItem",
+    startDate: workItem.createdAt,
+    endDate: workItem.dueDate,
+    assignedTo: [{
+      user: workItem.assignedTo,
+      role: "assignee",
+      isRequired: true,
+    }],
+    department: workItem.project?.department,
+    project: workItem.project,
+    workflowStage: workItem.currentStage,
+    workflowType: workItem.workflowType,
+    priority: workItem.priority,
+    createdBy: workItem.createdBy,
+    isAutoGenerated: true,
+    autoGeneratedBy: "work-item-deadline",
+    tags: workItem.tags || [],
+  });
+  
+  return event.save();
+};
+
+// Static method to get calendar events for a date range
+calendarEventSchema.statics.getEventsForDateRange = function (startDate, endDate, filters = {}) {
+  const query = {
+    $or: [
+      {
+        startDate: { $gte: startDate, $lte: endDate },
+      },
+      {
+        endDate: { $gte: startDate, $lte: endDate },
+      },
+      {
+        startDate: { $lte: startDate },
+        endDate: { $gte: endDate },
+      },
+    ],
+  };
+  
+  // Apply filters
+  if (filters.department) {
+    query.department = filters.department;
+  }
+  if (filters.project) {
+    query.project = filters.project;
+  }
+  if (filters.assignedTo) {
+    query["assignedTo.user"] = filters.assignedTo;
+  }
+  if (filters.eventType) {
+    query.eventType = filters.eventType;
+  }
+  if (filters.status) {
+    query.status = filters.status;
+  }
+  
+  return this.find(query)
+    .populate("assignedTo.user", "name email")
+    .populate("department", "name")
+    .populate("project", "name client")
+    .populate("client", "name")
+    .populate("createdBy", "name email")
+    .sort({ startDate: 1 });
+};
+
+const CalendarEvent = mongoose.model("CalendarEvent", calendarEventSchema);
+
+export default CalendarEvent;

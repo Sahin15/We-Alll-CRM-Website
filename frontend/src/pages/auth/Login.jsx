@@ -65,11 +65,36 @@ const Login = () => {
           </Form.Group>
 
           <div className="d-flex justify-content-between align-items-center mb-4">
-            <Form.Check type="checkbox" label="Remember me" />
+            <Form.Check 
+              type="checkbox" 
+              label="Remember me"
+              style={{ fontSize: '0.95rem' }}
+              className="remember-me-checkbox"
+            />
             <Link to="/forgot-password" className="text-decoration-none">
               Forgot password?
             </Link>
           </div>
+          
+          <style>{`
+            .remember-me-checkbox input[type="checkbox"] {
+              width: 16px !important;
+              height: 16px !important;
+              margin-right: 8px;
+              cursor: pointer;
+            }
+            
+            .remember-me-checkbox label {
+              cursor: pointer;
+              font-size: 0.95rem;
+              margin-bottom: 0;
+            }
+            
+            .remember-me-checkbox {
+              display: flex;
+              align-items: center;
+            }
+          `}</style>
 
           <Button
             variant="primary"

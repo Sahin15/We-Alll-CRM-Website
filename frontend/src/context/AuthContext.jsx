@@ -18,30 +18,31 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true; // Prevent state updates if unmounted
+    
     const initAuth = async () => {
       const storedToken = localStorage.getItem("token");
       const storedUser = localStorage.getItem("user");
 
       if (storedToken && storedUser) {
+        if (!isMounted) return;
         setToken(storedToken);
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
         
-        // Refresh user data from server to ensure we have latest profile picture
-        try {
-          const response = await authApi.getCurrentUser();
-          const freshUser = response.data.user;
-          setUser(freshUser);
-          localStorage.setItem("user", JSON.stringify(freshUser));
-        } catch (error) {
-          console.error("Failed to refresh user on init:", error);
-          // Keep using stored user if refresh fails
-        }
+        // Skip refresh on init to avoid rate limiting - user data is already in localStorage
+        // User data will be refreshed on next login or manual profile update
       }
-      setLoading(false);
+      if (isMounted) {
+        setLoading(false);
+      }
     };
 
     initAuth();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const login = async (credentials) => {

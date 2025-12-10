@@ -2,6 +2,7 @@ import express from "express";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
+import helmet from "helmet";
 import userRoutes from "./routes/userRoutes.js";
 import connectDB from "./config/db.js";
 import adminRoutes from "./routes/adminRoutes.js";
@@ -23,24 +24,38 @@ import clientDashboardRoutes from "./routes/clientDashboardRoutes.js";
 import adminDashboardRoutes from "./routes/adminDashboardRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import announcementRoutes from "./routes/announcementRoutes.js";
-import taskRoutes from "./routes/taskRoutes.js";
 import meetingRoutes from "./routes/meetingRoutes.js";
 import activityRoutes from "./routes/activityRoutes.js";
 import policyRoutes from "./routes/policyRoutes.js";
 import documentRoutes from "./routes/documentRoutes.js";
-import slotRoutes from "./routes/slotRoutes.js";
-import workRoutes from "./routes/workRoutes.js";
 import workloadRoutes from "./routes/workloadRoutes.js";
+import workItemRoutes from "./routes/workItemRoutes.js";
+import calendarRoutes from "./routes/calendarRoutes.js";
+// Legacy routes removed - use workItemRoutes instead
+// Old: taskRoutes, slotRoutes, workRoutes → New: workItemRoutes
 import { initializeCronJobs } from "./config/cronJobs.js";
+import { apiLimiter, sanitizeInput } from "./middleware/securityMiddleware.js";
+import { auditMiddleware } from "./utils/auditLogger.js";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 connectDB();
 
 const app = express();
 
-// Middlewares
+// Security Middlewares
+app.use(helmet()); // Set security headers
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "10mb" })); // Limit payload size
+app.use(sanitizeInput); // Sanitize MongoDB queries
+app.use(auditMiddleware); // Audit logging for authenticated requests
+
+// Serve static files from uploads folder
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Health check endpoint
 app.get("/api/health", (_req, res) => {
@@ -52,35 +67,38 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-// API Routes
-app.use("/api/users", userRoutes);
-app.use("/api/admin", adminRoutes);
-app.use("/api/clients", clientRoutes);
-app.use("/api/projects", projectRoutes);
-app.use("/api/departments", departmentRoutes);
-app.use("/api/leaves", leaveRoutes);
-app.use("/api/attendance", attendanceRoutes);
-app.use("/api/payments", paymentRoutes);
-app.use("/api/bills", billRoutes);
-app.use("/api/notifications", notificationRoutes);
-app.use("/api/leads", leadRoutes);
-app.use("/api/plans", planRoutes);
-app.use("/api/addons", addOnRoutes);
-app.use("/api/subscriptions", subscriptionRoutes);
-app.use("/api/invoices", invoiceRoutes);
-app.use("/api/services", serviceRoutes);
-app.use("/api/client-dashboard", clientDashboardRoutes);
-app.use("/api/admin-dashboard", adminDashboardRoutes);
-app.use("/api/upload", uploadRoutes);
-app.use("/api/announcements", announcementRoutes);
-app.use("/api/tasks", taskRoutes);
-app.use("/api/meetings", meetingRoutes);
-app.use("/api/activities", activityRoutes);
-app.use("/api/policies", policyRoutes);
-app.use("/api/documents", documentRoutes);
-app.use("/api/slots", slotRoutes);
-app.use("/api/work", workRoutes);
-app.use("/api/workload", workloadRoutes);
+// API Routes (with rate limiting)
+app.use("/api/users", apiLimiter, userRoutes);
+app.use("/api/admin", apiLimiter, adminRoutes);
+app.use("/api/clients", apiLimiter, clientRoutes);
+app.use("/api/projects", apiLimiter, projectRoutes);
+app.use("/api/departments", apiLimiter, departmentRoutes);
+app.use("/api/leaves", apiLimiter, leaveRoutes);
+app.use("/api/attendance", apiLimiter, attendanceRoutes);
+app.use("/api/payments", apiLimiter, paymentRoutes);
+app.use("/api/bills", apiLimiter, billRoutes);
+app.use("/api/notifications", apiLimiter, notificationRoutes);
+app.use("/api/leads", apiLimiter, leadRoutes);
+app.use("/api/plans", apiLimiter, planRoutes);
+app.use("/api/addons", apiLimiter, addOnRoutes);
+app.use("/api/subscriptions", apiLimiter, subscriptionRoutes);
+app.use("/api/invoices", apiLimiter, invoiceRoutes);
+app.use("/api/services", apiLimiter, serviceRoutes);
+app.use("/api/client-dashboard", apiLimiter, clientDashboardRoutes);
+app.use("/api/admin-dashboard", apiLimiter, adminDashboardRoutes);
+app.use("/api/upload", apiLimiter, uploadRoutes);
+app.use("/api/announcements", apiLimiter, announcementRoutes);
+app.use("/api/meetings", apiLimiter, meetingRoutes);
+app.use("/api/activities", apiLimiter, activityRoutes);
+app.use("/api/policies", apiLimiter, policyRoutes);
+app.use("/api/documents", apiLimiter, documentRoutes);
+app.use("/api/workload", apiLimiter, workloadRoutes);
+app.use("/api/work-items", apiLimiter, workItemRoutes);
+app.use("/api/calendar", apiLimiter, calendarRoutes);
+// Legacy routes removed:
+// - /api/tasks → use /api/work-items
+// - /api/slots → use /api/work-items
+// - /api/work → use /api/work-items
 
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;

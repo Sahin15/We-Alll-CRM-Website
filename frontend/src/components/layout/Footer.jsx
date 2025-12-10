@@ -1,5 +1,13 @@
 import { Container, Row, Col } from "react-bootstrap";
-import { FaHeart, FaGithub, FaLinkedin, FaEnvelope, FaUser, FaFacebook, FaInstagram } from "react-icons/fa";
+import {
+  FaHeart,
+  FaGithub,
+  FaLinkedin,
+  FaEnvelope,
+  FaUser,
+  FaFacebook,
+  FaInstagram,
+} from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
 import { useAuth } from "../../context/AuthContext";
 
@@ -8,169 +16,211 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
   const currentYear = new Date().getFullYear();
 
   // Calculate margin based on sidebar state
-  const footerMargin = isMobile ? '0' : (sidebarCollapsed ? '70px' : '250px');
+  const footerMargin = isMobile ? "0" : sidebarCollapsed ? "70px" : "250px";
 
   return (
-    <footer 
-      className="footer mt-auto" 
-      style={{ 
+    <footer
+      className="footer mt-auto"
+      style={{
         zIndex: 1040,
         marginLeft: footerMargin,
-        transition: 'margin-left 0.3s ease',
-        width: isMobile ? '100%' : `calc(100% - ${footerMargin})`,
+        transition: "margin-left 0.3s ease",
+        width: isMobile ? "100%" : `calc(100% - ${footerMargin})`,
       }}
     >
-      <div 
+      <div
         className="footer-gradient py-3"
         style={{
-          background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%)',
-          borderRadius: isMobile ? '0' : '16px 0 0 0',
+          background:
+            "linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%)",
+          borderRadius: isMobile ? "0" : "16px 0 0 0",
         }}
       >
         <Container fluid className="px-4">
           <Row className="align-items-center">
             <Col md={6} className="text-center text-md-start mb-2 mb-md-0">
               <div className="d-flex align-items-center justify-content-center justify-content-md-start">
-                <img 
-                  src={new URL('./We-Alll-Logo.jpg', import.meta.url).href}
+                <img
+                  src={new URL("./We-Alll-Logo.jpg", import.meta.url).href}
                   alt="WE ALLL"
                   style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '6px',
-                    marginRight: '10px',
-                    border: '2px solid rgba(255, 255, 255, 0.3)'
+                    width: "40px",
+                    height: "40px",
+                    objectFit: "contain",
+                    borderRadius: "8px",
+                    marginRight: "12px",
+                    border: "2px solid rgba(255, 255, 255, 0.5)",
+                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
+                    backgroundColor: "white",
+                    padding: "2px",
                   }}
                 />
                 <div>
-                  <div className="text-white fw-semibold" style={{ fontSize: '0.95rem', marginBottom: '4px' }}>
+                  <div
+                    className="text-white fw-semibold"
+                    style={{ fontSize: "0.95rem", marginBottom: "4px" }}
+                  >
                     WE ALLL Office
                   </div>
-                  <div className="text-white-50" style={{ fontSize: '0.75rem', lineHeight: '1.4' }}>
+                  <div
+                    className="text-white-50"
+                    style={{ fontSize: "0.75rem", lineHeight: "1.4" }}
+                  >
                     Empowering Teams, Simplifying Management
                   </div>
                 </div>
               </div>
             </Col>
-            
+
             <Col md={6} className="text-center text-md-end">
               {user && (
-                <div className="text-white" style={{ fontSize: '0.85rem', marginBottom: '8px', lineHeight: '1.5' }}>
+                <div
+                  className="text-white"
+                  style={{
+                    fontSize: "0.85rem",
+                    marginBottom: "8px",
+                    lineHeight: "1.5",
+                  }}
+                >
                   <FaUser className="me-2" size={14} />
                   <strong>{user.name}</strong>
-                  <span className="ms-2 badge bg-white bg-opacity-25 text-white" style={{ fontSize: '0.7rem' }}>
-                    {user.role === 'employee' ? (user.funBadge || 'Team Member') : user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                  <span
+                    className="ms-2 badge bg-white bg-opacity-25 text-white"
+                    style={{ fontSize: "0.7rem" }}
+                  >
+                    {user.role === "employee"
+                      ? user.funBadge || "Team Member"
+                      : user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                   </span>
                 </div>
               )}
-              <div className="text-white-50" style={{ fontSize: '0.75rem', marginBottom: '6px', lineHeight: '1.5' }}>
-                Made with <FaHeart className="text-danger mx-1" style={{ animation: 'heartbeat 1.5s ease-in-out infinite' }} size={12} /> by WE ALLL Team
+              <div
+                className="text-white-50"
+                style={{
+                  fontSize: "0.75rem",
+                  marginBottom: "6px",
+                  lineHeight: "1.5",
+                }}
+              >
+                Made with{" "}
+                <FaHeart
+                  className="text-danger mx-1"
+                  style={{ animation: "heartbeat 1.5s ease-in-out infinite" }}
+                  size={12}
+                />{" "}
+                by WE ALLL Team
               </div>
-              <div className="text-white-50" style={{ fontSize: '0.7rem', lineHeight: '1.4' }}>
+              <div
+                className="text-white-50"
+                style={{ fontSize: "0.7rem", lineHeight: "1.4" }}
+              >
                 © {currentYear} WE ALLL. All rights reserved.
               </div>
             </Col>
           </Row>
-          
+
           <Row className="mt-2 pt-2 border-top border-white border-opacity-25">
             <Col md={6} className="text-center text-md-start mb-2 mb-md-0">
-              <div className="d-flex gap-3 justify-content-center justify-content-md-start" style={{ lineHeight: '1.6' }}>
-                <a 
-                  href="/privacy-policy" 
+              <div
+                className="d-flex gap-3 justify-content-center justify-content-md-start"
+                style={{ lineHeight: "1.6" }}
+              >
+                <a
+                  href="/privacy-policy"
                   className="text-white text-decoration-none footer-link"
-                  style={{ fontSize: '0.75rem', padding: '2px 0' }}
+                  style={{ fontSize: "0.75rem", padding: "2px 0" }}
                   onClick={(e) => {
                     e.preventDefault();
                     // TODO: Navigate to privacy policy page
-                    console.log('Navigate to Privacy Policy');
+                    console.log("Navigate to Privacy Policy");
                   }}
                 >
                   Privacy Policy
                 </a>
                 <span className="text-white-50">•</span>
-                <a 
-                  href="/terms-of-service" 
+                <a
+                  href="/terms-of-service"
                   className="text-white text-decoration-none footer-link"
-                  style={{ fontSize: '0.75rem', padding: '2px 0' }}
+                  style={{ fontSize: "0.75rem", padding: "2px 0" }}
                   onClick={(e) => {
                     e.preventDefault();
                     // TODO: Navigate to terms page
-                    console.log('Navigate to Terms of Service');
+                    console.log("Navigate to Terms of Service");
                   }}
                 >
                   Terms of Service
                 </a>
                 <span className="text-white-50">•</span>
-                <a 
-                  href="/support" 
+                <a
+                  href="/support"
                   className="text-white text-decoration-none footer-link"
-                  style={{ fontSize: '0.75rem', padding: '2px 0' }}
+                  style={{ fontSize: "0.75rem", padding: "2px 0" }}
                   onClick={(e) => {
                     e.preventDefault();
                     // TODO: Navigate to support page
-                    console.log('Navigate to Support');
+                    console.log("Navigate to Support");
                   }}
                 >
                   Support
                 </a>
               </div>
             </Col>
-            
+
             <Col md={6} className="text-center text-md-end">
-              <div className="d-flex gap-3 justify-content-center justify-content-md-end">
-                <a 
-                  href="https://www.facebook.com/share/v/15Pi4LKHzLr/" 
+              <div className="d-flex gap-2 justify-content-center justify-content-md-end align-items-center">
+                <a
+                  href="https://www.facebook.com/profile.php?id=61556163594429"
                   className="text-white footer-social-link"
                   aria-label="Facebook"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <FaFacebook size={16} />
+                  <FaFacebook />
                 </a>
-                <a 
-                  href="https://www.instagram.com/wealll_official?igsh=MXkybmh3Z2x0b2Vrcg==" 
+                <a
+                  href="https://www.instagram.com/wealll_official?igsh=MXkybmh3Z2x0b2Vrcg=="
                   className="text-white footer-social-link"
                   aria-label="Instagram"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <FaInstagram size={16} />
+                  <FaInstagram />
                 </a>
-                <a 
-                  href="mailto:contact@wealll.com" 
+                <a
+                  href="mailto:amit@wealll.com"
                   className="text-white footer-social-link"
                   aria-label="Email"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <FaEnvelope size={16} />
+                  <FaEnvelope />
                 </a>
-                <a 
-                  href="https://www.linkedin.com/company/we-alll/" 
+                <a
+                  href="https://www.linkedin.com/company/we-alll/"
                   className="text-white footer-social-link"
                   aria-label="LinkedIn"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <FaLinkedin size={16} />
+                  <FaLinkedin />
                 </a>
-                <a 
-                  href="https://x.com/" 
+                <a
+                  href="https://x.com/"
                   className="text-white footer-social-link"
                   aria-label="X (Twitter)"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <FaXTwitter size={16} />
+                  <FaXTwitter />
                 </a>
-                <a 
-                  href="https://github.com/login" 
+                <a
+                  href="https://github.com/login"
                   className="text-white footer-social-link"
                   aria-label="GitHub"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <FaGithub size={16} />
+                  <FaGithub />
                 </a>
               </div>
             </Col>
@@ -201,13 +251,19 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
         .footer-social-link {
           width: 32px;
           height: 32px;
-          display: flex;
+          display: inline-flex;
           align-items: center;
           justify-content: center;
           border-radius: 50%;
-          background: rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.15);
           transition: all 0.3s ease;
           backdrop-filter: blur(10px);
+        }
+
+        .footer-social-link svg {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
         }
 
         .footer-social-link:hover {
@@ -248,13 +304,13 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
           }
 
           .footer-social-link {
-            width: 36px;
-            height: 36px;
+            width: 34px;
+            height: 34px;
           }
 
           .footer-social-link svg {
-            width: 16px;
-            height: 16px;
+            width: 16px !important;
+            height: 16px !important;
           }
 
           /* Stack footer sections on mobile */
@@ -290,8 +346,13 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
           }
 
           .footer-social-link {
-            width: 28px;
-            height: 28px;
+            width: 32px;
+            height: 32px;
+          }
+          
+          .footer-social-link svg {
+            width: 14px !important;
+            height: 14px !important;
           }
         }
       `}</style>

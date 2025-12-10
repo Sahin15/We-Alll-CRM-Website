@@ -1,0 +1,24 @@
+.notification-bell-toggle {
+  position: relative;
+  padding: 0.5rem;
+}
+
+.notification-bell-toggle:hover {
+  opacity: 0.8;
+}
+
+.notification-dropdown {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.notification-item {
+  transition: background-color 0.2s;
+}
+
+.notification-item:hover {
+  background-color: #f8f9fa !important;
+}
+
+.notification-item.unread {
+  border-left: 3px solid #0d6efd;
+}

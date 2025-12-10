@@ -109,14 +109,17 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
-  // Fetch notifications on mount
+  // Fetch notifications on mount (only once)
   useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    
     fetchNotifications();
     
-    // Poll for new notifications every 30 seconds
-    const interval = setInterval(fetchUnreadCount, 30000);
+    // Poll for new notifications every 60 seconds (reduced from 30s to avoid rate limiting)
+    const interval = setInterval(fetchUnreadCount, 60000);
     return () => clearInterval(interval);
-  }, [fetchNotifications, fetchUnreadCount]);
+  }, []); // Empty deps to run only once
 
   const value = {
     notifications,

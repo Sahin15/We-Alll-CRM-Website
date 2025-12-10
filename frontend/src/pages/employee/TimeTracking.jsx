@@ -3,6 +3,7 @@ import { Container, Row, Col, Card, Button, Form, Table, Badge, Modal } from 're
 import { FaClock, FaPlay, FaStop, FaPlus } from 'react-icons/fa';
 import toast from '../../utils/toast';
 import api from '../../services/api';
+import workItemApi from '../../api/workItemApi';
 
 const TimeTracking = () => {
   const [tasks, setTasks] = useState([]);
@@ -35,8 +36,8 @@ const TimeTracking = () => {
 
   const fetchTasks = async () => {
     try {
-      const response = await api.get('/tasks/my-tasks?status=in-progress');
-      setTasks(response.data);
+      const response = await workItemApi.getMyWork({ type: 'task', status: 'In Progress' });
+      setTasks(response.data || []);
     } catch (error) {
       console.error('Error fetching tasks:', error);
     }
@@ -47,11 +48,12 @@ const TimeTracking = () => {
       setLoading(true);
       // Get today's time entries
       const today = new Date().toISOString().split('T')[0];
-      const response = await api.get(`/tasks/my-tasks`);
+      const response = await workItemApi.getMyWork({ type: 'task' });
       
       // Extract all time entries from all tasks
       const allEntries = [];
-      response.data.forEach(task => {
+      const tasks = response.data || [];
+      tasks.forEach(task => {
         if (task.timeEntries && task.timeEntries.length > 0) {
           task.timeEntries.forEach(entry => {
             allEntries.push({

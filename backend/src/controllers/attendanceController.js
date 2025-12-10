@@ -1,4 +1,5 @@
 import Attendance from "../models/attendanceModel.js";
+import User from "../models/userModel.js";
 import logger from '../utils/logger.js';
 import { buildDateRangeQuery } from '../utils/queryOptimizer.js';
 
@@ -8,10 +9,10 @@ export const clockIn = async (req, res) => {
     const employee = req.user.id;
     const location = req.body?.location || null;
     
-    // HoDs are also employees and can clock in
-    if (!['employee', 'hod'].includes(req.user.role)) {
+    // Employees, HoDs, and HR can clock in (not clients, admin, superadmin)
+    if (['client', 'admin', 'superadmin'].includes(req.user.role)) {
       return res.status(403).json({ 
-        message: "Only employees and HoDs can clock in",
+        message: "Admins and clients cannot clock in. This feature is for employees only.",
         type: 'invalid_role'
       });
     }
@@ -69,8 +70,8 @@ export const clockIn = async (req, res) => {
     res.status(201).json({
       message: message,
       attendance,
-      isLate: status === "late",
-      isHalfDay: status === "half-day",
+      isLate: attendance.status === "late",
+      isHalfDay: attendance.status === "half-day",
     });
   } catch (error) {
     logger.error("Error in clockIn:", error);
@@ -97,10 +98,10 @@ export const clockOut = async (req, res) => {
     const employee = req.user.id;
     const notes = req.body?.notes || null;
     
-    // HoDs are also employees and can clock out
-    if (!['employee', 'hod'].includes(req.user.role)) {
+    // Employees, HoDs, and HR can clock out (not clients, admin, superadmin)
+    if (['client', 'admin', 'superadmin'].includes(req.user.role)) {
       return res.status(403).json({ 
-        message: "Only employees and HoDs can clock out",
+        message: "Admins and clients cannot clock out. This feature is for employees only.",
         type: 'invalid_role'
       });
     }
@@ -219,10 +220,10 @@ export const getMyAttendance = async (req, res) => {
     const employee = req.user.id;
     const { startDate, endDate } = req.query;
     
-    // HoDs are also employees and can view their attendance
-    if (!['employee', 'hod'].includes(req.user.role)) {
+    // Employees, HoDs, and HR can view their own attendance (not clients, admin, superadmin)
+    if (['client', 'admin', 'superadmin'].includes(req.user.role)) {
       return res.status(403).json({ 
-        message: "Only employees and HoDs can view their attendance"
+        message: "Admins and clients do not have personal attendance records"
       });
     }
 
@@ -643,5 +644,232 @@ export const getTodayAttendance = async (req, res) => {
   } catch (error) {
     console.error("Error in getTodayAttendance:", error.message);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+// Download Attendance PDF
+export const downloadAttendancePDF = async (req, res) => {
+  try {
+    const { employee, startDate, endDate } = req.query;
+
+    if (!employee || !startDate || !endDate) {
+      return res.status(400).json({ 
+        message: "Employee ID, start date, and end date are required" 
+      });
+    }
+
+    // Read and convert logo to base64
+    let logoBase64 = '';
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      const { fileURLToPath } = await import('url');
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = path.dirname(__filename);
+      const logoPath = path.join(__dirname, '../../uploads/We-Alll-Logo.jpg');
+      
+      console.log('Attempting to load logo from:', logoPath);
+      
+      if (fs.default.existsSync(logoPath)) {
+        const logoBuffer = fs.default.readFileSync(logoPath);
+        logoBase64 = `data:image/jpeg;base64,${logoBuffer.toString('base64')}`;
+        console.log('Logo loaded successfully, base64 length:', logoBase64.length);
+      } else {
+        console.log('Logo file not found at path:', logoPath);
+      }
+    } catch (error) {
+      console.log('Error loading logo:', error.message);
+    }
+
+    // Build query
+    const query = { employee };
+    
+    if (startDate && endDate) {
+      query.date = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      };
+    }
+
+    // Fetch attendance records
+    const attendances = await Attendance.find(query)
+      .populate("employee", "name email employeeId")
+      .sort({ date: 1 });
+
+    // Get employee info
+    const employeeInfo = attendances[0]?.employee || await User.findById(employee).select("name email employeeId");
+
+    if (!employeeInfo) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+
+    // Calculate statistics
+    const stats = {
+      present: attendances.filter(a => a.status === "present").length,
+      late: attendances.filter(a => a.status === "late").length,
+      halfDay: attendances.filter(a => a.status === "half-day").length,
+      absent: attendances.filter(a => a.status === "absent").length,
+      onLeave: attendances.filter(a => a.status === "on-leave").length,
+      totalHours: attendances.reduce((sum, a) => sum + (a.workHours || 0), 0).toFixed(2),
+      totalOvertime: attendances.reduce((sum, a) => sum + (a.overtime || 0), 0).toFixed(2),
+    };
+
+    // Generate HTML for PDF
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Attendance Report - ${employeeInfo.name}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 40px; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #667eea; padding-bottom: 20px; }
+          .company-header { display: flex; align-items: center; justify-content: center; margin-bottom: 20px; gap: 15px; }
+          .company-logo { width: 60px; height: 60px; }
+          .company-logo img { 
+            width: 60px; 
+            height: 60px; 
+            object-fit: contain;
+            border-radius: 8px; 
+            background: white;
+            padding: 4px;
+            border: 2px solid #667eea;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          }
+          .company-info { text-align: left; }
+          .company-info h2 { margin: 0; color: #333; font-size: 24px; }
+          .company-info .tagline { margin: 5px 0 0 0; color: #666; font-size: 12px; font-style: italic; }
+          .employee-info { margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0; }
+          .header h1 { margin: 15px 0 10px 0; color: #333; font-size: 28px; }
+          .header p { margin: 5px 0; color: #666; }
+          .info-section { margin: 20px 0; }
+          .info-row { display: flex; margin: 10px 0; }
+          .info-label { font-weight: bold; width: 150px; }
+          .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 30px 0; }
+          .stat-card { border: 1px solid #ddd; padding: 15px; border-radius: 5px; text-align: center; }
+          .stat-card h3 { margin: 0; font-size: 32px; }
+          .stat-card p { margin: 5px 0; color: #666; }
+          .present { border-left: 4px solid #28a745; }
+          .late { border-left: 4px solid #ffc107; }
+          .absent { border-left: 4px solid #dc3545; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+          th { background-color: #f8f9fa; font-weight: bold; }
+          tr:nth-child(even) { background-color: #f8f9fa; }
+          .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+          .status-present { background-color: #d4edda; color: #155724; }
+          .status-late { background-color: #fff3cd; color: #856404; }
+          .status-absent { background-color: #f8d7da; color: #721c24; }
+          .status-half-day { background-color: #d1ecf1; color: #0c5460; }
+          .status-on-leave { background-color: #e2e3e5; color: #383d41; }
+          .footer { margin-top: 40px; text-align: center; color: #666; font-size: 12px; border-top: 1px solid #ddd; padding-top: 20px; }
+          @media print {
+            body { margin: 20px; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="company-header">
+            <div class="company-logo">
+              ${logoBase64 ? `<img src="${logoBase64}" alt="WE ALLL Logo" />` : '<div style="width:60px;height:60px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:10px;">WE ALLL</div>'}
+            </div>
+            <div class="company-info">
+              <h2>WE ALLL Office</h2>
+              <p class="tagline">Empowering Teams, Simplifying Management</p>
+            </div>
+          </div>
+          <h1>📊 Attendance Report</h1>
+          <div class="employee-info">
+            <p><strong>${employeeInfo.name}</strong></p>
+            <p>${employeeInfo.email} ${employeeInfo.employeeId ? `| ID: ${employeeInfo.employeeId}` : ''}</p>
+            <p>Period: ${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}</p>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat-card present">
+            <h3>${stats.present}</h3>
+            <p>Present</p>
+          </div>
+          <div class="stat-card late">
+            <h3>${stats.late}</h3>
+            <p>Late</p>
+          </div>
+          <div class="stat-card absent">
+            <h3>${stats.absent}</h3>
+            <p>Absent</p>
+          </div>
+          <div class="stat-card">
+            <h3>${stats.halfDay}</h3>
+            <p>Half Day</p>
+          </div>
+          <div class="stat-card">
+            <h3>${stats.onLeave}</h3>
+            <p>On Leave</p>
+          </div>
+          <div class="stat-card">
+            <h3>${stats.totalHours}</h3>
+            <p>Total Hours</p>
+          </div>
+        </div>
+
+        <h2>Detailed Records</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Clock In</th>
+              <th>Clock Out</th>
+              <th>Work Hours</th>
+              <th>Overtime</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${attendances.map(att => `
+              <tr>
+                <td>${new Date(att.date).toLocaleDateString()}</td>
+                <td>${att.clockIn ? new Date(att.clockIn).toLocaleTimeString() : '-'}</td>
+                <td>${att.clockOut ? new Date(att.clockOut).toLocaleTimeString() : '-'}</td>
+                <td>${att.workHours || 0} hrs</td>
+                <td>${att.overtime || 0} hrs</td>
+                <td><span class="status-badge status-${att.status}">${att.status}</span></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <div class="footer">
+          <p><strong>WE ALLL Office</strong> | Attendance Management System</p>
+          <p>Generated on ${new Date().toLocaleString()}</p>
+          <p>This is an official system-generated report</p>
+          <p style="margin-top: 10px; font-size: 10px;">© ${new Date().getFullYear()} WE ALLL. All rights reserved.</p>
+        </div>
+
+        <script>
+          // Auto-print when loaded
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 500);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    // Send HTML response
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+
+  } catch (error) {
+    console.error("Error generating attendance PDF:", error);
+    res.status(500).json({ 
+      message: "Failed to generate PDF", 
+      error: error.message 
+    });
   }
 };

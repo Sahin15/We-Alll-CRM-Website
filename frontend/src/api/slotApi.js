@@ -1,191 +1,223 @@
-import axios from 'axios';
+/**
+ * @deprecated This API is deprecated and wraps workItemApi
+ * Use workItemApi.js directly for new code
+ * This wrapper exists for backward compatibility during migration
+ * 
+ * Migration Guide:
+ * - getSlotsByProject() → workItemApi.getMyWork({ project: projectId, type: 'content' })
+ * - createSlot() → workItemApi.createWorkItem({ type: 'content', ... })
+ * - updateSlot() → workItemApi.updateWorkItem()
+ * - deleteSlot() → workItemApi.deleteWorkItem()
+ */
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import api from '../services/api';
+import workItemApi from './workItemApi';
 
-// Create axios instance with default config
-const api = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-});
+// Deprecation warning removed - this file is kept for backward compatibility only
+// console.warn('⚠️ DEPRECATED: slotApi is deprecated. Use workItemApi instead.');
 
-// Add token to requests
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Get all slots with filters and pagination
-export const getAllSlots = async (filters = {}) => {
-  try {
-    const params = new URLSearchParams();
-    
-    // Pagination
-    if (filters.page) params.append('page', filters.page);
-    if (filters.limit) params.append('limit', filters.limit);
-    
-    // Filters
-    if (filters.project) params.append('project', filters.project);
-    if (filters.assignedTo) params.append('assignedTo', filters.assignedTo);
-    if (filters.status) params.append('status', filters.status);
-    if (filters.platform) params.append('platform', filters.platform);
-    if (filters.startDate) params.append('startDate', filters.startDate);
-    if (filters.endDate) params.append('endDate', filters.endDate);
-    if (filters.search) params.append('search', filters.search);
-
-    const response = await api.get(`/slots?${params.toString()}`);
-    
-    // Handle both old and new response formats
-    if (response.data.pagination) {
-      return response.data; // New format with pagination
-    } else {
-      // Old format - convert to new format for backward compatibility
-      return {
-        success: true,
-        data: response.data,
-        pagination: {
-          page: 1,
-          limit: response.data.length,
-          total: response.data.length,
-          pages: 1
-        }
-      };
-    }
-  } catch (error) {
-    throw error.response?.data || error;
-  }
-};
-
-// Get slots by project
+/**
+ * Get slots (content work items) for a project
+ * @deprecated Use workItemApi.getMyWork() instead
+ */
 export const getSlotsByProject = async (projectId) => {
   try {
-    const response = await api.get(`/slots/project/${projectId}`);
-    return response.data;
+    // Use the project-specific endpoint
+    const response = await api.get(`/work-items/project/${projectId}`, {
+      params: { type: 'content' }
+    });
+    
+    // Transform work items to slot format for backward compatibility
+    const slots = response.data.data?.map(workItem => ({
+      _id: workItem._id,
+      title: workItem.title,
+      description: workItem.description,
+      project: workItem.project,
+      assignedTo: workItem.assignedTo,
+      createdBy: workItem.createdBy,
+      status: workItem.status,
+      priority: workItem.priority,
+      dueDate: workItem.dueDate,
+      postingDate: workItem.dueDate, // Legacy field
+      workType: workItem.metadata?.workType || workItem.postType || 'Content',
+      platform: workItem.platform,
+      postType: workItem.postType,
+      contentBucket: workItem.contentBucket,
+      createdAt: workItem.createdAt,
+      updatedAt: workItem.updatedAt,
+      // Map work item status to legacy slot status
+      designStatus: mapWorkItemStatusToSlotStatus(workItem.status),
+    })) || [];
+    
+    return { data: slots };
   } catch (error) {
-    throw error.response?.data || error;
+    console.error('Error fetching slots:', error);
+    throw error;
   }
 };
 
-// Get my assigned slots
-export const getMySlots = async () => {
-  try {
-    const response = await api.get('/slots/my-slots');
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error;
-  }
-};
-
-// Get single slot by ID
+/**
+ * Get a single slot by ID
+ * @deprecated Use workItemApi.getWorkItemById() instead
+ */
 export const getSlotById = async (slotId) => {
   try {
-    const response = await api.get(`/slots/${slotId}`);
-    return response.data;
+    const response = await api.get(`/work-items/${slotId}`);
+    
+    // Transform work item to slot format
+    const workItem = response.data.data;
+    const slot = {
+      _id: workItem._id,
+      title: workItem.title,
+      description: workItem.description,
+      project: workItem.project,
+      client: workItem.project?.client, // Assuming populated
+      assignedTo: workItem.assignedTo,
+      createdBy: workItem.createdBy,
+      status: workItem.status,
+      priority: workItem.priority,
+      dueDate: workItem.dueDate,
+      postingDate: workItem.dueDate,
+      workType: workItem.metadata?.workType || workItem.postType || 'Content',
+      platform: workItem.platform,
+      postType: workItem.postType,
+      contentBucket: workItem.contentBucket,
+      createdAt: workItem.createdAt,
+      updatedAt: workItem.updatedAt,
+      designStatus: mapWorkItemStatusToSlotStatus(workItem.status),
+    };
+    
+    return { data: slot };
   } catch (error) {
-    throw error.response?.data || error;
+    console.error('Error fetching slot:', error);
+    throw error;
   }
 };
 
-// Create new slot
+/**
+ * Create a new slot (content work item)
+ * @deprecated Use workItemApi.createWorkItem() instead
+ */
 export const createSlot = async (slotData) => {
   try {
-    const response = await api.post('/slots', slotData);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error;
-  }
-};
-
-// Update slot
-export const updateSlot = async (slotId, slotData) => {
-  try {
-    const response = await api.put(`/slots/${slotId}`, slotData);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error;
-  }
-};
-
-// Update slot status
-export const updateSlotStatus = async (slotId, status) => {
-  try {
-    // Send both status and designStatus for backward compatibility
-    const response = await api.patch(`/slots/${slotId}/status`, { 
-      status: status,
-      designStatus: status 
-    });
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error;
-  }
-};
-
-// Add comment to slot
-export const addComment = async (slotId, text) => {
-  try {
-    const response = await api.post(`/slots/${slotId}/comments`, { text });
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error;
-  }
-};
-
-// Upload creative to slot
-export const uploadCreative = async (slotId, file) => {
-  try {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const response = await api.post(`/slots/${slotId}/creatives`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
+    // Transform slot data to work item format
+    const workItemData = {
+      type: 'content',
+      title: slotData.title,
+      description: slotData.description || slotData.brief || '',
+      project: slotData.project,
+      assignedTo: slotData.assignedTo,
+      priority: slotData.priority || 'Medium',
+      dueDate: slotData.postingDate || slotData.dueDate,
+      platform: slotData.platform || slotData.platforms?.[0],
+      postType: slotData.postType,
+      contentBucket: slotData.contentBucket,
+      metadata: {
+        workType: slotData.workType,
+        caption: slotData.caption,
+        hashtags: slotData.hashtags,
+        occasion: slotData.occasion,
+        brief: slotData.brief,
       }
-    });
+    };
+    
+    const response = await api.post('/work-items', workItemData);
     return response.data;
   } catch (error) {
-    throw error.response?.data || error;
+    console.error('Error creating slot:', error);
+    throw error;
   }
 };
 
-// Delete slot
+/**
+ * Update a slot
+ * @deprecated Use workItemApi.updateWorkItem() instead
+ */
+export const updateSlot = async (slotId, updates) => {
+  try {
+    // Transform slot updates to work item format
+    const workItemUpdates = {
+      title: updates.title,
+      description: updates.description || updates.brief,
+      assignedTo: updates.assignedTo,
+      priority: updates.priority,
+      dueDate: updates.postingDate || updates.dueDate,
+      status: updates.status || mapSlotStatusToWorkItemStatus(updates.designStatus),
+      platform: updates.platform,
+      postType: updates.postType,
+      contentBucket: updates.contentBucket,
+    };
+    
+    // Add metadata if present
+    if (updates.workType || updates.caption || updates.hashtags) {
+      workItemUpdates.metadata = {
+        workType: updates.workType,
+        caption: updates.caption,
+        hashtags: updates.hashtags,
+        occasion: updates.occasion,
+        brief: updates.brief,
+      };
+    }
+    
+    const response = await api.put(`/work-items/${slotId}`, workItemUpdates);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating slot:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a slot
+ * @deprecated Use workItemApi.deleteWorkItem() instead
+ */
 export const deleteSlot = async (slotId) => {
   try {
-    const response = await api.delete(`/slots/${slotId}`);
+    const response = await api.delete(`/work-items/${slotId}`);
     return response.data;
   } catch (error) {
-    throw error.response?.data || error;
+    console.error('Error deleting slot:', error);
+    throw error;
   }
 };
 
-// Get slot statistics for a project
-export const getSlotStatistics = async (projectId) => {
-  try {
-    const response = await api.get(`/slots/stats/${projectId}`);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error;
-  }
+/**
+ * Upload creative for a slot
+ * @deprecated This functionality needs to be implemented in work items
+ */
+export const uploadCreative = async (slotId, file) => {
+  console.warn('uploadCreative is not yet implemented in work items');
+  throw new Error('Upload creative functionality needs to be migrated to work items');
 };
+
+// Helper functions for status mapping
+function mapWorkItemStatusToSlotStatus(workItemStatus) {
+  const statusMap = {
+    'To Do': 'Planned',
+    'In Progress': 'In Design',
+    'Review': 'Ready for Review',
+    'Done': 'Approved'
+  };
+  return statusMap[workItemStatus] || 'Planned';
+}
+
+function mapSlotStatusToWorkItemStatus(slotStatus) {
+  const statusMap = {
+    'Planned': 'To Do',
+    'In Design': 'In Progress',
+    'Ready for Review': 'Review',
+    'Revision Needed': 'Review',
+    'Needs Revision': 'Review',
+    'Approved': 'Done'
+  };
+  return statusMap[slotStatus] || 'To Do';
+}
 
 export default {
-  getAllSlots,
   getSlotsByProject,
-  getMySlots,
   getSlotById,
   createSlot,
   updateSlot,
-  updateSlotStatus,
-  addComment,
-  uploadCreative,
   deleteSlot,
-  getSlotStatistics
+  uploadCreative,
 };

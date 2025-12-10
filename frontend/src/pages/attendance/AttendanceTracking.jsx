@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react";
-import { Container, Row, Col, Card, Table, Badge, Form } from "react-bootstrap";
+import { Container, Row, Col, Card, Table, Badge, Form, Button, Dropdown } from "react-bootstrap";
 import { toast } from "react-toastify";
 import { attendanceApi } from "../../api/attendanceApi";
 import { userApi } from "../../api/userApi";
 import { useAuth } from "../../context/AuthContext";
 import {
   formatDate,
-  formatDateTime,
+  formatTime,
   getStatusVariant,
 } from "../../utils/helpers";
+import EmployeeAttendanceDetails from "../../components/attendance/EmployeeAttendanceDetails";
 import "../../styles/pages-mobile.css";
 import "../../styles/table-mobile.css";
 
@@ -35,6 +36,8 @@ const AttendanceTracking = () => {
   
   const [activeFilter, setActiveFilter] = useState('today'); // Track active filter
   const [statusFilter, setStatusFilter] = useState(null); // Filter by status when card clicked
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
   
   // Filter users based on search term
   const filteredUsers = users.filter(user => 
@@ -255,6 +258,15 @@ const AttendanceTracking = () => {
   };
 
   const absentEmployees = getAbsentEmployees();
+
+  // Handle view details for employee - Opens modal
+  const handleViewDetails = (employeeId) => {
+    const employee = users.find(u => u._id === employeeId);
+    if (employee) {
+      setSelectedEmployee(employee);
+      setShowDetailsModal(true);
+    }
+  };
 
   return (
     <Container fluid>
@@ -619,13 +631,14 @@ const AttendanceTracking = () => {
                 <Table responsive hover>
                   <thead>
                     <tr>
-                      <th>Employee</th>
+                      {!filters.employee && <th>Employee</th>}
                       <th>Date</th>
                       <th>Clock In</th>
                       <th>Clock Out</th>
                       <th>Work Hours</th>
                       <th>Overtime</th>
                       <th>Status</th>
+                      {!filters.employee && <th>Actions</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -634,12 +647,12 @@ const AttendanceTracking = () => {
                         .filter(attendance => !statusFilter || attendance.status === statusFilter)
                         .map((attendance) => (
                         <tr key={attendance._id}>
-                          <td>{attendance.employee?.name || "N/A"}</td>
+                          {!filters.employee && <td>{attendance.employee?.name || "N/A"}</td>}
                           <td>{formatDate(attendance.date)}</td>
-                          <td>{formatDateTime(attendance.clockIn)}</td>
+                          <td>{formatTime(attendance.clockIn)}</td>
                           <td>
                             {attendance.clockOut
-                              ? formatDateTime(attendance.clockOut)
+                              ? formatTime(attendance.clockOut)
                               : "-"}
                           </td>
                           <td>{attendance.workHours || 0} hours</td>
@@ -649,11 +662,28 @@ const AttendanceTracking = () => {
                               {attendance.status}
                             </Badge>
                           </td>
+                          {!filters.employee && (
+                            <td>
+                              <Button
+                                variant="outline-primary"
+                                size="sm"
+                                onClick={() => handleViewDetails(attendance.employee?._id)}
+                                title="View Details"
+                                style={{
+                                  padding: '0.25rem 0.5rem',
+                                  fontSize: '0.875rem',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                📊 View
+                              </Button>
+                            </td>
+                          )}
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="7" className="text-center py-4">
+                        <td colSpan={filters.employee ? "6" : "8"} className="text-center py-4">
                           No attendance records found
                         </td>
                       </tr>
@@ -707,6 +737,13 @@ const AttendanceTracking = () => {
           </Col>
         </Row>
       )}
+
+      {/* Employee Attendance Details Modal */}
+      <EmployeeAttendanceDetails
+        show={showDetailsModal}
+        onHide={() => setShowDetailsModal(false)}
+        employee={selectedEmployee}
+      />
     </Container>
   );
 };

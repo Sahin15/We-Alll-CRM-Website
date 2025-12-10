@@ -40,6 +40,12 @@ export const formatDateTime = (date) => {
   return format(new Date(date), DATE_TIME_FORMAT);
 };
 
+// Format time only (HH:mm:ss or hh:mm:ss a)
+export const formatTime = (date) => {
+  if (!date) return "N/A";
+  return format(new Date(date), "hh:mm:ss a");
+};
+
 // Capitalize first letter
 export const capitalizeFirst = (str) => {
   if (!str) return "";

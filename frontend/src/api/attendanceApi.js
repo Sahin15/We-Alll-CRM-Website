@@ -18,6 +18,11 @@ export const attendanceApi = {
   getAttendanceSummary: (employeeId, month, year) =>
     api.get(`/attendance/summary/${employeeId}`, { params: { month, year } }),
   getAttendanceReport: (params) => api.get("/attendance/report", { params }),
+  downloadAttendancePDF: (params) => 
+    api.get("/attendance/download-pdf", { 
+      params, 
+      responseType: 'blob' 
+    }),
 };
 
 export default attendanceApi;

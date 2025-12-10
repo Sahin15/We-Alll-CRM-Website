@@ -4,7 +4,9 @@ import { AuthProvider } from "./context/AuthContext";
 import { CompanyProvider } from "./context/CompanyContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import AppRoutes from "./routes";
+import SkipToMain from "./components/common/SkipToMain";
 import "./styles/toast.css";
+import "./styles/accessibility.css";
 
 function App() {
   return (
@@ -17,8 +19,11 @@ function App() {
       <AuthProvider>
         <CompanyProvider>
           <NotificationProvider>
+            <SkipToMain />
             <div className="app-container">
-              <AppRoutes />
+              <main id="main-content" role="main" tabIndex="-1">
+                <AppRoutes />
+              </main>
               <ToastContainer
                 position="top-center"
                 autoClose={3000}
@@ -31,6 +36,8 @@ function App() {
                 pauseOnHover={false}
                 theme="light"
                 limit={3}
+                role="alert"
+                aria-live="polite"
               />
             </div>
           </NotificationProvider>

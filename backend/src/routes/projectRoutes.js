@@ -26,6 +26,11 @@ import {
   getMyLeadingProjects,
   getMyDepartmentProjects,
 } from "../controllers/projectController.js";
+import {
+  getProjectWorkspace,
+  getWorkBoard,
+  getProjectTeam as getProjectTeamWorkload,
+} from "../controllers/projectWorkspaceController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
 import { canAssignHoP } from "../middleware/hodMiddleware.js";
@@ -33,8 +38,8 @@ import { isHoPOfProject, canManageProject } from "../middleware/hopMiddleware.js
 
 const router = express.Router();
 
-// Create new project (Admin / SuperAdmin / HR / Manager)
-router.post("/", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), createProject);
+// Create new project (Admin / SuperAdmin / HR / Manager / HoD)
+router.post("/", protect, authorizeRoles("admin", "superadmin", "hr", "manager", "hod"), createProject);
 
 // Get all projects (Admin / Manager / User)
 router.get("/", protect, getProjects);
@@ -191,5 +196,10 @@ router.delete(
   authorizeRoles("admin", "superadmin", "hr"),
   deleteProject
 );
+
+// Project Workspace endpoints
+router.get("/:id/workspace", protect, getProjectWorkspace);
+router.get("/:id/work-board", protect, getWorkBoard);
+router.get("/:id/team-workload", protect, getProjectTeamWorkload);
 
 export default router;

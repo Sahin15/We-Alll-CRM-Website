@@ -1,0 +1,280 @@
+/**
+ * Accessibility Styles
+ * WCAG 2.1 AA Compliant
+ */
+
+/* Screen reader only content */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Skip to main content link */
+.skip-to-main {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #000;
+  color: #fff;
+  padding: 8px 16px;
+  text-decoration: none;
+  z-index: 10000;
+  border-radius: 0 0 4px 0;
+}
+
+.skip-to-main:focus {
+  top: 0;
+  outline: 3px solid #0d6efd;
+  outline-offset: 2px;
+}
+
+/* Focus indicators - Enhanced visibility */
+*:focus {
+  outline: 2px solid #0d6efd;
+  outline-offset: 2px;
+}
+
+button:focus,
+a:focus,
+input:focus,
+select:focus,
+textarea:focus,
+[role="button"]:focus,
+[tabindex]:focus {
+  outline: 2px solid #0d6efd;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.25);
+}
+
+/* Remove focus outline for mouse users, keep for keyboard users */
+*:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
+*:focus-visible {
+  outline: 2px solid #0d6efd;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.25);
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  * {
+    border-color: currentColor !important;
+  }
+  
+  button,
+  .btn {
+    border: 2px solid currentColor !important;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Color contrast improvements */
+.text-muted {
+  color: #6c757d !important; /* WCAG AA compliant */
+}
+
+/* Ensure minimum touch target size (24x24px) */
+button,
+a,
+input[type="checkbox"],
+input[type="radio"],
+[role="button"] {
+  min-height: 24px;
+  min-width: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Exception for inline text links */
+a:not(.btn):not([role="button"]) {
+  min-height: auto;
+  min-width: auto;
+  display: inline;
+}
+
+/* Keyboard navigation indicators */
+.keyboard-nav *:focus {
+  outline: 2px solid #0d6efd;
+  outline-offset: 2px;
+}
+
+/* Loading states should be announced */
+[aria-busy="true"] {
+  cursor: wait;
+}
+
+/* Disabled states should be clear */
+[aria-disabled="true"],
+:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Error states should be clear */
+[aria-invalid="true"] {
+  border-color: #dc3545 !important;
+  box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+}
+
+/* Required fields indicator */
+[aria-required="true"]::after,
+.required::after {
+  content: " *";
+  color: #dc3545;
+  font-weight: bold;
+}
+
+/* Live regions for dynamic content */
+[aria-live="polite"],
+[aria-live="assertive"] {
+  position: relative;
+}
+
+/* Modal/Dialog accessibility */
+[role="dialog"],
+[role="alertdialog"] {
+  position: fixed;
+  z-index: 1050;
+}
+
+/* Ensure proper heading hierarchy */
+h1 {
+  font-size: 2rem;
+}
+
+h2 {
+  font-size: 1.75rem;
+}
+
+h3 {
+  font-size: 1.5rem;
+}
+
+h4 {
+  font-size: 1.25rem;
+}
+
+h5 {
+  font-size: 1.1rem;
+}
+
+h6 {
+  font-size: 1rem;
+}
+
+/* Improve link visibility */
+a {
+  text-decoration: underline;
+}
+
+a:hover,
+a:focus {
+  text-decoration: none;
+}
+
+/* Button states */
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  pointer-events: none;
+  opacity: 0.65;
+}
+
+/* Form labels */
+label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+/* Error messages */
+.error-message,
+[role="alert"] {
+  color: #dc3545;
+  font-weight: 500;
+  margin-top: 0.25rem;
+}
+
+/* Success messages */
+.success-message {
+  color: #198754;
+  font-weight: 500;
+  margin-top: 0.25rem;
+}
+
+/* Tooltips should be accessible */
+[role="tooltip"] {
+  position: absolute;
+  z-index: 1070;
+  background: #000;
+  color: #fff;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+}
+
+/* Ensure icons don't interfere with screen readers */
+.icon-decorative {
+  aria-hidden: true;
+}
+
+/* Status indicators */
+.status-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 0.5rem;
+}
+
+/* Improve table accessibility */
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th {
+  text-align: left;
+  font-weight: 600;
+}
+
+/* Card accessibility */
+.card:focus-within {
+  box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.25);
+}
+
+/* Pagination accessibility */
+.pagination .page-link:focus {
+  z-index: 3;
+}
+
+/* Dropdown accessibility */
+.dropdown-menu {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.dropdown-item:focus {
+  background-color: #e9ecef;
+}
