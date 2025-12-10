@@ -31,7 +31,7 @@ import documentRoutes from "./routes/documentRoutes.js";
 import workloadRoutes from "./routes/workloadRoutes.js";
 import workItemRoutes from "./routes/workItemRoutes.js";
 import calendarRoutes from "./routes/calendarRoutes.js";
-// import fixRoutes from "./routes/fixRoutes.js"; // Temporarily disabled
+import fixRoutes from "./routes/fixRoutes.js";
 // Legacy routes removed - use workItemRoutes instead
 // Old: taskRoutes, slotRoutes, workRoutes → New: workItemRoutes
 import { initializeCronJobs } from "./config/cronJobs.js";
@@ -68,6 +68,87 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
+// Quick fix for HR attendance (no auth required)
+app.get("/api/fix-hr-now", async (_req, res) => {
+  try {
+    const { default: Attendance } = await import('./models/attendanceModel.js');
+    const { default: User } = await import('./models/userModel.js');
+    
+    console.log('[FIX-HR-NOW] Starting immediate HR attendance fix...');
+    
+    // Get all HR users
+    const hrUsers = await User.find({ role: 'hr' }).select('_id name email');
+    console.log(`[FIX-HR-NOW] Found ${hrUsers.length} HR users`);
+    
+    // Get today's date
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    let fixedCount = 0;
+    const fixedRecords = [];
+    
+    for (const hrUser of hrUsers) {
+      const attendanceRecords = await Attendance.find({
+        employee: hrUser._id,
+        date: { $gte: today, $lt: tomorrow },
+        clockIn: { $exists: true }
+      });
+      
+      for (const record of attendanceRecords) {
+        const clockInTime = new Date(record.clockIn);
+        const clockInHour = clockInTime.getHours();
+        const clockInMinute = clockInTime.getMinutes();
+        const totalMinutes = clockInHour * 60 + clockInMinute;
+        
+        let correctStatus;
+        if (totalMinutes >= 720) {
+          correctStatus = "half-day"; // 12:00 PM or later
+        } else if (totalMinutes > 630) {
+          correctStatus = "late"; // 10:31 AM to 11:59 AM
+        } else {
+          correctStatus = "present"; // 00:00 to 10:30 AM
+        }
+        
+        if (record.status !== correctStatus) {
+          const oldStatus = record.status;
+          record.status = correctStatus;
+          await record.save();
+          fixedCount++;
+          
+          fixedRecords.push({
+            employee: hrUser.name,
+            email: hrUser.email,
+            clockIn: clockInTime.toLocaleString(),
+            oldStatus: oldStatus,
+            newStatus: correctStatus
+          });
+          
+          console.log(`[FIX-HR-NOW] Fixed: ${hrUser.name} - ${clockInTime.toLocaleString()} - ${oldStatus} → ${correctStatus}`);
+        }
+      }
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: `Fixed ${fixedCount} HR attendance records for today`,
+      hrUsersChecked: hrUsers.length,
+      fixedCount: fixedCount,
+      fixedRecords: fixedRecords,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('[FIX-HR-NOW] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: "Error fixing HR attendance",
+      error: error.message
+    });
+  }
+});
+
 // API Routes (with rate limiting)
 app.use("/api/users", apiLimiter, userRoutes);
 app.use("/api/admin", apiLimiter, adminRoutes);
@@ -96,7 +177,7 @@ app.use("/api/documents", apiLimiter, documentRoutes);
 app.use("/api/workload", apiLimiter, workloadRoutes);
 app.use("/api/work-items", apiLimiter, workItemRoutes);
 app.use("/api/calendar", apiLimiter, calendarRoutes);
-// app.use("/api/fix", apiLimiter, fixRoutes); // Temporarily disabled
+app.use("/api/fix", apiLimiter, fixRoutes);
 // Legacy routes removed:
 // - /api/tasks → use /api/work-items
 // - /api/slots → use /api/work-items

@@ -62,6 +62,14 @@ export const clockIn = async (req, res) => {
     
     const attendance = await Attendance.create(attendanceData);
 
+    // FORCE recalculation to ensure correct status (especially for HR)
+    const calculatedStatus = attendance.calculateStatus();
+    if (attendance.status !== calculatedStatus) {
+      console.log(`[CLOCK-IN] 🔧 FORCE FIXING: ${attendance.status} → ${calculatedStatus}`);
+      attendance.status = calculatedStatus;
+      await attendance.save();
+    }
+
     console.log(`[CLOCK-IN] ✅ Attendance created with status: ${attendance.status} for ${req.user.name} (${req.user.role})`);
 
     // Determine message based on calculated status
@@ -657,6 +665,60 @@ export const getTodayAttendance = async (req, res) => {
 };
 
 // Debug endpoint to test status calculation (no auth required)
+// Simple test endpoint (no auth) to verify status calculation logic
+export const testStatusLogic = async (req, res) => {
+  try {
+    const testCases = [
+      { time: "09:00", expected: "present" },
+      { time: "10:30", expected: "present" },
+      { time: "10:31", expected: "late" },
+      { time: "11:59", expected: "late" },
+      { time: "12:00", expected: "half-day" },
+      { time: "14:30", expected: "half-day" },
+      { time: "16:00", expected: "half-day" }
+    ];
+    
+    const results = testCases.map(test => {
+      const [hours, minutes] = test.time.split(':').map(Number);
+      const totalMinutes = hours * 60 + minutes;
+      
+      let calculatedStatus;
+      if (totalMinutes >= 720) {
+        calculatedStatus = "half-day";
+      } else if (totalMinutes > 630) {
+        calculatedStatus = "late";
+      } else {
+        calculatedStatus = "present";
+      }
+      
+      return {
+        time: test.time,
+        totalMinutes: totalMinutes,
+        expected: test.expected,
+        calculated: calculatedStatus,
+        correct: calculatedStatus === test.expected
+      };
+    });
+    
+    const allCorrect = results.every(r => r.correct);
+    
+    res.status(200).json({
+      message: "Attendance status logic test",
+      allTestsPassed: allCorrect,
+      results: results,
+      rules: {
+        present: "00:00 - 10:30 (0-630 minutes)",
+        late: "10:31 - 11:59 (631-719 minutes)",
+        halfDay: "12:00+ (720+ minutes)"
+      }
+    });
+    
+  } catch (error) {
+    console.error("Error in testStatusLogic:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 export const debugStatusCalculation = async (req, res) => {
   try {
     const { time } = req.query; // Format: "14:30"
@@ -757,6 +819,101 @@ export const recalculateTodayStatus = async (req, res) => {
   } catch (error) {
     console.error("Error in recalculateTodayStatus:", error.message);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Fix all HR attendance records (Admin only)
+export const fixAllHRAttendance = async (req, res) => {
+  try {
+    console.log(`[FIX-HR] Starting HR attendance fix by ${req.user.name} (${req.user.role})`);
+    
+    // Get all HR users
+    const User = (await import('../models/userModel.js')).default;
+    const hrUsers = await User.find({ role: 'hr' }).select('_id name email');
+    
+    console.log(`[FIX-HR] Found ${hrUsers.length} HR users`);
+    
+    // Get recent attendance records for HR users (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    let fixedCount = 0;
+    const fixedRecords = [];
+    
+    for (const hrUser of hrUsers) {
+      const attendanceRecords = await Attendance.find({
+        employee: hrUser._id,
+        date: { $gte: thirtyDaysAgo },
+        clockIn: { $exists: true }
+      });
+      
+      console.log(`[FIX-HR] Checking ${attendanceRecords.length} records for ${hrUser.name}`);
+      
+      for (const record of attendanceRecords) {
+        const clockInTime = new Date(record.clockIn);
+        const clockInHour = clockInTime.getHours();
+        const clockInMinute = clockInTime.getMinutes();
+        const totalMinutes = clockInHour * 60 + clockInMinute;
+        
+        let correctStatus;
+        if (totalMinutes >= 720) {
+          correctStatus = "half-day"; // 12:00 PM or later
+        } else if (totalMinutes > 630) {
+          correctStatus = "late"; // 10:31 AM to 11:59 AM
+        } else {
+          correctStatus = "present"; // 00:00 to 10:30 AM
+        }
+        
+        if (record.status !== correctStatus && !record.isManuallyModified) {
+          const oldStatus = record.status;
+          record.status = correctStatus;
+          
+          // Track the manual modification
+          record.trackManualModification(
+            req.user._id,
+            `System fix: HR attendance status correction from ${oldStatus} to ${correctStatus}`,
+            {
+              oldStatus: oldStatus,
+              newStatus: correctStatus,
+              oldClockIn: record.clockIn,
+              newClockIn: record.clockIn,
+              oldClockOut: record.clockOut,
+              newClockOut: record.clockOut
+            }
+          );
+          
+          await record.save();
+          fixedCount++;
+          
+          fixedRecords.push({
+            employee: hrUser.name,
+            email: hrUser.email,
+            date: record.date.toDateString(),
+            clockIn: clockInTime.toLocaleTimeString(),
+            oldStatus: oldStatus,
+            newStatus: correctStatus
+          });
+          
+          console.log(`[FIX-HR] Fixed: ${hrUser.name} - ${clockInTime.toLocaleString()} - ${oldStatus} → ${correctStatus}`);
+        }
+      }
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: `Fixed ${fixedCount} HR attendance records`,
+      hrUsersChecked: hrUsers.length,
+      fixedCount: fixedCount,
+      fixedRecords: fixedRecords
+    });
+    
+  } catch (error) {
+    console.error("Error fixing HR attendance:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fixing HR attendance records",
+      error: error.message
+    });
   }
 };
 

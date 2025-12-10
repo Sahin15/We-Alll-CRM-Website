@@ -14,6 +14,8 @@ import {
   getAttendanceReport,
   getTodayAttendance,
   recalculateTodayStatus,
+  fixAllHRAttendance,
+  testStatusLogic,
   debugStatusCalculation,
   downloadAttendancePDF,
 } from "../controllers/attendanceController.js";
@@ -22,13 +24,16 @@ import { authorizeRoles } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
+// Test routes (no auth required)
+router.get("/test-logic", testStatusLogic);
+
 // Employee routes
 router.post("/clock-in", protect, clockIn);
 router.post("/clock-out", protect, clockOut);
 router.get("/my-attendance", protect, getMyAttendance);
 router.get("/today", protect, getTodayAttendance);
 router.post("/recalculate-today", protect, recalculateTodayStatus);
-router.get("/debug-status", debugStatusCalculation); // No auth for testing
+router.post("/fix-hr-attendance", protect, authorizeRoles("admin", "superadmin", "hr"), fixAllHRAttendance);
 
 // Reports
 router.get(
