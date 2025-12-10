@@ -86,7 +86,7 @@ const getMyWorkItems = async (req, res) => {
 const getWorkItemById = async (req, res) => {
   try {
     const workItem = await WorkItem.findById(req.params.id)
-      .populate("project", "name client department")
+      .populate("project", "name client departments department") // Include both single and multiple departments
       .populate({
         path: "project",
         populate: {
@@ -218,8 +218,11 @@ const createWorkItem = async (req, res) => {
       }
     }
     
-    // Check if project exists and get department
-    const projectExists = await Project.findById(project).populate("department", "name");
+    // Check if project exists and get departments (support both single and multiple)
+    const projectExists = await Project.findById(project)
+      .populate("departments", "name") // New: multiple departments
+      .populate("department", "name");  // Legacy: single department
+    
     if (!projectExists) {
       return res.status(404).json({
         success: false,
@@ -230,10 +233,36 @@ const createWorkItem = async (req, res) => {
       });
     }
     
-    // Auto-detect workflow type based on department
-    const departmentName = projectExists.department?.name || "Standard";
-    const workflow = getWorkflowByDepartment(departmentName);
-    const workflowType = workflow.type;
+    // Auto-detect workflow type based on departments
+    let workflowType = "standard";
+    let departmentNames = [];
+    
+    // Handle multiple departments (new structure)
+    if (projectExists.departments && projectExists.departments.length > 0) {
+      departmentNames = projectExists.departments.map(dept => dept.name);
+    }
+    // Handle single department (legacy structure)
+    else if (projectExists.department) {
+      departmentNames = [projectExists.department.name];
+    }
+    
+    // Determine workflow type based on departments
+    // If any department is social media related, use advanced social media workflow
+    const hasSocialMedia = departmentNames.some(name => 
+      name.toLowerCase().includes('social') || 
+      name.toLowerCase().includes('marketing')
+    );
+    
+    if (hasSocialMedia) {
+      const workflow = getWorkflowByDepartment(departmentNames.find(name => 
+        name.toLowerCase().includes('social') || 
+        name.toLowerCase().includes('marketing')
+      ));
+      workflowType = workflow.type;
+    } else if (departmentNames.length > 0) {
+      const workflow = getWorkflowByDepartment(departmentNames[0]);
+      workflowType = workflow.type;
+    }
     
     // Check if user has permission to create work items for this project
     const isProjectHead = projectExists.projectHead?.toString() === req.user._id.toString();
@@ -965,8 +994,10 @@ const getWorkflowConfig = async (req, res) => {
   try {
     const { projectId } = req.params;
     
-    // Get project with department
-    const project = await Project.findById(projectId).populate("department", "name");
+    // Get project with departments (support both single and multiple)
+    const project = await Project.findById(projectId)
+      .populate("departments", "name") // New: multiple departments
+      .populate("department", "name");  // Legacy: single department
     
     if (!project) {
       return res.status(404).json({

@@ -80,34 +80,54 @@ const CreateWorkItemModal = ({ show, onHide, onSuccess, defaultProject }) => {
     }
   };
 
-  // Filter users when project changes
+  // Filter users when project changes - Updated for multi-department projects
   useEffect(() => {
     if (formData.project && projects.length > 0 && allUsers.length > 0) {
       const selectedProject = projects.find(p => p._id === formData.project);
       
-      if (selectedProject && selectedProject.department) {
-        // Get department ID (handle both populated and non-populated)
-        const departmentId = typeof selectedProject.department === 'object' 
-          ? selectedProject.department._id 
-          : selectedProject.department;
+      if (selectedProject) {
+        let projectDepartmentIds = [];
         
-        // Filter users by department
-        const departmentUsers = allUsers.filter(user => {
-          const userDeptId = typeof user.department === 'object'
-            ? user.department?._id
-            : user.department;
-          return userDeptId === departmentId;
-        });
+        // Handle multiple departments (new structure)
+        if (selectedProject.departments && Array.isArray(selectedProject.departments)) {
+          projectDepartmentIds = selectedProject.departments.map(dept => 
+            typeof dept === 'object' ? dept._id : dept
+          );
+        }
+        // Handle single department (legacy structure) 
+        else if (selectedProject.department) {
+          const deptId = typeof selectedProject.department === 'object' 
+            ? selectedProject.department._id 
+            : selectedProject.department;
+          projectDepartmentIds = [deptId];
+        }
         
-        setUsers(departmentUsers);
-        console.log('Filtered users for department:', departmentUsers);
-        
-        // Clear assignedTo if current selection is not in filtered list
-        if (formData.assignedTo && !departmentUsers.find(u => u._id === formData.assignedTo)) {
-          setFormData(prev => ({ ...prev, assignedTo: '' }));
+        if (projectDepartmentIds.length > 0) {
+          // Filter users by any of the project's departments
+          const projectUsers = allUsers.filter(user => {
+            const userDeptId = typeof user.department === 'object'
+              ? user.department?._id
+              : user.department;
+            return projectDepartmentIds.includes(userDeptId);
+          });
+          
+          setUsers(projectUsers);
+          console.log('Filtered users for multi-department project:', {
+            projectDepartments: projectDepartmentIds,
+            availableUsers: projectUsers.length
+          });
+          
+          // Clear assignedTo if current selection is not in filtered list
+          if (formData.assignedTo && !projectUsers.find(u => u._id === formData.assignedTo)) {
+            setFormData(prev => ({ ...prev, assignedTo: '' }));
+          }
+        } else {
+          // No departments found, show all employees
+          setUsers(allUsers);
+          console.log('No departments found for project, showing all users');
         }
       } else {
-        // No department, show all employees
+        // No project selected, show all employees
         setUsers(allUsers);
       }
     }
@@ -342,15 +362,62 @@ const CreateWorkItemModal = ({ show, onHide, onSuccess, defaultProject }) => {
                   isInvalid={!!errors.project}
                 >
                   <option value="">Select project...</option>
-                  {projects.map((project) => (
-                    <option key={project._id} value={project._id}>
-                      {project.name}
-                    </option>
-                  ))}
+                  {projects.map((project) => {
+                    // Get department names for display
+                    let departmentNames = [];
+                    
+                    // Handle multiple departments (new structure)
+                    if (project.departments && Array.isArray(project.departments)) {
+                      departmentNames = project.departments.map(dept => 
+                        typeof dept === 'object' ? dept.name : 'Unknown Service'
+                      );
+                    }
+                    // Handle single department (legacy structure)
+                    else if (project.department) {
+                      const deptName = typeof project.department === 'object' 
+                        ? project.department.name 
+                        : 'Unknown Service';
+                      departmentNames = [deptName];
+                    }
+                    
+                    const servicesText = departmentNames.length > 0 
+                      ? ` (${departmentNames.join(', ')})` 
+                      : '';
+                    
+                    return (
+                      <option key={project._id} value={project._id}>
+                        {project.name}{servicesText}
+                      </option>
+                    );
+                  })}
                 </Form.Select>
                 <Form.Control.Feedback type="invalid">
                   {errors.project}
                 </Form.Control.Feedback>
+                {formData.project && (
+                  <Form.Text className="text-muted">
+                    {(() => {
+                      const selectedProject = projects.find(p => p._id === formData.project);
+                      if (!selectedProject) return '';
+                      
+                      let departmentNames = [];
+                      if (selectedProject.departments && Array.isArray(selectedProject.departments)) {
+                        departmentNames = selectedProject.departments.map(dept => 
+                          typeof dept === 'object' ? dept.name : 'Unknown Service'
+                        );
+                      } else if (selectedProject.department) {
+                        const deptName = typeof selectedProject.department === 'object' 
+                          ? selectedProject.department.name 
+                          : 'Unknown Service';
+                        departmentNames = [deptName];
+                      }
+                      
+                      return departmentNames.length > 0 
+                        ? `Services involved: ${departmentNames.join(', ')}`
+                        : '';
+                    })()}
+                  </Form.Text>
+                )}
               </Form.Group>
             </Col>
 
@@ -364,17 +431,36 @@ const CreateWorkItemModal = ({ show, onHide, onSuccess, defaultProject }) => {
                   value={formData.assignedTo}
                   onChange={(e) => handleChange('assignedTo', e.target.value)}
                   isInvalid={!!errors.assignedTo}
+                  disabled={!formData.project}
                 >
-                  <option value="">Select assignee...</option>
-                  {users.map((user) => (
-                    <option key={user._id} value={user._id}>
-                      {user.name} ({user.email})
-                    </option>
-                  ))}
+                  <option value="">
+                    {!formData.project 
+                      ? 'Select project first...' 
+                      : users.length === 0
+                      ? 'No employees available in project services'
+                      : 'Select assignee...'}
+                  </option>
+                  {users.map((user) => {
+                    // Show department name with user for clarity
+                    const deptName = typeof user.department === 'object' 
+                      ? user.department?.name 
+                      : 'Unknown Service';
+                    
+                    return (
+                      <option key={user._id} value={user._id}>
+                        {user.name} - {deptName} ({user.email})
+                      </option>
+                    );
+                  })}
                 </Form.Select>
                 <Form.Control.Feedback type="invalid">
                   {errors.assignedTo}
                 </Form.Control.Feedback>
+                {formData.project && (
+                  <Form.Text className="text-muted">
+                    {users.length} employee{users.length !== 1 ? 's' : ''} available from project services
+                  </Form.Text>
+                )}
               </Form.Group>
             </Col>
           </Row>
