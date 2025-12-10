@@ -133,24 +133,26 @@ attendanceSchema.methods.calculateStatus = function() {
     // Convert to total minutes for easier comparison
     const totalMinutes = clockInHour * 60 + clockInMinute;
     
-    // SIMPLE BUSINESS RULES:
+    // FIXED BUSINESS RULES (NO EXCEPTIONS FOR ANY ROLE):
     // - 00:00 to 10:30 (0-630 minutes) = Present
-    // - 10:31 to 11:59 (631-719 minutes) = Late
+    // - 10:31 to 11:59 (631-719 minutes) = Late  
     // - 12:00 onwards (720+ minutes) = Half-day
     
+    let calculatedStatus;
     if (totalMinutes >= 720) {
       // 12:00 PM (720 minutes) or later = Half day
-      console.log(`[STATUS] ${clockInHour}:${clockInMinute} (${totalMinutes} min) = HALF-DAY`);
-      return "half-day";
+      calculatedStatus = "half-day";
     } else if (totalMinutes > 630) {
       // 10:31 AM (631 minutes) to 11:59 AM (719 minutes) = Late
-      console.log(`[STATUS] ${clockInHour}:${clockInMinute} (${totalMinutes} min) = LATE`);
-      return "late";
+      calculatedStatus = "late";
     } else {
       // 00:00 to 10:30 AM (0-630 minutes) = Present
-      console.log(`[STATUS] ${clockInHour}:${clockInMinute} (${totalMinutes} min) = PRESENT`);
-      return "present";
+      calculatedStatus = "present";
     }
+    
+    console.log(`[STATUS] Clock-in: ${clockInHour}:${String(clockInMinute).padStart(2, '0')} (${totalMinutes} min) = ${calculatedStatus.toUpperCase()}`);
+    return calculatedStatus;
+    
   } catch (error) {
     console.error('[STATUS] Error calculating status:', error);
     return 'present'; // Default to present on error
@@ -160,14 +162,17 @@ attendanceSchema.methods.calculateStatus = function() {
 // PRE-SAVE HOOK: Always calculate status and work hours
 attendanceSchema.pre("save", function (next) {
   try {
-    // 1. Calculate status based on clockIn time (if not manually set to absent/on-leave)
+    // 1. ALWAYS calculate status based on clockIn time (unless manually set to absent/on-leave)
     if (this.clockIn) {
-      // Only calculate if status is not set OR if it's not manually set to absent/on-leave
-      const shouldCalculate = !this.status || (this.status !== 'absent' && this.status !== 'on-leave');
+      // Only skip calculation if manually set to absent or on-leave
+      const isManualAbsentOrLeave = (this.status === 'absent' || this.status === 'on-leave') && this.isManuallyModified;
       
-      if (shouldCalculate) {
-        this.status = this.calculateStatus();
-        console.log(`[ATTENDANCE] Calculated status: ${this.status} for clockIn: ${this.clockIn}`);
+      if (!isManualAbsentOrLeave) {
+        const newStatus = this.calculateStatus();
+        console.log(`[ATTENDANCE] PRE-SAVE: Calculating status for clockIn: ${this.clockIn} → ${newStatus}`);
+        this.status = newStatus;
+      } else {
+        console.log(`[ATTENDANCE] PRE-SAVE: Skipping calculation - manually set to ${this.status}`);
       }
     }
     
