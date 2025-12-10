@@ -15,8 +15,8 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
     name: '',
     description: '',
     client: '',
-    department: '',
-    projectHead: '',
+    departments: [], // Changed to support multiple departments
+    projectHead: '', // Now optional
     status: 'Pending',
     startDate: '',
     endDate: '',
@@ -67,8 +67,8 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
     setFormData((prev) => {
       const newData = { ...prev, [field]: value };
       
-      // If department changes, reset project head
-      if (field === 'department') {
+      // If departments change, reset project head
+      if (field === 'departments') {
         newData.projectHead = '';
       }
       
@@ -80,26 +80,44 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
     }
   };
 
-  // Filter users by selected department
-  const availableProjectHeads = formData.department
+  // Handle multiple department selection
+  const handleDepartmentChange = (departmentId, isChecked) => {
+    setFormData(prev => {
+      const newDepartments = isChecked 
+        ? [...prev.departments, departmentId]
+        : prev.departments.filter(id => id !== departmentId);
+      
+      return {
+        ...prev,
+        departments: newDepartments,
+        projectHead: '' // Reset project head when departments change
+      };
+    });
+    
+    if (errors.departments) {
+      setErrors(prev => ({ ...prev, departments: null }));
+    }
+  };
+
+  // Filter users by selected departments
+  const availableProjectHeads = formData.departments.length > 0
     ? users.filter(user => {
-        // Only show employees from the selected department
+        // Show employees from any of the selected departments
         const userDeptId = user.department?._id || user.department;
-        return userDeptId === formData.department && 
+        return formData.departments.includes(userDeptId) && 
                (user.role === 'employee' || user.role === 'hod');
       })
     : [];
 
-  // Get department workflow type
+  // Get department workflow type (check if any selected department is social media)
   const getDepartmentWorkflowType = () => {
-    const selectedDept = departments.find(d => d._id === formData.department);
-    if (!selectedDept) return 'standard';
+    const selectedDepts = departments.filter(d => formData.departments.includes(d._id));
+    const hasSocialMedia = selectedDepts.some(dept => {
+      const deptName = dept.name.toLowerCase();
+      return deptName.includes('social') || deptName.includes('marketing');
+    });
     
-    const deptName = selectedDept.name.toLowerCase();
-    if (deptName.includes('social') || deptName.includes('marketing')) {
-      return 'social-media-advanced';
-    }
-    return 'standard';
+    return hasSocialMedia ? 'social-media-advanced' : 'standard';
   };
 
   // Get social media roles for team assignment
@@ -128,12 +146,10 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
     if (!formData.name.trim()) {
       newErrors.name = 'Project name is required';
     }
-    if (!formData.department) {
-      newErrors.department = 'Department is required';
+    if (formData.departments.length === 0) {
+      newErrors.departments = 'At least one service is required';
     }
-    if (!formData.projectHead) {
-      newErrors.projectHead = 'Project head is required';
-    }
+    // Project head is now optional - no validation needed
     if (!formData.startDate) {
       newErrors.startDate = 'Start date is required';
     }
@@ -155,14 +171,16 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
       const submitData = {
         name: formData.name.trim(),
         description: formData.description.trim(),
-        department: formData.department,
-        projectHead: formData.projectHead,
+        departments: formData.departments, // Send multiple departments
         status: formData.status,
         startDate: formData.startDate
       };
 
       if (formData.client) {
         submitData.client = formData.client;
+      }
+      if (formData.projectHead) {
+        submitData.projectHead = formData.projectHead; // Optional
       }
       if (formData.endDate) {
         submitData.endDate = formData.endDate;
@@ -176,7 +194,7 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
         name: '',
         description: '',
         client: '',
-        department: '',
+        departments: [], // Reset to empty array
         projectHead: '',
         status: 'Pending',
         startDate: '',
@@ -202,7 +220,7 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
       name: '',
       description: '',
       client: '',
-      department: '',
+      departments: [], // Reset to empty array
       projectHead: '',
       status: 'Pending',
       startDate: '',
@@ -269,27 +287,36 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
               </Form.Group>
             </Col>
 
-            {/* Department */}
+            {/* Services (Multiple Departments) */}
             <Col md={6}>
               <Form.Group className="mb-3">
                 <Form.Label>
-                  Department <span className="text-danger">*</span>
+                  Services Required <span className="text-danger">*</span>
                 </Form.Label>
-                <Form.Select
-                  value={formData.department}
-                  onChange={(e) => handleChange('department', e.target.value)}
-                  isInvalid={!!errors.department}
-                >
-                  <option value="">Select department...</option>
+                <div className="border rounded p-2" style={{ maxHeight: '120px', overflowY: 'auto' }}>
                   {departments.map((dept) => (
-                    <option key={dept._id} value={dept._id}>
-                      {dept.name}
-                    </option>
+                    <Form.Check
+                      key={dept._id}
+                      type="checkbox"
+                      id={`dept-${dept._id}`}
+                      label={dept.name}
+                      checked={formData.departments.includes(dept._id)}
+                      onChange={(e) => handleDepartmentChange(dept._id, e.target.checked)}
+                      className="mb-1"
+                    />
                   ))}
-                </Form.Select>
-                <Form.Control.Feedback type="invalid">
-                  {errors.department}
-                </Form.Control.Feedback>
+                  {departments.length === 0 && (
+                    <small className="text-muted">No services available</small>
+                  )}
+                </div>
+                {errors.departments && (
+                  <div className="invalid-feedback d-block">
+                    {errors.departments}
+                  </div>
+                )}
+                <Form.Text className="text-muted">
+                  Select all services/departments required for this project
+                </Form.Text>
               </Form.Group>
             </Col>
           </Row>
@@ -299,20 +326,19 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
             <Col md={6}>
               <Form.Group className="mb-3">
                 <Form.Label>
-                  Project Head <span className="text-danger">*</span>
+                  Project Head <span className="text-muted">(Optional)</span>
                 </Form.Label>
                 <Form.Select
                   value={formData.projectHead}
                   onChange={(e) => handleChange('projectHead', e.target.value)}
-                  isInvalid={!!errors.projectHead}
-                  disabled={!formData.department}
+                  disabled={formData.departments.length === 0}
                 >
                   <option value="">
-                    {!formData.department 
-                      ? 'Select department first...' 
+                    {formData.departments.length === 0
+                      ? 'Select services first...' 
                       : availableProjectHeads.length === 0
-                      ? 'No employees in this department'
-                      : 'Select project head...'}
+                      ? 'No employees in selected services'
+                      : 'Select project head (optional)...'}
                   </option>
                   {availableProjectHeads.map((user) => (
                     <option key={user._id} value={user._id}>
@@ -320,9 +346,9 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
                     </option>
                   ))}
                 </Form.Select>
-                <Form.Control.Feedback type="invalid">
-                  {errors.projectHead}
-                </Form.Control.Feedback>
+                <Form.Text className="text-muted">
+                  Project head can be assigned later if not selected now
+                </Form.Text>
               </Form.Group>
             </Col>
 
@@ -377,8 +403,8 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
             </Col>
           </Row>
 
-          {/* Team Members Assignment (for Social Media Department) */}
-          {formData.department && getDepartmentWorkflowType() === 'social-media-advanced' && (
+          {/* Team Members Assignment (for Social Media Services) */}
+          {formData.departments.length > 0 && getDepartmentWorkflowType() === 'social-media-advanced' && (
             <>
               <hr />
               <h6 className="mb-3">Team Role Assignment</h6>

@@ -49,14 +49,15 @@ export const createProject = async (req, res) => {
     const { 
       name, 
       client, 
-      department,
+      departments, // New: multiple departments
+      department,  // Legacy: single department (for backward compatibility)
       description, 
       startDate,
       endDate, 
       budget,
       status,
       priority,
-      projectHead,
+      projectHead, // Now optional
       assignedUsers 
     } = req.body;
 
@@ -66,11 +67,50 @@ export const createProject = async (req, res) => {
         .json({ message: "Project name is required" });
     }
 
-    if (!department) {
+    // Handle both single and multiple departments
+    let finalDepartments = [];
+    if (departments && Array.isArray(departments) && departments.length > 0) {
+      finalDepartments = departments;
+    } else if (department) {
+      finalDepartments = [department];
+    }
+
+    if (finalDepartments.length === 0) {
       return res
         .status(400)
-        .json({ message: "Department is required" });
+        .json({ message: "At least one service/department is required" });
     }
+
+    // Check HOD permissions - HOD can only create projects for their own department
+    if (req.user.role === 'hod') {
+      const user = await User.findById(req.user.id).select('headOfDepartment isHeadOfDepartment');
+      
+      if (!user.isHeadOfDepartment || !user.headOfDepartment) {
+        return res.status(403).json({ 
+          message: "You are not assigned as Head of Department" 
+        });
+      }
+
+      // Check if all selected departments include the HOD's department
+      const hodDepartmentId = user.headOfDepartment.toString();
+      const hasOwnDepartment = finalDepartments.some(deptId => deptId === hodDepartmentId);
+      
+      if (!hasOwnDepartment) {
+        return res.status(403).json({ 
+          message: "HOD can only create projects that include their own department" 
+        });
+      }
+
+      // HOD can only select their own department (restrict to single department)
+      if (finalDepartments.length > 1 || finalDepartments[0] !== hodDepartmentId) {
+        return res.status(403).json({ 
+          message: "HOD can only create projects for their own department" 
+        });
+      }
+    }
+
+    // Admin, HR, SuperAdmin can create projects for any departments
+    console.log(`User ${req.user.email} (${req.user.role}) creating project for departments:`, finalDepartments);
 
     // Prepare assigned users array
     let finalAssignedUsers = assignedUsers || [];
@@ -85,29 +125,33 @@ export const createProject = async (req, res) => {
     const project = await Project.create({
       name,
       client: client || null,
-      department,
+      departments: finalDepartments, // New: multiple departments
+      department: finalDepartments[0], // Legacy: set first department for backward compatibility
       description: description || '',
       startDate: startDate || null,
       endDate: endDate || null,
       budget: budget || 0,
       status: status || "Pending",
       priority: priority || "medium",
-      projectHead: projectHead || null,
+      projectHead: projectHead || null, // Optional
       assignedUsers: finalAssignedUsers,
       createdBy: req.user._id, // Track who created the project
     });
     
     console.log('Project created with ID:', project._id, 'createdBy:', project.createdBy);
 
-    // Add project to department's projects array
-    await Department.findByIdAndUpdate(department, {
-      $addToSet: { projects: project._id },
-    });
+    // Add project to all selected departments' projects arrays
+    for (const deptId of finalDepartments) {
+      await Department.findByIdAndUpdate(deptId, {
+        $addToSet: { projects: project._id },
+      });
+    }
 
     // Populate and return
     const populatedProject = await Project.findById(project._id)
       .populate("client", "name email")
-      .populate("department", "name")
+      .populate("departments", "name") // New: populate multiple departments
+      .populate("department", "name")  // Legacy: keep for backward compatibility
       .populate("projectHead", "name email")
       .populate("assignedUsers", "name email")
       .populate("createdBy", "name email");
@@ -146,7 +190,8 @@ export const getProjects = async (req, res) => {
         query = {
           $or: [
             { assignedUsers: req.user.id },
-            { department: user.headOfDepartment },
+            { department: user.headOfDepartment }, // Legacy single department
+            { departments: user.headOfDepartment }, // New multiple departments
             { projectHead: req.user.id }
           ]
         };

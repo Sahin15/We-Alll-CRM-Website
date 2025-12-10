@@ -47,7 +47,8 @@ export const optimizedSlotPopulate = () => [
  */
 export const optimizedProjectPopulate = () => [
   { path: 'client', select: 'name email' },
-  { path: 'department', select: 'name' },
+  { path: 'department', select: 'name' }, // Legacy single department
+  { path: 'departments', select: 'name' }, // New multiple departments
   { path: 'projectHead', select: 'name email' },
   { path: 'assignedUsers', select: 'name email role' }
 ];

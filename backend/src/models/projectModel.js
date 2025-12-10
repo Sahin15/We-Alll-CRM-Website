@@ -14,7 +14,12 @@ const projectSchema = new mongoose.Schema(
     description: {
       type: String,
     },
-    // Department assignment
+    // Multiple departments/services assignment
+    departments: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department",
+    }],
+    // Legacy single department field (kept for backward compatibility)
     department: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Department",
@@ -53,10 +58,11 @@ const projectSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    // Head of Project (HoP) - assigned by HoD
+    // Head of Project (HoP) - optional, can be assigned later
     projectHead: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+      required: false, // Made optional
     },
     projectHeadAssignedBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -243,6 +249,7 @@ const projectSchema = new mongoose.Schema(
 // Add indexes for faster queries
 projectSchema.index({ client: 1, status: 1 });
 projectSchema.index({ department: 1, status: 1 });
+projectSchema.index({ departments: 1, status: 1 }); // New index for multiple departments
 projectSchema.index({ projectHead: 1 });
 projectSchema.index({ status: 1 });
 projectSchema.index({ assignedUsers: 1 });
