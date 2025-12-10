@@ -16,7 +16,7 @@ import { logWorkItemOperation, logSecurityEvent } from "../utils/auditLogger.js"
 // @desc    Get all work items for current user (My Work)
 // @route   GET /api/work-items/my-work
 // @access  Private
-export const getMyWorkItems = async (req, res) => {
+const getMyWorkItems = async (req, res) => {
   try {
     const { status, type, project, priority, dueDate, search } = req.query;
     
@@ -83,7 +83,7 @@ export const getMyWorkItems = async (req, res) => {
 // @desc    Get work item by ID
 // @route   GET /api/work-items/:id
 // @access  Private
-export const getWorkItemById = async (req, res) => {
+const getWorkItemById = async (req, res) => {
   try {
     const workItem = await WorkItem.findById(req.params.id)
       .populate("project", "name client department")
@@ -161,7 +161,7 @@ export const getWorkItemById = async (req, res) => {
 // @desc    Create new work item
 // @route   POST /api/work-items
 // @access  Private (Project Head, Admin, HoD)
-export const createWorkItem = async (req, res) => {
+const createWorkItem = async (req, res) => {
   try {
     const {
       type,
@@ -350,7 +350,7 @@ export const createWorkItem = async (req, res) => {
 // @desc    Update work item
 // @route   PUT /api/work-items/:id
 // @access  Private
-export const updateWorkItem = async (req, res) => {
+const updateWorkItem = async (req, res) => {
   try {
     const workItem = await WorkItem.findById(req.params.id);
     
@@ -457,7 +457,7 @@ export const updateWorkItem = async (req, res) => {
 // @desc    Update work item status
 // @route   PATCH /api/work-items/:id/status
 // @access  Private
-export const updateWorkItemStatus = async (req, res) => {
+const updateWorkItemStatus = async (req, res) => {
   try {
     const { status } = req.body;
     
@@ -563,7 +563,7 @@ export const updateWorkItemStatus = async (req, res) => {
 // @desc    Delete work item
 // @route   DELETE /api/work-items/:id
 // @access  Private (Project Head, Admin, HoD)
-export const deleteWorkItem = async (req, res) => {
+const deleteWorkItem = async (req, res) => {
   try {
     const workItem = await WorkItem.findById(req.params.id);
     
@@ -627,7 +627,7 @@ export const deleteWorkItem = async (req, res) => {
 // @desc    Bulk update work items
 // @route   POST /api/work-items/bulk-update
 // @access  Private
-export const bulkUpdateWorkItems = async (req, res) => {
+const bulkUpdateWorkItems = async (req, res) => {
   try {
     const { workItemIds, updates } = req.body;
     
@@ -733,7 +733,7 @@ export const bulkUpdateWorkItems = async (req, res) => {
 // @desc    Add comment to work item
 // @route   POST /api/work-items/:id/comments
 // @access  Private
-export const addComment = async (req, res) => {
+const addComment = async (req, res) => {
   try {
     const { text } = req.body;
     
@@ -796,7 +796,7 @@ export const addComment = async (req, res) => {
 // @desc    Get work items for calendar view
 // @route   GET /api/work-items/calendar
 // @access  Private
-export const getCalendarWorkItems = async (req, res) => {
+const getCalendarWorkItems = async (req, res) => {
   try {
     const { startDate, endDate, project, type } = req.query;
     
@@ -853,7 +853,7 @@ export const getCalendarWorkItems = async (req, res) => {
 // @desc    Get overdue work items for current user
 // @route   GET /api/work-items/overdue
 // @access  Private
-export const getOverdueWorkItems = async (req, res) => {
+const getOverdueWorkItems = async (req, res) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -888,7 +888,7 @@ export const getOverdueWorkItems = async (req, res) => {
 // @desc    Get work items by project
 // @route   GET /api/work-items/project/:projectId
 // @access  Private
-export const getWorkItemsByProject = async (req, res) => {
+const getWorkItemsByProject = async (req, res) => {
   try {
     const { projectId } = req.params;
     const { status, type, assignedTo } = req.query;
@@ -961,7 +961,7 @@ export const getWorkItemsByProject = async (req, res) => {
 // @desc    Get workflow configuration for a project/department
 // @route   GET /api/work-items/workflow-config/:projectId
 // @access  Private
-export const getWorkflowConfig = async (req, res) => {
+const getWorkflowConfig = async (req, res) => {
   try {
     const { projectId } = req.params;
     
@@ -1007,7 +1007,7 @@ export const getWorkflowConfig = async (req, res) => {
 // @desc    Progress work item to next workflow stage
 // @route   POST /api/work-items/:id/progress-stage
 // @access  Private
-export const progressWorkflowStage = async (req, res) => {
+const progressWorkflowStage = async (req, res) => {
   try {
     const { id } = req.params;
     const { notes } = req.body;
@@ -1042,7 +1042,7 @@ export const progressWorkflowStage = async (req, res) => {
 // @desc    Get workflow progress for a work item
 // @route   GET /api/work-items/:id/workflow-progress
 // @access  Private
-export const getWorkflowProgress = async (req, res) => {
+const getWorkflowProgress = async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -1068,24 +1068,8 @@ export const getWorkflowProgress = async (req, res) => {
   }
 };
 
+// Named exports for individual imports
 export {
-  getMyWorkItems,
-  getWorkItemById,
-  createWorkItem,
-  updateWorkItem,
-  updateWorkItemStatus,
-  deleteWorkItem,
-  bulkUpdateWorkItems,
-  addComment,
-  getCalendarWorkItems,
-  getOverdueWorkItems,
-  getWorkItemsByProject,
-  getWorkflowConfig,
-  progressWorkflowStage,
-  getWorkflowProgress,
-};
-
-export default {
   getMyWorkItems,
   getWorkItemById,
   createWorkItem,
