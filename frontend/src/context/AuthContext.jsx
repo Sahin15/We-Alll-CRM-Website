@@ -69,7 +69,7 @@ export const AuthProvider = ({ children }) => {
       setToken(token);
       setUser(user);
 
-      toast.loginSuccess(user.name);
+      // No toast notification - using custom welcome animation instead
       return { success: true, data: response.data };
     } catch (error) {
       console.error("Login error:", error);
@@ -101,7 +101,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("user");
     setToken(null);
     setUser(null);
-    toast.logoutSuccess();
+    // No toast notification - clean logout experience
   };
 
   const updateProfile = (updatedUser) => {

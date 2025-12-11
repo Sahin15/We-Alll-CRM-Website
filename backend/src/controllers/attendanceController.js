@@ -62,12 +62,16 @@ export const clockIn = async (req, res) => {
     
     const attendance = await Attendance.create(attendanceData);
 
-    // FORCE recalculation to ensure correct status (especially for HR)
+    // ALWAYS FORCE recalculation to ensure correct status
     const calculatedStatus = attendance.calculateStatus();
+    console.log(`[CLOCK-IN] 🔧 FORCE STATUS CHECK: Current: ${attendance.status}, Calculated: ${calculatedStatus}`);
+    
     if (attendance.status !== calculatedStatus) {
       console.log(`[CLOCK-IN] 🔧 FORCE FIXING: ${attendance.status} → ${calculatedStatus}`);
       attendance.status = calculatedStatus;
       await attendance.save();
+    } else {
+      console.log(`[CLOCK-IN] ✅ Status is already correct: ${attendance.status}`);
     }
 
     console.log(`[CLOCK-IN] ✅ Attendance created with status: ${attendance.status} for ${req.user.name} (${req.user.role})`);
@@ -1140,6 +1144,90 @@ export const downloadAttendancePDF = async (req, res) => {
     res.status(500).json({ 
       message: "Failed to generate PDF", 
       error: error.message 
+    });
+  }
+};
+
+// Fix today's attendance status
+export const fixTodayAttendance = async (req, res) => {
+  try {
+    // Get today's date
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Find today's attendance records that have clockIn
+    const attendanceRecords = await Attendance.find({
+      date: { $gte: today, $lt: tomorrow },
+      clockIn: { $exists: true },
+      status: { $nin: ['absent', 'on-leave'] } // Don't fix manually set statuses
+    }).populate('employee', 'name');
+
+    console.log(`[FIX-TODAY] Checking ${attendanceRecords.length} attendance records...`);
+
+    let fixedCount = 0;
+    const fixedRecords = [];
+
+    for (const record of attendanceRecords) {
+      const clockInTime = new Date(record.clockIn);
+      const clockInHour = clockInTime.getHours();
+      const clockInMinute = clockInTime.getMinutes();
+      const totalMinutes = clockInHour * 60 + clockInMinute;
+
+      // Calculate correct status
+      let correctStatus;
+      if (totalMinutes >= 720) {
+        // 12:00 PM (720 minutes) or later = Half day
+        correctStatus = "half-day";
+      } else if (totalMinutes > 630) {
+        // 10:31 AM (631 minutes) to 11:59 AM (719 minutes) = Late
+        correctStatus = "late";
+      } else {
+        // 00:00 to 10:30 AM (0-630 minutes) = Present
+        correctStatus = "present";
+      }
+
+      // Check if status needs fixing
+      if (record.status !== correctStatus) {
+        const oldStatus = record.status;
+        record.status = correctStatus;
+        await record.save();
+
+        const timeStr = `${String(clockInHour).padStart(2, '0')}:${String(clockInMinute).padStart(2, '0')}`;
+        
+        fixedRecords.push({
+          employee: record.employee?.name || 'Unknown',
+          clockIn: timeStr,
+          oldStatus: oldStatus,
+          newStatus: correctStatus
+        });
+
+        console.log(`[FIX-TODAY] Fixed: ${record.employee?.name || 'Unknown'} - ${timeStr} - ${oldStatus} → ${correctStatus}`);
+        fixedCount++;
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: fixedCount > 0 ? `Fixed ${fixedCount} attendance records` : 'All attendance records are already correct',
+      totalRecords: attendanceRecords.length,
+      fixedCount: fixedCount,
+      fixedRecords: fixedRecords,
+      rules: {
+        present: 'Before 10:30 AM',
+        late: '10:31 AM - 11:59 AM',
+        halfDay: '12:00 PM or later'
+      }
+    });
+
+  } catch (error) {
+    console.error("Error fixing today's attendance:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fixing attendance records",
+      error: error.message
     });
   }
 };

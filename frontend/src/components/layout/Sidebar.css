@@ -35,6 +35,17 @@
   width: 70px;
 }
 
+/* Collapsed sidebar logo positioning */
+.sidebar.collapsed .logo-container {
+  justify-content: center;
+  padding: 0;
+}
+
+/* Add a subtle glow effect to mini logo when collapsed */
+.sidebar.collapsed .logo-img-mini {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), 0 0 20px rgba(255, 255, 255, 0.1);
+}
+
 .sidebar-header {
   background: transparent;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -53,27 +64,68 @@
   justify-content: center;
   gap: 12px;
   width: 100%;
+  position: relative;
 }
 
-/* Logo image when sidebar is expanded */
-.logo-img {
-  max-height: 40px;
-  max-width: 120px;
+/* Logo container for smooth transitions */
+.logo-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  height: 50px;
+  padding: 0 20px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Full logo container - when expanded */
+.logo-full-container {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Full logo image */
+.logo-img-full {
+  width: 100%;
+  height: 100%;
   object-fit: contain;
-  transition: all 0.3s ease;
   border-radius: 8px;
 }
 
-/* Logo image when sidebar is collapsed */
-.logo-img-collapsed {
-  max-height: 45px;
-  max-width: 45px;
+/* Mini logo container - when collapsed */
+.logo-mini-container {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Mini logo image */
+.logo-img-mini {
+  width: 48px;
+  height: 48px;
   object-fit: contain;
+  border-radius: 12px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   transition: all 0.3s ease;
-  border-radius: 8px;
-  padding: 2px;
-  background: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Mini logo hover effect */
+.logo-img-mini:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 /* "Office" text next to logo */
@@ -83,6 +135,23 @@
   font-weight: 600;
   letter-spacing: 1px;
   text-transform: uppercase;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  margin-left: 12px;
+  flex-shrink: 0;
+}
+
+/* Text visibility states */
+.text-visible {
+  opacity: 1;
+  transform: translateX(0);
+  visibility: visible;
+}
+
+.text-hidden {
+  opacity: 0;
+  transform: translateX(-20px);
+  visibility: hidden;
 }
 
 

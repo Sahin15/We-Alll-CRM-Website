@@ -663,6 +663,7 @@ const AdminDashboard = () => {
     { label: "Add User", icon: <FaUsers />, path: "/users", variant: "primary" },
     { label: "Add Project", icon: <FaProjectDiagram />, path: "/projects", variant: "success" },
     { label: "Add Client", icon: <FaUserTie />, path: "/clients", variant: "info" },
+    { label: "Work Calendar", icon: <FaCalendarAlt />, path: "/work-calendar/admin-overview", variant: "warning" },
   ];
 
   if (loading) {

@@ -109,35 +109,90 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
       })
     : [];
 
-  // Get department workflow type (check if any selected department is social media)
-  const getDepartmentWorkflowType = () => {
-    const selectedDepts = departments.filter(d => formData.departments.includes(d._id));
-    const hasSocialMedia = selectedDepts.some(dept => {
-      const deptName = dept.name.toLowerCase();
-      return deptName.includes('social') || deptName.includes('marketing');
-    });
-    
-    return hasSocialMedia ? 'social-media-advanced' : 'standard';
+  // Check if team assignment should be shown (when multiple departments are selected)
+  const shouldShowTeamAssignment = () => {
+    return formData.departments.length > 0;
   };
 
-  // Get social media roles for team assignment
-  const getSocialMediaRoles = () => [
-    { key: 'content-creator', label: 'Content Creator' },
-    { key: 'photo-editor', label: 'Photo Editor' },
-    { key: 'caption-writer', label: 'Caption Writer' },
-    { key: 'ads-specialist', label: 'Ads Specialist' },
-    { key: 'posting-manager', label: 'Posting Manager' },
-  ];
+  // Get roles based on selected departments/services
+  const getRolesByDepartments = () => {
+    const selectedDepts = departments.filter(d => formData.departments.includes(d._id));
+    const rolesByDepartment = {};
+    
+    selectedDepts.forEach(dept => {
+      const deptName = dept.name.toLowerCase();
+      
+      if (deptName.includes('development') || deptName.includes('tech')) {
+        rolesByDepartment[dept.name] = [
+          { key: 'frontend-developer', label: 'Frontend Developer' },
+          { key: 'backend-developer', label: 'Backend Developer' },
+          { key: 'fullstack-developer', label: 'Fullstack Developer' },
+          { key: 'qa-tester', label: 'QA Tester' },
+          { key: 'developer', label: 'General Developer' },
+        ];
+      }
+      else if (deptName.includes('design') || deptName.includes('graphic')) {
+        rolesByDepartment[dept.name] = [
+          { key: 'ui-designer', label: 'UI Designer' },
+          { key: 'ux-designer', label: 'UX Designer' },
+          { key: 'graphic-designer', label: 'Graphic Designer' },
+          { key: 'video-editor', label: 'Video Editor' },
+          { key: 'designer', label: 'General Designer' },
+        ];
+      }
+      else if (deptName.includes('social') || deptName.includes('marketing')) {
+        rolesByDepartment[dept.name] = [
+          { key: 'social-media-manager', label: 'Social Media Manager' },
+          { key: 'content-creator', label: 'Content Creator' },
+          { key: 'copywriter', label: 'Copywriter' },
+          { key: 'ads-specialist', label: 'Ads Specialist' },
+          { key: 'caption-writer', label: 'Caption Writer' },
+          { key: 'photo-editor', label: 'Photo Editor' },
+          { key: 'video-creator', label: 'Video Creator' },
+          { key: 'posting-manager', label: 'Posting Manager' },
+          { key: 'community-manager', label: 'Community Manager' },
+        ];
+      }
+      else if (deptName.includes('content') || deptName.includes('writing')) {
+        rolesByDepartment[dept.name] = [
+          { key: 'content-writer', label: 'Content Writer' },
+          { key: 'seo-specialist', label: 'SEO Specialist' },
+          { key: 'blog-writer', label: 'Blog Writer' },
+          { key: 'copywriter', label: 'Copywriter' },
+        ];
+      }
+      else {
+        // Generic roles for other departments
+        rolesByDepartment[dept.name] = [
+          { key: 'project-coordinator', label: 'Project Coordinator' },
+          { key: 'client-liaison', label: 'Client Liaison' },
+          { key: 'other', label: 'Other Role' },
+        ];
+      }
+    });
+    
+    return rolesByDepartment;
+  };
 
   // Handle team role assignment
-  const handleTeamRoleChange = (roleKey, userId) => {
+  const handleTeamRoleChange = (departmentName, roleKey, userId) => {
     setFormData(prev => ({
       ...prev,
       teamRoles: {
         ...prev.teamRoles,
-        [roleKey]: userId,
+        [`${departmentName}-${roleKey}`]: userId,
       },
     }));
+  };
+
+  // Get users filtered by specific department
+  const getUsersByDepartment = (departmentId) => {
+    return availableProjectHeads.filter(user => {
+      const userDeptId = typeof user.department === 'object'
+        ? user.department?._id
+        : user.department;
+      return userDeptId === departmentId;
+    });
   };
 
   const validateForm = () => {
@@ -185,6 +240,26 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
       if (formData.endDate) {
         submitData.endDate = formData.endDate;
       }
+      
+      // Add team roles if any are assigned
+      if (Object.keys(formData.teamRoles).length > 0) {
+        // Convert team roles to the format expected by backend
+        const teamMembers = [];
+        Object.entries(formData.teamRoles).forEach(([roleKey, userId]) => {
+          if (userId) {
+            const [departmentName, role] = roleKey.split('-');
+            teamMembers.push({
+              user: userId,
+              role: role,
+              departmentName: departmentName
+            });
+          }
+        });
+        
+        if (teamMembers.length > 0) {
+          submitData.teamMembers = teamMembers;
+        }
+      }
 
       await projectApi.createProject(submitData);
       toast.success('Project created successfully!');
@@ -199,7 +274,7 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
         status: 'Pending',
         startDate: '',
         endDate: '',
-        teamRoles: {}
+        teamRoles: {} // Reset team roles
       });
       setErrors({});
 
@@ -225,7 +300,7 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
       status: 'Pending',
       startDate: '',
       endDate: '',
-      teamRoles: {}
+      teamRoles: {} // Reset team roles
     });
     setErrors({});
     onHide();
@@ -403,36 +478,66 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
             </Col>
           </Row>
 
-          {/* Team Members Assignment (for Social Media Services) */}
-          {formData.departments.length > 0 && getDepartmentWorkflowType() === 'social-media-advanced' && (
+          {/* Dynamic Team Role Assignment (for Multi-Service Projects) */}
+          {shouldShowTeamAssignment() && (
             <>
               <hr />
-              <h6 className="mb-3">Team Role Assignment</h6>
+              <h6 className="mb-3">Team Role Assignment <span className="text-muted">(Optional)</span></h6>
               <p className="text-muted small mb-3">
-                Assign team members to specific roles for automated workflow progression
+                Assign team members to specific roles for each service. This helps with workflow automation and task routing.
               </p>
               
-              {getSocialMediaRoles().map((role) => (
-                <Row key={role.key} className="mb-2">
-                  <Col md={4}>
-                    <Form.Label className="small fw-bold">{role.label}:</Form.Label>
-                  </Col>
-                  <Col md={8}>
-                    <Form.Select
-                      size="sm"
-                      value={formData.teamRoles?.[role.key] || ''}
-                      onChange={(e) => handleTeamRoleChange(role.key, e.target.value)}
-                    >
-                      <option value="">Select {role.label.toLowerCase()}...</option>
-                      {availableProjectHeads.map((user) => (
-                        <option key={user._id} value={user._id}>
-                          {user.name}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  </Col>
-                </Row>
-              ))}
+              {Object.entries(getRolesByDepartments()).map(([departmentName, roles]) => {
+                const department = departments.find(d => d.name === departmentName);
+                const departmentUsers = department ? getUsersByDepartment(department._id) : [];
+                
+                return (
+                  <div key={departmentName} className="mb-4">
+                    <h6 className="text-primary mb-3">
+                      <i className="fas fa-cog me-2"></i>
+                      {departmentName} Team ({departmentUsers.length} available)
+                    </h6>
+                    
+                    {departmentUsers.length === 0 ? (
+                      <div className="alert alert-warning py-2">
+                        <small>No employees available in {departmentName} service</small>
+                      </div>
+                    ) : (
+                      <div className="row g-2">
+                        {roles.map((role) => (
+                          <Col md={6} key={`${departmentName}-${role.key}`}>
+                            <div className="border rounded p-2">
+                              <Form.Label className="small fw-bold mb-1">
+                                {role.label}:
+                              </Form.Label>
+                              <Form.Select
+                                size="sm"
+                                value={formData.teamRoles?.[`${departmentName}-${role.key}`] || ''}
+                                onChange={(e) => handleTeamRoleChange(departmentName, role.key, e.target.value)}
+                              >
+                                <option value="">Select {role.label.toLowerCase()}...</option>
+                                {departmentUsers.map((user) => (
+                                  <option key={user._id} value={user._id}>
+                                    {user.name}
+                                  </option>
+                                ))}
+                              </Form.Select>
+                            </div>
+                          </Col>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              
+              <div className="alert alert-info py-2 mt-3">
+                <small>
+                  <i className="fas fa-info-circle me-1"></i>
+                  <strong>Note:</strong> Role assignments are optional and can be modified later. 
+                  They help with automated task routing and workflow management.
+                </small>
+              </div>
             </>
           )}
         </Modal.Body>

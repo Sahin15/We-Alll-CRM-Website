@@ -174,7 +174,14 @@ attendanceSchema.pre("save", function (next) {
         const oldStatus = this.status;
         const newStatus = this.calculateStatus();
         console.log(`[ATTENDANCE] PRE-SAVE: Status calculation: ${oldStatus} → ${newStatus}`);
+        
+        // FORCE the status to be the calculated one
         this.status = newStatus;
+        
+        // If this is a new record and status was wrong, log it as a fix
+        if (this.isNew && oldStatus && oldStatus !== newStatus) {
+          console.log(`[ATTENDANCE] PRE-SAVE: 🔧 NEW RECORD FIX: ${oldStatus} → ${newStatus}`);
+        }
       } else {
         console.log(`[ATTENDANCE] PRE-SAVE: ⚠️  Skipping calculation - manually set to ${this.status}`);
       }

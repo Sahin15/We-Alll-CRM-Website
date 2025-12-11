@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Card, Form, Button, Alert } from "react-bootstrap";
+import { Form, Button, Alert } from "react-bootstrap";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 
 const Login = () => {
@@ -8,9 +9,24 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [userName, setUserName] = useState("");
 
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  // Get motivational messages
+  const getMotivationalMessage = () => {
+    const messages = [
+      "Ready to make today productive?",
+      "Let's achieve great things together!",
+      "Your workspace awaits you!",
+      "Time to turn ideas into reality!",
+      "Ready to make an impact today?"
+    ];
+    return messages[Math.floor(Math.random() * messages.length)];
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -20,101 +36,962 @@ const Login = () => {
     try {
       const result = await login({ email, password });
       if (result.success) {
-        navigate("/dashboard");
+        // Set user name from profile for personalized welcome
+        // The login function returns { success: true, data: { user, token } }
+        const user = result.data?.user;
+        const fullName = user?.name || "";
+        
+        // Extract first name for personalized greeting
+        const firstName = fullName ? fullName.split(' ')[0] : email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1);
+        
+        console.log("Login successful, user name:", fullName, "First name:", firstName);
+        setUserName(firstName);
+        
+        // Show welcome animation before navigating
+        setShowWelcome(true);
+        setTimeout(() => {
+          navigate("/dashboard");
+        }, 4000); // 4 seconds welcome animation
       } else {
         setError(result.error);
+        setLoading(false);
       }
     } catch (err) {
       setError("Login failed. Please try again.");
-    } finally {
       setLoading(false);
     }
   };
 
+  // Welcome Loading Screen
+  if (showWelcome) {
+    return (
+      <div className="welcome-screen">
+        <div className="sparkle sparkle-1"></div>
+        <div className="sparkle sparkle-2"></div>
+        <div className="sparkle sparkle-3"></div>
+        <div className="sparkle sparkle-4"></div>
+        <div className="sparkle sparkle-5"></div>
+        <div className="welcome-content">
+          <div className="logo-animation">
+            <img 
+              src={new URL('../../components/layout/We-Alll-Logo.jpg', import.meta.url).href}
+              alt="We All Office"
+              className="logo-icon"
+              style={{
+                width: '80px',
+                height: '80px',
+                objectFit: 'contain',
+                borderRadius: '12px'
+              }}
+            />
+          </div>
+          <div className="welcome-text">
+            <h1 className="welcome-title">Welcome to We All Office</h1>
+            <h2 className="user-name">{userName}</h2>
+            <p className="motivational-text">{getMotivationalMessage()}</p>
+          </div>
+          <div className="loading-dots">
+            <div className="dot"></div>
+            <div className="dot"></div>
+            <div className="dot"></div>
+          </div>
+        </div>
+        
+        <style>{`
+          .welcome-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            animation: welcomeFadeIn 0.5s ease-out;
+            overflow: hidden;
+          }
+          
+          .welcome-screen::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(
+              circle at center,
+              rgba(255,255,255,0.3) 0%,
+              rgba(255,255,255,0.15) 30%,
+              transparent 60%
+            );
+            animation: rotateGradient 6s linear infinite, pulse 3s ease-in-out infinite;
+            z-index: 1;
+          }
+          
+          .welcome-screen::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -150%;
+            width: 80%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+              transparent 0%, 
+              rgba(255,255,255,0.2) 25%,
+              rgba(255,255,255,0.5) 50%,
+              rgba(255,255,255,0.2) 75%,
+              transparent 100%
+            );
+            animation: shine 4s ease-in-out infinite;
+            z-index: 2;
+            transform: skewX(-20deg);
+          }
+          
+          .welcome-content {
+            text-align: center;
+            color: white;
+            position: relative;
+            z-index: 10;
+          }
+          
+          .logo-animation {
+            margin-bottom: 2rem;
+            animation: logoScale 1s ease-out;
+          }
+          
+          .logo-icon {
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+            animation: logoPulse 2s ease-in-out infinite, logoGlow 3s ease-in-out infinite;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px;
+            border-radius: 12px;
+            box-shadow: 
+              0 10px 30px rgba(79, 70, 229, 0.3),
+              0 4px 12px rgba(79, 70, 229, 0.2),
+              inset 0 2px 0 rgba(255, 255, 255, 0.2);
+          }
+          
+          .welcome-text {
+            margin-bottom: 3rem;
+          }
+          
+          .welcome-title {
+            font-size: 1.6rem;
+            font-weight: 400;
+            margin-bottom: 1rem;
+            opacity: 0;
+            animation: textSlideUp 0.8s ease-out 0.5s forwards, titleGlow 4s ease-in-out infinite;
+            text-shadow: 
+              0 0 10px rgba(255, 255, 255, 0.5),
+              0 0 20px rgba(79, 70, 229, 0.3);
+          }
+          
+          .user-name {
+            font-size: 3.2rem;
+            font-weight: 700;
+            margin: 0.5rem 0 1rem;
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF6B6B 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            opacity: 0;
+            animation: nameGlow 1.2s ease-out 0.8s forwards, nameTextGlow 3s ease-in-out infinite;
+            filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.3));
+          }
+          
+          .motivational-text {
+            font-size: 1.2rem;
+            font-weight: 300;
+            margin: 0;
+            opacity: 0.9;
+            font-style: italic;
+            opacity: 0;
+            animation: textSlideUp 0.8s ease-out 1.2s forwards;
+          }
+          
+          .loading-dots {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+          }
+          
+          .dot {
+            width: 12px;
+            height: 12px;
+            background: white;
+            border-radius: 50%;
+            animation: dotBounce 1.4s ease-in-out infinite both;
+          }
+          
+          .dot:nth-child(1) { animation-delay: -0.32s; }
+          .dot:nth-child(2) { animation-delay: -0.16s; }
+          .dot:nth-child(3) { animation-delay: 0s; }
+          
+          @keyframes welcomeFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+          
+          @keyframes logoScale {
+            0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+            50% { transform: scale(1.2) rotate(-90deg); }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+          }
+          
+          @keyframes logoPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+          }
+          
+          @keyframes textSlideUp {
+            from {
+              opacity: 0;
+              transform: translateY(30px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+          
+          @keyframes nameGlow {
+            0% {
+              opacity: 0;
+              transform: translateY(30px) scale(0.8);
+            }
+            50% {
+              opacity: 0.8;
+              transform: translateY(0) scale(1.1);
+            }
+            100% {
+              opacity: 1;
+              transform: translateY(0) scale(1);
+            }
+          }
+          
+          @keyframes dotBounce {
+            0%, 80%, 100% {
+              transform: scale(0);
+            }
+            40% {
+              transform: scale(1);
+            }
+          }
+          
+          @keyframes logoGlow {
+            0%, 100% {
+              box-shadow: 
+                0 10px 30px rgba(79, 70, 229, 0.3),
+                0 4px 12px rgba(79, 70, 229, 0.2),
+                inset 0 2px 0 rgba(255, 255, 255, 0.2),
+                0 0 20px rgba(79, 70, 229, 0.4);
+            }
+            50% {
+              box-shadow: 
+                0 12px 35px rgba(79, 70, 229, 0.4),
+                0 6px 16px rgba(79, 70, 229, 0.3),
+                inset 0 2px 0 rgba(255, 255, 255, 0.3),
+                0 0 30px rgba(79, 70, 229, 0.6);
+            }
+          }
+          
+          @keyframes titleGlow {
+            0%, 100% {
+              text-shadow: 
+                0 0 10px rgba(255, 255, 255, 0.5),
+                0 0 20px rgba(79, 70, 229, 0.3),
+                0 0 30px rgba(124, 58, 237, 0.2);
+            }
+            50% {
+              text-shadow: 
+                0 0 15px rgba(255, 255, 255, 0.7),
+                0 0 30px rgba(79, 70, 229, 0.5),
+                0 0 45px rgba(124, 58, 237, 0.4);
+            }
+          }
+          
+          @keyframes nameTextGlow {
+            0%, 100% {
+              filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.3));
+            }
+            50% {
+              filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.6));
+            }
+          }
+          
+          @keyframes rotateGradient {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.1); }
+            100% { transform: rotate(360deg) scale(1); }
+          }
+          
+          @keyframes pulse {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; }
+          }
+          
+          @keyframes shine {
+            0% { 
+              left: -150%; 
+              opacity: 0;
+            }
+            10% {
+              opacity: 1;
+            }
+            20% { 
+              left: 150%; 
+              opacity: 0;
+            }
+            100% { 
+              left: 150%; 
+              opacity: 0;
+            }
+          }
+          
+          @keyframes sparkle {
+            0%, 100% {
+              opacity: 0;
+              transform: scale(0);
+            }
+            50% {
+              opacity: 1;
+              transform: scale(2);
+            }
+          }
+          
+          .sparkle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 0 15px rgba(255,255,255,1), 0 0 25px rgba(255,255,255,0.5);
+            animation: sparkle 2s ease-in-out infinite;
+            z-index: 5;
+          }
+          
+          .sparkle-1 {
+            top: 20%;
+            left: 15%;
+            animation-delay: 0s;
+          }
+          
+          .sparkle-2 {
+            top: 70%;
+            left: 80%;
+            animation-delay: 1s;
+          }
+          
+          .sparkle-3 {
+            top: 40%;
+            right: 20%;
+            animation-delay: 2s;
+          }
+          
+          .sparkle-4 {
+            top: 60%;
+            left: 30%;
+            animation-delay: 0.5s;
+          }
+          
+          .sparkle-5 {
+            top: 30%;
+            left: 70%;
+            animation-delay: 1.5s;
+          }
+          
+          .sparkle-login-1 {
+            top: 15%;
+            left: 10%;
+            animation-delay: 0.3s;
+          }
+          
+          .sparkle-login-2 {
+            top: 80%;
+            right: 15%;
+            animation-delay: 1.2s;
+          }
+          
+          .sparkle-login-3 {
+            top: 45%;
+            left: 85%;
+            animation-delay: 2.1s;
+          }
+          
+          @keyframes containerGlow {
+            0%, 100% {
+              box-shadow: 
+                0 20px 40px rgba(0, 0, 0, 0.1),
+                0 0 30px rgba(79, 70, 229, 0.3);
+            }
+            50% {
+              box-shadow: 
+                0 20px 40px rgba(0, 0, 0, 0.1),
+                0 0 50px rgba(79, 70, 229, 0.5);
+            }
+          }
+          
+          @media (max-width: 768px) {
+            .welcome-title {
+              font-size: 1.3rem;
+            }
+            .user-name {
+              font-size: 2.5rem;
+            }
+            .motivational-text {
+              font-size: 1rem;
+            }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
   return (
-    <Card style={{ width: "400px", maxWidth: "100%" }} className="shadow">
-      <Card.Body className="p-5">
-        <div className="text-center mb-4">
-          <h2 className="fw-bold text-primary">We Alll Office</h2>
-          <p className="text-muted">Sign in to your account</p>
+    <div className="login-page">
+      <div className="sparkle sparkle-login-1"></div>
+      <div className="sparkle sparkle-login-2"></div>
+      <div className="sparkle sparkle-login-3"></div>
+      <div className="login-container">
+        {/* Logo Section */}
+        <div className="logo-section">
+          <div className="logo">
+            <img 
+              src={new URL('../../components/layout/We-Alll-Logo.jpg', import.meta.url).href}
+              alt="We All Office"
+              style={{
+                width: '32px',
+                height: '32px',
+                objectFit: 'contain',
+                borderRadius: '6px'
+              }}
+            />
+          </div>
+          <h1 className="brand-name">We All Office</h1>
+          <p className="brand-tagline">Your Digital Workspace</p>
         </div>
 
-        {error && <Alert variant="danger">{error}</Alert>}
-
-        <Form onSubmit={handleSubmit}>
-          <Form.Group className="mb-3">
-            <Form.Label>Email address</Form.Label>
-            <Form.Control
-              type="email"
-              placeholder="Enter email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label>Password</Form.Label>
-            <Form.Control
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </Form.Group>
-
-          <div className="d-flex justify-content-between align-items-center mb-4">
-            <Form.Check 
-              type="checkbox" 
-              label="Remember me"
-              style={{ fontSize: '0.95rem' }}
-              className="remember-me-checkbox"
-            />
-            <Link to="/forgot-password" className="text-decoration-none">
-              Forgot password?
-            </Link>
+        {/* Login Form */}
+        <div className="login-form-container">
+          <div className="form-header">
+            <h2>Welcome Back</h2>
+            <p>Sign in to access your account</p>
           </div>
+
+          {error && (
+            <Alert variant="danger" className="error-alert">
+              {error}
+            </Alert>
+          )}
+
+          <Form onSubmit={handleSubmit} className="login-form">
+            <Form.Group className="form-group">
+              <Form.Label>Email</Form.Label>
+              <Form.Control
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="form-input"
+              />
+            </Form.Group>
+
+            <Form.Group className="form-group">
+              <Form.Label>Password</Form.Label>
+              <div className="password-input-container">
+                <Form.Control
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="form-input"
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
+              </div>
+            </Form.Group>
+
+            <div className="form-options">
+              <Form.Check 
+                type="checkbox" 
+                label="Remember me"
+                className="remember-checkbox"
+              />
+              <Link to="/forgot-password" className="forgot-link">
+                Forgot password?
+              </Link>
+            </div>
+
+            <Button
+              type="submit"
+              className="login-button"
+              disabled={loading}
+            >
+              {loading ? (
+                <div className="loading-content">
+                  <div className="spinner"></div>
+                  Signing in...
+                </div>
+              ) : (
+                "Sign In"
+              )}
+            </Button>
+          </Form>
+        </div>
+      </div>
+
+      <style>{`
+        .login-page {
+          min-height: 100vh;
+          background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 1rem;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          position: relative;
+          overflow: hidden;
+        }
+        
+        .login-page::before {
+          content: '';
+          position: absolute;
+          top: -50%;
+          left: -50%;
+          width: 200%;
+          height: 200%;
+          background: radial-gradient(
+            circle at center,
+            rgba(255,255,255,0.25) 0%,
+            rgba(255,255,255,0.15) 30%,
+            transparent 60%
+          );
+          animation: rotateGradient 8s linear infinite, pulse 4s ease-in-out infinite;
+          z-index: 1;
+        }
+        
+        .login-page::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -150%;
+          width: 80%;
+          height: 100%;
+          background: linear-gradient(90deg, 
+            transparent 0%, 
+            rgba(255,255,255,0.15) 25%,
+            rgba(255,255,255,0.4) 50%,
+            rgba(255,255,255,0.15) 75%,
+            transparent 100%
+          );
+          animation: shine 5s ease-in-out infinite;
+          z-index: 2;
+          transform: skewX(-20deg);
+        }
+        
+        .login-container {
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(20px);
+          border-radius: 16px;
+          box-shadow: 
+            0 20px 40px rgba(0, 0, 0, 0.1),
+            0 0 30px rgba(79, 70, 229, 0.3);
+          overflow: hidden;
+          width: 100%;
+          max-width: 380px;
+          max-height: 90vh;
+          animation: slideUp 0.6s ease-out, containerGlow 4s ease-in-out infinite;
+          position: relative;
+          z-index: 10;
+        }
+        
+        .logo-section {
+          background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%);
+          padding: 1.5rem 1.5rem 1.2rem;
+          text-align: center;
+          color: white;
+        }
+        
+        .logo {
+          width: 50px;
+          height: 50px;
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 auto 1rem;
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          padding: 4px;
+        }
+        
+        .brand-name {
+          font-size: 1.5rem;
+          font-weight: 700;
+          margin: 0 0 0.3rem;
+          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .brand-tagline {
+          font-size: 0.85rem;
+          opacity: 0.9;
+          margin: 0;
+          font-weight: 300;
+        }
+        
+        .login-form-container {
+          padding: 1.8rem 1.5rem;
+        }
+        
+        .form-header {
+          text-align: center;
+          margin-bottom: 1.5rem;
+        }
+        
+        .form-header h2 {
+          font-size: 1.4rem;
+          font-weight: 600;
+          color: #1a1a1a;
+          margin: 0 0 0.3rem;
+          line-height: 1.3;
+        }
+        
+        .form-header p {
+          color: #666;
+          margin: 0;
+          font-size: 0.85rem;
+        }
+        
+        .error-alert {
+          background: linear-gradient(135deg, #ef4444, #dc2626);
+          border: none;
+          border-radius: 12px;
+          color: white;
+          padding: 1rem;
+          margin-bottom: 1.5rem;
+          font-weight: 500;
+        }
+        
+        .form-group {
+          margin-bottom: 1.2rem;
+        }
+        
+        .form-group label {
+          font-weight: 600;
+          color: #374151;
+          margin-bottom: 0.4rem;
+          font-size: 0.9rem;
+        }
+        
+        .form-input {
+          height: 44px;
+          border: 2px solid #e5e7eb;
+          border-radius: 10px;
+          padding: 0 0.9rem;
+          font-size: 0.95rem;
+          transition: all 0.3s ease;
+          background: #f9fafb;
+        }
+        
+        .form-input:focus {
+          border-color: #4F46E5;
+          box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+          background: white;
+        }
+        
+        .password-input-container {
+          position: relative;
+        }
+        
+        .password-toggle {
+          position: absolute;
+          right: 1rem;
+          top: 50%;
+          transform: translateY(-50%);
+          background: none;
+          border: none;
+          color: #6b7280;
+          cursor: pointer;
+          padding: 0.25rem;
+          border-radius: 4px;
+          transition: color 0.2s ease;
+        }
+        
+        .password-toggle:hover {
+          color: #4F46E5;
+        }
+        
+        .form-options {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1.5rem;
+        }
+        
+        .remember-checkbox {
+          font-size: 0.85rem;
+          color: #374151;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+        
+        .remember-checkbox input {
+          margin: 0;
+          accent-color: #4F46E5;
+          width: 16px;
+          height: 16px;
+          cursor: pointer;
+        }
+        
+        .remember-checkbox label {
+          margin: 0;
+          cursor: pointer;
+          user-select: none;
+        }
+        
+        .forgot-link {
+          color: #4F46E5;
+          text-decoration: none;
+          font-size: 0.85rem;
+          font-weight: 500;
+          transition: color 0.2s ease;
+        }
+        
+        .forgot-link:hover {
+          color: #7C3AED;
+        }
+        
+        .login-button {
+          width: 100%;
+          height: 44px;
+          background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%);
+          border: none;
+          border-radius: 10px;
+          color: white;
+          font-size: 1rem;
+          font-weight: 600;
+          transition: all 0.3s ease;
+          position: relative;
+          overflow: hidden;
+        }
+        
+        .login-button:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3);
+        }
+        
+        .login-button:active:not(:disabled) {
+          transform: translateY(0);
+        }
+        
+        .login-button:disabled {
+          opacity: 0.8;
+          cursor: not-allowed;
+        }
+        
+        .loading-content {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+        }
+        
+        .spinner {
+          width: 20px;
+          height: 20px;
+          border: 2px solid rgba(255, 255, 255, 0.3);
+          border-top: 2px solid white;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+        
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+        
+        /* Glowing Effects Animations */
+        @keyframes rotateGradient {
+          0% { transform: rotate(0deg) scale(1); }
+          50% { transform: rotate(180deg) scale(1.1); }
+          100% { transform: rotate(360deg) scale(1); }
+        }
+        
+        @keyframes pulse {
+          0%, 100% { opacity: 0.8; }
+          50% { opacity: 1; }
+        }
+        
+        @keyframes shine {
+          0% { 
+            left: -150%; 
+            opacity: 0;
+          }
+          10% {
+            opacity: 1;
+          }
+          20% { 
+            left: 150%; 
+            opacity: 0;
+          }
+          100% { 
+            left: 150%; 
+            opacity: 0;
+          }
+        }
+        
+        @keyframes sparkle {
+          0%, 100% {
+            opacity: 0;
+            transform: scale(0);
+          }
+          50% {
+            opacity: 1;
+            transform: scale(2);
+          }
+        }
+        
+        @keyframes containerGlow {
+          0%, 100% {
+            box-shadow: 
+              0 20px 40px rgba(0, 0, 0, 0.1),
+              0 0 30px rgba(79, 70, 229, 0.3);
+          }
+          50% {
+            box-shadow: 
+              0 20px 40px rgba(0, 0, 0, 0.1),
+              0 0 50px rgba(79, 70, 229, 0.5);
+          }
+        }
+        
+        /* Sparkle Styles */
+        .sparkle {
+          position: absolute;
+          width: 6px;
+          height: 6px;
+          background: white;
+          border-radius: 50%;
+          box-shadow: 0 0 15px rgba(255,255,255,1), 0 0 25px rgba(255,255,255,0.5);
+          animation: sparkle 2s ease-in-out infinite;
+          z-index: 5;
+        }
+        
+        .sparkle-login-1 {
+          top: 15%;
+          left: 10%;
+          animation-delay: 0.3s;
+        }
+        
+        .sparkle-login-2 {
+          top: 80%;
+          right: 15%;
+          animation-delay: 1.2s;
+        }
+        
+        .sparkle-login-3 {
+          top: 45%;
+          left: 85%;
+          animation-delay: 2.1s;
+        }
+        
+        /* Mobile Responsiveness */
+        @media (max-width: 480px) {
+          .login-page {
+            padding: 0.5rem;
+          }
           
-          <style>{`
-            .remember-me-checkbox input[type="checkbox"] {
-              width: 16px !important;
-              height: 16px !important;
-              margin-right: 8px;
-              cursor: pointer;
-            }
-            
-            .remember-me-checkbox label {
-              cursor: pointer;
-              font-size: 0.95rem;
-              margin-bottom: 0;
-            }
-            
-            .remember-me-checkbox {
-              display: flex;
-              align-items: center;
-            }
-          `}</style>
-
-          <Button
-            variant="primary"
-            type="submit"
-            className="w-100 mb-3"
-            disabled={loading}
-          >
-            {loading ? "Signing in..." : "Sign In"}
-          </Button>
-
-          {/* Registration disabled - Only admins can add users */}
-          {/* <div className="text-center">
-            <span className="text-muted">Don't have an account? </span>
-            <Link to="/register" className="text-decoration-none">
-              Sign up
-            </Link>
-          </div> */}
-        </Form>
-      </Card.Body>
-    </Card>
+          .login-container {
+            max-width: 100%;
+            border-radius: 12px;
+          }
+          
+          .logo-section {
+            padding: 1.2rem 1rem 1rem;
+          }
+          
+          .logo {
+            width: 40px;
+            height: 40px;
+            margin-bottom: 0.8rem;
+          }
+          
+          .brand-name {
+            font-size: 1.3rem;
+          }
+          
+          .brand-tagline {
+            font-size: 0.8rem;
+          }
+          
+          .login-form-container {
+            padding: 1.5rem 1.2rem;
+          }
+          
+          .form-header h2 {
+            font-size: 1.2rem;
+          }
+          
+          .form-header p {
+            font-size: 0.8rem;
+          }
+          
+          .form-input {
+            height: 42px;
+            font-size: 0.9rem;
+          }
+          
+          .login-button {
+            height: 42px;
+            font-size: 0.95rem;
+          }
+        }
+        
+        @media (max-height: 700px) {
+          .login-page {
+            padding: 0.5rem;
+          }
+          
+          .logo-section {
+            padding: 1rem;
+          }
+          
+          .login-form-container {
+            padding: 1.2rem;
+          }
+          
+          .form-group {
+            margin-bottom: 1rem;
+          }
+          
+          .form-options {
+            margin-bottom: 1.2rem;
+          }
+        }
+      `}</style>
+    </div>
   );
 };
 

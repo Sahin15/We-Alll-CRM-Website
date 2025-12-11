@@ -80,6 +80,10 @@ import ProjectWorkspace from "../pages/projects/ProjectWorkspace";
 import CalendarPage from "../pages/calendar/CalendarPage";
 // Removed old import: ContentCalendar
 
+// Work Calendar Pages
+import MyWorkCalendar from "../pages/work-calendar/MyWorkCalendar";
+import AdminWorkCalendarOverview from "../pages/work-calendar/AdminWorkCalendarOverview";
+
 // Profile Pages
 import MyProfile from "../pages/profile/MyProfile";
 
@@ -335,12 +339,21 @@ const AppRoutes = () => {
 
         {/* Calendar Views */}
         <Route path="/calendar" element={<CalendarPage />} />
-        {/* Calendar - Unified for all roles */}
+
+        {/* Work Calendar Routes */}
         <Route
-          path="/calendar"
+          path="/work-calendar/my-calendar"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hod", "employee"]}>
-              <CalendarPage />
+            <RoleBasedRoute allowedRoles={["employee", "admin", "superadmin", "hr", "hod"]}>
+              <MyWorkCalendar />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/work-calendar/admin-overview"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
+              <AdminWorkCalendarOverview />
             </RoleBasedRoute>
           }
         />

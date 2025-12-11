@@ -119,10 +119,25 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       roles: ["admin", "superadmin", "hr", "employee", "hod"],
     },
     {
-      path: "/calendar",
-      icon: <FaCalendar />,
-      label: "Calendar",
+      id: "work-calendar",
+      icon: <FaCalendarAlt />,
+      label: "Work Calendar",
       roles: ["employee", "admin", "superadmin", "hr", "hod"],
+      isGroup: true,
+      children: [
+        {
+          path: "/work-calendar/my-calendar",
+          icon: <FaCalendarAlt />,
+          label: "My Work Calendar",
+          roles: ["employee", "admin", "hr", "hod"],
+        },
+        {
+          path: "/work-calendar/admin-overview",
+          icon: <FaCalendarAlt />,
+          label: "Admin Overview",
+          roles: ["admin", "superadmin", "hr"],
+        },
+      ],
     },
     {
       path: "/employee/announcements",
@@ -225,24 +240,30 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       <div className={`sidebar ${collapsed ? "collapsed" : ""}`}>
         <div className="sidebar-header">
           <div className="sidebar-logo">
-            {collapsed ? (
-              // Collapsed: Show only logo icon
-              <img 
-                src={new URL('./We-Alll-Logo.jpg', import.meta.url).href} 
-                alt="WE ALLL" 
-                className="logo-img-collapsed" 
-              />
-            ) : (
-              // Expanded: Show logo + "Office" text
-              <>
-                <img 
-                  src={new URL('./We-Alll-Logo.jpg', import.meta.url).href} 
-                  alt="WE ALLL" 
-                  className="logo-img" 
-                />
-                <span className="logo-text">Office</span>
-              </>
-            )}
+            <div className="logo-container">
+              {collapsed ? (
+                /* Collapsed: Show only mini logo */
+                <div className="logo-mini-container">
+                  <img 
+                    src={new URL('./Wealll_mini.png', import.meta.url).href} 
+                    alt="WE ALLL" 
+                    className="logo-img-mini"
+                  />
+                </div>
+              ) : (
+                /* Expanded: Show full logo + text */
+                <>
+                  <div className="logo-full-container">
+                    <img 
+                      src={new URL('./We-Alll-Logo.jpg', import.meta.url).href} 
+                      alt="WE ALLL" 
+                      className="logo-img-full"
+                    />
+                  </div>
+                  <span className="logo-text">Office</span>
+                </>
+              )}
+            </div>
           </div>
         </div>
 

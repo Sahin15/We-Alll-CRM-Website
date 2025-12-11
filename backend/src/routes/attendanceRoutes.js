@@ -18,6 +18,7 @@ import {
   testStatusLogic,
   debugStatusCalculation,
   downloadAttendancePDF,
+  fixTodayAttendance,
 } from "../controllers/attendanceController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
@@ -94,6 +95,14 @@ router.get(
   protect,
   authorizeRoles("admin", "superadmin", "hr", "hod"),
   getAttendanceSummary
+);
+
+// Fix attendance status endpoint
+router.post(
+  "/fix-today",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr"),
+  fixTodayAttendance
 );
 
 export default router;

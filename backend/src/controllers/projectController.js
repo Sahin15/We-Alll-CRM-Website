@@ -58,7 +58,8 @@ export const createProject = async (req, res) => {
       status,
       priority,
       projectHead, // Now optional
-      assignedUsers 
+      assignedUsers,
+      teamMembers // New: team members with roles from frontend
     } = req.body;
 
     if (!name) {
@@ -120,7 +121,30 @@ export const createProject = async (req, res) => {
       finalAssignedUsers.push(projectHead);
     }
 
+    // Process team members and add them to assignedUsers
+    let processedTeamMembers = [];
+    if (teamMembers && Array.isArray(teamMembers) && teamMembers.length > 0) {
+      processedTeamMembers = teamMembers.map(member => ({
+        user: member.user,
+        role: member.role || 'other',
+        departmentName: member.departmentName,
+        assignedBy: req.user._id,
+        assignedAt: new Date(),
+        isActive: true,
+        workCapacity: 100,
+        specialization: 'general'
+      }));
+
+      // Add team members to assignedUsers for backward compatibility
+      teamMembers.forEach(member => {
+        if (member.user && !finalAssignedUsers.includes(member.user)) {
+          finalAssignedUsers.push(member.user);
+        }
+      });
+    }
+
     console.log('Creating project with createdBy:', req.user._id, req.user.email);
+    console.log('Team members to be assigned:', processedTeamMembers.length);
     
     const project = await Project.create({
       name,
@@ -135,6 +159,7 @@ export const createProject = async (req, res) => {
       priority: priority || "medium",
       projectHead: projectHead || null, // Optional
       assignedUsers: finalAssignedUsers,
+      teamMembers: processedTeamMembers, // Add team members with roles
       createdBy: req.user._id, // Track who created the project
     });
     
@@ -154,6 +179,8 @@ export const createProject = async (req, res) => {
       .populate("department", "name")  // Legacy: keep for backward compatibility
       .populate("projectHead", "name email")
       .populate("assignedUsers", "name email")
+      .populate("teamMembers.user", "name email role") // Populate team members
+      .populate("teamMembers.assignedBy", "name email")
       .populate("createdBy", "name email");
 
     console.log('Populated project createdBy:', populatedProject.createdBy);
