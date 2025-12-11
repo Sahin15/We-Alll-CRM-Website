@@ -175,25 +175,10 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       ],
     },
     {
-      id: "leaves",
+      path: "/leaves",
       icon: <FaCalendarAlt />,
-      label: "Leaves",
+      label: "Leave Management",
       roles: ["employee", "admin", "superadmin", "hr", "hod"],
-      isGroup: true,
-      children: [
-        {
-          path: "/leaves/my-leaves",
-          icon: <FaCalendarAlt />,
-          label: "My Leaves",
-          roles: ["employee", "admin", "hr", "hod"],
-        },
-        {
-          path: "/leaves/requests",
-          icon: <FaCalendarAlt />,
-          label: "Leave Requests",
-          roles: ["admin", "superadmin", "hr", "hod"],
-        },
-      ],
     },
     {
       id: "attendance",

@@ -1,44 +1,59 @@
-import { useState, useEffect } from "react";
-import {
-  Container,
-  Row,
-  Col,
-  Card,
-  Badge,
-  Button,
-} from "react-bootstrap";
-import { FaCalendarAlt, FaFilter } from "react-icons/fa";
-import { toast } from "react-toastify";
-import leaveApi from "../../api/leaveApi";
-import LeaveRequestCard from "../../components/leaves/LeaveRequestCard";
-import LeaveApprovalModal from "../../components/leaves/LeaveApprovalModal";
-import { useAuth } from "../../context/AuthContext";
-import '../leaves/LeaveManagement.css';
+import { useState, useEffect } from 'react';
+import { Container, Row, Col, Card, Button, Badge, Nav } from 'react-bootstrap';
+import { FaPlus, FaCalendarAlt, FaFilter, FaDownload } from 'react-icons/fa';
+import { useAuth } from '../../context/AuthContext';
+import leaveApi from '../../api/leaveApi';
+import CreateLeaveModal from '../../components/leaves/CreateLeaveModal';
+import LeaveRequestCard from '../../components/leaves/LeaveRequestCard';
+import LeaveApprovalModal from '../../components/leaves/LeaveApprovalModal';
+import { toast } from 'react-toastify';
+import './LeaveManagement.css';
 
-const LeaveRequests = () => {
+const LeaveManagement = () => {
   const { user } = useAuth();
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'hr';
+  
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState("pending");
+  const [activeTab, setActiveTab] = useState(isAdmin ? 'all-leaves' : 'my-leaves');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState(null);
 
   useEffect(() => {
-    fetchLeaves();
-  }, [statusFilter]);
+    loadLeaves();
+  }, [activeTab, statusFilter]);
 
-  const fetchLeaves = async () => {
+  const loadLeaves = async () => {
     try {
       setLoading(true);
-      const filter = statusFilter !== 'all' ? statusFilter : undefined;
-      const response = await leaveApi.getAllLeaves(filter);
+      let response;
+      
+      if (activeTab === 'my-leaves') {
+        response = await leaveApi.getMyLeaves();
+      } else {
+        const filter = statusFilter !== 'all' ? statusFilter : undefined;
+        response = await leaveApi.getAllLeaves(filter);
+      }
+      
       setLeaves(response.data);
     } catch (error) {
       console.error('Error loading leaves:', error);
-      toast.error("Failed to fetch leave requests");
+      toast.error('Failed to load leave requests');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCreateLeave = () => {
+    setShowCreateModal(true);
+  };
+
+  const handleLeaveCreated = () => {
+    setShowCreateModal(false);
+    loadLeaves();
+    toast.success('Leave request submitted successfully');
   };
 
   const handleApproveReject = (leave) => {
@@ -58,10 +73,21 @@ const LeaveRequests = () => {
       
       setShowApprovalModal(false);
       setSelectedLeave(null);
-      fetchLeaves();
+      loadLeaves();
     } catch (error) {
       console.error('Error processing leave:', error);
       toast.error('Failed to process leave request');
+    }
+  };
+
+  const handleCancelLeave = async (leaveId) => {
+    try {
+      await leaveApi.cancelLeave(leaveId);
+      toast.success('Leave request cancelled successfully');
+      loadLeaves();
+    } catch (error) {
+      console.error('Error cancelling leave:', error);
+      toast.error('Failed to cancel leave request');
     }
   };
 
@@ -105,7 +131,7 @@ const LeaveRequests = () => {
   const stats = getStats();
 
   return (
-    <Container fluid className="leave-requests">
+    <Container fluid className="leave-management">
       {/* Header */}
       <Row className="mb-4">
         <Col>
@@ -113,11 +139,25 @@ const LeaveRequests = () => {
             <div>
               <h2 className="page-title">
                 <FaCalendarAlt className="me-2" />
-                Leave Requests - Approval Center
+                Leave Management
               </h2>
               <p className="text-muted mb-0">
-                Review and manage employee leave requests
+                Manage leave requests, approvals, and employee time off
               </p>
+            </div>
+            <div className="d-flex gap-2">
+              <Button 
+                variant="success" 
+                onClick={handleCreateLeave}
+                className="d-flex align-items-center gap-2"
+              >
+                <FaPlus /> Request Leave
+              </Button>
+              {isAdmin && (
+                <Button variant="outline-primary" className="d-flex align-items-center gap-2">
+                  <FaDownload /> Export
+                </Button>
+              )}
             </div>
           </div>
         </Col>
@@ -187,26 +227,49 @@ const LeaveRequests = () => {
         </Col>
       </Row>
 
-      {/* Status Filter */}
+      {/* Navigation Tabs */}
       <Row className="mb-4">
         <Col>
           <Card className="border-0 shadow-sm">
             <Card.Body className="py-3">
-              <div className="d-flex align-items-center gap-2">
-                <span className="text-muted small">Filter by Status:</span>
-                {['all', 'pending', 'approved', 'rejected'].map(status => (
-                  <Badge
-                    key={status}
-                    bg={statusFilter === status ? 'primary' : 'light'}
-                    text={statusFilter === status ? 'white' : 'dark'}
-                    className="cursor-pointer"
-                    onClick={() => setStatusFilter(status)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
-                  </Badge>
-                ))}
-              </div>
+              <Nav variant="pills" className="d-flex justify-content-between">
+                <div className="d-flex">
+                  <Nav.Item>
+                    <Nav.Link 
+                      active={activeTab === 'my-leaves'}
+                      onClick={() => setActiveTab('my-leaves')}
+                    >
+                      My Leave Requests
+                    </Nav.Link>
+                  </Nav.Item>
+                  {isAdmin && (
+                    <Nav.Item>
+                      <Nav.Link 
+                        active={activeTab === 'all-leaves'}
+                        onClick={() => setActiveTab('all-leaves')}
+                      >
+                        All Leave Requests
+                      </Nav.Link>
+                    </Nav.Item>
+                  )}
+                </div>
+                
+                {/* Status Filter */}
+                <div className="d-flex align-items-center gap-2">
+                  <span className="text-muted small">Filter:</span>
+                  {['all', 'pending', 'approved', 'rejected'].map(status => (
+                    <Badge
+                      key={status}
+                      bg={statusFilter === status ? 'primary' : 'light'}
+                      text={statusFilter === status ? 'white' : 'dark'}
+                      className="cursor-pointer"
+                      onClick={() => setStatusFilter(status)}
+                    >
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </Badge>
+                  ))}
+                </div>
+              </Nav>
             </Card.Body>
           </Card>
         </Col>
@@ -227,8 +290,17 @@ const LeaveRequests = () => {
                 <FaCalendarAlt size={48} className="text-muted mb-3" />
                 <h5 className="text-muted">No leave requests found</h5>
                 <p className="text-muted mb-3">
-                  No leave requests match your current filter.
+                  {activeTab === 'my-leaves' 
+                    ? "You haven't submitted any leave requests yet."
+                    : "No leave requests match your current filter."
+                  }
                 </p>
+                {activeTab === 'my-leaves' && (
+                  <Button variant="primary" onClick={handleCreateLeave}>
+                    <FaPlus className="me-2" />
+                    Request Your First Leave
+                  </Button>
+                )}
               </Card.Body>
             </Card>
           ) : (
@@ -237,10 +309,10 @@ const LeaveRequests = () => {
                 <LeaveRequestCard
                   key={leave._id}
                   leave={leave}
-                  isAdmin={true}
+                  isAdmin={isAdmin}
                   currentUserId={user?.id}
                   onApproveReject={handleApproveReject}
-                  onCancel={() => {}} // No cancel for admin view
+                  onCancel={handleCancelLeave}
                   getStatusColor={getStatusColor}
                   getLeaveTypeColor={getLeaveTypeColor}
                 />
@@ -250,7 +322,13 @@ const LeaveRequests = () => {
         </Col>
       </Row>
 
-      {/* Approval Modal */}
+      {/* Modals */}
+      <CreateLeaveModal
+        show={showCreateModal}
+        onHide={() => setShowCreateModal(false)}
+        onLeaveCreated={handleLeaveCreated}
+      />
+
       <LeaveApprovalModal
         show={showApprovalModal}
         onHide={() => setShowApprovalModal(false)}
@@ -261,4 +339,4 @@ const LeaveRequests = () => {
   );
 };
 
-export default LeaveRequests;
+export default LeaveManagement;

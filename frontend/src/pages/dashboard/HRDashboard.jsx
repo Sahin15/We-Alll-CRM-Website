@@ -42,7 +42,7 @@ import { leaveApi } from "../../api/leaveApi";
 import { attendanceApi } from "../../api/attendanceApi";
 import { departmentApi } from "../../api/departmentApi";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
-import toast from "../../utils/toast";
+import { toast } from "react-toastify";
 
 const HRDashboard = () => {
   const { user } = useAuth();
@@ -234,11 +234,26 @@ const HRDashboard = () => {
 
   const handleApproveLeave = async (id) => {
     try {
-      await leaveApi.approveLeave(id);
+      await leaveApi.approveLeave(id, '');
       toast.success("Leave approved successfully");
       fetchDashboardData();
     } catch (error) {
+      console.error('Error approving leave:', error);
       toast.error("Failed to approve leave");
+    }
+  };
+
+  const handleRejectLeave = async (id) => {
+    const reason = prompt("Please provide a reason for rejection:");
+    if (!reason) return;
+    
+    try {
+      await leaveApi.rejectLeave(id, reason);
+      toast.success("Leave rejected successfully");
+      fetchDashboardData();
+    } catch (error) {
+      console.error('Error rejecting leave:', error);
+      toast.error("Failed to reject leave");
     }
   };
 

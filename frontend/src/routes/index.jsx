@@ -57,6 +57,7 @@ import DepartmentDetails from "../pages/departments/DepartmentDetails";
 // Leave Pages
 import MyLeaves from "../pages/leaves/MyLeaves";
 import LeaveRequests from "../pages/leaves/LeaveRequests";
+import LeaveManagement from "../pages/leaves/LeaveManagement";
 
 // Attendance Pages
 import MyAttendance from "../pages/attendance/MyAttendance";
@@ -217,6 +218,7 @@ const AppRoutes = () => {
         <Route path="/departments/:id" element={<DepartmentDetails />} />
 
         {/* Leave Management */}
+        <Route path="/leaves" element={<LeaveManagement />} />
         <Route path="/leaves/my-leaves" element={<MyLeaves />} />
         <Route
           path="/leaves/requests"

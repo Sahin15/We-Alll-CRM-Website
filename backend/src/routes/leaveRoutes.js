@@ -11,11 +11,12 @@ import {
 } from "../controllers/leaveController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { uploadDocument, handleDocumentUploadError } from "../middleware/documentMiddleware.js";
 
 const router = express.Router();
 
 // Employee routes
-router.post("/", protect, createLeaveRequest);
+router.post("/", protect, uploadDocument.array("attachments", 5), handleDocumentUploadError, createLeaveRequest);
 router.get("/my-leaves", protect, getMyLeaveRequests);
 router.put("/:id", protect, updateLeaveRequest);
 router.put("/:id/cancel", protect, cancelLeaveRequest);

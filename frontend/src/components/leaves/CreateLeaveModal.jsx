@@ -1,0 +1,352 @@
+import React, { useState } from 'react';
+import { Modal, Form, Button, Row, Col, Alert } from 'react-bootstrap';
+import { FaCalendarAlt, FaFileAlt, FaPaperclip } from 'react-icons/fa';
+import leaveApi from '../../api/leaveApi';
+import moment from 'moment';
+import '../../pages/leaves/LeaveManagement.css';
+
+const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
+  const [formData, setFormData] = useState({
+    leaveType: '',
+    startDate: '',
+    endDate: '',
+    reason: '',
+    attachments: []
+  });
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const leaveTypes = [
+    { value: 'vacation', label: 'Vacation', description: 'Planned time off for rest and recreation' },
+    { value: 'sick', label: 'Sick Leave', description: 'Medical leave for illness or health issues' },
+    { value: 'personal', label: 'Personal Leave', description: 'Personal matters and family obligations' },
+    { value: 'maternity', label: 'Maternity Leave', description: 'Leave for childbirth and newborn care' },
+    { value: 'paternity', label: 'Paternity Leave', description: 'Leave for fathers after childbirth' },
+    { value: 'unpaid', label: 'Unpaid Leave', description: 'Extended leave without pay' }
+  ];
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    setError('');
+  };
+
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files);
+    const validFiles = [];
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+
+    files.forEach(file => {
+      if (file.size > maxSize) {
+        setError(`File "${file.name}" is too large. Maximum size is 5MB.`);
+        return;
+      }
+      if (!allowedTypes.includes(file.type)) {
+        setError(`File "${file.name}" has an invalid format. Allowed: PDF, DOC, DOCX, JPG, PNG.`);
+        return;
+      }
+      validFiles.push(file);
+    });
+
+    if (validFiles.length > 0) {
+      setSelectedFiles(prev => [...prev, ...validFiles]);
+      setError('');
+    }
+  };
+
+  const removeFile = (index) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const calculateDays = () => {
+    if (formData.startDate && formData.endDate) {
+      const start = moment(formData.startDate);
+      const end = moment(formData.endDate);
+      const days = end.diff(start, 'days') + 1;
+      return days > 0 ? days : 0;
+    }
+    return 0;
+  };
+
+  const validateForm = () => {
+    if (!formData.leaveType) {
+      setError('Please select a leave type');
+      return false;
+    }
+    if (!formData.startDate) {
+      setError('Please select a start date');
+      return false;
+    }
+    if (!formData.endDate) {
+      setError('Please select an end date');
+      return false;
+    }
+    if (moment(formData.startDate).isAfter(moment(formData.endDate))) {
+      setError('End date must be after start date');
+      return false;
+    }
+    if (moment(formData.startDate).isBefore(moment().startOf('day'))) {
+      setError('Start date cannot be in the past');
+      return false;
+    }
+    if (!formData.reason.trim()) {
+      setError('Please provide a reason for your leave');
+      return false;
+    }
+    if (formData.reason.trim().length < 10) {
+      setError('Please provide a more detailed reason (at least 10 characters)');
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Create FormData for file upload
+      const submitData = new FormData();
+      submitData.append('leaveType', formData.leaveType);
+      submitData.append('startDate', formData.startDate);
+      submitData.append('endDate', formData.endDate);
+      submitData.append('reason', formData.reason);
+      
+      // Append files
+      selectedFiles.forEach((file, index) => {
+        submitData.append('attachments', file);
+      });
+
+      await leaveApi.createLeaveRequest(submitData);
+      onLeaveCreated();
+      handleClose();
+    } catch (error) {
+      console.error('Error creating leave request:', error);
+      setError(error.response?.data?.message || 'Failed to submit leave request');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClose = () => {
+    setFormData({
+      leaveType: '',
+      startDate: '',
+      endDate: '',
+      reason: '',
+      attachments: []
+    });
+    setSelectedFiles([]);
+    setError('');
+    onHide();
+  };
+
+  const getLeaveTypeColor = (type) => {
+    const colors = {
+      vacation: '#4F46E5',
+      sick: '#EF4444',
+      personal: '#06B6D4',
+      maternity: '#10B981',
+      paternity: '#8B5CF6',
+      unpaid: '#6B7280'
+    };
+    return colors[type] || '#6B7280';
+  };
+
+  return (
+    <Modal show={show} onHide={handleClose} size="lg" centered>
+      <Modal.Header closeButton className="border-0 pb-0">
+        <Modal.Title className="d-flex align-items-center gap-2">
+          <FaCalendarAlt className="text-primary" />
+          Request Leave
+        </Modal.Title>
+      </Modal.Header>
+
+      <Modal.Body className="pt-2">
+        {error && (
+          <Alert variant="danger" className="mb-3">
+            {error}
+          </Alert>
+        )}
+
+        <Form onSubmit={handleSubmit}>
+          {/* Leave Type Selection */}
+          <Form.Group className="mb-4">
+            <Form.Label className="fw-bold">Leave Type</Form.Label>
+            <div className="leave-type-grid">
+              {leaveTypes.map(type => (
+                <div
+                  key={type.value}
+                  className={`leave-type-option ${formData.leaveType === type.value ? 'selected' : ''}`}
+                  onClick={() => handleInputChange({ target: { name: 'leaveType', value: type.value } })}
+                  style={{ borderColor: formData.leaveType === type.value ? getLeaveTypeColor(type.value) : '#e5e7eb' }}
+                >
+                  <div className="leave-type-header">
+                    <div 
+                      className="leave-type-indicator"
+                      style={{ backgroundColor: getLeaveTypeColor(type.value) }}
+                    ></div>
+                    <div className="leave-type-label">{type.label}</div>
+                  </div>
+                  <div className="leave-type-description">{type.description}</div>
+                </div>
+              ))}
+            </div>
+          </Form.Group>
+
+          {/* Date Selection */}
+          <Row className="mb-3">
+            <Col md={6}>
+              <Form.Group>
+                <Form.Label className="fw-bold">Start Date</Form.Label>
+                <Form.Control
+                  type="date"
+                  name="startDate"
+                  value={formData.startDate}
+                  onChange={handleInputChange}
+                  min={moment().format('YYYY-MM-DD')}
+                  required
+                />
+              </Form.Group>
+            </Col>
+            <Col md={6}>
+              <Form.Group>
+                <Form.Label className="fw-bold">End Date</Form.Label>
+                <Form.Control
+                  type="date"
+                  name="endDate"
+                  value={formData.endDate}
+                  onChange={handleInputChange}
+                  min={formData.startDate || moment().format('YYYY-MM-DD')}
+                  required
+                />
+              </Form.Group>
+            </Col>
+          </Row>
+
+          {/* Duration Display */}
+          {formData.startDate && formData.endDate && (
+            <div className="duration-display mb-3 p-3 bg-light rounded">
+              <div className="d-flex justify-content-between align-items-center">
+                <span className="text-muted">Duration:</span>
+                <span className="fw-bold text-primary">
+                  {calculateDays()} day{calculateDays() !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <div className="small text-muted mt-1">
+                From {moment(formData.startDate).format('MMM DD, YYYY')} to {moment(formData.endDate).format('MMM DD, YYYY')}
+              </div>
+            </div>
+          )}
+
+          {/* Reason */}
+          <Form.Group className="mb-3">
+            <Form.Label className="fw-bold">
+              <FaFileAlt className="me-2" />
+              Reason for Leave
+            </Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={4}
+              name="reason"
+              value={formData.reason}
+              onChange={handleInputChange}
+              placeholder="Please provide a detailed reason for your leave request..."
+              required
+            />
+            <Form.Text className="text-muted">
+              {formData.reason.length}/500 characters
+            </Form.Text>
+          </Form.Group>
+
+          {/* Attachments */}
+          <Form.Group className="mb-4">
+            <Form.Label className="fw-bold">
+              <FaPaperclip className="me-2" />
+              Attachments (Optional)
+            </Form.Label>
+            <div className="attachment-area p-3 border border-dashed rounded text-center">
+              <input
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                onChange={handleFileSelect}
+                style={{ display: 'none' }}
+                id="file-input"
+              />
+              <label htmlFor="file-input" className="cursor-pointer">
+                <FaPaperclip className="text-muted mb-2" size={24} />
+                <div className="text-muted">
+                  Click to browse files
+                </div>
+                <div className="small text-muted mt-1">
+                  Supported formats: PDF, DOC, DOCX, JPG, PNG (Max 5MB each)
+                </div>
+              </label>
+            </div>
+            
+            {/* Selected Files */}
+            {selectedFiles.length > 0 && (
+              <div className="selected-files mt-3">
+                <div className="small text-muted mb-2">Selected Files:</div>
+                {selectedFiles.map((file, index) => (
+                  <div key={index} className="selected-file d-flex justify-content-between align-items-center p-2 border rounded mb-2">
+                    <div className="d-flex align-items-center">
+                      <FaPaperclip className="text-primary me-2" />
+                      <div>
+                        <div className="small fw-bold">{file.name}</div>
+                        <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                          {(file.size / 1024 / 1024).toFixed(2)} MB
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline-danger"
+                      size="sm"
+                      onClick={() => removeFile(index)}
+                    >
+                      ×
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Form.Group>
+        </Form>
+      </Modal.Body>
+
+      <Modal.Footer className="border-0 pt-0">
+        <Button variant="outline-secondary" onClick={handleClose}>
+          Cancel
+        </Button>
+        <Button 
+          variant="primary" 
+          onClick={handleSubmit}
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <span className="spinner-border spinner-border-sm me-2" role="status" />
+              Submitting...
+            </>
+          ) : (
+            'Submit Request'
+          )}
+        </Button>
+      </Modal.Footer>
+
+
+    </Modal>
+  );
+};
+
+export default CreateLeaveModal;

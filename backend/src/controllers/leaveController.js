@@ -3,10 +3,11 @@ import LeaveRequest from "../models/leaveRequestModel.js";
 // Create leave request
 export const createLeaveRequest = async (req, res) => {
   try {
-    const { leaveType, startDate, endDate, reason, attachments } = req.body;
+    const { leaveType, startDate, endDate, reason } = req.body;
     const employee = req.user.id;
+    const files = req.files || [];
 
-    console.log("📝 Creating leave request:", { leaveType, startDate, endDate, reason, employee });
+    console.log("📝 Creating leave request:", { leaveType, startDate, endDate, reason, employee, filesCount: files.length });
 
     if (!leaveType || !startDate || !endDate || !reason) {
       return res.status(400).json({ message: "All fields are required" });
@@ -19,13 +20,36 @@ export const createLeaveRequest = async (req, res) => {
         .json({ message: "End date must be after start date" });
     }
 
+    // Upload attachments to S3 if any
+    const attachmentUrls = [];
+    if (files && files.length > 0) {
+      const { uploadDocumentToS3 } = await import("../utils/documentUpload.js");
+      
+      for (const file of files) {
+        try {
+          const documentUrl = await uploadDocumentToS3(
+            file.buffer,
+            file.originalname,
+            file.mimetype,
+            "leave-attachments"
+          );
+          attachmentUrls.push(documentUrl);
+        } catch (uploadError) {
+          console.error("Error uploading attachment:", uploadError);
+          return res.status(400).json({ 
+            message: `Failed to upload attachment "${file.originalname}": ${uploadError.message}` 
+          });
+        }
+      }
+    }
+
     const leaveRequest = await LeaveRequest.create({
       employee,
       leaveType,
       startDate,
       endDate,
       reason,
-      attachments: attachments || [],
+      attachments: attachmentUrls,
     });
 
     console.log("✅ Leave request created successfully:", leaveRequest._id);
@@ -117,6 +141,8 @@ export const approveLeaveRequest = async (req, res) => {
     const { approvalComment } = req.body;
     const approvedBy = req.user.id;
 
+    console.log("🔍 Approve request:", { id, approvalComment, approvedBy, userRole: req.user.role });
+
     const leaveRequest = await LeaveRequest.findById(id);
 
     if (!leaveRequest) {
@@ -143,8 +169,12 @@ export const approveLeaveRequest = async (req, res) => {
       leaveRequest,
     });
   } catch (error) {
-    console.error("Error in approveLeaveRequest:", error.message);
-    res.status(500).json({ message: "Server error" });
+    console.error("Error in approveLeaveRequest:", error);
+    res.status(500).json({ 
+      message: "Server error", 
+      error: error.message,
+      details: error.stack 
+    });
   }
 };
 
@@ -154,6 +184,8 @@ export const rejectLeaveRequest = async (req, res) => {
     const { id } = req.params;
     const { rejectionReason } = req.body;
     const approvedBy = req.user.id;
+
+    console.log("🔍 Reject request:", { id, rejectionReason, approvedBy, userRole: req.user.role });
 
     if (!rejectionReason) {
       return res.status(400).json({ message: "Rejection reason is required" });
@@ -183,8 +215,12 @@ export const rejectLeaveRequest = async (req, res) => {
       leaveRequest,
     });
   } catch (error) {
-    console.error("Error in rejectLeaveRequest:", error.message);
-    res.status(500).json({ message: "Server error" });
+    console.error("Error in rejectLeaveRequest:", error);
+    res.status(500).json({ 
+      message: "Server error", 
+      error: error.message,
+      details: error.stack 
+    });
   }
 };
 

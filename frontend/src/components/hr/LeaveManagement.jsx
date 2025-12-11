@@ -22,7 +22,7 @@ import {
   FaUser
 } from "react-icons/fa";
 import { toast } from "react-toastify";
-import api from "../../services/api";
+import leaveApi from "../../api/leaveApi";
 
 const LeaveManagement = () => {
   const [leaves, setLeaves] = useState([]);
@@ -36,7 +36,7 @@ const LeaveManagement = () => {
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("pending");
+  const [statusFilter, setStatusFilter] = useState("");
   const [leaveTypeFilter, setLeaveTypeFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
 
@@ -59,7 +59,7 @@ const LeaveManagement = () => {
   const fetchLeaves = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/leaves");
+      const response = await leaveApi.getAllLeaves();
       const allLeaves = response.data;
       
       setLeaves(allLeaves);
@@ -143,14 +143,10 @@ const LeaveManagement = () => {
       setProcessing(true);
       
       if (actionType === "approve") {
-        await api.put(`/leaves/${selectedLeave._id}/approve`, {
-          approvalComment: comment
-        });
+        await leaveApi.approveLeave(selectedLeave._id, comment);
         toast.success("Leave request approved successfully");
       } else if (actionType === "reject") {
-        await api.put(`/leaves/${selectedLeave._id}/reject`, {
-          rejectionReason: comment
-        });
+        await leaveApi.rejectLeave(selectedLeave._id, comment);
         toast.success("Leave request rejected");
       }
 
@@ -178,11 +174,12 @@ const LeaveManagement = () => {
 
   const getLeaveTypeBadge = (type) => {
     const variants = {
-      casual: "info",
-      sick: "warning",
       vacation: "primary",
+      sick: "danger",
+      personal: "info",
       maternity: "success",
-      paternity: "success"
+      paternity: "success",
+      unpaid: "secondary"
     };
     return <Badge bg={variants[type] || "secondary"} className="me-2">{type}</Badge>;
   };
@@ -293,11 +290,12 @@ const LeaveManagement = () => {
                 onChange={(e) => setLeaveTypeFilter(e.target.value)}
               >
                 <option value="">All Types</option>
-                <option value="casual">Casual</option>
-                <option value="sick">Sick</option>
                 <option value="vacation">Vacation</option>
+                <option value="sick">Sick Leave</option>
+                <option value="personal">Personal</option>
                 <option value="maternity">Maternity</option>
                 <option value="paternity">Paternity</option>
+                <option value="unpaid">Unpaid</option>
               </Form.Select>
             </Col>
             <Col md={2}>

@@ -1,0 +1,314 @@
+.leave-management {
+  padding: 1.5rem 0;
+}
+
+.page-title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 0.5rem;
+}
+
+.stats-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stats-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1) !important;
+}
+
+.stats-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.2rem;
+}
+
+.leave-requests-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 1.5rem;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cursor-pointer:hover {
+  transform: scale(1.05);
+}
+
+/* Navigation Pills */
+.nav-pills .nav-link {
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.nav-pills .nav-link.active {
+  background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+  border: none;
+}
+
+.nav-pills .nav-link:not(.active) {
+  color: #6b7280;
+  background: transparent;
+}
+
+.nav-pills .nav-link:not(.active):hover {
+  background: rgba(79, 70, 229, 0.1);
+  color: #4F46E5;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .leave-management {
+    padding: 1rem 0;
+  }
+  
+  .leave-requests-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .page-title {
+    font-size: 1.5rem;
+  }
+  
+  .d-flex.justify-content-between {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .nav-pills {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .stats-card .d-flex {
+    flex-direction: column;
+    text-align: center;
+    gap: 0.5rem;
+  }
+  
+  .stats-icon {
+    align-self: center;
+  }
+}
+
+/* Leave Request Card Styles */
+.leave-request-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.leave-request-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1) !important;
+}
+
+.leave-type-badge {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.status-badge {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.employee-info {
+  border-left: 3px solid #4F46E5;
+}
+
+.detail-item {
+  padding: 0.25rem 0;
+}
+
+.reason-text {
+  background: #f8f9fa;
+  padding: 0.5rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.actions-section .btn {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.attachments-section {
+  border-left: 3px solid #6366f1;
+  padding-left: 0.75rem;
+}
+
+.attachment-item {
+  font-size: 0.8rem;
+}
+
+.attachment-download-btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.7rem;
+}
+/* Leave Approval Modal Styles */
+.employee-section {
+  border-left: 4px solid #4F46E5;
+}
+
+.employee-avatar {
+  width: 48px;
+  height: 48px;
+  background: #f3f4f6;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.section-title {
+  color: #374151;
+  font-weight: 600;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 0.5rem;
+}
+
+.detail-card {
+  background: #f9fafb;
+  transition: all 0.2s ease;
+}
+
+.detail-card:hover {
+  background: #f3f4f6;
+  border-color: #4F46E5 !important;
+}
+
+.detail-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.reason-content {
+  line-height: 1.6;
+  font-size: 0.95rem;
+  border-left: 3px solid #4F46E5;
+}
+
+.action-btn {
+  min-width: 150px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+  transform: translateY(-1px);
+}
+
+.attachments-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.attachment-card {
+  background: #f9fafb;
+  transition: all 0.2s ease;
+}
+
+.attachment-card:hover {
+  background: #f3f4f6;
+  border-color: #4F46E5 !important;
+}
+
+.attachment-name {
+  word-break: break-word;
+  line-height: 1.3;
+}
+
+.attachment-preview {
+  margin-top: 0.5rem;
+}
+/* CreateLeaveModal Styles */
+.leave-type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.leave-type-option {
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.leave-type-option:hover {
+  border-color: #4F46E5;
+  background-color: #f8fafc;
+}
+
+.leave-type-option.selected {
+  background-color: #f0f9ff;
+  border-width: 2px;
+}
+
+.leave-type-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.leave-type-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.leave-type-label {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.leave-type-description {
+  font-size: 0.875rem;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.duration-display {
+  border-left: 4px solid #4F46E5;
+}
+
+.attachment-area {
+  background-color: #f9fafb;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.attachment-area:hover {
+  background-color: #f3f4f6;
+  border-color: #4F46E5;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.selected-file {
+  background-color: #f8f9fa;
+}
+
+.selected-files {
+  max-height: 200px;
+  overflow-y: auto;
+}
