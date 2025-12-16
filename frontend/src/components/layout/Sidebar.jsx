@@ -254,7 +254,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
                 /* Collapsed: Show only mini logo */
                 <div className="logo-mini-container">
                   <img 
-                    src={new URL('./Wealll_mini.png', import.meta.url).href} 
+                    src="/Wealll_mini.png" 
                     alt="We Alll Office" 
                     className="logo-img-mini"
                   />
@@ -263,7 +263,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
                 /* Expanded: Show full We Alll Office logo */
                 <div className="logo-full-container">
                   <img 
-                    src="/uploads/We-Alll-Office-Logo.png" 
+                    src="/We-Alll-Office-Logo.png" 
                     alt="We Alll Office" 
                     className="logo-img-full"
                   />

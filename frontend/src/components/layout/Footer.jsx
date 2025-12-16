@@ -42,7 +42,7 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
               <div className="d-flex align-items-center justify-content-center justify-content-md-start">
                 <div className="logo-full-container">
                   <img 
-                    src="/uploads/We-Alll-Office-Logo.png" 
+                    src="/We-Alll-Office-Logo.png" 
                     alt="We Alll Office" 
                     className="logo-img-full"
                   />
