@@ -130,8 +130,7 @@ const leadSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Indexes for faster queries
-leadSchema.index({ email: 1 });
+// Indexes for faster queries (email index is already created by unique: true)
 leadSchema.index({ phone: 1 });
 leadSchema.index({ status: 1 });
 leadSchema.index({ assignedTo: 1 });

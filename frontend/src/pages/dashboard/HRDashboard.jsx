@@ -10,6 +10,7 @@ import {
   Modal,
   Form,
   InputGroup,
+  Alert,
 } from "react-bootstrap";
 import {
   FaUsers,
@@ -17,6 +18,8 @@ import {
   FaClock,
   FaBuilding,
   FaEye,
+  FaUserShield,
+  FaChartLine,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import StatCard from "../../components/dashboard/StatCard";
@@ -31,18 +34,15 @@ import AttendanceOverview from "../../components/hr/AttendanceOverview";
 import PolicyManagement from "../../components/hr/PolicyManagement";
 import AnnouncementManagement from "../../components/hr/AnnouncementManagement";
 import QuickStatsWidgets from "../../components/hr/QuickStatsWidgets";
-import EmployeeDirectory from "../../components/hr/EmployeeDirectory";
 import NotificationCenter from "../../components/hr/NotificationCenter";
-
 import ReportsAnalytics from "../../components/hr/ReportsAnalytics";
-import DocumentManagement from "../../components/hr/DocumentManagement";
 import { useAuth } from "../../context/AuthContext";
 import { userApi } from "../../api/userApi";
 import { leaveApi } from "../../api/leaveApi";
 import { attendanceApi } from "../../api/attendanceApi";
 import { departmentApi } from "../../api/departmentApi";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
-import { toast } from "react-toastify";
+import toast from "../../utils/toast";
 
 const HRDashboard = () => {
   const { user } = useAuth();
@@ -225,6 +225,12 @@ const HRDashboard = () => {
       variant: "info",
     },
     {
+      label: "Employee Profiles",
+      icon: <FaUserShield />,
+      path: "/employees",
+      variant: "secondary",
+    },
+    {
       label: "Manage Departments",
       icon: <FaBuilding />,
       path: "/departments",
@@ -390,17 +396,23 @@ const HRDashboard = () => {
         </Col>
       </Row>
 
-      {/* Document Management - Moved to Bottom */}
+      {/* Quick Access Information */}
       <Row className="mb-4">
         <Col>
-          <DocumentManagement />
-        </Col>
-      </Row>
-
-      {/* Employee Directory - Moved to Bottom */}
-      <Row className="mb-4">
-        <Col>
-          <EmployeeDirectory />
+          <Card className="border-0 shadow-sm">
+            <Card.Header className="bg-white border-bottom">
+              <h6 className="mb-0">
+                <FaChartLine className="me-2 text-primary" />
+                Team Management Hub
+              </h6>
+            </Card.Header>
+            <Card.Body>
+              <Alert variant="info" className="mb-0">
+                <FaUsers className="me-2" />
+                <strong>Comprehensive Employee Management:</strong> Access detailed employee profiles, document management, salary slips, offer letters, and all HR documents through the <strong>Team → Employees</strong> section in the sidebar.
+              </Alert>
+            </Card.Body>
+          </Card>
         </Col>
       </Row>
 

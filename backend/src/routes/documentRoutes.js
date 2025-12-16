@@ -1,73 +1,32 @@
-import express from "express";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
-import { uploadDocument, handleDocumentUploadError } from "../middleware/documentMiddleware.js";
+import express from 'express';
+import { protect } from '../middleware/authMiddleware.js';
 import {
-  uploadEmployeeDocument,
-  deleteEmployeeDocument,
-  getDocumentStatus,
-  getPendingDocumentApprovals,
-  approveDocument,
-  rejectDocument,
-  getMyDocuments,
-} from "../controllers/documentController.js";
+  upload,
+  uploadDocument,
+  uploadOfficialDocument,
+  getUserDocuments,
+  getOfficialDocuments,
+  downloadDocument,
+  deleteDocument,
+  getAllDocuments
+} from '../controllers/documentController.js';
 
 const router = express.Router();
 
-// Get all documents (for dashboard - returns empty for now)
-router.get("/", protect, (req, res) => {
-  // This is a placeholder - documents are stored in User model
-  // Return empty array for now to prevent 404 errors
-  res.status(200).json([]);
-});
+// Personal document routes (for employees)
+router.post('/upload', protect, upload.single('document'), uploadDocument);
+router.get('/', protect, getUserDocuments);
 
-// Employee routes - Get own documents
-router.get("/me/documents", protect, getMyDocuments);
+// Official document routes
+router.post('/official', protect, upload.single('document'), uploadOfficialDocument);
+router.get('/official', protect, getOfficialDocuments);
 
-// HR/Admin routes - Document management
-router.post(
-  "/:userId/documents/upload",
-  protect,
-  authorizeRoles("hr", "admin", "superadmin", "accounts"),
-  uploadDocument.single("file"),
-  handleDocumentUploadError,
-  uploadEmployeeDocument
-);
+// Download and delete routes
+router.get('/:documentId/download', protect, downloadDocument);
+router.get('/official/:documentId/download', protect, downloadDocument);
+router.delete('/:documentId', protect, deleteDocument);
 
-router.delete(
-  "/:userId/documents/:documentType",
-  protect,
-  authorizeRoles("hr", "admin", "superadmin"),
-  deleteEmployeeDocument
-);
-
-// Document status and approvals
-router.get(
-  "/documents/status",
-  protect,
-  authorizeRoles("hr", "admin", "superadmin"),
-  getDocumentStatus
-);
-
-router.get(
-  "/documents/pending",
-  protect,
-  authorizeRoles("hr", "admin", "superadmin"),
-  getPendingDocumentApprovals
-);
-
-router.post(
-  "/documents/:docId/approve",
-  protect,
-  authorizeRoles("hr", "admin", "superadmin"),
-  approveDocument
-);
-
-router.post(
-  "/documents/:docId/reject",
-  protect,
-  authorizeRoles("hr", "admin", "superadmin"),
-  rejectDocument
-);
+// Admin routes
+router.get('/all', protect, getAllDocuments);
 
 export default router;

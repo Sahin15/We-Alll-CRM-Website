@@ -521,11 +521,27 @@ const EmployeeDashboard = () => {
   };
 
   const formatTime = (date) => {
-    return date.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
+    try {
+      // Extract time components manually to ensure no date is included
+      let hours = date.getHours();
+      const minutes = date.getMinutes();
+      const seconds = date.getSeconds();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      
+      // Convert to 12-hour format
+      hours = hours % 12;
+      hours = hours ? hours : 12; // 0 should be 12
+      
+      // Pad with zeros
+      const hoursStr = hours.toString().padStart(2, '0');
+      const minutesStr = minutes.toString().padStart(2, '0');
+      const secondsStr = seconds.toString().padStart(2, '0');
+      
+      return `${hoursStr}:${minutesStr}:${secondsStr} ${ampm}`;
+    } catch (error) {
+      console.error('Error formatting time:', error);
+      return "Invalid Time";
+    }
   };
 
   const calculateWorkingHours = () => {
@@ -1029,7 +1045,10 @@ const EmployeeDashboard = () => {
                       const isOverdue = dueDate < today && task.status !== 'done';
                       const isToday = dueDate.toDateString() === today.toDateString();
                       
-                      let dueDateText = dueDate.toLocaleDateString();
+                      const day = dueDate.getDate().toString().padStart(2, '0');
+                      const month = (dueDate.getMonth() + 1).toString().padStart(2, '0');
+                      const year = dueDate.getFullYear();
+                      let dueDateText = `${day}/${month}/${year}`;
                       if (isToday) dueDateText = 'Today';
                       else if (isOverdue) dueDateText = 'Overdue';
                       
@@ -1119,7 +1138,12 @@ const EmployeeDashboard = () => {
                       if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
                       if (diffDays === 1) return 'Yesterday';
                       if (diffDays < 7) return `${diffDays} days ago`;
-                      return activityDate.toLocaleDateString();
+                      
+                      // Use DD/MM/YYYY format
+                      const day = activityDate.getDate().toString().padStart(2, '0');
+                      const month = (activityDate.getMonth() + 1).toString().padStart(2, '0');
+                      const year = activityDate.getFullYear();
+                      return `${day}/${month}/${year}`;
                     };
                     
                     return (
@@ -1211,7 +1235,10 @@ const EmployeeDashboard = () => {
                       if (diffDays === 1) return 'Yesterday';
                       if (diffDays < 7) return `${diffDays} days ago`;
                       if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-                      return policyDate.toLocaleDateString();
+                      const day = policyDate.getDate().toString().padStart(2, '0');
+                      const month = (policyDate.getMonth() + 1).toString().padStart(2, '0');
+                      const year = policyDate.getFullYear();
+                      return `${day}/${month}/${year}`;
                     };
                     
                     return (
@@ -1562,8 +1589,10 @@ const EmployeeDashboard = () => {
               <h6 className="mb-3">Recent Leave History</h6>
               <div className="list-group">
                 {leaveDetails.recentLeaves.map((leave) => {
-                  const startDate = new Date(leave.startDate).toLocaleDateString();
-                  const endDate = new Date(leave.endDate).toLocaleDateString();
+                  const startDateObj = new Date(leave.startDate);
+                  const endDateObj = new Date(leave.endDate);
+                  const startDate = `${startDateObj.getDate().toString().padStart(2, '0')}/${(startDateObj.getMonth() + 1).toString().padStart(2, '0')}/${startDateObj.getFullYear()}`;
+                  const endDate = `${endDateObj.getDate().toString().padStart(2, '0')}/${(endDateObj.getMonth() + 1).toString().padStart(2, '0')}/${endDateObj.getFullYear()}`;
                   const statusColor = leave.status === 'approved' ? 'success' : 
                                      leave.status === 'pending' ? 'warning' : 'danger';
                   
@@ -1656,7 +1685,8 @@ const EmployeeDashboard = () => {
           <h6 className="mb-3">Recent Attendance</h6>
           <div className="list-group">
             {attendanceDetails.thisMonth.map((record) => {
-              const date = new Date(record.date).toLocaleDateString();
+              const dateObj = new Date(record.date);
+              const date = `${dateObj.getDate().toString().padStart(2, '0')}/${(dateObj.getMonth() + 1).toString().padStart(2, '0')}/${dateObj.getFullYear()}`;
               const clockIn = record.clockIn ? new Date(record.clockIn).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
               const clockOut = record.clockOut ? new Date(record.clockOut).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
               const statusColor = record.status === 'present' ? 'success' : record.status === 'absent' ? 'danger' : 'warning';
@@ -1736,7 +1766,7 @@ const EmployeeDashboard = () => {
                       <div className="flex-grow-1">
                         <h6 className="mb-1">{task.title}</h6>
                         <small className={isOverdue ? 'text-danger' : 'text-muted'}>
-                          Due: {dueDate.toLocaleDateString()}
+                          Due: {`${dueDate.getDate().toString().padStart(2, '0')}/${(dueDate.getMonth() + 1).toString().padStart(2, '0')}/${dueDate.getFullYear()}`}
                           {isOverdue && ' (Overdue)'}
                         </small>
                       </div>
@@ -1862,7 +1892,7 @@ const EmployeeDashboard = () => {
                 });
                 
                 const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
-                const dateStr = date.toLocaleDateString();
+                const dateStr = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
                 const hours = record?.workHours || 0;
                 const isFutureDay = date > now;
                 

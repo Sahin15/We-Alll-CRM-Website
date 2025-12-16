@@ -36,6 +36,23 @@ const notificationSchema = new mongoose.Schema(
         "work_item_review_requested",
         "work_item_commented",
         "work_item_completed",
+        // Business notifications
+        "client_won",
+        "new_project",
+        "project_completed",
+        "project_milestone",
+        // Leave notifications
+        "leave_approved",
+        "leave_rejected",
+        "leave_requested",
+        "leave_cancelled",
+        // Employee notifications
+        "employee_joined",
+        "employee_birthday",
+        "employee_anniversary",
+        // System notifications
+        "system_maintenance",
+        "system_update",
         "general",
         "system",
       ],

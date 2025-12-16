@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Container, Row, Col, Card, Button, Table, Badge, Tab, Tabs } from "react-bootstrap";
 import { FaClock, FaCalendarAlt, FaDownload, FaChartBar } from "react-icons/fa";
+import { formatDate, formatTimeShort } from "../../utils/helpers";
 import toast from "../../utils/toast";
 import api from "../../services/api";
 
@@ -29,8 +30,8 @@ const MyAttendance = () => {
       // Format the attendance records
       const formattedRecords = response.data.map(record => ({
         date: record.date,
-        clockIn: record.clockIn ? new Date(record.clockIn).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "-",
-        clockOut: record.clockOut ? new Date(record.clockOut).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "-",
+        clockIn: record.clockIn ? formatTimeShort(record.clockIn) : "-",
+        clockOut: record.clockOut ? formatTimeShort(record.clockOut) : "-",
         hours: record.workHours ? `${Math.floor(record.workHours)}h ${Math.round((record.workHours % 1) * 60)}m` : "-",
         status: record.status || "present",
         workHours: record.workHours || 0,
@@ -259,7 +260,7 @@ const MyAttendance = () => {
                       <tbody>
                         {attendanceRecords.map((record, index) => (
                           <tr key={index}>
-                            <td>{new Date(record.date).toLocaleDateString()}</td>
+                            <td>{formatDate(record.date)}</td>
                             <td>{record.clockIn}</td>
                             <td>{record.clockOut}</td>
                             <td>{record.hours}</td>

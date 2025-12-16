@@ -15,7 +15,7 @@ const s3Client = new S3Client({
 export const AWS_CONFIG = {
   bucketName: process.env.AWS_S3_BUCKET_NAME || "crm-payment-proofs",
   region: process.env.AWS_REGION || "us-east-1",
-  maxFileSize: 5 * 1024 * 1024, // 5MB
+  maxFileSize: 10 * 1024 * 1024, // 10MB
   allowedMimeTypes: ["image/jpeg", "image/jpg", "image/png", "image/webp"],
 };
 

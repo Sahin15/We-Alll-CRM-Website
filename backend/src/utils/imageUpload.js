@@ -33,16 +33,32 @@ export const uploadImageToS3 = async (
       height = 1200,
       fit = "inside",
       quality = 85,
+      skipResize = false,
     } = options;
 
-    // Compress and optimize image
-    const optimizedBuffer = await sharp(fileBuffer)
-      .resize(width, height, {
-        fit,
-        withoutEnlargement: true,
-      })
-      .jpeg({ quality })
-      .toBuffer();
+    let optimizedBuffer;
+    
+    if (skipResize) {
+      // For pre-cropped images (like profile pictures), use the original buffer
+      // Only convert to JPEG if it's not already JPEG
+      if (mimeType === 'image/jpeg') {
+        optimizedBuffer = fileBuffer; // Use original buffer without any processing
+      } else {
+        // Convert to JPEG with high quality but no resizing
+        optimizedBuffer = await sharp(fileBuffer)
+          .jpeg({ quality })
+          .toBuffer();
+      }
+    } else {
+      // Compress and optimize image with resizing
+      optimizedBuffer = await sharp(fileBuffer)
+        .resize(width, height, {
+          fit,
+          withoutEnlargement: true,
+        })
+        .jpeg({ quality })
+        .toBuffer();
+    }
 
     // Generate unique filename
     const fileExtension = originalName.split(".").pop();
@@ -65,6 +81,54 @@ export const uploadImageToS3 = async (
     return s3Url;
   } catch (error) {
     console.error("Error uploading image to S3:", error);
+    throw new Error(`Failed to upload image: ${error.message}`);
+  }
+};
+
+/**
+ * Upload raw image to AWS S3 without any processing
+ * @param {Buffer} fileBuffer - Image file buffer
+ * @param {string} originalName - Original filename
+ * @param {string} mimeType - File MIME type
+ * @param {string} folder - S3 folder (default: images)
+ * @returns {Promise<string>} - S3 URL of uploaded image
+ */
+export const uploadRawImageToS3 = async (
+  fileBuffer,
+  originalName,
+  mimeType,
+  folder = "images"
+) => {
+  try {
+    // Validate file type
+    if (!AWS_CONFIG.allowedMimeTypes.includes(mimeType)) {
+      throw new Error(
+        `Invalid file type. Allowed types: ${AWS_CONFIG.allowedMimeTypes.join(", ")}`
+      );
+    }
+
+    // Generate unique filename
+    const fileExtension = originalName.split(".").pop();
+    const fileName = `${folder}/${Date.now()}-${uuidv4()}.${fileExtension}`;
+
+    // Upload to S3 without any processing
+    const uploadParams = {
+      Bucket: AWS_CONFIG.bucketName,
+      Key: fileName,
+      Body: fileBuffer, // Use original buffer without any processing
+      ContentType: mimeType,
+      ACL: "public-read", // Make file publicly accessible
+    };
+
+    const command = new PutObjectCommand(uploadParams);
+    await s3Client.send(command);
+
+    // Return S3 URL
+    const s3Url = `https://${AWS_CONFIG.bucketName}.s3.${AWS_CONFIG.region}.amazonaws.com/${fileName}`;
+    console.log("[S3] Raw image uploaded successfully:", s3Url);
+    return s3Url;
+  } catch (error) {
+    console.error("Error uploading raw image to S3:", error);
     throw new Error(`Failed to upload image: ${error.message}`);
   }
 };

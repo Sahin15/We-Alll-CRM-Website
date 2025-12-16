@@ -6,7 +6,6 @@ import {
   FaUsers,
   FaBuilding,
   FaCalendarAlt,
-  FaCalendar,
   FaClock,
   FaUserTie,
   FaProjectDiagram,
@@ -18,6 +17,7 @@ import {
   FaBoxes,
   FaClipboardList,
   FaCreditCard,
+  FaCheck,
   FaTasks,
   FaReceipt,
   FaBullhorn,
@@ -107,24 +107,18 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       ],
     },
     {
-      path: "/employee/my-work",
+      id: "work-management",
       icon: <FaTasks />,
-      label: "My Work",
-      roles: ["employee", "admin", "superadmin", "hr", "hod"],
-    },
-    {
-      path: "/projects",
-      icon: <FaProjectDiagram />,
-      label: "Projects",
-      roles: ["admin", "superadmin", "hr", "employee", "hod"],
-    },
-    {
-      id: "work-calendar",
-      icon: <FaCalendarAlt />,
-      label: "Work Calendar",
+      label: "Work Management",
       roles: ["employee", "admin", "superadmin", "hr", "hod"],
       isGroup: true,
       children: [
+        {
+          path: "/employee/my-work",
+          icon: <FaTasks />,
+          label: "My Work Items",
+          roles: ["employee", "admin", "superadmin", "hr", "hod"],
+        },
         {
           path: "/work-calendar/my-calendar",
           icon: <FaCalendarAlt />,
@@ -134,16 +128,16 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
         {
           path: "/work-calendar/admin-overview",
           icon: <FaCalendarAlt />,
-          label: "Admin Overview",
+          label: "Calendar Overview",
           roles: ["admin", "superadmin", "hr"],
         },
       ],
     },
     {
-      path: "/employee/announcements",
-      icon: <FaBullhorn />,
-      label: "Announcements",
-      roles: ["employee", "admin", "superadmin", "hr", "hod"],
+      path: "/projects",
+      icon: <FaProjectDiagram />,
+      label: "Projects",
+      roles: ["admin", "superadmin", "hr", "employee", "hod"],
     },
     {
       id: "team",
@@ -156,6 +150,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           path: "/users",
           icon: <FaUsers />,
           label: "Users",
+          roles: ["admin", "superadmin"],
         },
         {
           path: "/employees",
@@ -177,27 +172,50 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
     {
       path: "/leaves",
       icon: <FaCalendarAlt />,
+      label: "My Leaves",
+      roles: ["employee", "hod"],
+    },
+    {
+      id: "leave-management",
+      icon: <FaCalendarAlt />,
       label: "Leave Management",
-      roles: ["employee", "admin", "superadmin", "hr", "hod"],
+      roles: ["admin", "superadmin", "hr"],
+      isGroup: true,
+      children: [
+        {
+          path: "/leaves",
+          icon: <FaCalendarAlt />,
+          label: "All Leaves",
+        },
+        {
+          path: "/leaves/requests",
+          icon: <FaCheck />,
+          label: "Approve Leaves",
+        },
+      ],
+    },
+    {
+      path: "/attendance/my-attendance",
+      icon: <FaClock />,
+      label: "My Attendance",
+      roles: ["employee"],
     },
     {
       id: "attendance",
       icon: <FaClock />,
       label: "Attendance",
-      roles: ["employee", "admin", "superadmin", "hr", "hod"],
+      roles: ["admin", "superadmin", "hr", "hod"],
       isGroup: true,
       children: [
         {
           path: "/attendance/my-attendance",
           icon: <FaClock />,
           label: "My Attendance",
-          roles: ["employee", "admin", "hr", "hod"],
         },
         {
           path: "/attendance/tracking",
           icon: <FaClock />,
           label: "Tracking",
-          roles: ["admin", "superadmin", "hr", "hod"],
         },
       ],
     },
@@ -206,6 +224,12 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       icon: <FaUser />,
       label: "My Profile",
       roles: ["superadmin", "admin", "hr", "accounts", "employee", "client", "hod"],
+    },
+    {
+      path: "/employee/announcements",
+      icon: <FaBullhorn />,
+      label: "News & Alerts",
+      roles: ["employee", "admin", "superadmin", "hr", "hod"],
     },
   ];
 
@@ -231,22 +255,19 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
                 <div className="logo-mini-container">
                   <img 
                     src={new URL('./Wealll_mini.png', import.meta.url).href} 
-                    alt="WE ALLL" 
+                    alt="We Alll Office" 
                     className="logo-img-mini"
                   />
                 </div>
               ) : (
-                /* Expanded: Show full logo + text */
-                <>
-                  <div className="logo-full-container">
-                    <img 
-                      src={new URL('./We-Alll-Logo.jpg', import.meta.url).href} 
-                      alt="WE ALLL" 
-                      className="logo-img-full"
-                    />
-                  </div>
-                  <span className="logo-text">Office</span>
-                </>
+                /* Expanded: Show full We Alll Office logo */
+                <div className="logo-full-container">
+                  <img 
+                    src="/uploads/We-Alll-Office-Logo.png" 
+                    alt="We Alll Office" 
+                    className="logo-img-full"
+                  />
+                </div>
               )}
             </div>
           </div>
@@ -267,12 +288,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
                   >
                     <span className="sidebar-icon">{item.icon}</span>
                     {!collapsed && (
-                      <>
-                        <span className="sidebar-label">{item.label}</span>
-                        <span className="sidebar-arrow">
-                          {isExpanded ? <FaChevronDown /> : <FaChevronRight />}
-                        </span>
-                      </>
+                      <span className="sidebar-label">{item.label}</span>
                     )}
                   </div>
                   {!collapsed && isExpanded && (

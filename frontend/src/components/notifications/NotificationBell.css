@@ -1,24 +1,151 @@
-.notification-bell-toggle {
-  position: relative;
-  padding: 0.5rem;
+.notification-bell-dropdown .dropdown-toggle {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+.notification-bell-dropdown .dropdown-toggle:focus {
+  box-shadow: none !important;
 }
 
 .notification-bell-toggle:hover {
-  opacity: 0.8;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
 }
 
-.notification-dropdown {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+.notification-dropdown-menu {
+  width: 380px;
+  max-width: 90vw;
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  margin-top: 8px;
+}
+
+.notification-header {
+  background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+  color: white;
+  border-radius: 12px 12px 0 0;
 }
 
 .notification-item {
-  transition: background-color 0.2s;
+  padding: 12px 16px;
+  transition: background-color 0.2s ease;
+  border-left: 3px solid transparent;
 }
 
 .notification-item:hover {
-  background-color: #f8f9fa !important;
+  background-color: #f8fafc;
 }
 
 .notification-item.unread {
-  border-left: 3px solid #0d6efd;
+  background-color: #eff6ff;
+  border-left-color: #3B82F6;
+}
+
+.notification-item.unread .notification-title {
+  font-weight: 600;
+}
+
+.notification-title {
+  font-size: 0.9rem;
+  line-height: 1.3;
+  color: #1f2937;
+}
+
+.notification-message {
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #6b7280;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.notification-actions {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.notification-item:hover .notification-actions {
+  opacity: 1;
+}
+
+.notification-actions .btn {
+  color: #6b7280;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.notification-actions .btn:hover {
+  background-color: #e5e7eb;
+  color: #374151;
+}
+
+.notification-footer {
+  background-color: #f9fafb;
+  border-radius: 0 0 12px 12px;
+}
+
+.priority-indicator {
+  margin-top: 2px;
+  margin-left: 8px;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .notification-dropdown-menu {
+    width: 320px;
+    margin-right: 16px;
+  }
+  
+  .notification-item {
+    padding: 10px 12px;
+  }
+  
+  .notification-title {
+    font-size: 0.85rem;
+  }
+  
+  .notification-message {
+    font-size: 0.75rem;
+  }
+}
+
+/* Animation for new notifications */
+@keyframes notificationPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.notification-bell-toggle .badge {
+  animation: notificationPulse 2s infinite;
+}
+
+/* Scrollbar styling */
+.notification-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.notification-list::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.notification-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.notification-list::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import axios from "axios";
+import notificationService from "../services/notificationService";
 
 const NotificationContext = createContext();
 
@@ -15,6 +16,7 @@ export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [realTimeEnabled, setRealTimeEnabled] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
@@ -109,6 +111,32 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
+  // Enable/disable real-time notifications
+  const enableRealTime = useCallback(async () => {
+    const hasPermission = await notificationService.requestNotificationPermission();
+    if (hasPermission) {
+      setRealTimeEnabled(true);
+      notificationService.startPolling(30000); // Poll every 30 seconds
+      
+      // Add listener for real-time updates
+      notificationService.addListener((data) => {
+        if (data.type === 'NEW_NOTIFICATIONS') {
+          setUnreadCount(data.totalUnread);
+          // Optionally refresh notifications list
+          fetchNotifications();
+        } else if (data.type === 'COUNT_UPDATE') {
+          setUnreadCount(data.count);
+        }
+      });
+    }
+    return hasPermission;
+  }, [fetchNotifications]);
+
+  const disableRealTime = useCallback(() => {
+    setRealTimeEnabled(false);
+    notificationService.stopPolling();
+  }, []);
+
   // Fetch notifications on mount (only once)
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -116,20 +144,34 @@ export const NotificationProvider = ({ children }) => {
     
     fetchNotifications();
     
-    // Poll for new notifications every 60 seconds (reduced from 30s to avoid rate limiting)
-    const interval = setInterval(fetchUnreadCount, 60000);
-    return () => clearInterval(interval);
-  }, []); // Empty deps to run only once
+    // Start real-time service if user is logged in
+    const initRealTime = async () => {
+      const permission = notificationService.getPermissionStatus();
+      if (permission === 'granted') {
+        enableRealTime();
+      }
+    };
+    
+    initRealTime();
+    
+    // Cleanup on unmount
+    return () => {
+      notificationService.stopPolling();
+    };
+  }, [fetchNotifications, enableRealTime]); // Added dependencies
 
   const value = {
     notifications,
     unreadCount,
     loading,
+    realTimeEnabled,
     fetchNotifications,
     fetchUnreadCount,
     markAsRead,
     markAllAsRead,
     deleteNotification,
+    enableRealTime,
+    disableRealTime,
   };
 
   return (

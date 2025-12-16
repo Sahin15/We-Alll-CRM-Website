@@ -180,16 +180,19 @@ export const getUserById = async (req, res) => {
 // Update user profile
 export const updateUserProfile = async (req, res) => {
   try {
-    const userId = req.user.id; // From auth middleware
+    const userId = req.user._id; // From auth middleware
     const { 
-      name, phone, dateOfBirth, gender, bloodGroup,
+      name, phone, alternatePhone, dateOfBirth, gender, bloodGroup, maritalStatus,
+      fatherName, motherName, nationality,
       currentAddress, permanentAddress,
       emergencyContact,
       governmentIds,
       bankDetails,
       // Legacy fields
-      address, position 
+      address, position
     } = req.body;
+
+
 
     const user = await User.findById(userId);
     if (!user) {
@@ -199,13 +202,26 @@ export const updateUserProfile = async (req, res) => {
     // Update basic information
     if (name) user.name = name;
     if (phone) user.phone = phone;
+    if (alternatePhone !== undefined) user.alternatePhone = alternatePhone;
     if (dateOfBirth) user.dateOfBirth = dateOfBirth;
     if (gender) user.gender = gender;
     if (bloodGroup) user.bloodGroup = bloodGroup;
+    if (maritalStatus !== undefined) user.maritalStatus = maritalStatus;
+    if (fatherName !== undefined) user.fatherName = fatherName;
+    if (motherName !== undefined) user.motherName = motherName;
+    if (nationality !== undefined) user.nationality = nationality;
     
     // Update addresses
     if (currentAddress) user.currentAddress = currentAddress;
-    if (permanentAddress) user.permanentAddress = permanentAddress;
+    if (permanentAddress) {
+      if (typeof permanentAddress === 'string') {
+        // Handle simple string permanent address
+        user.permanentAddressSimple = permanentAddress;
+      } else {
+        // Handle structured permanent address
+        user.permanentAddress = permanentAddress;
+      }
+    }
     
     // Update emergency contact
     if (emergencyContact) user.emergencyContact = emergencyContact;
@@ -218,11 +234,26 @@ export const updateUserProfile = async (req, res) => {
       };
     }
     
-    // Update bank details (employees can update their own)
+    // Update bank details with restrictions
     if (bankDetails) {
+      const isHROrAdmin = ['hr', 'admin', 'superadmin'].includes(req.user.role);
+      const hasEmployeeUpdated = user.bankDetails?.updatedByEmployee;
+      
+      // Check if employee can update bank details
+      if (!isHROrAdmin && hasEmployeeUpdated) {
+        return res.status(403).json({ 
+          message: 'Bank details can only be updated once by employee. Contact HR/Admin for further changes.',
+          canUpdate: false
+        });
+      }
+      
+      // Update bank details
       user.bankDetails = {
         ...user.bankDetails,
-        ...bankDetails
+        ...bankDetails,
+        updatedByEmployee: !isHROrAdmin ? true : user.bankDetails?.updatedByEmployee,
+        lastUpdatedBy: req.user._id,
+        lastUpdatedAt: new Date()
       };
     }
     
@@ -243,9 +274,12 @@ export const updateUserProfile = async (req, res) => {
         gender: user.gender,
         currentAddress: user.currentAddress,
         permanentAddress: user.permanentAddress,
+        permanentAddressSimple: user.permanentAddressSimple,
         emergencyContact: user.emergencyContact,
         governmentIds: user.governmentIds,
         bankDetails: user.bankDetails,
+        // Legacy field for backward compatibility
+        address: user.address,
       },
     });
   } catch (error) {
@@ -436,7 +470,7 @@ export const resetPassword = async (req, res) => {
 // Change password (authenticated user)
 export const changePassword = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user._id;
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
@@ -467,6 +501,7 @@ export const changePassword = async (req, res) => {
     user.password = hashedPassword;
 
     await user.save();
+    logger.info("Password changed successfully for user:", user.email);
 
     res.status(200).json({
       message: "Password changed successfully",

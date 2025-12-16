@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Badge, Nav } from 'react-bootstrap';
-import { FaPlus, FaCalendarAlt, FaFilter, FaDownload } from 'react-icons/fa';
+import { FaPlus, FaCalendarAlt, FaFilter, FaDownload, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import leaveApi from '../../api/leaveApi';
 import CreateLeaveModal from '../../components/leaves/CreateLeaveModal';
@@ -14,20 +14,50 @@ const LeaveManagement = () => {
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'hr';
   
   const [leaves, setLeaves] = useState([]);
+  const [displayedLeaves, setDisplayedLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(isAdmin ? 'all-leaves' : 'my-leaves');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState(null);
+  const [itemsToShow, setItemsToShow] = useState(9); // Show 9 items initially (3x3 grid)
 
   useEffect(() => {
     loadLeaves();
   }, [activeTab, statusFilter]);
 
+  useEffect(() => {
+    updateDisplayedLeaves();
+  }, [leaves, statusFilter, itemsToShow]);
+
+  const updateDisplayedLeaves = () => {
+    const filtered = leaves.filter(leave => {
+      if (statusFilter === 'all') return true;
+      return leave.status === statusFilter;
+    });
+
+    // Sort by priority: pending first, then by creation date (newest first)
+    const sortedLeaves = [...filtered].sort((a, b) => {
+      // Pending leaves first for admin view
+      if (isAdmin && activeTab === 'all-leaves') {
+        if (a.status === 'pending' && b.status !== 'pending') return -1;
+        if (b.status === 'pending' && a.status !== 'pending') return 1;
+      }
+      
+      // Then by creation date (newest first)
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+    
+    setDisplayedLeaves(sortedLeaves.slice(0, itemsToShow));
+  };
+
   const loadLeaves = async () => {
     try {
       setLoading(true);
+      // Reset pagination when loading new data
+      setItemsToShow(9);
+      
       let response;
       
       if (activeTab === 'my-leaves') {
@@ -65,10 +95,10 @@ const LeaveManagement = () => {
     try {
       if (action === 'approve') {
         await leaveApi.approveLeave(selectedLeave._id, data.approvalComment || '');
-        toast.success('Leave request approved successfully');
+        toast.success(`Leave request approved for ${selectedLeave.employee?.name || 'employee'}`);
       } else {
         await leaveApi.rejectLeave(selectedLeave._id, data.rejectionReason);
-        toast.success('Leave request rejected');
+        toast.success(`Leave request rejected for ${selectedLeave.employee?.name || 'employee'}`);
       }
       
       setShowApprovalModal(false);
@@ -76,7 +106,8 @@ const LeaveManagement = () => {
       loadLeaves();
     } catch (error) {
       console.error('Error processing leave:', error);
-      toast.error('Failed to process leave request');
+      const errorMessage = error.response?.data?.message || 'Failed to process leave request';
+      toast.error(errorMessage);
     }
   };
 
@@ -118,6 +149,14 @@ const LeaveManagement = () => {
     return leave.status === statusFilter;
   });
 
+  const handleShowMore = () => {
+    setItemsToShow(prev => prev + 9);
+  };
+
+  const handleShowLess = () => {
+    setItemsToShow(9);
+  };
+
   const getStats = () => {
     const stats = {
       total: leaves.length,
@@ -143,6 +182,13 @@ const LeaveManagement = () => {
               </h2>
               <p className="text-muted mb-0">
                 Manage leave requests, approvals, and employee time off
+                {filteredLeaves.length > 9 && displayedLeaves.length < filteredLeaves.length && (
+                  <span className="ms-2">
+                    <Badge bg="info" className="small">
+                      Showing {displayedLeaves.length} of {filteredLeaves.length}
+                    </Badge>
+                  </span>
+                )}
               </p>
             </div>
             <div className="d-flex gap-2">
@@ -279,14 +325,19 @@ const LeaveManagement = () => {
       <Row>
         <Col>
           {loading ? (
-            <div className="text-center py-5">
-              <div className="spinner-border text-primary" role="status">
-                <span className="visually-hidden">Loading...</span>
-              </div>
-            </div>
+            <Card className="border-0 shadow-sm">
+              <Card.Body className="loading-container">
+                <div className="text-center">
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                  <p className="mt-3 text-muted">Loading leave requests...</p>
+                </div>
+              </Card.Body>
+            </Card>
           ) : filteredLeaves.length === 0 ? (
             <Card className="border-0 shadow-sm">
-              <Card.Body className="text-center py-5">
+              <Card.Body className="empty-state">
                 <FaCalendarAlt size={48} className="text-muted mb-3" />
                 <h5 className="text-muted">No leave requests found</h5>
                 <p className="text-muted mb-3">
@@ -304,20 +355,54 @@ const LeaveManagement = () => {
               </Card.Body>
             </Card>
           ) : (
-            <div className="leave-requests-grid">
-              {filteredLeaves.map(leave => (
-                <LeaveRequestCard
-                  key={leave._id}
-                  leave={leave}
-                  isAdmin={isAdmin}
-                  currentUserId={user?.id}
-                  onApproveReject={handleApproveReject}
-                  onCancel={handleCancelLeave}
-                  getStatusColor={getStatusColor}
-                  getLeaveTypeColor={getLeaveTypeColor}
-                />
-              ))}
-            </div>
+            <>
+              <div className="leave-requests-grid">
+                {displayedLeaves.map(leave => (
+                  <LeaveRequestCard
+                    key={leave._id}
+                    leave={leave}
+                    isAdmin={isAdmin}
+                    currentUserId={user?.id}
+                    onApproveReject={handleApproveReject}
+                    onCancel={handleCancelLeave}
+                    getStatusColor={getStatusColor}
+                    getLeaveTypeColor={getLeaveTypeColor}
+                  />
+                ))}
+              </div>
+              
+              {/* Show More/Less Controls */}
+              {filteredLeaves.length > 9 && (
+                <div className="show-more-section">
+                  <Row>
+                    <Col className="text-center">
+                      {displayedLeaves.length < filteredLeaves.length ? (
+                        <Button 
+                          variant="outline-primary" 
+                          onClick={handleShowMore}
+                          className="show-more-btn"
+                        >
+                          <FaChevronDown className="me-2" />
+                          Show More ({filteredLeaves.length - displayedLeaves.length} remaining)
+                        </Button>
+                      ) : (
+                        <Button 
+                          variant="outline-secondary" 
+                          onClick={handleShowLess}
+                          className="show-more-btn"
+                        >
+                          <FaChevronUp className="me-2" />
+                          Show Less
+                        </Button>
+                      )}
+                      <div className="pagination-info">
+                        Showing {displayedLeaves.length} of {filteredLeaves.length} leave requests
+                      </div>
+                    </Col>
+                  </Row>
+                </div>
+              )}
+            </>
           )}
         </Col>
       </Row>

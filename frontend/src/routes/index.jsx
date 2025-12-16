@@ -49,6 +49,7 @@ import EmployeeList from "../pages/employees/EmployeeList";
 import AddEmployee from "../pages/employees/AddEmployee";
 import EditEmployee from "../pages/employees/EditEmployee";
 import EmployeeWorkDetails from "../pages/employees/EmployeeWorkDetails";
+import EmployeeProfileManagement from "../components/hr/EmployeeProfileManagement";
 
 // Department Pages
 import DepartmentList from "../pages/departments/DepartmentList";
@@ -101,6 +102,11 @@ import ClientBillingDashboard from "../pages/client/ClientBillingDashboard";
 import ClientSubscriptions from "../pages/client/ClientSubscriptions";
 import ClientInvoices from "../pages/client/ClientInvoices";
 import ClientPayments from "../pages/client/ClientPayments";
+
+// Notification Management Pages
+import NotificationManagement from "../components/admin/NotificationManagement";
+import NotificationDashboard from "../components/notifications/NotificationDashboard";
+import NotificationSettings from "../components/notifications/NotificationSettings";
 
 // Error Pages
 import NotFound from "../pages/errors/NotFound";
@@ -205,6 +211,14 @@ const AppRoutes = () => {
           }
         />
         <Route
+          path="/employees/:userId/profile"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
+              <EmployeeProfileManagement />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
           path="/employees/:id"
           element={
             <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
@@ -223,7 +237,7 @@ const AppRoutes = () => {
         <Route
           path="/leaves/requests"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "hod"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
               <LeaveRequests />
             </RoleBasedRoute>
           }
@@ -447,6 +461,44 @@ const AppRoutes = () => {
               <ClientPayments />
             </RoleBasedRoute>
           }
+        />
+
+        {/* Notification Management Routes */}
+        <Route
+          path="/admin/notifications/manage"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
+              <NotificationManagement />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/admin/notifications/create"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
+              <NotificationManagement />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/admin/notifications/dashboard"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
+              <NotificationDashboard />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/admin/notifications/settings"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
+              <NotificationSettings />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/notifications/preferences"
+          element={<NotificationSettings />}
         />
 
         {/* Error Pages */}

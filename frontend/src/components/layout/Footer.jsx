@@ -36,32 +36,18 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
           borderRadius: isMobile ? "0" : "16px 0 0 0",
         }}
       >
-        <Container fluid className="px-4">
+        <Container fluid className="px-4" style={{ paddingLeft: isMobile ? '1rem' : '2rem' }}>
           <Row className="align-items-center">
             <Col md={6} className="text-center text-md-start mb-2 mb-md-0">
               <div className="d-flex align-items-center justify-content-center justify-content-md-start">
-                <img
-                  src={new URL("./We-Alll-Logo.jpg", import.meta.url).href}
-                  alt="WE ALLL"
-                  style={{
-                    width: "40px",
-                    height: "40px",
-                    objectFit: "contain",
-                    borderRadius: "8px",
-                    marginRight: "12px",
-                    border: "2px solid rgba(255, 255, 255, 0.5)",
-                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
-                    backgroundColor: "white",
-                    padding: "2px",
-                  }}
-                />
-                <div>
-                  <div
-                    className="text-white fw-semibold"
-                    style={{ fontSize: "0.95rem", marginBottom: "4px" }}
-                  >
-                    WE ALLL Office
-                  </div>
+                <div className="logo-full-container">
+                  <img 
+                    src="/uploads/We-Alll-Office-Logo.png" 
+                    alt="We Alll Office" 
+                    className="logo-img-full"
+                  />
+                </div>
+                <div className="footer-tagline">
                   <div
                     className="text-white-50"
                     style={{ fontSize: "0.75rem", lineHeight: "1.4" }}
@@ -108,13 +94,13 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
                   style={{ animation: "heartbeat 1.5s ease-in-out infinite" }}
                   size={12}
                 />{" "}
-                by WE ALLL Team
+                by We Alll Team
               </div>
               <div
                 className="text-white-50"
                 style={{ fontSize: "0.7rem", lineHeight: "1.4" }}
               >
-                © {currentYear} WE ALLL. All rights reserved.
+                © {currentYear} We Alll. All rights reserved.
               </div>
             </Col>
           </Row>
@@ -237,6 +223,54 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
           box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
         }
 
+        /* Full logo container - when expanded */
+        .logo-full-container {
+          width: 180px;
+          height: 60px;
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(255, 255, 255, 0.15);
+          backdrop-filter: blur(10px);
+          border-radius: 12px;
+          padding: 8px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.25);
+          transition: all 0.3s ease;
+          margin-right: 12px;
+        }
+
+        .logo-full-container:hover {
+          background: rgba(255, 255, 255, 0.25);
+          backdrop-filter: blur(15px);
+          transform: scale(1.05);
+          box-shadow: 
+            0 12px 35px rgba(0, 0, 0, 0.2),
+            0 6px 16px rgba(0, 0, 0, 0.15);
+          border: 1px solid rgba(255, 255, 255, 0.35);
+        }
+
+        .logo-full-container:hover .logo-img-full {
+          filter: contrast(1.2) saturate(1.2) brightness(1.15);
+          transform: scale(1.15);
+        }
+
+        /* Full logo image */
+        .logo-img-full {
+          width: 120%;
+          height: 120%;
+          object-fit: contain;
+          border-radius: 10px;
+          filter: contrast(1.1) saturate(1.1) brightness(1.1);
+          transition: all 0.3s ease;
+          transform: scale(1.1);
+        }
+
+        .footer-tagline {
+          flex: 1;
+        }
+
         .footer-link {
           transition: all 0.3s ease;
           opacity: 0.9;
@@ -296,6 +330,16 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
           .footer-gradient .container-fluid {
             padding-left: 1rem !important;
             padding-right: 1rem !important;
+          }
+
+          .logo-full-container {
+            width: 140px;
+            height: 45px;
+            margin-right: 10px;
+          }
+
+          .footer-tagline {
+            font-size: 0.7rem !important;
           }
 
           .footer-link {

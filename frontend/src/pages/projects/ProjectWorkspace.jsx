@@ -8,7 +8,7 @@ import OverviewTab from '../../components/projects/workspace/OverviewTab';
 import WorkBoardTab from '../../components/projects/workspace/WorkBoardTab';
 import CalendarTab from '../../components/projects/workspace/CalendarTab';
 import TeamTab from '../../components/projects/workspace/TeamTab';
-import CreateWorkItemModal from '../../components/workitems/CreateWorkItemModal';
+import UnifiedWorkCreationModal from '../../components/work/UnifiedWorkCreationModal';
 
 /**
  * ProjectWorkspace Component
@@ -212,12 +212,13 @@ const ProjectWorkspace = () => {
         </Tab>
       </Tabs>
 
-      {/* Create Work Item Modal */}
-      <CreateWorkItemModal
+      {/* Unified Work Creation Modal */}
+      <UnifiedWorkCreationModal
         show={showCreateModal}
         onHide={() => setShowCreateModal(false)}
         onSuccess={loadProject}
         defaultProject={project._id}
+        mode="work-item-focused"
       />
     </Container>
   );

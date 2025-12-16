@@ -7,7 +7,7 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import workItemApi from '../../api/workItemApi';
 import WorkItemDetailsModal from '../../components/workitems/WorkItemDetailsModal';
-import CreateWorkItemModal from '../../components/workitems/CreateWorkItemModal';
+import UnifiedWorkCreationModal from '../../components/work/UnifiedWorkCreationModal';
 import CalendarFilters from '../../components/calendar/CalendarFilters';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
@@ -424,11 +424,12 @@ const CalendarPage = () => {
         </Modal.Footer>
       </Modal>
 
-      {/* Create Work Item Modal */}
-      <CreateWorkItemModal
+      {/* Unified Work Creation Modal */}
+      <UnifiedWorkCreationModal
         show={showCreateModal}
         onHide={() => setShowCreateModal(false)}
         onSuccess={loadWorkItems}
+        mode="calendar-focused"
       />
     </Container>
   );

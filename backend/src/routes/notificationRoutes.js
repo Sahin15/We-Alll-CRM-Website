@@ -6,6 +6,8 @@ import {
   markAllAsRead,
   deleteNotification,
   getUnreadCount,
+  getUserPreferences,
+  updateUserPreferences,
 } from "../controllers/notificationController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
@@ -28,5 +30,9 @@ router.delete("/:id", deleteNotification);
 
 // Create notification (admin only)
 router.post("/", authorizeRoles("admin", "superadmin"), createNotification);
+
+// Notification preferences
+router.get("/preferences", getUserPreferences);
+router.put("/preferences", updateUserPreferences);
 
 export default router;

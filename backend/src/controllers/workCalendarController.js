@@ -495,23 +495,12 @@ const createWorkCalendarEntry = async (workItem) => {
     // Calculate start and end dates based on due date
     const dueDate = new Date(workItem.dueDate);
     
-    // Set start date to the day before due date at 9 AM (or same day if due today)
+    // Set both start and end date to the due date to show work item only on due date
     const startDate = new Date(dueDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    startDate.setHours(9, 0, 0, 0); // Start at 9 AM on due date
     
-    if (dueDate.getTime() <= today.getTime()) {
-      // If due today or overdue, start immediately
-      startDate.setHours(9, 0, 0, 0);
-    } else {
-      // Start the day before due date
-      startDate.setDate(startDate.getDate() - 1);
-      startDate.setHours(9, 0, 0, 0);
-    }
-    
-    // End date is the due date at 5 PM
     const endDate = new Date(dueDate);
-    endDate.setHours(17, 0, 0, 0);
+    endDate.setHours(17, 0, 0, 0); // End at 5 PM on due date
 
     // Get project details for department and client
     const project = await Project.findById(workItem.project)
@@ -549,6 +538,7 @@ const createWorkCalendarEntry = async (workItem) => {
       startDate,
       endDate,
       dueDate: workItem.dueDate,
+      isAllDay: true, // Work items are all-day events by default
       status: mapWorkItemStatusToCalendarStatus(workItem.status),
       priority: workItem.priority || 'medium',
       timeTracking: {

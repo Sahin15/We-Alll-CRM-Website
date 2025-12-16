@@ -21,6 +21,10 @@ import {
   FaDownload,
   FaCalendarAlt,
   FaMapMarkerAlt,
+  FaBell,
+  FaPlus,
+  FaCog,
+  FaChartBar,
 } from "react-icons/fa";
 import StatCard from "../../components/dashboard/StatCard";
 import RecentActivity from "../../components/dashboard/RecentActivity";
@@ -46,10 +50,19 @@ import { policyApi } from "../../api/policyApi";
 import { meetingApi } from "../../api/meetingApi";
 import { useNavigate } from "react-router-dom";
 import toast from "../../utils/toast";
+import { useNotifications } from "../../context/NotificationContext";
+import api from "../../services/api";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
+  const { notifications, unreadCount } = useNotifications();
   const [loading, setLoading] = useState(true);
+  const [notificationStats, setNotificationStats] = useState({
+    total: 0,
+    unread: 0,
+    todayCount: 0,
+    weekCount: 0
+  });
   const [stats, setStats] = useState({
     users: 0,
     employees: 0,
@@ -110,7 +123,37 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
+    fetchNotificationStats();
   }, []);
+
+  const fetchNotificationStats = async () => {
+    try {
+      const response = await api.get('/notifications');
+      const allNotifications = response.data.notifications || [];
+      
+      const today = new Date();
+      const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+      
+      const todayCount = allNotifications.filter(n => {
+        const notifDate = new Date(n.createdAt);
+        return notifDate.toDateString() === today.toDateString();
+      }).length;
+      
+      const weekCount = allNotifications.filter(n => {
+        const notifDate = new Date(n.createdAt);
+        return notifDate >= weekAgo;
+      }).length;
+      
+      setNotificationStats({
+        total: allNotifications.length,
+        unread: unreadCount,
+        todayCount,
+        weekCount
+      });
+    } catch (error) {
+      console.error('Error fetching notification stats:', error);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -663,7 +706,10 @@ const AdminDashboard = () => {
     { label: "Add User", icon: <FaUsers />, path: "/users", variant: "primary" },
     { label: "Add Project", icon: <FaProjectDiagram />, path: "/projects", variant: "success" },
     { label: "Add Client", icon: <FaUserTie />, path: "/clients", variant: "info" },
+    { label: "Employee Profiles", icon: <FaUserCheck />, path: "/employees", variant: "secondary" },
     { label: "Work Calendar", icon: <FaCalendarAlt />, path: "/work-calendar/admin-overview", variant: "warning" },
+    { label: "Send Notification", icon: <FaBell />, path: "/admin/notifications/create", variant: "primary" },
+    { label: "Notification Analytics", icon: <FaChartBar />, path: "/admin/notifications/dashboard", variant: "info" },
   ];
 
   if (loading) {
@@ -727,6 +773,166 @@ const AdminDashboard = () => {
               bgColor={stats.systemHealth >= 90 ? 'success' : stats.systemHealth >= 70 ? 'warning' : 'danger'} 
             />
           </div>
+        </Col>
+      </Row>
+
+      {/* Notification Management Section */}
+      <Row className="g-4 mb-4">
+        <Col xs={12}>
+          <Card className="border-0 shadow-sm">
+            <Card.Header className="bg-gradient-primary text-white border-0">
+              <div className="d-flex justify-content-between align-items-center">
+                <div>
+                  <h5 className="mb-1">
+                    <FaBell className="me-2" />
+                    Notification Management
+                  </h5>
+                  <small className="opacity-75">Manage system notifications and communications</small>
+                </div>
+                <Button 
+                  variant="light" 
+                  size="sm"
+                  onClick={() => navigate('/admin/notifications/create')}
+                  className="d-flex align-items-center"
+                >
+                  <FaPlus className="me-1" />
+                  Create Notification
+                </Button>
+              </div>
+            </Card.Header>
+            <Card.Body>
+              <Row className="g-3">
+                <Col md={3}>
+                  <div 
+                    className="notification-stat-card cursor-pointer"
+                    onClick={() => navigate('/admin/notifications/dashboard')}
+                  >
+                    <Card className="h-100 border-0 bg-primary bg-opacity-10">
+                      <Card.Body className="text-center">
+                        <div 
+                          className="rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center"
+                          style={{ 
+                            width: '50px', 
+                            height: '50px', 
+                            backgroundColor: '#4F46E5' + '20',
+                            color: '#4F46E5'
+                          }}
+                        >
+                          <FaChartBar size={20} />
+                        </div>
+                        <h4 className="mb-1 text-primary">{notificationStats.total}</h4>
+                        <small className="text-muted">Total Notifications</small>
+                      </Card.Body>
+                    </Card>
+                  </div>
+                </Col>
+                
+                <Col md={3}>
+                  <div 
+                    className="notification-stat-card cursor-pointer"
+                    onClick={() => navigate('/admin/notifications/manage')}
+                  >
+                    <Card className="h-100 border-0 bg-warning bg-opacity-10">
+                      <Card.Body className="text-center">
+                        <div 
+                          className="rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center"
+                          style={{ 
+                            width: '50px', 
+                            height: '50px', 
+                            backgroundColor: '#F59E0B' + '20',
+                            color: '#F59E0B'
+                          }}
+                        >
+                          <FaBell size={20} />
+                        </div>
+                        <h4 className="mb-1 text-warning">{notificationStats.unread}</h4>
+                        <small className="text-muted">Unread System-wide</small>
+                      </Card.Body>
+                    </Card>
+                  </div>
+                </Col>
+                
+                <Col md={3}>
+                  <div 
+                    className="notification-stat-card cursor-pointer"
+                    onClick={() => navigate('/admin/notifications/manage')}
+                  >
+                    <Card className="h-100 border-0 bg-success bg-opacity-10">
+                      <Card.Body className="text-center">
+                        <div 
+                          className="rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center"
+                          style={{ 
+                            width: '50px', 
+                            height: '50px', 
+                            backgroundColor: '#10B981' + '20',
+                            color: '#10B981'
+                          }}
+                        >
+                          <FaCalendarAlt size={20} />
+                        </div>
+                        <h4 className="mb-1 text-success">{notificationStats.todayCount}</h4>
+                        <small className="text-muted">Sent Today</small>
+                      </Card.Body>
+                    </Card>
+                  </div>
+                </Col>
+                
+                <Col md={3}>
+                  <div 
+                    className="notification-stat-card cursor-pointer"
+                    onClick={() => navigate('/admin/notifications/settings')}
+                  >
+                    <Card className="h-100 border-0 bg-info bg-opacity-10">
+                      <Card.Body className="text-center">
+                        <div 
+                          className="rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center"
+                          style={{ 
+                            width: '50px', 
+                            height: '50px', 
+                            backgroundColor: '#3B82F6' + '20',
+                            color: '#3B82F6'
+                          }}
+                        >
+                          <FaCog size={20} />
+                        </div>
+                        <h4 className="mb-1 text-info">{notificationStats.weekCount}</h4>
+                        <small className="text-muted">This Week</small>
+                      </Card.Body>
+                    </Card>
+                  </div>
+                </Col>
+              </Row>
+              
+              <div className="mt-3 pt-3 border-top">
+                <div className="d-flex gap-2 flex-wrap">
+                  <Button 
+                    variant="outline-primary" 
+                    size="sm"
+                    onClick={() => navigate('/admin/notifications/dashboard')}
+                  >
+                    <FaChartBar className="me-1" />
+                    Analytics Dashboard
+                  </Button>
+                  <Button 
+                    variant="outline-success" 
+                    size="sm"
+                    onClick={() => navigate('/admin/notifications/manage')}
+                  >
+                    <FaBell className="me-1" />
+                    Manage Notifications
+                  </Button>
+                  <Button 
+                    variant="outline-info" 
+                    size="sm"
+                    onClick={() => navigate('/admin/notifications/settings')}
+                  >
+                    <FaCog className="me-1" />
+                    Notification Settings
+                  </Button>
+                </div>
+              </div>
+            </Card.Body>
+          </Card>
         </Col>
       </Row>
 
@@ -808,14 +1014,98 @@ const AdminDashboard = () => {
       <AnalyticsCharts stats={stats} onChartClick={handleChartClick} />
 
       <Row className="g-4 mb-4">
-        <Col lg={6}>
+        <Col lg={4}>
           <AdminRecentActivity activities={recentActivities} />
         </Col>
-        <Col lg={6}>
+        <Col lg={4}>
           <QuickAnnouncements 
             announcements={announcements} 
             onAnnouncementClick={handleAnnouncementClick} 
           />
+        </Col>
+        <Col lg={4}>
+          {/* Recent Notifications Widget */}
+          <Card className="border-0 shadow-sm h-100">
+            <Card.Header className="bg-gradient-primary text-white border-0">
+              <div className="d-flex justify-content-between align-items-center">
+                <h6 className="mb-0">
+                  <FaBell className="me-2" />
+                  Recent Notifications
+                </h6>
+                <Button 
+                  variant="light" 
+                  size="sm"
+                  onClick={() => navigate('/admin/notifications/manage')}
+                >
+                  Manage
+                </Button>
+              </div>
+            </Card.Header>
+            <Card.Body className="p-0">
+              <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                {notifications.slice(0, 5).map((notification, index) => (
+                  <div 
+                    key={notification._id || index}
+                    className="p-3 border-bottom"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => navigate('/admin/notifications/dashboard')}
+                  >
+                    <div className="d-flex align-items-start">
+                      <div 
+                        className="rounded-circle me-2 d-flex align-items-center justify-content-center"
+                        style={{ 
+                          width: '32px', 
+                          height: '32px', 
+                          backgroundColor: notification.priority === 'urgent' ? '#EF4444' : 
+                                          notification.priority === 'high' ? '#F59E0B' : '#3B82F6',
+                          color: 'white',
+                          fontSize: '0.8rem'
+                        }}
+                      >
+                        <FaBell />
+                      </div>
+                      <div className="flex-grow-1">
+                        <div className="fw-semibold small">{notification.title}</div>
+                        <div className="text-muted small">
+                          {notification.message?.substring(0, 50)}...
+                        </div>
+                        <div className="text-muted" style={{ fontSize: '0.7rem' }}>
+                          {new Date(notification.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                      {!notification.isRead && (
+                        <div 
+                          className="rounded-circle"
+                          style={{ 
+                            width: '8px', 
+                            height: '8px', 
+                            backgroundColor: '#3B82F6' 
+                          }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {notifications.length === 0 && (
+                  <div className="text-center py-4 text-muted">
+                    <FaBell size={32} className="mb-2 opacity-50" />
+                    <p className="mb-0">No notifications yet</p>
+                  </div>
+                )}
+              </div>
+              {notifications.length > 5 && (
+                <div className="p-2 text-center border-top">
+                  <Button 
+                    variant="link" 
+                    size="sm"
+                    onClick={() => navigate('/admin/notifications/dashboard')}
+                  >
+                    View All ({notifications.length})
+                  </Button>
+                </div>
+              )}
+            </Card.Body>
+          </Card>
         </Col>
       </Row>
 
@@ -1614,6 +1904,32 @@ const AdminDashboard = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      <style>{`
+        .bg-gradient-primary {
+          background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+        }
+        
+        .notification-stat-card {
+          transition: all 0.2s ease;
+        }
+        
+        .notification-stat-card:hover {
+          transform: translateY(-2px);
+        }
+        
+        .notification-stat-card .card {
+          transition: all 0.2s ease;
+        }
+        
+        .notification-stat-card:hover .card {
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .cursor-pointer {
+          cursor: pointer;
+        }
+      `}</style>
     </Container>
   );
 };

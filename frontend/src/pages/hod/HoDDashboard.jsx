@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Table, Badge, Modal, Form } from 'react-bootstrap';
-import { FaUsers, FaProjectDiagram, FaCheckCircle, FaClock, FaUserTie, FaPlus } from 'react-icons/fa';
+import { FaUsers, FaProjectDiagram, FaCheckCircle, FaClock, FaUserTie, FaPlus, FaCalendarAlt } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import { departmentApi } from '../../api/departmentApi';
 import { projectApi } from '../../api/projectApi';
@@ -107,7 +107,7 @@ const HoDDashboard = () => {
       const departmentId = user.headOfDepartment;
 
       // Load all data in parallel
-      const [statsRes, projectsRes, membersRes, deptRes, attendanceRes] = await Promise.all([
+      const [statsRes, projectsRes, membersRes, deptRes, attendanceRes, leavesRes] = await Promise.all([
         departmentApi.getDepartmentStats(departmentId),
         departmentApi.getDepartmentProjects(departmentId),
         departmentApi.getDepartmentMembers(departmentId),
@@ -117,7 +117,13 @@ const HoDDashboard = () => {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
-        }).then(res => res.json()).catch(() => [])
+        }).then(res => res.json()).catch(() => []),
+        // Fetch leave data for department overview (view-only)
+        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/leaves/my-leaves`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        }).then(res => res.json()).catch(() => ({ data: [] }))
       ]);
 
       // Filter attendance for department members only
@@ -134,6 +140,41 @@ const HoDDashboard = () => {
         total: departmentAttendance.length
       };
 
+      // Calculate leave stats for department members (view-only)
+      const allLeaves = leavesRes.data || [];
+      const today = new Date();
+      const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      
+      // Filter leaves for current month
+      const thisMonthLeaves = allLeaves.filter(leave => {
+        const leaveDate = new Date(leave.createdAt);
+        return leaveDate >= firstDayOfMonth;
+      });
+
+      // Calculate leave statistics
+      const leaveStats = {
+        pending: thisMonthLeaves.filter(l => l.status === 'pending').length,
+        approved: thisMonthLeaves.filter(l => l.status === 'approved').length,
+        rejected: thisMonthLeaves.filter(l => l.status === 'rejected').length,
+        total: thisMonthLeaves.length,
+        onLeaveToday: 0,
+        todayLeaveDetails: []
+      };
+
+      // Check who's on leave today
+      const todayStr = today.toISOString().split('T')[0];
+      const approvedLeaves = allLeaves.filter(l => l.status === 'approved');
+      
+      approvedLeaves.forEach(leave => {
+        const startDate = new Date(leave.startDate).toISOString().split('T')[0];
+        const endDate = new Date(leave.endDate).toISOString().split('T')[0];
+        
+        if (todayStr >= startDate && todayStr <= endDate) {
+          leaveStats.onLeaveToday++;
+          leaveStats.todayLeaveDetails.push(leave);
+        }
+      });
+
       // Debug logging
       console.log('Department Attendance Data:', {
         departmentMemberIds: departmentMemberIds.length,
@@ -146,7 +187,9 @@ const HoDDashboard = () => {
         ...statsRes.data,
         attendance: attendanceStats,
         attendanceDetails: departmentAttendance,
-        attendanceFilter: '' // Initialize with no filter
+        attendanceFilter: '', // Initialize with no filter
+        leaveStats: leaveStats,
+        todayLeaveDetails: leaveStats.todayLeaveDetails
       });
       setProjects(projectsRes.data.projects || []);
       setMembers(membersRes.data.members || []);
@@ -324,6 +367,104 @@ const HoDDashboard = () => {
               <FaCheckCircle className="text-success mb-2" size={32} />
               <h3 className="mb-1">{stats?.completedProjects || 0}</h3>
               <p className="text-muted mb-0">Completed</p>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Department Leave Overview - View Only */}
+      <Row className="mb-4">
+        <Col>
+          <Card className="border-info">
+            <Card.Header className="bg-info bg-opacity-10">
+              <h5 className="mb-0">
+                <FaCalendarAlt className="me-2" />
+                Department Leave Overview
+              </h5>
+              <small className="text-muted">View-only access to team leave status</small>
+            </Card.Header>
+            <Card.Body>
+              <Row className="g-3">
+                <Col md={3}>
+                  <Card className="border-0 bg-warning bg-opacity-10">
+                    <Card.Body className="text-center">
+                      <h3 className="mb-0 text-warning">{stats?.leaveStats?.pending || 0}</h3>
+                      <small className="text-muted">Pending Requests</small>
+                      <div className="mt-1">
+                        <small className="text-muted">Awaiting HR approval</small>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col md={3}>
+                  <Card className="border-0 bg-success bg-opacity-10">
+                    <Card.Body className="text-center">
+                      <h3 className="mb-0 text-success">{stats?.leaveStats?.approved || 0}</h3>
+                      <small className="text-muted">Approved</small>
+                      <div className="mt-1">
+                        <small className="text-muted">This month</small>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col md={3}>
+                  <Card className="border-0 bg-info bg-opacity-10">
+                    <Card.Body className="text-center">
+                      <h3 className="mb-0 text-info">{stats?.leaveStats?.onLeaveToday || 0}</h3>
+                      <small className="text-muted">On Leave Today</small>
+                      <div className="mt-1">
+                        <small className="text-muted">Team members</small>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col md={3}>
+                  <Card className="border-0 bg-secondary bg-opacity-10">
+                    <Card.Body className="text-center">
+                      <h3 className="mb-0 text-secondary">{stats?.leaveStats?.total || 0}</h3>
+                      <small className="text-muted">Total Requests</small>
+                      <div className="mt-1">
+                        <small className="text-muted">This month</small>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              </Row>
+
+              {/* Team Members on Leave Today */}
+              {stats?.leaveStats?.onLeaveToday > 0 && stats?.todayLeaveDetails && (
+                <div className="mt-4">
+                  <h6 className="text-muted mb-3">Team Members on Leave Today</h6>
+                  <div className="row g-2">
+                    {stats.todayLeaveDetails.map((leave, index) => (
+                      <div key={index} className="col-md-6">
+                        <Card className="border-0 bg-light">
+                          <Card.Body className="py-2">
+                            <div className="d-flex justify-content-between align-items-center">
+                              <div>
+                                <strong>{leave.employee?.name || 'N/A'}</strong>
+                                <div className="small text-muted">{leave.leaveType} leave</div>
+                              </div>
+                              <Badge bg="info" className="small">
+                                {leave.startDate === leave.endDate ? '1 day' : 
+                                 `${Math.ceil((new Date(leave.endDate) - new Date(leave.startDate)) / (1000 * 60 * 60 * 24)) + 1} days`}
+                              </Badge>
+                            </div>
+                          </Card.Body>
+                        </Card>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Note about permissions */}
+              <div className="mt-3 p-2 bg-light rounded">
+                <small className="text-muted">
+                  <strong>Note:</strong> As Head of Department, you can view team leave status but cannot approve/reject requests. 
+                  All leave approvals are handled by HR/Admin team.
+                </small>
+              </div>
             </Card.Body>
           </Card>
         </Col>

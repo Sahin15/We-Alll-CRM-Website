@@ -4,6 +4,7 @@ import {
   deletePaymentProof,
   uploadMultipleImages,
   uploadProfilePicture,
+  deleteProfilePicture,
   uploadDocument,
   deleteDocument,
 } from "../controllers/uploadController.js";
@@ -31,6 +32,13 @@ router.post(
   upload.single("image"),
   handleMulterError,
   uploadProfilePicture
+);
+
+// Delete profile picture
+router.delete(
+  "/profile-picture",
+  protect,
+  deleteProfilePicture
 );
 
 // Delete payment proof image

@@ -12,6 +12,11 @@ import {
   ListGroup,
   Tabs,
   Tab,
+  InputGroup,
+  Dropdown,
+  ProgressBar,
+  OverlayTrigger,
+  Tooltip,
 } from "react-bootstrap";
 import {
   FaPlus,
@@ -20,12 +25,28 @@ import {
   FaUsers,
   FaChartBar,
   FaEye,
+  FaSearch,
+  FaFilter,
+  FaBuilding,
+  FaUserTie,
+  FaChartLine,
+  FaUserCheck,
+  FaCrown,
+  FaMapMarkerAlt,
+  FaCalendarAlt,
+  FaProjectDiagram,
+  FaDownload,
+  FaExpand,
+  FaStar,
+  FaCheckCircle,
+  FaExclamationTriangle,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { departmentApi } from "../../api/departmentApi";
 import { userApi } from "../../api/userApi";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import "./DepartmentList.css";
 
 const DepartmentList = () => {
   const { user, checkPermission } = useAuth();
@@ -33,6 +54,7 @@ const DepartmentList = () => {
   const isHOD = user?.role === "hod";
   const isEmployee = user?.role === "employee";
   const [departments, setDepartments] = useState([]);
+  const [filteredDepartments, setFilteredDepartments] = useState([]);
   const [users, setUsers] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -42,6 +64,10 @@ const DepartmentList = () => {
   const [editMode, setEditMode] = useState(false);
   const [currentDepartment, setCurrentDepartment] = useState(null);
   const [selectedDeptAnalytics, setSelectedDeptAnalytics] = useState(null);
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'table'
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('name');
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -56,6 +82,46 @@ const DepartmentList = () => {
     fetchUsers();
     fetchAnalytics();
   }, []);
+
+  useEffect(() => {
+    filterAndSortDepartments();
+  }, [departments, searchTerm, statusFilter, sortBy]);
+
+  const filterAndSortDepartments = () => {
+    let filtered = [...departments];
+
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(dept =>
+        dept.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        dept.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        dept.head?.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(dept => dept.status === statusFilter);
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'employees':
+          return (b.employees?.length || 0) - (a.employees?.length || 0);
+        case 'status':
+          return a.status.localeCompare(b.status);
+        case 'head':
+          return (a.head?.name || '').localeCompare(b.head?.name || '');
+        default:
+          return 0;
+      }
+    });
+
+    setFilteredDepartments(filtered);
+  };
 
   const fetchDepartments = async () => {
     try {
@@ -233,193 +299,508 @@ const DepartmentList = () => {
   };
 
   return (
-    <Container fluid>
-      <Row className="mb-4">
-        <Col>
-          <h2>Department Management</h2>
-          <p className="text-muted">
+    <Container fluid className="py-4">
+      {/* Header Section */}
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h1 className="h2 mb-2 d-flex align-items-center">
+            <FaBuilding className="me-3 text-primary" />
+            Department Management
+          </h1>
+          <p className="text-muted mb-0">
             {isEmployee
-              ? "View your department information"
+              ? "View your department information and team members"
               : isHOD
-              ? "Manage your department"
-              : "Manage departments, employees, and analytics"}
+              ? "Manage your department and team performance"
+              : "Comprehensive department oversight and analytics"}
           </p>
-        </Col>
+        </div>
         {isAdmin && (
-          <Col className="text-end">
+          <div className="d-flex gap-2">
+            <Button variant="outline-primary" onClick={() => {}}>
+              <FaDownload className="me-2" />
+              Export
+            </Button>
             <Button variant="primary" onClick={() => handleShowModal()}>
               <FaPlus className="me-2" />
               Add Department
             </Button>
-          </Col>
+          </div>
         )}
-      </Row>
+      </div>
 
-      {/* Analytics Summary Cards */}
+      {/* Enhanced Analytics Dashboard */}
       {analytics && (
         <Row className="mb-4">
-          <Col md={3}>
-            <Card className="text-center">
-              <Card.Body>
-                <h3 className="text-primary">
-                  {analytics.overallStats.totalDepartments}
-                </h3>
-                <p className="text-muted mb-0">Total Departments</p>
+          <Col lg={3} md={6} className="mb-3">
+            <Card className="border-0 shadow-sm h-100">
+              <Card.Body className="d-flex align-items-center">
+                <div className="flex-shrink-0 me-3">
+                  <div className="bg-primary bg-opacity-10 rounded-circle p-3">
+                    <FaBuilding className="text-primary fs-4" />
+                  </div>
+                </div>
+                <div className="flex-grow-1">
+                  <h3 className="mb-1 text-primary fw-bold">
+                    {analytics.overallStats.totalDepartments}
+                  </h3>
+                  <p className="text-muted mb-0 small">Total Departments</p>
+                  <div className="mt-1">
+                    <small className="text-success">
+                      <FaCheckCircle className="me-1" />
+                      All systems operational
+                    </small>
+                  </div>
+                </div>
               </Card.Body>
             </Card>
           </Col>
-          <Col md={3}>
-            <Card className="text-center">
-              <Card.Body>
-                <h3 className="text-success">
-                  {analytics.overallStats.activeDepartments}
-                </h3>
-                <p className="text-muted mb-0">Active Departments</p>
+          <Col lg={3} md={6} className="mb-3">
+            <Card className="border-0 shadow-sm h-100">
+              <Card.Body className="d-flex align-items-center">
+                <div className="flex-shrink-0 me-3">
+                  <div className="bg-success bg-opacity-10 rounded-circle p-3">
+                    <FaCheckCircle className="text-success fs-4" />
+                  </div>
+                </div>
+                <div className="flex-grow-1">
+                  <h3 className="mb-1 text-success fw-bold">
+                    {analytics.overallStats.activeDepartments}
+                  </h3>
+                  <p className="text-muted mb-0 small">Active Departments</p>
+                  <div className="mt-1">
+                    <ProgressBar 
+                      now={(analytics.overallStats.activeDepartments / analytics.overallStats.totalDepartments) * 100} 
+                      size="sm" 
+                      variant="success"
+                    />
+                  </div>
+                </div>
               </Card.Body>
             </Card>
           </Col>
-          <Col md={3}>
-            <Card className="text-center">
-              <Card.Body>
-                <h3 className="text-info">
-                  {analytics.overallStats.totalEmployees}
-                </h3>
-                <p className="text-muted mb-0">Total Employees</p>
+          <Col lg={3} md={6} className="mb-3">
+            <Card className="border-0 shadow-sm h-100">
+              <Card.Body className="d-flex align-items-center">
+                <div className="flex-shrink-0 me-3">
+                  <div className="bg-info bg-opacity-10 rounded-circle p-3">
+                    <FaUsers className="text-info fs-4" />
+                  </div>
+                </div>
+                <div className="flex-grow-1">
+                  <h3 className="mb-1 text-info fw-bold">
+                    {analytics.overallStats.totalEmployees}
+                  </h3>
+                  <p className="text-muted mb-0 small">Total Employees</p>
+                  <div className="mt-1">
+                    <small className="text-info">
+                      Avg: {Math.round(analytics.overallStats.totalEmployees / analytics.overallStats.totalDepartments)} per dept
+                    </small>
+                  </div>
+                </div>
               </Card.Body>
             </Card>
           </Col>
-          <Col md={3}>
-            <Card className="text-center">
-              <Card.Body>
-                <h3 className="text-warning">
-                  {analytics.overallStats.departmentsWithHead}
-                </h3>
-                <p className="text-muted mb-0">With Department Head</p>
+          <Col lg={3} md={6} className="mb-3">
+            <Card className="border-0 shadow-sm h-100">
+              <Card.Body className="d-flex align-items-center">
+                <div className="flex-shrink-0 me-3">
+                  <div className="bg-warning bg-opacity-10 rounded-circle p-3">
+                    <FaCrown className="text-warning fs-4" />
+                  </div>
+                </div>
+                <div className="flex-grow-1">
+                  <h3 className="mb-1 text-warning fw-bold">
+                    {analytics.overallStats.departmentsWithHead}
+                  </h3>
+                  <p className="text-muted mb-0 small">With Department Head</p>
+                  <div className="mt-1">
+                    {analytics.overallStats.departmentsWithHead === analytics.overallStats.totalDepartments ? (
+                      <small className="text-success">
+                        <FaCheckCircle className="me-1" />
+                        All assigned
+                      </small>
+                    ) : (
+                      <small className="text-warning">
+                        <FaExclamationTriangle className="me-1" />
+                        {analytics.overallStats.totalDepartments - analytics.overallStats.departmentsWithHead} pending
+                      </small>
+                    )}
+                  </div>
+                </div>
               </Card.Body>
             </Card>
           </Col>
         </Row>
       )}
 
-      <Row>
-        <Col>
-          <Card>
-            <Card.Body>
-              {loading ? (
-                <div className="text-center py-5">
-                  <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
-                </div>
-              ) : (
-                <Table responsive hover>
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Description</th>
-                      <th>Head</th>
-                      <th>Employees</th>
-                      <th>Status</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {departments && departments.length > 0 ? (
-                      departments.map((dept) => (
-                        <tr key={dept._id}>
-                          <td>
-                            <strong>{dept.name}</strong>
-                          </td>
-                          <td>{dept.description || "N/A"}</td>
-                          <td>
-                            {dept.head ? (
-                              <div>
-                                <div>{dept.head.name}</div>
-                                <small className="text-muted">
-                                  {dept.head.email}
-                                </small>
-                              </div>
-                            ) : (
-                              <span className="text-muted">Not Assigned</span>
-                            )}
-                          </td>
-                          <td>
-                            <Badge bg="info">
-                              {dept.employees?.length || 0} employees
-                            </Badge>
-                          </td>
-                          <td>
-                            <Badge
-                              bg={
-                                dept.status === "active"
-                                  ? "success"
-                                  : "secondary"
-                              }
+      {/* Search and Filter Controls */}
+      <Card className="border-0 shadow-sm mb-4">
+        <Card.Body>
+          <Row className="align-items-center">
+            <Col lg={4} md={6} className="mb-3 mb-lg-0">
+              <InputGroup>
+                <InputGroup.Text className="bg-light border-end-0">
+                  <FaSearch className="text-muted" />
+                </InputGroup.Text>
+                <Form.Control
+                  type="text"
+                  placeholder="Search departments, heads, or descriptions..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="border-start-0"
+                />
+              </InputGroup>
+            </Col>
+            <Col lg={2} md={3} className="mb-3 mb-lg-0">
+              <Form.Select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </Form.Select>
+            </Col>
+            <Col lg={2} md={3} className="mb-3 mb-lg-0">
+              <Form.Select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="name">Sort by Name</option>
+                <option value="employees">Sort by Size</option>
+                <option value="status">Sort by Status</option>
+                <option value="head">Sort by Head</option>
+              </Form.Select>
+            </Col>
+            <Col lg={4} className="text-lg-end">
+              <div className="d-flex gap-2 justify-content-lg-end">
+                <Button
+                  variant={viewMode === 'grid' ? 'primary' : 'outline-secondary'}
+                  size="sm"
+                  onClick={() => setViewMode('grid')}
+                >
+                  <FaExpand className="me-1" />
+                  Grid
+                </Button>
+                <Button
+                  variant={viewMode === 'table' ? 'primary' : 'outline-secondary'}
+                  size="sm"
+                  onClick={() => setViewMode('table')}
+                >
+                  <FaChartBar className="me-1" />
+                  Table
+                </Button>
+                <span className="text-muted small align-self-center ms-2">
+                  {filteredDepartments.length} of {departments.length} departments
+                </span>
+              </div>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
+
+      {/* Department Display */}
+      {loading ? (
+        <Card className="border-0 shadow-sm">
+          <Card.Body className="text-center py-5">
+            <div className="spinner-border text-primary mb-3" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+            <p className="text-muted">Loading departments...</p>
+          </Card.Body>
+        </Card>
+      ) : viewMode === 'grid' ? (
+        <Row>
+          {filteredDepartments.length > 0 ? (
+            filteredDepartments.map((dept) => (
+              <Col lg={4} md={6} className="mb-4" key={dept._id}>
+                <Card className="border-0 shadow-sm h-100 department-card">
+                  <Card.Body className="d-flex flex-column">
+                    <div className="d-flex justify-content-between align-items-start mb-3">
+                      <div className="flex-grow-1">
+                        <h5 className="mb-2 text-primary fw-bold">{dept.name}</h5>
+                        <p className="text-muted small mb-0">
+                          {dept.description || "No description available"}
+                        </p>
+                      </div>
+                      <Badge
+                        bg={dept.status === "active" ? "success" : "secondary"}
+                        className="ms-2"
+                      >
+                        {dept.status}
+                      </Badge>
+                    </div>
+
+                    <div className="mb-3">
+                      <div className="d-flex align-items-center mb-2">
+                        <FaUserTie className="text-muted me-2" />
+                        <span className="small">
+                          <strong>Head:</strong>{" "}
+                          {dept.head ? (
+                            <span className="text-primary">{dept.head.name}</span>
+                          ) : (
+                            <span className="text-muted">Not Assigned</span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="d-flex align-items-center">
+                        <FaUsers className="text-muted me-2" />
+                        <span className="small">
+                          <strong>{dept.employees?.length || 0}</strong> employees
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-auto">
+                      <div className="d-flex gap-2">
+                        <OverlayTrigger
+                          placement="top"
+                          overlay={<Tooltip>View Analytics</Tooltip>}
+                        >
+                          <Button
+                            size="sm"
+                            variant="outline-info"
+                            onClick={() => fetchDepartmentAnalytics(dept._id)}
+                            className="flex-fill"
+                          >
+                            <FaChartLine />
+                          </Button>
+                        </OverlayTrigger>
+                        {(isAdmin || (isHOD && dept.head?._id === user.id)) && (
+                          <OverlayTrigger
+                            placement="top"
+                            overlay={<Tooltip>Manage Employees</Tooltip>}
+                          >
+                            <Button
+                              size="sm"
+                              variant="outline-primary"
+                              onClick={() => handleShowEmployeeModal(dept)}
+                              className="flex-fill"
                             >
-                              {dept.status}
-                            </Badge>
-                          </td>
-                          <td>
-                            <div className="btn-group" role="group">
+                              <FaUsers />
+                            </Button>
+                          </OverlayTrigger>
+                        )}
+                        {isAdmin && (
+                          <>
+                            <OverlayTrigger
+                              placement="top"
+                              overlay={<Tooltip>Edit Department</Tooltip>}
+                            >
+                              <Button
+                                size="sm"
+                                variant="outline-success"
+                                onClick={() => handleShowModal(dept)}
+                                className="flex-fill"
+                              >
+                                <FaEdit />
+                              </Button>
+                            </OverlayTrigger>
+                            <OverlayTrigger
+                              placement="top"
+                              overlay={<Tooltip>Delete Department</Tooltip>}
+                            >
+                              <Button
+                                size="sm"
+                                variant="outline-danger"
+                                onClick={() => handleDelete(dept._id)}
+                                className="flex-fill"
+                              >
+                                <FaTrash />
+                              </Button>
+                            </OverlayTrigger>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </Card.Body>
+                </Card>
+              </Col>
+            ))
+          ) : (
+            <Col>
+              <Card className="border-0 shadow-sm">
+                <Card.Body className="text-center py-5">
+                  <FaBuilding className="text-muted mb-3" style={{ fontSize: '3rem' }} />
+                  <h5 className="text-muted">No departments found</h5>
+                  <p className="text-muted">
+                    {searchTerm || statusFilter !== 'all'
+                      ? "Try adjusting your search or filter criteria"
+                      : "Get started by creating your first department"}
+                  </p>
+                  {isAdmin && !searchTerm && statusFilter === 'all' && (
+                    <Button variant="primary" onClick={() => handleShowModal()}>
+                      <FaPlus className="me-2" />
+                      Create Department
+                    </Button>
+                  )}
+                </Card.Body>
+              </Card>
+            </Col>
+          )}
+        </Row>
+      ) : (
+        <Card className="border-0 shadow-sm">
+          <Card.Body>
+            <div className="table-responsive">
+              <Table hover className="align-middle">
+                <thead className="bg-light">
+                  <tr>
+                    <th className="border-0 fw-semibold">Department</th>
+                    <th className="border-0 fw-semibold">Head</th>
+                    <th className="border-0 fw-semibold">Team Size</th>
+                    <th className="border-0 fw-semibold">Status</th>
+                    <th className="border-0 fw-semibold">Performance</th>
+                    <th className="border-0 fw-semibold text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredDepartments.length > 0 ? (
+                    filteredDepartments.map((dept) => (
+                      <tr key={dept._id} className="border-bottom">
+                        <td>
+                          <div className="d-flex align-items-center">
+                            <div className="bg-primary bg-opacity-10 rounded-circle p-2 me-3">
+                              <FaBuilding className="text-primary" />
+                            </div>
+                            <div>
+                              <h6 className="mb-1 fw-semibold">{dept.name}</h6>
+                              <small className="text-muted">
+                                {dept.description || "No description"}
+                              </small>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          {dept.head ? (
+                            <div className="d-flex align-items-center">
+                              <div className="bg-warning bg-opacity-10 rounded-circle p-2 me-2">
+                                <FaCrown className="text-warning small" />
+                              </div>
+                              <div>
+                                <div className="fw-medium">{dept.head.name}</div>
+                                <small className="text-muted">{dept.head.email}</small>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="d-flex align-items-center text-muted">
+                              <FaExclamationTriangle className="me-2" />
+                              <span>Not Assigned</span>
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <div className="d-flex align-items-center">
+                            <FaUsers className="text-info me-2" />
+                            <span className="fw-semibold">
+                              {dept.employees?.length || 0}
+                            </span>
+                            <span className="text-muted ms-1">employees</span>
+                          </div>
+                        </td>
+                        <td>
+                          <Badge
+                            bg={dept.status === "active" ? "success" : "secondary"}
+                            className="px-3 py-2"
+                          >
+                            {dept.status}
+                          </Badge>
+                        </td>
+                        <td>
+                          <div className="d-flex align-items-center">
+                            <div className="flex-grow-1 me-2">
+                              <ProgressBar
+                                now={dept.head ? 85 : 60}
+                                size="sm"
+                                variant={dept.head ? "success" : "warning"}
+                              />
+                            </div>
+                            <small className="text-muted">
+                              {dept.head ? "85%" : "60%"}
+                            </small>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="d-flex gap-1 justify-content-center">
+                            <OverlayTrigger
+                              placement="top"
+                              overlay={<Tooltip>View Analytics</Tooltip>}
+                            >
                               <Button
                                 size="sm"
                                 variant="outline-info"
-                                onClick={() =>
-                                  fetchDepartmentAnalytics(dept._id)
-                                }
-                                title="View Analytics"
+                                onClick={() => fetchDepartmentAnalytics(dept._id)}
                               >
-                                <FaChartBar />
+                                <FaChartLine />
                               </Button>
-                              {(isAdmin ||
-                                (isHOD && dept.head?._id === user.id)) && (
+                            </OverlayTrigger>
+                            {(isAdmin || (isHOD && dept.head?._id === user.id)) && (
+                              <OverlayTrigger
+                                placement="top"
+                                overlay={<Tooltip>Manage Team</Tooltip>}
+                              >
                                 <Button
                                   size="sm"
                                   variant="outline-primary"
                                   onClick={() => handleShowEmployeeModal(dept)}
-                                  title="Manage Employees"
                                 >
                                   <FaUsers />
                                 </Button>
-                              )}
-                              {isAdmin && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    variant="outline-success"
-                                    onClick={() => handleShowModal(dept)}
-                                    title="Edit"
-                                  >
-                                    <FaEdit />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline-danger"
+                              </OverlayTrigger>
+                            )}
+                            {isAdmin && (
+                              <Dropdown>
+                                <Dropdown.Toggle
+                                  size="sm"
+                                  variant="outline-secondary"
+                                  className="no-caret"
+                                >
+                                  <FaEye />
+                                </Dropdown.Toggle>
+                                <Dropdown.Menu>
+                                  <Dropdown.Item onClick={() => handleShowModal(dept)}>
+                                    <FaEdit className="me-2" />
+                                    Edit Department
+                                  </Dropdown.Item>
+                                  <Dropdown.Divider />
+                                  <Dropdown.Item
+                                    className="text-danger"
                                     onClick={() => handleDelete(dept._id)}
-                                    title="Delete"
                                   >
-                                    <FaTrash />
-                                  </Button>
-                                </>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="6" className="text-center py-4">
-                          No departments found
+                                    <FaTrash className="me-2" />
+                                    Delete Department
+                                  </Dropdown.Item>
+                                </Dropdown.Menu>
+                              </Dropdown>
+                            )}
+                          </div>
                         </td>
                       </tr>
-                    )}
-                  </tbody>
-                </Table>
-              )}
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="6" className="text-center py-5">
+                        <FaBuilding className="text-muted mb-3" style={{ fontSize: '2rem' }} />
+                        <div className="text-muted">
+                          <h6>No departments found</h6>
+                          <p className="mb-0">
+                            {searchTerm || statusFilter !== 'all'
+                              ? "Try adjusting your search or filter criteria"
+                              : "Get started by creating your first department"}
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </Table>
+            </div>
+          </Card.Body>
+        </Card>
+      )}
+
+
 
       {/* Add/Edit Department Modal */}
       <Modal show={showModal} onHide={handleCloseModal} size="lg">

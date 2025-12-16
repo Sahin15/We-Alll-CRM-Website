@@ -1,315 +1,309 @@
-import User from "../models/userModel.js";
-import { uploadDocumentToS3, deleteDocumentFromS3 } from "../utils/documentUpload.js";
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import User from '../models/userModel.js';
+import Document from '../models/documentModel.js';
+import { fileURLToPath } from 'url';
 
-/**
- * Upload document for employee (HR/Admin only)
- * POST /api/users/:userId/documents/upload
- */
-export const uploadEmployeeDocument = async (req, res) => {
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, '../../uploads/documents');
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = /jpeg|jpg|png|pdf|doc|docx/;
+  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  const mimetype = allowedTypes.test(file.mimetype);
+
+  if (mimetype && extname) {
+    return cb(null, true);
+  } else {
+    cb(new Error('Only images, PDFs, and documents are allowed'));
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: fileFilter
+});
+
+// Upload personal document (for employees)
+const uploadDocument = async (req, res) => {
   try {
-    const { userId } = req.params;
-    const { documentType, month, year } = req.body;
+    const { category, description } = req.body;
+    const userId = req.user._id;
 
-    // Check if file is uploaded
+    console.log('Upload request - User:', userId, 'Category:', category, 'File:', req.file?.originalname);
+
     if (!req.file) {
-      return res.status(400).json({ message: "No file uploaded" });
+      return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    // Validate document type
-    const validDocTypes = ["offerLetter", "agreement", "salarySlip", "aadhaarDoc", "panDoc", "resume"];
-    if (!validDocTypes.includes(documentType)) {
-      return res.status(400).json({ 
-        message: `Invalid document type. Allowed types: ${validDocTypes.join(", ")}` 
-      });
-    }
-
-    // Check if user exists
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // Upload to S3
-    const folder = `documents/${documentType}`;
-    const documentUrl = await uploadDocumentToS3(
-      req.file.buffer,
-      req.file.originalname,
-      req.file.mimetype,
-      folder
-    );
-
-    // Update user document based on type
-    if (documentType === "salarySlip") {
-      // Validate month and year for salary slips
-      if (!month || !year) {
-        return res.status(400).json({ 
-          message: "Month and year are required for salary slips" 
-        });
-      }
-
-      // Check if salary slip for this month/year already exists
-      const existingSlip = user.documents.salarySlips.find(
-        slip => slip.month === month && slip.year === parseInt(year)
-      );
-
-      if (existingSlip) {
-        // Delete old file from S3
-        try {
-          await deleteDocumentFromS3(existingSlip.url);
-        } catch (err) {
-          console.error("Error deleting old salary slip:", err);
-        }
-        // Update existing slip
-        existingSlip.url = documentUrl;
-        existingSlip.uploadedAt = new Date();
-        existingSlip.uploadedBy = req.user.id;
-      } else {
-        // Add new salary slip
-        user.documents.salarySlips.push({
-          month,
-          year: parseInt(year),
-          url: documentUrl,
-          uploadedAt: new Date(),
-          uploadedBy: req.user.id,
-        });
-      }
-    } else {
-      // For other document types, replace if exists
-      if (user.documents[documentType]) {
-        // Delete old file from S3
-        try {
-          await deleteDocumentFromS3(user.documents[documentType]);
-        } catch (err) {
-          console.error("Error deleting old document:", err);
+    // Check if one-time document already exists (employees can only upload once, HR/Admin can override)
+    const oneTimeCategories = ['aadhaar', 'pan', 'bank', 'joining_letter', 'offer_letter'];
+    if (oneTimeCategories.includes(category)) {
+      const existingDoc = await Document.findOne({ userId, category });
+      if (existingDoc) {
+        // Only allow HR/Admin to replace existing one-time documents
+        if (!['hr', 'admin', 'superadmin'].includes(req.user.role)) {
+          // Delete uploaded file
+          fs.unlinkSync(req.file.path);
+          return res.status(400).json({ 
+            message: 'Document already exists for this category. Only HR/Admin can replace it.',
+            canReplace: false
+          });
+        } else {
+          // HR/Admin can replace - delete the old document
+          if (fs.existsSync(existingDoc.path)) {
+            fs.unlinkSync(existingDoc.path);
+          }
+          await Document.findByIdAndDelete(existingDoc._id);
         }
       }
-      user.documents[documentType] = documentUrl;
     }
 
-    await user.save();
+    const document = new Document({
+      userId,
+      category,
+      originalName: req.file.originalname,
+      filename: req.file.filename,
+      path: req.file.path,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+      description,
+      uploadedBy: userId,
+      isOfficial: false
+    });
 
-    return res.status(200).json({
-      message: "Document uploaded successfully",
-      documentUrl,
-      documentType,
-      fileName: req.file.originalname,
-      fileSize: req.file.size,
+    await document.save();
+
+    res.status(201).json({
+      message: 'Document uploaded successfully',
+      document: {
+        _id: document._id,
+        category: document.category,
+        originalName: document.originalName,
+        description: document.description,
+        uploadedAt: document.createdAt
+      }
     });
   } catch (error) {
-    console.error("Error uploading employee document:", error);
-    return res.status(500).json({
-      message: "Failed to upload document",
-      error: error.message,
-    });
+    console.error('Error uploading document:', error);
+    if (req.file) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ message: 'Failed to upload document', error: error.message });
   }
 };
 
-/**
- * Delete employee document (HR/Admin only)
- * DELETE /api/users/:userId/documents/:documentType
- */
-export const deleteEmployeeDocument = async (req, res) => {
+// Upload official document (for HR/Admin)
+const uploadOfficialDocument = async (req, res) => {
   try {
-    const { userId, documentType } = req.params;
-    const { month, year } = req.query;
+    const { category, description, targetUserId, title } = req.body;
+    const uploadedBy = req.user._id;
 
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    if (documentType === "salarySlip") {
-      if (!month || !year) {
-        return res.status(400).json({ 
-          message: "Month and year are required for salary slip deletion" 
-        });
-      }
-
-      const slipIndex = user.documents.salarySlips.findIndex(
-        slip => slip.month === month && slip.year === parseInt(year)
-      );
-
-      if (slipIndex === -1) {
-        return res.status(404).json({ message: "Salary slip not found" });
-      }
-
-      const slip = user.documents.salarySlips[slipIndex];
-      
-      // Delete from S3
-      try {
-        await deleteDocumentFromS3(slip.url);
-      } catch (err) {
-        console.error("Error deleting from S3:", err);
-      }
-
-      // Remove from array
-      user.documents.salarySlips.splice(slipIndex, 1);
-    } else {
-      if (!user.documents[documentType]) {
-        return res.status(404).json({ message: "Document not found" });
-      }
-
-      // Delete from S3
-      try {
-        await deleteDocumentFromS3(user.documents[documentType]);
-      } catch (err) {
-        console.error("Error deleting from S3:", err);
-      }
-
-      // Remove from database
-      user.documents[documentType] = null;
+    // Check if user has permission to upload official documents
+    if (!['hr', 'admin', 'superadmin'].includes(req.user.role)) {
+      fs.unlinkSync(req.file.path);
+      return res.status(403).json({ message: 'Insufficient permissions' });
     }
 
-    await user.save();
+    const document = new Document({
+      userId: req.targetUserId || targetUserId || req.user._id,
+      category,
+      originalName: req.file.originalname,
+      filename: req.file.filename,
+      path: req.file.path,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+      description,
+      title: title || req.file.originalname,
+      uploadedBy,
+      isOfficial: true
+    });
 
-    return res.status(200).json({
-      message: "Document deleted successfully",
+    await document.save();
+
+    res.status(201).json({
+      message: 'Official document uploaded successfully',
+      document: {
+        _id: document._id,
+        category: document.category,
+        originalName: document.originalName,
+        title: document.title,
+        description: document.description,
+        uploadedAt: document.createdAt
+      }
     });
   } catch (error) {
-    console.error("Error deleting employee document:", error);
-    return res.status(500).json({
-      message: "Failed to delete document",
-      error: error.message,
-    });
-  }
-};
-
-/**
- * Get document status for all employees (HR/Admin only)
- * GET /api/users/documents/status
- */
-export const getDocumentStatus = async (req, res) => {
-  try {
-    const users = await User.find({ 
-      role: { $in: ["employee", "hod"] } 
-    }).select("name employeeId department documents");
-
-    const stats = {
-      total: users.length,
-      complete: 0,
-      incomplete: 0,
-      missingCritical: 0,
-      employees: users.map(user => ({
-        _id: user._id,
-        name: user.name,
-        employeeId: user.employeeId,
-        department: user.department,
-        hasOfferLetter: !!user.documents?.offerLetter,
-        hasAgreement: !!user.documents?.agreement,
-        salarySlipsCount: user.documents?.salarySlips?.length || 0,
-        status: (user.documents?.offerLetter && user.documents?.agreement) 
-          ? "complete" 
-          : (!user.documents?.offerLetter && !user.documents?.agreement)
-          ? "missing-critical"
-          : "incomplete"
-      }))
-    };
-
-    // Calculate statistics
-    stats.employees.forEach(emp => {
-      if (emp.status === "complete") stats.complete++;
-      else if (emp.status === "incomplete") stats.incomplete++;
-      else if (emp.status === "missing-critical") stats.missingCritical++;
-    });
-
-    return res.status(200).json(stats);
-  } catch (error) {
-    console.error("Error getting document status:", error);
-    return res.status(500).json({
-      message: "Failed to get document status",
-      error: error.message,
-    });
-  }
-};
-
-/**
- * Get pending document approvals (Future feature)
- * GET /api/users/documents/pending
- */
-export const getPendingDocumentApprovals = async (req, res) => {
-  try {
-    // This is a placeholder for future implementation
-    // When employees upload documents that need approval
-    return res.status(200).json([]);
-  } catch (error) {
-    console.error("Error getting pending approvals:", error);
-    return res.status(500).json({
-      message: "Failed to get pending approvals",
-      error: error.message,
-    });
-  }
-};
-
-/**
- * Approve employee document (Future feature)
- * POST /api/users/documents/:docId/approve
- */
-export const approveDocument = async (req, res) => {
-  try {
-    const { docId } = req.params;
-    const { comments } = req.body;
-
-    // Placeholder for future implementation
-    return res.status(200).json({
-      message: "Document approved successfully",
-    });
-  } catch (error) {
-    console.error("Error approving document:", error);
-    return res.status(500).json({
-      message: "Failed to approve document",
-      error: error.message,
-    });
-  }
-};
-
-/**
- * Reject employee document (Future feature)
- * POST /api/users/documents/:docId/reject
- */
-export const rejectDocument = async (req, res) => {
-  try {
-    const { docId } = req.params;
-    const { comments } = req.body;
-
-    if (!comments || comments.trim() === "") {
-      return res.status(400).json({
-        message: "Rejection reason is required",
-      });
+    console.error('Error uploading official document:', error);
+    if (req.file) {
+      fs.unlinkSync(req.file.path);
     }
-
-    // Placeholder for future implementation
-    return res.status(200).json({
-      message: "Document rejected successfully",
-    });
-  } catch (error) {
-    console.error("Error rejecting document:", error);
-    return res.status(500).json({
-      message: "Failed to reject document",
-      error: error.message,
-    });
+    res.status(500).json({ message: 'Failed to upload official document', error: error.message });
   }
 };
 
-/**
- * Get employee's own documents
- * GET /api/users/me/documents
- */
-export const getMyDocuments = async (req, res) => {
+// Get user documents
+const getUserDocuments = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("documents");
+    const userId = req.user._id;
     
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+    const documents = await Document.find({ userId, isOfficial: false })
+      .populate('uploadedBy', 'name email')
+      .sort({ createdAt: -1 });
+
+    // Double-check: Filter out any documents that don't belong to the user (safety measure)
+    const safeDocuments = documents.filter(doc => doc.userId.toString() === userId.toString());
+    
+    if (safeDocuments.length !== documents.length) {
+      console.error(`SECURITY: Filtered out ${documents.length - safeDocuments.length} documents that didn't belong to user`);
+    }
+    
+    // Transform documents to include uploadedAt field for frontend compatibility
+    const transformedDocuments = safeDocuments.map(doc => ({
+      ...doc.toObject(),
+      uploadedAt: doc.createdAt
+    }));
+    
+    res.json(transformedDocuments);
+  } catch (error) {
+    console.error('Error fetching documents:', error);
+    res.status(500).json({ message: 'Failed to fetch documents' });
+  }
+};
+
+// Get official documents for user
+const getOfficialDocuments = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const documents = await Document.find({ userId, isOfficial: true })
+      .populate('uploadedBy', 'name email')
+      .sort({ createdAt: -1 });
+
+    // Transform documents to include uploadedAt field for frontend compatibility
+    const transformedDocuments = documents.map(doc => ({
+      ...doc.toObject(),
+      uploadedAt: doc.createdAt
+    }));
+
+    res.json(transformedDocuments);
+  } catch (error) {
+    console.error('Error fetching official documents:', error);
+    res.status(500).json({ message: 'Failed to fetch official documents' });
+  }
+};
+
+// Download document
+const downloadDocument = async (req, res) => {
+  try {
+    const { documentId } = req.params;
+    const userId = req.user._id;
+
+    const document = await Document.findById(documentId);
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
     }
 
-    return res.status(200).json({
-      documents: user.documents,
-    });
+    // Check if user has permission to download
+    const isOwner = document.userId.toString() === userId.toString();
+    const isAuthorized = ['hr', 'admin', 'superadmin'].includes(req.user.role);
+    const canDownload = isOwner || isAuthorized;
+    
+    if (!canDownload) {
+      console.log('Access denied for user:', userId, 'to document:', documentId);
+      return res.status(403).json({ message: 'Access denied. You can only download your own documents.' });
+    }
+
+    if (!fs.existsSync(document.path)) {
+      return res.status(404).json({ message: 'File not found on server' });
+    }
+
+    res.setHeader('Content-Disposition', `attachment; filename="${document.originalName}"`);
+    res.setHeader('Content-Type', document.mimetype);
+    
+    const fileStream = fs.createReadStream(document.path);
+    fileStream.pipe(res);
   } catch (error) {
-    console.error("Error getting user documents:", error);
-    return res.status(500).json({
-      message: "Failed to get documents",
-      error: error.message,
-    });
+    console.error('Error downloading document:', error);
+    res.status(500).json({ message: 'Failed to download document' });
   }
+};
+
+// Delete document
+const deleteDocument = async (req, res) => {
+  try {
+    const { documentId } = req.params;
+    const userId = req.user._id;
+
+    const document = await Document.findById(documentId);
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    // Only HR/Admin can delete documents (employees cannot delete their own documents)
+    if (!['hr', 'admin', 'superadmin'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Only HR/Admin can delete documents' });
+    }
+
+    // Delete file from filesystem
+    if (fs.existsSync(document.path)) {
+      fs.unlinkSync(document.path);
+    }
+
+    await Document.findByIdAndDelete(documentId);
+
+    res.json({ message: 'Document deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting document:', error);
+    res.status(500).json({ message: 'Failed to delete document' });
+  }
+};
+
+// Get all users' documents (for HR/Admin)
+const getAllDocuments = async (req, res) => {
+  try {
+    if (!['hr', 'admin', 'superadmin'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Insufficient permissions' });
+    }
+
+    const documents = await Document.find()
+      .populate('userId', 'name email department')
+      .populate('uploadedBy', 'name email')
+      .sort({ createdAt: -1 });
+
+    res.json(documents);
+  } catch (error) {
+    console.error('Error fetching all documents:', error);
+    res.status(500).json({ message: 'Failed to fetch documents' });
+  }
+};
+
+export {
+  upload,
+  uploadDocument,
+  uploadOfficialDocument,
+  getUserDocuments,
+  getOfficialDocuments,
+  downloadDocument,
+  deleteDocument,
+  getAllDocuments
 };

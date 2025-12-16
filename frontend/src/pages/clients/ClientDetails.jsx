@@ -9,6 +9,7 @@ import {
   ListGroup,
 } from "react-bootstrap";
 import { useParams, useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import {
   FaArrowLeft,
   FaEdit,
@@ -26,6 +27,7 @@ import { formatDate } from "../../utils/helpers";
 const ClientDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [client, setClient] = useState(null);
   const [projects, setProjects] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
@@ -50,9 +52,22 @@ const ClientDetails = () => {
 
   const fetchClientProjects = async () => {
     try {
-      const response = await projectApi.getAllProjects();
+      // Use appropriate API method based on user role
+      let response;
+      if (['admin', 'superadmin', 'hr', 'manager'].includes(user?.role)) {
+        // Admin roles can see all projects
+        response = await projectApi.getAllProjects();
+      } else if (user?.role === 'hod') {
+        // HoD sees their department's projects
+        response = await projectApi.getMyDepartmentProjects();
+      } else {
+        // Regular employees see only their assigned projects
+        response = await projectApi.getMyProjects();
+      }
+      
       // Filter projects for this client
-      const clientProjects = response.data.filter(
+      const allProjects = response.data || response.projects || response || [];
+      const clientProjects = allProjects.filter(
         (project) => project.client?._id === id || project.client === id
       );
       setProjects(clientProjects);

@@ -250,6 +250,214 @@ export const notifyWorkItemCompleted = async (workItem) => {
 };
 
 /**
+ * Send client won notification
+ * @param {Object} client - Client object
+ * @param {Object} wonBy - User who won the client
+ * @param {Object} projectDetails - Project details
+ */
+export const notifyClientWon = async (client, wonBy, projectDetails = {}) => {
+  try {
+    // Notify all HR, Admin, and SuperAdmin users
+    const recipients = await User.find({
+      role: { $in: ['hr', 'admin', 'superadmin'] }
+    });
+
+    const notifications = recipients.map(recipient => ({
+      recipient: recipient._id,
+      recipientType: "user",
+      type: "client_won",
+      title: "🎉 New Client Won!",
+      message: `${wonBy.name} successfully won ${client.name}${projectDetails.value ? ` worth ₹${projectDetails.value}` : ''}`,
+      link: `/clients/${client._id}`,
+      data: {
+        clientId: client._id,
+        wonBy: wonBy._id,
+        projectValue: projectDetails.value,
+        projectName: projectDetails.name,
+      },
+      createdBy: wonBy._id,
+      priority: "high",
+      icon: "celebration",
+      color: "#10B981",
+    }));
+
+    // Create all notifications
+    await Promise.all(notifications.map(notif => createNotification(notif)));
+  } catch (error) {
+    console.error("Error sending client won notification:", error);
+  }
+};
+
+/**
+ * Send new project notification
+ * @param {Object} project - Project object
+ * @param {Object} createdBy - User who created the project
+ */
+export const notifyNewProject = async (project, createdBy) => {
+  try {
+    await project.populate("client", "name");
+    await project.populate("projectHead", "name email");
+    await project.populate("teamMembers", "name email");
+
+    const notifications = [];
+
+    // Notify project head if different from creator
+    if (project.projectHead && project.projectHead._id.toString() !== createdBy._id.toString()) {
+      notifications.push({
+        recipient: project.projectHead._id,
+        recipientType: "user",
+        type: "new_project",
+        title: "New Project Assignment",
+        message: `You've been assigned as project head for "${project.name}" (${project.client.name})`,
+        link: `/projects/${project._id}`,
+        data: {
+          projectId: project._id,
+          clientId: project.client._id,
+          assignedBy: createdBy._id,
+        },
+        createdBy: createdBy._id,
+        priority: "high",
+        icon: "rocket_launch",
+        color: "#3B82F6",
+      });
+    }
+
+    // Notify team members
+    if (project.teamMembers && project.teamMembers.length > 0) {
+      project.teamMembers.forEach(member => {
+        if (member._id.toString() !== createdBy._id.toString()) {
+          notifications.push({
+            recipient: member._id,
+            recipientType: "user",
+            type: "new_project",
+            title: "Added to New Project",
+            message: `You've been added to project "${project.name}" (${project.client.name})`,
+            link: `/projects/${project._id}`,
+            data: {
+              projectId: project._id,
+              clientId: project.client._id,
+              assignedBy: createdBy._id,
+            },
+            createdBy: createdBy._id,
+            priority: "medium",
+            icon: "group_add",
+            color: "#8B5CF6",
+          });
+        }
+      });
+    }
+
+    // Create all notifications
+    await Promise.all(notifications.map(notif => createNotification(notif)));
+  } catch (error) {
+    console.error("Error sending new project notification:", error);
+  }
+};
+
+/**
+ * Send payment received notification
+ * @param {Object} payment - Payment object
+ * @param {Object} client - Client object
+ */
+export const notifyPaymentReceived = async (payment, client) => {
+  try {
+    // Notify accounts and admin users
+    const recipients = await User.find({
+      role: { $in: ['accounts', 'admin', 'superadmin'] }
+    });
+
+    const notifications = recipients.map(recipient => ({
+      recipient: recipient._id,
+      recipientType: "user",
+      type: "payment_received",
+      title: "💰 Payment Received",
+      message: `Payment of ₹${payment.amount} received from ${client.name}`,
+      link: `/admin/payments/${payment._id}`,
+      data: {
+        paymentId: payment._id,
+        clientId: client._id,
+        amount: payment.amount,
+      },
+      priority: "medium",
+      icon: "payments",
+      color: "#10B981",
+    }));
+
+    await Promise.all(notifications.map(notif => createNotification(notif)));
+  } catch (error) {
+    console.error("Error sending payment received notification:", error);
+  }
+};
+
+/**
+ * Send leave approved notification
+ * @param {Object} leave - Leave object
+ * @param {Object} approvedBy - User who approved the leave
+ */
+export const notifyLeaveApproved = async (leave, approvedBy) => {
+  try {
+    await leave.populate("employee", "name email");
+
+    const notification = {
+      recipient: leave.employee._id,
+      recipientType: "user",
+      type: "leave_approved",
+      title: "✅ Leave Approved",
+      message: `Your ${leave.leaveType} leave from ${new Date(leave.startDate).toLocaleDateString()} to ${new Date(leave.endDate).toLocaleDateString()} has been approved`,
+      link: `/employee/leaves`,
+      data: {
+        leaveId: leave._id,
+        approvedBy: approvedBy._id,
+        startDate: leave.startDate,
+        endDate: leave.endDate,
+      },
+      createdBy: approvedBy._id,
+      priority: "medium",
+      icon: "check_circle",
+      color: "#10B981",
+    };
+
+    await createNotification(notification);
+  } catch (error) {
+    console.error("Error sending leave approved notification:", error);
+  }
+};
+
+/**
+ * Send leave rejected notification
+ * @param {Object} leave - Leave object
+ * @param {Object} rejectedBy - User who rejected the leave
+ * @param {string} reason - Rejection reason
+ */
+export const notifyLeaveRejected = async (leave, rejectedBy, reason = '') => {
+  try {
+    await leave.populate("employee", "name email");
+
+    const notification = {
+      recipient: leave.employee._id,
+      recipientType: "user",
+      type: "leave_rejected",
+      title: "❌ Leave Rejected",
+      message: `Your ${leave.leaveType} leave request has been rejected${reason ? `: ${reason}` : ''}`,
+      link: `/employee/leaves`,
+      data: {
+        leaveId: leave._id,
+        rejectedBy: rejectedBy._id,
+        reason: reason,
+      },
+      createdBy: rejectedBy._id,
+      priority: "high",
+      icon: "cancel",
+      color: "#EF4444",
+    };
+
+    await createNotification(notification);
+  } catch (error) {
+    console.error("Error sending leave rejected notification:", error);
+  }
+};
+
+/**
  * Send comment notification
  * @param {Object} workItem - Work item object
  * @param {Object} comment - Comment object
@@ -359,6 +567,11 @@ export default {
   notifyStatusChanged,
   notifyWorkItemCompleted,
   notifyWorkItemCommented,
+  notifyClientWon,
+  notifyNewProject,
+  notifyPaymentReceived,
+  notifyLeaveApproved,
+  notifyLeaveRejected,
   checkDueSoonWorkItems,
   checkOverdueWorkItems,
 };

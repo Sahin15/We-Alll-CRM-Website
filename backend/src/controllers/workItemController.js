@@ -180,8 +180,19 @@ const createWorkItem = async (req, res) => {
       estimatedHours,
     } = req.body;
     
+    console.log('🔍 [DEBUG] Received work item data:', req.body);
+    console.log('🔍 [DEBUG] Required fields check:', { type, title, project, assignedTo, dueDate });
+    console.log('🔍 [DEBUG] User info:', { id: req.user._id, role: req.user.role, email: req.user.email });
+    
     // Validate required fields
     if (!type || !title || !project || !assignedTo || !dueDate) {
+      console.log('🔍 [DEBUG] Validation failed - missing fields:', {
+        type: !!type,
+        title: !!title,
+        project: !!project,
+        assignedTo: !!assignedTo,
+        dueDate: !!dueDate
+      });
       return res.status(400).json({
         success: false,
         error: {
@@ -266,9 +277,31 @@ const createWorkItem = async (req, res) => {
     
     // Check if user has permission to create work items for this project
     const isProjectHead = projectExists.projectHead?.toString() === req.user._id.toString();
+    
+    // Check both assignedUsers and teamMembers arrays
+    const isAssignedUser = projectExists.assignedUsers?.some(
+      userId => userId.toString() === req.user._id.toString()
+    );
+    const isTeamMember = projectExists.teamMembers?.some(
+      member => member.user?.toString() === req.user._id.toString()
+    );
+    
     const isAdmin = ["admin", "superadmin", "hod"].includes(req.user.role);
     
-    if (!isProjectHead && !isAdmin) {
+    console.log('🔍 [DEBUG] Authorization check:', {
+      userId: req.user._id.toString(),
+      userRole: req.user.role,
+      projectId: projectExists._id.toString(),
+      projectHead: projectExists.projectHead?.toString(),
+      assignedUsers: projectExists.assignedUsers?.map(id => id.toString()),
+      teamMembers: projectExists.teamMembers?.map(member => member.user?.toString()),
+      isProjectHead,
+      isAssignedUser,
+      isTeamMember,
+      isAdmin
+    });
+    
+    if (!isProjectHead && !isAssignedUser && !isTeamMember && !isAdmin) {
       // Log security event
       logSecurityEvent("UNAUTHORIZED_ACCESS_ATTEMPT", {
         userId: req.user._id.toString(),
@@ -282,7 +315,7 @@ const createWorkItem = async (req, res) => {
         success: false,
         error: {
           code: "FORBIDDEN",
-          message: "You don't have permission to create work items for this project",
+          message: "You don't have permission to create work items for this project. You must be assigned to the project.",
         },
       });
     }
@@ -329,6 +362,16 @@ const createWorkItem = async (req, res) => {
     await workItem.populate("project", "name client");
     await workItem.populate("assignedTo", "name email");
     await workItem.populate("createdBy", "name email");
+    
+    // Auto-sync to work calendar
+    try {
+      const { createWorkCalendarEntry } = await import('./workCalendarController.js');
+      await createWorkCalendarEntry(workItem);
+      console.log(`✅ Auto-synced work item ${workItem._id} to calendar`);
+    } catch (syncError) {
+      console.error('⚠️ Failed to auto-sync work item to calendar:', syncError);
+      // Don't fail the work item creation if calendar sync fails
+    }
     
     // Update project progress automatically
     await syncProjectProgress(project);

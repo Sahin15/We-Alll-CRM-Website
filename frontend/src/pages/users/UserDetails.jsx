@@ -65,10 +65,10 @@ const UserDetails = () => {
 
   const formatDate = (date) => {
     if (!date) return "N/A";
-    return new Date(date).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric"
+    return new Date(date).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric"
     });
   };
 

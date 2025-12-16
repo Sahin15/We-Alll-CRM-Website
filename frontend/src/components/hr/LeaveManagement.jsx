@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import {
   Card,
-  Table,
   Badge,
   Button,
   Modal,
@@ -19,24 +18,31 @@ import {
   FaSearch,
   FaFilter,
   FaCalendarAlt,
-  FaUser
+  FaUser,
+  FaChevronDown,
+  FaChevronUp
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import leaveApi from "../../api/leaveApi";
+import LeaveRequestCard from "../leaves/LeaveRequestCard";
+import "../../pages/leaves/LeaveManagement.css";
 
 const LeaveManagement = () => {
   const [leaves, setLeaves] = useState([]);
   const [filteredLeaves, setFilteredLeaves] = useState([]);
+  const [displayedLeaves, setDisplayedLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState(null);
   const [actionType, setActionType] = useState(""); // 'approve' or 'reject'
   const [comment, setComment] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [showMore, setShowMore] = useState(false);
+  const [itemsToShow, setItemsToShow] = useState(9); // Show 9 items initially (3x3 grid)
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("pending"); // Default to pending
   const [leaveTypeFilter, setLeaveTypeFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
 
@@ -55,6 +61,24 @@ const LeaveManagement = () => {
   useEffect(() => {
     applyFilters();
   }, [leaves, searchTerm, statusFilter, leaveTypeFilter, dateFilter]);
+
+  useEffect(() => {
+    updateDisplayedLeaves();
+  }, [filteredLeaves, itemsToShow]);
+
+  const updateDisplayedLeaves = () => {
+    // Sort by priority: pending first, then by creation date (newest first)
+    const sortedLeaves = [...filteredLeaves].sort((a, b) => {
+      // Pending leaves first
+      if (a.status === 'pending' && b.status !== 'pending') return -1;
+      if (b.status === 'pending' && a.status !== 'pending') return 1;
+      
+      // Then by creation date (newest first)
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+    
+    setDisplayedLeaves(sortedLeaves.slice(0, itemsToShow));
+  };
 
   const fetchLeaves = async () => {
     try {
@@ -144,10 +168,10 @@ const LeaveManagement = () => {
       
       if (actionType === "approve") {
         await leaveApi.approveLeave(selectedLeave._id, comment);
-        toast.success("Leave request approved successfully");
+        toast.success(`Leave approved for ${selectedLeave.employee?.name || 'employee'}`);
       } else if (actionType === "reject") {
         await leaveApi.rejectLeave(selectedLeave._id, comment);
-        toast.success("Leave request rejected");
+        toast.success(`Leave rejected for ${selectedLeave.employee?.name || 'employee'}`);
       }
 
       setShowModal(false);
@@ -156,10 +180,19 @@ const LeaveManagement = () => {
       fetchLeaves();
     } catch (error) {
       console.error("Error processing leave:", error);
-      toast.error(error.response?.data?.message || "Failed to process leave request");
+      const errorMessage = error.response?.data?.message || "Failed to process leave request";
+      toast.error(errorMessage);
     } finally {
       setProcessing(false);
     }
+  };
+
+  const handleShowMore = () => {
+    setItemsToShow(prev => prev + 9);
+  };
+
+  const handleShowLess = () => {
+    setItemsToShow(9);
   };
 
   const getStatusBadge = (status) => {
@@ -215,12 +248,62 @@ const LeaveManagement = () => {
     <>
       <Card className="border-0 shadow-sm mb-4">
         <Card.Header className="bg-white py-3">
-          <h5 className="mb-0">
-            <FaCalendarAlt className="me-2 text-primary" />
-            Leave Management
-          </h5>
+          <div className="d-flex justify-content-between align-items-center">
+            <div>
+              <h5 className="mb-0">
+                <FaCalendarAlt className="me-2 text-primary" />
+                Leave Management
+              </h5>
+              <small className="text-muted">Recent leave requests requiring attention</small>
+            </div>
+            <Badge bg="info" className="px-3 py-2">
+              {statusFilter === 'pending' ? 'Pending Requests' : 
+               statusFilter === '' ? 'All Requests' : 
+               statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}
+            </Badge>
+          </div>
         </Card.Header>
         <Card.Body>
+          {/* Quick Actions */}
+          <Row className="mb-3">
+            <Col>
+              <div className="d-flex gap-2 flex-wrap">
+                <Button 
+                  variant={statusFilter === 'pending' ? 'primary' : 'outline-primary'}
+                  size="sm"
+                  onClick={() => setStatusFilter('pending')}
+                >
+                  <FaFilter className="me-1" />
+                  Pending ({stats.pending})
+                </Button>
+                <Button 
+                  variant={statusFilter === '' ? 'primary' : 'outline-primary'}
+                  size="sm"
+                  onClick={() => setStatusFilter('')}
+                >
+                  <FaCalendarAlt className="me-1" />
+                  All Requests ({stats.total})
+                </Button>
+                <Button 
+                  variant={statusFilter === 'approved' ? 'success' : 'outline-success'}
+                  size="sm"
+                  onClick={() => setStatusFilter('approved')}
+                >
+                  <FaCheck className="me-1" />
+                  Approved ({stats.approved})
+                </Button>
+                <Button 
+                  variant={statusFilter === 'rejected' ? 'danger' : 'outline-danger'}
+                  size="sm"
+                  onClick={() => setStatusFilter('rejected')}
+                >
+                  <FaTimes className="me-1" />
+                  Rejected ({stats.rejected})
+                </Button>
+              </div>
+            </Col>
+          </Row>
+
           {/* Statistics */}
           <Row className="mb-4">
             <Col md={3}>
@@ -307,86 +390,71 @@ const LeaveManagement = () => {
             </Col>
           </Row>
 
-          {/* Leave Requests Table */}
+          {/* Leave Requests Grid */}
           {filteredLeaves.length > 0 ? (
-            <div className="table-responsive">
-              <Table hover>
-                <thead className="bg-light">
-                  <tr>
-                    <th>Employee</th>
-                    <th>Type</th>
-                    <th>Dates</th>
-                    <th>Days</th>
-                    <th>Reason</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredLeaves.map((leave) => (
-                    <tr key={leave._id}>
-                      <td>
-                        <div className="d-flex align-items-center">
-                          <FaUser className="text-muted me-2" />
-                          <div>
-                            <div className="fw-bold">{leave.employee?.name || "N/A"}</div>
-                            <small className="text-muted">{leave.employee?.email}</small>
-                          </div>
-                        </div>
-                      </td>
-                      <td>{getLeaveTypeBadge(leave.leaveType)}</td>
-                      <td>
-                        <small>
-                          {formatDate(leave.startDate)} <br />
-                          to {formatDate(leave.endDate)}
-                        </small>
-                      </td>
-                      <td>
-                        <Badge bg="secondary">
-                          {calculateDays(leave.startDate, leave.endDate)} days
-                        </Badge>
-                      </td>
-                      <td>
-                        <small className="text-muted">
-                          {leave.reason?.substring(0, 30)}
-                          {leave.reason?.length > 30 ? "..." : ""}
-                        </small>
-                      </td>
-                      <td>{getStatusBadge(leave.status)}</td>
-                      <td>
-                        <div className="d-flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline-primary"
-                            onClick={() => handleViewDetails(leave)}
-                          >
-                            <FaEye />
-                          </Button>
-                          {leave.status === "pending" && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline-success"
-                                onClick={() => handleApprove(leave)}
-                              >
-                                <FaCheck />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline-danger"
-                                onClick={() => handleReject(leave)}
-                              >
-                                <FaTimes />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </div>
+            <>
+              <div className="leave-requests-grid mb-4">
+                {displayedLeaves.map((leave) => (
+                  <LeaveRequestCard
+                    key={leave._id}
+                    leave={leave}
+                    isAdmin={true}
+                    currentUserId={null} // HR view, not personal
+                    onApprove={handleApprove}
+                    onReject={handleReject}
+                    onApproveReject={handleViewDetails}
+                    onCancel={() => {}} // No cancel for HR view
+                    getStatusColor={(status) => {
+                      const colors = {
+                        pending: 'warning',
+                        approved: 'success',
+                        rejected: 'danger',
+                        cancelled: 'secondary'
+                      };
+                      return colors[status] || 'secondary';
+                    }}
+                    getLeaveTypeColor={(type) => {
+                      const colors = {
+                        vacation: 'primary',
+                        sick: 'danger',
+                        personal: 'info',
+                        maternity: 'success',
+                        paternity: 'success',
+                        unpaid: 'secondary'
+                      };
+                      return colors[type] || 'secondary';
+                    }}
+                  />
+                ))}
+              </div>
+              
+              {/* Show More/Less Controls */}
+              {filteredLeaves.length > 9 && (
+                <div className="text-center">
+                  {displayedLeaves.length < filteredLeaves.length ? (
+                    <Button 
+                      variant="outline-primary" 
+                      onClick={handleShowMore}
+                      className="me-2"
+                    >
+                      <FaChevronDown className="me-2" />
+                      Show More ({filteredLeaves.length - displayedLeaves.length} remaining)
+                    </Button>
+                  ) : (
+                    <Button 
+                      variant="outline-secondary" 
+                      onClick={handleShowLess}
+                    >
+                      <FaChevronUp className="me-2" />
+                      Show Less
+                    </Button>
+                  )}
+                  <div className="small text-muted mt-2">
+                    Showing {displayedLeaves.length} of {filteredLeaves.length} leave requests
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <Alert variant="info" className="text-center">
               <FaCalendarAlt className="fs-1 mb-3 opacity-25" />

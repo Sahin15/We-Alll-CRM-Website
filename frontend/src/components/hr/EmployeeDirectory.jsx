@@ -181,13 +181,24 @@ const EmployeeDirectory = () => {
                       </Badge>
                     </td>
                     <td>
-                      <Button
-                        variant="outline-primary"
-                        size="sm"
-                        onClick={() => navigate(`/users/${emp._id}`)}
-                      >
-                        <FaEye />
-                      </Button>
+                      <div className="d-flex gap-1">
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          onClick={() => navigate(`/users/${emp._id}`)}
+                          title="View Details"
+                        >
+                          <FaEye />
+                        </Button>
+                        <Button
+                          variant="outline-success"
+                          size="sm"
+                          onClick={() => navigate(`/employees/${emp._id}/profile`)}
+                          title="Manage Profile"
+                        >
+                          <FaUser />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}

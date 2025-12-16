@@ -21,7 +21,7 @@ import {
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { attendanceApi } from "../../api/attendanceApi";
-import { formatDate, formatDateTime, getStatusVariant } from "../../utils/helpers";
+import { formatDate, formatDateTime, formatTime, getStatusVariant } from "../../utils/helpers";
 import ConfirmModal from "../../components/common/ConfirmModal";
 import * as XLSX from "xlsx";
 import "../../styles/table-mobile.css";
@@ -249,13 +249,13 @@ const MyAttendance = () => {
                   <Row>
                     <Col>
                       <p className="mb-1 text-muted">Clock In</p>
-                      <h6>{formatDateTime(todayAttendance.clockIn)}</h6>
+                      <h6>{formatTime(todayAttendance.clockIn)}</h6>
                     </Col>
                     {todayAttendance.clockOut && (
                       <>
                         <Col>
                           <p className="mb-1 text-muted">Clock Out</p>
-                          <h6>{formatDateTime(todayAttendance.clockOut)}</h6>
+                          <h6>{formatTime(todayAttendance.clockOut)}</h6>
                         </Col>
                         <Col>
                           <p className="mb-1 text-muted">Hours Worked</p>
@@ -417,10 +417,10 @@ const MyAttendance = () => {
                       attendances.map((attendance) => (
                         <tr key={attendance._id}>
                           <td className="date-cell">{formatDate(attendance.date)}</td>
-                          <td>{formatDateTime(attendance.clockIn)}</td>
+                          <td>{formatTime(attendance.clockIn)}</td>
                           <td>
                             {attendance.clockOut
-                              ? formatDateTime(attendance.clockOut)
+                              ? formatTime(attendance.clockOut)
                               : <Badge bg="warning">In Progress</Badge>}
                           </td>
                           <td>{attendance.workHours || 0} hrs</td>

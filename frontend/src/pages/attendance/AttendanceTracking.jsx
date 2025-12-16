@@ -15,6 +15,31 @@ import "../../styles/table-mobile.css";
 
 const AttendanceTracking = () => {
   const { user } = useAuth();
+  
+  // Add CSS for dropdown visibility
+  const dropdownStyles = `
+    .attendance-dropdown-container {
+      position: relative !important;
+      z-index: 9999 !important;
+    }
+    .attendance-dropdown {
+      position: absolute !important;
+      top: 100% !important;
+      left: 0 !important;
+      right: 0 !important;
+      z-index: 9999 !important;
+      background: white !important;
+      border: 1px solid #dee2e6 !important;
+      border-radius: 0.375rem !important;
+      box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+      max-height: 300px !important;
+      overflow-y: auto !important;
+      margin-top: 0.25rem !important;
+    }
+    .attendance-dropdown-item:hover {
+      background-color: #f8f9fa !important;
+    }
+  `;
   const [attendances, setAttendances] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -146,8 +171,22 @@ const AttendanceTracking = () => {
     }
   };
 
-  const handleApplyFilters = () => {
-    fetchAttendances();
+  const handleApplyFilters = async () => {
+    try {
+      setLoading(true);
+      const params = {};
+      if (filters.employee) params.employee = filters.employee;
+      if (filters.status) params.status = filters.status;
+      if (filters.startDate) params.startDate = filters.startDate;
+      if (filters.endDate) params.endDate = filters.endDate;
+
+      const response = await attendanceApi.getAllAttendance(params);
+      setAttendances(response.data);
+    } catch (error) {
+      toast.error("Failed to fetch attendance records");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleQuickFilter = (type) => {
@@ -183,9 +222,27 @@ const AttendanceTracking = () => {
     }
 
     setActiveFilter(type); // Set active filter
-    setFilters({ ...filters, startDate, endDate });
-    // Auto-apply after setting
-    setTimeout(() => fetchAttendances(), 100);
+    const newFilters = { ...filters, startDate, endDate };
+    setFilters(newFilters);
+    
+    // Make API call with new filters directly (avoid timing issues)
+    setTimeout(async () => {
+      try {
+        setLoading(true);
+        const params = {};
+        if (newFilters.employee) params.employee = newFilters.employee;
+        if (newFilters.status) params.status = newFilters.status;
+        if (newFilters.startDate) params.startDate = newFilters.startDate;
+        if (newFilters.endDate) params.endDate = newFilters.endDate;
+
+        const response = await attendanceApi.getAllAttendance(params);
+        setAttendances(response.data);
+      } catch (error) {
+        toast.error("Failed to fetch attendance records");
+      } finally {
+        setLoading(false);
+      }
+    }, 100);
   };
 
   // Calculate statistics for selected employee
@@ -269,7 +326,9 @@ const AttendanceTracking = () => {
   };
 
   return (
-    <Container fluid>
+    <>
+      <style>{dropdownStyles}</style>
+      <Container fluid>
       <Row className="mb-4">
         <Col>
           <h2>Attendance Tracking</h2>
@@ -278,8 +337,8 @@ const AttendanceTracking = () => {
 
       <Row className="mb-4">
         <Col>
-          <Card>
-            <Card.Body>
+          <Card style={{ overflow: 'visible' }}>
+            <Card.Body style={{ overflow: 'visible' }}>
               {/* Quick Filter Buttons */}
               <Row className="mb-3">
                 <Col>
@@ -312,11 +371,11 @@ const AttendanceTracking = () => {
                 </Col>
               </Row>
               <hr />
-              <Row className="g-3">
-                <Col md={3}>
-                  <Form.Group>
+              <Row className="g-3" style={{ position: 'relative', zIndex: 1 }}>
+                <Col md={3} style={{ position: 'relative', zIndex: 10 }}>
+                  <Form.Group style={{ position: 'relative', zIndex: 10 }}>
                     <Form.Label>Employee</Form.Label>
-                    <div className="position-relative">
+                    <div className="position-relative attendance-dropdown-container">
                       <Form.Control
                         type="text"
                         placeholder={
@@ -331,17 +390,13 @@ const AttendanceTracking = () => {
                         autoComplete="off"
                       />
                       {showDropdown && (
-                        <div 
-                          className="position-absolute w-100 bg-white border rounded shadow-sm mt-1" 
-                          style={{ 
-                            maxHeight: '300px', 
-                            overflowY: 'auto', 
-                            zIndex: 1000 
-                          }}
-                        >
+                        <div className="attendance-dropdown w-100">
                           <div 
-                            className="p-2 border-bottom bg-light cursor-pointer hover-bg-primary"
-                            style={{ cursor: 'pointer' }}
+                            className="p-2 border-bottom bg-light attendance-dropdown-item"
+                            style={{ 
+                              cursor: 'pointer',
+                              transition: 'background-color 0.2s ease'
+                            }}
                             onClick={() => {
                               setFilters({ ...filters, employee: '' });
                               setSearchTerm("");
@@ -355,8 +410,11 @@ const AttendanceTracking = () => {
                             filteredUsers.map((user) => (
                               <div
                                 key={user._id}
-                                className="p-2 border-bottom cursor-pointer"
-                                style={{ cursor: 'pointer' }}
+                                className="p-2 border-bottom attendance-dropdown-item"
+                                style={{ 
+                                  cursor: 'pointer',
+                                  transition: 'background-color 0.2s ease'
+                                }}
                                 onClick={() => {
                                   setFilters({ ...filters, employee: user._id });
                                   setSearchTerm("");
@@ -444,16 +502,32 @@ const AttendanceTracking = () => {
                 <Col md={12} className="d-flex justify-content-end gap-2">
                   <button
                     className="btn btn-secondary"
-                    onClick={() => {
+                    onClick={async () => {
                       setSearchTerm("");
-                      setFilters({
+                      const clearedFilters = {
                         employee: "",
                         status: "",
                         startDate: getTodayDate(),
                         endDate: getTodayDate(),
-                      });
+                      };
+                      setFilters(clearedFilters);
                       setActiveFilter('today');
-                      fetchAttendances();
+                      
+                      // Make API call with cleared filters directly
+                      try {
+                        setLoading(true);
+                        const params = {};
+                        if (clearedFilters.startDate) params.startDate = clearedFilters.startDate;
+                        if (clearedFilters.endDate) params.endDate = clearedFilters.endDate;
+                        // Note: no employee parameter since we're clearing filters
+                        
+                        const response = await attendanceApi.getAllAttendance(params);
+                        setAttendances(response.data);
+                      } catch (error) {
+                        toast.error("Failed to fetch attendance records");
+                      } finally {
+                        setLoading(false);
+                      }
                     }}
                   >
                     Clear Filters
@@ -745,6 +819,7 @@ const AttendanceTracking = () => {
         employee={selectedEmployee}
       />
     </Container>
+    </>
   );
 };
 

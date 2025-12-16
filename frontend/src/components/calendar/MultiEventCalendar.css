@@ -1,0 +1,318 @@
+/* Enhanced Calendar Styles for Multiple Events */
+
+/* Calendar Container */
+.employee-work-calendar .rbc-calendar {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Event Styling */
+.rbc-event {
+  border-radius: 4px !important;
+  border: none !important;
+  padding: 2px 6px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  margin-bottom: 1px !important;
+}
+
+/* Multiple Events on Same Day */
+.rbc-day-slot .rbc-events-container {
+  margin-right: 10px;
+}
+
+.rbc-event-content {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Event Icons */
+.rbc-event .event-icon {
+  margin-right: 4px;
+  font-size: 10px;
+}
+
+/* Time Display in Events */
+.rbc-event .event-time {
+  font-size: 10px;
+  opacity: 0.8;
+  margin-left: 4px;
+}
+
+/* Priority-based Event Styling */
+.rbc-event.priority-urgent {
+  background-color: #dc3545 !important;
+  border-left: 4px solid #a71e2a !important;
+}
+
+.rbc-event.priority-high {
+  background-color: #fd7e14 !important;
+  border-left: 4px solid #e55a00 !important;
+}
+
+.rbc-event.priority-medium {
+  background-color: #0d6efd !important;
+  border-left: 4px solid #0a58ca !important;
+}
+
+.rbc-event.priority-low {
+  background-color: #198754 !important;
+  border-left: 4px solid #146c43 !important;
+}
+
+/* Status-based Event Styling */
+.rbc-event.status-completed {
+  opacity: 0.7;
+  text-decoration: line-through;
+}
+
+.rbc-event.status-overdue {
+  background-color: #dc3545 !important;
+  animation: pulse 2s infinite;
+}
+
+.rbc-event.status-in-progress {
+  border-left: 4px solid #ffc107 !important;
+}
+
+/* Work Type Icons */
+.rbc-event.work-type-meeting::before {
+  content: '👥 ';
+}
+
+.rbc-event.work-type-deadline::before {
+  content: '⏰ ';
+}
+
+.rbc-event.work-type-review::before {
+  content: '📝 ';
+}
+
+.rbc-event.work-type-presentation::before {
+  content: '📊 ';
+}
+
+.rbc-event.work-type-training::before {
+  content: '🎓 ';
+}
+
+.rbc-event.work-type-client-call::before {
+  content: '📞 ';
+}
+
+/* All-day Events */
+.rbc-allday-cell .rbc-event {
+  margin-bottom: 2px;
+  height: auto;
+  min-height: 20px;
+}
+
+/* Month View Enhancements */
+.rbc-month-view .rbc-event {
+  font-size: 11px !important;
+  padding: 1px 4px !important;
+}
+
+.rbc-month-view .rbc-date-cell {
+  padding: 2px;
+}
+
+/* Week/Day View Enhancements */
+.rbc-time-view .rbc-event {
+  font-size: 12px !important;
+  padding: 2px 6px !important;
+}
+
+/* Event Overlap Handling */
+.rbc-addons-dnd .rbc-event {
+  cursor: pointer;
+}
+
+.rbc-event:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  transition: all 0.2s ease;
+}
+
+/* Multiple Events Stacking */
+.rbc-row-content {
+  z-index: 4;
+}
+
+.rbc-show-more {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  color: #6c757d;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.rbc-show-more:hover {
+  background-color: #e9ecef;
+  color: #495057;
+}
+
+/* Popup for Multiple Events */
+.rbc-overlay {
+  background-color: white;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  max-width: 300px;
+}
+
+.rbc-overlay-header {
+  font-weight: 600;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+/* Estimated Hours Display */
+.event-hours {
+  font-size: 10px;
+  background-color: rgba(255, 255, 255, 0.2);
+  padding: 1px 4px;
+  border-radius: 2px;
+  margin-left: 4px;
+}
+
+/* Remote Work Indicator */
+.rbc-event.remote-work::after {
+  content: '🏠';
+  font-size: 10px;
+  margin-left: 4px;
+}
+
+/* Animation for Overdue Items */
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .rbc-event {
+    font-size: 10px !important;
+    padding: 1px 3px !important;
+  }
+  
+  .rbc-event-content {
+    max-width: 120px;
+  }
+  
+  .event-hours {
+    display: none;
+  }
+}
+
+/* Calendar Navigation */
+.rbc-toolbar {
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+}
+
+.rbc-toolbar button {
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+  background-color: white;
+  color: #495057;
+  padding: 6px 12px;
+  margin: 0 2px;
+}
+
+.rbc-toolbar button:hover {
+  background-color: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.rbc-toolbar button.rbc-active {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+  color: white;
+}
+
+/* Today Button */
+.rbc-btn-group button {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Month/Week/Day View Buttons */
+.rbc-toolbar-label {
+  font-size: 18px;
+  font-weight: 600;
+  color: #212529;
+}
+
+/* Time Slots */
+.rbc-time-slot {
+  border-top: 1px solid #f1f3f4;
+}
+
+.rbc-time-slot:hover {
+  background-color: #f8f9fa;
+}
+
+/* Current Time Indicator */
+.rbc-current-time-indicator {
+  background-color: #dc3545;
+  height: 2px;
+  z-index: 3;
+}
+
+/* Weekend Styling */
+.rbc-off-range-bg {
+  background-color: #f8f9fa;
+}
+
+/* Today Highlighting */
+.rbc-today {
+  background-color: #fff3cd;
+}
+
+/* Event Creation Hint */
+.calendar-creation-hint {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: rgba(13, 110, 253, 0.1);
+  color: #0d6efd;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  border: 1px solid rgba(13, 110, 253, 0.2);
+  z-index: 10;
+}
+
+/* Loading State */
+.calendar-loading {
+  position: relative;
+}
+
+.calendar-loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}

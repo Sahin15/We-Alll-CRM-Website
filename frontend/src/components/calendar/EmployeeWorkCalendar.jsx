@@ -5,8 +5,10 @@ import moment from 'moment';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import workCalendarApi from '../../api/workCalendarApi';
+import UnifiedWorkCreationModal from '../work/UnifiedWorkCreationModal';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './EmployeeWorkCalendar.css';
+import './MultiEventCalendar.css';
 
 const localizer = momentLocalizer(moment);
 
@@ -23,6 +25,7 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showEventModal, setShowEventModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedDateForCreate, setSelectedDateForCreate] = useState(null);
   const [filters, setFilters] = useState({
     status: 'all',
     workType: 'all',
@@ -31,11 +34,15 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
     view: 'calendar'
   });
 
-  const currentEmployeeId = employeeId || user?.id;
+  const currentEmployeeId = employeeId || user?.id || user?._id;
 
   useEffect(() => {
+
+    
     if (currentEmployeeId) {
       loadEmployeeWorkCalendar();
+    } else {
+      setLoading(false);
     }
   }, [currentEmployeeId, selectedDate, filters]);
 
@@ -43,77 +50,23 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
     try {
       setLoading(true);
       
-
-      
-      // Test: Check if APIs are working
-      try {
-        // Test work calendar API with detailed diagnostics
-        const testResponse = await fetch('http://localhost:5000/api/work-calendar/test', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        const testData = await testResponse.json();
-
-        
-        if (testData.workItemsCount === 0) {
-          toast.info('No work items found in "My Work". Please create some work items first.');
-
-        } else {
-
-          
-          // If work items exist, test the sync
-          const syncTestResponse = await fetch('http://localhost:5000/api/work-calendar/sync-my-work', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`,
-              'Content-Type': 'application/json'
-            }
-          });
-          const syncTestData = await syncTestResponse.json();
-
-          
-          if (syncTestData.success) {
-            if (syncTestData.data.syncedCount > 0) {
-              toast.success(`✅ Synced ${syncTestData.data.syncedCount} work items to calendar!`);
-            } else if (syncTestData.data.skippedCount > 0) {
-              toast.info(`ℹ️ ${syncTestData.data.skippedCount} work items already in calendar`);
-            }
-          }
-        }
-      } catch (testError) {
-        console.error('❌ API Test Failed:', testError);
-        toast.error('Failed to connect to work calendar API');
-      }
+      console.log('🔄 Loading work calendar for employee:', currentEmployeeId);
+      console.log('📅 Current user:', user);
+      console.log('🎯 Filters:', filters);
       
       // Calculate date range based on current view
       const startDate = moment(selectedDate).startOf('month').subtract(1, 'week').toDate();
       const endDate = moment(selectedDate).endOf('month').add(1, 'week').toDate();
       
-
-      
-      // First, trigger sync to ensure work items are in calendar
-      if (currentEmployeeId === user?.id) {
-
-        try {
-          const syncResponse = await workCalendarApi.syncMyWorkItemsToCalendar();
-
-          if (syncResponse.data.syncedCount > 0) {
-            toast.success(`Synced ${syncResponse.data.syncedCount} work items to calendar`);
-          }
-        } catch (syncError) {
-          console.error('Sync failed:', syncError);
-          toast.error(`Sync failed: ${syncError.response?.data?.message || syncError.message}`);
-        }
-      }
-      
+      console.log('📆 Date range:', { startDate, endDate });
 
       const response = await workCalendarApi.getEmployeeWorkCalendar(currentEmployeeId, {
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
         ...filters
       });
+      
+      console.log('✅ API Response received:', response);
       
 
       
@@ -143,13 +96,15 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
       }
       
       setCalendarData(actualData);
+      console.log('📊 Calendar data set:', actualData);
       
       // Force a re-render to ensure calendar updates
       setTimeout(() => {
-
+        console.log('🔄 Calendar re-render triggered');
       }, 100);
     } catch (error) {
-      console.error('Error loading employee work calendar:', error);
+      console.error('❌ Error loading employee work calendar:', error);
+      console.error('❌ Error details:', error.response);
       toast.error(`Failed to load work calendar: ${error.response?.data?.message || error.message}`);
     } finally {
       setLoading(false);
@@ -203,15 +158,32 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
         };
       } else {
         // Transform raw work calendar entry
-        const sourceIndicator = entry.isAutoGenerated && entry.sourceModel === 'WorkItem' ? '📋 ' : '';
+        const sourceIndicator = entry.isAutoGenerated && entry.sourceModel === 'WorkItem' ? '📋 ' : '📅 ';
         const projectInfo = entry.project?.name ? ` (${entry.project.name})` : '';
+        const timeInfo = entry.timeTracking?.estimatedHours ? ` [${entry.timeTracking.estimatedHours}h]` : '';
+        
+        // For work items, check if this should be an all-day event
+        const isWorkItem = entry.isAutoGenerated && entry.sourceModel === 'WorkItem';
+        const shouldBeAllDay = isWorkItem || entry.isAllDay;
+        
+        let startDate, endDate;
+        
+        if (shouldBeAllDay && isWorkItem) {
+          // For work items, use the due date as an all-day event
+          const dueDate = new Date(entry.dueDate);
+          startDate = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+          endDate = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate() + 1);
+        } else {
+          startDate = new Date(entry.startDate);
+          endDate = new Date(entry.endDate);
+        }
         
         const event = {
           id: entry._id,
-          title: `${sourceIndicator}${entry.title}${projectInfo}`,
-          start: new Date(entry.startDate),
-          end: new Date(entry.endDate),
-          allDay: entry.isAllDay || false,
+          title: `${sourceIndicator}${entry.title}${projectInfo}${timeInfo}`,
+          start: startDate,
+          end: endDate,
+          allDay: shouldBeAllDay,
           resource: entry,
         };
         
@@ -254,6 +226,14 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
     const backgroundColor = getStatusColor(resource.status);
     const borderColor = getPriorityColor(resource.priority);
     
+    // Build CSS classes for enhanced styling
+    const cssClasses = [
+      `priority-${resource.priority}`,
+      `status-${resource.status}`,
+      `work-type-${resource.workType}`,
+      resource.isRemote ? 'remote-work' : '',
+    ].filter(Boolean).join(' ');
+    
     return {
       style: {
         backgroundColor,
@@ -264,19 +244,36 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
         opacity: resource.status === 'completed' ? 0.7 : 1,
         color: 'white',
         display: 'block',
+        fontSize: '12px',
+        fontWeight: '500',
       },
+      className: cssClasses,
     };
   };
 
-  const handleCreateWork = () => {
+  const handleCreateWork = (selectedDate = null) => {
+    setSelectedDateForCreate(selectedDate || new Date());
     setShowCreateModal(true);
+  };
+
+  const handleSlotSelect = (slotInfo) => {
+    // When user clicks on a calendar slot, open create modal with that date
+    handleCreateWork(slotInfo.start);
   };
 
   const handleSyncWorkItems = async () => {
     try {
       setLoading(true);
       const response = await workCalendarApi.syncMyWorkItemsToCalendar();
-      toast.success(`Sync completed! ${response.data.syncedCount} new entries added.`);
+      
+      if (response.data.syncedCount > 0) {
+        toast.success(`✅ Synced ${response.data.syncedCount} new work items to calendar!`);
+      } else if (response.data.skippedCount > 0) {
+        toast.info(`📅 All work items are already synced (${response.data.skippedCount} items up to date)`);
+      } else {
+        toast.info('📋 No work items found to sync');
+      }
+      
       loadEmployeeWorkCalendar();
     } catch (error) {
       console.error('Error syncing work items:', error);
@@ -298,12 +295,40 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
     }
   };
 
+  // Debug info
+  if (!user) {
+    return (
+      <div className="text-center py-5">
+        <div className="alert alert-warning">
+          <strong>⚠️ Authentication Issue:</strong> No user context available. Please refresh the page or log in again.
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentEmployeeId) {
+    return (
+      <div className="text-center py-5">
+        <div className="alert alert-warning">
+          <strong>⚠️ User ID Issue:</strong> No employee ID available. 
+          <br />User: {user?.name} ({user?.role})
+          <br />User ID: {user?.id || user?._id}
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="text-center py-5">
         <Spinner animation="border" role="status">
           <span className="visually-hidden">Loading...</span>
         </Spinner>
+        <div className="mt-3">
+          <small className="text-muted">
+            Loading calendar for: {user?.name} (ID: {currentEmployeeId})
+          </small>
+        </div>
       </div>
     );
   }
@@ -311,7 +336,17 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
   if (!calendarData) {
     return (
       <div className="text-center py-5">
-        <p>No work calendar data available</p>
+        <div className="alert alert-info">
+          <strong>📅 No Calendar Data:</strong> No work calendar data available for {user?.name}.
+          <br />
+          <Button 
+            variant="primary" 
+            className="mt-2"
+            onClick={loadEmployeeWorkCalendar}
+          >
+            Try Loading Again
+          </Button>
+        </div>
       </div>
     );
   }
@@ -324,14 +359,14 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
           <div className="d-flex justify-content-between align-items-center">
             <div>
               <h2>
-                {currentEmployeeId === user?.id ? 'My Work Calendar' : `${calendarData.employee?.name}'s Work Calendar`}
+                {currentEmployeeId === (user?.id || user?._id) ? 'My Work Calendar' : `${calendarData.employee?.name}'s Work Calendar`}
               </h2>
               <p className="text-muted mb-0">
                 {calendarData?.analytics?.totalWork || 0} total work entries • 
                 {calendarData?.analytics?.completedWork || 0} completed • 
                 {calendarData?.analytics?.overdueWork || 0} overdue
               </p>
-              {currentEmployeeId === user?.id && (
+              {currentEmployeeId === (user?.id || user?._id) && (
                 <div className="mt-1">
                   <small className="text-info d-block">
                     📅 Your work items from "My Work" are automatically synced to this calendar
@@ -362,7 +397,7 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
                 </Dropdown.Menu>
               </Dropdown>
               
-              {currentEmployeeId === user?.id && (
+              {currentEmployeeId === (user?.id || user?._id) && (
                 <>
                   <Button 
                     variant="success" 
@@ -398,13 +433,14 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
               >
                 Refresh
               </Button>
+
             </div>
           </div>
         </Col>
       </Row>
 
       {/* Integration Status */}
-      {currentEmployeeId === user?.id && (
+      {currentEmployeeId === (user?.id || user?._id) && (
         <Row className="mb-3">
           <Col>
             <div className={`alert py-2 mb-0 ${calendarData ? 'alert-info' : 'alert-warning'}`}>
@@ -448,17 +484,17 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
       {/* Filters */}
       <Row className="mb-3">
         <Col>
-          <Card className="border-0 shadow-sm">
-            <Card.Body className="py-2">
-              <div className="d-flex gap-3 align-items-center flex-wrap">
+          <Card className="border-0 shadow-sm" style={{ overflow: 'visible' }}>
+            <Card.Body className="py-2" style={{ overflow: 'visible' }}>
+              <div className="d-flex gap-3 align-items-center flex-wrap" style={{ overflow: 'visible' }}>
                 <small className="text-muted fw-bold">Filters:</small>
                 
                 {/* Status Filter */}
-                <Dropdown size="sm">
-                  <Dropdown.Toggle variant="outline-secondary" size="sm">
+                <Dropdown size="sm" drop="down" autoClose={true}>
+                  <Dropdown.Toggle variant="outline-secondary" size="sm" id="status-dropdown">
                     Status: {filters.status}
                   </Dropdown.Toggle>
-                  <Dropdown.Menu>
+                  <Dropdown.Menu style={{ zIndex: 9999 }}>
                     <Dropdown.Item onClick={() => handleFilterChange('status', 'all')}>
                       All Status
                     </Dropdown.Item>
@@ -478,11 +514,11 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
                 </Dropdown>
 
                 {/* Work Type Filter */}
-                <Dropdown size="sm">
-                  <Dropdown.Toggle variant="outline-secondary" size="sm">
+                <Dropdown size="sm" drop="down" autoClose={true}>
+                  <Dropdown.Toggle variant="outline-secondary" size="sm" id="worktype-dropdown">
                     Type: {filters.workType}
                   </Dropdown.Toggle>
-                  <Dropdown.Menu>
+                  <Dropdown.Menu style={{ zIndex: 9999 }}>
                     <Dropdown.Item onClick={() => handleFilterChange('workType', 'all')}>
                       All Types
                     </Dropdown.Item>
@@ -502,11 +538,11 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
                 </Dropdown>
 
                 {/* Priority Filter */}
-                <Dropdown size="sm">
-                  <Dropdown.Toggle variant="outline-secondary" size="sm">
+                <Dropdown size="sm" drop="down" autoClose={true}>
+                  <Dropdown.Toggle variant="outline-secondary" size="sm" id="priority-dropdown">
                     Priority: {filters.priority}
                   </Dropdown.Toggle>
-                  <Dropdown.Menu>
+                  <Dropdown.Menu style={{ zIndex: 9999 }}>
                     <Dropdown.Item onClick={() => handleFilterChange('priority', 'all')}>
                       All Priorities
                     </Dropdown.Item>
@@ -542,14 +578,16 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
                     events={getCalendarEvents()}
                     startAccessor="start"
                     endAccessor="end"
-                    style={{ height: 600 }}
+                    style={{ height: 580 }}
                     onSelectEvent={handleEventSelect}
+                    onSelectSlot={handleSlotSelect}
                     onNavigate={handleDateNavigate}
                     eventPropGetter={eventStyleGetter}
                     views={['month', 'week', 'day', 'agenda']}
                     defaultView="month"
                     date={selectedDate}
                     popup
+                    selectable
                     showMultiDayTimes
                     step={30}
                     timeslots={2}
@@ -670,119 +708,77 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
 
         {/* Sidebar */}
         <Col lg={3}>
-          {/* Analytics */}
-          <Card className="border-0 shadow-sm mb-3">
-            <Card.Header className="bg-light">
-              <h6 className="mb-0">Work Analytics</h6>
+          {/* Compact Analytics Card */}
+          <Card className="border-0 shadow-sm" style={{ height: 'fit-content' }}>
+            <Card.Header className="bg-light py-2">
+              <h6 className="mb-0 small">Work Summary</h6>
             </Card.Header>
-            <Card.Body>
-              <div className="d-flex justify-content-between mb-2">
-                <span>Total Work:</span>
-                <Badge bg="primary">{calendarData?.analytics?.totalWork || 0}</Badge>
-              </div>
-              <div className="d-flex justify-content-between mb-2">
-                <span>Completed:</span>
-                <Badge bg="success">{calendarData?.analytics?.completedWork || 0}</Badge>
-              </div>
-              <div className="d-flex justify-content-between mb-2">
-                <span>In Progress:</span>
-                <Badge bg="info">{calendarData?.analytics?.inProgressWork || 0}</Badge>
-              </div>
-              <div className="d-flex justify-content-between mb-2">
-                <span>Scheduled:</span>
-                <Badge bg="secondary">{calendarData?.analytics?.scheduledWork || 0}</Badge>
-              </div>
-              <div className="d-flex justify-content-between mb-2">
-                <span>Overdue:</span>
-                <Badge bg="danger">{calendarData?.analytics?.overdueWork || 0}</Badge>
-              </div>
-              
-              <hr />
-              
-              <div className="d-flex justify-content-between mb-2">
-                <span>Est. Hours:</span>
-                <span>{calendarData?.analytics?.totalEstimatedHours || 0}h</span>
-              </div>
-              <div className="d-flex justify-content-between mb-2">
-                <span>Actual Hours:</span>
-                <span>{calendarData?.analytics?.totalActualHours || 0}h</span>
-              </div>
-              {calendarData?.analytics?.averageEfficiency && (
-                <div className="d-flex justify-content-between">
-                  <span>Efficiency:</span>
-                  <Badge bg={calendarData.analytics.averageEfficiency >= 90 ? 'success' : 
-                            calendarData.analytics.averageEfficiency >= 70 ? 'warning' : 'danger'}>
-                    {calendarData.analytics.averageEfficiency}%
-                  </Badge>
+            <Card.Body className="py-2">
+              {/* Status Overview */}
+              <div className="mb-3">
+                <div className="d-flex justify-content-between align-items-center mb-1">
+                  <small className="text-muted">Total:</small>
+                  <Badge bg="primary" className="px-2">{calendarData?.analytics?.totalWork || 0}</Badge>
                 </div>
-              )}
-            </Card.Body>
-          </Card>
-
-          {/* Priority Breakdown */}
-          <Card className="border-0 shadow-sm mb-3">
-            <Card.Header className="bg-light">
-              <h6 className="mb-0">Priority Breakdown</h6>
-            </Card.Header>
-            <Card.Body>
-              <div className="d-flex justify-content-between mb-2">
-                <span>Urgent:</span>
-                <Badge bg="danger">{calendarData?.analytics?.workloadByPriority?.urgent || 0}</Badge>
+                <div className="d-flex justify-content-between align-items-center mb-1">
+                  <small className="text-muted">Completed:</small>
+                  <Badge bg="success" className="px-2">{calendarData?.analytics?.completedWork || 0}</Badge>
+                </div>
+                <div className="d-flex justify-content-between align-items-center mb-1">
+                  <small className="text-muted">In Progress:</small>
+                  <Badge bg="info" className="px-2">{calendarData?.analytics?.inProgressWork || 0}</Badge>
+                </div>
+                <div className="d-flex justify-content-between align-items-center mb-1">
+                  <small className="text-muted">Overdue:</small>
+                  <Badge bg="danger" className="px-2">{calendarData?.analytics?.overdueWork || 0}</Badge>
+                </div>
               </div>
-              <div className="d-flex justify-content-between mb-2">
-                <span>High:</span>
-                <Badge bg="warning">{calendarData?.analytics?.workloadByPriority?.high || 0}</Badge>
+              
+              {/* Priority Breakdown */}
+              <div className="border-top pt-2 mb-3">
+                <small className="text-muted fw-bold d-block mb-2">Priority Breakdown</small>
+                <div className="d-flex justify-content-between align-items-center mb-1">
+                  <small className="text-danger">Urgent:</small>
+                  <Badge bg="danger" size="sm">{calendarData?.analytics?.workloadByPriority?.urgent || 0}</Badge>
+                </div>
+                <div className="d-flex justify-content-between align-items-center mb-1">
+                  <small className="text-warning">High:</small>
+                  <Badge bg="warning" size="sm">{calendarData?.analytics?.workloadByPriority?.high || 0}</Badge>
+                </div>
+                <div className="d-flex justify-content-between align-items-center mb-1">
+                  <small className="text-info">Medium:</small>
+                  <Badge bg="info" size="sm">{calendarData?.analytics?.workloadByPriority?.medium || 0}</Badge>
+                </div>
+                <div className="d-flex justify-content-between align-items-center">
+                  <small className="text-muted">Low:</small>
+                  <Badge bg="light" text="dark" size="sm">{calendarData?.analytics?.workloadByPriority?.low || 0}</Badge>
+                </div>
               </div>
-              <div className="d-flex justify-content-between mb-2">
-                <span>Medium:</span>
-                <Badge bg="info">{calendarData?.analytics?.workloadByPriority?.medium || 0}</Badge>
-              </div>
-              <div className="d-flex justify-content-between">
-                <span>Low:</span>
-                <Badge bg="light" text="dark">{calendarData?.analytics?.workloadByPriority?.low || 0}</Badge>
-              </div>
-            </Card.Body>
-          </Card>
-
-          {/* Recent Work Items */}
-          <Card className="border-0 shadow-sm">
-            <Card.Header className="bg-light">
-              <h6 className="mb-0">My Work Items</h6>
-            </Card.Header>
-            <Card.Body>
-              {calendarData.workItems && calendarData.workItems.length > 0 ? (
-                calendarData.workItems.slice(0, 5).map(item => (
-                  <div key={item._id} className="d-flex justify-content-between align-items-center mb-2">
-                    <div>
-                      <div className="fw-bold small">{item.title}</div>
-                      <div className="text-muted small">
-                        Due: {moment(item.dueDate).format('MMM DD')}
-                        {item.project?.name && ` • ${item.project.name}`}
-                      </div>
-                    </div>
+              
+              {/* Time Tracking */}
+              <div className="border-top pt-2">
+                <small className="text-muted fw-bold d-block mb-2">Time Tracking</small>
+                <div className="d-flex justify-content-between align-items-center mb-1">
+                  <small className="text-muted">Estimated:</small>
+                  <small className="fw-bold">{calendarData?.analytics?.totalEstimatedHours || 0}h</small>
+                </div>
+                <div className="d-flex justify-content-between align-items-center mb-1">
+                  <small className="text-muted">Actual:</small>
+                  <small className="fw-bold">{calendarData?.analytics?.totalActualHours || 0}h</small>
+                </div>
+                {calendarData?.analytics?.averageEfficiency && (
+                  <div className="d-flex justify-content-between align-items-center">
+                    <small className="text-muted">Efficiency:</small>
                     <Badge 
-                      bg={item.status === 'Done' ? 'success' : 
-                          item.status === 'In Progress' ? 'primary' : 
-                          item.status === 'Review' ? 'warning' : 'secondary'}
+                      bg={calendarData.analytics.averageEfficiency >= 90 ? 'success' : 
+                          calendarData.analytics.averageEfficiency >= 70 ? 'warning' : 'danger'}
+                      size="sm"
                     >
-                      {item.status}
+                      {calendarData.analytics.averageEfficiency}%
                     </Badge>
                   </div>
-                ))
-              ) : (
-                <div className="text-muted small text-center py-3">
-                  No work items found.
-                  <br />
-                  <Button 
-                    variant="link" 
-                    size="sm" 
-                    onClick={handleSyncWorkItems}
-                    className="p-0 mt-1"
-                  >
-                    Sync My Work
-                  </Button>
-                </div>
-              )}
+                )}
+              </div>
             </Card.Body>
           </Card>
         </Col>
@@ -866,7 +862,7 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
           )}
         </Modal.Body>
         <Modal.Footer>
-          {currentEmployeeId === user?.id && selectedEvent && selectedEvent.status !== 'completed' && (
+          {currentEmployeeId === (user?.id || user?._id) && selectedEvent && selectedEvent.status !== 'completed' && (
             <div className="d-flex gap-2">
               {selectedEvent.status === 'scheduled' && (
                 <Button 
@@ -891,6 +887,15 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Unified Work Creation Modal */}
+      <UnifiedWorkCreationModal
+        show={showCreateModal}
+        onHide={() => setShowCreateModal(false)}
+        onSuccess={loadEmployeeWorkCalendar}
+        selectedDate={selectedDateForCreate}
+        mode="calendar-focused"
+      />
     </Container>
   );
 };

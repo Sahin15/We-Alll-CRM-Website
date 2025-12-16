@@ -9,19 +9,59 @@ import {
   Modal,
   Form,
   Badge,
+  InputGroup,
+  Spinner,
+  Dropdown,
+  Alert,
+  OverlayTrigger,
+  Tooltip,
 } from "react-bootstrap";
-import { FaPlus, FaEdit, FaTrash, FaEye } from "react-icons/fa";
+import { 
+  FaPlus, 
+  FaEdit, 
+  FaTrash, 
+  FaEye, 
+  FaUserTie, 
+  FaBuilding, 
+  FaEnvelope, 
+  FaPhone, 
+  FaGlobe, 
+  FaSearch, 
+  FaFilter,
+  FaTrophy,
+  FaBell, 
+  FaDownload,
+  FaChartLine,
+  FaUsers,
+  FaHandshake,
+  FaMapMarkerAlt,
+  FaIndustry,
+  FaWhatsapp
+} from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useAuth } from "../../context/AuthContext";
+import { notifyClientWon } from "../../services/notificationHelpers";
 import { clientApi } from "../../api/clientApi";
 import { formatDate } from "../../utils/helpers";
 
 const ClientList = () => {
+  const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
   const [clients, setClients] = useState([]);
+  const [filteredClients, setFilteredClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showWonModal, setShowWonModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentClient, setCurrentClient] = useState(null);
+  const [wonClientData, setWonClientData] = useState({
+    projectValue: '',
+    projectName: '',
+    notes: ''
+  });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [serviceFilter, setServiceFilter] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -40,11 +80,36 @@ const ClientList = () => {
     expectations: "",
     serviceCompany: "",
   });
-  const navigate = useNavigate();
 
   useEffect(() => {
     fetchClients();
   }, []);
+
+  useEffect(() => {
+    applyFilters();
+  }, [clients, searchTerm, serviceFilter]);
+
+  const applyFilters = () => {
+    let filtered = [...clients];
+
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (client) =>
+          client.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          client.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          client.phone?.includes(searchTerm)
+      );
+    }
+
+    // Service company filter
+    if (serviceFilter) {
+      filtered = filtered.filter((client) => client.serviceCompany === serviceFilter);
+    }
+
+    setFilteredClients(filtered);
+  };
 
   const fetchClients = async () => {
     try {
@@ -170,110 +235,460 @@ const ClientList = () => {
     }
   };
 
+  const handleMarkAsWon = (client) => {
+    setCurrentClient(client);
+    setShowWonModal(true);
+  };
+
+  const handleWonSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      // Send notification about client won
+      await notifyClientWon(currentClient, currentUser, wonClientData);
+      
+      toast.success(`🎉 ${currentClient.name} marked as won! Notifications sent to team.`);
+      setShowWonModal(false);
+      setWonClientData({
+        projectValue: '',
+        projectName: '',
+        notes: ''
+      });
+    } catch (error) {
+      console.error('Error sending won client notification:', error);
+      toast.error('Failed to send won client notification. Please try again.');
+    }
+  };
+
+  const handleSendNotification = (client) => {
+    // Navigate to notification creation with pre-filled client data
+    navigate('/admin/notifications/create', {
+      state: {
+        prefilledData: {
+          title: `Update regarding ${client.name}`,
+          message: `Important update about client ${client.name} from ${client.company || 'company'}`,
+          type: 'client_update',
+          clientId: client._id
+        }
+      }
+    });
+  };
+
+  if (loading) {
+    return (
+      <Container fluid className="py-4">
+        <div className="text-center py-5">
+          <Spinner animation="border" variant="primary" />
+          <p className="mt-3 text-muted">Loading clients...</p>
+        </div>
+      </Container>
+    );
+  }
+
   return (
-    <Container fluid>
+    <Container fluid className="py-4" style={{ background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)', minHeight: '100vh' }}>
+      {/* Modern Header */}
+      <Card className="border-0 shadow-lg mb-4" style={{ 
+        background: '#ffffff',
+        borderRadius: '20px',
+        border: '1px solid rgba(0,0,0,0.05)'
+      }}>
+        <Card.Body className="p-4">
+          <Row className="align-items-center">
+            <Col md={8}>
+              <div className="d-flex align-items-center">
+                <div className="bg-success bg-opacity-10 p-3 rounded-circle me-3">
+                  <FaUserTie size={24} className="text-success" />
+                </div>
+                <div>
+                  <h2 className="mb-1 fw-bold text-dark">Client Management Hub</h2>
+                  <p className="mb-0 text-muted">
+                    Comprehensive client relationship management and business insights
+                  </p>
+                </div>
+              </div>
+            </Col>
+            <Col md={4} className="text-end">
+              <Button
+                variant="success"
+                size="lg"
+                onClick={() => handleShowModal()}
+                className="shadow-sm fw-semibold"
+                style={{ borderRadius: '15px' }}
+              >
+                <FaPlus className="me-2" />
+                Add New Client
+              </Button>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
+
+      {/* Enhanced Info Alert */}
       <Row className="mb-4">
         <Col>
-          <h2>Client Management</h2>
-        </Col>
-        <Col className="text-end">
-          <Button variant="primary" onClick={() => handleShowModal()}>
-            <FaPlus className="me-2" />
-            Add Client
-          </Button>
+          <Alert 
+            variant="success" 
+            className="border-0 shadow-sm"
+            style={{ 
+              background: 'linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%)',
+              borderRadius: '15px',
+              border: '1px solid rgba(76, 175, 80, 0.2)'
+            }}
+          >
+            <div className="d-flex align-items-center">
+              <div className="bg-success bg-opacity-20 p-2 rounded-circle me-3">
+                <FaHandshake className="text-success" />
+              </div>
+              <div>
+                <strong className="text-success">Professional Client Management:</strong>
+                <p className="mb-0 mt-1 text-muted">
+                  Manage client relationships, track business information, and maintain comprehensive 
+                  records for better customer service and business growth.
+                </p>
+              </div>
+            </div>
+          </Alert>
         </Col>
       </Row>
 
-      <Row>
-        <Col>
-          <Card>
-            <Card.Body>
-              {loading ? (
-                <div className="text-center py-5">
-                  <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
+      {/* Enhanced Stats Cards */}
+      <Row className="g-4 mb-4">
+        <Col lg={3} md={6}>
+          <Card className="border-0 shadow-lg h-100" style={{ borderRadius: '20px', background: '#f8f9fa' }}>
+            <Card.Body className="p-4">
+              <div className="d-flex justify-content-between align-items-center">
+                <div>
+                  <p className="mb-2 text-success fw-semibold">Total Clients</p>
+                  <h2 className="mb-0 text-dark fw-bold">{clients.length}</h2>
+                  <small className="text-muted">Active relationships</small>
                 </div>
-              ) : (
-                <Table responsive hover>
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Email</th>
-                      <th>Phone</th>
-                      <th>Company</th>
-                      <th>Service Company</th>
-                      <th>Created Date</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {clients.length > 0 ? (
-                      clients.map((client) => (
-                        <tr key={client._id}>
-                          <td>{client.name}</td>
-                          <td>{client.email}</td>
-                          <td>{client.phone || "N/A"}</td>
-                          <td>{client.company || "N/A"}</td>
-                          <td>
-                            {client.serviceCompany ? (
-                              <Badge
-                                bg={
-                                  client.serviceCompany === "We Alll"
-                                    ? "primary"
-                                    : "info"
-                                }
-                              >
-                                {client.serviceCompany}
-                              </Badge>
-                            ) : (
-                              <span className="text-muted">Not Set</span>
-                            )}
-                          </td>
-                          <td>{formatDate(client.createdAt)}</td>
-                          <td>
-                            <div className="btn-group" role="group">
-                              <Button
-                                size="sm"
-                                variant="outline-primary"
-                                onClick={() =>
-                                  navigate(`/clients/${client._id}`)
-                                }
-                              >
-                                <FaEye />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline-success"
-                                onClick={() => handleShowModal(client)}
-                              >
-                                <FaEdit />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline-danger"
-                                onClick={() => handleDelete(client._id)}
-                              >
-                                <FaTrash />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="6" className="text-center py-4">
-                          No clients found
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </Table>
-              )}
+                <div className="bg-success bg-opacity-10 p-3 rounded-circle">
+                  <FaUserTie size={28} className="text-success" />
+                </div>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col lg={3} md={6}>
+          <Card className="border-0 shadow-lg h-100" style={{ borderRadius: '20px', background: '#f8f9fa' }}>
+            <Card.Body className="p-4">
+              <div className="d-flex justify-content-between align-items-center">
+                <div>
+                  <p className="mb-2 text-primary fw-semibold">We Alll Clients</p>
+                  <h2 className="mb-0 text-dark fw-bold">
+                    {clients.filter((c) => c.serviceCompany === "We Alll").length}
+                  </h2>
+                  <small className="text-muted">Primary service</small>
+                </div>
+                <div className="bg-primary bg-opacity-10 p-3 rounded-circle">
+                  <FaChartLine size={28} className="text-primary" />
+                </div>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col lg={3} md={6}>
+          <Card className="border-0 shadow-lg h-100" style={{ borderRadius: '20px', background: '#f8f9fa' }}>
+            <Card.Body className="p-4">
+              <div className="d-flex justify-content-between align-items-center">
+                <div>
+                  <p className="mb-2 text-info fw-semibold">Kolkata Digital</p>
+                  <h2 className="mb-0 text-dark fw-bold">
+                    {clients.filter((c) => c.serviceCompany === "Kolkata Digital").length}
+                  </h2>
+                  <small className="text-muted">Secondary service</small>
+                </div>
+                <div className="bg-info bg-opacity-10 p-3 rounded-circle">
+                  <FaBuilding size={28} className="text-info" />
+                </div>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col lg={3} md={6}>
+          <Card className="border-0 shadow-lg h-100" style={{ borderRadius: '20px', background: '#f8f9fa' }}>
+            <Card.Body className="p-4">
+              <div className="d-flex justify-content-between align-items-center">
+                <div>
+                  <p className="mb-2 text-warning fw-semibold">This Month</p>
+                  <h2 className="mb-0 text-dark fw-bold">
+                    {clients.filter((c) => {
+                      const clientDate = new Date(c.createdAt);
+                      const currentDate = new Date();
+                      return clientDate.getMonth() === currentDate.getMonth() && 
+                             clientDate.getFullYear() === currentDate.getFullYear();
+                    }).length}
+                  </h2>
+                  <small className="text-muted">New acquisitions</small>
+                </div>
+                <div className="bg-warning bg-opacity-10 p-3 rounded-circle">
+                  <FaUsers size={28} className="text-warning" />
+                </div>
+              </div>
             </Card.Body>
           </Card>
         </Col>
       </Row>
+
+      {/* Enhanced Filters and Search */}
+      <Card className="border-0 shadow-lg mb-4" style={{ borderRadius: '20px' }}>
+        <Card.Header className="bg-white border-0 pt-4 pb-0" style={{ borderRadius: '20px 20px 0 0' }}>
+          <h5 className="mb-0 text-dark fw-bold">
+            <FaFilter className="me-2 text-success" />
+            Advanced Search & Filters
+          </h5>
+        </Card.Header>
+        <Card.Body className="p-4">
+          <Row className="g-3">
+            <Col lg={6} md={8}>
+              <Form.Label className="fw-semibold text-muted small">SEARCH CLIENTS</Form.Label>
+              <InputGroup className="shadow-sm">
+                <InputGroup.Text className="bg-light border-0">
+                  <FaSearch className="text-success" />
+                </InputGroup.Text>
+                <Form.Control
+                  type="text"
+                  placeholder="Search by name, email, company, or phone..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="border-0 bg-light"
+                  style={{ borderRadius: '0 10px 10px 0' }}
+                />
+              </InputGroup>
+            </Col>
+            <Col lg={2} md={2}>
+              <Form.Label className="fw-semibold text-muted small">SERVICE</Form.Label>
+              <Form.Select
+                value={serviceFilter}
+                onChange={(e) => setServiceFilter(e.target.value)}
+                className="shadow-sm border-0 bg-light"
+                style={{ borderRadius: '10px' }}
+              >
+                <option value="">All Services</option>
+                <option value="We Alll">We Alll</option>
+                <option value="Kolkata Digital">Kolkata Digital</option>
+              </Form.Select>
+            </Col>
+            <Col lg={4} md={2}>
+              <Form.Label className="fw-semibold text-muted small">ACTIONS</Form.Label>
+              <div className="d-flex gap-2">
+                <Button 
+                  variant="outline-success" 
+                  className="flex-fill shadow-sm fw-semibold"
+                  style={{ borderRadius: '10px' }}
+                >
+                  <FaDownload className="me-2" />
+                  Export Data
+                </Button>
+                <OverlayTrigger
+                  placement="top"
+                  overlay={<Tooltip>Clear all filters</Tooltip>}
+                >
+                  <Button 
+                    variant="outline-secondary"
+                    onClick={() => {
+                      setSearchTerm('');
+                      setServiceFilter('');
+                    }}
+                    style={{ borderRadius: '10px' }}
+                  >
+                    <FaFilter />
+                  </Button>
+                </OverlayTrigger>
+              </div>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
+
+      {/* Modern Client Cards */}
+      <Card className="border-0 shadow-lg" style={{ borderRadius: '20px' }}>
+        <Card.Header className="bg-white border-0 pt-4 pb-0" style={{ borderRadius: '20px 20px 0 0' }}>
+          <div className="d-flex justify-content-between align-items-center">
+            <h5 className="mb-0 text-dark fw-bold">
+              <FaUserTie className="me-2 text-success" />
+              Client Directory ({filteredClients.length})
+            </h5>
+            <Badge bg="success" className="px-3 py-2 rounded-pill">
+              {filteredClients.length} Results
+            </Badge>
+          </div>
+        </Card.Header>
+        <Card.Body className="p-0">
+          <style>{`
+            .client-card {
+              transition: all 0.3s ease;
+              border-radius: 15px;
+              border: 1px solid rgba(0,0,0,0.05);
+            }
+            .client-card:hover {
+              transform: translateY(-2px);
+              box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+              border-color: rgba(76, 175, 80, 0.3);
+            }
+            .client-info-item {
+              display: flex;
+              align-items: center;
+              margin-bottom: 0.5rem;
+              color: #6c757d;
+              font-size: 0.85rem;
+            }
+            .client-info-item .icon {
+              width: 16px;
+              margin-right: 8px;
+              color: #28a745;
+            }
+            .action-btn {
+              border-radius: 10px;
+              padding: 0.5rem 1rem;
+              font-weight: 600;
+              transition: all 0.2s ease;
+            }
+            .action-btn:hover {
+              transform: translateY(-1px);
+            }
+          `}</style>
+          
+          {filteredClients.length > 0 ? (
+            <div className="p-4">
+              <Row className="g-4">
+                {filteredClients.map((client) => (
+                  <Col lg={6} xl={4} key={client._id}>
+                    <Card className="client-card h-100 border-0 shadow-sm">
+                      <Card.Body className="p-4">
+                        {/* Client Header */}
+                        <div className="d-flex align-items-start mb-3">
+                          <div className="bg-success bg-opacity-10 p-3 rounded-circle me-3">
+                            <FaUserTie size={24} className="text-success" />
+                          </div>
+                          <div className="flex-grow-1">
+                            <h6 className="mb-1 fw-bold text-dark">{client.name}</h6>
+                            <p className="mb-2 text-muted small">{client.company || "Individual Client"}</p>
+                            <Badge 
+                              bg={client.serviceCompany === "We Alll" ? "primary" : "info"} 
+                              className="rounded-pill px-2 py-1"
+                            >
+                              {client.serviceCompany || "No Service"}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        {/* Client Info */}
+                        <div className="mb-3">
+                          <div className="client-info-item">
+                            <FaEnvelope className="icon" />
+                            <span className="text-truncate">{client.email}</span>
+                          </div>
+                          <div className="client-info-item">
+                            <FaPhone className="icon" />
+                            <span>{client.phone || "No phone"}</span>
+                          </div>
+                          {client.whatsappnumber && (
+                            <div className="client-info-item">
+                              <FaWhatsapp className="icon" />
+                              <span>{client.whatsappnumber}</span>
+                            </div>
+                          )}
+                          <div className="client-info-item">
+                            <FaIndustry className="icon" />
+                            <span>{client.industry || "Industry not specified"}</span>
+                          </div>
+                          <div className="client-info-item">
+                            <FaMapMarkerAlt className="icon" />
+                            <span>Joined: {formatDate(client.createdAt)}</span>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="d-flex gap-2">
+                          <Button
+                            variant="success"
+                            size="sm"
+                            className="action-btn flex-fill"
+                            onClick={() => navigate(`/clients/${client._id}`)}
+                          >
+                            <FaEye className="me-1" />
+                            View Details
+                          </Button>
+                          <Dropdown align="end">
+                            <Dropdown.Toggle
+                              variant="outline-secondary"
+                              size="sm"
+                              className="action-btn"
+                              style={{ minWidth: '40px' }}
+                            >
+                              <FaEdit />
+                            </Dropdown.Toggle>
+                            <Dropdown.Menu className="shadow-lg border-0" style={{ borderRadius: '10px' }}>
+                              <Dropdown.Item
+                                onClick={() => handleShowModal(client)}
+                                className="py-2"
+                              >
+                                <FaEdit className="me-2 text-primary" />
+                                Edit Client
+                              </Dropdown.Item>
+                              <Dropdown.Item
+                                onClick={() => handleMarkAsWon(client)}
+                                className="py-2"
+                              >
+                                <FaTrophy className="me-2 text-warning" />
+                                Mark as Won
+                              </Dropdown.Item>
+                              <Dropdown.Item
+                                onClick={() => handleSendNotification(client)}
+                                className="py-2"
+                              >
+                                <FaBell className="me-2 text-info" />
+                                Send Notification
+                              </Dropdown.Item>
+                              {/* Only admin and superadmin can delete clients */}
+                              {(currentUser?.role === "admin" || currentUser?.role === "superadmin") && (
+                                <>
+                                  <Dropdown.Divider />
+                                  <Dropdown.Item
+                                    className="py-2 text-danger"
+                                    onClick={() => handleDelete(client._id)}
+                                  >
+                                    <FaTrash className="me-2" />
+                                    Delete Client
+                                  </Dropdown.Item>
+                                </>
+                              )}
+                            </Dropdown.Menu>
+                          </Dropdown>
+                        </div>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
+            </div>
+          ) : (
+            <div className="text-center py-5">
+              <div className="mb-4">
+                <FaUserTie size={64} className="text-muted opacity-50" />
+              </div>
+              <h5 className="text-muted mb-2">No Clients Found</h5>
+              <p className="text-muted mb-4">
+                {searchTerm || serviceFilter 
+                  ? "Try adjusting your search criteria or filters"
+                  : "Start by adding your first client to the system"
+                }
+              </p>
+              {!searchTerm && !serviceFilter && (
+                <Button
+                  variant="success"
+                  onClick={() => handleShowModal()}
+                  className="action-btn"
+                >
+                  <FaPlus className="me-2" />
+                  Add First Client
+                </Button>
+              )}
+            </div>
+          )}
+        </Card.Body>
+      </Card>
 
       {/* Add/Edit Client Modal */}
       <Modal show={showModal} onHide={handleCloseModal} size="lg">
@@ -514,6 +929,109 @@ const ClientList = () => {
             </Button>
             <Button variant="primary" type="submit">
               {editMode ? "Update Client" : "Create Client"}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+
+      {/* Mark as Won Modal */}
+      <Modal show={showWonModal} onHide={() => setShowWonModal(false)} size="lg" centered>
+        <Modal.Header closeButton className="border-0 pb-0">
+          <Modal.Title className="d-flex align-items-center">
+            <div 
+              className="rounded-circle p-3 me-3"
+              style={{
+                background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                boxShadow: '0 4px 12px rgba(251, 191, 36, 0.3)'
+              }}
+            >
+              <FaTrophy className="text-white" size={24} />
+            </div>
+            <span>🎉 Mark Client as Won</span>
+          </Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleWonSubmit}>
+          <Modal.Body className="pt-2 pb-4">
+            {currentClient && (
+              <>
+                <Alert variant="success" className="d-flex align-items-center mb-4">
+                  <FaTrophy className="me-2" />
+                  <div>
+                    <strong>Congratulations!</strong> You're about to mark <strong>{currentClient.name}</strong> as a won client.
+                    This will notify the entire team about this achievement.
+                  </div>
+                </Alert>
+
+                <Row className="g-3">
+                  <Col md={6}>
+                    <Form.Group>
+                      <Form.Label className="fw-semibold">Project Name</Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="Enter project name"
+                        value={wonClientData.projectName}
+                        onChange={(e) => setWonClientData({...wonClientData, projectName: e.target.value})}
+                        required
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group>
+                      <Form.Label className="fw-semibold">Project Value (₹)</Form.Label>
+                      <Form.Control
+                        type="number"
+                        placeholder="Enter project value"
+                        value={wonClientData.projectValue}
+                        onChange={(e) => setWonClientData({...wonClientData, projectValue: e.target.value})}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col xs={12}>
+                    <Form.Group>
+                      <Form.Label className="fw-semibold">Additional Notes</Form.Label>
+                      <Form.Control
+                        as="textarea"
+                        rows={3}
+                        placeholder="Add any additional details about winning this client..."
+                        value={wonClientData.notes}
+                        onChange={(e) => setWonClientData({...wonClientData, notes: e.target.value})}
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+
+                <div className="mt-4 p-3 bg-light rounded">
+                  <h6 className="mb-2">📢 Notification Details</h6>
+                  <p className="mb-1 small text-muted">
+                    <strong>Who will be notified:</strong> All HR, Admin, and SuperAdmin users
+                  </p>
+                  <p className="mb-0 small text-muted">
+                    <strong>Notification type:</strong> High priority client won announcement
+                  </p>
+                </div>
+              </>
+            )}
+          </Modal.Body>
+          <Modal.Footer className="border-0 pt-0">
+            <Button 
+              variant="light" 
+              onClick={() => setShowWonModal(false)}
+              className="px-4"
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              variant="warning"
+              className="px-4 fw-semibold"
+              style={{
+                background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                border: 'none',
+                boxShadow: '0 4px 12px rgba(251, 191, 36, 0.3)'
+              }}
+            >
+              <FaTrophy className="me-2" />
+              Mark as Won & Notify Team
             </Button>
           </Modal.Footer>
         </Form>

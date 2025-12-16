@@ -73,7 +73,19 @@ const ProjectList = () => {
   const fetchProjects = async () => {
     try {
       setLoading(true);
-      const response = await projectApi.getAllProjects();
+      
+      // Use appropriate API method based on user role
+      let response;
+      if (['admin', 'superadmin', 'hr', 'manager'].includes(user?.role)) {
+        // Admin roles can see all projects
+        response = await projectApi.getAllProjects();
+      } else if (user?.role === 'hod') {
+        // HoD sees their department's projects
+        response = await projectApi.getMyDepartmentProjects();
+      } else {
+        // Regular employees see only their assigned projects
+        response = await projectApi.getMyProjects();
+      }
       
       console.log('📊 Projects API Response:', response);
       

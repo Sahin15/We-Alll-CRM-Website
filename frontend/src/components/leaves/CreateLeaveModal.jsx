@@ -102,6 +102,17 @@ const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
       setError('Please provide a more detailed reason (at least 10 characters)');
       return false;
     }
+    
+    // Check if leave duration is reasonable
+    const days = calculateDays();
+    if (days > 30) {
+      setError('Leave duration cannot exceed 30 days. Please contact HR for extended leave.');
+      return false;
+    }
+    if (formData.reason.trim().length < 10) {
+      setError('Please provide a more detailed reason (at least 10 characters)');
+      return false;
+    }
     return true;
   };
 

@@ -1,37 +1,22 @@
 import { format } from "date-fns";
 import { DATE_FORMAT, DATE_TIME_FORMAT } from "./constants";
 
-// Get user's preferred date format from localStorage
-export const getUserDateFormat = () => {
-  try {
-    const prefs = localStorage.getItem('displayPreferences');
-    if (prefs) {
-      const { dateFormat } = JSON.parse(prefs);
-      // Convert format string to date-fns format
-      const formatMap = {
-        'MM/DD/YYYY': 'MM/dd/yyyy',
-        'DD/MM/YYYY': 'dd/MM/yyyy',
-        'YYYY-MM-DD': 'yyyy-MM-dd'
-      };
-      return formatMap[dateFormat] || 'MM/dd/yyyy';
-    }
-  } catch (error) {
-    console.error('Error reading date format preference:', error);
-  }
-  return 'MM/dd/yyyy'; // Default format
+// Standard date format DD/MM/YYYY as required
+export const getStandardDateFormat = () => {
+  return 'dd/MM/yyyy'; // Always use DD/MM/YYYY format
 };
 
-// Format date with user preference
+// Format date with standard DD/MM/YYYY format
 export const formatDate = (date, formatStr = null) => {
   if (!date) return "N/A";
-  const userFormat = formatStr || getUserDateFormat();
-  return format(new Date(date), userFormat);
+  const standardFormat = formatStr || getStandardDateFormat();
+  return format(new Date(date), standardFormat);
 };
 
-// Format date for display (uses user preference)
+// Format date for display (uses standard DD/MM/YYYY format)
 export const formatDateDisplay = (date) => {
   if (!date) return "N/A";
-  return format(new Date(date), getUserDateFormat());
+  return format(new Date(date), getStandardDateFormat());
 };
 
 // Format date time
@@ -40,10 +25,56 @@ export const formatDateTime = (date) => {
   return format(new Date(date), DATE_TIME_FORMAT);
 };
 
-// Format time only (HH:mm:ss or hh:mm:ss a)
+// Format time only (HH:mm:ss AM/PM) - no date
 export const formatTime = (date) => {
   if (!date) return "N/A";
-  return format(new Date(date), "hh:mm:ss a");
+  try {
+    const dateObj = new Date(date);
+    // Extract time components manually to ensure no date is included
+    let hours = dateObj.getHours();
+    const minutes = dateObj.getMinutes();
+    const seconds = dateObj.getSeconds();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    
+    // Convert to 12-hour format
+    hours = hours % 12;
+    hours = hours ? hours : 12; // 0 should be 12
+    
+    // Pad with zeros
+    const hoursStr = hours.toString().padStart(2, '0');
+    const minutesStr = minutes.toString().padStart(2, '0');
+    const secondsStr = seconds.toString().padStart(2, '0');
+    
+    return `${hoursStr}:${minutesStr}:${secondsStr} ${ampm}`;
+  } catch (error) {
+    console.error('Error formatting time:', error);
+    return "Invalid Time";
+  }
+};
+
+// Format time without seconds (HH:mm AM/PM) - for cleaner display
+export const formatTimeShort = (date) => {
+  if (!date) return "N/A";
+  try {
+    const dateObj = new Date(date);
+    // Extract time components manually to ensure no date is included
+    let hours = dateObj.getHours();
+    const minutes = dateObj.getMinutes();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    
+    // Convert to 12-hour format
+    hours = hours % 12;
+    hours = hours ? hours : 12; // 0 should be 12
+    
+    // Pad with zeros
+    const hoursStr = hours.toString().padStart(2, '0');
+    const minutesStr = minutes.toString().padStart(2, '0');
+    
+    return `${hoursStr}:${minutesStr} ${ampm}`;
+  } catch (error) {
+    console.error('Error formatting time:', error);
+    return "Invalid Time";
+  }
 };
 
 // Capitalize first letter

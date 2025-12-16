@@ -38,7 +38,6 @@ const workItemSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      index: true,
     },
     
     // Status Management (Unified 4-stage workflow)
@@ -290,8 +289,7 @@ const workItemSchema = new mongoose.Schema(
 // Indexes for optimal query performance
 workItemSchema.index({ project: 1, status: 1 });
 workItemSchema.index({ assignedTo: 1, status: 1 });
-workItemSchema.index({ status: 1, dueDate: 1 });
-workItemSchema.index({ dueDate: 1 });
+workItemSchema.index({ status: 1, dueDate: 1 }); // Combined index covers single dueDate queries too
 workItemSchema.index({ type: 1, status: 1 });
 workItemSchema.index({ createdBy: 1 });
 workItemSchema.index({ tags: 1 });

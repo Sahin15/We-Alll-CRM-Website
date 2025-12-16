@@ -10,7 +10,7 @@ import WorkItemDetailsModal from '../../components/workitems/WorkItemDetailsModa
 import WorkItemFilters from '../../components/workitems/WorkItemFilters';
 import WorkItemSearch from '../../components/workitems/WorkItemSearch';
 import StatisticsCards from '../../components/workitems/StatisticsCards';
-import CreateWorkItemModal from '../../components/workitems/CreateWorkItemModal';
+import UnifiedWorkCreationModal from '../../components/work/UnifiedWorkCreationModal';
 
 /**
  * MyWorkPage Component
@@ -290,6 +290,13 @@ const MyWorkPage = () => {
           <p className="text-muted">
             View and manage all your assigned work items
           </p>
+          <div className="alert alert-info py-2 mb-0">
+            <small>
+              <strong>💡 Unified Work System:</strong> Work items created here automatically sync to your calendar. 
+              You can also create calendar entries that optionally create work items. 
+              <a href="/calendar" className="ms-2 text-decoration-none">View Calendar →</a>
+            </small>
+          </div>
         </Col>
         <Col xs="auto" className="d-flex gap-2 align-items-center">
           <Button
@@ -304,6 +311,7 @@ const MyWorkPage = () => {
             variant="primary"
             onClick={() => setShowCreateModal(true)}
             size="sm"
+            title="Create work items that automatically sync to your calendar"
           >
             <FaPlus className="me-2" />
             Create Work Item
@@ -432,11 +440,12 @@ const MyWorkPage = () => {
         />
       )}
 
-      {/* Create Work Item Modal */}
-      <CreateWorkItemModal
+      {/* Unified Work Creation Modal */}
+      <UnifiedWorkCreationModal
         show={showCreateModal}
         onHide={() => setShowCreateModal(false)}
         onSuccess={loadWorkItems}
+        mode="my-work-focused"
       />
     </Container>
   );

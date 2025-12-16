@@ -8,6 +8,8 @@ const LeaveRequestCard = ({
   isAdmin, 
   currentUserId, 
   onApproveReject, 
+  onApprove,
+  onReject,
   onCancel, 
   getStatusColor, 
   getLeaveTypeColor 
@@ -178,7 +180,7 @@ const LeaveRequestCard = ({
               <Button
                 variant="success"
                 size="sm"
-                onClick={() => onApproveReject(leave)}
+                onClick={() => onApprove ? onApprove(leave) : onApproveReject(leave)}
                 className="flex-fill"
               >
                 <FaCheck className="me-1" />
@@ -187,7 +189,7 @@ const LeaveRequestCard = ({
               <Button
                 variant="danger"
                 size="sm"
-                onClick={() => onApproveReject(leave)}
+                onClick={() => onReject ? onReject(leave) : onApproveReject(leave)}
                 className="flex-fill"
               >
                 <FaTimes className="me-1" />

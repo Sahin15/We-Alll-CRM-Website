@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Table, Badge, Button, Form } from 'react-bootstrap';
-import { FaEye, FaClock, FaExclamationTriangle } from 'react-icons/fa';
+import { FaEye, FaClock, FaExclamationTriangle, FaCalendarAlt } from 'react-icons/fa';
 import { formatDate } from '../../utils/helpers';
 import BulkActionsToolbar from './BulkActionsToolbar';
+import './WorkItemList.css';
 
 /**
  * WorkItemListWithBulk Component
@@ -22,6 +23,23 @@ const WorkItemListWithBulk = ({ workItems, onViewItem, onBulkAction, emptyMessag
     return colors[status] || 'secondary';
   };
 
+  const getPriorityColor = (priority) => {
+    const colors = {
+      'urgent': 'danger',
+      'high': 'warning',
+      'medium': 'info',
+      'low': 'secondary'
+    };
+    return colors[priority] || 'secondary';
+  };
+
+  const getPriorityIcon = (priority) => {
+    if (priority === 'urgent') return '🔴';
+    if (priority === 'high') return '🟠';
+    if (priority === 'medium') return '🔵';
+    return '⚪';
+  };
+
   const isOverdue = (workItem) => {
     return workItem.dueDate && 
       new Date(workItem.dueDate) < new Date() && 
@@ -32,6 +50,14 @@ const WorkItemListWithBulk = ({ workItems, onViewItem, onBulkAction, emptyMessag
     return workItem.dueDate && 
       new Date(workItem.dueDate).toDateString() === new Date().toDateString() &&
       workItem.status !== 'Done';
+  };
+
+  const getDaysUntilDue = (dueDate) => {
+    const today = new Date();
+    const due = new Date(dueDate);
+    const diffTime = due - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
   };
 
   const handleSelectAll = (e) => {
@@ -71,12 +97,13 @@ const WorkItemListWithBulk = ({ workItems, onViewItem, onBulkAction, emptyMessag
       )}
 
       <div className="table-responsive">
-        <Table hover className="mb-0">
+        <Table hover className="mb-0 work-items-table">
           <thead className="table-light">
             <tr>
-              <th style={{ width: '3%' }}>
+              <th style={{ width: '4%' }}>
                 <Form.Check
                   type="checkbox"
+                  className="bulk-selection-checkbox"
                   checked={allSelected}
                   ref={(input) => {
                     if (input) {
@@ -86,96 +113,162 @@ const WorkItemListWithBulk = ({ workItems, onViewItem, onBulkAction, emptyMessag
                   onChange={handleSelectAll}
                 />
               </th>
-              <th style={{ width: '5%' }}>Type</th>
-              <th style={{ width: '27%' }}>Title</th>
-              <th style={{ width: '15%' }}>Project</th>
-              <th style={{ width: '15%' }}>Assigned To</th>
-              <th style={{ width: '12%' }}>Due Date</th>
-              <th style={{ width: '10%' }}>Status</th>
-              <th style={{ width: '8%' }}>Priority</th>
-              <th style={{ width: '5%' }}>Actions</th>
+              <th style={{ width: '42%' }}>Work Item</th>
+              <th style={{ width: '20%' }}>Due Date</th>
+              <th style={{ width: '15%' }}>Status</th>
+              <th style={{ width: '12%' }}>Priority</th>
+              <th style={{ width: '7%' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {workItems.length === 0 ? (
               <tr>
-                <td colSpan="9" className="text-center py-4 text-muted">
-                  {emptyMessage || 'No work items found'}
+                <td colSpan="6" className="empty-state">
+                  <div className="d-flex flex-column align-items-center">
+                    <FaCalendarAlt className="empty-state-icon" />
+                    <h5 className="empty-state-title">{emptyMessage || 'No work items found'}</h5>
+                    <p className="empty-state-subtitle">Create your first work item to get started!</p>
+                  </div>
                 </td>
               </tr>
             ) : (
-              workItems.map((item) => (
-                <tr 
-                  key={item._id}
-                  className={isOverdue(item) ? 'table-danger' : isDueToday(item) ? 'table-warning' : ''}
-                >
-                  <td onClick={(e) => e.stopPropagation()}>
-                    <Form.Check
-                      type="checkbox"
-                      checked={selectedItems.includes(item._id)}
-                      onChange={() => handleSelectItem(item._id)}
-                    />
-                  </td>
-                  <td>
-                    <Badge bg={item.type === 'content' ? 'success' : 'primary'}>
-                      {item.type === 'content' ? 'Content' : 'Task'}
-                    </Badge>
-                  </td>
-                  <td>
-                    <div className="fw-bold">{item.title}</div>
-                    {item.type === 'content' && item.platform && (
-                      <small className="text-muted">{item.platform} • {item.postType}</small>
-                    )}
-                  </td>
-                  <td>{item.project?.name || 'N/A'}</td>
-                  <td>{item.assignedTo?.name || 'Unassigned'}</td>
-                  <td>
-                    <div className={isDueToday(item) ? 'fw-bold text-warning' : isOverdue(item) ? 'fw-bold text-danger' : ''}>
-                      <FaClock className="me-1" style={{ fontSize: '0.75rem' }} />
-                      {formatDate(item.dueDate)}
-                    </div>
-                    {isDueToday(item) && (
-                      <Badge bg="warning" text="dark" style={{ fontSize: '0.7rem' }}>Due Today!</Badge>
-                    )}
-                    {isOverdue(item) && (
-                      <Badge bg="danger" style={{ fontSize: '0.7rem' }}>
-                        <FaExclamationTriangle className="me-1" style={{ fontSize: '0.65rem' }} />
-                        Overdue
+              workItems.map((item) => {
+                const daysUntilDue = getDaysUntilDue(item.dueDate);
+                
+                return (
+                  <tr 
+                    key={item._id}
+                    className={`work-item-row ${isOverdue(item) ? 'table-danger' : isDueToday(item) ? 'table-warning' : ''}`}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => onViewItem(item)}
+                  >
+                    {/* Checkbox Column */}
+                    <td className="py-3" onClick={(e) => e.stopPropagation()}>
+                      <Form.Check
+                        type="checkbox"
+                        className="bulk-selection-checkbox"
+                        checked={selectedItems.includes(item._id)}
+                        onChange={() => handleSelectItem(item._id)}
+                      />
+                    </td>
+
+                    {/* Work Item Column - Combined Type, Title, and Project */}
+                    <td className="py-3">
+                      <div className="work-item-content">
+                        <div className="work-item-badge-container">
+                          <Badge 
+                            bg={item.type === 'content' ? 'success' : 'primary'} 
+                            className="work-item-type-badge"
+                          >
+                            {item.type === 'content' ? '📱 Content' : '📋 Task'}
+                          </Badge>
+                        </div>
+                        <div className="work-item-info-container">
+                          <div className="work-item-title">
+                            {item.title}
+                          </div>
+                          <div className="work-item-details">
+                            {item.project?.name && (
+                              <span className="work-item-detail">
+                                📁 {item.project.name}
+                              </span>
+                            )}
+                            {item.type === 'content' && item.platform && (
+                              <span className="work-item-detail">
+                                📱 {item.platform} • {item.postType}
+                              </span>
+                            )}
+                            {item.assignedTo?.name && (
+                              <span className="work-item-detail">
+                                👤 {item.assignedTo.name}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Due Date Column - Enhanced with urgency indicators */}
+                    <td className="py-3">
+                      <div className="due-date-container">
+                        <FaClock 
+                          className={`${isOverdue(item) ? 'text-danger' : isDueToday(item) ? 'text-warning' : 'text-muted'}`}
+                          style={{ fontSize: '0.85rem' }}
+                        />
+                        <div>
+                          <div className={`due-date-text ${isOverdue(item) ? 'text-danger' : isDueToday(item) ? 'text-warning' : ''}`}>
+                            {formatDate(item.dueDate)}
+                          </div>
+                          <p className={`due-date-subtitle ${isOverdue(item) ? 'text-danger' : isDueToday(item) ? 'text-warning' : 'text-muted'}`}>
+                            {isOverdue(item) ? (
+                              <>
+                                <FaExclamationTriangle className="me-1" />
+                                {Math.abs(daysUntilDue)} day{Math.abs(daysUntilDue) !== 1 ? 's' : ''} overdue
+                              </>
+                            ) : isDueToday(item) ? (
+                              'Due today!'
+                            ) : daysUntilDue === 1 ? (
+                              'Due tomorrow'
+                            ) : daysUntilDue > 0 ? (
+                              `${daysUntilDue} days left`
+                            ) : (
+                              'Past due'
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Status Column - Clean badge design */}
+                    <td className="py-3">
+                      <Badge 
+                        bg={getStatusColor(item.status)} 
+                        className="work-item-status-badge"
+                      >
+                        {item.status}
                       </Badge>
-                    )}
-                  </td>
-                  <td>
-                    <Badge bg={getStatusColor(item.status)}>
-                      {item.status}
-                    </Badge>
-                  </td>
-                  <td>
-                    <Badge 
-                      bg={
-                        item.priority === 'urgent' ? 'danger' :
-                        item.priority === 'high' ? 'warning' :
-                        item.priority === 'medium' ? 'info' : 'secondary'
-                      }
-                      className="text-capitalize"
-                    >
-                      {item.priority}
-                    </Badge>
-                  </td>
-                  <td>
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      onClick={() => onViewItem(item)}
-                    >
-                      <FaEye />
-                    </Button>
-                  </td>
-                </tr>
-              ))
+                    </td>
+
+                    {/* Priority Column - Visual priority indicators */}
+                    <td className="py-3">
+                      <div className="d-flex align-items-center">
+                        <span className="priority-icon">
+                          {getPriorityIcon(item.priority)}
+                        </span>
+                        <Badge 
+                          bg={getPriorityColor(item.priority)}
+                          className="work-item-priority-badge text-capitalize"
+                        >
+                          {item.priority}
+                        </Badge>
+                      </div>
+                    </td>
+
+                    {/* Actions Column - Larger, more accessible button */}
+                    <td className="py-3">
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        className="work-item-action-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onViewItem(item);
+                        }}
+                        title="View details"
+                      >
+                        <FaEye className="me-1" />
+                        View
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </Table>
       </div>
+      
+
     </div>
   );
 };

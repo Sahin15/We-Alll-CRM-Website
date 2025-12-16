@@ -25,20 +25,20 @@ router.put("/:id/cancel", protect, cancelLeaveRequest);
 router.get(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod"),
+  authorizeRoles("admin", "superadmin", "hr"),
   getAllLeaveRequests
 );
 router.get("/:id", protect, getLeaveRequestById);
 router.put(
   "/:id/approve",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod"),
+  authorizeRoles("admin", "superadmin", "hr"),
   approveLeaveRequest
 );
 router.put(
   "/:id/reject",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod"),
+  authorizeRoles("admin", "superadmin", "hr"),
   rejectLeaveRequest
 );
 

@@ -3,22 +3,17 @@ import User from "../models/userModel.js";
 
 export const protect = async (req, res, next) => {
   try {
-    console.log(`[PROTECT] ${req.method} ${req.path} - Checking authentication`);
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) {
-      console.log('[PROTECT] No token found');
       return res.status(401).json({ message: "No token, authorization denied" });
     }
+    
     const decode = jwt.verify(token, process.env.JWT_SECRET);
-
     const user = await User.findById(decode.id).select("-password");
     
     if (!user) {
-      console.log('[PROTECT] User not found');
       return res.status(401).json({ message: "User not found" });
     }
-    
-    console.log(`[PROTECT] User authenticated: ${user.email}, role: ${user.role}`);
     
     // Set both _id and id for compatibility
     req.user = user;
@@ -26,7 +21,14 @@ export const protect = async (req, res, next) => {
     
     next();
   } catch (error) {
-    console.error("Error in protect middleware:", error.message);
+    console.error("Auth middleware error:", error.message);
+    
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: "Invalid token" });
+    } else if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: "Token expired" });
+    }
+    
     res.status(401).json({ message: "Not authorized" });
   }
 };

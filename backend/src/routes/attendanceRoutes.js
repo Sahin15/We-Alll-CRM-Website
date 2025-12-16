@@ -19,6 +19,8 @@ import {
   debugStatusCalculation,
   downloadAttendancePDF,
   fixTodayAttendance,
+  removeDuplicateAttendance,
+  recalculateWorkHours,
 } from "../controllers/attendanceController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
@@ -103,6 +105,22 @@ router.post(
   protect,
   authorizeRoles("admin", "superadmin", "hr"),
   fixTodayAttendance
+);
+
+// Remove duplicate attendance records
+router.post(
+  "/remove-duplicates",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr"),
+  removeDuplicateAttendance
+);
+
+// Recalculate work hours for existing records
+router.post(
+  "/recalculate-work-hours",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr"),
+  recalculateWorkHours
 );
 
 export default router;

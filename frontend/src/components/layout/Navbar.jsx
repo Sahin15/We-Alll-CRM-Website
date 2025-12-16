@@ -30,7 +30,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import CompanySwitcher from "../admin/CompanySwitcher";
-import NotificationBell from "../admin/NotificationBell";
+import NotificationBell from "../notifications/NotificationBell";
 import QuickClockInOut from "../attendance/QuickClockInOut";
 import api from "../../services/api";
 import workItemApi from "../../api/workItemApi";

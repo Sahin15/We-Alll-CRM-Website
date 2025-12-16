@@ -1,0 +1,266 @@
+/* Work Item List Styles */
+.work-items-table {
+  font-size: 0.9rem;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.work-items-table thead th {
+  background-color: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+  font-weight: 600;
+  color: #495057;
+  padding: 1rem 0.75rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.work-item-row {
+  transition: all 0.2s ease;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.work-item-row:hover {
+  background-color: #f8f9fa !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  cursor: pointer;
+}
+
+.work-item-row td {
+  vertical-align: middle;
+  padding: 1rem 0.75rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+/* Enhanced badges */
+.work-item-type-badge {
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.5rem 0.9rem;
+  border-radius: 0.6rem;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.work-item-status-badge {
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  min-width: 80px;
+  text-align: center;
+}
+
+.work-item-priority-badge {
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.3rem 0.6rem;
+  border-radius: 0.4rem;
+}
+
+/* Priority icons */
+.priority-icon {
+  font-size: 1rem;
+  margin-right: 0.5rem;
+}
+
+/* Due date styling */
+.due-date-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.due-date-text {
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.due-date-subtitle {
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+/* Work item title and details */
+.work-item-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #212529;
+  margin-bottom: 0.6rem;
+  line-height: 1.4;
+  margin-top: 0.1rem;
+}
+
+.work-item-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+/* Work item content container */
+.work-item-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.2rem;
+}
+
+.work-item-badge-container {
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.work-item-info-container {
+  flex-grow: 1;
+  min-width: 0;
+  padding-left: 0.2rem;
+}
+
+.work-item-detail {
+  font-size: 0.8rem;
+  color: #6c757d;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.1rem 0;
+}
+
+/* Action buttons */
+.work-item-action-btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.work-item-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+
+/* Urgency indicators */
+.table-danger .work-item-row {
+  background-color: #f8d7da;
+  border-left: 4px solid #dc3545;
+}
+
+.table-warning .work-item-row {
+  background-color: #fff3cd;
+  border-left: 4px solid #ffc107;
+}
+
+/* Empty state */
+.empty-state {
+  padding: 3rem 1rem;
+  text-align: center;
+  color: #6c757d;
+}
+
+.empty-state-icon {
+  font-size: 3rem;
+  opacity: 0.5;
+  margin-bottom: 1rem;
+}
+
+.empty-state-title {
+  font-size: 1.25rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  color: #495057;
+}
+
+.empty-state-subtitle {
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+/* Responsive design */
+@media (max-width: 992px) {
+  .work-items-table {
+    font-size: 0.85rem;
+  }
+  
+  .work-item-row td {
+    padding: 0.75rem 0.5rem;
+  }
+  
+  .work-item-title {
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .work-item-details {
+    gap: 0.5rem;
+  }
+  
+  .work-item-content {
+    gap: 0.8rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .work-items-table {
+    font-size: 0.8rem;
+  }
+  
+  .work-item-row td {
+    padding: 0.6rem 0.4rem;
+  }
+  
+  .work-item-title {
+    font-size: 0.85rem;
+    margin-bottom: 0.4rem;
+  }
+  
+  .work-item-content {
+    gap: 0.6rem;
+  }
+  
+  .work-item-type-badge {
+    font-size: 0.7rem;
+    padding: 0.4rem 0.7rem;
+  }
+  
+  .work-item-action-btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+  }
+  
+  .work-item-status-badge,
+  .work-item-priority-badge {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.6rem;
+  }
+}
+
+/* Bulk selection styles */
+.bulk-selection-checkbox {
+  transform: scale(1.1);
+}
+
+.bulk-actions-toolbar {
+  background-color: #e3f2fd;
+  border: 1px solid #bbdefb;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+/* Smooth animations */
+.work-item-row,
+.work-item-action-btn,
+.work-item-type-badge,
+.work-item-status-badge,
+.work-item-priority-badge {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Focus states for accessibility */
+.work-item-action-btn:focus,
+.bulk-selection-checkbox:focus {
+  outline: 2px solid #0d6efd;
+  outline-offset: 2px;
+}

@@ -57,9 +57,9 @@ export const USER_STATUS = {
 // Pagination
 export const ITEMS_PER_PAGE = 10;
 
-// Date Formats
-export const DATE_FORMAT = "MMM dd, yyyy";
-export const DATE_TIME_FORMAT = "MMM dd, yyyy HH:mm";
+// Date Formats - Using DD/MM/YYYY format consistently
+export const DATE_FORMAT = "dd/MM/yyyy";
+export const DATE_TIME_FORMAT = "dd/MM/yyyy HH:mm";
 
 // Bootstrap Colors
 export const COLORS = {

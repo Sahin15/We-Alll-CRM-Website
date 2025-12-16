@@ -73,20 +73,16 @@ const Login = () => {
         <div className="sparkle sparkle-5"></div>
         <div className="welcome-content">
           <div className="logo-animation">
-            <img 
-              src={new URL('../../components/layout/We-Alll-Logo.jpg', import.meta.url).href}
-              alt="We All Office"
-              className="logo-icon"
-              style={{
-                width: '80px',
-                height: '80px',
-                objectFit: 'contain',
-                borderRadius: '12px'
-              }}
-            />
+            <div className="logo-full-container">
+              <img 
+                src="/uploads/We-Alll-Office-Logo.png" 
+                alt="We Alll Office" 
+                className="logo-img-full"
+              />
+            </div>
           </div>
           <div className="welcome-text">
-            <h1 className="welcome-title">Welcome to We All Office</h1>
+            <h1 className="welcome-title">Welcome to We Alll Office</h1>
             <h2 className="user-name">{userName}</h2>
             <p className="motivational-text">{getMotivationalMessage()}</p>
           </div>
@@ -159,6 +155,14 @@ const Login = () => {
           .logo-animation {
             margin-bottom: 2rem;
             animation: logoScale 1s ease-out;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+          }
+
+          .logo-animation .logo-full-container {
+            width: 240px;
+            height: 80px;
           }
           
           .logo-icon {
@@ -457,19 +461,13 @@ const Login = () => {
       <div className="login-container">
         {/* Logo Section */}
         <div className="logo-section">
-          <div className="logo">
+          <div className="logo-full-container" style={{ width: '160px', height: '50px', margin: '0 auto 1rem' }}>
             <img 
-              src={new URL('../../components/layout/We-Alll-Logo.jpg', import.meta.url).href}
-              alt="We All Office"
-              style={{
-                width: '32px',
-                height: '32px',
-                objectFit: 'contain',
-                borderRadius: '6px'
-              }}
+              src="/uploads/We-Alll-Office-Logo.png" 
+              alt="We Alll Office" 
+              className="logo-img-full"
             />
           </div>
-          <h1 className="brand-name">We All Office</h1>
           <p className="brand-tagline">Your Digital Workspace</p>
         </div>
 
@@ -561,6 +559,49 @@ const Login = () => {
           position: relative;
           overflow: hidden;
         }
+
+        /* Full logo container - when expanded */
+        .logo-full-container {
+          width: 180px;
+          height: 60px;
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(255, 255, 255, 0.15);
+          backdrop-filter: blur(10px);
+          border-radius: 12px;
+          padding: 8px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.25);
+          transition: all 0.3s ease;
+        }
+
+        .logo-full-container:hover {
+          background: rgba(255, 255, 255, 0.25);
+          backdrop-filter: blur(15px);
+          transform: scale(1.05);
+          box-shadow: 
+            0 12px 35px rgba(0, 0, 0, 0.2),
+            0 6px 16px rgba(0, 0, 0, 0.15);
+          border: 1px solid rgba(255, 255, 255, 0.35);
+        }
+
+        .logo-full-container:hover .logo-img-full {
+          filter: contrast(1.2) saturate(1.2) brightness(1.15);
+          transform: scale(1.15);
+        }
+
+        /* Full logo image */
+        .logo-img-full {
+          width: 120%;
+          height: 120%;
+          object-fit: contain;
+          border-radius: 10px;
+          filter: contrast(1.1) saturate(1.1) brightness(1.1);
+          transition: all 0.3s ease;
+          transform: scale(1.1);
+        }
         
         .login-page::before {
           content: '';
@@ -619,27 +660,6 @@ const Login = () => {
           padding: 1.5rem 1.5rem 1.2rem;
           text-align: center;
           color: white;
-        }
-        
-        .logo {
-          width: 50px;
-          height: 50px;
-          background: rgba(255, 255, 255, 0.2);
-          border-radius: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin: 0 auto 1rem;
-          backdrop-filter: blur(10px);
-          border: 1px solid rgba(255, 255, 255, 0.3);
-          padding: 4px;
-        }
-        
-        .brand-name {
-          font-size: 1.5rem;
-          font-weight: 700;
-          margin: 0 0 0.3rem;
-          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
         
         .brand-tagline {

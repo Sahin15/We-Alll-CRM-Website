@@ -38,14 +38,44 @@ const ProjectListPage = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [projectsRes, clientsRes, deptsRes] = await Promise.all([
-        projectApi.getAllProjects(),
-        clientApi.getAllClients(),
-        departmentApi.getAllDepartments()
-      ]);
-      setProjects(projectsRes.data || projectsRes.projects || []);
-      setClients(clientsRes.data || clientsRes.clients || []);
-      setDepartments(deptsRes.data || deptsRes.departments || []);
+      
+      // Use appropriate API method based on user role
+      let projectsRes;
+      if (['admin', 'superadmin', 'hr', 'manager'].includes(user?.role)) {
+        // Admin roles can see all projects
+        projectsRes = await projectApi.getAllProjects();
+      } else if (user?.role === 'hod') {
+        // HoD sees their department's projects
+        projectsRes = await projectApi.getMyDepartmentProjects();
+      } else {
+        // Regular employees see only their assigned projects
+        projectsRes = await projectApi.getMyProjects();
+      }
+      
+      // Handle different response formats
+      const projects = projectsRes.data || projectsRes.projects || projectsRes || [];
+      setProjects(Array.isArray(projects) ? projects : []);
+      
+      // Only load clients and departments for roles that need them (admin, hr, hod)
+      if (['admin', 'superadmin', 'hr', 'hod', 'manager'].includes(user?.role)) {
+        try {
+          const [clientsRes, deptsRes] = await Promise.all([
+            clientApi.getAllClients(),
+            departmentApi.getAllDepartments()
+          ]);
+          setClients(clientsRes.data || clientsRes.clients || []);
+          setDepartments(deptsRes.data || deptsRes.departments || []);
+        } catch (error) {
+          console.error('Error loading clients/departments:', error);
+          // Don't fail the whole page if clients/departments fail to load
+          setClients([]);
+          setDepartments([]);
+        }
+      } else {
+        // Regular employees don't need client/department data for filtering
+        setClients([]);
+        setDepartments([]);
+      }
     } catch (error) {
       console.error('Error loading data:', error);
       toast.error('Failed to load projects');
@@ -121,7 +151,14 @@ const ProjectListPage = () => {
       <Row className="mb-4">
         <Col>
           <h2>Projects</h2>
-          <p className="text-muted">View and manage all accessible projects</p>
+          <p className="text-muted">
+            {['admin', 'superadmin', 'hr', 'manager'].includes(user?.role) 
+              ? 'View and manage all projects'
+              : user?.role === 'hod'
+              ? 'View and manage your department\'s projects'
+              : 'View and manage your assigned projects'
+            }
+          </p>
         </Col>
         <Col xs="auto" className="d-flex align-items-center gap-2">
           {/* View Mode Toggle */}

@@ -119,10 +119,26 @@ const EmployeeAttendanceReport = () => {
 
   const formatTime = (time) => {
     if (!time) return "N/A";
-    return new Date(time).toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    try {
+      const dateObj = new Date(time);
+      // Extract time components manually to ensure no date is included
+      let hours = dateObj.getHours();
+      const minutes = dateObj.getMinutes();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      
+      // Convert to 12-hour format
+      hours = hours % 12;
+      hours = hours ? hours : 12; // 0 should be 12
+      
+      // Pad with zeros
+      const hoursStr = hours.toString().padStart(2, '0');
+      const minutesStr = minutes.toString().padStart(2, '0');
+      
+      return `${hoursStr}:${minutesStr} ${ampm}`;
+    } catch (error) {
+      console.error('Error formatting time:', error);
+      return "Invalid Time";
+    }
   };
 
   const formatDate = (date) => {

@@ -257,3 +257,81 @@ export const sendSubscriptionActivatedNotification = async (
     console.error("Error sending subscription activated notification:", error.message);
   }
 };
+
+// Get user notification preferences
+export const getUserPreferences = async (req, res) => {
+  try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    // For now, return default preferences since we don't have a preferences model yet
+    // In a full implementation, you'd create a UserPreferences model
+    const defaultPreferences = {
+      workItems: {
+        inApp: true,
+        email: false,
+        sms: false
+      },
+      leaves: {
+        inApp: true,
+        email: true,
+        sms: false
+      },
+      projects: {
+        inApp: true,
+        email: false,
+        sms: false
+      },
+      payments: {
+        inApp: true,
+        email: true,
+        sms: false
+      },
+      general: {
+        inApp: true,
+        email: false,
+        sms: false
+      }
+    };
+
+    return res.status(200).json({
+      preferences: defaultPreferences,
+    });
+  } catch (error) {
+    console.error("Error fetching user preferences:", error);
+    return res.status(500).json({ 
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+// Update user notification preferences
+export const updateUserPreferences = async (req, res) => {
+  try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    const { preferences } = req.body;
+
+    if (!preferences) {
+      return res.status(400).json({ message: "Preferences are required" });
+    }
+
+    // For now, just return success since we don't have a preferences model yet
+    // In a full implementation, you'd save to UserPreferences model
+    
+    return res.status(200).json({
+      message: "Notification preferences updated successfully",
+      preferences,
+    });
+  } catch (error) {
+    console.error("Error updating user preferences:", error);
+    return res.status(500).json({ 
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};

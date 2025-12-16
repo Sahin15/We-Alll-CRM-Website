@@ -31,11 +31,12 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
   const loadAttendance = async (employeeId, startDate, endDate) => {
     try {
       setLoading(true);
-      const response = await attendanceApi.getAllAttendance({
+      const params = {
         employee: employeeId,
         startDate,
         endDate
-      });
+      };
+      const response = await attendanceApi.getAllAttendance(params);
       setAttendances(response.data || []);
     } catch (error) {
       console.error('Error loading attendance:', error);

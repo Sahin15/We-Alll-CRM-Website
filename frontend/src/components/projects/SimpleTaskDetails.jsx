@@ -38,10 +38,10 @@ const SimpleTaskDetails = ({ show, onHide, slot, onUpdate, currentUser }) => {
 
   const formatDate = (date) => {
     if (!date) return 'Not set';
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+    return new Date(date).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
     });
   };
 

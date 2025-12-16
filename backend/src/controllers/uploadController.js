@@ -1,4 +1,4 @@
-import { uploadImageToS3, deleteImageFromS3 } from "../utils/imageUpload.js";
+import { uploadImageToS3, uploadRawImageToS3, deleteImageFromS3 } from "../utils/imageUpload.js";
 
 /**
  * Upload payment proof image
@@ -38,29 +38,53 @@ export const uploadPaymentProof = async (req, res) => {
  */
 export const uploadProfilePicture = async (req, res) => {
   try {
+    console.log("[UPLOAD] Profile picture upload request received");
+    console.log("[UPLOAD] User ID:", req.user?._id);
+    console.log("[UPLOAD] File info:", req.file ? {
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    } : "No file");
+
     if (!req.file) {
+      console.log("[UPLOAD] No file uploaded");
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    // Upload to S3 with profile picture specific options
-    const imageUrl = await uploadImageToS3(
+    if (!req.user || !req.user._id) {
+      console.log("[UPLOAD] User not authenticated");
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    console.log("[UPLOAD] Starting S3 upload...");
+    console.log("[UPLOAD] File buffer size:", req.file.buffer.length);
+    console.log("[UPLOAD] File mime type:", req.file.mimetype);
+    
+    // Upload to S3 without any processing since frontend already cropped the image perfectly
+    const imageUrl = await uploadRawImageToS3(
       req.file.buffer,
       req.file.originalname,
       req.file.mimetype,
-      "profile-pictures",
-      {
-        width: 400,
-        height: 400,
-        fit: "cover", // Crop to square
-        quality: 90,
-      }
+      "profile-pictures"
     );
+
+    console.log("[UPLOAD] S3 upload successful:", imageUrl);
+    console.log("[UPLOAD] Image uploaded without any backend processing");
 
     // Update user's profile picture in database
     const User = (await import("../models/userModel.js")).default;
-    await User.findByIdAndUpdate(req.user.id, {
-      profilePicture: imageUrl,
-    });
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user._id, 
+      { profilePicture: imageUrl },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      console.log("[UPLOAD] User not found for update");
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    console.log("[UPLOAD] Database update successful");
 
     return res.status(200).json({
       message: "Profile picture uploaded successfully",
@@ -69,7 +93,7 @@ export const uploadProfilePicture = async (req, res) => {
       fileSize: req.file.size,
     });
   } catch (error) {
-    console.error("Error uploading profile picture:", error);
+    console.error("[UPLOAD] Error uploading profile picture:", error);
     return res.status(500).json({
       message: "Failed to upload profile picture",
       error: error.message,
@@ -168,7 +192,7 @@ export const uploadDocument = async (req, res) => {
 
     // Update user's documents in database
     const User = (await import("../models/userModel.js")).default;
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user._id);
     
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -215,6 +239,61 @@ export const uploadDocument = async (req, res) => {
 };
 
 /**
+ * Delete profile picture
+ * DELETE /api/upload/profile-picture
+ */
+export const deleteProfilePicture = async (req, res) => {
+  try {
+    console.log("[DELETE] Profile picture delete request received");
+    console.log("[DELETE] User ID:", req.user?._id);
+
+    if (!req.user || !req.user._id) {
+      console.log("[DELETE] User not authenticated");
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    // Get user's current profile picture
+    const User = (await import("../models/userModel.js")).default;
+    const user = await User.findById(req.user._id);
+    
+    if (!user) {
+      console.log("[DELETE] User not found");
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Delete from S3 if profile picture exists
+    if (user.profilePicture) {
+      try {
+        await deleteImageFromS3(user.profilePicture);
+        console.log("[DELETE] Profile picture deleted from S3");
+      } catch (s3Error) {
+        console.log("[DELETE] S3 deletion failed (file may not exist):", s3Error.message);
+        // Continue with database update even if S3 deletion fails
+      }
+    }
+
+    // Update user's profile picture in database
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user._id, 
+      { profilePicture: null },
+      { new: true }
+    );
+
+    console.log("[DELETE] Database update successful");
+
+    return res.status(200).json({
+      message: "Profile picture deleted successfully",
+    });
+  } catch (error) {
+    console.error("[DELETE] Error deleting profile picture:", error);
+    return res.status(500).json({
+      message: "Failed to delete profile picture",
+      error: error.message,
+    });
+  }
+};
+
+/**
  * Delete employee document
  * DELETE /api/upload/document
  */
@@ -231,7 +310,7 @@ export const deleteDocument = async (req, res) => {
 
     // Update user's documents in database
     const User = (await import("../models/userModel.js")).default;
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user._id);
     
     if (!user) {
       return res.status(404).json({ message: "User not found" });

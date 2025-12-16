@@ -50,10 +50,10 @@ const LeaveRequests = () => {
     try {
       if (action === 'approve') {
         await leaveApi.approveLeave(selectedLeave._id, data.approvalComment || '');
-        toast.success('Leave request approved successfully');
+        toast.success(`Leave request approved for ${selectedLeave.employee?.name || 'employee'}`);
       } else {
         await leaveApi.rejectLeave(selectedLeave._id, data.rejectionReason);
-        toast.success('Leave request rejected');
+        toast.success(`Leave request rejected for ${selectedLeave.employee?.name || 'employee'}`);
       }
       
       setShowApprovalModal(false);
@@ -61,7 +61,8 @@ const LeaveRequests = () => {
       fetchLeaves();
     } catch (error) {
       console.error('Error processing leave:', error);
-      toast.error('Failed to process leave request');
+      const errorMessage = error.response?.data?.message || 'Failed to process leave request';
+      toast.error(errorMessage);
     }
   };
 

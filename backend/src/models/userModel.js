@@ -35,6 +35,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    alternatePhone: {
+      type: String,
+      trim: true,
+    },
     dateOfBirth: {
       type: Date,
     },
@@ -45,6 +49,23 @@ const userSchema = new mongoose.Schema(
     bloodGroup: {
       type: String,
       enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"],
+    },
+    maritalStatus: {
+      type: String,
+      enum: ["single", "married", "divorced", "widowed"],
+    },
+    fatherName: {
+      type: String,
+      trim: true,
+    },
+    motherName: {
+      type: String,
+      trim: true,
+    },
+    nationality: {
+      type: String,
+      default: "Indian",
+      trim: true,
     },
     profilePicture: {
       type: String, // URL or S3 key reference
@@ -167,6 +188,17 @@ const userSchema = new mongoose.Schema(
       bankName: { type: String },
       branchName: { type: String },
       upiId: { type: String },
+      updatedByEmployee: { 
+        type: Boolean, 
+        default: false 
+      }, // Track if employee has updated bank details once
+      lastUpdatedBy: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'User' 
+      }, // Track who last updated
+      lastUpdatedAt: { 
+        type: Date 
+      }
     },
     
     // Document Uploads
@@ -218,6 +250,11 @@ const userSchema = new mongoose.Schema(
       state: { type: String },
       zipCode: { type: String },
       country: { type: String },
+    },
+    // Simple address fields for frontend compatibility  
+    permanentAddressSimple: {
+      type: String,
+      trim: true,
     },
     hireDate: {
       type: Date,
@@ -279,8 +316,7 @@ userSchema.pre('save', function(next) {
   }
 });
 
-// Add indexes for faster queries
-userSchema.index({ email: 1 }, { unique: true });
+// Add indexes for faster queries (email index is already created by unique: true)
 userSchema.index({ role: 1, department: 1 });
 userSchema.index({ status: 1 });
 userSchema.index({ department: 1 });

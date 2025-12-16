@@ -281,9 +281,8 @@ slotSchema.set("toObject", { virtuals: true });
 // Add indexes for faster queries (CRITICAL for performance)
 slotSchema.index({ project: 1, dueDate: 1 });
 slotSchema.index({ assignedTo: 1, status: 1 });
-slotSchema.index({ status: 1, dueDate: 1 });
+slotSchema.index({ status: 1, dueDate: 1 }); // Combined index covers single dueDate queries too
 slotSchema.index({ project: 1, status: 1 });
-slotSchema.index({ dueDate: 1 });
 slotSchema.index({ createdBy: 1 });
 
 const Slot = mongoose.model("Slot", slotSchema);

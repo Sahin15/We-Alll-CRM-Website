@@ -81,7 +81,6 @@ const workCalendarSchema = new mongoose.Schema(
     },
     dueDate: {
       type: Date,
-      index: true,
     },
     isAllDay: {
       type: Boolean,
