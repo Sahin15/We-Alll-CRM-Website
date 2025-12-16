@@ -181,9 +181,7 @@ export const getAllAttendance = async (req, res) => {
     const { startDate, endDate, date, employee, status } = req.query;
     console.log('[ATTENDANCE API] Query params:', { startDate, endDate, date, employee, status });
 
-    // EMERGENCY FIX: Just return empty array for now to stop the 500 errors
-    console.log('[ATTENDANCE API] EMERGENCY MODE - returning empty array to prevent 500 errors');
-    return res.status(200).json([]);
+    // Fixed: Removed emergency mode that was preventing attendance data from loading
 
     let filter = {};
 
