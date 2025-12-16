@@ -181,7 +181,29 @@ export const getAllAttendance = async (req, res) => {
     const { startDate, endDate, date, employee, status } = req.query;
     console.log('[ATTENDANCE API] Query params:', { startDate, endDate, date, employee, status });
 
-    // Fixed: Removed emergency mode that was preventing attendance data from loading
+    // Debug: Check if we can access the database
+    console.log('[ATTENDANCE API] Testing database connection...');
+    const testCount = await Attendance.countDocuments();
+    console.log('[ATTENDANCE API] Total attendance records in DB:', testCount);
+    
+    // Debug: Check recent records
+    const recentRecords = await Attendance.find().sort({ date: -1 }).limit(5).lean();
+    console.log('[ATTENDANCE API] Recent 5 records:', recentRecords.map(r => ({
+      id: r._id,
+      employee: r.employee,
+      date: r.date,
+      status: r.status,
+      clockIn: r.clockIn
+    })));
+
+    // Debug: Check user permissions
+    console.log('[ATTENDANCE API] User role check:', {
+      role: req.user?.role,
+      isAdmin: ['admin', 'superadmin'].includes(req.user?.role),
+      isHR: req.user?.role === 'hr',
+      isHoD: req.user?.role === 'hod',
+      department: req.user?.department
+    });
 
     let filter = {};
 
@@ -236,10 +258,13 @@ export const getAllAttendance = async (req, res) => {
         $gte: startOfDay,
         $lte: endOfDay,
       };
+      console.log('[ATTENDANCE API] Single date filter:', { date, startOfDay, endOfDay });
     }
     // Handle date range filter
     else if (startDate && endDate) {
-      Object.assign(filter, buildDateRangeQuery(startDate, endDate, 'date'));
+      const dateRangeFilter = buildDateRangeQuery(startDate, endDate, 'date');
+      Object.assign(filter, dateRangeFilter);
+      console.log('[ATTENDANCE API] Date range filter:', { startDate, endDate, dateRangeFilter });
     }
 
 
@@ -247,14 +272,22 @@ export const getAllAttendance = async (req, res) => {
     console.log('[ATTENDANCE API] Filter:', filter);
     console.log('[ATTENDANCE API] Request params:', { employee, status, startDate, endDate, userRole: req.user.role });
 
-    // Optimized query WITHOUT pagination (backward compatible)
-    const attendance = await Attendance.find(filter)
-      .select('employee date clockIn clockOut status workHours overtime isManuallyModified originalStatus modificationHistory')
-      .populate("employee", "name email department")
-      .populate("approvedBy", "name")
-      .populate("modificationHistory.modifiedBy", "name email role")
-      .sort({ date: -1 })
-      .lean();
+    // Debug: Try a simple query first
+    console.log('[ATTENDANCE API] Executing database query...');
+    let attendance;
+    try {
+      attendance = await Attendance.find(filter)
+        .select('employee date clockIn clockOut status workHours overtime isManuallyModified originalStatus modificationHistory')
+        .populate("employee", "name email department")
+        .populate("approvedBy", "name")
+        .populate("modificationHistory.modifiedBy", "name email role")
+        .sort({ date: -1 })
+        .lean();
+      console.log('[ATTENDANCE API] Database query successful');
+    } catch (dbError) {
+      console.error('[ATTENDANCE API] Database query failed:', dbError);
+      throw dbError;
+    }
 
 
     

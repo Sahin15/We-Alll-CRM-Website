@@ -104,9 +104,17 @@ const AttendanceTracking = () => {
       if (filters.startDate) params.startDate = filters.startDate;
       if (filters.endDate) params.endDate = filters.endDate;
 
+      console.log('[FRONTEND] Calling attendanceApi.getAllAttendance with params:', params);
       const response = await attendanceApi.getAllAttendance(params);
-      setAttendances(response.data);
+      console.log('[FRONTEND] API Response:', response);
+      console.log('[FRONTEND] Response data:', response.data);
+      console.log('[FRONTEND] Response data type:', typeof response.data);
+      console.log('[FRONTEND] Response data length:', response.data?.length);
+      
+      setAttendances(response.data || []);
     } catch (error) {
+      console.error('[FRONTEND] Error fetching attendance:', error);
+      console.error('[FRONTEND] Error response:', error.response);
       toast.error("Failed to fetch attendance records");
     } finally {
       setLoading(false);

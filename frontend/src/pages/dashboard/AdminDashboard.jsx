@@ -201,12 +201,19 @@ const AdminDashboard = () => {
       let onLeaveToday = 0;
       
       try {
+        console.log('[ADMIN DASHBOARD] Fetching attendance for date:', today);
         const attendanceRes = await attendanceApi.getAllAttendance({ date: today });
+        console.log('[ADMIN DASHBOARD] Attendance API response:', attendanceRes);
+        console.log('[ADMIN DASHBOARD] Attendance data:', attendanceRes.data);
+        console.log('[ADMIN DASHBOARD] Attendance data type:', typeof attendanceRes.data);
+        
         // Count all who clocked in (present, late, half-day) as "present today"
         presentToday = attendanceRes.data?.filter(a => 
           a.status === 'present' || a.status === 'late' || a.status === 'half-day'
         ).length || 0;
         lateToday = attendanceRes.data?.filter(a => a.status === 'late').length || 0;
+        
+        console.log('[ADMIN DASHBOARD] Calculated stats:', { presentToday, lateToday });
         
         const allLeavesRes = await leaveApi.getAllLeaves('approved');
         const todayDate = new Date(today);
