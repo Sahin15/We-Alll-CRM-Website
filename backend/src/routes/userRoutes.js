@@ -49,6 +49,7 @@ router.get("/me", protect, async (req, res) => {
       .select('-password')
       .select('+governmentIds.aadhaarNumber +governmentIds.panNumber +governmentIds.uanNumber +governmentIds.esicNumber')
       .select('+bankDetails.accountNumber')
+      .select('+profilePicture') // Explicitly include profilePicture
       .populate('department', 'name')
       .populate('reportingManager', 'name email')
       .populate('headOfDepartment', 'name')
@@ -57,6 +58,9 @@ router.get("/me", protect, async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+    
+    // Log profile picture for debugging in production
+    console.log(`[USER] Profile picture for ${user.email}: ${user.profilePicture || 'null'}`);
     
     res.json({ user });
   } catch (error) {

@@ -68,6 +68,9 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
 
+      // Log profile picture for debugging
+      console.log(`[AUTH] Login - Profile picture: ${user?.profilePicture || 'null'}`);
+
       setToken(token);
       setUser(user);
 
@@ -115,6 +118,10 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authApi.getCurrentUser();
       const updatedUser = response.data.user;
+      
+      // Log profile picture for debugging
+      console.log(`[AUTH] Refreshed user profile picture: ${updatedUser?.profilePicture || 'null'}`);
+      
       setUser(updatedUser);
       localStorage.setItem("user", JSON.stringify(updatedUser));
       return updatedUser;
