@@ -34,6 +34,21 @@ router.post(
   uploadProfilePicture
 );
 
+// Check profile picture health
+router.get(
+  "/profile-picture/health",
+  protect,
+  async (req, res) => {
+    try {
+      const { checkProfilePictureHealth } = await import("../controllers/uploadController.js");
+      await checkProfilePictureHealth(req, res);
+    } catch (error) {
+      console.error("Error importing checkProfilePictureHealth:", error);
+      res.status(500).json({ message: "Server error", error: error.message });
+    }
+  }
+);
+
 // Delete profile picture
 router.delete(
   "/profile-picture",

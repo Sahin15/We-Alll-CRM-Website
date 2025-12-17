@@ -1,6 +1,7 @@
-import { createContext, useState, useEffect, useContext } from "react";
+import { createContext, useState, useEffect, useContext, useRef } from "react";
 import { authApi } from "../api/authApi";
 import toast from "../utils/toast";
+import { startProfilePictureHealthMonitor } from "../utils/profilePictureHealth";
 
 const AuthContext = createContext();
 
@@ -16,6 +17,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem("token"));
   const [loading, setLoading] = useState(true);
+  const healthMonitorCleanup = useRef(null);
 
   useEffect(() => {
     let isMounted = true; // Prevent state updates if unmounted
@@ -121,6 +123,34 @@ export const AuthProvider = ({ children }) => {
       return null;
     }
   };
+
+  // Start profile picture health monitoring when user is authenticated
+  useEffect(() => {
+    if (user && token) {
+      // Stop any existing monitor
+      if (healthMonitorCleanup.current) {
+        healthMonitorCleanup.current();
+      }
+      
+      // Start new monitor
+      healthMonitorCleanup.current = startProfilePictureHealthMonitor(refreshUser);
+      console.log("Profile picture health monitoring started");
+    } else {
+      // Stop monitor when user logs out
+      if (healthMonitorCleanup.current) {
+        healthMonitorCleanup.current();
+        healthMonitorCleanup.current = null;
+        console.log("Profile picture health monitoring stopped");
+      }
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (healthMonitorCleanup.current) {
+        healthMonitorCleanup.current();
+      }
+    };
+  }, [user, token]);
 
   const checkPermission = (allowedRoles) => {
     if (!user) return false;

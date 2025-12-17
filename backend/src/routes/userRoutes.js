@@ -115,6 +115,17 @@ router.post("/reset-password/:token", resetPassword);
 // Change password route (for authenticated users to change their own password)
 router.put("/change-password", protect, changePassword);
 
+// Clear broken profile picture
+router.patch("/clear-broken-profile-picture", protect, async (req, res) => {
+  try {
+    const { clearBrokenProfilePicture } = await import("../controllers/uploadController.js");
+    await clearBrokenProfilePicture(req, res);
+  } catch (error) {
+    console.error("Error importing clearBrokenProfilePicture:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
 // Get documents for a specific user (for HR/Admin)
 router.get("/:id/documents", protect, authorizeRoles("admin", "superadmin", "hr"), async (req, res) => {
   try {

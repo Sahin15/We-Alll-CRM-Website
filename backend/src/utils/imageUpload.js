@@ -121,11 +121,13 @@ export const uploadRawImageToS3 = async (
     };
 
     const command = new PutObjectCommand(uploadParams);
-    await s3Client.send(command);
+    const result = await s3Client.send(command);
 
     // Return S3 URL
     const s3Url = `https://${AWS_CONFIG.bucketName}.s3.${AWS_CONFIG.region}.amazonaws.com/${fileName}`;
     console.log("[S3] Raw image uploaded successfully:", s3Url);
+    console.log("[S3] Upload result ETag:", result.ETag);
+    
     return s3Url;
   } catch (error) {
     console.error("Error uploading raw image to S3:", error);

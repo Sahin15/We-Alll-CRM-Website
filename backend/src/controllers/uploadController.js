@@ -73,9 +73,24 @@ export const uploadProfilePicture = async (req, res) => {
 
     // Update user's profile picture in database
     const User = (await import("../models/userModel.js")).default;
+    
+    // First, delete old profile picture if it exists
+    const existingUser = await User.findById(req.user._id);
+    if (existingUser?.profilePicture && existingUser.profilePicture !== imageUrl) {
+      try {
+        await deleteImageFromS3(existingUser.profilePicture);
+        console.log("[UPLOAD] Old profile picture deleted from S3");
+      } catch (deleteError) {
+        console.log("[UPLOAD] Failed to delete old profile picture (may not exist):", deleteError.message);
+      }
+    }
+    
     const updatedUser = await User.findByIdAndUpdate(
       req.user._id, 
-      { profilePicture: imageUrl },
+      { 
+        profilePicture: imageUrl,
+        updatedAt: new Date()
+      },
       { new: true }
     );
 
@@ -239,6 +254,47 @@ export const uploadDocument = async (req, res) => {
 };
 
 /**
+ * Clear broken profile picture URL from database
+ * PATCH /api/users/clear-broken-profile-picture
+ */
+export const clearBrokenProfilePicture = async (req, res) => {
+  try {
+    console.log("[CLEAR] Clearing broken profile picture for user:", req.user?._id);
+
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    // Update user's profile picture to null in database
+    const User = (await import("../models/userModel.js")).default;
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user._id, 
+      { 
+        profilePicture: null,
+        updatedAt: new Date()
+      },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    console.log("[CLEAR] Broken profile picture URL cleared from database");
+
+    return res.status(200).json({
+      message: "Broken profile picture cleared successfully",
+    });
+  } catch (error) {
+    console.error("[CLEAR] Error clearing broken profile picture:", error);
+    return res.status(500).json({
+      message: "Failed to clear broken profile picture",
+      error: error.message,
+    });
+  }
+};
+
+/**
  * Delete profile picture
  * DELETE /api/upload/profile-picture
  */
@@ -288,6 +344,63 @@ export const deleteProfilePicture = async (req, res) => {
     console.error("[DELETE] Error deleting profile picture:", error);
     return res.status(500).json({
       message: "Failed to delete profile picture",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Check profile picture health
+ * GET /api/upload/profile-picture/health
+ */
+export const checkProfilePictureHealth = async (req, res) => {
+  try {
+    console.log("[HEALTH] Profile picture health check for user:", req.user?._id);
+
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    const User = (await import("../models/userModel.js")).default;
+    const user = await User.findById(req.user._id);
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const result = {
+      hasProfilePicture: !!user.profilePicture,
+      profilePictureUrl: user.profilePicture,
+      accessible: false,
+      error: null
+    };
+
+    if (user.profilePicture) {
+      try {
+        // Simple URL accessibility check
+        const response = await fetch(user.profilePicture, { method: 'HEAD' });
+        result.accessible = response.ok;
+        
+        if (response.ok) {
+          result.fileSize = response.headers.get('content-length');
+          result.lastModified = response.headers.get('last-modified');
+          result.contentType = response.headers.get('content-type');
+          console.log("[HEALTH] Profile picture is accessible");
+        } else {
+          result.error = `HTTP ${response.status}: ${response.statusText}`;
+          console.log("[HEALTH] Profile picture is not accessible:", result.error);
+        }
+      } catch (error) {
+        result.error = error.message;
+        console.log("[HEALTH] Profile picture is not accessible:", error.message);
+      }
+    }
+
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error("[HEALTH] Error checking profile picture health:", error);
+    return res.status(500).json({
+      message: "Failed to check profile picture health",
       error: error.message,
     });
   }

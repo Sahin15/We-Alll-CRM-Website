@@ -32,7 +32,23 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
       const imageUrl = user.profilePicture.includes('?') 
         ? `${user.profilePicture}&t=${Date.now()}`
         : `${user.profilePicture}?t=${Date.now()}`;
-      setPreview(imageUrl);
+      
+      // Verify image accessibility before setting preview
+      const img = document.createElement('img');
+      img.onload = () => {
+        setPreview(imageUrl);
+      };
+      img.onerror = () => {
+        console.warn("Profile picture failed to load, clearing preview");
+        setPreview(null);
+        // Optionally clear the broken URL from user profile
+        if (user.profilePicture) {
+          handleRemoveBrokenImage();
+        }
+      };
+      img.src = imageUrl;
+    } else {
+      setPreview(null);
     }
   }, [user?.profilePicture]);
 
@@ -413,13 +429,36 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
       setTimeout(async () => {
         try {
           await refreshUser();
-          if (onUploadSuccess) {
-            onUploadSuccess();
+          
+          // Verify the uploaded image is accessible
+          if (response.data.imageUrl) {
+            const verifyImg = document.createElement('img');
+            verifyImg.onload = () => {
+              console.log("✅ Uploaded image verified as accessible");
+              if (onUploadSuccess) {
+                onUploadSuccess();
+              }
+            };
+            verifyImg.onerror = () => {
+              console.error("❌ Uploaded image is not accessible");
+              toast.error("Image uploaded but may not be accessible. Please try again.", {
+                duration: 4000,
+                style: {
+                  background: '#F59E0B',
+                  color: 'white',
+                },
+              });
+            };
+            verifyImg.src = response.data.imageUrl;
+          } else {
+            if (onUploadSuccess) {
+              onUploadSuccess();
+            }
           }
         } catch (refreshError) {
           console.error("Error refreshing user data:", refreshError);
         }
-      }, 1000); // Increased delay to ensure S3 propagation
+      }, 1500); // Increased delay to ensure S3 propagation
       
     } catch (error) {
       console.error("Error uploading profile picture:", error);
@@ -532,6 +571,29 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
 
   const handleViewPicture = () => {
     setShowViewModal(true);
+  };
+
+  const handleRemoveBrokenImage = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      // Call backend to clear broken profile picture URL
+      await axios.patch(
+        `${API_BASE_URL}/users/clear-broken-profile-picture`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      
+      console.log("Broken profile picture URL cleared from database");
+      await refreshUser();
+    } catch (error) {
+      console.error("Error clearing broken profile picture:", error);
+    }
   };
 
   const handleDragStart = (clientX, clientY) => {
