@@ -100,15 +100,6 @@ export const uploadProfilePicture = async (req, res) => {
     }
 
     console.log("[UPLOAD] Database update successful");
-    console.log(`[UPLOAD] Profile picture saved for user ${updatedUser.email}: ${updatedUser.profilePicture}`);
-    
-    // Verify the update was actually saved
-    const verifyUser = await User.findById(req.user._id).select('profilePicture email');
-    console.log(`[UPLOAD] Verification - Profile picture in DB: ${verifyUser?.profilePicture || 'null'}`);
-    
-    if (!verifyUser?.profilePicture) {
-      console.error("[UPLOAD] WARNING: Profile picture not found in database after update!");
-    }
 
     return res.status(200).json({
       message: "Profile picture uploaded successfully",
