@@ -66,16 +66,28 @@ export const AuthProvider = ({ children }) => {
       });
 
       localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
-
-      // Log profile picture for debugging
-      console.log(`[AUTH] Login - Profile picture: ${user?.profilePicture || 'null'}`);
-
+      
       setToken(token);
-      setUser(user);
-
-      // No toast notification - using custom welcome animation instead
-      return { success: true, data: response.data };
+      
+      // Immediately refresh user data from /me endpoint to get complete profile including profile picture
+      try {
+        const freshUserData = await authApi.getCurrentUser();
+        const completeUser = freshUserData.data.user;
+        
+        console.log(`[AUTH] Login - Profile picture: ${completeUser?.profilePicture || 'null'}`);
+        
+        localStorage.setItem("user", JSON.stringify(completeUser));
+        setUser(completeUser);
+        
+        return { success: true, data: { token, user: completeUser } };
+      } catch (refreshError) {
+        console.error("Failed to refresh user data after login:", refreshError);
+        // Fallback to login response data
+        localStorage.setItem("user", JSON.stringify(user));
+        console.log(`[AUTH] Login (fallback) - Profile picture: ${user?.profilePicture || 'null'}`);
+        setUser(user);
+        return { success: true, data: response.data };
+      }
     } catch (error) {
       console.error("Login error:", error);
       const message = error.response?.data?.message || "Login failed";
@@ -118,10 +130,6 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authApi.getCurrentUser();
       const updatedUser = response.data.user;
-      
-      // Log profile picture for debugging
-      console.log(`[AUTH] Refreshed user profile picture: ${updatedUser?.profilePicture || 'null'}`);
-      
       setUser(updatedUser);
       localStorage.setItem("user", JSON.stringify(updatedUser));
       return updatedUser;
