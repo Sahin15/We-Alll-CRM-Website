@@ -106,8 +106,17 @@ const ProfessionalWorkCreationModal = ({
       
       // Log slot-enabled projects for debugging (only if there are any)
       const slotEnabledProjects = projectsData.filter(p => p.slotConfiguration?.enableSlotSystem);
+      console.log(`🔍 Total projects loaded: ${projectsData.length}`);
+      console.log(`🎯 Projects with slot system enabled: ${slotEnabledProjects.length}`);
+      
       if (slotEnabledProjects.length > 0) {
-        console.log(`✅ Found ${slotEnabledProjects.length} projects with slot system enabled`);
+        console.log('✅ Slot-enabled projects:');
+        slotEnabledProjects.forEach(p => {
+          console.log(`   - ${p.name} (${p._id}): ${p.slotConfiguration?.totalSlots || 0} slots`);
+        });
+      } else {
+        console.log('❌ No projects found with slot system enabled!');
+        console.log('💡 To enable slots: Go to project settings → Enable "Slot-based Progress Tracking"');
       }
 
       setProjects(projectsData);
@@ -143,25 +152,29 @@ const ProfessionalWorkCreationModal = ({
         // First, find the project in the loaded projects list
         const project = projects.find(p => p._id === projectId);
         if (project) {
-          console.log('Selected project from list:', project);
-          console.log('Slot configuration:', project.slotConfiguration);
+          console.log('🔍 Selected project from list:', project.name);
+          console.log('🎯 Slot configuration:', project.slotConfiguration);
+          console.log('🎯 Slot system enabled:', project.slotConfiguration?.enableSlotSystem);
           setSelectedProject(project);
           
           // If project has slot system, we already have the data
           if (project.slotConfiguration?.enableSlotSystem) {
-            console.log('Project has slot system enabled, loading slots...');
+            console.log('✅ Project has slot system enabled, loading slots...');
+          } else {
+            console.log('❌ Project does NOT have slot system enabled');
           }
         } else {
           // Fallback: fetch project details from API
-          console.log('Project not found in list, fetching from API...');
+          console.log('🔍 Project not found in list, fetching from API...');
           const projectResponse = await projectApi.getProjectById(projectId);
           if (projectResponse.success) {
-            console.log('Project details from API:', projectResponse.data);
+            console.log('🔍 Project details from API:', projectResponse.data.name);
+            console.log('🎯 API Slot configuration:', projectResponse.data.slotConfiguration);
             setSelectedProject(projectResponse.data);
           }
         }
       } catch (error) {
-        console.error('Error loading project details:', error);
+        console.error('❌ Error loading project details:', error);
       }
     } else {
       setSelectedProject(null);
@@ -438,13 +451,13 @@ const ProfessionalWorkCreationModal = ({
               </Row>
 
               {/* Slot Assignment Section */}
-              {selectedProject?.slotConfiguration?.enableSlotSystem && (
+              {selectedProject?.slotConfiguration?.enableSlotSystem ? (
                 <Alert variant="info" className="mb-3">
                   <div className="d-flex align-items-center justify-content-between">
                     <div>
                       <FaLayerGroup className="me-2" />
-                      <strong>Slot System Available</strong>
-                      <p className="mb-0 small">This project uses slots for work organization.</p>
+                      <strong>🎯 Slot System Available</strong>
+                      <p className="mb-0 small">This project has {selectedProject.slotConfiguration.totalSlots} slots available for assignment.</p>
                     </div>
                     <Form.Check
                       type="switch"
@@ -487,6 +500,29 @@ const ProfessionalWorkCreationModal = ({
                       </Form.Control.Feedback>
                     </div>
                   )}
+                </Alert>
+              ) : selectedProject ? (
+                <Alert variant="warning" className="mb-3">
+                  <div className="d-flex align-items-center">
+                    <FaLayerGroup className="me-2" />
+                    <div>
+                      <strong>⚠️ Slot System Not Enabled</strong>
+                      <p className="mb-0 small">
+                        This project doesn't have slot-based progress tracking enabled. 
+                        Work items will be created without slot assignment.
+                      </p>
+                    </div>
+                  </div>
+                </Alert>
+              ) : (
+                <Alert variant="info" className="mb-3">
+                  <div className="d-flex align-items-center">
+                    <FaLayerGroup className="me-2" />
+                    <div>
+                      <strong>📋 Select a Project</strong>
+                      <p className="mb-0 small">Choose a project to see if slot assignment is available.</p>
+                    </div>
+                  </div>
                 </Alert>
               )}
             </Card.Body>

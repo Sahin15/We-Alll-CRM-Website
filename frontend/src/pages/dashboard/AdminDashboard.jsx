@@ -38,6 +38,7 @@ import QuickAnnouncements from "../../components/dashboard/QuickAnnouncements";
 import DocumentQuickAccess from "../../components/dashboard/DocumentQuickAccess";
 import PolicyUpdates from "../../components/dashboard/PolicyUpdates";
 import UpcomingEvents from "../../components/dashboard/UpcomingEvents";
+import ProjectSlotDebug from "../../components/debug/ProjectSlotDebug";
 import { userApi } from "../../api/userApi";
 import { projectApi } from "../../api/projectApi";
 import { clientApi } from "../../api/clientApi";
@@ -733,6 +734,9 @@ const AdminDashboard = () => {
   return (
     <Container fluid className="py-4">
       <GreetingBanner subtitle="System overview and management" />
+      
+      {/* Temporary Debug Component */}
+      <ProjectSlotDebug />
 
       {systemAlerts.length > 0 && (
         <Row className="mb-4">
