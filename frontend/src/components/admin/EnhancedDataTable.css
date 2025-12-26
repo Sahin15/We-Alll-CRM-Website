@@ -1,0 +1,1453 @@
+/* Enhanced Data Table Styles */
+.enhanced-data-table {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+/* Table Controls */
+.table-controls {
+  padding: 1rem;
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+}
+
+/* Enhanced Table */
+.enhanced-table {
+  margin-bottom: 0;
+  font-size: 0.875rem;
+}
+
+.enhanced-table th {
+  background: #f8f9fa !important;
+  color: #212529 !important;
+  border: 1px solid #dee2e6 !important;
+  border-bottom: 2px solid #495057 !important;
+  font-weight: 600;
+  padding: 0.75rem 0.5rem;
+  vertical-align: middle;
+  position: relative;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.enhanced-table th:hover {
+  background: #e9ecef !important;
+}
+
+.enhanced-table td {
+  padding: 0.75rem 0.5rem;
+  vertical-align: middle;
+  border-top: 1px solid #dee2e6;
+  text-align: left;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Sticky Header */
+.sticky-top {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+/* Sortable Headers */
+.enhanced-table th[style*="cursor: pointer"] {
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.enhanced-table th[style*="cursor: pointer"]:hover {
+  background: #e9ecef !important;
+}
+
+/* Editable Cells - Simple hover without layout shift */
+.editable-cell {
+  position: relative !important;
+  cursor: pointer !important;
+  padding: 8px 12px !important;
+  transition: background-color 0.15s ease !important;
+  min-height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  background: transparent !important;
+  justify-content: flex-start !important;
+}
+
+.editable-cell:hover {
+  background: #f8f9fa !important;
+  /* Removed border and box-shadow that cause layout shift */
+}
+
+.editable-cell .edit-icon {
+  position: absolute !important;
+  top: 50% !important;
+  right: 8px !important;
+  transform: translateY(-50%) !important;
+  opacity: 0 !important;
+  font-size: 10px !important;
+  color: #656d76 !important;
+  transition: opacity 0.15s ease !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-radius: 2px !important;
+  padding: 2px 4px !important;
+  z-index: 10 !important;
+  pointer-events: none !important;
+}
+
+.editable-cell:hover .edit-icon {
+  opacity: 1 !important;
+}
+
+/* Fixed text spacing to prevent overlap with edit icon */
+.editable-cell .cell-content {
+  display: block !important;
+  padding-right: 25px !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+  text-align: left !important;
+}
+
+/* Simple focus state without layout shift */
+.editable-cell:focus,
+.editable-cell.selected {
+  background: #f8f9fa !important;
+  outline: none !important;
+}
+
+/* Row Selection */
+.table-active {
+  background-color: rgba(13, 110, 253, 0.1) !important;
+}
+
+/* Badge Styles */
+.badge {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Enhanced Mobile Responsiveness */
+@media (max-width: 1200px) {
+  /* Tablet optimizations */
+  .enhanced-table {
+    font-size: 0.85rem;
+  }
+  
+  .enhanced-table th,
+  .enhanced-table td {
+    padding: 0.6rem 0.4rem;
+  }
+  
+  /* Hide less critical columns on tablets */
+  .enhanced-table .hide-lg {
+    display: none !important;
+  }
+}
+
+@media (max-width: 992px) {
+  /* Small tablet optimizations */
+  .table-controls {
+    padding: 0.75rem;
+  }
+  
+  .table-controls .d-flex {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+  }
+  
+  .enhanced-table .hide-md {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Mobile tablet optimizations */
+  .enhanced-data-table {
+    margin: 0 -15px; /* Extend to screen edges */
+    border-radius: 0;
+  }
+  
+  .table-controls {
+    padding: 0.75rem 1rem;
+    background: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+  }
+  
+  .table-controls .d-flex {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+  }
+  
+  .enhanced-table {
+    font-size: 0.8rem;
+    margin-bottom: 0;
+  }
+  
+  .enhanced-table th,
+  .enhanced-table td {
+    padding: 0.5rem 0.3rem;
+    vertical-align: top;
+  }
+  
+  /* Hide less important columns on mobile */
+  .enhanced-table .hide-sm {
+    display: none !important;
+  }
+  
+  /* Make essential columns more prominent */
+  .enhanced-table .mobile-primary {
+    font-weight: 600;
+    color: #007bff;
+  }
+  
+  /* Compact badges for mobile */
+  .enhanced-table .badge {
+    font-size: 0.65rem;
+    padding: 0.2rem 0.4rem;
+  }
+  
+  /* Touch-friendly row selection */
+  .enhanced-table tbody tr {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+  
+  .enhanced-table tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+  }
+  
+  /* Mobile-optimized pagination */
+  .pagination {
+    justify-content: center;
+    margin-top: 1rem;
+  }
+  
+  .pagination .page-link {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 576px) {
+  /* Small mobile optimizations */
+  .enhanced-data-table {
+    font-size: 0.75rem;
+  }
+  
+  .table-controls {
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .enhanced-table th,
+  .enhanced-table td {
+    padding: 0.4rem 0.25rem;
+    font-size: 0.75rem;
+  }
+  
+  /* Ultra-compact mode for small screens */
+  .enhanced-table .hide-xs {
+    display: none !important;
+  }
+  
+  /* Stack important info vertically in cells */
+  .enhanced-table .mobile-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+  
+  .enhanced-table .mobile-stack .primary {
+    font-weight: 600;
+    color: #212529;
+  }
+  
+  .enhanced-table .mobile-stack .secondary {
+    font-size: 0.7rem;
+    color: #6c757d;
+  }
+  
+  /* Simplified pagination for very small screens */
+  .pagination .page-item:not(.active):not(.disabled) {
+    display: none;
+  }
+  
+  .pagination .page-item.active,
+  .pagination .page-item:first-child,
+  .pagination .page-item:last-child {
+    display: block;
+  }
+}
+
+/* Touch-friendly enhancements */
+@media (hover: none) and (pointer: coarse) {
+  /* Touch device optimizations */
+  .enhanced-table th,
+  .enhanced-table td {
+    min-height: 44px; /* Minimum touch target size */
+  }
+  
+  .editable-cell {
+    min-height: 44px;
+    padding: 0.5rem;
+  }
+  
+  .enhanced-table .btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.5rem;
+  }
+  
+  /* Larger checkboxes for touch */
+  .enhanced-table input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+  }
+  
+  /* Touch-friendly dropdowns */
+  .enhanced-table .dropdown-toggle {
+    min-height: 44px;
+    padding: 0.5rem 1rem;
+  }
+}
+
+/* Swipe gesture support */
+.enhanced-data-table.touch-enabled {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+.enhanced-data-table.touch-enabled .table-responsive {
+  border: none;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile-specific table layout */
+@media (max-width: 768px) {
+  .enhanced-table.mobile-optimized {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  
+  .enhanced-table.mobile-optimized thead,
+  .enhanced-table.mobile-optimized tbody,
+  .enhanced-table.mobile-optimized th,
+  .enhanced-table.mobile-optimized td,
+  .enhanced-table.mobile-optimized tr {
+    display: block;
+  }
+  
+  .enhanced-table.mobile-optimized thead tr {
+    position: absolute;
+    top: -9999px;
+    left: -9999px;
+  }
+  
+  .enhanced-table.mobile-optimized tr {
+    border: 1px solid #ccc;
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    border-radius: 8px;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .enhanced-table.mobile-optimized td {
+    border: none;
+    position: relative;
+    padding: 0.5rem 0.5rem 0.5rem 35%;
+    white-space: normal;
+    text-align: left;
+  }
+  
+  .enhanced-table.mobile-optimized td:before {
+    content: attr(data-label) ": ";
+    position: absolute;
+    left: 6px;
+    width: 30%;
+    padding-right: 10px;
+    white-space: nowrap;
+    font-weight: 600;
+    color: #495057;
+  }
+}
+
+/* Expandable row details for mobile */
+.mobile-row-details {
+  display: none;
+  background: #f8f9fa;
+  padding: 1rem;
+  border-top: 1px solid #dee2e6;
+}
+
+.mobile-row-details.expanded {
+  display: block;
+}
+
+.mobile-row-details .detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.mobile-row-details .detail-item:last-child {
+  border-bottom: none;
+}
+
+.mobile-row-details .detail-label {
+  font-weight: 600;
+  color: #495057;
+}
+
+.mobile-row-details .detail-value {
+  color: #212529;
+}
+
+/* Mobile-specific loading states */
+@media (max-width: 768px) {
+  .table-loading {
+    position: relative;
+  }
+  
+  .table-loading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+  }
+}
+
+/* Loading State */
+.table-loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Filter Inputs */
+.enhanced-table th .form-control {
+  background: white !important;
+  border: 1px solid #ced4da !important;
+  color: #495057 !important;
+  font-size: 0.875rem;
+}
+
+.enhanced-table th .form-control:focus {
+  background: white !important;
+  border-color: #80bdff !important;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+  color: #495057 !important;
+}
+
+.enhanced-table th .form-control::placeholder {
+  color: #6c757d !important;
+}
+
+/* Pagination */
+.pagination-info {
+  font-size: 0.875rem;
+  color: #6c757d;
+}
+
+/* Bulk Actions */
+.bulk-actions {
+  background: #e3f2fd;
+  border: 1px solid #bbdefb;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  margin-bottom: 1rem;
+}
+
+/* Column Visibility Dropdown */
+.dropdown-menu .form-check {
+  margin: 0;
+  padding: 0.25rem 1rem;
+}
+
+.dropdown-menu .form-check:hover {
+  background: #f8f9fa;
+}
+
+/* Export Buttons */
+.export-buttons .btn {
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Search Highlight */
+.search-highlight {
+  background: yellow;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+/* Status Indicators */
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.status-indicator::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-indicator.status-completed::before {
+  background: #28a745;
+}
+
+.status-indicator.status-in-progress::before {
+  background: #007bff;
+}
+
+.status-indicator.status-scheduled::before {
+  background: #6c757d;
+}
+
+.status-indicator.status-overdue::before {
+  background: #dc3545;
+}
+
+/* Priority Indicators */
+.priority-urgent {
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.priority-high {
+  color: #fd7e14;
+  font-weight: 500;
+}
+
+.priority-medium {
+  color: #17a2b8;
+}
+
+.priority-low {
+  color: #6c757d;
+}
+
+/* Workload Impact */
+.workload-high {
+  border-left: 4px solid #dc3545;
+}
+
+.workload-medium {
+  border-left: 4px solid #ffc107;
+}
+
+.workload-low {
+  border-left: 4px solid #28a745;
+}
+
+/* Client Focus Styling */
+.client-row {
+  border-left: 3px solid #007bff;
+}
+
+.client-name {
+  font-weight: 600;
+  color: #007bff;
+}
+
+/* Overdue Highlighting */
+.overdue-row {
+  background: rgba(220, 53, 69, 0.05) !important;
+}
+
+.overdue-row td {
+  border-left: 3px solid #dc3545;
+}
+
+/* Progress Bars */
+.progress-mini {
+  height: 6px;
+  background: #e9ecef;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-mini .progress-bar {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+/* Tooltips */
+.table-tooltip {
+  font-size: 0.75rem;
+}
+
+/* Animation for row updates */
+@keyframes rowUpdate {
+  0% { background-color: #fff3cd; }
+  100% { background-color: transparent; }
+}
+
+.row-updated {
+  animation: rowUpdate 2s ease-out;
+}
+
+/* Compact Mode */
+.enhanced-data-table.compact .enhanced-table th,
+.enhanced-data-table.compact .enhanced-table td {
+  padding: 0.375rem 0.25rem;
+  font-size: 0.8rem;
+}
+
+/* Full Width Mode */
+.enhanced-data-table.full-width {
+  width: 100%;
+}
+
+.enhanced-data-table.full-width .table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Force Light Mode - Override Dark Mode */
+.enhanced-data-table {
+  background: white !important;
+  color: #212529 !important;
+}
+
+/* Filter Section Improvements */
+.filter-section .form-label {
+  margin-bottom: 0.5rem !important;
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  color: #495057 !important;
+  display: flex !important;
+  align-items: center !important;
+  min-height: 20px !important;
+}
+
+.filter-section .form-select,
+.filter-section .form-control {
+  height: 31px !important;
+  font-size: 0.85rem !important;
+  border: 1px solid #ced4da !important;
+  border-radius: 4px !important;
+  max-width: 100% !important;
+}
+
+/* Fixed-size dropdowns with scrolling - COMPREHENSIVE SOLUTION */
+.filter-section .form-select {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  min-width: 120px !important;
+  max-width: 200px !important;
+  height: 31px !important;
+}
+
+/* CRITICAL: Use size attribute to control dropdown height */
+.filter-section .form-select.large-dataset {
+  size: 8 !important; /* Shows 8 options at once, then scrolls */
+  height: auto !important;
+  max-height: 200px !important;
+  overflow-y: auto !important;
+  position: absolute !important;
+  z-index: 99999 !important;
+  background: white !important;
+  border: 1px solid #ced4da !important;
+  border-radius: 4px !important;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Custom dropdown styling for consistent sizing */
+.filter-section .form-select option {
+  padding: 8px 12px !important;
+  font-size: 0.85rem !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 100% !important;
+}
+
+/* Webkit browsers dropdown styling */
+.filter-section .form-select::-webkit-scrollbar {
+  width: 8px !important;
+}
+
+.filter-section .form-select::-webkit-scrollbar-track {
+  background: #f1f1f1 !important;
+}
+
+.filter-section .form-select::-webkit-scrollbar-thumb {
+  background: #888 !important;
+  border-radius: 4px !important;
+}
+
+.filter-section .form-select::-webkit-scrollbar-thumb:hover {
+  background: #555 !important;
+}
+
+/* Better approach: Custom dropdown wrapper */
+.custom-dropdown-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.custom-dropdown-wrapper .form-select {
+  width: 100%;
+  min-width: 120px;
+  max-width: 200px;
+  height: 31px;
+}
+
+/* When dropdown is opened (focus), show limited options */
+.custom-dropdown-wrapper .form-select:focus {
+  position: absolute;
+  z-index: 99999;
+  background: white;
+  border: 2px solid #007bff;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.filter-section .form-select:focus,
+.filter-section .form-control:focus {
+  border-color: #80bdff !important;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+}
+
+.filter-section .btn {
+  height: 31px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 0.85rem !important;
+}
+
+.filter-section .row {
+  align-items: flex-end !important;
+}
+
+.filter-section .col-xl-3,
+.filter-section .col-xl-2,
+.filter-section .col-lg-4,
+.filter-section .col-md-6,
+.filter-section .col-sm-12 {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-end !important;
+  min-height: 60px !important;
+}
+
+/* Dropdown size consistency */
+.filter-section .form-select {
+  min-width: 120px !important;
+  max-width: 100% !important;
+}
+
+/* Long text handling in dropdowns */
+.filter-section .form-select option {
+  direction: ltr !important;
+  unicode-bidi: embed !important;
+}
+
+/* Responsive dropdown sizing */
+@media (max-width: 768px) {
+  .filter-section .form-select {
+    min-width: 100px !important;
+    font-size: 0.8rem !important;
+  }
+}
+
+.enhanced-data-table .table-controls {
+  background: #f8f9fa !important;
+  border-color: #dee2e6 !important;
+  color: #212529 !important;
+}
+
+.enhanced-data-table .enhanced-table td {
+  border-color: #dee2e6 !important;
+  color: #212529 !important;
+}
+
+.enhanced-data-table .enhanced-table th {
+  background: #f8f9fa !important;
+  color: #212529 !important;
+}
+
+.enhanced-data-table .editable-cell:hover {
+  background: #f8f9fa !important;
+  /* Removed border-color that causes layout shift */
+  color: #212529 !important;
+}
+
+/* Empty State Styling */
+.empty-state {
+  padding: 2rem 1rem;
+}
+
+.empty-state svg {
+  opacity: 0.5;
+}
+
+.empty-state h6 {
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+  max-width: 400px;
+  margin: 0 auto;
+  line-height: 1.4;
+}
+
+/* Print Styles */
+@media print {
+  .table-controls,
+  .pagination {
+    display: none !important;
+  }
+  
+  .enhanced-table {
+    font-size: 0.7rem;
+  }
+  
+  .enhanced-table th,
+  .enhanced-table td {
+    padding: 0.25rem;
+  }
+}
+/* Google Sheets/Excel-like Table Styling */
+.enhanced-table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+  font-size: 13px !important;
+  line-height: 1.4 !important;
+}
+
+.enhanced-table th,
+.enhanced-table td {
+  border: 1px solid #d0d7de !important;
+  padding: 8px 12px !important;
+  vertical-align: middle !important;
+  position: relative !important;
+  background: white !important;
+}
+
+.enhanced-table th {
+  background: #f6f8fa !important;
+  color: #24292f !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  border-bottom: 2px solid #d0d7de !important;
+}
+
+.enhanced-table tbody tr:hover {
+  background-color: #f6f8fa !important;
+  /* Removed any transform or border changes that cause layout shift */
+}
+
+.enhanced-table tbody tr:nth-child(even) {
+  background-color: #fafbfc !important;
+}
+
+.enhanced-table tbody tr:nth-child(even):hover {
+  background-color: #f1f3f4 !important;
+  /* Removed any transform or border changes that cause layout shift */
+}
+
+/* Text Alignment - Excel-like */
+.enhanced-table .text-left {
+  text-align: left !important;
+}
+
+.enhanced-table .text-center {
+  text-align: center !important;
+}
+
+.enhanced-table .text-right {
+  text-align: right !important;
+}
+
+/* Column-specific alignment */
+.enhanced-table th:first-child,
+.enhanced-table td:first-child {
+  text-align: center !important;
+  width: 40px !important;
+  padding: 4px !important;
+}
+
+/* Work Title - Left aligned, proper spacing for edit icon */
+.enhanced-table .work-title {
+  text-align: left !important;
+  font-weight: 500 !important;
+  color: #24292f !important;
+  min-width: 200px !important;
+  max-width: 300px !important;
+  white-space: normal !important;
+  word-wrap: break-word !important;
+  line-height: 1.3 !important;
+  padding-right: 35px !important; /* Increased space for edit icon */
+  position: relative !important;
+}
+
+.enhanced-table .work-title .cell-content {
+  display: block !important;
+  width: calc(100% - 35px) !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* Client Name - Left aligned with link styling */
+.enhanced-table .client-name {
+  text-align: left !important;
+  font-weight: 500 !important;
+  color: #0969da !important;
+  min-width: 150px !important;
+  max-width: 200px !important;
+  white-space: normal !important;
+  word-wrap: break-word !important;
+  cursor: pointer !important;
+}
+
+.enhanced-table .client-name:hover {
+  color: #0550ae !important;
+  text-decoration: underline !important;
+}
+
+/* Project Name - Left aligned */
+.enhanced-table .project-name {
+  text-align: left !important;
+  color: #656d76 !important;
+  min-width: 150px !important;
+  max-width: 200px !important;
+  white-space: normal !important;
+  word-wrap: break-word !important;
+}
+
+/* Employee Name - Left aligned */
+.enhanced-table .employee-name {
+  text-align: left !important;
+  color: #24292f !important;
+  min-width: 130px !important;
+  max-width: 180px !important;
+  white-space: normal !important;
+  word-wrap: break-word !important;
+}
+
+/* Department Name - Left aligned */
+.enhanced-table .department-name {
+  text-align: left !important;
+  color: #656d76 !important;
+  min-width: 120px !important;
+  max-width: 150px !important;
+  white-space: normal !important;
+  word-wrap: break-word !important;
+}
+
+/* Status and Priority - Center aligned */
+.enhanced-table .status-cell,
+.enhanced-table .priority-cell {
+  text-align: center !important;
+  min-width: 100px !important;
+}
+
+/* Date cells - Center aligned, monospace */
+.enhanced-table .date-cell {
+  text-align: center !important;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace !important;
+  font-size: 12px !important;
+  white-space: nowrap !important;
+  min-width: 100px !important;
+  color: #656d76 !important;
+}
+
+/* Number cells - Right aligned, monospace */
+.enhanced-table .number-cell {
+  text-align: right !important;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace !important;
+  font-size: 12px !important;
+  min-width: 80px !important;
+  color: #24292f !important;
+  font-weight: 500 !important;
+}
+
+/* Percentage cells - Center aligned */
+.enhanced-table .percentage-cell {
+  text-align: center !important;
+  min-width: 80px !important;
+}
+
+/* Actions cell - Center aligned */
+.enhanced-table .actions-cell {
+  text-align: center !important;
+  min-width: 100px !important;
+}
+
+/* Badge alignment */
+.enhanced-table .badge {
+  display: inline-block;
+  text-align: center;
+  min-width: 60px;
+}
+
+/* Progress bar alignment */
+.enhanced-table .progress {
+  margin: 0;
+  height: 8px;
+}
+
+/* Tooltip content alignment */
+.enhanced-table [title] {
+  cursor: help;
+}
+
+/* Editable cell content alignment */
+.enhanced-table .editable-cell {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.enhanced-table .editable-cell.text-center {
+  justify-content: center;
+  text-align: center;
+}
+
+.enhanced-table .editable-cell.text-right {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+/* Consistent spacing for content */
+.enhanced-table td > * {
+  margin: 0;
+  padding: 0;
+}
+
+.enhanced-table td .d-flex {
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.enhanced-table td .d-flex.justify-content-center {
+  justify-content: center;
+}
+
+.enhanced-table td .d-flex.justify-content-end {
+  justify-content: flex-end;
+}
+
+/* Icon alignment */
+.enhanced-table .icon-cell {
+  text-align: center;
+  width: 40px;
+}
+
+.enhanced-table .icon-cell svg,
+.enhanced-table .icon-cell i {
+  vertical-align: middle;
+}
+
+/* Multi-line content alignment */
+.enhanced-table .multi-line {
+  white-space: normal;
+  line-height: 1.4;
+  max-height: 3em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* Compact mode adjustments */
+.enhanced-data-table.compact .enhanced-table th,
+.enhanced-data-table.compact .enhanced-table td {
+  padding: 0.5rem 0.375rem;
+}
+
+.enhanced-data-table.compact .work-title,
+.enhanced-data-table.compact .client-name,
+.enhanced-data-table.compact .project-name {
+  font-size: 0.8rem;
+}
+/* Fix Z-Index Issues - MAXIMUM PRIORITY */
+.enhanced-data-table .dropdown-menu {
+  z-index: 99999 !important;
+  position: absolute !important;
+}
+
+.enhanced-data-table .table-controls {
+  position: relative;
+  z-index: 1000 !important;
+  background: #f8f9fa !important;
+}
+
+.enhanced-data-table .table-controls .dropdown {
+  position: relative;
+  z-index: 1001 !important;
+}
+
+.enhanced-data-table .table-controls .dropdown-menu {
+  z-index: 99999 !important;
+  position: absolute !important;
+}
+
+/* CRITICAL: Reduce sticky header and table z-index */
+.enhanced-data-table .sticky-top {
+  z-index: 1 !important;
+}
+
+.enhanced-data-table .table-responsive {
+  z-index: 1 !important;
+  position: relative;
+}
+
+.enhanced-data-table table {
+  z-index: 1 !important;
+  position: relative;
+}
+
+/* CRITICAL: Force all dropdown menus to appear above everything */
+.enhanced-data-table .dropdown-menu,
+.enhanced-data-table .export-buttons .dropdown-menu,
+.enhanced-data-table .column-visibility .dropdown-menu,
+.enhanced-data-table .dropdown .dropdown-menu,
+.enhanced-data-table .table-controls .dropdown-menu {
+  z-index: 99999 !important;
+  position: absolute !important;
+  background: white !important;
+  border: 1px solid #dee2e6 !important;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Column visibility dropdown specific fixes */
+.enhanced-data-table .column-visibility .dropdown-menu {
+  max-height: 300px !important;
+  overflow-y: auto !important;
+  min-width: 200px !important;
+  z-index: 9999 !important;
+}
+
+/* Export dropdown specific fixes */
+.enhanced-data-table .export-buttons .dropdown-menu {
+  min-width: 150px !important;
+  z-index: 9999 !important;
+}
+
+/* FORCE dropdown to appear above table container */
+.enhanced-data-table .table-responsive {
+  z-index: 1 !important;
+  position: relative;
+}
+
+/* Ensure dropdown toggle buttons have proper z-index */
+.enhanced-data-table .dropdown-toggle {
+  z-index: 102 !important;
+  position: relative;
+}
+/* Google Sheets-like Badge Styling */
+.enhanced-table .badge {
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  padding: 4px 8px !important;
+  border-radius: 12px !important;
+  border: 1px solid transparent !important;
+}
+
+.enhanced-table .badge.bg-success {
+  background-color: #d4edda !important;
+  color: #155724 !important;
+  border-color: #c3e6cb !important;
+}
+
+.enhanced-table .badge.bg-primary {
+  background-color: #cce7ff !important;
+  color: #0c5aa6 !important;
+  border-color: #b3d9ff !important;
+}
+
+.enhanced-table .badge.bg-warning {
+  background-color: #fff3cd !important;
+  color: #856404 !important;
+  border-color: #ffeaa7 !important;
+}
+
+.enhanced-table .badge.bg-danger {
+  background-color: #f8d7da !important;
+  color: #721c24 !important;
+  border-color: #f5c6cb !important;
+}
+
+.enhanced-table .badge.bg-info {
+  background-color: #d1ecf1 !important;
+  color: #0c5460 !important;
+  border-color: #bee5eb !important;
+}
+
+.enhanced-table .badge.bg-secondary {
+  background-color: #e2e3e5 !important;
+  color: #383d41 !important;
+  border-color: #d6d8db !important;
+}
+
+/* Progress Bar Styling - Excel-like */
+.enhanced-table .progress {
+  height: 16px !important;
+  background-color: #f1f3f4 !important;
+  border-radius: 8px !important;
+  border: 1px solid #dadce0 !important;
+  overflow: hidden !important;
+}
+
+.enhanced-table .progress-bar {
+  background: linear-gradient(90deg, #34a853 0%, #137333 100%) !important;
+  border-radius: 7px !important;
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  color: white !important;
+  text-align: center !important;
+  line-height: 14px !important;
+}
+
+/* Checkbox Styling - Google Sheets-like */
+.enhanced-table input[type="checkbox"] {
+  width: 16px !important;
+  height: 16px !important;
+  border: 2px solid #dadce0 !important;
+  border-radius: 2px !important;
+  background: white !important;
+  cursor: pointer !important;
+  position: relative !important;
+}
+
+.enhanced-table input[type="checkbox"]:checked {
+  background-color: #1a73e8 !important;
+  border-color: #1a73e8 !important;
+}
+
+.enhanced-table input[type="checkbox"]:checked::after {
+  content: '✓' !important;
+  position: absolute !important;
+  top: -2px !important;
+  left: 2px !important;
+  color: white !important;
+  font-size: 12px !important;
+  font-weight: bold !important;
+}
+
+/* Action Buttons - Minimal styling */
+.enhanced-table .btn {
+  font-size: 11px !important;
+  padding: 4px 8px !important;
+  border-radius: 4px !important;
+  font-weight: 500 !important;
+  border: 1px solid transparent !important;
+}
+
+.enhanced-table .btn-sm {
+  font-size: 10px !important;
+  padding: 2px 6px !important;
+}
+
+/* Sortable Headers - Google Sheets-like */
+.enhanced-table th[style*="cursor: pointer"] {
+  position: relative !important;
+}
+
+.enhanced-table th[style*="cursor: pointer"]:hover {
+  background: #e8f0fe !important;
+}
+
+.enhanced-table th[style*="cursor: pointer"]::after {
+  content: '↕' !important;
+  position: absolute !important;
+  right: 8px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  opacity: 0.5 !important;
+  font-size: 10px !important;
+}
+
+.enhanced-table th[style*="cursor: pointer"]:hover::after {
+  opacity: 1 !important;
+}
+
+/* Row Selection Styling */
+.enhanced-table tbody tr.table-active {
+  background-color: #e8f0fe !important;
+  border-left: 3px solid #1a73e8 !important;
+}
+
+.enhanced-table tbody tr.table-active td {
+  background-color: #e8f0fe !important;
+}
+
+/* Loading State */
+.enhanced-table.table-loading {
+  opacity: 0.7 !important;
+  pointer-events: none !important;
+}
+
+.enhanced-table.table-loading::after {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+  z-index: 100 !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .enhanced-table {
+    font-size: 12px !important;
+  }
+  
+  .enhanced-table th,
+  .enhanced-table td {
+    padding: 6px 8px !important;
+  }
+  
+  .enhanced-table .work-title {
+    min-width: 150px !important;
+    max-width: 200px !important;
+  }
+  
+  .enhanced-table .client-name,
+  .enhanced-table .project-name {
+    min-width: 120px !important;
+    max-width: 150px !important;
+  }
+}
+
+/* Slot-related styles */
+.slot-number-badge {
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  font-size: 0.8rem;
+}
+
+.slot-progress-display {
+  min-width: 100px;
+}
+
+.slot-progress-display .progress {
+  border-radius: 2px;
+}
+
+.slot-progress-display .progress-bar {
+  transition: width 0.3s ease;
+}
+
+.slot-status-badge {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Slot column highlighting */
+.enhanced-table th.slot-column {
+  background: #e3f2fd !important;
+  border-left: 3px solid #2196f3 !important;
+}
+
+.enhanced-table td.slot-column {
+  background: #f8fcff;
+  border-left: 3px solid #2196f3;
+}
+
+/* Slot assignment controls */
+.slot-assignment-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.slot-assignment-dropdown {
+  min-width: 120px;
+  font-size: 0.8rem;
+}
+
+.slot-assignment-button {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+/* Slot conflict indicators */
+.slot-conflict-indicator {
+  color: #dc3545;
+  font-size: 0.8rem;
+  margin-left: 0.25rem;
+}
+
+.slot-conflict-tooltip {
+  max-width: 300px;
+}
+
+/* Mobile slot display */
+@media (max-width: 768px) {
+  .slot-progress-display {
+    min-width: 80px;
+  }
+  
+  .slot-number-badge {
+    font-size: 0.7rem;
+  }
+  
+  .slot-assignment-dropdown {
+    min-width: 100px;
+    font-size: 0.75rem;
+  }
+}
+
+/* Slot column toggle */
+.slot-column-toggle {
+  margin-left: 0.5rem;
+}
+
+.slot-column-toggle .btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+/* Slot bulk operations */
+.slot-bulk-operations {
+  border-top: 1px solid #dee2e6;
+  padding: 0.75rem;
+  background: #f8f9fa;
+}
+
+.slot-bulk-operations .btn-group {
+  margin-right: 0.5rem;
+}
+
+.slot-bulk-operations .btn {
+  font-size: 0.8rem;
+  padding: 0.375rem 0.75rem;
+}

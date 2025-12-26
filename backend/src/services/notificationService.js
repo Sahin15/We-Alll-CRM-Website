@@ -39,7 +39,7 @@ export const notifyWorkItemAssigned = async (workItem, assignedBy) => {
       type: "work_item_assigned",
       title: "New Work Item Assigned",
       message: `You have been assigned "${workItem.title}" in project ${workItem.project.name}`,
-      link: `/work-items/${workItem._id}`,
+      link: `/employee/my-work`, // Updated to existing route
       data: {
         workItemId: workItem._id,
         projectId: workItem.project._id,
@@ -68,9 +68,9 @@ export const notifyWorkItemDueSoon = async (workItem) => {
     await workItem.populate("assignedTo", "name email");
     
     const dueDate = new Date(workItem.dueDate);
-    const formattedDate = dueDate.toLocaleDateString("en-US", {
-      month: "short",
+    const formattedDate = dueDate.toLocaleDateString("en-GB", {
       day: "numeric",
+      month: "short",
       year: "numeric",
     });
     
@@ -80,7 +80,7 @@ export const notifyWorkItemDueSoon = async (workItem) => {
       type: "work_item_due_soon",
       title: "Work Item Due Soon",
       message: `"${workItem.title}" is due tomorrow (${formattedDate})`,
-      link: `/work-items/${workItem._id}`,
+      link: `/employee/my-work`, // Updated to existing route
       data: {
         workItemId: workItem._id,
         projectId: workItem.project._id,
@@ -112,7 +112,7 @@ export const notifyWorkItemOverdue = async (workItem) => {
       type: "work_item_overdue",
       title: "Work Item Overdue",
       message: `"${workItem.title}" is overdue! Please update the status.`,
-      link: `/work-items/${workItem._id}`,
+      link: `/employee/my-work`, // Updated to existing route
       data: {
         workItemId: workItem._id,
         projectId: workItem.project._id,
@@ -152,7 +152,7 @@ export const notifyReviewRequested = async (workItem, changedBy) => {
       type: "work_item_review_requested",
       title: "Review Requested",
       message: `${changedBy.name} has submitted "${workItem.title}" for review`,
-      link: `/work-items/${workItem._id}`,
+      link: `/employee/my-work`, // Updated to existing route
       data: {
         workItemId: workItem._id,
         projectId: workItem.project._id,
@@ -193,7 +193,7 @@ export const notifyStatusChanged = async (workItem, oldStatus, newStatus, change
       type: "work_item_status_changed",
       title: "Work Item Status Updated",
       message: `${changedBy.name} changed "${workItem.title}" status from "${oldStatus}" to "${newStatus}"`,
-      link: `/work-items/${workItem._id}`,
+      link: `/employee/my-work`, // Updated to existing route
       data: {
         workItemId: workItem._id,
         projectId: workItem.project._id,
@@ -231,7 +231,7 @@ export const notifyWorkItemCompleted = async (workItem) => {
         type: "work_item_completed",
         title: "Work Item Completed",
         message: `${workItem.assignedTo.name} completed "${workItem.title}"`,
-        link: `/work-items/${workItem._id}`,
+        link: `/employee/my-work`, // Updated to existing route
         data: {
           workItemId: workItem._id,
           projectId: workItem.project._id,
@@ -268,7 +268,7 @@ export const notifyClientWon = async (client, wonBy, projectDetails = {}) => {
       type: "client_won",
       title: "🎉 New Client Won!",
       message: `${wonBy.name} successfully won ${client.name}${projectDetails.value ? ` worth ₹${projectDetails.value}` : ''}`,
-      link: `/clients/${client._id}`,
+      link: `/clients`, // Updated to existing route
       data: {
         clientId: client._id,
         wonBy: wonBy._id,
@@ -476,7 +476,7 @@ export const notifyWorkItemCommented = async (workItem, comment, commentedBy) =>
         type: "work_item_commented",
         title: "New Comment",
         message: `${commentedBy.name} commented on "${workItem.title}"`,
-        link: `/work-items/${workItem._id}`,
+        link: `/employee/my-work`, // Updated to existing route
         data: {
           workItemId: workItem._id,
           projectId: workItem.project._id,

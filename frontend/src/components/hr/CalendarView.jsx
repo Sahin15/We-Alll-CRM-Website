@@ -258,7 +258,7 @@ const CalendarView = () => {
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">
-                  📝 Reminder for {selectedDate?.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                  📝 Reminder for {selectedDate?.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                 </h5>
                 <button type="button" className="btn-close" onClick={() => setShowReminderModal(false)}></button>
               </div>

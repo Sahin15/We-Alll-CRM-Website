@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import {
   Card,
   Table,
@@ -26,7 +26,7 @@ import { toast } from "react-toastify";
 import api from "../../services/api";
 import { formatDate } from "../../utils/helpers";
 
-// Add styles for clickable cards
+// Move styles outside component to prevent recreation
 const cardHoverStyle = {
   cursor: 'pointer',
   transition: 'all 0.3s ease',
@@ -76,30 +76,53 @@ const AttendanceOverview = () => {
   // Show all state
   const [showAll, setShowAll] = useState(false);
 
+  // Memoize today's date to prevent unnecessary re-renders
+  const today = useMemo(() => new Date().toISOString().split('T')[0], []);
+
+  // Debounced fetch function to prevent excessive API calls
+  const debouncedFetch = useCallback(
+    debounce(() => {
+      if (dateFilter || employeeFilter) {
+        fetchFilteredAttendance();
+      } else {
+        fetchAttendance();
+      }
+    }, 300),
+    [dateFilter, employeeFilter]
+  );
+
+  // Debounce utility function
+  function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
+
   useEffect(() => {
     fetchAttendance();
     fetchEmployees();
   }, []);
 
+  // Use debounced fetch when filters change
   useEffect(() => {
-    // Fetch new data when date or employee filter changes
-    if (dateFilter || employeeFilter) {
-      fetchFilteredAttendance();
-    } else {
-      // If no filters, show today's data
-      fetchAttendance();
-    }
-  }, [dateFilter, employeeFilter]);
+    debouncedFetch();
+  }, [debouncedFetch]);
 
+  // Separate useEffect for search and status filters to prevent API calls
   useEffect(() => {
     applyFilters();
   }, [attendance, searchTerm, statusFilter]);
 
-  const fetchAttendance = async () => {
+  const fetchAttendance = useCallback(async () => {
     try {
       setLoading(true);
       // Fetch only today's attendance by default
-      const today = new Date().toISOString().split('T')[0];
       const response = await api.get(`/attendance?date=${today}`);
       const todayAttendance = response.data;
       
@@ -118,18 +141,18 @@ const AttendanceOverview = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [today]);
 
-  const fetchEmployees = async () => {
+  const fetchEmployees = useCallback(async () => {
     try {
       const response = await api.get("/users");
       setEmployees(response.data.filter(u => u.role === "employee" || u.role === "manager"));
     } catch (error) {
       console.error("Error fetching employees:", error);
     }
-  };
+  }, []);
 
-  const fetchFilteredAttendance = async () => {
+  const fetchFilteredAttendance = useCallback(async () => {
     try {
       setLoading(true);
       let url = "/attendance?";
@@ -162,9 +185,9 @@ const AttendanceOverview = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateFilter, employeeFilter]);
 
-  const applyFilters = () => {
+  const applyFilters = useCallback(() => {
     let filtered = [...attendance];
 
     // Status filter
@@ -195,13 +218,13 @@ const AttendanceOverview = () => {
     }
 
     setFilteredAttendance(filtered);
-  };
+  }, [attendance, searchTerm, statusFilter, employeeFilter, dateFilter]);
 
-  const handleCreateAttendance = () => {
+  const handleCreateAttendance = useCallback(() => {
     setModalMode("create");
     setFormData({
       employeeId: "",
-      date: new Date().toISOString().split('T')[0],
+      date: today,
       clockIn: "",
       clockOut: "",
       status: "present",
@@ -209,15 +232,15 @@ const AttendanceOverview = () => {
       reason: ""
     });
     setShowModal(true);
-  };
+  }, [today]);
 
-  const handleViewAttendance = (att) => {
+  const handleViewAttendance = useCallback((att) => {
     setSelectedAttendance(att);
     setModalMode("view");
     setShowModal(true);
-  };
+  }, []);
 
-  const handleEditAttendance = (att) => {
+  const handleEditAttendance = useCallback((att) => {
     setSelectedAttendance(att);
     setModalMode("edit");
     
@@ -238,7 +261,7 @@ const AttendanceOverview = () => {
       reason: "" // Reset reason for new edit
     });
     setShowModal(true);
-  };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -292,12 +315,12 @@ const AttendanceOverview = () => {
     }
   };
 
-  const handleExport = () => {
+  const handleExport = useCallback(() => {
     toast.info("Export functionality coming soon!");
     // TODO: Implement CSV/Excel export
-  };
+  }, []);
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = useCallback((status) => {
     const variants = {
       present: "success",
       absent: "danger",
@@ -306,17 +329,17 @@ const AttendanceOverview = () => {
       leave: "secondary"
     };
     return <Badge bg={variants[status] || "secondary"}>{status}</Badge>;
-  };
+  }, []);
 
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString("en-US", {
+  const formatDateMemo = useCallback((date) => {
+    return new Date(date).toLocaleDateString("en-GB", {
       year: "numeric",
       month: "short",
       day: "numeric"
     });
-  };
+  }, []);
 
-  const formatTime = (time) => {
+  const formatTime = useCallback((time) => {
     if (!time) return "N/A";
     try {
       const dateObj = new Date(time);
@@ -338,15 +361,94 @@ const AttendanceOverview = () => {
       console.error('Error formatting time:', error);
       return "Invalid Time";
     }
-  };
+  }, []);
 
-  const calculateWorkHours = (clockIn, clockOut) => {
+  const calculateWorkHours = useCallback((clockIn, clockOut) => {
     if (!clockIn || !clockOut) return "N/A";
     const start = new Date(clockIn);
     const end = new Date(clockOut);
     const diff = (end - start) / (1000 * 60 * 60);
     return `${diff.toFixed(2)} hrs`;
-  };
+  }, []);
+
+  // Memoized card hover handlers to prevent recreation
+  const handleCardHover = useCallback((e, isEntering) => {
+    if (isEntering) {
+      e.currentTarget.style.transform = 'translateY(-4px)';
+      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+    } else {
+      e.currentTarget.style.transform = 'translateY(0)';
+      e.currentTarget.style.boxShadow = 'none';
+    }
+  }, []);
+
+  const handleStatusFilterClick = useCallback((status) => {
+    setStatusFilter(statusFilter === status ? '' : status);
+  }, [statusFilter]);
+
+  const handleResetFilters = useCallback(() => {
+    setDateFilter("");
+    setEmployeeFilter("");
+    setStatusFilter("");
+    setSearchTerm("");
+  }, []);
+
+  // Memoize the table rows to prevent unnecessary re-renders
+  const tableRows = useMemo(() => {
+    return filteredAttendance.map((att) => (
+      <tr 
+        key={att._id}
+        style={{
+          backgroundColor: att.isManuallyModified ? 'rgba(255, 193, 7, 0.1)' : 'transparent',
+          borderLeft: att.isManuallyModified ? '3px solid #ffc107' : 'none'
+        }}
+        title={att.isManuallyModified ? 'This record has been manually modified' : ''}
+      >
+        <td>
+          <div className="d-flex align-items-center">
+            <FaUser className="text-muted me-2" />
+            <div>
+              <div className="fw-bold">{att.employee?.name || "N/A"}</div>
+              <small className="text-muted">{att.employee?.email}</small>
+            </div>
+          </div>
+        </td>
+        <td>{formatDateMemo(att.date)}</td>
+        <td>
+          <small className={att.status === "late" ? "text-warning fw-bold" : ""}>
+            {formatTime(att.clockIn)}
+          </small>
+        </td>
+        <td>
+          <small>{formatTime(att.clockOut)}</small>
+        </td>
+        <td>
+          <Badge bg="secondary">
+            {calculateWorkHours(att.clockIn, att.clockOut)}
+          </Badge>
+        </td>
+        <td>{getStatusBadge(att.status)}</td>
+        <td>
+          <div className="d-flex gap-2">
+            <Button
+              size="sm"
+              variant="outline-primary"
+              onClick={() => handleViewAttendance(att)}
+            >
+              <FaEye />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline-warning"
+              onClick={() => handleEditAttendance(att)}
+            >
+              <FaEdit />
+            </Button>
+          </div>
+        </td>
+      </tr>
+    ));
+  }, [filteredAttendance, formatDateMemo, formatTime, calculateWorkHours, getStatusBadge, handleViewAttendance, handleEditAttendance]);
 
   if (loading) {
     return (
@@ -384,7 +486,7 @@ const AttendanceOverview = () => {
           {/* Statistics */}
           <div className="mb-3">
             <h6 className="text-muted">
-              {dateFilter ? `Statistics for ${new Date(dateFilter).toLocaleDateString()}` : "Today's Attendance Statistics"}
+              {dateFilter ? `Statistics for ${new Date(dateFilter).toLocaleDateString('en-GB')}` : "Today's Attendance Statistics"}
             </h6>
           </div>
           <Row className="mb-4">
@@ -392,15 +494,9 @@ const AttendanceOverview = () => {
               <Card 
                 className={`border-0 bg-success bg-opacity-10 ${statusFilter === 'present' ? 'border border-success border-2' : ''}`}
                 style={cardHoverStyle}
-                onClick={() => setStatusFilter(statusFilter === 'present' ? '' : 'present')}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-4px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
+                onClick={() => handleStatusFilterClick('present')}
+                onMouseEnter={(e) => handleCardHover(e, true)}
+                onMouseLeave={(e) => handleCardHover(e, false)}
               >
                 <Card.Body className="text-center">
                   <h3 className="mb-0 text-success">{stats.present}</h3>
@@ -418,15 +514,9 @@ const AttendanceOverview = () => {
               <Card 
                 className={`border-0 bg-danger bg-opacity-10 ${statusFilter === 'absent' ? 'border border-danger border-2' : ''}`}
                 style={cardHoverStyle}
-                onClick={() => setStatusFilter(statusFilter === 'absent' ? '' : 'absent')}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-4px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
+                onClick={() => handleStatusFilterClick('absent')}
+                onMouseEnter={(e) => handleCardHover(e, true)}
+                onMouseLeave={(e) => handleCardHover(e, false)}
               >
                 <Card.Body className="text-center">
                   <h3 className="mb-0 text-danger">{stats.absent}</h3>
@@ -444,15 +534,9 @@ const AttendanceOverview = () => {
               <Card 
                 className={`border-0 bg-warning bg-opacity-10 ${statusFilter === 'late' ? 'border border-warning border-2' : ''}`}
                 style={cardHoverStyle}
-                onClick={() => setStatusFilter(statusFilter === 'late' ? '' : 'late')}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-4px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
+                onClick={() => handleStatusFilterClick('late')}
+                onMouseEnter={(e) => handleCardHover(e, true)}
+                onMouseLeave={(e) => handleCardHover(e, false)}
               >
                 <Card.Body className="text-center">
                   <h3 className="mb-0 text-warning">{stats.late}</h3>
@@ -470,15 +554,9 @@ const AttendanceOverview = () => {
               <Card 
                 className={`border-0 bg-info bg-opacity-10 ${statusFilter === '' ? 'border border-info border-2' : ''}`}
                 style={cardHoverStyle}
-                onClick={() => setStatusFilter('')}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-4px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
+                onClick={() => handleStatusFilterClick('')}
+                onMouseEnter={(e) => handleCardHover(e, true)}
+                onMouseLeave={(e) => handleCardHover(e, false)}
               >
                 <Card.Body className="text-center">
                   <h3 className="mb-0 text-info">{stats.total}</h3>
@@ -545,12 +623,7 @@ const AttendanceOverview = () => {
               <Button 
                 variant="outline-secondary" 
                 className="w-100"
-                onClick={() => {
-                  setDateFilter("");
-                  setEmployeeFilter("");
-                  setStatusFilter("");
-                  setSearchTerm("");
-                }}
+                onClick={handleResetFilters}
               >
                 Reset to Today
               </Button>
@@ -562,9 +635,9 @@ const AttendanceOverview = () => {
             <Col>
               <small className="text-muted">
                 {dateFilter ? (
-                  <>Showing attendance for: <strong>{formatDate(dateFilter)}</strong></>
+                  <>Showing attendance for: <strong>{formatDateMemo(dateFilter)}</strong></>
                 ) : (
-                  <>Showing attendance for: <strong>Today ({formatDate(new Date())})</strong></>
+                  <>Showing attendance for: <strong>Today ({formatDateMemo(new Date())})</strong></>
                 )}
                 {employeeFilter && employees.find(e => e._id === employeeFilter) && (
                   <> • Employee: <strong>{employees.find(e => e._id === employeeFilter).name}</strong></>
@@ -589,59 +662,7 @@ const AttendanceOverview = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredAttendance.map((att) => (
-                    <tr 
-                      key={att._id}
-                      style={{
-                        backgroundColor: att.isManuallyModified ? 'rgba(255, 193, 7, 0.1)' : 'transparent',
-                        borderLeft: att.isManuallyModified ? '3px solid #ffc107' : 'none'
-                      }}
-                      title={att.isManuallyModified ? 'This record has been manually modified' : ''}
-                    >
-                      <td>
-                        <div className="d-flex align-items-center">
-                          <FaUser className="text-muted me-2" />
-                          <div>
-                            <div className="fw-bold">{att.employee?.name || "N/A"}</div>
-                            <small className="text-muted">{att.employee?.email}</small>
-                          </div>
-                        </div>
-                      </td>
-                      <td>{formatDate(att.date)}</td>
-                      <td>
-                        <small className={att.status === "late" ? "text-warning fw-bold" : ""}>
-                          {formatTime(att.clockIn)}
-                        </small>
-                      </td>
-                      <td>
-                        <small>{formatTime(att.clockOut)}</small>
-                      </td>
-                      <td>
-                        <Badge bg="secondary">
-                          {calculateWorkHours(att.clockIn, att.clockOut)}
-                        </Badge>
-                      </td>
-                      <td>{getStatusBadge(att.status)}</td>
-                      <td>
-                        <div className="d-flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline-primary"
-                            onClick={() => handleViewAttendance(att)}
-                          >
-                            <FaEye />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline-warning"
-                            onClick={() => handleEditAttendance(att)}
-                          >
-                            <FaEdit />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {tableRows}
                 </tbody>
               </Table>
             </div>
@@ -930,4 +951,4 @@ const AttendanceOverview = () => {
   );
 };
 
-export default AttendanceOverview;
+export default memo(AttendanceOverview);

@@ -108,12 +108,93 @@ const workItemSchema = new mongoose.Schema(
       trim: true,
     },
     
+    // Enhanced Slot Assignment
+    slotAssignment: {
+      assignedSlot: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'Slot', 
+        default: null
+      },
+      slotNumber: { 
+        type: Number
+      }, // Denormalized for quick access
+      slotIdentifier: String, // Denormalized for display
+      assignedAt: Date,
+      assignedBy: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'User' 
+      },
+      slotType: {
+        type: String,
+        enum: ['work', 'milestone', 'deliverable', 'review', 'approval']
+      }
+    },
+
+    // Progress Contribution Configuration
+    progressContribution: {
+      contributesToProjectProgress: { 
+        type: Boolean, 
+        default: true 
+      },
+      progressWeight: { 
+        type: Number, 
+        default: 1.0, 
+        min: 0, 
+        max: 10 
+      },
+      completionImpact: { 
+        type: String, 
+        enum: ['slot-completion', 'partial-progress', 'milestone-trigger'], 
+        default: 'slot-completion' 
+      }
+    },
+
+    // Slot Integration Configuration
+    slotIntegration: {
+      autoCompleteSlotOnWorkItemCompletion: { 
+        type: Boolean, 
+        default: true 
+      },
+      requireSlotApprovalForCompletion: { 
+        type: Boolean, 
+        default: false 
+      },
+      releaseSlotOnDeletion: { 
+        type: Boolean, 
+        default: true 
+      },
+      notifyOnSlotCompletion: {
+        type: Boolean,
+        default: true
+      }
+    },
+    
     // Tags for categorization
     tags: [{
       type: String,
       trim: true,
       lowercase: true,
     }],
+
+    // Slot Integration Configuration
+    slotIntegration: {
+      autoCompleteSlotOnWorkItemCompletion: { 
+        type: Boolean, 
+        default: true 
+      },
+      requireSlotApprovalForCompletion: { 
+        type: Boolean, 
+        default: false 
+      },
+      releaseSlotOnDeletion: { 
+        type: Boolean, 
+        default: true 
+      },
+      notifyOnSlotCompletion: {
+        type: Boolean,
+        default: true
+      }
+    },
     
     // Attachments
     attachments: [{
@@ -278,6 +359,26 @@ const workItemSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
+    
+    // Soft Delete - Work items should never be permanently deleted
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
+    deletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    deletionReason: {
+      type: String,
+      trim: true,
+    },
   },
   {
     timestamps: true, // Adds createdAt and updatedAt
@@ -294,8 +395,36 @@ workItemSchema.index({ type: 1, status: 1 });
 workItemSchema.index({ createdBy: 1 });
 workItemSchema.index({ tags: 1 });
 
+// Enhanced indexes for slot-based queries
+workItemSchema.index({ 'slotAssignment.assignedSlot': 1 });
+workItemSchema.index({ project: 1, 'slotAssignment.assignedSlot': 1 });
+workItemSchema.index({ 'slotAssignment.slotNumber': 1 });
+workItemSchema.index({ 'progressContribution.contributesToProjectProgress': 1 });
+workItemSchema.index({ isDeleted: 1 }); // Index for soft delete queries
+
 // Compound index for common queries
 workItemSchema.index({ project: 1, assignedTo: 1, status: 1 });
+workItemSchema.index({ project: 1, 'slotAssignment.assignedSlot': 1, status: 1 });
+workItemSchema.index({ isDeleted: 1, project: 1, status: 1 }); // Compound index for active work items
+
+// Virtual for checking if work item has assigned slot
+workItemSchema.virtual("hasAssignedSlot").get(function () {
+  return this.slotAssignment?.assignedSlot != null;
+});
+
+// Virtual for slot display information
+workItemSchema.virtual("slotDisplayInfo").get(function () {
+  if (!this.hasAssignedSlot) {
+    return null;
+  }
+  
+  return {
+    slotNumber: this.slotAssignment.slotNumber,
+    slotIdentifier: this.slotAssignment.slotIdentifier,
+    slotType: this.slotAssignment.slotType,
+    assignedAt: this.slotAssignment.assignedAt
+  };
+});
 
 // Virtual for checking if work item is overdue
 workItemSchema.virtual("isOverdue").get(function () {
@@ -336,11 +465,33 @@ workItemSchema.virtual("daysUntilDue").get(function () {
 });
 
 // Pre-save middleware to set completedAt when status changes to Done
-workItemSchema.pre("save", function (next) {
+workItemSchema.pre("save", async function (next) {
   if (this.isModified("status")) {
     // Set completedAt when status becomes "Done"
     if (this.status === "Done" && !this.completedAt) {
       this.completedAt = new Date();
+      
+      // Handle slot completion if work item has assigned slot
+      if (this.hasAssignedSlot && this.slotIntegration?.autoCompleteSlotOnWorkItemCompletion) {
+        try {
+          const Slot = mongoose.model('Slot');
+          const slot = await Slot.findById(this.slotAssignment.assignedSlot);
+          
+          if (slot && slot.assignmentStatus !== 'completed') {
+            await slot.completeSlot(this.modifiedBy || this.createdBy, 'Completed via work item completion');
+            
+            // Update project progress if needed
+            const Project = mongoose.model('Project');
+            const project = await Project.findById(this.project);
+            if (project && project.slotConfiguration?.enableSlotSystem) {
+              await project.recalculateSlotProgress();
+            }
+          }
+        } catch (error) {
+          console.error('Error completing slot on work item completion:', error);
+          // Don't fail the work item save if slot completion fails
+        }
+      }
     } 
     // Clear completedAt if status changes from "Done" to something else
     else if (this.status !== "Done" && this.completedAt) {
@@ -391,11 +542,19 @@ workItemSchema.statics.getByUser = function (userId, filters = {}) {
   if (filters.dueDate) {
     query.dueDate = { $lte: new Date(filters.dueDate) };
   }
+  if (filters.hasSlot !== undefined) {
+    if (filters.hasSlot) {
+      query['slotAssignment.assignedSlot'] = { $ne: null };
+    } else {
+      query['slotAssignment.assignedSlot'] = null;
+    }
+  }
   
   return this.find(query)
     .populate("project", "name client")
     .populate("assignedTo", "name email")
     .populate("createdBy", "name email")
+    .populate("slotAssignment.assignedSlot", "slotNumber slotIdentifier slotType assignmentStatus")
     .sort({ dueDate: 1, createdAt: -1 });
 };
 
@@ -412,11 +571,59 @@ workItemSchema.statics.getByProject = function (projectId, filters = {}) {
   if (filters.assignedTo) {
     query.assignedTo = filters.assignedTo;
   }
+  if (filters.slotNumber) {
+    query['slotAssignment.slotNumber'] = filters.slotNumber;
+  }
+  if (filters.hasSlot !== undefined) {
+    if (filters.hasSlot) {
+      query['slotAssignment.assignedSlot'] = { $ne: null };
+    } else {
+      query['slotAssignment.assignedSlot'] = null;
+    }
+  }
   
   return this.find(query)
     .populate("assignedTo", "name email")
     .populate("createdBy", "name email")
-    .sort({ status: 1, dueDate: 1 });
+    .populate("slotAssignment.assignedSlot", "slotNumber slotIdentifier slotType assignmentStatus")
+    .sort({ 'slotAssignment.slotNumber': 1, status: 1, dueDate: 1 });
+};
+
+// Static method to get work items with slot information
+workItemSchema.statics.getWithSlotInfo = function (filters = {}) {
+  const pipeline = [
+    { $match: filters },
+    {
+      $lookup: {
+        from: 'slots',
+        localField: 'slotAssignment.assignedSlot',
+        foreignField: '_id',
+        as: 'slotInfo'
+      }
+    },
+    {
+      $lookup: {
+        from: 'projects',
+        localField: 'project',
+        foreignField: '_id',
+        as: 'projectInfo'
+      }
+    },
+    {
+      $addFields: {
+        slotDetails: { $arrayElemAt: ['$slotInfo', 0] },
+        projectDetails: { $arrayElemAt: ['$projectInfo', 0] }
+      }
+    },
+    {
+      $project: {
+        slotInfo: 0,
+        projectInfo: 0
+      }
+    }
+  ];
+  
+  return this.aggregate(pipeline);
 };
 
 // Static method to search work items
@@ -446,6 +653,70 @@ workItemSchema.statics.search = function (userId, searchTerm, filters = {}) {
     .sort({ dueDate: 1 });
 };
 
+// Instance method to assign work item to slot
+workItemSchema.methods.assignToSlot = async function(slotId, assignedBy) {
+  const Slot = mongoose.model('Slot');
+  const slot = await Slot.findById(slotId);
+  
+  if (!slot) {
+    throw new Error('Slot not found');
+  }
+  
+  if (slot.project.toString() !== this.project.toString()) {
+    throw new Error('Slot does not belong to the same project as work item');
+  }
+  
+  if (!slot.isAvailable) {
+    throw new Error(`Slot ${slot.slotIdentifier} is not available for assignment`);
+  }
+  
+  // Release current slot if assigned
+  if (this.slotAssignment?.assignedSlot) {
+    await this.releaseSlot(assignedBy, 'Reassigning to different slot');
+  }
+  
+  // Assign to new slot
+  await slot.assignToWorkItem(this._id, assignedBy);
+  
+  // Update work item slot assignment
+  this.slotAssignment = {
+    assignedSlot: slot._id,
+    slotNumber: slot.slotNumber,
+    slotIdentifier: slot.slotIdentifier,
+    slotType: slot.slotType,
+    assignedAt: new Date(),
+    assignedBy: assignedBy
+  };
+  
+  return this.save();
+};
+
+// Instance method to release work item from slot
+workItemSchema.methods.releaseSlot = async function(releasedBy, reason = '') {
+  if (!this.slotAssignment?.assignedSlot) {
+    return this; // No slot assigned, nothing to release
+  }
+  
+  const Slot = mongoose.model('Slot');
+  const slot = await Slot.findById(this.slotAssignment.assignedSlot);
+  
+  if (slot) {
+    await slot.releaseSlot(releasedBy, reason);
+  }
+  
+  // Clear slot assignment
+  this.slotAssignment = {
+    assignedSlot: null,
+    slotNumber: null,
+    slotIdentifier: null,
+    slotType: null,
+    assignedAt: null,
+    assignedBy: null
+  };
+  
+  return this.save();
+};
+
 // Instance method to validate status transition
 workItemSchema.methods.canTransitionTo = function (newStatus) {
   const validStatuses = ["To Do", "In Progress", "Review", "Done"];
@@ -453,6 +724,11 @@ workItemSchema.methods.canTransitionTo = function (newStatus) {
   // Check if new status is valid
   if (!validStatuses.includes(newStatus)) {
     return { valid: false, message: `Invalid status: ${newStatus}` };
+  }
+  
+  // Check slot-specific constraints
+  if (newStatus === "Done" && this.slotIntegration?.requireSlotApprovalForCompletion) {
+    // Additional validation could be added here for slot approval requirements
   }
   
   // All transitions are allowed (flexible workflow)
@@ -472,6 +748,42 @@ workItemSchema.methods.updateStatus = function (newStatus, changedBy) {
   this.modifiedBy = changedBy;
   
   return this.save();
+};
+
+// Instance method for soft delete
+workItemSchema.methods.softDelete = function (deletedBy, reason = '') {
+  this.isDeleted = true;
+  this.deletedAt = new Date();
+  this.deletedBy = deletedBy;
+  this.deletionReason = reason;
+  
+  // Release slot if assigned
+  if (this.slotAssignment?.assignedSlot && this.slotIntegration?.releaseSlotOnDeletion) {
+    this.releaseSlot(deletedBy, 'Work item deleted');
+  }
+  
+  return this.save();
+};
+
+// Instance method to restore soft deleted work item
+workItemSchema.methods.restore = function (restoredBy) {
+  this.isDeleted = false;
+  this.deletedAt = null;
+  this.deletedBy = null;
+  this.deletionReason = null;
+  this.modifiedBy = restoredBy;
+  
+  return this.save();
+};
+
+// Static method to find only active (non-deleted) work items
+workItemSchema.statics.findActive = function (query = {}) {
+  return this.find({ ...query, isDeleted: { $ne: true } });
+};
+
+// Static method to find deleted work items
+workItemSchema.statics.findDeleted = function (query = {}) {
+  return this.find({ ...query, isDeleted: true });
 };
 
 const WorkItem = mongoose.model("WorkItem", workItemSchema);

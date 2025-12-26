@@ -7,6 +7,9 @@ import {
   Button,
   Badge,
   ListGroup,
+  Modal,
+  Form,
+  Spinner,
 } from "react-bootstrap";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -17,6 +20,8 @@ import {
   FaPhone,
   FaBuilding,
   FaMapMarkerAlt,
+  FaSave,
+  FaTimes,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { clientApi } from "../../api/clientApi";
@@ -32,6 +37,26 @@ const ClientDetails = () => {
   const [projects, setProjects] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    whatsappnumber: "",
+    company: "",
+    ownername: "",
+    address: "",
+    industry: "",
+    website: "",
+    targetAudience: "",
+    audienceGender: "",
+    previousChallenges: "",
+    legalGuidelines: "",
+    yearlyTurnover: "",
+    expectations: "",
+    serviceCompany: "",
+  });
 
   useEffect(() => {
     fetchClientDetails();
@@ -43,10 +68,85 @@ const ClientDetails = () => {
     try {
       const response = await clientApi.getClientById(id);
       setClient(response.data);
+      // Populate edit form data
+      setEditFormData({
+        name: response.data.name || "",
+        email: response.data.email || "",
+        phone: response.data.phone || "",
+        whatsappnumber: response.data.whatsappnumber || "",
+        company: response.data.company || "",
+        ownername: response.data.ownername || "",
+        address: response.data.address || "",
+        industry: response.data.industry || "",
+        website: response.data.website || "",
+        targetAudience: response.data.targetAudience || "",
+        audienceGender: response.data.audienceGender || "",
+        previousChallenges: response.data.previousChallenges || "",
+        legalGuidelines: response.data.legalGuidelines || "",
+        yearlyTurnover: response.data.yearlyTurnover || "",
+        expectations: response.data.expectations || "",
+        serviceCompany: response.data.serviceCompany || "",
+      });
     } catch (error) {
       toast.error("Failed to fetch client details");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setEditLoading(true);
+      await clientApi.updateClient(id, editFormData);
+      toast.success("Client updated successfully");
+      setShowEditModal(false);
+      // Refresh client data
+      await fetchClientDetails();
+    } catch (error) {
+      console.error("Error updating client:", error);
+      toast.error(
+        error.response?.data?.message || "Failed to update client"
+      );
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleEditInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleShowEditModal = () => {
+    setShowEditModal(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setShowEditModal(false);
+    // Reset form data to original client data
+    if (client) {
+      setEditFormData({
+        name: client.name || "",
+        email: client.email || "",
+        phone: client.phone || "",
+        whatsappnumber: client.whatsappnumber || "",
+        company: client.company || "",
+        ownername: client.ownername || "",
+        address: client.address || "",
+        industry: client.industry || "",
+        website: client.website || "",
+        targetAudience: client.targetAudience || "",
+        audienceGender: client.audienceGender || "",
+        previousChallenges: client.previousChallenges || "",
+        legalGuidelines: client.legalGuidelines || "",
+        yearlyTurnover: client.yearlyTurnover || "",
+        expectations: client.expectations || "",
+        serviceCompany: client.serviceCompany || "",
+      });
     }
   };
 
@@ -128,7 +228,10 @@ const ClientDetails = () => {
           <h2>Client Details</h2>
         </Col>
         <Col className="text-end">
-          <Button variant="primary" onClick={() => navigate("/clients")}>
+          <Button 
+            variant="primary" 
+            onClick={handleShowEditModal}
+          >
             <FaEdit className="me-2" />
             Edit Client
           </Button>
@@ -515,6 +618,259 @@ const ClientDetails = () => {
           </Card>
         </Col>
       </Row>
+
+      {/* Edit Client Modal */}
+      <Modal show={showEditModal} onHide={handleCloseEditModal} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Edit Client</Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleEditSubmit}>
+          <Modal.Body>
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Client Name *</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="name"
+                    value={editFormData.name}
+                    onChange={handleEditInputChange}
+                    required
+                    placeholder="Enter client name"
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Email *</Form.Label>
+                  <Form.Control
+                    type="email"
+                    name="email"
+                    value={editFormData.email}
+                    onChange={handleEditInputChange}
+                    required
+                    placeholder="client@example.com"
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Phone</Form.Label>
+                  <Form.Control
+                    type="number"
+                    name="phone"
+                    value={editFormData.phone}
+                    onChange={handleEditInputChange}
+                    placeholder="Enter phone number"
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>WhatsApp</Form.Label>
+                  <Form.Control
+                    type="number"
+                    name="whatsappnumber"
+                    value={editFormData.whatsappnumber}
+                    onChange={handleEditInputChange}
+                    placeholder="Enter WhatsApp number"
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Company</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="company"
+                    value={editFormData.company}
+                    onChange={handleEditInputChange}
+                    placeholder="Enter company name"
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Owner Name</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="ownername"
+                    value={editFormData.ownername}
+                    onChange={handleEditInputChange}
+                    placeholder="Enter owner name"
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row>
+              <Col md={12}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Service Company *</Form.Label>
+                  <Form.Select
+                    name="serviceCompany"
+                    value={editFormData.serviceCompany}
+                    onChange={handleEditInputChange}
+                    required
+                  >
+                    <option value="">Select which company's services</option>
+                    <option value="We Alll">We Alll</option>
+                    <option value="Kolkata Digital">Kolkata Digital</option>
+                  </Form.Select>
+                  <Form.Text className="text-muted">
+                    Select which company's services this client will be using.
+                  </Form.Text>
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Address</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                name="address"
+                value={editFormData.address}
+                onChange={handleEditInputChange}
+                placeholder="Enter full address"
+              />
+            </Form.Group>
+
+            <h5 className="mt-4 mb-3">Business Information</h5>
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Industry/Business Category</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="industry"
+                    value={editFormData.industry}
+                    onChange={handleEditInputChange}
+                    placeholder="Enter industry or business category"
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Website URL</Form.Label>
+                  <Form.Control
+                    type="url"
+                    name="website"
+                    value={editFormData.website}
+                    onChange={handleEditInputChange}
+                    placeholder="https://example.com"
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Target Audience</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="targetAudience"
+                    value={editFormData.targetAudience}
+                    onChange={handleEditInputChange}
+                    placeholder="Describe your target audience"
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Audience Gender</Form.Label>
+                  <Form.Select
+                    name="audienceGender"
+                    value={editFormData.audienceGender}
+                    onChange={handleEditInputChange}
+                  >
+                    <option value="">Select gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Both">Both</option>
+                    <option value="Other">Other</option>
+                    <option value="Not Applicable">Not Applicable</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Yearly Turnover</Form.Label>
+              <Form.Control
+                type="number"
+                name="yearlyTurnover"
+                value={editFormData.yearlyTurnover}
+                onChange={handleEditInputChange}
+                placeholder="Enter yearly turnover"
+              />
+            </Form.Group>
+
+            <h5 className="mt-4 mb-3">Marketing Information</h5>
+            <Form.Group className="mb-3">
+              <Form.Label>Previous Challenges</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                name="previousChallenges"
+                value={editFormData.previousChallenges}
+                onChange={handleEditInputChange}
+                placeholder="What challenges have you faced with previous agencies or marketing efforts?"
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Legal Guidelines</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={2}
+                name="legalGuidelines"
+                value={editFormData.legalGuidelines}
+                onChange={handleEditInputChange}
+                placeholder="Any legal or regulatory guidelines we should be aware of?"
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Expectations</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                name="expectations"
+                value={editFormData.expectations}
+                onChange={handleEditInputChange}
+                placeholder="What do you expect from us?"
+              />
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={handleCloseEditModal} disabled={editLoading}>
+              <FaTimes className="me-2" />
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit" disabled={editLoading}>
+              {editLoading ? (
+                <>
+                  <Spinner animation="border" size="sm" className="me-2" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <FaSave className="me-2" />
+                  Update Client
+                </>
+              )}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
     </Container>
   );
 };

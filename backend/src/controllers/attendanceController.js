@@ -1037,27 +1037,92 @@ export const downloadAttendancePDF = async (req, res) => {
       });
     }
 
+    // We ALLL Logo - embedded base64 version
+    const weAlllLogoSvg = `data:image/svg+xml;base64,${Buffer.from(`
+      <svg width="400" height="120" viewBox="0 0 400 120" xmlns="http://www.w3.org/2000/svg">
+        <!-- Background -->
+        <rect width="400" height="120" fill="white" rx="12"/>
+        
+        <!-- We ALLL Text with exact colors from the logo -->
+        <g font-family="Arial, sans-serif" font-weight="bold">
+          <!-- W - Blue -->
+          <text x="30" y="65" font-size="42" fill="#4A90E2">W</text>
+          
+          <!-- / - Red diagonal -->
+          <path d="M 70 30 L 85 30 L 105 80 L 90 80 Z" fill="#E74C3C"/>
+          
+          <!-- e - Blue -->
+          <text x="110" y="65" font-size="42" fill="#4A90E2">e</text>
+          
+          <!-- Space -->
+          
+          <!-- A - Green -->
+          <text x="170" y="65" font-size="42" fill="#27AE60">A</text>
+          
+          <!-- L - Red -->
+          <text x="210" y="65" font-size="42" fill="#E74C3C">L</text>
+          
+          <!-- L - Yellow -->
+          <text x="240" y="65" font-size="42" fill="#F39C12">L</text>
+          
+          <!-- L - Green -->
+          <text x="270" y="65" font-size="42" fill="#27AE60">L</text>
+        </g>
+        
+        <!-- GROW TOGETHER tagline -->
+        <text x="200" y="95" font-family="Arial, sans-serif" font-size="14" font-weight="normal" text-anchor="middle" fill="#7F8C8D" letter-spacing="3px">GROW TOGETHER</text>
+      </svg>
+    `).toString('base64')}`;
+
     // Read and convert logo to base64
-    let logoBase64 = '';
+    let logoBase64 = weAlllLogoSvg; // Use embedded logo as default
     try {
       const fs = await import('fs');
       const path = await import('path');
       const { fileURLToPath } = await import('url');
       const __filename = fileURLToPath(import.meta.url);
       const __dirname = path.dirname(__filename);
-      const logoPath = path.join(__dirname, '../../uploads/We-Alll-Logo.jpg');
       
-      console.log('Attempting to load logo from:', logoPath);
+      // Try multiple logo file paths - if found, override the embedded logo
+      const logoPaths = [
+        path.join(__dirname, '../../uploads/we-alll-logo.png'),
+        path.join(__dirname, '../../uploads/we-alll-logo.svg'),
+        path.join(__dirname, '../../uploads/we-alll-logo.jpg'),
+        path.join(__dirname, '../../uploads/We-Alll-Office-Logo.png'),
+        path.join(__dirname, '../../uploads/Wealll_mini.png'),
+        path.join(__dirname, '../../uploads/We-Alll-Logo.jpg'),
+        path.join(__dirname, '../../uploads/company-logo.png')
+      ];
       
-      if (fs.default.existsSync(logoPath)) {
-        const logoBuffer = fs.default.readFileSync(logoPath);
-        logoBase64 = `data:image/jpeg;base64,${logoBuffer.toString('base64')}`;
-        console.log('Logo loaded successfully, base64 length:', logoBase64.length);
-      } else {
-        console.log('Logo file not found at path:', logoPath);
+      let logoLoaded = false;
+      for (const logoPath of logoPaths) {
+        console.log('Checking for uploaded logo at:', logoPath);
+        
+        if (fs.default.existsSync(logoPath)) {
+          const logoBuffer = fs.default.readFileSync(logoPath);
+          const fileExtension = path.extname(logoPath).toLowerCase();
+          let mimeType = 'image/png';
+          
+          if (fileExtension === '.jpg' || fileExtension === '.jpeg') {
+            mimeType = 'image/jpeg';
+          } else if (fileExtension === '.png') {
+            mimeType = 'image/png';
+          } else if (fileExtension === '.svg') {
+            mimeType = 'image/svg+xml';
+          }
+          
+          logoBase64 = `data:${mimeType};base64,${logoBuffer.toString('base64')}`;
+          console.log('Uploaded logo loaded successfully from:', logoPath, 'base64 length:', logoBase64.length);
+          logoLoaded = true;
+          break;
+        }
+      }
+      
+      if (!logoLoaded) {
+        console.log('No uploaded logo found, using embedded We ALLL logo');
       }
     } catch (error) {
-      console.log('Error loading logo:', error.message);
+      console.log('Error loading uploaded logo, using embedded We ALLL logo:', error.message);
     }
 
     // Build query
@@ -1102,22 +1167,20 @@ export const downloadAttendancePDF = async (req, res) => {
         <title>Attendance Report - ${employeeInfo.name}</title>
         <style>
           body { font-family: Arial, sans-serif; margin: 40px; }
-          .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #667eea; padding-bottom: 20px; }
-          .company-header { display: flex; align-items: center; justify-content: center; margin-bottom: 20px; gap: 15px; }
-          .company-logo { width: 60px; height: 60px; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #4CAF50; padding-bottom: 20px; }
+          .company-header { display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+          .company-logo { width: 100%; max-width: 200px; height: auto; }
           .company-logo img { 
-            width: 60px; 
-            height: 60px; 
+            width: 100%; 
+            height: auto;
+            max-height: 60px;
             object-fit: contain;
-            border-radius: 8px; 
+            border-radius: 6px; 
             background: white;
-            padding: 4px;
-            border: 2px solid #667eea;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 6px;
+            border: 2px solid #4CAF50;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
           }
-          .company-info { text-align: left; }
-          .company-info h2 { margin: 0; color: #333; font-size: 24px; }
-          .company-info .tagline { margin: 5px 0 0 0; color: #666; font-size: 12px; font-style: italic; }
           .employee-info { margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0; }
           .header h1 { margin: 15px 0 10px 0; color: #333; font-size: 28px; }
           .header p { margin: 5px 0; color: #666; }
@@ -1128,9 +1191,9 @@ export const downloadAttendancePDF = async (req, res) => {
           .stat-card { border: 1px solid #ddd; padding: 15px; border-radius: 5px; text-align: center; }
           .stat-card h3 { margin: 0; font-size: 32px; }
           .stat-card p { margin: 5px 0; color: #666; }
-          .present { border-left: 4px solid #28a745; }
-          .late { border-left: 4px solid #ffc107; }
-          .absent { border-left: 4px solid #dc3545; }
+          .present { border-left: 4px solid #4CAF50; }
+          .late { border-left: 4px solid #FF9800; }
+          .absent { border-left: 4px solid #F44336; }
           table { width: 100%; border-collapse: collapse; margin-top: 20px; }
           th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
           th { background-color: #f8f9fa; font-weight: bold; }
@@ -1151,19 +1214,27 @@ export const downloadAttendancePDF = async (req, res) => {
       <body>
         <div class="header">
           <div class="company-header">
+          <div class="company-header">
             <div class="company-logo">
-              ${logoBase64 ? `<img src="${logoBase64}" alt="WE ALLL Logo" />` : '<div style="width:60px;height:60px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:10px;">WE ALLL</div>'}
+              <img src="${logoBase64}" alt="We ALLL Logo" />
             </div>
-            <div class="company-info">
-              <h2>WE ALLL Office</h2>
-              <p class="tagline">Empowering Teams, Simplifying Management</p>
-            </div>
+          </div>
           </div>
           <h1>📊 Attendance Report</h1>
           <div class="employee-info">
             <p><strong>${employeeInfo.name}</strong></p>
             <p>${employeeInfo.email} ${employeeInfo.employeeId ? `| ID: ${employeeInfo.employeeId}` : ''}</p>
-            <p>Period: ${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}</p>
+            <p>Period: ${(() => {
+              const start = new Date(startDate);
+              const end = new Date(endDate);
+              const formatDate = (date) => {
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = String(date.getFullYear()).slice(-2);
+                return `${day}/${month}/${year}`;
+              };
+              return `${formatDate(start)} - ${formatDate(end)}`;
+            })()}</p>
           </div>
         </div>
 
@@ -1209,9 +1280,25 @@ export const downloadAttendancePDF = async (req, res) => {
           <tbody>
             ${attendances.map(att => `
               <tr>
-                <td>${new Date(att.date).toLocaleDateString()}</td>
-                <td>${att.clockIn ? new Date(att.clockIn).toLocaleTimeString() : '-'}</td>
-                <td>${att.clockOut ? new Date(att.clockOut).toLocaleTimeString() : '-'}</td>
+                <td>${(() => {
+                  const date = new Date(att.date);
+                  const day = String(date.getDate()).padStart(2, '0');
+                  const month = String(date.getMonth() + 1).padStart(2, '0');
+                  const year = String(date.getFullYear()).slice(-2);
+                  return `${day}/${month}/${year}`;
+                })()}</td>
+                <td>${att.clockIn ? (() => {
+                  const time = new Date(att.clockIn);
+                  const hours = String(time.getHours()).padStart(2, '0');
+                  const minutes = String(time.getMinutes()).padStart(2, '0');
+                  return `${hours}:${minutes}`;
+                })() : '-'}</td>
+                <td>${att.clockOut ? (() => {
+                  const time = new Date(att.clockOut);
+                  const hours = String(time.getHours()).padStart(2, '0');
+                  const minutes = String(time.getMinutes()).padStart(2, '0');
+                  return `${hours}:${minutes}`;
+                })() : '-'}</td>
                 <td>${att.workHours || 0} hrs</td>
                 <td>${att.overtime || 0} hrs</td>
                 <td><span class="status-badge status-${att.status}">${att.status}</span></td>
@@ -1221,10 +1308,18 @@ export const downloadAttendancePDF = async (req, res) => {
         </table>
 
         <div class="footer">
-          <p><strong>WE ALLL Office</strong> | Attendance Management System</p>
-          <p>Generated on ${new Date().toLocaleString()}</p>
+          <p><strong>Attendance Management System</strong></p>
+          <p>Generated on ${(() => {
+            const now = new Date();
+            const day = String(now.getDate()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const year = String(now.getFullYear()).slice(-2);
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            return `${day}/${month}/${year}, ${hours}:${minutes}`;
+          })()}</p>
           <p>This is an official system-generated report</p>
-          <p style="margin-top: 10px; font-size: 10px;">© ${new Date().getFullYear()} WE ALLL. All rights reserved.</p>
+          <p style="margin-top: 10px; font-size: 10px; color: #4CAF50;">© ${new Date().getFullYear()} We ALLL - GROW TOGETHER. All rights reserved.</p>
         </div>
 
         <script>

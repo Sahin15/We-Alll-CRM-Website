@@ -7,6 +7,7 @@ export const authorizeRoles = (...allowedRoles) => {
         allowedRoles: allowedRoles
       });
     }
+    
     next();
   };
 };

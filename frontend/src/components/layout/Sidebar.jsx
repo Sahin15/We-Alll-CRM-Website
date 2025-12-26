@@ -21,6 +21,7 @@ import {
   FaTasks,
   FaReceipt,
   FaBullhorn,
+  FaChartBar,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import "./Sidebar.css";
@@ -126,10 +127,10 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           roles: ["employee", "admin", "hr", "hod"],
         },
         {
-          path: "/work-calendar/admin-overview",
-          icon: <FaCalendarAlt />,
-          label: "Calendar Overview",
-          roles: ["admin", "superadmin", "hr"],
+          path: "/work-calendar/enhanced-admin-overview",
+          icon: <FaChartBar />,
+          label: "Work Dashboard",
+          roles: ["admin", "superadmin", "hr", "manager"],
         },
       ],
     },

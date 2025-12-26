@@ -1,0 +1,85 @@
+/* Client Work Overview Styles */
+
+.client-work-overview {
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+.client-work-overview .card {
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.2s ease;
+}
+
+.client-work-overview .card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.client-work-overview .progress {
+  height: 8px;
+}
+
+.client-work-overview .table th {
+  background-color: #f8f9fa;
+  border-top: none;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #495057;
+}
+
+.client-work-overview .table td {
+  vertical-align: middle;
+  font-size: 0.875rem;
+}
+
+.client-work-overview .badge {
+  font-size: 0.75rem;
+}
+
+.client-work-overview .nav-tabs {
+  border-bottom: 2px solid #dee2e6;
+}
+
+.client-work-overview .nav-tabs .nav-link {
+  border: none;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.client-work-overview .nav-tabs .nav-link.active {
+  color: #007bff;
+  border-bottom: 2px solid #007bff;
+  background-color: transparent;
+}
+
+.client-work-overview .border-end {
+  border-right: 1px solid #dee2e6 !important;
+}
+
+.client-work-overview .text-center h6 {
+  color: #495057;
+  font-weight: 600;
+}
+
+.client-work-overview .text-center small {
+  color: #6c757d;
+  font-size: 0.75rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .client-work-overview .table-responsive {
+    font-size: 0.8rem;
+  }
+  
+  .client-work-overview .card-body {
+    padding: 1rem;
+  }
+  
+  .client-work-overview .border-end {
+    border-right: none !important;
+    border-bottom: 1px solid #dee2e6 !important;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+}

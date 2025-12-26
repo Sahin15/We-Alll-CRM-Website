@@ -28,23 +28,39 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
   // Update preview when user profile picture changes
   useEffect(() => {
     if (user?.profilePicture) {
-      // Add cache-busting parameter to force browser to reload the image
-      const imageUrl = user.profilePicture.includes('?') 
-        ? `${user.profilePicture}&t=${Date.now()}`
-        : `${user.profilePicture}?t=${Date.now()}`;
+      // Use the original URL first, only add cache-busting if needed
+      const imageUrl = user.profilePicture;
       
       // Verify image accessibility before setting preview
       const img = document.createElement('img');
       img.onload = () => {
+        console.log("Profile picture loaded successfully:", imageUrl);
         setPreview(imageUrl);
       };
       img.onerror = () => {
-        console.warn("Profile picture failed to load, clearing preview");
-        setPreview(null);
-        // Optionally clear the broken URL from user profile
-        if (user.profilePicture) {
-          handleRemoveBrokenImage();
-        }
+        console.warn("Profile picture failed to load, trying with cache-busting");
+        
+        // Try with cache-busting parameter
+        const cacheBustedUrl = imageUrl.includes('?') 
+          ? `${imageUrl}&t=${Date.now()}`
+          : `${imageUrl}?t=${Date.now()}`;
+        
+        const retryImg = document.createElement('img');
+        retryImg.onload = () => {
+          console.log("Profile picture loaded with cache-busting:", cacheBustedUrl);
+          setPreview(cacheBustedUrl);
+        };
+        retryImg.onerror = () => {
+          console.error("Profile picture completely failed to load, clearing preview");
+          setPreview(null);
+          // Only clear broken image after multiple failures
+          setTimeout(() => {
+            if (user.profilePicture === imageUrl) {
+              handleRemoveBrokenImage();
+            }
+          }, 5000); // Wait 5 seconds before clearing
+        };
+        retryImg.src = cacheBustedUrl;
       };
       img.src = imageUrl;
     } else {
@@ -406,59 +422,29 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
       
       // Update preview immediately with the uploaded image URL
       if (response.data.imageUrl) {
-        const imageUrlWithCacheBust = `${response.data.imageUrl}?t=${Date.now()}`;
-        console.log("🖼️ Setting preview to uploaded URL:", imageUrlWithCacheBust);
-        setPreview(imageUrlWithCacheBust);
-        
-        // Verify the uploaded image dimensions
-        const verifyImg = document.createElement('img');
-        verifyImg.onload = () => {
-          console.log("🔍 Uploaded image dimensions:", {
-            width: verifyImg.width,
-            height: verifyImg.height,
-            src: verifyImg.src.substring(0, 100) + "..."
-          });
-        };
-        verifyImg.onerror = () => {
-          console.error("❌ Failed to load uploaded image for verification");
-        };
-        verifyImg.src = imageUrlWithCacheBust;
+        console.log("🖼️ Setting preview to uploaded URL:", response.data.imageUrl);
+        setPreview(response.data.imageUrl);
       }
       
-      // Refresh user data from server with a small delay to ensure DB is updated
+      // Refresh user data from server with a delay to ensure DB is updated
       setTimeout(async () => {
         try {
+          console.log("🔄 Refreshing user data after upload...");
           await refreshUser();
           
-          // Verify the uploaded image is accessible
-          if (response.data.imageUrl) {
-            const verifyImg = document.createElement('img');
-            verifyImg.onload = () => {
-              console.log("✅ Uploaded image verified as accessible");
-              if (onUploadSuccess) {
-                onUploadSuccess();
-              }
-            };
-            verifyImg.onerror = () => {
-              console.error("❌ Uploaded image is not accessible");
-              toast.error("Image uploaded but may not be accessible. Please try again.", {
-                duration: 4000,
-                style: {
-                  background: '#F59E0B',
-                  color: 'white',
-                },
-              });
-            };
-            verifyImg.src = response.data.imageUrl;
-          } else {
-            if (onUploadSuccess) {
-              onUploadSuccess();
-            }
+          if (onUploadSuccess) {
+            onUploadSuccess();
           }
+          
+          console.log("✅ Profile picture upload process completed successfully");
         } catch (refreshError) {
           console.error("Error refreshing user data:", refreshError);
+          // Still call onUploadSuccess even if refresh fails
+          if (onUploadSuccess) {
+            onUploadSuccess();
+          }
         }
-      }, 1500); // Increased delay to ensure S3 propagation
+      }, 2000); // 2 second delay to ensure S3 and DB propagation
       
     } catch (error) {
       console.error("Error uploading profile picture:", error);

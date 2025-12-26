@@ -148,6 +148,22 @@ const OverviewTab = ({ project, onRefresh }) => {
                     </div>
                   </div>
                 </Col>
+                
+                {/* Show slot system information if enabled */}
+                {project.slotConfiguration?.enableSlotSystem && (
+                  <Col md={6}>
+                    <div className="d-flex align-items-center mb-2">
+                      <FaCheckCircle className="me-2 text-success" />
+                      <div>
+                        <small className="text-muted d-block">Slot System</small>
+                        <strong>
+                          <Badge bg="success" className="me-2">Enabled</Badge>
+                          {project.slotConfiguration.totalSlots || 0} slots
+                        </strong>
+                      </div>
+                    </div>
+                  </Col>
+                )}
                 <Col md={6}>
                   <div className="d-flex align-items-center mb-2">
                     <FaUser className="me-2 text-muted" />
@@ -191,31 +207,64 @@ const OverviewTab = ({ project, onRefresh }) => {
               >
                 <div className="mb-3">
                   <h2 className="mb-0" style={{ fontWeight: '700', fontSize: '3rem' }}>
-                    {project.progress || 0}%
+                    {project.slotConfiguration?.enableSlotSystem && project.progressTracking?.calculationMethod === 'slot-based' 
+                      ? (project.progressTracking?.progressPercentage || 0)
+                      : (project.progress || 0)
+                    }%
                   </h2>
-                  <small style={{ fontSize: '0.9rem', opacity: 0.9 }}>Overall Progress</small>
+                  <small style={{ fontSize: '0.9rem', opacity: 0.9 }}>
+                    {project.slotConfiguration?.enableSlotSystem ? 'Slot-Based Progress' : 'Overall Progress'}
+                  </small>
                 </div>
                 
                 <ProgressBar
-                  now={project.progress || 0}
+                  now={project.slotConfiguration?.enableSlotSystem && project.progressTracking?.calculationMethod === 'slot-based' 
+                    ? (project.progressTracking?.progressPercentage || 0)
+                    : (project.progress || 0)
+                  }
                   variant="light"
                   style={{ height: '8px', backgroundColor: 'rgba(255,255,255,0.3)' }}
                   className="mb-3"
                 />
 
                 <div className="d-flex justify-content-around text-center">
-                  <div>
-                    <h5 className="mb-0" style={{ fontWeight: '600' }}>{stats.total}</h5>
-                    <small style={{ fontSize: '0.75rem', opacity: 0.9 }}>Total Items</small>
-                  </div>
-                  <div>
-                    <h5 className="mb-0" style={{ fontWeight: '600' }}>{stats.done}</h5>
-                    <small style={{ fontSize: '0.75rem', opacity: 0.9 }}>Completed</small>
-                  </div>
-                  <div>
-                    <h5 className="mb-0" style={{ fontWeight: '600' }}>{stats.overdue || 0}</h5>
-                    <small style={{ fontSize: '0.75rem', opacity: 0.9 }}>Overdue</small>
-                  </div>
+                  {project.slotConfiguration?.enableSlotSystem ? (
+                    <>
+                      <div>
+                        <h5 className="mb-0" style={{ fontWeight: '600' }}>
+                          {project.progressTracking?.totalSlots || project.slotConfiguration?.totalSlots || 0}
+                        </h5>
+                        <small style={{ fontSize: '0.75rem', opacity: 0.9 }}>Total Slots</small>
+                      </div>
+                      <div>
+                        <h5 className="mb-0" style={{ fontWeight: '600' }}>
+                          {project.progressTracking?.completedSlots || 0}
+                        </h5>
+                        <small style={{ fontSize: '0.75rem', opacity: 0.9 }}>Completed</small>
+                      </div>
+                      <div>
+                        <h5 className="mb-0" style={{ fontWeight: '600' }}>
+                          {(project.progressTracking?.totalSlots || project.slotConfiguration?.totalSlots || 0) - (project.progressTracking?.completedSlots || 0)}
+                        </h5>
+                        <small style={{ fontSize: '0.75rem', opacity: 0.9 }}>Remaining</small>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <h5 className="mb-0" style={{ fontWeight: '600' }}>{stats.total}</h5>
+                        <small style={{ fontSize: '0.75rem', opacity: 0.9 }}>Total Items</small>
+                      </div>
+                      <div>
+                        <h5 className="mb-0" style={{ fontWeight: '600' }}>{stats.done}</h5>
+                        <small style={{ fontSize: '0.75rem', opacity: 0.9 }}>Completed</small>
+                      </div>
+                      <div>
+                        <h5 className="mb-0" style={{ fontWeight: '600' }}>{stats.overdue || 0}</h5>
+                        <small style={{ fontSize: '0.75rem', opacity: 0.9 }}>Overdue</small>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {project.client && (

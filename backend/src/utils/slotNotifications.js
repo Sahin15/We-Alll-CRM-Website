@@ -11,7 +11,7 @@ export const notifySlotAssigned = async (slot, assignedEmployee) => {
       type: 'general',
       title: 'New Slot Assigned',
       message: `You have been assigned a new content slot for ${slot.project.name}. Design deadline: ${new Date(slot.designDeadline).toLocaleDateString()}`,
-      link: `/employee/slots`,
+      link: `/employee/my-work`, // Updated to existing route
       data: {
         slotId: slot._id,
         projectId: slot.project._id,
@@ -39,7 +39,7 @@ export const notifySlotDeadlineApproaching = async (slot, employee) => {
       type: 'general',
       title: 'Slot Deadline Approaching',
       message: `Design deadline for "${slot.brief.substring(0, 50)}..." is in ${daysUntilDeadline} day(s)`,
-      link: `/employee/slots`,
+      link: `/employee/my-work`, // Updated to existing route
       data: {
         slotId: slot._id,
         projectId: slot.project,
@@ -65,7 +65,7 @@ export const notifySlotOverdue = async (slot, employee) => {
       type: 'general',
       title: 'Slot Overdue',
       message: `The slot "${slot.brief.substring(0, 50)}..." is overdue. Please update the status or upload creatives.`,
-      link: `/employee/slots`,
+      link: `/employee/my-work`, // Updated to existing route
       data: {
         slotId: slot._id,
         projectId: slot.project,
@@ -144,7 +144,7 @@ export const notifySlotComment = async (slot, commentAuthor, recipients) => {
         type: 'general',
         title: 'New Comment on Slot',
         message: `${commentAuthor.name} commented on "${slot.brief.substring(0, 50)}..."`,
-        link: `/employee/slots`,
+        link: `/employee/my-work`, // Updated to existing route
         data: {
           slotId: slot._id,
           projectId: slot.project,

@@ -409,12 +409,12 @@ const HoDSection = ({ user }) => {
                         </td>
                         <td>
                           {att.clockIn 
-                            ? new Date(att.clockIn).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                            ? new Date(att.clockIn).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
                             : 'N/A'}
                         </td>
                         <td>
                           {att.clockOut 
-                            ? new Date(att.clockOut).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                            ? new Date(att.clockOut).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
                             : '-'}
                         </td>
                         <td>

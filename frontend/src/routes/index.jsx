@@ -47,8 +47,7 @@ import UserDetails from "../pages/users/UserDetails";
 // Employee Management Pages
 import EmployeeList from "../pages/employees/EmployeeList";
 import AddEmployee from "../pages/employees/AddEmployee";
-import EditEmployee from "../pages/employees/EditEmployee";
-import EmployeeWorkDetails from "../pages/employees/EmployeeWorkDetails";
+import EmployeeWorkView from "../pages/employees/EmployeeWorkView";
 import EmployeeProfileManagement from "../components/hr/EmployeeProfileManagement";
 
 // Department Pages
@@ -85,6 +84,7 @@ import CalendarPage from "../pages/calendar/CalendarPage";
 // Work Calendar Pages
 import MyWorkCalendar from "../pages/work-calendar/MyWorkCalendar";
 import AdminWorkCalendarOverview from "../pages/work-calendar/AdminWorkCalendarOverview";
+import EnhancedAdminWorkCalendarOverview from "../pages/work-calendar/EnhancedAdminWorkCalendarOverview";
 
 // Profile Pages
 import MyProfile from "../pages/profile/MyProfile";
@@ -194,22 +194,7 @@ const AppRoutes = () => {
             </RoleBasedRoute>
           }
         />
-        <Route
-          path="/employees/:id/edit"
-          element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
-              <EditEmployee />
-            </RoleBasedRoute>
-          }
-        />
-        <Route
-          path="/employees/:id/work"
-          element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
-              <EmployeeWorkDetails />
-            </RoleBasedRoute>
-          }
-        />
+
         <Route
           path="/employees/:userId/profile"
           element={
@@ -219,10 +204,18 @@ const AppRoutes = () => {
           }
         />
         <Route
-          path="/employees/:id"
+          path="/employees/:userId/work"
           element={
             <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
-              <UserDetails />
+              <EmployeeWorkView />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/employees/:userId"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
+              <EmployeeProfileManagement />
             </RoleBasedRoute>
           }
         />
@@ -353,6 +346,13 @@ const AppRoutes = () => {
         <Route path="/projects/:id" element={<ProjectWorkspace />} />
         <Route path="/projects/:id/old" element={<ProjectDetails />} />
 
+        {/* Work Items Management - For Notification Links */}
+        <Route path="/work-items/:id" element={<MyWorkPage />} />
+        
+        {/* Employee Slots - For Notification Links */}
+        <Route path="/employee/slots" element={<MyWorkPage />} />
+        <Route path="/employee/slots/:id" element={<MyWorkPage />} />
+
         {/* Calendar Views */}
         <Route path="/calendar" element={<CalendarPage />} />
 
@@ -370,6 +370,14 @@ const AppRoutes = () => {
           element={
             <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
               <AdminWorkCalendarOverview />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/work-calendar/enhanced-admin-overview"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <EnhancedAdminWorkCalendarOverview />
             </RoleBasedRoute>
           }
         />

@@ -1,10 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Container,
   Row,
   Col,
   Card,
-  Table,
   Button,
   Form,
   InputGroup,
@@ -19,30 +18,25 @@ import {
   FaPlus,
   FaSearch,
   FaEye,
-  FaEdit,
   FaTrash,
   FaFilter,
   FaDownload,
   FaUsers,
   FaClock,
-  FaUserTie,
   FaBuilding,
   FaCalendarAlt,
   FaChartLine,
-  FaFileAlt,
   FaUserShield,
   FaBell,
-  FaPhone,
   FaEnvelope,
-  FaMapMarkerAlt,
-  FaStar,
   FaIdCard,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
-import { notifyEmployeeJoined, notifyEmployeePromotion, sendCustomNotification } from "../../services/notificationHelpers";
+import ProfilePictureDisplay from "../../components/profile/ProfilePictureDisplay";
+
 
 const EmployeeList = () => {
   const navigate = useNavigate();
@@ -145,27 +139,41 @@ const EmployeeList = () => {
     });
   };
 
-  const handlePromoteEmployee = (employee) => {
-    // For now, navigate to edit employee page
-    // In a full implementation, you could create a promotion modal
-    navigate(`/employees/${employee._id}/edit`, {
-      state: {
-        promotionMode: true,
-        currentRole: employee.role
-      }
-    });
-  };
 
-  const getStatusBadge = (status) => {
-    const variants = {
-      active: "success",
-      inactive: "secondary",
-      suspended: "danger",
+
+  // Smart dropdown positioning component
+  const SmartDropdown = ({ children }) => {
+    const dropdownRef = useRef(null);
+    const [dropDirection, setDropDirection] = useState('down');
+
+    const handleToggle = (isOpen) => {
+      if (isOpen && dropdownRef.current) {
+        const rect = dropdownRef.current.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const spaceBelow = viewportHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        
+        // Need at least 250px for dropdown menu (accounting for menu height + padding)
+        const requiredSpace = 250;
+        
+        // If there's not enough space below, check if there's more space above
+        if (spaceBelow < requiredSpace && spaceAbove > spaceBelow && spaceAbove > requiredSpace) {
+          setDropDirection('up');
+        } else {
+          setDropDirection('down');
+        }
+      }
     };
+
     return (
-      <Badge bg={variants[status] || "secondary"} className="text-capitalize">
-        {status}
-      </Badge>
+      <Dropdown 
+        ref={dropdownRef}
+        align="end" 
+        drop={dropDirection}
+        onToggle={handleToggle}
+      >
+        {children}
+      </Dropdown>
     );
   };
 
@@ -418,7 +426,7 @@ const EmployeeList = () => {
       </Card>
 
       {/* Modern Employee Cards/Table */}
-      <Card className="border-0 shadow-lg" style={{ borderRadius: '20px' }}>
+      <Card className="border-0 shadow-lg" style={{ borderRadius: '20px', overflow: 'visible' }}>
         <Card.Header className="bg-white border-0 pt-4 pb-0" style={{ borderRadius: '20px 20px 0 0' }}>
           <div className="d-flex justify-content-between align-items-center">
             <h5 className="mb-0 text-dark fw-bold">
@@ -430,17 +438,20 @@ const EmployeeList = () => {
             </Badge>
           </div>
         </Card.Header>
-        <Card.Body className="p-0">
+        <Card.Body className="p-0" style={{ overflow: 'visible' }}>
           <style>{`
             .employee-card {
               transition: all 0.3s ease;
               border-radius: 15px;
               border: 1px solid rgba(0,0,0,0.05);
+              position: relative;
+              overflow: visible !important;
             }
             .employee-card:hover {
               transform: translateY(-2px);
               box-shadow: 0 8px 25px rgba(0,0,0,0.1);
               border-color: rgba(102, 126, 234, 0.3);
+              z-index: 10;
             }
             .employee-avatar {
               width: 60px;
@@ -481,6 +492,53 @@ const EmployeeList = () => {
             .action-btn:hover {
               transform: translateY(-1px);
             }
+            
+            /* Smart Dropdown System - Auto-adjusts based on available space */
+            .smart-dropdown-menu {
+              z-index: 1060 !important;
+              border: none !important;
+              box-shadow: 0 10px 40px rgba(0,0,0,0.15) !important;
+              min-width: 200px;
+              max-width: 250px;
+              animation: dropdownFadeIn 0.15s ease-out;
+              margin-top: 5px !important;
+              margin-bottom: 5px !important;
+            }
+            
+            @keyframes dropdownFadeIn {
+              from {
+                opacity: 0;
+                transform: translateY(-10px);
+              }
+              to {
+                opacity: 1;
+                transform: translateY(0);
+              }
+            }
+            
+            /* Ensure parent containers support dropdowns */
+            .card, .card-body, .row, .container-fluid {
+              overflow: visible !important;
+            }
+            
+            /* Employee card hover effects */
+            .employee-card {
+              position: relative;
+              z-index: 1;
+            }
+            
+            .employee-card:hover {
+              z-index: 10;
+            }
+            
+            /* When dropdown is open, boost z-index */
+            .employee-card .show {
+              z-index: 1070 !important;
+            }
+            
+            .employee-card .dropdown.show {
+              z-index: 1070 !important;
+            }
             .employee-info-item {
               display: flex;
               align-items: center;
@@ -492,34 +550,56 @@ const EmployeeList = () => {
               width: 16px;
               margin-right: 8px;
               color: #667eea;
+              flex-shrink: 0;
+            }
+            
+            /* Fix for profile picture wrapper sizing */
+            .profile-picture-display {
+              display: inline-block;
+            }
+            
+            .profile-picture-container {
+              display: inline-block;
+              gap: 0;
+            }
+            
+            /* Ensure text doesn't overflow */
+            .min-width-0 {
+              min-width: 0;
+            }
+            
+            .text-truncate {
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+            
+            /* Flex utilities for better layout */
+            .flex-shrink-0 {
+              flex-shrink: 0;
             }
           `}</style>
           
           {filteredEmployees.length > 0 ? (
-            <div className="p-4">
-              <Row className="g-4">
+            <div className="p-4" style={{ overflow: 'visible' }}>
+              <Row className="g-4" style={{ overflow: 'visible' }}>
                 {filteredEmployees.map((employee) => (
                   <Col lg={6} xl={4} key={employee._id}>
                     <Card className="employee-card h-100 border-0 shadow-sm">
                       <Card.Body className="p-4">
                         {/* Employee Header */}
                         <div className="d-flex align-items-start mb-3">
-                          <div className="me-3">
-                            {employee.profilePicture ? (
-                              <img
-                                src={employee.profilePicture}
-                                alt={employee.name}
-                                className="employee-avatar"
-                              />
-                            ) : (
-                              <div className="employee-avatar-placeholder">
-                                {employee.name?.charAt(0)}
-                              </div>
-                            )}
+                          <div className="me-3 flex-shrink-0">
+                            <ProfilePictureDisplay
+                              profilePicture={employee.profilePicture}
+                              userName={employee.name}
+                              size={60}
+                              showViewButton={false}
+                            />
                           </div>
-                          <div className="flex-grow-1">
-                            <h6 className="mb-1 fw-bold text-dark">{employee.name}</h6>
-                            <p className="mb-2 text-muted small">{employee.designation || "N/A"}</p>
+                          <div className="flex-grow-1 min-width-0">
+                            <h6 className="mb-1 fw-bold text-dark text-truncate">{employee.name}</h6>
+                            <p className="mb-2 text-muted small text-truncate">{employee.designation || "N/A"}</p>
                             <Badge 
                               bg={employee.status === 'active' ? 'success' : employee.status === 'inactive' ? 'secondary' : 'danger'} 
                               className="status-badge"
@@ -560,23 +640,19 @@ const EmployeeList = () => {
                             <FaUserShield className="me-1" />
                             Manage Profile
                           </Button>
-                          <Dropdown align="end">
+                          <SmartDropdown>
                             <Dropdown.Toggle
                               variant="outline-secondary"
                               size="sm"
-                              className="action-btn"
+                              className="action-btn smart-dropdown-toggle"
                               style={{ minWidth: '40px' }}
                             >
                               <FaEye />
                             </Dropdown.Toggle>
-                            <Dropdown.Menu className="shadow-lg border-0" style={{ borderRadius: '10px' }}>
-                              <Dropdown.Item
-                                onClick={() => navigate(`/employees/${employee._id}`)}
-                                className="py-2"
-                              >
-                                <FaUsers className="me-2 text-primary" />
-                                Basic Details
-                              </Dropdown.Item>
+                            <Dropdown.Menu 
+                              className="shadow-lg border-0 smart-dropdown-menu" 
+                              style={{ borderRadius: '10px' }}
+                            >
                               <Dropdown.Item
                                 onClick={() => navigate(`/employees/${employee._id}/work`)}
                                 className="py-2"
@@ -584,20 +660,12 @@ const EmployeeList = () => {
                                 <FaClock className="me-2 text-success" />
                                 Work Details
                               </Dropdown.Item>
-                              <Dropdown.Divider />
                               <Dropdown.Item
                                 onClick={() => handleSendNotification(employee)}
                                 className="py-2"
                               >
                                 <FaBell className="me-2 text-info" />
                                 Send Notification
-                              </Dropdown.Item>
-                              <Dropdown.Item
-                                onClick={() => handlePromoteEmployee(employee)}
-                                className="py-2"
-                              >
-                                <FaUserShield className="me-2 text-warning" />
-                                Promote/Update Role
                               </Dropdown.Item>
                               {/* Only admin and superadmin can delete employees */}
                               {(currentUser?.role === "admin" || currentUser?.role === "superadmin") && employee.role !== "superadmin" && (
@@ -613,7 +681,7 @@ const EmployeeList = () => {
                                 </>
                               )}
                             </Dropdown.Menu>
-                          </Dropdown>
+                          </SmartDropdown>
                         </div>
                       </Card.Body>
                     </Card>

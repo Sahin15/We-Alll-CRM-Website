@@ -6,6 +6,7 @@ import {
   updateWorkItem,
   updateWorkItemStatus,
   deleteWorkItem,
+  restoreWorkItem,
   bulkUpdateWorkItems,
   addComment,
   getCalendarWorkItems,
@@ -59,7 +60,10 @@ router.route("/:id")
     validateRequest(updateWorkItemValidation),
     updateWorkItem
   )     // Update work item
-  .delete(deleteWorkItem); // Delete work item
+  .delete(deleteWorkItem); // Soft delete work item
+
+// Restore soft deleted work item
+router.put("/:id/restore", restoreWorkItem);
 
 // Status update
 router.patch(

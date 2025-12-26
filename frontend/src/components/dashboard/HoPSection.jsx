@@ -520,7 +520,7 @@ const HoPSection = ({ user }) => {
                         </td>
                         <td>
                           <small className={isOverdue ? 'text-danger fw-bold' : ''}>
-                            {new Date(slot.designDeadline).toLocaleDateString()}
+                            {new Date(slot.designDeadline).toLocaleDateString('en-GB')}
                             {isOverdue && ' ⚠️'}
                           </small>
                         </td>

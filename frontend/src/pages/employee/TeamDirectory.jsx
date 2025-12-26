@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Form, InputGroup, Badge, Alert, Spinner } from 'react-bootstrap';
 import api from '../../services/api';
+import ProfilePictureDisplay from '../../components/profile/ProfilePictureDisplay';
 
 const TeamDirectory = () => {
   const [employees, setEmployees] = useState([]);
@@ -22,12 +23,17 @@ const TeamDirectory = () => {
   const fetchData = async () => {
     try {
       const [employeesRes, departmentsRes] = await Promise.all([
-        api.get('/users/employees'),
+        api.get('/users'),
         api.get('/departments')
       ]);
       
-      setEmployees(employeesRes.data);
-      setFilteredEmployees(employeesRes.data);
+      // Filter only employees (same as EmployeeList)
+      const employeeData = employeesRes.data.filter(
+        (u) => u.role === "employee" || u.role === "hod" || u.role === "hr"
+      );
+      
+      setEmployees(employeeData);
+      setFilteredEmployees(employeeData);
       setDepartments(departmentsRes.data);
       setLoading(false);
     } catch (err) {
@@ -124,21 +130,12 @@ const TeamDirectory = () => {
                 <Card className="h-100 shadow-sm">
                   <Card.Body>
                     <div className="text-center mb-3">
-                      {employee.profilePicture ? (
-                        <img
-                          src={employee.profilePicture}
-                          alt={employee.name}
-                          className="rounded-circle"
-                          style={{ width: '80px', height: '80px', objectFit: 'cover' }}
-                        />
-                      ) : (
-                        <div
-                          className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto"
-                          style={{ width: '80px', height: '80px', fontSize: '32px' }}
-                        >
-                          {employee.name.charAt(0).toUpperCase()}
-                        </div>
-                      )}
+                      <ProfilePictureDisplay
+                        profilePicture={employee.profilePicture}
+                        userName={employee.name}
+                        size={80}
+                        showViewButton={false}
+                      />
                     </div>
 
                     <h5 className="text-center mb-1">{employee.name}</h5>

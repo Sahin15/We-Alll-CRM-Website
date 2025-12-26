@@ -58,6 +58,111 @@ const projectSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    
+    // Enhanced Slot Configuration
+    slotConfiguration: {
+      totalSlots: { 
+        type: Number, 
+        default: 10, 
+        min: 1, 
+        max: 1000,
+        index: true
+      },
+      slotType: { 
+        type: String, 
+        enum: ['generic', 'milestone', 'deliverable', 'custom'], 
+        default: 'generic' 
+      },
+      allowDynamicSlots: { 
+        type: Boolean, 
+        default: true 
+      },
+      slotNamingPattern: { 
+        type: String, 
+        default: 'Slot {number}' 
+      },
+      autoCreateSlots: { 
+        type: Boolean, 
+        default: true 
+      },
+      enableSlotSystem: {
+        type: Boolean,
+        default: false // For backward compatibility
+      }
+    },
+
+    // Enhanced Progress Tracking
+    progressTracking: {
+      calculationMethod: { 
+        type: String, 
+        enum: ['slot-based', 'manual', 'hybrid'], 
+        default: 'manual' // Default to manual for backward compatibility
+      },
+      completedSlots: { 
+        type: Number, 
+        default: 0,
+        index: true
+      },
+      totalSlots: { 
+        type: Number, 
+        default: 10 
+      },
+      progressPercentage: { 
+        type: Number, 
+        default: 0, 
+        min: 0, 
+        max: 100,
+        index: true
+      },
+      lastProgressUpdate: { 
+        type: Date, 
+        default: Date.now 
+      },
+      progressHistory: [{
+        date: { 
+          type: Date, 
+          default: Date.now 
+        },
+        completedSlots: Number,
+        totalSlots: Number,
+        progressPercentage: Number,
+        changedBy: { 
+          type: mongoose.Schema.Types.ObjectId, 
+          ref: 'User' 
+        },
+        changeReason: String,
+        changeType: {
+          type: String,
+          enum: ['slot-completion', 'slot-assignment', 'manual-update', 'capacity-change'],
+          default: 'manual-update'
+        }
+      }]
+    },
+
+    // Slot Management Configuration
+    slotManagement: {
+      allowSlotReassignment: { 
+        type: Boolean, 
+        default: true 
+      },
+      requireApprovalForSlotChanges: { 
+        type: Boolean, 
+        default: false 
+      },
+      slotCompletionRequiresApproval: { 
+        type: Boolean, 
+        default: false 
+      },
+      autoReleaseOnWorkItemDeletion: { 
+        type: Boolean, 
+        default: true 
+      },
+      notifyOnSlotCompletion: {
+        type: Boolean,
+        default: true
+      }
+    },
+    
     // Head of Project (HoP) - optional, can be assigned later
     projectHead: {
       type: mongoose.Schema.Types.ObjectId,
@@ -253,6 +358,146 @@ projectSchema.index({ departments: 1, status: 1 }); // New index for multiple de
 projectSchema.index({ projectHead: 1 });
 projectSchema.index({ status: 1 });
 projectSchema.index({ assignedUsers: 1 });
+
+// Enhanced indexes for slot-based queries
+projectSchema.index({ 'slotConfiguration.enableSlotSystem': 1 });
+projectSchema.index({ 'progressTracking.calculationMethod': 1 });
+projectSchema.index({ 'progressTracking.completedSlots': 1, 'progressTracking.totalSlots': 1 });
+projectSchema.index({ 'progressTracking.progressPercentage': 1 });
+
+// Virtual for slot-based progress calculation
+projectSchema.virtual('slotProgress').get(function() {
+  if (!this.slotConfiguration?.enableSlotSystem) {
+    return null;
+  }
+  
+  const completed = this.progressTracking?.completedSlots || 0;
+  const total = this.progressTracking?.totalSlots || this.slotConfiguration?.totalSlots || 0;
+  
+  return {
+    completedSlots: completed,
+    totalSlots: total,
+    availableSlots: Math.max(0, total - completed),
+    progressPercentage: total > 0 ? Math.round((completed / total) * 100) : 0,
+    progressFraction: `${completed}/${total}`
+  };
+});
+
+// Virtual for checking if project uses slot system
+projectSchema.virtual('usesSlotSystem').get(function() {
+  return this.slotConfiguration?.enableSlotSystem === true;
+});
+
+// Pre-save middleware to sync slot-based progress with legacy progress field
+projectSchema.pre('save', function(next) {
+  if (this.slotConfiguration?.enableSlotSystem && this.progressTracking?.calculationMethod === 'slot-based') {
+    const completed = this.progressTracking.completedSlots || 0;
+    const total = this.progressTracking.totalSlots || this.slotConfiguration.totalSlots || 0;
+    
+    if (total > 0) {
+      const newProgress = Math.round((completed / total) * 100);
+      
+      // Update legacy progress field for backward compatibility
+      if (this.progress !== newProgress) {
+        this.progress = newProgress;
+        this.progressTracking.progressPercentage = newProgress;
+        this.progressTracking.lastProgressUpdate = new Date();
+      }
+    }
+  }
+  next();
+});
+
+// Static method to get projects with slot statistics
+projectSchema.statics.getProjectsWithSlotStats = function(filters = {}) {
+  const pipeline = [
+    { $match: filters },
+    {
+      $lookup: {
+        from: 'slots',
+        localField: '_id',
+        foreignField: 'project',
+        as: 'slots'
+      }
+    },
+    {
+      $addFields: {
+        slotStatistics: {
+          totalSlots: { $size: '$slots' },
+          assignedSlots: {
+            $size: {
+              $filter: {
+                input: '$slots',
+                cond: { $eq: ['$$this.assignmentStatus', 'assigned'] }
+              }
+            }
+          },
+          completedSlots: {
+            $size: {
+              $filter: {
+                input: '$slots',
+                cond: { $eq: ['$$this.assignmentStatus', 'completed'] }
+              }
+            }
+          },
+          availableSlots: {
+            $size: {
+              $filter: {
+                input: '$slots',
+                cond: { $eq: ['$$this.assignmentStatus', 'available'] }
+              }
+            }
+          }
+        }
+      }
+    }
+  ];
+  
+  return this.aggregate(pipeline);
+};
+
+// Instance method to recalculate slot-based progress
+projectSchema.methods.recalculateSlotProgress = async function() {
+  if (!this.slotConfiguration?.enableSlotSystem) {
+    return this;
+  }
+  
+  const Slot = mongoose.model('Slot');
+  const slots = await Slot.find({ project: this._id });
+  
+  const completedSlots = slots.filter(slot => 
+    slot.assignmentStatus === 'completed' || 
+    slot.completionStatus?.isCompleted === true
+  ).length;
+  
+  const totalSlots = this.slotConfiguration.totalSlots || slots.length;
+  const progressPercentage = totalSlots > 0 ? Math.round((completedSlots / totalSlots) * 100) : 0;
+  
+  // Update progress tracking
+  this.progressTracking.completedSlots = completedSlots;
+  this.progressTracking.totalSlots = totalSlots;
+  this.progressTracking.progressPercentage = progressPercentage;
+  this.progressTracking.lastProgressUpdate = new Date();
+  
+  // Update legacy progress field
+  this.progress = progressPercentage;
+  
+  // Add to progress history
+  this.progressTracking.progressHistory.push({
+    date: new Date(),
+    completedSlots,
+    totalSlots,
+    progressPercentage,
+    changeType: 'slot-completion',
+    changeReason: 'Automatic recalculation based on slot completion'
+  });
+  
+  return this.save();
+};
+
+// Ensure virtuals are included in JSON
+projectSchema.set('toJSON', { virtuals: true });
+projectSchema.set('toObject', { virtuals: true });
 
 const Project = mongoose.model("Project", projectSchema);
 export default Project;

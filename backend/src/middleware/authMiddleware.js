@@ -21,7 +21,10 @@ export const protect = async (req, res, next) => {
     
     next();
   } catch (error) {
-    console.error("Auth middleware error:", error.message);
+    // Only log actual errors, not routine auth failures
+    if (error.name !== 'JsonWebTokenError' && error.name !== 'TokenExpiredError') {
+      console.error("AUTH MIDDLEWARE ERROR:", error.message);
+    }
     
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ message: "Invalid token" });

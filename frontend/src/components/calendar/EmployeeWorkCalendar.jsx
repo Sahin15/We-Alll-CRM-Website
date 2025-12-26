@@ -5,7 +5,7 @@ import moment from 'moment';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import workCalendarApi from '../../api/workCalendarApi';
-import UnifiedWorkCreationModal from '../work/UnifiedWorkCreationModal';
+import ProfessionalWorkCreationModal from '../work/ProfessionalWorkCreationModal';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './EmployeeWorkCalendar.css';
 import './MultiEventCalendar.css';
@@ -888,8 +888,8 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
         </Modal.Footer>
       </Modal>
 
-      {/* Unified Work Creation Modal */}
-      <UnifiedWorkCreationModal
+      {/* Professional Work Creation Modal */}
+      <ProfessionalWorkCreationModal
         show={showCreateModal}
         onHide={() => setShowCreateModal(false)}
         onSuccess={loadEmployeeWorkCalendar}

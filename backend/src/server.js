@@ -7,6 +7,7 @@ import userRoutes from "./routes/userRoutes.js";
 import connectDB from "./config/db.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import clientRoutes from "./routes/clientRoutes.js";
+import clientWorkRoutes from "./routes/clientWorkRoutes.js";
 import projectRoutes from "./routes/projectRoutes.js";
 import departmentRoutes from "./routes/departmentRoutes.js";
 import leaveRoutes from "./routes/leaveRoutes.js";
@@ -40,6 +41,8 @@ import { apiLimiter, sanitizeInput } from "./middleware/securityMiddleware.js";
 import { auditMiddleware } from "./utils/auditLogger.js";
 import path from "path";
 import { fileURLToPath } from "url";
+import { createServer } from "http";
+import realTimeUpdateService from "./services/realTimeUpdateService.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -51,10 +54,40 @@ const app = express();
 
 // Security Middlewares
 app.use(helmet()); // Set security headers
-app.use(cors());
+
+// CORS Configuration - Secure for production
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = process.env.CORS_ORIGIN 
+      ? process.env.CORS_ORIGIN.split(',').map(url => url.trim())
+      : ['http://localhost:3000']; // Development fallback
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+};
+
+app.use(cors(corsOptions));
 app.use(express.json({ limit: "10mb" })); // Limit payload size
 app.use(sanitizeInput); // Sanitize MongoDB queries
 app.use(auditMiddleware); // Audit logging for authenticated requests
+
+// Global request logger for debugging (disabled in production)
+// app.use((req, res, next) => {
+//   console.log(`🌐 GLOBAL REQUEST: ${req.method} ${req.path}`);
+//   console.log(`🌐 GLOBAL REQUEST: Headers:`, req.headers.authorization ? 'Auth token present' : 'No auth token');
+//   console.log(`🌐 GLOBAL REQUEST: Body:`, req.method === 'POST' ? JSON.stringify(req.body, null, 2) : 'N/A');
+//   next();
+// });
 
 // Serve static files from uploads folder
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -154,6 +187,7 @@ app.get("/api/fix-hr-now", async (_req, res) => {
 app.use("/api/users", apiLimiter, userRoutes);
 app.use("/api/admin", apiLimiter, adminRoutes);
 app.use("/api/clients", apiLimiter, clientRoutes);
+app.use("/api/clients", apiLimiter, clientWorkRoutes);
 app.use("/api/projects", apiLimiter, projectRoutes);
 app.use("/api/departments", apiLimiter, departmentRoutes);
 app.use("/api/leaves", apiLimiter, leaveRoutes);
@@ -214,9 +248,16 @@ mongoose
     // Initialize cron jobs after DB connection
     initializeCronJobs();
 
-    app.listen(PORT, () => {
+    // Create HTTP server for both Express and WebSocket
+    const server = createServer(app);
+
+    // Initialize real-time update service before starting server
+    realTimeUpdateService.initialize(server);
+
+    server.listen(PORT, () => {
       console.log(`✅ Server is running on port ${PORT}`);
       console.log(`🔗 API Health Check: http://localhost:${PORT}/api/health`);
+      console.log(`🔌 WebSocket Server: ws://localhost:${PORT}/ws/admin-work-updates`);
       console.log(`📦 AWS S3 Bucket: ${process.env.AWS_S3_BUCKET_NAME || "Not configured"}`);
       console.log(`🌐 AWS Region: ${process.env.AWS_REGION || "Not configured"}`);
     });

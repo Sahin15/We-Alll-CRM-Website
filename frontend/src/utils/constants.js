@@ -57,7 +57,7 @@ export const USER_STATUS = {
 // Pagination
 export const ITEMS_PER_PAGE = 10;
 
-// Date Formats - Using DD/MM/YYYY format consistently
+// Date Formats - Using DD/MM/YYYY format consistently with 24-hour time
 export const DATE_FORMAT = "dd/MM/yyyy";
 export const DATE_TIME_FORMAT = "dd/MM/yyyy HH:mm";
 

@@ -20,7 +20,12 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
     status: 'Pending',
     startDate: '',
     endDate: '',
-    teamRoles: {} // For role-based team assignments
+    teamRoles: {}, // For role-based team assignments
+    // Slot system configuration
+    enableSlotSystem: false,
+    totalSlots: 10,
+    slotType: 'generic',
+    calculationMethod: 'manual'
   });
 
   const [clients, setClients] = useState([]);
@@ -180,7 +185,7 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
       ...prev,
       teamRoles: {
         ...prev.teamRoles,
-        [`${departmentName}-${roleKey}`]: userId,
+        [`${departmentName}__${roleKey}`]: userId, // Use __ as separator to avoid conflicts with role names
       },
     }));
   };
@@ -228,7 +233,12 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
         description: formData.description.trim(),
         departments: formData.departments, // Send multiple departments
         status: formData.status,
-        startDate: formData.startDate
+        startDate: formData.startDate,
+        // Slot system configuration
+        enableSlotSystem: formData.enableSlotSystem,
+        totalSlots: formData.totalSlots,
+        slotType: formData.slotType,
+        calculationMethod: formData.enableSlotSystem ? 'slot-based' : 'manual'
       };
 
       if (formData.client) {
@@ -247,7 +257,7 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
         const teamMembers = [];
         Object.entries(formData.teamRoles).forEach(([roleKey, userId]) => {
           if (userId) {
-            const [departmentName, role] = roleKey.split('-');
+            const [departmentName, role] = roleKey.split('__'); // Use __ as separator
             teamMembers.push({
               user: userId,
               role: role,
@@ -274,7 +284,12 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
         status: 'Pending',
         startDate: '',
         endDate: '',
-        teamRoles: {} // Reset team roles
+        teamRoles: {}, // Reset team roles
+        // Reset slot system fields
+        enableSlotSystem: false,
+        totalSlots: 10,
+        slotType: 'generic',
+        calculationMethod: 'manual'
       });
       setErrors({});
 
@@ -300,7 +315,12 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
       status: 'Pending',
       startDate: '',
       endDate: '',
-      teamRoles: {} // Reset team roles
+      teamRoles: {}, // Reset team roles
+      // Reset slot system fields
+      enableSlotSystem: false,
+      totalSlots: 10,
+      slotType: 'generic',
+      calculationMethod: 'manual'
     });
     setErrors({});
     onHide();
@@ -478,6 +498,65 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
             </Col>
           </Row>
 
+          {/* Slot System Configuration */}
+          <div className="border rounded p-3 mb-3 bg-light">
+            <h6 className="mb-3">
+              <i className="fas fa-cogs me-2"></i>
+              Project Progress Tracking
+            </h6>
+            
+            <Form.Group className="mb-3">
+              <Form.Check
+                type="checkbox"
+                id="enableSlotSystem"
+                label="Enable Slot-Based Progress Tracking"
+                checked={formData.enableSlotSystem}
+                onChange={(e) => handleChange('enableSlotSystem', e.target.checked)}
+              />
+              <Form.Text className="text-muted">
+                Use slot-based system for more granular progress tracking and work management
+              </Form.Text>
+            </Form.Group>
+
+            {formData.enableSlotSystem && (
+              <Row>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Total Slots</Form.Label>
+                    <Form.Control
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={formData.totalSlots}
+                      onChange={(e) => handleChange('totalSlots', parseInt(e.target.value) || 10)}
+                    />
+                    <Form.Text className="text-muted">
+                      Number of work slots for this project (1-100)
+                    </Form.Text>
+                  </Form.Group>
+                </Col>
+                
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Slot Type</Form.Label>
+                    <Form.Select
+                      value={formData.slotType}
+                      onChange={(e) => handleChange('slotType', e.target.value)}
+                    >
+                      <option value="generic">Generic Slots</option>
+                      <option value="milestone">Milestone-Based</option>
+                      <option value="deliverable">Deliverable-Based</option>
+                      <option value="custom">Custom Slots</option>
+                    </Form.Select>
+                    <Form.Text className="text-muted">
+                      Type of slots to create for this project
+                    </Form.Text>
+                  </Form.Group>
+                </Col>
+              </Row>
+            )}
+          </div>
+
           {/* Dynamic Team Role Assignment (for Multi-Service Projects) */}
           {shouldShowTeamAssignment() && (
             <>
@@ -505,14 +584,14 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
                     ) : (
                       <div className="row g-2">
                         {roles.map((role) => (
-                          <Col md={6} key={`${departmentName}-${role.key}`}>
+                          <Col md={6} key={`${departmentName}__${role.key}`}>
                             <div className="border rounded p-2">
                               <Form.Label className="small fw-bold mb-1">
                                 {role.label}:
                               </Form.Label>
                               <Form.Select
                                 size="sm"
-                                value={formData.teamRoles?.[`${departmentName}-${role.key}`] || ''}
+                                value={formData.teamRoles?.[`${departmentName}__${role.key}`] || ''}
                                 onChange={(e) => handleTeamRoleChange(departmentName, role.key, e.target.value)}
                               >
                                 <option value="">Select {role.label.toLowerCase()}...</option>

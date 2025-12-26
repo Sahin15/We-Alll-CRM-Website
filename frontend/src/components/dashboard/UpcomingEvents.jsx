@@ -36,9 +36,9 @@ const UpcomingEvents = ({ events = [], onEventClick }) => {
     } else if (eventDate.toDateString() === tomorrow.toDateString()) {
       return 'Tomorrow';
     } else {
-      return eventDate.toLocaleDateString('en-US', { 
-        month: 'short', 
+      return eventDate.toLocaleDateString('en-GB', { 
         day: 'numeric',
+        month: 'short', 
         year: eventDate.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
       });
     }

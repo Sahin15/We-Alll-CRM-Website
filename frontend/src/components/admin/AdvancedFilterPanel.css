@@ -1,0 +1,751 @@
+/* Advanced Filter Panel Styles */
+.advanced-filter-panel {
+  border: none;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.advanced-filter-panel .card-header {
+  background: #f8f9fa !important;
+  color: #212529 !important;
+  border: 1px solid #dee2e6 !important;
+  font-weight: 600;
+}
+
+.advanced-filter-panel .card-body {
+  background: #f8f9fa;
+}
+
+/* Accordion Styling */
+.advanced-filter-panel .accordion {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.advanced-filter-panel .accordion-item {
+  border: 1px solid #dee2e6;
+  margin-bottom: 0.5rem;
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+
+.advanced-filter-panel .accordion-header {
+  background: white;
+}
+
+.advanced-filter-panel .accordion-button {
+  background: white;
+  color: #495057;
+  font-weight: 500;
+  border: none;
+  padding: 1rem 1.25rem;
+}
+
+.advanced-filter-panel .accordion-button:not(.collapsed) {
+  background: #e3f2fd;
+  color: #1976d2;
+  box-shadow: none;
+}
+
+.advanced-filter-panel .accordion-button:focus {
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.advanced-filter-panel .accordion-body {
+  background: white;
+  padding: 1.25rem;
+}
+
+/* Client-Focused Section */
+.text-primary {
+  color: #007bff !important;
+}
+
+.border-primary {
+  border-color: #007bff !important;
+  border-width: 2px !important;
+}
+
+/* Form Controls */
+.advanced-filter-panel .form-label {
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 0.5rem;
+}
+
+.advanced-filter-panel .form-control,
+.advanced-filter-panel .form-select {
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.advanced-filter-panel .form-control:focus,
+.advanced-filter-panel .form-select:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Quick Date Presets */
+.quick-date-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.quick-date-presets .btn {
+  font-size: 0.8rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 20px;
+  transition: all 0.2s ease;
+}
+
+.quick-date-presets .btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Custom Criteria Builder */
+.custom-criteria-list {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 0.5rem;
+}
+
+.custom-criteria-row {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.custom-criteria-row:last-child {
+  margin-bottom: 0;
+}
+
+/* Logical Operator Buttons */
+.logical-operator-group {
+  background: #e3f2fd;
+  border-radius: 6px;
+  padding: 0.25rem;
+  display: inline-flex;
+}
+
+.logical-operator-group .btn {
+  border: none;
+  background: transparent;
+  color: #1976d2;
+  font-weight: 600;
+  padding: 0.375rem 0.75rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.logical-operator-group .btn.active,
+.logical-operator-group .btn:hover {
+  background: #1976d2;
+  color: white;
+}
+
+/* Filter Presets */
+.filter-presets {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.preset-badge {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.preset-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Enhanced Preset Management */
+.preset-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: #f8f9fa;
+  border-radius: 20px;
+  padding: 0.25rem 0.5rem;
+  margin: 0.25rem;
+  transition: all 0.2s ease;
+}
+
+.preset-item:hover {
+  background: #e9ecef;
+  transform: translateY(-1px);
+}
+
+.preset-delete-btn {
+  padding: 0.125rem 0.25rem;
+  font-size: 0.7rem;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.preset-item:hover .preset-delete-btn {
+  opacity: 1;
+}
+
+/* Global Search Enhancement */
+.global-search-container {
+  position: relative;
+}
+
+.search-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.search-suggestion-item {
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  border-bottom: 1px solid #f8f9fa;
+  transition: background-color 0.2s ease;
+}
+
+.search-suggestion-item:hover {
+  background: #f8f9fa;
+}
+
+.search-suggestion-item:last-child {
+  border-bottom: none;
+}
+
+/* Filter History */
+.filter-history-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filter-history-indicator {
+  font-size: 0.8rem;
+  color: #6c757d;
+  padding: 0.25rem 0.5rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+}
+
+/* Smart Suggestions */
+.smart-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.suggestion-btn {
+  text-align: left;
+  font-size: 0.8rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 20px;
+  transition: all 0.2s ease;
+}
+
+.suggestion-btn:hover {
+  transform: translateX(4px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Action Buttons */
+.filter-actions {
+  background: white;
+  border-top: 1px solid #dee2e6;
+  padding: 1rem 1.25rem;
+  margin: 0 -1.25rem -1.25rem;
+}
+
+.filter-actions .btn {
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.filter-actions .btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Status Indicators */
+.filter-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+
+.filter-status.active {
+  color: #28a745;
+}
+
+.filter-status::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Client Priority Indicators */
+.client-priority-vip {
+  background: linear-gradient(135deg, #ffd700, #ffed4e);
+  color: #8b6914;
+  border: none;
+}
+
+.client-priority-high {
+  background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+  color: white;
+  border: none;
+}
+
+.client-priority-regular {
+  background: linear-gradient(135deg, #74b9ff, #a8d8ff);
+  color: white;
+  border: none;
+}
+
+/* Enhanced Mobile Responsiveness */
+@media (max-width: 1024px) {
+  /* Tablet optimizations */
+  .advanced-filter-panel {
+    margin: 0 -10px;
+    border-radius: 8px;
+  }
+  
+  .advanced-filter-panel .accordion-body {
+    padding: 1rem;
+  }
+  
+  .quick-date-presets {
+    justify-content: flex-start;
+    gap: 0.25rem;
+  }
+  
+  .quick-date-presets .btn {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.6rem;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Mobile tablet optimizations */
+  .advanced-filter-panel {
+    margin: 0 -15px;
+    border-radius: 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .advanced-filter-panel .card-header {
+    padding: 1rem;
+    text-align: center;
+  }
+  
+  .advanced-filter-panel .accordion-body {
+    padding: 1rem;
+  }
+  
+  .quick-date-presets {
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  .quick-date-presets .btn {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    flex: 0 0 auto;
+    min-width: 80px;
+  }
+  
+  .custom-criteria-row {
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .custom-criteria-row .row {
+    gap: 0.5rem;
+  }
+  
+  .filter-actions {
+    padding: 1rem;
+    text-align: center;
+    background: #f8f9fa;
+    border-top: 2px solid #dee2e6;
+  }
+  
+  .filter-actions .btn {
+    width: 100%;
+    margin-bottom: 0.5rem;
+    padding: 0.75rem;
+    font-weight: 600;
+  }
+  
+  .filter-actions .btn:last-child {
+    margin-bottom: 0;
+  }
+  
+  /* Touch-friendly form controls */
+  .advanced-filter-panel .form-control,
+  .advanced-filter-panel .form-select {
+    min-height: 44px;
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 0.75rem;
+  }
+  
+  .advanced-filter-panel .form-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  
+  /* Collapsible sections for mobile */
+  .advanced-filter-panel .accordion-item {
+    margin-bottom: 0;
+    border-radius: 0;
+  }
+  
+  .advanced-filter-panel .accordion-button {
+    padding: 1rem;
+    font-size: 1rem;
+    font-weight: 600;
+    background: white;
+    border: none;
+    border-bottom: 1px solid #dee2e6;
+  }
+  
+  .advanced-filter-panel .accordion-button:not(.collapsed) {
+    background: #e3f2fd;
+    color: #1976d2;
+  }
+  
+  /* Mobile-optimized preset management */
+  .preset-badge {
+    font-size: 0.8rem;
+    padding: 0.5rem 0.75rem;
+    margin: 0.25rem;
+    border-radius: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 44px;
+  }
+  
+  .preset-delete-btn {
+    padding: 0.25rem;
+    font-size: 0.8rem;
+    border-radius: 50%;
+    min-width: 24px;
+    min-height: 24px;
+  }
+}
+
+@media (max-width: 576px) {
+  /* Small mobile optimizations */
+  .advanced-filter-panel .card-header {
+    padding: 0.75rem;
+    font-size: 1rem;
+  }
+  
+  .advanced-filter-panel .accordion-button {
+    padding: 0.75rem;
+    font-size: 0.9rem;
+  }
+  
+  .advanced-filter-panel .accordion-body {
+    padding: 0.75rem;
+  }
+  
+  .quick-date-presets .btn {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.6rem;
+    min-width: 70px;
+  }
+  
+  .custom-criteria-row {
+    padding: 0.5rem;
+  }
+  
+  .filter-actions {
+    padding: 0.75rem;
+  }
+  
+  .filter-actions .btn {
+    padding: 0.6rem;
+    font-size: 0.9rem;
+  }
+  
+  /* Stack form elements vertically on very small screens */
+  .advanced-filter-panel .row .col-md-6,
+  .advanced-filter-panel .row .col-lg-4 {
+    margin-bottom: 1rem;
+  }
+  
+  /* Simplified logical operator group */
+  .logical-operator-group {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .logical-operator-group .btn {
+    flex: 1;
+    padding: 0.5rem;
+    font-size: 0.8rem;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .advanced-filter-panel .btn,
+  .advanced-filter-panel .form-control,
+  .advanced-filter-panel .form-select {
+    min-height: 44px;
+  }
+  
+  .advanced-filter-panel .accordion-button {
+    min-height: 48px;
+  }
+  
+  .preset-badge {
+    min-height: 44px;
+    padding: 0.5rem 1rem;
+  }
+  
+  .quick-date-presets .btn {
+    min-height: 40px;
+    min-width: 80px;
+  }
+}
+
+/* Swipe gesture support */
+.advanced-filter-panel.touch-enabled {
+  overflow-x: hidden;
+}
+
+.advanced-filter-panel.touch-enabled .accordion-body {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile-specific animations */
+@media (max-width: 768px) {
+  .advanced-filter-panel {
+    animation: slideUp 0.3s ease-out;
+  }
+  
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .preset-badge {
+    animation: scaleIn 0.2s ease-out;
+  }
+  
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+}
+
+/* Mobile drawer-style filter panel */
+@media (max-width: 576px) {
+  .advanced-filter-panel.mobile-drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1050;
+    background: white;
+    border-radius: 0;
+    margin: 0;
+    overflow-y: auto;
+    animation: slideInFromBottom 0.3s ease-out;
+  }
+  
+  @keyframes slideInFromBottom {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+  
+  .advanced-filter-panel.mobile-drawer .card-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    border-bottom: 2px solid #dee2e6;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+  
+  .advanced-filter-panel.mobile-drawer .filter-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    background: white;
+    border-top: 2px solid #dee2e6;
+    box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* Animation Effects */
+.advanced-filter-panel {
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.preset-badge {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Focus States for Accessibility */
+.advanced-filter-panel .btn:focus,
+.advanced-filter-panel .form-control:focus,
+.advanced-filter-panel .form-select:focus {
+  outline: none;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  .advanced-filter-panel {
+    border: 2px solid #000;
+  }
+  
+  .advanced-filter-panel .card-header {
+    background: #000;
+    color: #fff;
+  }
+  
+  .advanced-filter-panel .accordion-item {
+    border: 2px solid #000;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .advanced-filter-panel {
+    background: #2d2d2d;
+    color: #fff;
+  }
+  
+  .advanced-filter-panel .card-body {
+    background: #343a40;
+  }
+  
+  .advanced-filter-panel .accordion-body {
+    background: #2d2d2d;
+    color: #fff;
+  }
+  
+  .advanced-filter-panel .form-control,
+  .advanced-filter-panel .form-select {
+    background: #495057;
+    border-color: #6c757d;
+    color: #fff;
+  }
+  
+  .custom-criteria-list {
+    background: #495057;
+    border-color: #6c757d;
+  }
+  
+  .custom-criteria-row {
+    background: #343a40;
+    border-color: #495057;
+  }
+}
+
+/* Force Light Theme - Override All Dark Styles */
+.advanced-filter-panel {
+  background: white !important;
+  color: #212529 !important;
+}
+
+.advanced-filter-panel .card-header {
+  background: #f8f9fa !important;
+  color: #212529 !important;
+}
+
+.advanced-filter-panel .accordion-body {
+  background: white !important;
+  color: #212529 !important;
+}
+
+.advanced-filter-panel .form-control {
+  background: white !important;
+  border-color: #ced4da !important;
+  color: #212529 !important;
+}
+
+.advanced-filter-panel .btn {
+  color: #212529 !important;
+}
+
+.advanced-filter-panel .text-white {
+  color: #212529 !important;
+}

@@ -100,6 +100,22 @@ const clientSchema = new mongoose.Schema(
       enum: ["active", "inactive", "suspended"],
       default: "active",
     },
+    // VIP Client Status
+    isVip: {
+      type: Boolean,
+      default: false,
+    },
+    vipLevel: {
+      type: String,
+      enum: ["standard", "gold", "platinum", "diamond"],
+      default: "standard",
+    },
+    vipSince: {
+      type: Date,
+    },
+    vipNotes: {
+      type: String,
+    },
     notes: {
       type: String,
     },
@@ -138,7 +154,7 @@ const clientSchema = new mongoose.Schema(
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      // Temporarily removed required to debug
     },
   },
   { timestamps: true }

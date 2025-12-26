@@ -96,10 +96,6 @@ const TeamTab = ({ project, onRefresh }) => {
       // Get project department ID
       const projectDeptId = project.department?._id || project.department;
       
-      console.log('Project department:', projectDeptId);
-      console.log('Current team members:', teamMemberIds);
-      console.log('Current user (HoD):', user?._id, user?.role);
-      
       // Filter users
       const available = allUsers.filter((u) => {
         // Only include employees and HoDs
@@ -128,7 +124,6 @@ const TeamTab = ({ project, onRefresh }) => {
       });
       
       setAvailableUsers(available);
-      console.log('Available users for team:', available.map(u => ({ name: u.name, role: u.role, dept: u.department })));
     } catch (error) {
       console.error('Error loading users:', error);
       toast.error('Failed to load available users');

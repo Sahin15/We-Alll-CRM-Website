@@ -149,13 +149,11 @@ export const AuthProvider = ({ children }) => {
       
       // Start new monitor
       healthMonitorCleanup.current = startProfilePictureHealthMonitor(refreshUser);
-      console.log("Profile picture health monitoring started");
     } else {
       // Stop monitor when user logs out
       if (healthMonitorCleanup.current) {
         healthMonitorCleanup.current();
         healthMonitorCleanup.current = null;
-        console.log("Profile picture health monitoring stopped");
       }
     }
 

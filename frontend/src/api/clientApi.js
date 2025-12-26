@@ -29,6 +29,14 @@ export const clientApi = {
   createClient: (data) => api.post("/clients", data),
   updateClient: (id, data) => api.put(`/clients/${id}`, data),
   deleteClient: (id) => api.delete(`/clients/${id}`),
+  
+  // VIP Client Management
+  toggleClientVip: async (id, vipData) => {
+    return api.put(`/clients/${id}/vip`, vipData);
+  },
+  getVipClients: async (params = {}) => {
+    return api.get("/clients/vip/list", { params });
+  },
 };
 
 export default clientApi;

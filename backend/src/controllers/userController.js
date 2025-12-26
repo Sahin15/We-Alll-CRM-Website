@@ -93,7 +93,7 @@ export const getUsers = async (req, res) => {
     
     // Optimized query WITHOUT pagination (backward compatible)
     const users = await User.find(query)
-      .select('name email role department phone status designation')
+      .select('name email role department phone status designation profilePicture employeeId joiningDate hireDate')
       .populate('department', 'name')
       .populate('manager', 'name email')
       .sort({ createdAt: -1 })

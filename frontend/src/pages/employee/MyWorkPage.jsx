@@ -10,7 +10,7 @@ import WorkItemDetailsModal from '../../components/workitems/WorkItemDetailsModa
 import WorkItemFilters from '../../components/workitems/WorkItemFilters';
 import WorkItemSearch from '../../components/workitems/WorkItemSearch';
 import StatisticsCards from '../../components/workitems/StatisticsCards';
-import UnifiedWorkCreationModal from '../../components/work/UnifiedWorkCreationModal';
+import ProfessionalWorkCreationModal from '../../components/work/ProfessionalWorkCreationModal';
 
 /**
  * MyWorkPage Component
@@ -440,8 +440,8 @@ const MyWorkPage = () => {
         />
       )}
 
-      {/* Unified Work Creation Modal */}
-      <UnifiedWorkCreationModal
+      {/* Professional Work Creation Modal */}
+      <ProfessionalWorkCreationModal
         show={showCreateModal}
         onHide={() => setShowCreateModal(false)}
         onSuccess={loadWorkItems}

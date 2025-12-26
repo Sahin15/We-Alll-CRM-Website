@@ -354,43 +354,52 @@ const createWorkItem = async (req, res) => {
       departmentData: req.body.departmentData || {}, // Department-specific data
     });
     
-    // Initialize advanced workflow if applicable
-    const { default: WorkflowAutomationService } = await import("../services/workflowAutomationService.js");
-    await WorkflowAutomationService.initializeWorkItemWorkflow(workItem, projectExists);
-    
     // Populate the created work item
     await workItem.populate("project", "name client");
     await workItem.populate("assignedTo", "name email");
     await workItem.populate("createdBy", "name email");
     
-    // Auto-sync to work calendar
-    try {
-      const { createWorkCalendarEntry } = await import('./workCalendarController.js');
-      await createWorkCalendarEntry(workItem);
-      console.log(`✅ Auto-synced work item ${workItem._id} to calendar`);
-    } catch (syncError) {
-      console.error('⚠️ Failed to auto-sync work item to calendar:', syncError);
-      // Don't fail the work item creation if calendar sync fails
-    }
-    
-    // Update project progress automatically
-    await syncProjectProgress(project);
-    
-    // Send assignment notification
-    await notifyWorkItemAssigned(workItem, req.user);
-    
-    // Log audit event
-    logWorkItemOperation("CREATE", workItem._id.toString(), req.user._id.toString(), {
-      type: workItem.type,
-      title: workItem.title,
-      project: workItem.project._id.toString(),
-      assignedTo: workItem.assignedTo._id.toString(),
-    });
-    
+    // Respond immediately to user
     res.status(201).json({
       success: true,
       message: "Work item created successfully",
       data: workItem,
+    });
+    
+    // Handle background operations asynchronously (don't wait for them)
+    setImmediate(async () => {
+      try {
+        // Initialize advanced workflow if applicable (background)
+        const { default: WorkflowAutomationService } = await import("../services/workflowAutomationService.js");
+        await WorkflowAutomationService.initializeWorkItemWorkflow(workItem, projectExists);
+        
+        // Auto-sync to work calendar (background)
+        try {
+          const { createWorkCalendarEntry } = await import('./workCalendarController.js');
+          await createWorkCalendarEntry(workItem);
+          console.log(`✅ Auto-synced work item ${workItem._id} to calendar`);
+        } catch (syncError) {
+          console.error('⚠️ Failed to auto-sync work item to calendar:', syncError);
+        }
+        
+        // Update project progress automatically (background)
+        await syncProjectProgress(project);
+        
+        // Send assignment notification (background)
+        await notifyWorkItemAssigned(workItem, req.user);
+        
+        // Log audit event (background)
+        logWorkItemOperation("CREATE", workItem._id.toString(), req.user._id.toString(), {
+          type: workItem.type,
+          title: workItem.title,
+          project: workItem.project._id.toString(),
+          assignedTo: workItem.assignedTo._id.toString(),
+        });
+        
+      } catch (backgroundError) {
+        console.error('⚠️ Background operation failed:', backgroundError);
+        // Don't affect the user experience
+      }
     });
   } catch (error) {
     console.error("Error creating work item:", error);
@@ -637,6 +646,8 @@ const updateWorkItemStatus = async (req, res) => {
 // @access  Private (Project Head, Admin, HoD)
 const deleteWorkItem = async (req, res) => {
   try {
+    const { reason } = req.body; // Optional deletion reason
+    
     const workItem = await WorkItem.findById(req.params.id);
     
     if (!workItem) {
@@ -645,6 +656,17 @@ const deleteWorkItem = async (req, res) => {
         error: {
           code: "NOT_FOUND",
           message: "Work item not found",
+        },
+      });
+    }
+    
+    // Check if already deleted
+    if (workItem.isDeleted) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: "ALREADY_DELETED",
+          message: "Work item is already deleted",
         },
       });
     }
@@ -668,20 +690,27 @@ const deleteWorkItem = async (req, res) => {
     const workItemId = workItem._id.toString();
     const workItemTitle = workItem.title;
     
-    await workItem.deleteOne();
+    // Perform soft delete
+    await workItem.softDelete(req.user._id, reason || 'Deleted by user');
     
     // Update project progress after deletion
     await syncProjectProgress(projectId);
     
     // Log audit event
-    logWorkItemOperation("DELETE", workItemId, req.user._id.toString(), {
+    logWorkItemOperation("SOFT_DELETE", workItemId, req.user._id.toString(), {
       title: workItemTitle,
       project: projectId,
+      reason: reason || 'No reason provided'
     });
     
     res.status(200).json({
       success: true,
-      message: "Work item deleted successfully",
+      message: "Work item deleted successfully (soft delete - can be restored)",
+      data: {
+        workItemId,
+        deletedAt: workItem.deletedAt,
+        canRestore: true
+      }
     });
   } catch (error) {
     console.error("Error deleting work item:", error);
@@ -690,6 +719,79 @@ const deleteWorkItem = async (req, res) => {
       error: {
         code: "SERVER_ERROR",
         message: "Failed to delete work item",
+        details: error.message,
+      },
+    });
+  }
+};
+
+// @desc    Restore soft deleted work item
+// @route   PUT /api/work-items/:id/restore
+// @access  Private (Project Head, Admin, HoD)
+const restoreWorkItem = async (req, res) => {
+  try {
+    const workItem = await WorkItem.findById(req.params.id);
+    
+    if (!workItem) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: "NOT_FOUND",
+          message: "Work item not found",
+        },
+      });
+    }
+    
+    // Check if not deleted
+    if (!workItem.isDeleted) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: "NOT_DELETED",
+          message: "Work item is not deleted",
+        },
+      });
+    }
+    
+    // Check if user has permission to restore
+    const project = await Project.findById(workItem.project);
+    const isProjectHead = project?.projectHead?.toString() === req.user._id.toString();
+    const isAdmin = ["admin", "superadmin", "hod"].includes(req.user.role);
+    
+    if (!isProjectHead && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: "FORBIDDEN",
+          message: "You don't have permission to restore this work item",
+        },
+      });
+    }
+    
+    // Restore work item
+    await workItem.restore(req.user._id);
+    
+    // Update project progress after restoration
+    await syncProjectProgress(workItem.project.toString());
+    
+    // Log audit event
+    logWorkItemOperation("RESTORE", workItem._id.toString(), req.user._id.toString(), {
+      title: workItem.title,
+      project: workItem.project.toString(),
+    });
+    
+    res.status(200).json({
+      success: true,
+      message: "Work item restored successfully",
+      data: workItem
+    });
+  } catch (error) {
+    console.error("Error restoring work item:", error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: "SERVER_ERROR",
+        message: "Failed to restore work item",
         details: error.message,
       },
     });
@@ -1150,6 +1252,7 @@ export {
   updateWorkItem,
   updateWorkItemStatus,
   deleteWorkItem,
+  restoreWorkItem,
   bulkUpdateWorkItems,
   addComment,
   getCalendarWorkItems,
@@ -1157,5 +1260,5 @@ export {
   getWorkItemsByProject,
   getWorkflowConfig,
   progressWorkflowStage,
-  getWorkflowProgress,
+  getWorkflowProgress
 };

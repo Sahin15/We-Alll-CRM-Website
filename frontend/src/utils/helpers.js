@@ -25,52 +25,28 @@ export const formatDateTime = (date) => {
   return format(new Date(date), DATE_TIME_FORMAT);
 };
 
-// Format time only (HH:mm:ss AM/PM) - no date
+// Format time only (HH:mm) - 24-hour format for consistency with DD/MM/YYYY
 export const formatTime = (date) => {
   if (!date) return "N/A";
   try {
     const dateObj = new Date(date);
-    // Extract time components manually to ensure no date is included
-    let hours = dateObj.getHours();
-    const minutes = dateObj.getMinutes();
-    const seconds = dateObj.getSeconds();
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    
-    // Convert to 12-hour format
-    hours = hours % 12;
-    hours = hours ? hours : 12; // 0 should be 12
-    
-    // Pad with zeros
-    const hoursStr = hours.toString().padStart(2, '0');
-    const minutesStr = minutes.toString().padStart(2, '0');
-    const secondsStr = seconds.toString().padStart(2, '0');
-    
-    return `${hoursStr}:${minutesStr}:${secondsStr} ${ampm}`;
+    const hours = String(dateObj.getHours()).padStart(2, '0');
+    const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
   } catch (error) {
     console.error('Error formatting time:', error);
     return "Invalid Time";
   }
 };
 
-// Format time without seconds (HH:mm AM/PM) - for cleaner display
+// Format time without seconds (HH:mm) - 24-hour format
 export const formatTimeShort = (date) => {
   if (!date) return "N/A";
   try {
     const dateObj = new Date(date);
-    // Extract time components manually to ensure no date is included
-    let hours = dateObj.getHours();
-    const minutes = dateObj.getMinutes();
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    
-    // Convert to 12-hour format
-    hours = hours % 12;
-    hours = hours ? hours : 12; // 0 should be 12
-    
-    // Pad with zeros
-    const hoursStr = hours.toString().padStart(2, '0');
-    const minutesStr = minutes.toString().padStart(2, '0');
-    
-    return `${hoursStr}:${minutesStr} ${ampm}`;
+    const hours = String(dateObj.getHours()).padStart(2, '0');
+    const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
   } catch (error) {
     console.error('Error formatting time:', error);
     return "Invalid Time";

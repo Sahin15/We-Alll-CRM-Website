@@ -14,6 +14,7 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate, useParams } from "react-router-dom";
 import ProfilePictureUpload from "../profile/ProfilePictureUpload";
+import ProfilePictureDisplay from "../profile/ProfilePictureDisplay";
 import api from "../../services/api";
 import toast from "../../utils/toast";
 import "../../styles/pages-mobile.css";
@@ -415,7 +416,7 @@ const EmployeeProfileManagement = () => {
                       <div className="flex-grow-1 me-2">
                         <div className="fw-semibold text-truncate">{doc.originalName}</div>
                         <small className="text-muted">
-                          {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'Unknown date'}
+                          {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString('en-GB') : 'Unknown date'}
                         </small>
                       </div>
                       <div className="d-flex gap-1 flex-shrink-0">
@@ -515,9 +516,11 @@ const EmployeeProfileManagement = () => {
             {/* Profile Picture */}
             <Col xs={12} sm={6} md={3} lg={2} className="text-center mb-3 mb-sm-0">
               <div className="position-relative d-inline-block">
-                <ProfilePictureUpload
-                  currentImage={user?.profilePicture}
-                  onUploadSuccess={handleProfilePictureUpdate}
+                <ProfilePictureDisplay
+                  profilePicture={user?.profilePicture}
+                  userName={user?.name}
+                  size={120}
+                  showViewButton={true}
                 />
               </div>
             </Col>
@@ -1139,7 +1142,7 @@ const EmployeeProfileManagement = () => {
                             />
                           ) : (
                             <div className="form-control-plaintext border rounded p-2 bg-light">
-                              {user?.joiningDate ? new Date(user.joiningDate).toLocaleDateString() : '—'}
+                              {user?.joiningDate ? new Date(user.joiningDate).toLocaleDateString('en-GB') : '—'}
                             </div>
                           )}
                         </Form.Group>
@@ -1574,7 +1577,7 @@ const EmployeeProfileManagement = () => {
                                         </Badge>
                                       </td>
                                       <td>{doc.originalName}</td>
-                                      <td>{new Date(doc.uploadedAt).toLocaleDateString()}</td>
+                                      <td>{new Date(doc.uploadedAt).toLocaleDateString('en-GB')}</td>
                                       <td>{formatFileSize(doc.fileSize)}</td>
                                       <td>
                                         <Button

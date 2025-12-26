@@ -5,6 +5,10 @@ import Department from "../models/departmentModel.js";
 import logger from '../utils/logger.js';
 import { optimizedProjectPopulate, buildTextSearch } from '../utils/queryOptimizer.js';
 import { canViewAllProjects } from '../utils/permissions.js';
+// Temporarily removed imports for debugging
+// import WorkItem from "../models/workItemModel.js";
+// import Slot from "../models/slotModel.js";
+// import slotManagementService from '../services/slotManagementService.js';
 
 // Helper function to check if user has access to a project
 const userHasProjectAccess = async (userId, userRole, project) => {
@@ -41,10 +45,14 @@ const userHasProjectAccess = async (userId, userRole, project) => {
 
 // Create new project
 export const createProject = async (req, res) => {
+  console.log('🚨 CREATE PROJECT FUNCTION CALLED!');
+  console.log('🚨 Request received at:', new Date().toISOString());
+  
   try {
     console.log('=== CREATE PROJECT REQUEST ===');
     console.log('Request body:', JSON.stringify(req.body, null, 2));
     console.log('User:', req.user?.email, req.user?.role);
+    console.log('User ID:', req.user?._id);
     
     const { 
       name, 
@@ -59,10 +67,24 @@ export const createProject = async (req, res) => {
       priority,
       projectHead, // Now optional
       assignedUsers,
-      teamMembers // New: team members with roles from frontend
+      teamMembers, // New: team members with roles from frontend
+      // Slot system configuration
+      enableSlotSystem,
+      totalSlots,
+      slotType,
+      calculationMethod
     } = req.body;
 
+    console.log('📋 Extracted fields:', {
+      name,
+      departments,
+      enableSlotSystem,
+      totalSlots,
+      slotType
+    });
+
     if (!name) {
+      console.log('❌ Missing project name');
       return res
         .status(400)
         .json({ message: "Project name is required" });
@@ -76,7 +98,14 @@ export const createProject = async (req, res) => {
       finalDepartments = [department];
     }
 
+    console.log('🏢 Department processing:', {
+      inputDepartments: departments,
+      inputDepartment: department,
+      finalDepartments
+    });
+
     if (finalDepartments.length === 0) {
+      console.log('❌ No departments provided');
       return res
         .status(400)
         .json({ message: "At least one service/department is required" });
@@ -143,8 +172,63 @@ export const createProject = async (req, res) => {
       });
     }
 
+    // Initialize slot configuration
+    const slotConfig = {
+      totalSlots: totalSlots || 10,
+      slotType: slotType || 'generic',
+      allowDynamicSlots: true,
+      slotNamingPattern: 'Slot {number}',
+      autoCreateSlots: enableSlotSystem || false,
+      enableSlotSystem: enableSlotSystem || false
+    };
+
+    // Initialize progress tracking
+    const progressConfig = {
+      calculationMethod: calculationMethod || (enableSlotSystem ? 'slot-based' : 'manual'),
+      completedSlots: 0,
+      totalSlots: slotConfig.totalSlots,
+      progressPercentage: 0,
+      lastProgressUpdate: new Date(),
+      progressHistory: []
+    };
+
+    // Initialize slot management
+    const slotManagementConfig = {
+      allowSlotReassignment: true,
+      requireApprovalForSlotChanges: false,
+      slotCompletionRequiresApproval: false,
+      autoReleaseOnWorkItemDeletion: true
+    };
+
+    console.log('🎰 Slot configuration:', {
+      slotConfig,
+      progressConfig,
+      slotManagementConfig
+    });
+
     console.log('Creating project with createdBy:', req.user._id, req.user.email);
     console.log('Team members to be assigned:', processedTeamMembers.length);
+    console.log('Slot configuration:', slotConfig);
+    
+    console.log('🚀 About to create project with data:', {
+      name,
+      client: client || null,
+      departments: finalDepartments,
+      department: finalDepartments[0],
+      description: description || '',
+      startDate: startDate || null,
+      endDate: endDate || null,
+      budget: budget || 0,
+      status: status || "Pending",
+      priority: priority || "medium",
+      projectHead: projectHead || null,
+      assignedUsers: finalAssignedUsers,
+      teamMembers: processedTeamMembers,
+      createdBy: req.user._id,
+      slotConfiguration: slotConfig,
+      progressTracking: progressConfig,
+      slotManagement: slotManagementConfig
+    });
     
     const project = await Project.create({
       name,
@@ -161,9 +245,35 @@ export const createProject = async (req, res) => {
       assignedUsers: finalAssignedUsers,
       teamMembers: processedTeamMembers, // Add team members with roles
       createdBy: req.user._id, // Track who created the project
+      // Slot system fields
+      slotConfiguration: slotConfig,
+      progressTracking: progressConfig,
+      slotManagement: slotManagementConfig
     });
     
+    console.log('✅ Project created successfully with ID:', project._id);
+    
     console.log('Project created with ID:', project._id, 'createdBy:', project.createdBy);
+
+    // If slot system is enabled, create initial slots
+    if (enableSlotSystem && slotConfig.autoCreateSlots) {
+      try {
+        console.log('🎰 Slot creation temporarily disabled for debugging...');
+        // Temporarily disabled to isolate the issue
+        // await slotManagementService.createSlotsForProject(project._id, {
+        //   count: slotConfig.totalSlots,
+        //   slotType: slotConfig.slotType,
+        //   autoAssign: false,
+        //   createdBy: req.user._id
+        // });
+        console.log(`✅ Skipped slot creation for debugging`);
+      } catch (slotError) {
+        console.error('❌ Error creating slots for project:', slotError);
+        console.error('Slot error details:', slotError.message);
+        // Don't fail project creation if slot creation fails
+        // Just log the error and continue
+      }
+    }
 
     // Add project to all selected departments' projects arrays
     for (const deptId of finalDepartments) {
@@ -191,9 +301,17 @@ export const createProject = async (req, res) => {
       project: populatedProject,
     });
   } catch (error) {
-    console.error("Error in createProject:", error);
+    console.error("❌ CRITICAL ERROR in createProject:", error);
+    console.error("❌ Error name:", error.name);
+    console.error("❌ Error message:", error.message);
+    console.error("❌ Error stack:", error.stack);
     logger.error("Error in createProject:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ 
+      message: "Server error", 
+      error: error.message,
+      errorName: error.name,
+      timestamp: new Date().toISOString()
+    });
   }
 };
 
@@ -253,6 +371,7 @@ export const getProjects = async (req, res) => {
     // Optimized query WITHOUT pagination (backward compatible)
     const projects = await Project.find(query)
       .populate(optimizedProjectPopulate())
+      .select('+slotConfiguration +progressTracking +slotManagement') // Include slot system fields
       .sort({ createdAt: -1 })
       .lean();
     

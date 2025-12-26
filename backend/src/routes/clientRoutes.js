@@ -13,6 +13,8 @@ import {
   assignAccountManager,
   updateClientPlan,
   renewClientPlan,
+  toggleClientVip,
+  getVipClients,
 } from "../controllers/clientController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
@@ -90,6 +92,20 @@ router.put(
   protect,
   authorizeRoles("admin", "superadmin", "accounts"),
   renewClientPlan
+);
+
+// VIP Client Management Routes
+router.put(
+  "/:id/vip",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  toggleClientVip
+);
+router.get(
+  "/vip/list",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
+  getVipClients
 );
 
 export default router;

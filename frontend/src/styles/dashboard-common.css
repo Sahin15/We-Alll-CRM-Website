@@ -45,27 +45,27 @@
 }
 
 .stat-card:hover .bg-success {
-  transform: scale(1.1);
+  /* Removed transform: scale(1.1) that causes layout shift */
   box-shadow: 0 4px 12px rgba(25, 135, 84, 0.2);
 }
 
 .stat-card:hover .bg-info {
-  transform: scale(1.1);
+  /* Removed transform: scale(1.1) that causes layout shift */
   box-shadow: 0 4px 12px rgba(13, 202, 240, 0.2);
 }
 
 .stat-card:hover .bg-warning {
-  transform: scale(1.1);
+  /* Removed transform: scale(1.1) that causes layout shift */
   box-shadow: 0 4px 12px rgba(255, 193, 7, 0.2);
 }
 
 .stat-card:hover .bg-primary {
-  transform: scale(1.1);
+  /* Removed transform: scale(1.1) that causes layout shift */
   box-shadow: 0 4px 12px rgba(13, 110, 253, 0.2);
 }
 
 .stat-card:hover .bg-danger {
-  transform: scale(1.1);
+  /* Removed transform: scale(1.1) that causes layout shift */
   box-shadow: 0 4px 12px rgba(220, 53, 69, 0.2);
 }
 
@@ -95,7 +95,7 @@
 }
 
 .badge:hover {
-  transform: scale(1.05);
+  /* Removed transform: scale(1.05) that causes layout shift */
 }
 
 /* Icon scale on card hover */
@@ -106,7 +106,7 @@
 
 .dashboard-card:hover .fs-4,
 .stat-card:hover .fs-4 {
-  transform: scale(1.08);
+  /* Removed transform: scale(1.08) that causes layout shift */
 }
 
 /* Clickable card cursor */
@@ -127,7 +127,7 @@
 
 .table-hover tbody tr:hover {
   background-color: rgba(102, 126, 234, 0.04);
-  transform: scale(1.01);
+  /* Removed transform: scale(1.01) that causes layout shift */
 }
 
 /* Card body hover for clickable cards */
@@ -170,7 +170,7 @@ a, button, .btn, .badge, .card {
 }
 
 .quick-stats-widget:hover h4 {
-  transform: scale(1.05);
+  /* Removed transform: scale(1.05) that causes layout shift */
   color: inherit;
 }
 
@@ -191,7 +191,7 @@ a, button, .btn, .badge, .card {
 
 .quick-stats-widget:hover .badge {
   animation: none;
-  transform: scale(1.1);
+  /* Removed transform: scale(1.1) that causes layout shift */
 }
 
 /* Icon container glow effect */

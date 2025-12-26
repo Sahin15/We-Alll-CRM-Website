@@ -36,7 +36,7 @@ import {
   FaCalendarAlt,
   FaProjectDiagram,
   FaDownload,
-  FaExpand,
+  FaExpandArrowsAlt,
   FaStar,
   FaCheckCircle,
   FaExclamationTriangle,
@@ -480,7 +480,7 @@ const DepartmentList = () => {
                   size="sm"
                   onClick={() => setViewMode('grid')}
                 >
-                  <FaExpand className="me-1" />
+                  <FaExpandArrowsAlt className="me-1" />
                   Grid
                 </Button>
                 <Button

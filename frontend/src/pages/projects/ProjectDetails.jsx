@@ -22,12 +22,15 @@ import {
   FaCalendar,
   FaBuilding,
   FaUserTie,
+  FaCheckCircle,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { projectApi } from "../../api/projectApi";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
 import { useAuth } from "../../context/AuthContext";
 import { userApi } from "../../api/userApi";
+import SlotProgressDisplay from "../../components/projects/SlotProgressDisplay";
+import SlotStatisticsCards from "../../components/projects/SlotStatisticsCards";
 
 const ProjectDetails = () => {
   const { id } = useParams();
@@ -39,6 +42,11 @@ const ProjectDetails = () => {
   const [newStatus, setNewStatus] = useState("");
   const [newProgress, setNewProgress] = useState(0);
   const [activeTab, setActiveTab] = useState("overview");
+
+  // Slot system states
+  const [slots, setSlots] = useState([]);
+  const [slotStatistics, setSlotStatistics] = useState(null);
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
   // Team member management states
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
@@ -70,6 +78,17 @@ const ProjectDetails = () => {
     fetchProjectDetails();
   }, [id]);
 
+  useEffect(() => {
+    // Fetch slot data when project is loaded and uses slot system
+    if (project && project.slotConfiguration?.enableSlotSystem) {
+      console.log("🎯 Slot system detected! Fetching slot data...");
+      fetchSlotData();
+    } else if (project) {
+      console.log("📋 Traditional project - no slot system enabled");
+      console.log("Project slot config:", project.slotConfiguration);
+    }
+  }, [project]);
+
   const fetchProjectDetails = async () => {
     try {
       const response = await projectApi.getProjectById(id);
@@ -79,6 +98,9 @@ const ProjectDetails = () => {
       const projectData = response?.data || response;
       
       if (projectData) {
+        console.log("🔍 Project data loaded:", projectData);
+        console.log("🔍 Slot configuration:", projectData.slotConfiguration);
+        console.log("🔍 Progress tracking:", projectData.progressTracking);
         setProject(projectData);
       } else {
         console.error("No project data in response:", response);
@@ -104,6 +126,34 @@ const ProjectDetails = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchSlotData = async () => {
+    if (!project?._id) return;
+    
+    setLoadingSlots(true);
+    try {
+      // Fetch slot statistics
+      const statsResponse = await projectApi.getProjectSlotStatistics(project._id);
+      if (statsResponse.success) {
+        setSlotStatistics(statsResponse.data);
+      }
+
+      // Fetch available slots (we'll use this to get all slots for now)
+      const slotsResponse = await projectApi.getAvailableSlots(project._id);
+      if (slotsResponse.success) {
+        setSlots(slotsResponse.data?.slots || []);
+      }
+    } catch (error) {
+      console.error("Error fetching slot data:", error);
+      // Don't show error toast as slot system is optional
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
+
+  const handleRefreshSlotData = async () => {
+    await fetchSlotData();
   };
 
   const fetchAvailableMembers = async () => {
@@ -289,10 +339,20 @@ const ProjectDetails = () => {
   }
 
   const calculateProgress = () => {
+    // If project uses slot system, use slot-based progress
+    if (project?.slotConfiguration?.enableSlotSystem && project?.progressTracking?.calculationMethod === 'slot-based') {
+      return project.progressTracking?.progressPercentage || 0;
+    }
+    
+    // Fallback to traditional progress calculation
     if (project.progress) return project.progress;
     if (project.status === "Completed") return 100;
     if (project.status === "In Progress") return 50;
     return 0;
+  };
+
+  const getProgressDisplayType = () => {
+    return project?.slotConfiguration?.enableSlotSystem ? 'slot-based' : 'traditional';
   };
 
   const handleShowStatusModal = () => {
@@ -417,6 +477,44 @@ const ProjectDetails = () => {
                 </Col>
               </Row>
 
+              {/* Show slot system information if enabled */}
+              {project?.slotConfiguration?.enableSlotSystem && (
+                <Row className="mb-4">
+                  <Col md={6}>
+                    <div className="mb-3">
+                      <strong className="text-muted d-block mb-1">
+                        Slot System
+                      </strong>
+                      <h6>
+                        <Badge bg="info" className="me-2">Enabled</Badge>
+                        {project.slotConfiguration.slotType || 'Generic'} slots
+                      </h6>
+                      <small className="text-muted">
+                        {project.slotConfiguration.totalSlots || 0} total slots configured
+                      </small>
+                    </div>
+                  </Col>
+                  <Col md={6}>
+                    <div className="mb-3">
+                      <strong className="text-muted d-block mb-1">
+                        Progress Method
+                      </strong>
+                      <h6>
+                        <Badge bg="primary">
+                          {project.progressTracking?.calculationMethod === 'slot-based' ? 'Slot-Based' : 'Manual'}
+                        </Badge>
+                      </h6>
+                      <small className="text-muted">
+                        {project.progressTracking?.calculationMethod === 'slot-based' 
+                          ? 'Progress calculated from slot completion'
+                          : 'Progress updated manually'
+                        }
+                      </small>
+                    </div>
+                  </Col>
+                </Row>
+              )}
+
               {project.description && (
                 <div className="mb-4">
                   <strong className="text-muted d-block mb-2">
@@ -431,24 +529,52 @@ const ProjectDetails = () => {
                   <strong>Project Progress</strong>
                   <span>{calculateProgress()}%</span>
                 </div>
-                <div className="progress" style={{ height: "25px" }}>
-                  <div
-                    className={`progress-bar ${
-                      project.status === "Completed"
-                        ? "bg-success"
-                        : project.status === "In Progress"
-                        ? "bg-primary"
-                        : "bg-warning"
-                    }`}
-                    role="progressbar"
-                    style={{ width: `${calculateProgress()}%` }}
-                    aria-valuenow={calculateProgress()}
-                    aria-valuemin="0"
-                    aria-valuemax="100"
-                  >
-                    {calculateProgress()}%
+                
+                {/* Show slot-based progress if enabled */}
+                {project?.slotConfiguration?.enableSlotSystem ? (
+                  <div>
+                    <div className="progress" style={{ height: "25px" }}>
+                      <div
+                        className={`progress-bar ${
+                          project.status === "Completed"
+                            ? "bg-success"
+                            : project.status === "In Progress"
+                            ? "bg-primary"
+                            : "bg-warning"
+                        }`}
+                        role="progressbar"
+                        style={{ width: `${calculateProgress()}%` }}
+                        aria-valuenow={calculateProgress()}
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                      >
+                        {calculateProgress()}%
+                      </div>
+                    </div>
+                    <div className="small text-muted mt-1">
+                      Slot-based progress: {project.progressTracking?.completedSlots || 0} / {project.progressTracking?.totalSlots || project.slotConfiguration?.totalSlots || 0} slots completed
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="progress" style={{ height: "25px" }}>
+                    <div
+                      className={`progress-bar ${
+                        project.status === "Completed"
+                          ? "bg-success"
+                          : project.status === "In Progress"
+                          ? "bg-primary"
+                          : "bg-warning"
+                      }`}
+                      role="progressbar"
+                      style={{ width: `${calculateProgress()}%` }}
+                      aria-valuenow={calculateProgress()}
+                      aria-valuemin="0"
+                      aria-valuemax="100"
+                    >
+                      {calculateProgress()}%
+                    </div>
+                  </div>
+                )}
               </div>
             </Card.Body>
           </Card>
@@ -550,6 +676,68 @@ const ProjectDetails = () => {
               )}
             </Card.Body>
           </Card>
+
+          {/* Show slot statistics if slot system is enabled */}
+          {project?.slotConfiguration?.enableSlotSystem && (
+            <Card className="shadow-sm mb-4">
+              <Card.Header className="bg-white">
+                <h5 className="mb-0">
+                  <FaCheckCircle className="me-2" />
+                  Slot Progress
+                </h5>
+              </Card.Header>
+              <Card.Body>
+                {loadingSlots ? (
+                  <div className="text-center py-3">
+                    <div className="spinner-border spinner-border-sm" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                  </div>
+                ) : slotStatistics ? (
+                  <div>
+                    <Row className="g-2 mb-3">
+                      <Col xs={6}>
+                        <div className="text-center p-2 bg-light rounded">
+                          <div className="h6 mb-1 text-success">{slotStatistics.completedSlots || 0}</div>
+                          <div className="small text-muted">Completed</div>
+                        </div>
+                      </Col>
+                      <Col xs={6}>
+                        <div className="text-center p-2 bg-light rounded">
+                          <div className="h6 mb-1 text-primary">{slotStatistics.totalSlots || 0}</div>
+                          <div className="small text-muted">Total</div>
+                        </div>
+                      </Col>
+                    </Row>
+                    <div className="progress mb-2" style={{ height: "8px" }}>
+                      <div
+                        className="progress-bar bg-success"
+                        role="progressbar"
+                        style={{ width: `${slotStatistics.completionRate || 0}%` }}
+                      />
+                    </div>
+                    <div className="small text-muted text-center">
+                      {slotStatistics.completionRate || 0}% complete
+                    </div>
+                    {activeTab === 'overview' && (
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        className="w-100 mt-3"
+                        onClick={() => setActiveTab('slots')}
+                      >
+                        View Slot Details
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-muted text-center mb-0">
+                    No slot data available
+                  </p>
+                )}
+              </Card.Body>
+            </Card>
+          )}
 
           {project.client && (
             <Card className="shadow-sm">
@@ -740,6 +928,45 @@ const ProjectDetails = () => {
             </Col>
           </Row>
         </Tab>
+
+        {/* Slots Tab - Only show if slot system is enabled */}
+        {project?.slotConfiguration?.enableSlotSystem && (
+          <Tab
+            eventKey="slots"
+            title={
+              <span>
+                <FaCheckCircle className="me-2" />
+                Slots ({slotStatistics?.totalSlots || 0})
+              </span>
+            }
+          >
+            <Row className="g-4">
+              <Col lg={12}>
+                {/* Slot Statistics Cards */}
+                <SlotStatisticsCards
+                  project={project}
+                  slots={slots}
+                  realTimeUpdates={true}
+                  onRefresh={handleRefreshSlotData}
+                />
+              </Col>
+              
+              <Col lg={12}>
+                {/* Slot Progress Display */}
+                <SlotProgressDisplay
+                  project={project}
+                  slots={slots}
+                  showDetailed={true}
+                  onSlotClick={(slot) => {
+                    // Handle slot click - could navigate to slot details
+                    console.log('Slot clicked:', slot);
+                  }}
+                  realTimeUpdates={true}
+                />
+              </Col>
+            </Row>
+          </Tab>
+        )}
       </Tabs>
 
       {/* Update Status Modal */}

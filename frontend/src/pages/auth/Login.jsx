@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Form, Button, Alert } from "react-bootstrap";
+import { Form, Alert } from "react-bootstrap";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 
@@ -529,20 +529,75 @@ const Login = () => {
               </Link>
             </div>
 
-            <Button
-              type="submit"
-              className="login-button"
-              disabled={loading}
+            <div
+              className="custom-login-button-wrapper"
+              data-loading={loading}
+              style={{
+                width: '100%',
+                height: '44px',
+                background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%)',
+                border: 'none',
+                borderRadius: '10px',
+                color: 'white',
+                fontSize: '1rem',
+                fontWeight: '600',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? '0.8' : '1',
+                transition: 'all 0.3s ease',
+                position: 'relative',
+                overflow: 'hidden',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              onClick={!loading ? (e) => {
+                e.preventDefault();
+                const form = e.target.closest('form');
+                if (form) {
+                  const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+                  form.dispatchEvent(submitEvent);
+                }
+              } : undefined}
             >
+              <button
+                type="submit"
+                className="invisible-submit-button"
+                disabled={loading}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'inherit',
+                  opacity: 0,
+                  zIndex: 1
+                }}
+              />
               {loading ? (
-                <div className="loading-content">
+                <div className="loading-content" style={{ 
+                  color: 'white', 
+                  zIndex: 2, 
+                  position: 'relative',
+                  background: 'transparent'
+                }}>
                   <div className="spinner"></div>
-                  Signing in...
+                  <span style={{ 
+                    color: 'white',
+                    background: 'transparent'
+                  }}>Signing in...</span>
                 </div>
               ) : (
-                "Sign In"
+                <span style={{ 
+                  color: 'white', 
+                  zIndex: 2, 
+                  position: 'relative',
+                  background: 'transparent'
+                }}>Sign In</span>
               )}
-            </Button>
+            </div>
           </Form>
         </div>
       </div>
@@ -792,39 +847,89 @@ const Login = () => {
           color: #7C3AED;
         }
         
-        .login-button {
-          width: 100%;
-          height: 44px;
-          background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%);
-          border: none;
-          border-radius: 10px;
-          color: white;
-          font-size: 1rem;
-          font-weight: 600;
-          transition: all 0.3s ease;
-          position: relative;
-          overflow: hidden;
+        /* Login Button Wrapper - Complete control over styling */
+        .custom-login-button-wrapper {
+          width: 100% !important;
+          height: 44px !important;
+          background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%) !important;
+          border: none !important;
+          border-radius: 10px !important;
+          color: white !important;
+          font-size: 1rem !important;
+          font-weight: 600 !important;
+          transition: all 0.3s ease !important;
+          position: relative !important;
+          overflow: hidden !important;
+          cursor: pointer !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          user-select: none !important;
         }
         
-        .login-button:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3);
+        .custom-login-button-wrapper * {
+          color: white !important;
+          background: transparent !important;
         }
         
-        .login-button:active:not(:disabled) {
-          transform: translateY(0);
+        .custom-login-button-wrapper .loading-content {
+          color: white !important;
+          background: transparent !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 0.5rem !important;
+          z-index: 2 !important;
+          position: relative !important;
         }
         
-        .login-button:disabled {
-          opacity: 0.8;
-          cursor: not-allowed;
+        .custom-login-button-wrapper .loading-content * {
+          color: white !important;
+          background: transparent !important;
+        }
+        
+        .custom-login-button-wrapper:hover:not([data-loading="true"]) {
+          transform: translateY(-2px) !important;
+          box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3) !important;
+        }
+        
+        .custom-login-button-wrapper:active:not([data-loading="true"]) {
+          transform: translateY(0) !important;
+          box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.3) !important;
+        }
+        
+        .custom-login-button-wrapper[data-loading="true"] {
+          opacity: 0.8 !important;
+          cursor: not-allowed !important;
+        }
+        
+        .invisible-submit-button {
+          position: absolute !important;
+          top: 0 !important;
+          left: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
+          background: transparent !important;
+          border: none !important;
+          cursor: inherit !important;
+          opacity: 0 !important;
+          z-index: 1 !important;
         }
         
         .loading-content {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.5rem;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 0.5rem !important;
+          color: white !important;
+          background: transparent !important;
+          z-index: 2 !important;
+          position: relative !important;
+        }
+        
+        .loading-content * {
+          color: white !important;
+          background: transparent !important;
         }
         
         .spinner {

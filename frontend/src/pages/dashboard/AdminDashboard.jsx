@@ -25,6 +25,7 @@ import {
   FaPlus,
   FaCog,
   FaChartBar,
+  FaUser,
 } from "react-icons/fa";
 import StatCard from "../../components/dashboard/StatCard";
 import RecentActivity from "../../components/dashboard/RecentActivity";
@@ -714,7 +715,7 @@ const AdminDashboard = () => {
     { label: "Add Project", icon: <FaProjectDiagram />, path: "/projects", variant: "success" },
     { label: "Add Client", icon: <FaUserTie />, path: "/clients", variant: "info" },
     { label: "Employee Profiles", icon: <FaUserCheck />, path: "/employees", variant: "secondary" },
-    { label: "Work Calendar", icon: <FaCalendarAlt />, path: "/work-calendar/admin-overview", variant: "warning" },
+    { label: "Enhanced Work Management", icon: <FaCalendarAlt />, path: "/work-calendar/enhanced-admin-overview", variant: "warning" },
     { label: "Send Notification", icon: <FaBell />, path: "/admin/notifications/create", variant: "primary" },
     { label: "Notification Analytics", icon: <FaChartBar />, path: "/admin/notifications/dashboard", variant: "info" },
   ];
@@ -935,6 +936,166 @@ const AdminDashboard = () => {
                   >
                     <FaCog className="me-1" />
                     Notification Settings
+                  </Button>
+                </div>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Enhanced Work Management Section */}
+      <Row className="g-4 mb-4">
+        <Col xs={12}>
+          <Card className="border-0 shadow-sm">
+            <Card.Header className="bg-gradient-success text-white border-0">
+              <div className="d-flex justify-content-between align-items-center">
+                <div>
+                  <h5 className="mb-1">
+                    <FaCalendarAlt className="me-2" />
+                    Enhanced Work Management Dashboard
+                  </h5>
+                  <small className="opacity-75">Professional spreadsheet interface with client-focused filtering and real-time analytics</small>
+                </div>
+                <Button 
+                  variant="light" 
+                  size="sm"
+                  onClick={() => navigate('/work-calendar/enhanced-admin-overview')}
+                  className="d-flex align-items-center"
+                >
+                  <FaChartBar className="me-1" />
+                  Open Dashboard
+                </Button>
+              </div>
+            </Card.Header>
+            <Card.Body>
+              <Row className="g-3">
+                <Col md={3}>
+                  <div 
+                    className="work-management-card cursor-pointer"
+                    onClick={() => navigate('/work-calendar/enhanced-admin-overview')}
+                  >
+                    <Card className="h-100 border-0 bg-success bg-opacity-10">
+                      <Card.Body className="text-center">
+                        <div 
+                          className="rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center"
+                          style={{ 
+                            width: '50px', 
+                            height: '50px', 
+                            backgroundColor: '#10B981' + '20',
+                            color: '#10B981'
+                          }}
+                        >
+                          <FaUsers size={20} />
+                        </div>
+                        <h4 className="mb-1 text-success">{stats.activeProjects}</h4>
+                        <small className="text-muted">Active Projects</small>
+                      </Card.Body>
+                    </Card>
+                  </div>
+                </Col>
+                
+                <Col md={3}>
+                  <div 
+                    className="work-management-card cursor-pointer"
+                    onClick={() => navigate('/work-calendar/enhanced-admin-overview')}
+                  >
+                    <Card className="h-100 border-0 bg-primary bg-opacity-10">
+                      <Card.Body className="text-center">
+                        <div 
+                          className="rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center"
+                          style={{ 
+                            width: '50px', 
+                            height: '50px', 
+                            backgroundColor: '#3B82F6' + '20',
+                            color: '#3B82F6'
+                          }}
+                        >
+                          <FaProjectDiagram size={20} />
+                        </div>
+                        <h4 className="mb-1 text-primary">{stats.clients}</h4>
+                        <small className="text-muted">Total Clients</small>
+                      </Card.Body>
+                    </Card>
+                  </div>
+                </Col>
+                
+                <Col md={3}>
+                  <div 
+                    className="work-management-card cursor-pointer"
+                    onClick={() => navigate('/work-calendar/enhanced-admin-overview')}
+                  >
+                    <Card className="h-100 border-0 bg-warning bg-opacity-10">
+                      <Card.Body className="text-center">
+                        <div 
+                          className="rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center"
+                          style={{ 
+                            width: '50px', 
+                            height: '50px', 
+                            backgroundColor: '#F59E0B' + '20',
+                            color: '#F59E0B'
+                          }}
+                        >
+                          <FaChartLine size={20} />
+                        </div>
+                        <h4 className="mb-1 text-warning">{stats.completedProjects}</h4>
+                        <small className="text-muted">Completed Projects</small>
+                      </Card.Body>
+                    </Card>
+                  </div>
+                </Col>
+                
+                <Col md={3}>
+                  <div 
+                    className="work-management-card cursor-pointer"
+                    onClick={() => navigate('/work-calendar/enhanced-admin-overview')}
+                  >
+                    <Card className="h-100 border-0 bg-info bg-opacity-10">
+                      <Card.Body className="text-center">
+                        <div 
+                          className="rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center"
+                          style={{ 
+                            width: '50px', 
+                            height: '50px', 
+                            backgroundColor: '#06B6D4' + '20',
+                            color: '#06B6D4'
+                          }}
+                        >
+                          <FaCalendarAlt size={20} />
+                        </div>
+                        <h4 className="mb-1 text-info">{stats.employees}</h4>
+                        <small className="text-muted">Total Employees</small>
+                      </Card.Body>
+                    </Card>
+                  </div>
+                </Col>
+              </Row>
+              
+              <div className="mt-3 pt-3 border-top">
+                <div className="d-flex gap-2 flex-wrap">
+                  <Button 
+                    variant="outline-success" 
+                    size="sm"
+                    onClick={() => navigate('/work-calendar/enhanced-admin-overview')}
+                  >
+                    <FaChartBar className="me-1" />
+                    Enhanced Dashboard
+                  </Button>
+                  <Button 
+                    variant="outline-primary" 
+                    size="sm"
+                    onClick={() => navigate('/work-calendar/admin-overview')}
+                  >
+                    <FaCalendarAlt className="me-1" />
+                    Basic Work Calendar
+                  </Button>
+                  <Button 
+                    variant="outline-info" 
+                    size="sm"
+                    onClick={() => navigate('/work-calendar/my-calendar')}
+                  >
+                    <FaUser className="me-1" />
+                    My Work Calendar
                   </Button>
                 </div>
               </div>
@@ -1917,6 +2078,10 @@ const AdminDashboard = () => {
           background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
         }
         
+        .bg-gradient-success {
+          background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+        }
+        
         .notification-stat-card {
           transition: all 0.2s ease;
         }
@@ -1930,6 +2095,22 @@ const AdminDashboard = () => {
         }
         
         .notification-stat-card:hover .card {
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .work-management-card {
+          transition: all 0.2s ease;
+        }
+        
+        .work-management-card:hover {
+          transform: translateY(-2px);
+        }
+        
+        .work-management-card .card {
+          transition: all 0.2s ease;
+        }
+        
+        .work-management-card:hover .card {
           box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
         

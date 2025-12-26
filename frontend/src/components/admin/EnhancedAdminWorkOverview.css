@@ -1,0 +1,1085 @@
+/* Enhanced Admin Work Overview Styles - Force Light Theme */
+.enhanced-admin-work-overview {
+  background: #f8f9fa !important;
+  background-color: #f8f9fa !important;
+  min-height: 100vh;
+  padding: 1rem 0;
+  color: #212529 !important;
+  position: relative;
+  z-index: 1;
+}
+
+/* Ensure parent containers don't override */
+.container-fluid.enhanced-admin-work-overview {
+  background: #f8f9fa !important;
+  background-color: #f8f9fa !important;
+}
+
+/* Override any Bootstrap or global dark theme */
+body .enhanced-admin-work-overview {
+  background: #f8f9fa !important;
+  background-color: #f8f9fa !important;
+  color: #212529 !important;
+}
+
+/* Ensure the entire viewport has light background */
+.enhanced-admin-work-overview::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #f8f9fa;
+  z-index: -1;
+}
+
+/* Header Styles */
+.enhanced-admin-work-overview h2 {
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+/* Client Focus Styling */
+.border-primary {
+  border-color: #007bff !important;
+  border-width: 2px !important;
+}
+
+.text-primary {
+  color: #007bff !important;
+}
+
+/* Quick Filters Card - Light Theme */
+.quick-filters-card {
+  background: #f8f9fa !important;
+  color: #212529 !important;
+  border: 1px solid #dee2e6 !important;
+}
+
+.quick-filters-card .form-label {
+  color: #212529 !important;
+  font-weight: 500;
+}
+
+.quick-filters-card .form-select,
+.quick-filters-card .form-control {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.quick-filters-card .form-select:focus,
+.quick-filters-card .form-control:focus {
+  background: white;
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Active Filters */
+.active-filters {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-top: 1rem;
+}
+
+.filter-badge {
+  background: #e9ecef !important;
+  color: #212529 !important;
+  border: 1px solid #ced4da !important;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.25rem;
+}
+
+.filter-badge .btn-close {
+  background: none;
+  border: none;
+  color: #212529 !important;
+  font-size: 0.7rem;
+  padding: 0;
+  margin: 0;
+  opacity: 0.7;
+}
+
+.filter-badge .btn-close:hover {
+  opacity: 1;
+}
+
+/* Analytics Cards */
+.analytics-card {
+  background: white;
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.analytics-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+}
+
+.analytics-card .card-body {
+  padding: 1.5rem;
+}
+
+.analytics-number {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+
+.analytics-label {
+  font-size: 0.9rem;
+  color: #6c757d;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.analytics-change {
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.analytics-change.positive {
+  color: #28a745;
+}
+
+.analytics-change.negative {
+  color: #dc3545;
+}
+
+.analytics-change.neutral {
+  color: #6c757d;
+}
+
+/* Client Focus Indicators */
+.client-focused-row {
+  border-left: 4px solid #007bff;
+  background: rgba(0, 123, 255, 0.02);
+}
+
+.client-name-highlight {
+  font-weight: 600;
+  color: #007bff;
+  text-decoration: none;
+}
+
+.client-name-highlight:hover {
+  color: #0056b3;
+  text-decoration: underline;
+}
+
+/* Priority Indicators */
+.priority-urgent {
+  color: #dc3545;
+  font-weight: 700;
+}
+
+.priority-high {
+  color: #fd7e14;
+  font-weight: 600;
+}
+
+.priority-medium {
+  color: #17a2b8;
+  font-weight: 500;
+}
+
+.priority-low {
+  color: #6c757d;
+  font-weight: 400;
+}
+
+/* Status Indicators */
+.status-completed {
+  color: #28a745;
+}
+
+.status-in-progress {
+  color: #007bff;
+}
+
+.status-scheduled {
+  color: #6c757d;
+}
+
+.status-overdue {
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.status-cancelled {
+  color: #6c757d;
+  text-decoration: line-through;
+}
+
+/* Workload Impact Indicators */
+.workload-high {
+  border-left: 4px solid #dc3545;
+  background: rgba(220, 53, 69, 0.05);
+}
+
+.workload-medium {
+  border-left: 4px solid #ffc107;
+  background: rgba(255, 193, 7, 0.05);
+}
+
+.workload-low {
+  border-left: 4px solid #28a745;
+  background: rgba(40, 167, 69, 0.05);
+}
+
+/* Overdue Highlighting */
+.overdue-row {
+  background: rgba(220, 53, 69, 0.08) !important;
+  border-left: 4px solid #dc3545 !important;
+}
+
+.overdue-indicator {
+  color: #dc3545;
+  font-weight: 600;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* Progress Indicators */
+.progress-bar-mini {
+  height: 8px;
+  background: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar-mini .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #28a745, #20c997);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-percentage {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #495057;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.loading-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Advanced Filter Panel */
+.advanced-filter-panel {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1rem;
+}
+
+.advanced-filter-panel .card-header {
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  font-weight: 600;
+}
+
+/* Real-time Updates */
+.real-time-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #28a745;
+}
+
+.real-time-indicator::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: #28a745;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+/* Export Status */
+.export-status {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+/* Enhanced Mobile Responsiveness */
+@media (max-width: 1200px) {
+  /* Large tablet optimizations */
+  .enhanced-admin-work-overview {
+    padding: 0.75rem 0;
+  }
+  
+  .analytics-card .card-body {
+    padding: 1.25rem;
+  }
+  
+  .analytics-number {
+    font-size: 2.2rem;
+  }
+}
+
+@media (max-width: 992px) {
+  /* Medium tablet optimizations */
+  .enhanced-admin-work-overview {
+    padding: 0.5rem 0;
+  }
+  
+  .analytics-card .card-body {
+    padding: 1rem;
+  }
+  
+  .analytics-number {
+    font-size: 2rem;
+  }
+  
+  /* Stack filter controls vertically */
+  .quick-filters-card .row {
+    gap: 0.75rem;
+  }
+  
+  .filter-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.6rem;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Mobile tablet optimizations */
+  .enhanced-admin-work-overview {
+    padding: 0.5rem 0;
+    margin: 0 -15px;
+  }
+  
+  .enhanced-admin-work-overview h2 {
+    font-size: 1.75rem;
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+  
+  .analytics-number {
+    font-size: 2rem;
+  }
+  
+  .analytics-card {
+    margin-bottom: 1rem;
+  }
+  
+  .analytics-card .card-body {
+    padding: 1rem;
+    text-align: center;
+  }
+  
+  /* Mobile-optimized quick filters */
+  .quick-filters-card {
+    border-radius: 0;
+    margin: 0 -15px 1rem;
+  }
+  
+  .quick-filters-card .row {
+    gap: 1rem;
+  }
+  
+  .quick-filters-card .form-label {
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+  }
+  
+  .quick-filters-card .form-control,
+  .quick-filters-card .form-select {
+    font-size: 16px; /* Prevents zoom on iOS */
+    min-height: 44px; /* Touch-friendly */
+  }
+  
+  .filter-badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    margin: 0.1rem;
+  }
+  
+  /* Mobile header controls */
+  .enhanced-admin-work-overview .d-flex.justify-content-between {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  
+  .enhanced-admin-work-overview .d-flex.gap-2 {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  
+  /* Touch-friendly buttons */
+  .enhanced-admin-work-overview .btn {
+    min-height: 44px;
+    padding: 0.5rem 1rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .analytics-number {
+    font-size: 1.8rem;
+  }
+  
+  .analytics-card .card-body {
+    padding: 1rem;
+  }
+  
+  .enhanced-admin-work-overview h2 {
+    font-size: 1.5rem;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .enhanced-admin-work-overview {
+    background: white;
+  }
+  
+  .analytics-card {
+    box-shadow: none;
+    border: 1px solid #dee2e6;
+  }
+  
+  .loading-overlay,
+  .export-status {
+    display: none !important;
+  }
+}
+
+/* Force Light Mode - Override any dark themes */
+.enhanced-admin-work-overview {
+  background: #f8f9fa !important;
+  background-color: #f8f9fa !important;
+  color: #212529 !important;
+}
+
+/* Ensure all child elements have proper light styling */
+.enhanced-admin-work-overview * {
+  color: inherit;
+}
+
+.enhanced-admin-work-overview .analytics-card {
+  background: white !important;
+  background-color: white !important;
+  color: #212529 !important;
+}
+
+.enhanced-admin-work-overview .card {
+  background: white !important;
+  background-color: white !important;
+  color: #212529 !important;
+  border: 1px solid #dee2e6 !important;
+}
+
+.enhanced-admin-work-overview .card-body {
+  background: white !important;
+  background-color: white !important;
+  color: #212529 !important;
+}
+
+.enhanced-admin-work-overview .card-header {
+  background: #f8f9fa !important;
+  background-color: #f8f9fa !important;
+  color: #212529 !important;
+  border-bottom: 1px solid #dee2e6 !important;
+}
+
+.enhanced-admin-work-overview .advanced-filter-panel {
+  background: white !important;
+  background-color: white !important;
+  border-color: #dee2e6 !important;
+  color: #212529 !important;
+}
+
+/* Override any Bootstrap dark theme */
+.enhanced-admin-work-overview .bg-dark {
+  background: white !important;
+  background-color: white !important;
+  color: #212529 !important;
+}
+
+.enhanced-admin-work-overview .text-white {
+  color: #212529 !important;
+}
+
+/* Ensure proper text colors */
+.enhanced-admin-work-overview h1,
+.enhanced-admin-work-overview h2,
+.enhanced-admin-work-overview h3,
+.enhanced-admin-work-overview h4,
+.enhanced-admin-work-overview h5,
+.enhanced-admin-work-overview h6 {
+  color: #212529 !important;
+}
+
+.enhanced-admin-work-overview p,
+.enhanced-admin-work-overview span,
+.enhanced-admin-work-overview div {
+  color: inherit;
+}
+
+/* Override any parent dark styling */
+body.enhanced-admin-work-overview,
+html.enhanced-admin-work-overview {
+  background: #f8f9fa !important;
+  color: #212529 !important;
+}
+
+/* Accessibility Improvements */
+.enhanced-admin-work-overview .btn:focus,
+.enhanced-admin-work-overview .form-control:focus,
+.enhanced-admin-work-overview .form-select:focus {
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.enhanced-admin-work-overview .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  .enhanced-admin-work-overview {
+    background: white;
+    color: black;
+  }
+  
+  .analytics-card {
+    border: 2px solid black;
+  }
+  
+  .client-focused-row {
+    border-left: 6px solid #000;
+  }
+}
+/* Enhanced Filter Alignment */
+.filter-section .form-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  display: block;
+  line-height: 1.2;
+  min-height: 1rem;
+}
+
+.filter-section .form-select,
+.filter-section .form-control {
+  font-size: 0.875rem;
+  height: 32px;
+  border-radius: 4px;
+}
+
+.filter-section .row {
+  align-items: flex-end;
+}
+
+.filter-section .col-xl-3,
+.filter-section .col-xl-2,
+.filter-section .col-lg-4 {
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+/* VIP Client Styling */
+.vip-client-badge {
+  background: linear-gradient(45deg, #ffd700, #ffed4e);
+  color: #8b5a00;
+  font-weight: 600;
+  border: 1px solid #ffd700;
+}
+
+.vip-star {
+  color: #ffd700;
+  text-shadow: 0 0 3px rgba(255, 215, 0, 0.5);
+}
+
+/* Active Filters Styling */
+.active-filters {
+  background: #f8f9fa;
+  border-radius: 6px;
+  padding: 0.75rem;
+  border: 1px solid #e9ecef;
+}
+
+.active-filters .badge {
+  font-size: 0.75rem;
+  padding: 0.375rem 0.5rem;
+}
+
+/* Responsive Filter Layout */
+@media (max-width: 1200px) {
+  .filter-section .col-xl-3,
+  .filter-section .col-xl-2 {
+    margin-bottom: 1rem;
+  }
+}
+
+@media (max-width: 992px) {
+  .filter-section .col-lg-4 {
+    margin-bottom: 1rem;
+  }
+  
+  .filter-section .form-label {
+    font-size: 0.7rem;
+  }
+  
+  .filter-section .form-select,
+  .filter-section .form-control {
+    font-size: 0.8rem;
+    height: 30px;
+  }
+}
+
+@media (max-width: 768px) {
+  .filter-section .row {
+    margin: 0 -0.5rem;
+  }
+  
+  .filter-section .col-md-6,
+  .filter-section .col-sm-12 {
+    padding: 0 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .active-filters {
+    padding: 0.5rem;
+  }
+  
+  .active-filters .badge {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.375rem;
+    margin-bottom: 0.25rem;
+  }
+}
+/* Enhanced Header Styling */
+.enhanced-admin-work-overview .header-controls {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e9ecef;
+}
+
+.enhanced-admin-work-overview .view-toggle-section {
+  background: #f8f9fa;
+  border-radius: 6px;
+  padding: 0.5rem;
+  border: 1px solid #e9ecef;
+}
+
+.enhanced-admin-work-overview .view-toggle-section small {
+  color: #495057;
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+.enhanced-admin-work-overview .btn-group .btn {
+  font-size: 0.8rem;
+  padding: 0.375rem 0.75rem;
+  font-weight: 500;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.enhanced-admin-work-overview .btn-group .btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.enhanced-admin-work-overview .action-buttons .btn {
+  font-size: 0.8rem;
+  padding: 0.375rem 0.75rem;
+  font-weight: 500;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  min-width: 80px;
+  justify-content: center;
+}
+
+.enhanced-admin-work-overview .action-buttons .btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.enhanced-admin-work-overview .action-buttons .btn svg {
+  margin-right: 0.25rem;
+}
+
+/* Loading animation for refresh button */
+.enhanced-admin-work-overview .fa-spin {
+  animation: fa-spin 1s infinite linear;
+}
+
+@keyframes fa-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Status badge styling */
+.enhanced-admin-work-overview .badge {
+  font-size: 0.75rem;
+  padding: 0.375rem 0.5rem;
+  font-weight: 500;
+}
+
+/* Responsive header */
+@media (max-width: 1200px) {
+  .enhanced-admin-work-overview .header-controls {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 1rem !important;
+  }
+  
+  .enhanced-admin-work-overview .view-toggle-section {
+    justify-content: center;
+  }
+  
+  .enhanced-admin-work-overview .action-buttons {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 768px) {
+  .enhanced-admin-work-overview .header-controls {
+    padding: 0.75rem;
+  }
+  
+  .enhanced-admin-work-overview .btn-group .btn,
+  .enhanced-admin-work-overview .action-buttons .btn {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    min-width: 70px;
+  }
+  
+  .enhanced-admin-work-overview .view-toggle-section {
+    padding: 0.375rem;
+  }
+}
+
+/* Button specific styling */
+.enhanced-admin-work-overview .btn-outline-secondary:hover {
+  background-color: #6c757d;
+  border-color: #6c757d;
+}
+
+.enhanced-admin-work-overview .btn-success {
+  background-color: #28a745;
+  border-color: #28a745;
+}
+
+.enhanced-admin-work-overview .btn-success:hover {
+  background-color: #218838;
+  border-color: #1e7e34;
+}
+
+.enhanced-admin-work-overview .btn-outline-info:hover {
+  background-color: #17a2b8;
+  border-color: #17a2b8;
+}
+
+/* Fixed-height dropdown with scrollable options - CRITICAL FIX */
+.fixed-height-dropdown {
+  min-width: 120px !important;
+  max-width: 200px !important;
+  height: 31px !important;
+  overflow: hidden !important;
+}
+
+/* CRITICAL: Limit dropdown options height when opened */
+/* This uses browser-specific pseudo-elements to control the dropdown menu */
+.fixed-height-dropdown option {
+  padding: 6px 12px !important;
+  font-size: 0.85rem !important;
+}
+
+/* For browsers that support datalist styling */
+.fixed-height-dropdown::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}
+
+/* Alternative approach: Use size attribute dynamically */
+.fixed-height-dropdown[size] {
+  height: auto !important;
+  max-height: 200px !important;
+  overflow-y: auto !important;
+}
+
+/* Scrollbar styling for dropdowns */
+.fixed-height-dropdown::-webkit-scrollbar {
+  width: 8px;
+}
+
+.fixed-height-dropdown::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.fixed-height-dropdown::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.fixed-height-dropdown::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* IMPORTANT NOTE: Native HTML select dropdowns cannot have their dropdown menu height 
+   controlled via CSS in most browsers. The dropdown menu is rendered by the OS.
+   For true control over dropdown height with scrolling, consider using a custom 
+   dropdown component like react-select or a custom implementation. */
+
+/* Workaround: Show item count in the label to inform users */
+.filter-section .form-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.filter-section .item-count {
+  font-size: 0.7rem;
+  color: #6c757d;
+  font-weight: normal;
+  margin-left: 4px;
+}
+
+/* Read-only table styling - Remove edit indicators */
+.enhanced-data-table.read-only .editable-cell {
+  cursor: default !important;
+  pointer-events: none !important;
+}
+
+.enhanced-data-table.read-only .editable-cell:hover {
+  background: transparent !important;
+  outline: none !important;
+}
+
+.enhanced-data-table.read-only .edit-icon {
+  display: none !important;
+}
+
+/* Add info badge for read-only mode */
+.read-only-badge {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: #e3f2fd;
+  color: #1976d2;
+  font-weight: 500;
+}
+/* Clean Filter Layout - Perfect Alignment */
+.filter-section .form-label:not(.filter-label-tight) {
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  color: #495057 !important;
+  margin-bottom: 0.5rem !important;
+  display: flex !important;
+  align-items: center !important;
+  min-height: 18px !important;
+}
+
+/* Removed - using inline styles for better control */
+
+.filter-section .form-select,
+.filter-section .form-control {
+  font-size: 0.85rem !important;
+  border: 1px solid #ced4da !important;
+  border-radius: 4px !important;
+  height: 31px !important;
+}
+
+.filter-section .form-select:focus,
+.filter-section .form-control:focus {
+  border-color: #80bdff !important;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+}
+
+/* Consistent column spacing */
+.filter-section .mb-3 {
+  margin-bottom: 1rem !important;
+}
+
+/* Button styling */
+.filter-section .btn {
+  font-size: 0.85rem !important;
+  height: 31px !important;
+}
+
+/* Ensure all columns have same structure */
+.filter-section .col-lg-2,
+.filter-section .col-lg-3,
+.filter-section .col-md-4,
+.filter-section .col-md-6,
+.filter-section .col-sm-12 {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Date range inputs alignment */
+.filter-section .d-flex.gap-1 > .form-control {
+  flex: 1;
+}
+
+/* VIP button alignment */
+.filter-section .w-100 {
+  height: 31px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+/* Clean label styling - exclude filter-label-tight */
+.filter-section .form-label:not(.filter-label-tight) {
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  color: #495057 !important;
+  margin-bottom: 0.5rem !important;
+  line-height: 1.2 !important;
+}
+
+/* General form label styling - DO NOT interfere with filter-label-tight */
+.enhanced-admin-work-overview .form-label:not(.filter-label-tight) svg {
+  margin-right: 4px !important;
+}
+
+/* CRITICAL FIX: Tight filter labels with NO gap */
+.filter-label-tight {
+  display: inline-block !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+}
+
+.filter-label-tight svg {
+  font-size: 0.75rem !important;
+  width: 0.75rem !important;
+  height: 0.75rem !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  flex-shrink: 0 !important;
+  vertical-align: middle !important;
+}
+
+.filter-label-tight span {
+  font-size: 0.75rem !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  flex-shrink: 0 !important;
+  vertical-align: middle !important;
+}
+
+/* Remove ALL spacing from child elements */
+.filter-label-tight * {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Ensure consistent text rendering */
+.enhanced-admin-work-overview .filter-label-tight {
+  font-family: inherit !important;
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+  text-rendering: optimizeLegibility !important;
+}
+
+/* ULTIMATE FIX: Use inline-block with tight spacing */
+.enhanced-admin-work-overview .mb-3 .filter-label-tight,
+.enhanced-admin-work-overview .filter-label-tight {
+  display: inline-block !important;
+  margin-bottom: 0.5rem !important;
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+}
+
+/* Make icons inline with minimal spacing */
+.enhanced-admin-work-overview .filter-label-tight svg[data-icon],
+.enhanced-admin-work-overview .filter-label-tight svg,
+.enhanced-admin-work-overview .filter-label-tight span {
+  font-size: 0.75rem !important;
+  width: 0.75rem !important;
+  height: 0.75rem !important;
+  margin: 0 2px 0 0 !important;
+  padding: 0 !important;
+  vertical-align: middle !important;
+  display: inline !important;
+}
+
+/* Specific override for React FontAwesome components */
+.enhanced-admin-work-overview .filter-label-tight .svg-inline--fa {
+  margin: 0 2px 0 0 !important;
+  width: 0.75rem !important;
+  height: 0.75rem !important;
+  vertical-align: middle !important;
+}
+
+/* Remove any inherited spacing from FontAwesome */
+.enhanced-admin-work-overview .filter-label-tight svg[data-prefix="fas"],
+.enhanced-admin-work-overview .filter-label-tight svg[data-prefix="far"],
+.enhanced-admin-work-overview .filter-label-tight svg[data-prefix="fab"] {
+  margin-right: 2px !important;
+  margin-left: 0 !important;
+}
+
+/* Ensure text color inheritance */
+.enhanced-admin-work-overview .filter-label-tight.text-primary {
+  color: #007bff !important;
+}
+
+.enhanced-admin-work-overview .filter-label-tight.text-warning {
+  color: #ffc107 !important;
+}

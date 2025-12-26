@@ -1,13 +1,19 @@
 import { useState, useEffect } from "react";
-import { Container, Row, Col, Card, Button, Table, Badge, Tab, Tabs } from "react-bootstrap";
-import { FaClock, FaCalendarAlt, FaDownload, FaChartBar } from "react-icons/fa";
-import { formatDate, formatTimeShort } from "../../utils/helpers";
+import { Container, Row, Col, Card, Button, Table, Badge, Tab, Tabs, Alert, Spinner } from "react-bootstrap";
+import { FaClock, FaCalendarAlt, FaDownload, FaChartBar, FaSignInAlt, FaSignOutAlt } from "react-icons/fa";
+import { formatDate, formatTimeShort, formatTime } from "../../utils/helpers";
 import toast from "../../utils/toast";
 import api from "../../services/api";
+import { attendanceApi } from "../../api/attendanceApi";
+import ConfirmModal from "../../components/common/ConfirmModal";
 
 const MyAttendance = () => {
   const [attendanceRecords, setAttendanceRecords] = useState([]);
+  const [todayAttendance, setTodayAttendance] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [clockingIn, setClockingIn] = useState(false);
+  const [showClockInConfirm, setShowClockInConfirm] = useState(false);
+  const [showClockOutConfirm, setShowClockOutConfirm] = useState(false);
   const [currentMonth] = useState(new Date().toLocaleString("default", { month: "long", year: "numeric" }));
   const [activeTab, setActiveTab] = useState('list');
   const [stats, setStats] = useState({
@@ -19,8 +25,19 @@ const MyAttendance = () => {
   });
 
   useEffect(() => {
+    fetchTodayAttendance();
     fetchAttendance();
   }, []);
+
+  const fetchTodayAttendance = async () => {
+    try {
+      const response = await attendanceApi.getTodayAttendance();
+      setTodayAttendance(response.data);
+    } catch (error) {
+      // No attendance today
+      setTodayAttendance(null);
+    }
+  };
 
   const fetchAttendance = async () => {
     try {
@@ -69,6 +86,56 @@ const MyAttendance = () => {
     }
   };
 
+  const handleClockInClick = () => {
+    setShowClockInConfirm(true);
+  };
+
+  const handleClockIn = async () => {
+    setShowClockInConfirm(false);
+    
+    try {
+      setClockingIn(true);
+      await attendanceApi.clockIn({
+        latitude: 0,
+        longitude: 0,
+        address: "Office",
+      });
+      toast.success("Clocked in successfully!");
+      await fetchTodayAttendance();
+      await fetchAttendance();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to clock in");
+    } finally {
+      setClockingIn(false);
+    }
+  };
+
+  const handleClockOutClick = () => {
+    setShowClockOutConfirm(true);
+  };
+
+  const handleClockOut = async () => {
+    setShowClockOutConfirm(false);
+    
+    try {
+      setClockingIn(true);
+      await attendanceApi.clockOut("End of day");
+      toast.success("Clocked out successfully!");
+      await fetchTodayAttendance();
+      await fetchAttendance();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to clock out");
+    } finally {
+      setClockingIn(false);
+    }
+  };
+
+  const getCurrentStatus = () => {
+    if (!todayAttendance) return "not-clocked-in";
+    if (todayAttendance.clockOut) return "clocked-out";
+    return "clocked-in";
+  };
+
   const getStatusBadge = (status) => {
     const variants = {
       Present: "success",
@@ -106,6 +173,8 @@ const MyAttendance = () => {
     
     toast.success("Attendance report exported!");
   };
+
+  const status = getCurrentStatus();
 
   const renderCalendarView = () => {
     const today = new Date();
@@ -185,6 +254,145 @@ const MyAttendance = () => {
               Export Report
             </Button>
           </div>
+        </Col>
+      </Row>
+
+      {/* Today's Clock In/Out Section */}
+      <Row className="mb-4">
+        <Col lg={6} className="mb-3 mb-lg-0">
+          <Card className="shadow-sm border-0">
+            <Card.Body>
+              <h5 className="mb-3">
+                <FaClock className="me-2 text-primary" />
+                Today's Status
+              </h5>
+
+              {status === "not-clocked-in" && (
+                <>
+                  <Alert variant="warning">
+                    You haven't clocked in today. Click below to start your workday.
+                  </Alert>
+                  <Alert variant="info" className="mb-3">
+                    <small>
+                      <strong>Current Time:</strong> {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      <br />
+                      <strong>Note:</strong> Clock-in after 10:30 AM = Late | After 12:00 PM = Half Day
+                    </small>
+                  </Alert>
+                </>
+              )}
+
+              {status === "clocked-in" && (
+                <Alert variant="success">
+                  You are currently working. Remember to clock out at the end of your day.
+                </Alert>
+              )}
+
+              {status === "clocked-out" && (
+                <Alert variant="info">
+                  You have completed your work for today. Great job!
+                </Alert>
+              )}
+
+              {todayAttendance && (
+                <div className="mb-3">
+                  <div className="mb-2">
+                    <Badge bg={todayAttendance.status === 'present' ? 'success' : todayAttendance.status === 'late' ? 'warning' : 'danger'} className="px-3 py-2">
+                      Status: {todayAttendance.status.toUpperCase()}
+                    </Badge>
+                  </div>
+                  <Row>
+                    <Col>
+                      <p className="mb-1 text-muted">Clock In</p>
+                      <h6>{formatTime(todayAttendance.clockIn)}</h6>
+                    </Col>
+                    {todayAttendance.clockOut && (
+                      <>
+                        <Col>
+                          <p className="mb-1 text-muted">Clock Out</p>
+                          <h6>{formatTime(todayAttendance.clockOut)}</h6>
+                        </Col>
+                        <Col>
+                          <p className="mb-1 text-muted">Hours Worked</p>
+                          <h6 className="text-success">
+                            {todayAttendance.workHours} hrs
+                          </h6>
+                        </Col>
+                      </>
+                    )}
+                  </Row>
+                </div>
+              )}
+
+              <div className="d-grid gap-2">
+                {status === "not-clocked-in" && (
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    onClick={handleClockInClick}
+                    disabled={clockingIn}
+                  >
+                    <FaSignInAlt className="me-2" />
+                    {clockingIn ? "Clocking in..." : "Clock In"}
+                  </Button>
+                )}
+
+                {status === "clocked-in" && (
+                  <Button
+                    variant="danger"
+                    size="lg"
+                    onClick={handleClockOutClick}
+                    disabled={clockingIn}
+                  >
+                    <FaSignOutAlt className="me-2" />
+                    {clockingIn ? "Clocking out..." : "Clock Out"}
+                  </Button>
+                )}
+
+                {status === "clocked-out" && (
+                  <Button variant="success" size="lg" disabled>
+                    Completed for Today
+                  </Button>
+                )}
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col lg={6}>
+          <Card className="shadow-sm border-0 h-100">
+            <Card.Body>
+              <h5 className="mb-3">
+                <FaChartBar className="me-2 text-success" />
+                Quick Stats
+              </h5>
+              <Row className="text-center">
+                <Col xs={6} className="mb-3">
+                  <div className="border-end">
+                    <h3 className="text-success mb-0">{stats.present}</h3>
+                    <small className="text-muted">Present</small>
+                  </div>
+                </Col>
+                <Col xs={6} className="mb-3">
+                  <div>
+                    <h3 className="text-warning mb-0">{stats.late}</h3>
+                    <small className="text-muted">Late</small>
+                  </div>
+                </Col>
+                <Col xs={6} className="mb-2">
+                  <div className="border-end">
+                    <h4 className="text-primary mb-0">{stats.totalHours}h</h4>
+                    <small className="text-muted">Total Hours</small>
+                  </div>
+                </Col>
+                <Col xs={6} className="mb-2">
+                  <div>
+                    <h4 className="text-secondary mb-0">{stats.totalDays}</h4>
+                    <small className="text-muted">Total Days</small>
+                  </div>
+                </Col>
+              </Row>
+            </Card.Body>
+          </Card>
         </Col>
       </Row>
 
@@ -294,6 +502,30 @@ const MyAttendance = () => {
           </Card>
         </Col>
       </Row>
+
+      {/* Clock In Confirmation Modal */}
+      <ConfirmModal
+        show={showClockInConfirm}
+        onHide={() => setShowClockInConfirm(false)}
+        onConfirm={handleClockIn}
+        title="Clock In"
+        message="Are you ready to start your workday? This will record your clock-in time."
+        confirmText="Clock In"
+        confirmVariant="success"
+        loading={clockingIn}
+      />
+
+      {/* Clock Out Confirmation Modal */}
+      <ConfirmModal
+        show={showClockOutConfirm}
+        onHide={() => setShowClockOutConfirm(false)}
+        onConfirm={handleClockOut}
+        title="Clock Out"
+        message="Are you done for the day? This will record your clock-out time and calculate your work hours."
+        confirmText="Clock Out"
+        confirmVariant="danger"
+        loading={clockingIn}
+      />
     </Container>
   );
 };

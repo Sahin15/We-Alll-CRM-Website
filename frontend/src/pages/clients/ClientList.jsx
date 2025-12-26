@@ -4,7 +4,6 @@ import {
   Row,
   Col,
   Card,
-  Table,
   Button,
   Modal,
   Form,
@@ -25,7 +24,6 @@ import {
   FaBuilding, 
   FaEnvelope, 
   FaPhone, 
-  FaGlobe, 
   FaSearch, 
   FaFilter,
   FaTrophy,
@@ -38,15 +36,43 @@ import {
   FaIndustry,
   FaWhatsapp
 } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
 import { notifyClientWon } from "../../services/notificationHelpers";
 import { clientApi } from "../../api/clientApi";
 import { formatDate } from "../../utils/helpers";
 
+// CSS to fix dropdown z-index issues
+const dropdownStyles = `
+  .client-card .dropdown-menu {
+    z-index: 9999 !important;
+    position: absolute !important;
+    transform: translate3d(0, 0, 0) !important;
+  }
+  
+  .client-card {
+    overflow: visible !important;
+    position: relative !important;
+  }
+  
+  .client-card .card-body {
+    overflow: visible !important;
+    position: relative !important;
+  }
+  
+  .client-card .dropdown {
+    position: static !important;
+  }
+  
+  .client-card .dropdown-toggle::after {
+    margin-left: 0.5em;
+  }
+`;
+
 const ClientList = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user: currentUser } = useAuth();
   const [clients, setClients] = useState([]);
   const [filteredClients, setFilteredClients] = useState([]);
@@ -88,6 +114,19 @@ const ClientList = () => {
   useEffect(() => {
     applyFilters();
   }, [clients, searchTerm, serviceFilter]);
+
+  // Handle edit query parameter
+  useEffect(() => {
+    const editClientId = searchParams.get('edit');
+    if (editClientId && clients.length > 0) {
+      const clientToEdit = clients.find(client => client._id === editClientId);
+      if (clientToEdit) {
+        handleShowModal(clientToEdit);
+        // Remove the edit parameter from URL after opening modal
+        setSearchParams({});
+      }
+    }
+  }, [clients, searchParams, setSearchParams]);
 
   const applyFilters = () => {
     let filtered = [...clients];
@@ -180,6 +219,8 @@ const ClientList = () => {
     setShowModal(false);
     setEditMode(false);
     setCurrentClient(null);
+    // Clear URL parameters when modal is closed
+    setSearchParams({});
     setFormData({
       name: "",
       email: "",
@@ -196,6 +237,7 @@ const ClientList = () => {
       legalGuidelines: "",
       yearlyTurnover: "",
       expectations: "",
+      serviceCompany: "",
     });
   };
 
@@ -273,6 +315,37 @@ const ClientList = () => {
     });
   };
 
+  const handleToggleVip = async (client) => {
+    try {
+      const newVipStatus = !client.isVip;
+      const vipData = {
+        isVip: newVipStatus,
+        vipLevel: newVipStatus ? 'gold' : 'standard',
+        vipNotes: newVipStatus ? 'Marked as VIP client for priority service' : ''
+      };
+
+      await clientApi.toggleClientVip(client._id, vipData);
+      
+      // Update the client in the local state
+      setClients(prevClients => 
+        prevClients.map(c => 
+          c._id === client._id 
+            ? { ...c, isVip: newVipStatus, vipLevel: vipData.vipLevel }
+            : c
+        )
+      );
+
+      toast.success(
+        newVipStatus 
+          ? `${client.name} has been marked as VIP client!` 
+          : `VIP status removed from ${client.name}`
+      );
+    } catch (error) {
+      console.error('Error toggling VIP status:', error);
+      toast.error('Failed to update VIP status. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <Container fluid className="py-4">
@@ -285,8 +358,10 @@ const ClientList = () => {
   }
 
   return (
-    <Container fluid className="py-4" style={{ background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)', minHeight: '100vh' }}>
-      {/* Modern Header */}
+    <>
+      <style>{dropdownStyles}</style>
+      <Container fluid className="py-4" style={{ background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)', minHeight: '100vh' }}>
+        {/* Modern Header */}
       <Card className="border-0 shadow-lg mb-4" style={{ 
         background: '#ffffff',
         borderRadius: '20px',
@@ -551,18 +626,39 @@ const ClientList = () => {
           
           {filteredClients.length > 0 ? (
             <div className="p-4">
-              <Row className="g-4">
+              <Row 
+                className="g-4"
+                style={{ overflow: 'visible' }}
+              >
                 {filteredClients.map((client) => (
                   <Col lg={6} xl={4} key={client._id}>
-                    <Card className="client-card h-100 border-0 shadow-sm">
-                      <Card.Body className="p-4">
+                    <Card 
+                      className="client-card h-100 border-0 shadow-sm"
+                      style={{ overflow: 'visible', position: 'relative' }}
+                    >
+                      <Card.Body 
+                        className="p-4"
+                        style={{ overflow: 'visible', position: 'relative' }}
+                      >
                         {/* Client Header */}
                         <div className="d-flex align-items-start mb-3">
                           <div className="bg-success bg-opacity-10 p-3 rounded-circle me-3">
                             <FaUserTie size={24} className="text-success" />
                           </div>
                           <div className="flex-grow-1">
-                            <h6 className="mb-1 fw-bold text-dark">{client.name}</h6>
+                            <div className="d-flex align-items-center gap-2 mb-1">
+                              <h6 className="mb-0 fw-bold text-dark">{client.name}</h6>
+                              {client.isVip && (
+                                <OverlayTrigger
+                                  placement="top"
+                                  overlay={<Tooltip>VIP Client - {client.vipLevel || 'Gold'} Level</Tooltip>}
+                                >
+                                  <Badge bg="warning" className="d-flex align-items-center gap-1">
+                                    <span>⭐</span> VIP
+                                  </Badge>
+                                </OverlayTrigger>
+                              )}
+                            </div>
                             <p className="mb-2 text-muted small">{client.company || "Individual Client"}</p>
                             <Badge 
                               bg={client.serviceCompany === "We Alll" ? "primary" : "info"} 
@@ -610,7 +706,10 @@ const ClientList = () => {
                             <FaEye className="me-1" />
                             View Details
                           </Button>
-                          <Dropdown align="end">
+                          <Dropdown 
+                            align="end"
+                            style={{ position: 'static' }}
+                          >
                             <Dropdown.Toggle
                               variant="outline-secondary"
                               size="sm"
@@ -619,7 +718,15 @@ const ClientList = () => {
                             >
                               <FaEdit />
                             </Dropdown.Toggle>
-                            <Dropdown.Menu className="shadow-lg border-0" style={{ borderRadius: '10px' }}>
+                            <Dropdown.Menu 
+                              className="shadow-lg border-0" 
+                              style={{ 
+                                borderRadius: '10px',
+                                zIndex: 9999,
+                                position: 'absolute',
+                                willChange: 'transform'
+                              }}
+                            >
                               <Dropdown.Item
                                 onClick={() => handleShowModal(client)}
                                 className="py-2"
@@ -641,6 +748,16 @@ const ClientList = () => {
                                 <FaBell className="me-2 text-info" />
                                 Send Notification
                               </Dropdown.Item>
+                              {/* VIP Status Toggle - Admin/Manager only */}
+                              {(currentUser?.role === "admin" || currentUser?.role === "superadmin" || currentUser?.role === "manager" || currentUser?.role === "hr") && (
+                                <Dropdown.Item
+                                  onClick={() => handleToggleVip(client)}
+                                  className="py-2"
+                                >
+                                  <span className="me-2">⭐</span>
+                                  {client.isVip ? 'Remove VIP Status' : 'Mark as VIP Client'}
+                                </Dropdown.Item>
+                              )}
                               {/* Only admin and superadmin can delete clients */}
                               {(currentUser?.role === "admin" || currentUser?.role === "superadmin") && (
                                 <>
@@ -1037,6 +1154,7 @@ const ClientList = () => {
         </Form>
       </Modal>
     </Container>
+    </>
   );
 };
 

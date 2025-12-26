@@ -12,6 +12,13 @@ dist
 dist-ssr
 *.local
 
+# Environment files - CRITICAL: Never commit these
+.env
+.env.local
+.env.production
+.env.development
+.env.*.local
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -22,6 +29,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Build outputs
+build/
+coverage/
 
 # Environment files
 .env

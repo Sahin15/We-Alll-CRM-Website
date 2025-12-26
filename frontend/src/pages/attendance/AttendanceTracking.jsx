@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Container, Row, Col, Card, Table, Badge, Form, Button, Dropdown } from "react-bootstrap";
+import { Container, Row, Col, Card, Table, Badge, Form, Button, Dropdown, Modal } from "react-bootstrap";
 import { toast } from "react-toastify";
 import { attendanceApi } from "../../api/attendanceApi";
 import { userApi } from "../../api/userApi";
@@ -63,6 +63,17 @@ const AttendanceTracking = () => {
   const [statusFilter, setStatusFilter] = useState(null); // Filter by status when card clicked
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  
+  // Edit attendance modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingAttendance, setEditingAttendance] = useState(null);
+  const [editForm, setEditForm] = useState({
+    clockIn: '',
+    clockOut: '',
+    status: '',
+    reason: '',
+    notes: ''
+  });
   
   // Filter users based on search term
   const filteredUsers = users.filter(user => 
@@ -331,6 +342,75 @@ const AttendanceTracking = () => {
       setSelectedEmployee(employee);
       setShowDetailsModal(true);
     }
+  };
+
+  // Handle edit attendance - Opens edit modal
+  const handleEditAttendance = (attendance) => {
+    setEditingAttendance(attendance);
+    
+    // Format dates for datetime-local input
+    const formatDateTimeLocal = (date) => {
+      if (!date) return '';
+      const d = new Date(date);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+    
+    setEditForm({
+      clockIn: formatDateTimeLocal(attendance.clockIn),
+      clockOut: attendance.clockOut ? formatDateTimeLocal(attendance.clockOut) : '',
+      status: attendance.status,
+      reason: '',
+      notes: attendance.notes || ''
+    });
+    
+    setShowEditModal(true);
+  };
+
+  // Handle save edited attendance
+  const handleSaveEdit = async () => {
+    if (!editForm.reason || editForm.reason.trim() === '') {
+      toast.error("Please provide a reason for editing this attendance record");
+      return;
+    }
+
+    try {
+      const updateData = {
+        clockIn: editForm.clockIn,
+        clockOut: editForm.clockOut || undefined,
+        status: editForm.status,
+        reason: editForm.reason,
+        notes: editForm.notes
+      };
+
+      await attendanceApi.updateManualAttendance(editingAttendance._id, updateData);
+      
+      toast.success("Attendance record updated successfully");
+      setShowEditModal(false);
+      setEditingAttendance(null);
+      setEditForm({
+        clockIn: '',
+        clockOut: '',
+        status: '',
+        reason: '',
+        notes: ''
+      });
+      
+      // Refresh attendance data
+      fetchAttendances();
+    } catch (error) {
+      console.error("Error updating attendance:", error);
+      toast.error(error.response?.data?.message || "Failed to update attendance record");
+    }
+  };
+
+  // Check if user can edit attendance (HR, Admin, SuperAdmin)
+  const canEditAttendance = () => {
+    return ['hr', 'admin', 'superadmin'].includes(user?.role);
   };
 
   return (
@@ -720,7 +800,7 @@ const AttendanceTracking = () => {
                       <th>Work Hours</th>
                       <th>Overtime</th>
                       <th>Status</th>
-                      {!filters.employee && <th>Actions</th>}
+                      {(!filters.employee || canEditAttendance()) && <th>Actions</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -744,28 +824,47 @@ const AttendanceTracking = () => {
                               {attendance.status}
                             </Badge>
                           </td>
-                          {!filters.employee && (
+                          {(!filters.employee || canEditAttendance()) && (
                             <td>
-                              <Button
-                                variant="outline-primary"
-                                size="sm"
-                                onClick={() => handleViewDetails(attendance.employee?._id)}
-                                title="View Details"
-                                style={{
-                                  padding: '0.25rem 0.5rem',
-                                  fontSize: '0.875rem',
-                                  whiteSpace: 'nowrap'
-                                }}
-                              >
-                                📊 View
-                              </Button>
+                              <div className="d-flex gap-1">
+                                {!filters.employee && (
+                                  <Button
+                                    variant="outline-primary"
+                                    size="sm"
+                                    onClick={() => handleViewDetails(attendance.employee?._id)}
+                                    title="View Details"
+                                    style={{
+                                      padding: '0.25rem 0.5rem',
+                                      fontSize: '0.875rem',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                  >
+                                    📊 View
+                                  </Button>
+                                )}
+                                {canEditAttendance() && (
+                                  <Button
+                                    variant="outline-warning"
+                                    size="sm"
+                                    onClick={() => handleEditAttendance(attendance)}
+                                    title="Edit Attendance"
+                                    style={{
+                                      padding: '0.25rem 0.5rem',
+                                      fontSize: '0.875rem',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                  >
+                                    ✏️ Edit
+                                  </Button>
+                                )}
+                              </div>
                             </td>
                           )}
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={filters.employee ? "6" : "8"} className="text-center py-4">
+                        <td colSpan={(!filters.employee || canEditAttendance()) ? (filters.employee ? "7" : "8") : (filters.employee ? "6" : "8")} className="text-center py-4">
                           No attendance records found
                         </td>
                       </tr>
@@ -826,6 +925,127 @@ const AttendanceTracking = () => {
         onHide={() => setShowDetailsModal(false)}
         employee={selectedEmployee}
       />
+
+      {/* Edit Attendance Modal */}
+      <Modal show={showEditModal} onHide={() => setShowEditModal(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>
+            ✏️ Edit Attendance Record
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {editingAttendance && (
+            <>
+              <div className="mb-3 p-3 bg-light rounded">
+                <h6 className="mb-2">Employee Information</h6>
+                <p className="mb-1"><strong>Name:</strong> {editingAttendance.employee?.name || 'N/A'}</p>
+                <p className="mb-1"><strong>Date:</strong> {formatDate(editingAttendance.date)}</p>
+                <p className="mb-0"><strong>Current Status:</strong> 
+                  <Badge bg={getStatusVariant(editingAttendance.status)} className="ms-2">
+                    {editingAttendance.status}
+                  </Badge>
+                </p>
+              </div>
+
+              <Form>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Clock In Time *</Form.Label>
+                      <Form.Control
+                        type="datetime-local"
+                        value={editForm.clockIn}
+                        onChange={(e) => setEditForm({...editForm, clockIn: e.target.value})}
+                        required
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Clock Out Time</Form.Label>
+                      <Form.Control
+                        type="datetime-local"
+                        value={editForm.clockOut}
+                        onChange={(e) => setEditForm({...editForm, clockOut: e.target.value})}
+                      />
+                      <Form.Text className="text-muted">
+                        Leave empty if employee hasn't clocked out yet
+                      </Form.Text>
+                    </Form.Group>
+                  </Col>
+                </Row>
+
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Status *</Form.Label>
+                      <Form.Select
+                        value={editForm.status}
+                        onChange={(e) => setEditForm({...editForm, status: e.target.value})}
+                        required
+                      >
+                        <option value="">Select Status</option>
+                        <option value="present">Present</option>
+                        <option value="late">Late</option>
+                        <option value="half-day">Half Day</option>
+                        <option value="absent">Absent</option>
+                        <option value="on-leave">On Leave</option>
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Reason for Edit *</Form.Label>
+                      <Form.Control
+                        as="textarea"
+                        rows={2}
+                        value={editForm.reason}
+                        onChange={(e) => setEditForm({...editForm, reason: e.target.value})}
+                        placeholder="Please provide a reason for editing this attendance record..."
+                        required
+                      />
+                      <Form.Text className="text-muted">
+                        This reason will be logged for audit purposes
+                      </Form.Text>
+                    </Form.Group>
+                  </Col>
+                </Row>
+
+                <Form.Group className="mb-3">
+                  <Form.Label>Additional Notes</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={2}
+                    value={editForm.notes}
+                    onChange={(e) => setEditForm({...editForm, notes: e.target.value})}
+                    placeholder="Any additional notes about this attendance record..."
+                  />
+                </Form.Group>
+
+                <div className="alert alert-info">
+                  <small>
+                    <strong>Note:</strong> Editing attendance records will be tracked for audit purposes. 
+                    The original status was <strong>{editingAttendance.status}</strong> and any changes 
+                    will be logged with your user information and timestamp.
+                  </small>
+                </div>
+              </Form>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowEditModal(false)}>
+            Cancel
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={handleSaveEdit}
+            disabled={!editForm.clockIn || !editForm.status || !editForm.reason.trim()}
+          >
+            💾 Save Changes
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </Container>
     </>
   );

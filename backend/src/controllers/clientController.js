@@ -10,6 +10,11 @@ import { buildTextSearch } from '../utils/queryOptimizer.js';
 // Add new client
 export const createClient = async (req, res) => {
   try {
+    // Debug logging
+    console.log('=== CREATE CLIENT DEBUG ===');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    console.log('User:', req.user ? { id: req.user.id, role: req.user.role } : 'No user');
+    
     const {
       name,
       email,
@@ -26,18 +31,32 @@ export const createClient = async (req, res) => {
       legalGuidelines,
       yearlyTurnover,
       expectations,
+      serviceCompany,
     } = req.body;
 
+    console.log('Extracted fields:', {
+      name, email, phone, company, serviceCompany, 
+      hasUser: !!req.user, userId: req.user?.id
+    });
+
+    if (!req.user || !req.user.id) {
+      console.log('Authentication failed: No user or user ID');
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
     if (!name || !email) {
+      console.log('Validation failed: Missing name or email');
       return res.status(400).json({ message: "Name and email are required" });
     }
 
     const existingClient = await Client.findOne({ email });
     if (existingClient) {
+      console.log('Client already exists with email:', email);
       return res.status(400).json({ message: "Client already exists" });
     }
 
-    const client = await Client.create({
+    // Prepare client data, excluding empty enum fields
+    const clientData = {
       name,
       email,
       phone,
@@ -48,21 +67,69 @@ export const createClient = async (req, res) => {
       industry,
       website,
       targetAudience,
-      audienceGender,
       previousChallenges,
       legalGuidelines,
       yearlyTurnover,
       expectations,
-      createdBy: req.user.id,                  
-    });
+    };
+
+    // Add createdBy if user is authenticated
+    if (req.user && req.user.id) {
+      clientData.createdBy = req.user.id;
+    }
+
+    // Only add serviceCompany if it's not empty
+    if (serviceCompany && serviceCompany.trim() !== '') {
+      clientData.serviceCompany = serviceCompany;
+    }
+
+    // Only add audienceGender if it's not empty
+    if (audienceGender && audienceGender.trim() !== '') {
+      clientData.audienceGender = audienceGender;
+    }
+
+    console.log('Final client data to create:', JSON.stringify(clientData, null, 2));
+    
+    const client = await Client.create(clientData);
+    console.log('Client created successfully:', client._id);
 
     res.status(201).json({
       message: "Client added successfully",
       client,
     });
   } catch (error) {
+    console.log('=== CREATE CLIENT ERROR ===');
+    console.log('Error name:', error.name);
+    console.log('Error message:', error.message);
+    console.log('Error code:', error.code);
+    console.log('Full error:', error);
+    
     logger.error("Error creating client:", error);
-    res.status(500).json({ message: "Server error" });
+    
+    // Handle specific validation errors
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
+      console.log('Validation errors:', validationErrors);
+      return res.status(400).json({ 
+        message: "Validation error", 
+        errors: validationErrors,
+        details: error.message 
+      });
+    }
+    
+    // Handle duplicate key error (email already exists)
+    if (error.code === 11000) {
+      console.log('Duplicate key error for email');
+      return res.status(400).json({ 
+        message: "Client with this email already exists" 
+      });
+    }
+    
+    console.log('Sending 500 server error');
+    res.status(500).json({ 
+      message: "Server error", 
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
   }
 };
 
@@ -88,9 +155,9 @@ export const getClients = async (req, res) => {
     
     // Optimized query WITHOUT pagination (backward compatible)
     const clients = await Client.find(query)
-      .select('name email phone company status industry createdAt')
+      .select('name email phone company serviceCompany status industry isVip vipLevel vipSince createdAt')
       .populate('createdBy', 'name email')
-      .sort({ createdAt: -1 })
+      .sort({ isVip: -1, vipLevel: 1, createdAt: -1 }) // VIP clients first
       .lean();
     
     logger.success(`Found ${clients.length} clients`);
@@ -464,5 +531,98 @@ export const renewClientPlan = async (req, res) => {
   } catch (error) {
     console.error("Error in renewClientPlan:", error.message);
     return res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Toggle VIP status for client
+export const toggleClientVip = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isVip, vipLevel, vipNotes } = req.body;
+
+    // Only admin, superadmin, hr, manager can toggle VIP status
+    if (!['admin', 'superadmin', 'hr', 'manager'].includes(req.user.role)) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Access denied. Admin privileges required to manage VIP status.' 
+      });
+    }
+
+    const client = await Client.findById(id);
+    if (!client) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Client not found" 
+      });
+    }
+
+    // Update VIP status
+    client.isVip = isVip;
+    if (isVip) {
+      client.vipLevel = vipLevel || 'gold';
+      client.vipSince = client.vipSince || new Date();
+      if (vipNotes) client.vipNotes = vipNotes;
+    } else {
+      // Reset VIP fields when removing VIP status
+      client.vipLevel = 'standard';
+      client.vipSince = null;
+      client.vipNotes = null;
+    }
+
+    await client.save();
+
+    logger.info(`Client VIP status updated: ${client.name} - VIP: ${isVip} (Level: ${client.vipLevel})`);
+
+    res.status(200).json({
+      success: true,
+      message: `Client ${isVip ? 'marked as VIP' : 'VIP status removed'}`,
+      client: {
+        _id: client._id,
+        name: client.name,
+        email: client.email,
+        isVip: client.isVip,
+        vipLevel: client.vipLevel,
+        vipSince: client.vipSince,
+        vipNotes: client.vipNotes
+      }
+    });
+  } catch (error) {
+    logger.error("Error toggling client VIP status:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error", 
+      error: error.message 
+    });
+  }
+};
+
+// Get VIP clients only
+export const getVipClients = async (req, res) => {
+  try {
+    const { vipLevel } = req.query;
+    
+    let query = { isVip: true };
+    if (vipLevel && vipLevel !== 'all') {
+      query.vipLevel = vipLevel;
+    }
+
+    const vipClients = await Client.find(query)
+      .select('name email phone company isVip vipLevel vipSince vipNotes status industry createdAt')
+      .populate('createdBy', 'name email')
+      .sort({ vipSince: -1, createdAt: -1 })
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      data: vipClients,
+      count: vipClients.length
+    });
+  } catch (error) {
+    logger.error("Error getting VIP clients:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error", 
+      error: error.message 
+    });
   }
 };

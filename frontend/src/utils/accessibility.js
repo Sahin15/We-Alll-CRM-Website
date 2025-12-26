@@ -55,10 +55,10 @@ export const getPriorityAriaLabel = (priority) => {
 export const getDueDateAriaLabel = (dueDate, isOverdue, isDueToday) => {
   if (!dueDate) return 'No due date set';
   
-  const date = new Date(dueDate).toLocaleDateString('en-US', {
+  const date = new Date(dueDate).toLocaleDateString('en-GB', {
+    day: 'numeric',
     year: 'numeric',
     month: 'long',
-    day: 'numeric',
   });
   
   if (isOverdue) {

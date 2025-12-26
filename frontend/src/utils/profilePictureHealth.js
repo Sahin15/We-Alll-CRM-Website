@@ -38,8 +38,9 @@ export const autoFixBrokenProfilePicture = async (refreshUser) => {
   try {
     const health = await checkProfilePictureHealth();
     
-    if (health.hasProfilePicture && !health.accessible) {
-      console.warn("Broken profile picture detected, clearing from database");
+    // Only fix if there's a profile picture, it's not accessible, AND there's a real error (not just a warning)
+    if (health.hasProfilePicture && !health.accessible && health.error && !health.warning) {
+      console.warn("Genuinely broken profile picture detected, clearing from database:", health.error);
       
       const token = localStorage.getItem("token");
       if (!token) return false;
@@ -62,6 +63,11 @@ export const autoFixBrokenProfilePicture = async (refreshUser) => {
       return true;
     }
 
+    // Log but don't fix if it's just a warning or timeout
+    if (health.warning) {
+      console.log("Profile picture health warning (not fixing):", health.warning);
+    }
+
     return false;
   } catch (error) {
     console.error("Auto-fix failed:", error);
@@ -72,22 +78,31 @@ export const autoFixBrokenProfilePicture = async (refreshUser) => {
 /**
  * Start periodic health checks for profile pictures
  * @param {Function} refreshUser - Function to refresh user data
- * @param {number} intervalMs - Check interval in milliseconds (default: 5 minutes)
+ * @param {number} intervalMs - Check interval in milliseconds (default: 30 minutes)
  * @returns {Function} Cleanup function to stop the checks
  */
-export const startProfilePictureHealthMonitor = (refreshUser, intervalMs = 5 * 60 * 1000) => {
+export const startProfilePictureHealthMonitor = (refreshUser, intervalMs = 30 * 60 * 1000) => {
   let isRunning = true;
+  let checkCount = 0;
   
   const runCheck = async () => {
     if (!isRunning) return;
     
     try {
-      const wasFixed = await autoFixBrokenProfilePicture(refreshUser);
-      if (wasFixed) {
-        console.log("Profile picture auto-fixed");
+      // Only run health check after the first few minutes and limit frequency
+      checkCount++;
+      if (checkCount >= 3) {
+        const wasFixed = await autoFixBrokenProfilePicture(refreshUser);
+        // Only log if something was actually fixed
+        if (wasFixed) {
+          console.log("Profile picture auto-fixed");
+        }
       }
     } catch (error) {
-      console.error("Health monitor error:", error);
+      // Only log actual errors, not routine checks
+      if (error.message !== "No authentication token") {
+        console.error("Health monitor error:", error);
+      }
     }
     
     if (isRunning) {
@@ -95,8 +110,8 @@ export const startProfilePictureHealthMonitor = (refreshUser, intervalMs = 5 * 6
     }
   };
 
-  // Start the first check after a short delay
-  setTimeout(runCheck, 10000); // 10 seconds
+  // Start the first check after a longer delay to avoid interference
+  setTimeout(runCheck, 5 * 60 * 1000); // 5 minutes
 
   // Return cleanup function
   return () => {

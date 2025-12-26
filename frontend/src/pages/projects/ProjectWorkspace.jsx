@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Container, Row, Col, Button, Tabs, Tab, Spinner } from 'react-bootstrap';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FaArrowLeft, FaPlus } from 'react-icons/fa';
+import { FaArrowLeft, FaPlus, FaCheckCircle } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import projectApi from '../../api/projectApi';
 import OverviewTab from '../../components/projects/workspace/OverviewTab';
 import WorkBoardTab from '../../components/projects/workspace/WorkBoardTab';
 import CalendarTab from '../../components/projects/workspace/CalendarTab';
 import TeamTab from '../../components/projects/workspace/TeamTab';
-import UnifiedWorkCreationModal from '../../components/work/UnifiedWorkCreationModal';
+import SlotProgressDisplay from '../../components/projects/SlotProgressDisplay';
+import SlotStatisticsCards from '../../components/projects/SlotStatisticsCards';
+import ProfessionalWorkCreationModal from '../../components/work/ProfessionalWorkCreationModal';
 
 /**
  * ProjectWorkspace Component
@@ -23,9 +25,21 @@ const ProjectWorkspace = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [showCreateModal, setShowCreateModal] = useState(false);
 
+  // Slot system states
+  const [slots, setSlots] = useState([]);
+  const [slotStatistics, setSlotStatistics] = useState(null);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+
   useEffect(() => {
     loadProject();
   }, [id]);
+
+  useEffect(() => {
+    // Fetch slot data when project is loaded and uses slot system
+    if (project && project.slotConfiguration?.enableSlotSystem) {
+      fetchSlotData();
+    }
+  }, [project]);
 
   const loadProject = async () => {
     try {
@@ -39,6 +53,34 @@ const ProjectWorkspace = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchSlotData = async () => {
+    if (!project?._id) return;
+    
+    setLoadingSlots(true);
+    try {
+      // Fetch slot statistics
+      const statsResponse = await projectApi.getProjectSlotStatistics(project._id);
+      if (statsResponse.success) {
+        setSlotStatistics(statsResponse.data);
+      }
+
+      // Fetch available slots
+      const slotsResponse = await projectApi.getAvailableSlots(project._id);
+      if (slotsResponse.success) {
+        setSlots(slotsResponse.data?.slots || []);
+      }
+    } catch (error) {
+      console.error("Error fetching slot data:", error);
+      // Don't show error toast as slot system is optional
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
+
+  const handleRefreshSlotData = async () => {
+    await fetchSlotData();
   };
 
   if (loading) {
@@ -210,15 +252,54 @@ const ProjectWorkspace = () => {
         >
           <TeamTab project={project} onRefresh={loadProject} />
         </Tab>
+
+        {/* Slots Tab - Only show if slot system is enabled */}
+        {project?.slotConfiguration?.enableSlotSystem && (
+          <Tab 
+            eventKey="slots" 
+            title={
+              <span style={{ fontWeight: activeTab === 'slots' ? '600' : '500' }}>
+                <FaCheckCircle className="me-2" />
+                Slots ({slotStatistics?.totalSlots || 0})
+              </span>
+            }
+          >
+            <Row className="g-4">
+              <Col lg={12}>
+                {/* Slot Statistics Cards */}
+                <SlotStatisticsCards
+                  project={project}
+                  slots={slots}
+                  realTimeUpdates={true}
+                  onRefresh={handleRefreshSlotData}
+                />
+              </Col>
+              
+              <Col lg={12}>
+                {/* Slot Progress Display */}
+                <SlotProgressDisplay
+                  project={project}
+                  slots={slots}
+                  showDetailed={true}
+                  onSlotClick={(slot) => {
+                    // Handle slot click - could navigate to slot details
+                    // console.log('Slot clicked:', slot);
+                  }}
+                  realTimeUpdates={true}
+                />
+              </Col>
+            </Row>
+          </Tab>
+        )}
       </Tabs>
 
-      {/* Unified Work Creation Modal */}
-      <UnifiedWorkCreationModal
+      {/* Professional Work Creation Modal */}
+      <ProfessionalWorkCreationModal
         show={showCreateModal}
         onHide={() => setShowCreateModal(false)}
         onSuccess={loadProject}
         defaultProject={project._id}
-        mode="work-item-focused"
+        mode="work-item"
       />
     </Container>
   );

@@ -5,6 +5,7 @@ yarn-error.log
 .env
 .env.local
 .env.*.local
+.env.production
 
 # Build outputs
 dist/
@@ -31,10 +32,12 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Env files (secrets)
+# Env files (secrets) - CRITICAL: Never commit these
 .env
 .env.local
 .env.*.local
+.env.production
+.env.development
 
 # Build output
 dist/
@@ -46,3 +49,8 @@ coverage/
 Thumbs.db
 .vscode/
 .idea/
+
+# Uploads (user files)
+uploads/
+temp/
+tmp/

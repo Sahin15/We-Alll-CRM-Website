@@ -32,7 +32,7 @@
 
 .table tbody tr:hover {
   background-color: rgba(0, 123, 255, 0.05);
-  transform: scale(1.01);
+  /* Removed transform: scale(1.01) that causes layout shift */
 }
 
 /* Button Enhancements */

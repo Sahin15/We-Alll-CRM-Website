@@ -8,7 +8,7 @@
     "dev": "nodemon src/server.js --watch src",
     "start": "node src/server.js",
     "lint": "eslint . --ext .js",
-    "test": "cross-env NODE_ENV=test jest --runInBand",
+    "test": "cross-env NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
     "seed": "node src/seed/seedRoles.js",
     "seed:policies": "node src/seeders/policySeed.js",
     "create-superadmin": "node scripts/createSuperAdmin.js",
@@ -39,12 +39,17 @@
     "pdfkit": "^0.17.2",
     "sharp": "^0.34.5",
     "tslib": "^2.8.1",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "ws": "^8.18.3",
+    "xss": "^1.0.15"
   },
   "devDependencies": {
     "cross-env": "^10.1.0",
     "eslint": "^9.38.0",
+    "fast-check": "^4.5.2",
     "jest": "^30.2.0",
-    "nodemon": "^3.1.10"
+    "mongodb-memory-server": "^11.0.1",
+    "nodemon": "^3.1.10",
+    "supertest": "^7.1.4"
   }
 }

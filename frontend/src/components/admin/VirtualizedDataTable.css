@@ -1,0 +1,558 @@
+/* Virtualized Data Table Styles */
+.virtualized-data-table {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+/* Table Controls */
+.table-controls {
+  padding: 1rem;
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+}
+
+/* Virtualized Table Container */
+.virtualized-table-container {
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* Header Styles */
+.virtualized-header {
+  background: #f8f9fa !important;
+  color: #212529 !important;
+  border-bottom: 2px solid #495057;
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+.virtualized-header::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+.header-content {
+  display: flex;
+  min-width: 100%;
+}
+
+.header-cell {
+  padding: 0.75rem 0.5rem;
+  font-weight: 600;
+  border-right: 1px solid #495057;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.header-cell:last-child {
+  border-right: none;
+}
+
+.header-cell.checkbox-cell {
+  justify-content: center;
+  align-items: center;
+  padding: 0.5rem;
+}
+
+.header-cell.data-cell {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.header-cell.data-cell:hover {
+  background: #e9ecef !important;
+}
+
+.header-cell.actions-cell {
+  text-align: center;
+  cursor: default;
+}
+
+/* Virtualized Body */
+.virtualized-body {
+  background: white;
+  position: relative;
+}
+
+/* Virtualized Row */
+.virtualized-row {
+  border-bottom: 1px solid #dee2e6;
+  transition: background-color 0.2s ease;
+}
+
+.virtualized-row:hover {
+  background-color: rgba(0, 123, 255, 0.05);
+}
+
+.virtualized-row.selected {
+  background-color: rgba(13, 110, 253, 0.1);
+}
+
+.row-content {
+  display: flex;
+  min-width: 100%;
+  height: 100%;
+  align-items: center;
+}
+
+/* Cell Styles */
+.cell {
+  padding: 0.75rem 0.5rem;
+  border-right: 1px solid #dee2e6;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.cell:last-child {
+  border-right: none;
+}
+
+.cell.checkbox-cell {
+  justify-content: center;
+  padding: 0.5rem;
+}
+
+.cell.data-cell {
+  font-size: 0.875rem;
+}
+
+.cell.actions-cell {
+  justify-content: center;
+}
+
+/* Editable Cells */
+.editable-cell {
+  position: relative;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  min-height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.editable-cell:hover {
+  background: #f8f9fa;
+  /* Removed border that causes layout shift */
+}
+
+.editable-cell .edit-icon {
+  opacity: 0;
+  font-size: 0.75rem;
+  color: #6c757d;
+  transition: opacity 0.2s ease;
+}
+
+.editable-cell:hover .edit-icon {
+  opacity: 1;
+}
+
+/* Badge Styles */
+.badge {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Performance Optimizations */
+.virtualized-row {
+  will-change: transform;
+}
+
+.row-content {
+  contain: layout style paint;
+}
+
+.cell {
+  contain: layout style;
+}
+
+/* Loading State */
+.virtualized-body .text-center {
+  padding: 2rem;
+  color: #6c757d;
+}
+
+/* Scrollbar Styling */
+.virtualized-body .ReactVirtualized__List::-webkit-scrollbar {
+  width: 8px;
+}
+
+.virtualized-body .ReactVirtualized__List::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.virtualized-body .ReactVirtualized__List::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.virtualized-body .ReactVirtualized__List::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Filter Inputs in Header */
+.header-cell .form-control {
+  background: white !important;
+  border: 1px solid #ced4da !important;
+  color: #495057 !important;
+  font-size: 0.75rem;
+}
+
+.header-cell .form-control:focus {
+  background: white !important;
+  border-color: #80bdff !important;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+  color: #495057 !important;
+}
+
+.header-cell .form-control::placeholder {
+  color: #6c757d !important;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .virtualized-data-table {
+    margin: 0 -15px;
+    border-radius: 0;
+  }
+  
+  .table-controls {
+    padding: 0.75rem 1rem;
+  }
+  
+  .table-controls .d-flex {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+  }
+  
+  .header-cell,
+  .cell {
+    padding: 0.5rem 0.3rem;
+    font-size: 0.8rem;
+  }
+  
+  .virtualized-header {
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .header-cell,
+  .cell {
+    padding: 0.4rem 0.25rem;
+    font-size: 0.75rem;
+  }
+  
+  .badge {
+    font-size: 0.65rem;
+    padding: 0.2rem 0.4rem;
+  }
+}
+
+/* High DPI Display Optimizations */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .virtualized-row {
+    transform: translateZ(0);
+  }
+}
+
+/* Force Light Mode - Override Dark Mode */
+.virtualized-data-table {
+  background: white !important;
+  color: #212529 !important;
+}
+
+.virtualized-data-table .table-controls {
+  background: #f8f9fa !important;
+  border-color: #dee2e6 !important;
+  color: #212529 !important;
+}
+
+.virtualized-data-table .virtualized-body {
+  background: white !important;
+  color: #212529 !important;
+}
+
+.virtualized-data-table .virtualized-row {
+  border-color: #dee2e6 !important;
+  color: #212529 !important;
+}
+
+.virtualized-data-table .virtualized-row:hover {
+  background-color: #f8f9fa !important;
+}
+
+.virtualized-data-table .cell {
+  border-color: #dee2e6 !important;
+  color: #212529 !important;
+}
+
+.virtualized-data-table .header-cell {
+  background: #f8f9fa !important;
+  color: #212529 !important;
+}
+
+.virtualized-data-table .editable-cell:hover {
+  background: #f8f9fa !important;
+  /* Removed border-color that causes layout shift */
+  color: #212529 !important;
+}
+
+/* Print Styles */
+@media print {
+  .table-controls {
+    display: none !important;
+  }
+  
+  .virtualized-table-container {
+    border: none;
+  }
+  
+  .virtualized-header,
+  .virtualized-row {
+    break-inside: avoid;
+  }
+  
+  .header-cell,
+  .cell {
+    padding: 0.25rem;
+    font-size: 0.7rem;
+  }
+}
+
+/* Animation for row updates */
+@keyframes rowUpdate {
+  0% { background-color: #fff3cd; }
+  100% { background-color: transparent; }
+}
+
+.virtualized-row.updated {
+  animation: rowUpdate 2s ease-out;
+}
+
+/* Performance indicators */
+.performance-badge {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.4rem;
+}
+
+/* Accessibility improvements */
+.virtualized-row:focus-within {
+  outline: 2px solid #007bff;
+  outline-offset: -2px;
+}
+
+.header-cell:focus {
+  outline: 2px solid #007bff;
+  outline-offset: -2px;
+}
+
+/* Smooth scrolling */
+.virtualized-body .ReactVirtualized__List {
+  scroll-behavior: smooth;
+}
+
+/* Memory optimization classes */
+.virtualized-row.offscreen {
+  visibility: hidden;
+}
+
+.virtualized-row.onscreen {
+  visibility: visible;
+}
+/* Smooth Scrolling for Table Body */
+.table-body-scroll {
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: #6c757d #f8f9fa;
+}
+
+.table-body-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.table-body-scroll::-webkit-scrollbar-track {
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.table-body-scroll::-webkit-scrollbar-thumb {
+  background: #6c757d;
+  border-radius: 4px;
+}
+
+.table-body-scroll::-webkit-scrollbar-thumb:hover {
+  background: #495057;
+}
+
+/* Optimized Row Rendering */
+.virtualized-row {
+  border-bottom: 1px solid #dee2e6;
+  transition: background-color 0.15s ease;
+}
+
+.virtualized-row:hover {
+  background-color: #f8f9fa;
+}
+
+.virtualized-row.selected {
+  background-color: #e3f2fd;
+}
+/* Text Alignment for Virtualized Table */
+.virtualized-data-table .cell.text-left {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.virtualized-data-table .cell.text-center {
+  justify-content: center;
+  text-align: center;
+}
+
+.virtualized-data-table .cell.text-right {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+/* Column-specific styling for virtualized table */
+.virtualized-data-table .work-title {
+  font-weight: 500;
+  color: #212529;
+  justify-content: flex-start;
+}
+
+.virtualized-data-table .client-name {
+  font-weight: 500;
+  color: #007bff;
+  justify-content: flex-start;
+}
+
+.virtualized-data-table .project-name {
+  color: #495057;
+  justify-content: flex-start;
+}
+
+.virtualized-data-table .employee-name {
+  color: #495057;
+  justify-content: flex-start;
+}
+
+.virtualized-data-table .department-name {
+  color: #6c757d;
+  justify-content: flex-start;
+}
+
+.virtualized-data-table .status-cell {
+  justify-content: center;
+}
+
+.virtualized-data-table .priority-cell {
+  justify-content: center;
+}
+
+.virtualized-data-table .date-cell {
+  justify-content: center;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+}
+
+.virtualized-data-table .number-cell {
+  justify-content: flex-end;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+}
+
+.virtualized-data-table .percentage-cell {
+  justify-content: center;
+}
+
+.virtualized-data-table .actions-cell {
+  justify-content: center;
+}
+
+.virtualized-data-table .checkbox-cell {
+  justify-content: center;
+}
+
+/* Badge alignment in virtualized table */
+.virtualized-data-table .badge {
+  display: inline-block;
+  text-align: center;
+  min-width: 60px;
+}
+
+/* Header alignment */
+.virtualized-data-table .header-cell {
+  text-align: left;
+  justify-content: flex-start;
+}
+
+.virtualized-data-table .header-cell.text-center {
+  text-align: center;
+  justify-content: center;
+}
+
+.virtualized-data-table .header-cell.text-right {
+  text-align: right;
+  justify-content: flex-end;
+}
+
+/* Fix Z-Index Issues for Dropdowns */
+.virtualized-data-table .dropdown-menu {
+  z-index: 1050 !important;
+  position: absolute !important;
+  background: white !important;
+  border: 1px solid #dee2e6 !important;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.virtualized-data-table .table-controls {
+  position: relative;
+  z-index: 30 !important;
+  background: #f8f9fa !important;
+}
+
+.virtualized-data-table .table-controls .dropdown {
+  position: relative;
+  z-index: 31 !important;
+}
+
+.virtualized-data-table .table-controls .dropdown-menu {
+  z-index: 1050 !important;
+  position: absolute !important;
+}
+
+/* Ensure header doesn't interfere with dropdowns */
+.virtualized-data-table .virtualized-header {
+  z-index: 3 !important;
+}
+
+/* Export and column visibility dropdown fixes */
+.virtualized-data-table .export-buttons .dropdown-menu,
+.virtualized-data-table .column-visibility .dropdown-menu {
+  z-index: 1050 !important;
+  position: absolute !important;
+  min-width: 150px;
+}
+
+.virtualized-data-table .column-visibility .dropdown-menu {
+  max-height: 300px;
+  overflow-y: auto;
+  min-width: 200px;
+}

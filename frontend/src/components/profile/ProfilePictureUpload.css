@@ -1,3 +1,28 @@
+/* Dynamic Profile Picture Styles - for flexible sizing */
+.profile-picture-wrapper-dynamic {
+  position: relative;
+  display: inline-block;
+}
+
+.profile-picture-dynamic {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.profile-picture-dynamic:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+}
+
+.profile-picture-placeholder-dynamic {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.profile-picture-placeholder-dynamic:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Original fixed-size styles for upload component */
 .profile-picture-upload {
   display: flex;
   flex-direction: column;

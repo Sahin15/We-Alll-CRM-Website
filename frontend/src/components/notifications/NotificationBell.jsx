@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Dropdown, Badge, Button, ListGroup, Spinner } from 'react-bootstrap';
 import { FaBell, FaCheck, FaTrash, FaEye, FaCheckDouble } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
 import { formatDistanceToNow } from 'date-fns';
 import './NotificationBell.css';
 
 const NotificationBell = () => {
+  const navigate = useNavigate();
   const {
     notifications,
     unreadCount,
@@ -55,7 +57,42 @@ const NotificationBell = () => {
     
     // Navigate to link if provided
     if (notification.link) {
-      window.location.href = notification.link;
+      try {
+        navigate(notification.link);
+        return;
+      } catch (error) {
+        console.warn('Navigation failed for link:', notification.link);
+      }
+    }
+    
+    // Fallback: Navigate based on notification type and data
+    if (notification.type === 'work_item_assigned' || 
+        notification.type === 'work_item_due_soon' || 
+        notification.type === 'work_item_overdue' ||
+        notification.type === 'work_item_review' ||
+        notification.type === 'work_item_status_change' ||
+        notification.type === 'work_item_completed') {
+      if (notification.data?.workItemId) {
+        navigate(`/my-work`); // Redirect to work list for now
+      }
+    } else if (notification.type === 'slot_assigned' || 
+               notification.type === 'slot_deadline_approaching' ||
+               notification.type === 'slot_overdue' ||
+               notification.type === 'slot_comment_added') {
+      navigate(`/my-work`); // Redirect to work list for now
+    } else if (notification.type === 'client_won' || notification.type === 'client_onboarding') {
+      if (notification.data?.clientId) {
+        navigate(`/clients`); // Redirect to clients list for now
+      }
+    } else if (notification.type === 'announcement' || notification.type === 'urgent') {
+      navigate('/employee/announcements');
+    } else if (notification.data?.projectId) {
+      navigate(`/projects/${notification.data.projectId}`);
+    } else if (notification.data?.leaveId) {
+      navigate(`/employee/leaves`);
+    } else {
+      // Default fallback - go to dashboard
+      navigate('/dashboard');
     }
   };
 

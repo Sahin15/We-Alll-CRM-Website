@@ -64,9 +64,10 @@ const QuickClockInOut = ({ variant = "light", size = "sm", showLabel = true }) =
       const clockInTime = error.response?.data?.clockInTime;
       
       if (errorType === 'already_clocked_in') {
-        const time = clockInTime ? new Date(clockInTime).toLocaleTimeString('en-US', {
+        const time = clockInTime ? new Date(clockInTime).toLocaleTimeString('en-GB', {
           hour: '2-digit',
-          minute: '2-digit'
+          minute: '2-digit',
+          hour12: false
         }) : null;
         toast.alreadyClockedIn(time);
         // Refresh attendance data
@@ -101,9 +102,10 @@ const QuickClockInOut = ({ variant = "light", size = "sm", showLabel = true }) =
       const clockOutTime = error.response?.data?.clockOutTime;
       
       if (errorType === 'already_clocked_out') {
-        const time = clockOutTime ? new Date(clockOutTime).toLocaleTimeString('en-US', {
+        const time = clockOutTime ? new Date(clockOutTime).toLocaleTimeString('en-GB', {
           hour: '2-digit',
-          minute: '2-digit'
+          minute: '2-digit',
+          hour12: false
         }) : null;
         toast.alreadyClockedOut(time);
         // Refresh attendance data
@@ -326,9 +328,10 @@ const QuickClockInOut = ({ variant = "light", size = "sm", showLabel = true }) =
             {todayAttendance?.clockIn && action === "out" && (
               <div className="alert alert-info">
                 <strong>Clock In Time:</strong>{" "}
-                {new Date(todayAttendance.clockIn).toLocaleTimeString("en-US", {
+                {new Date(todayAttendance.clockIn).toLocaleTimeString("en-GB", {
                   hour: "2-digit",
                   minute: "2-digit",
+                  hour12: false
                 })}
               </div>
             )}

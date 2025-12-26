@@ -36,7 +36,6 @@ const WorkBoardTab = ({ project, onRefresh }) => {
       setLoading(true);
       // Use the correct endpoint to get all work items for this project
       const response = await projectApi.getWorkBoard(project._id);
-      console.log('Work board response:', response);
       
       // The response has structure: { data: { board, counts } }
       // We need to flatten the board object into an array
@@ -48,10 +47,8 @@ const WorkBoardTab = ({ project, onRefresh }) => {
           ...(response.data.board['Done'] || [])
         ];
         setWorkItems(allItems);
-        console.log('Loaded work items:', allItems);
       } else {
         setWorkItems([]);
-        console.log('No work items found in response');
       }
     } catch (error) {
       console.error('Error loading work items:', error);

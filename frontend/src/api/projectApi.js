@@ -217,6 +217,56 @@ export const getProjectWorkItems = async (id, params = {}) => {
   return response.data;
 };
 
+// ============================================
+// Slot Management
+// ============================================
+
+export const getProjectSlotStatistics = async (projectId) => {
+  const response = await axios.get(
+    `${API_URL}/work-calendar/projects/${projectId}/slots/statistics`,
+    { headers: getAuthHeader() }
+  );
+  return response.data;
+};
+
+export const getAvailableSlots = async (projectId, filters = {}) => {
+  const response = await axios.get(
+    `${API_URL}/work-calendar/projects/${projectId}/slots/available`,
+    { 
+      headers: getAuthHeader(),
+      params: filters
+    }
+  );
+  return response.data;
+};
+
+export const createSlotsForProject = async (projectId, options) => {
+  const response = await axios.post(
+    `${API_URL}/work-calendar/projects/${projectId}/slots/create`,
+    options,
+    { headers: getAuthHeader() }
+  );
+  return response.data;
+};
+
+export const assignWorkItemToSlot = async (slotId, workItemId, notes) => {
+  const response = await axios.post(
+    `${API_URL}/work-calendar/slots/${slotId}/assign`,
+    { workItemId, notes },
+    { headers: getAuthHeader() }
+  );
+  return response.data;
+};
+
+export const completeSlot = async (slotId, notes, requiresApproval = false) => {
+  const response = await axios.post(
+    `${API_URL}/work-calendar/slots/${slotId}/complete`,
+    { notes, requiresApproval },
+    { headers: getAuthHeader() }
+  );
+  return response.data;
+};
+
 export const projectApi = {
   getAllProjects,
   getProjectById,
@@ -239,6 +289,12 @@ export const projectApi = {
   getWorkBoard,
   getTeamWorkload,
   getProjectWorkItems,
+  // Slot management
+  getProjectSlotStatistics,
+  getAvailableSlots,
+  createSlotsForProject,
+  assignWorkItemToSlot,
+  completeSlot,
 };
 
 export default projectApi;
