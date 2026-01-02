@@ -258,15 +258,16 @@ export const createProject = async (req, res) => {
     // If slot system is enabled, create initial slots
     if (enableSlotSystem && slotConfig.autoCreateSlots) {
       try {
-        console.log('🎰 Slot creation temporarily disabled for debugging...');
-        // Temporarily disabled to isolate the issue
-        // await slotManagementService.createSlotsForProject(project._id, {
-        //   count: slotConfig.totalSlots,
-        //   slotType: slotConfig.slotType,
-        //   autoAssign: false,
-        //   createdBy: req.user._id
-        // });
-        console.log(`✅ Skipped slot creation for debugging`);
+        console.log('🎰 Creating slots for project...');
+        const slotManagementService = (await import('../services/slotManagementService.js')).default;
+        
+        const slotResult = await slotManagementService.createSlotsForProject(project._id, {
+          count: slotConfig.totalSlots,
+          slotType: slotConfig.slotType,
+          createdBy: req.user._id
+        });
+        
+        console.log(`✅ Created ${slotResult.created.length} slots for project ${project.name}`);
       } catch (slotError) {
         console.error('❌ Error creating slots for project:', slotError);
         console.error('Slot error details:', slotError.message);

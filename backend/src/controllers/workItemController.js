@@ -60,6 +60,10 @@ const getMyWorkItems = async (req, res) => {
       })
       .populate("assignedTo", "name email")
       .populate("createdBy", "name email")
+      .populate({
+        path: "slotAssignment.assignedSlot",
+        select: "slotNumber slotIdentifier slotType"
+      })
       .sort({ dueDate: 1, createdAt: -1 });
     
     res.status(200).json({
@@ -69,6 +73,122 @@ const getMyWorkItems = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching my work items:", error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: "SERVER_ERROR",
+        message: "Failed to fetch work items",
+        details: error.message,
+      },
+    });
+  }
+};
+
+// @desc    Get all work items (Admin only)
+// @route   GET /api/work-items
+// @access  Private (Admin, SuperAdmin, HoD)
+const getAllWorkItems = async (req, res) => {
+  try {
+    // Check if user has admin access
+    if (!["admin", "superadmin", "hod", "hr", "manager"].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: "FORBIDDEN",
+          message: "Access denied. Admin privileges required.",
+        },
+      });
+    }
+
+    const { status, type, project, priority, dueDate, search, assignedTo } = req.query;
+    
+    // Build query - no user restriction for admins
+    const query = { isDeleted: { $ne: true } }; // Only show non-deleted items
+    
+    // Apply filters
+    if (status && status !== "all") {
+      query.status = status;
+    }
+    if (type && type !== "all") {
+      query.type = type;
+    }
+    if (project && project !== "all") {
+      query.project = project;
+    }
+    if (priority && priority !== "all") {
+      query.priority = priority;
+    }
+    if (assignedTo && assignedTo !== "all") {
+      query.assignedTo = assignedTo;
+    }
+    
+    // SIMPLIFIED: Date filtering using only dueDate (work items are due on specific dates)
+    if (dueDate) {
+      // Validate date format
+      const dueDateObj = new Date(dueDate + 'T00:00:00.000Z');
+      const dueDateEndObj = new Date(dueDate + 'T23:59:59.999Z');
+      
+      if (isNaN(dueDateObj.getTime())) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "Invalid due date format. Please use YYYY-MM-DD format.",
+          },
+        });
+      }
+      
+      // Filter for work items due on this specific date
+      query.dueDate = {
+        $gte: dueDateObj,
+        $lte: dueDateEndObj
+      };
+    }
+    
+    // Apply search
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+        { tags: { $regex: search, $options: "i" } },
+      ];
+    }
+    
+    const workItems = await WorkItem.find(query)
+      .populate({
+        path: "project",
+        select: "name client department departments",
+        populate: [
+          {
+            path: "client",
+            select: "name company",
+          },
+          {
+            path: "department",
+            select: "name",
+          },
+          {
+            path: "departments",
+            select: "name",
+          }
+        ],
+      })
+      .populate("assignedTo", "name email")
+      .populate("createdBy", "name email")
+      .populate({
+        path: "slotAssignment.assignedSlot",
+        select: "slotNumber slotIdentifier slotType"
+      })
+      .sort({ dueDate: 1, createdAt: -1 });
+
+    // Debug: Log slot assignment data
+    res.status(200).json({
+      success: true,
+      count: workItems.length,
+      data: workItems,
+    });
+  } catch (error) {
+    console.error("Error fetching all work items:", error);
     res.status(500).json({
       success: false,
       error: {
@@ -178,21 +298,13 @@ const createWorkItem = async (req, res) => {
       hashtags,
       tags,
       estimatedHours,
+      // Slot assignment fields
+      assignToSlot,
+      selectedSlot,
     } = req.body;
     
-    console.log('🔍 [DEBUG] Received work item data:', req.body);
-    console.log('🔍 [DEBUG] Required fields check:', { type, title, project, assignedTo, dueDate });
-    console.log('🔍 [DEBUG] User info:', { id: req.user._id, role: req.user.role, email: req.user.email });
-    
-    // Validate required fields
+    // ENHANCED VALIDATION - Check required fields based on type
     if (!type || !title || !project || !assignedTo || !dueDate) {
-      console.log('🔍 [DEBUG] Validation failed - missing fields:', {
-        type: !!type,
-        title: !!title,
-        project: !!project,
-        assignedTo: !!assignedTo,
-        dueDate: !!dueDate
-      });
       return res.status(400).json({
         success: false,
         error: {
@@ -202,38 +314,45 @@ const createWorkItem = async (req, res) => {
         },
       });
     }
-    
-    // Validate type
-    if (!["task", "content"].includes(type)) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: "VALIDATION_ERROR",
-          message: "Invalid work item type",
-          details: "Type must be either 'task' or 'content'",
-        },
-      });
-    }
-    
-    // Validate content-specific fields
+
+    // Content-specific validation
     if (type === "content") {
-      if (!platform || !postType) {
+      if (!platform) {
         return res.status(400).json({
           success: false,
           error: {
             code: "VALIDATION_ERROR",
-            message: "Missing required fields for content work item",
-            details: "platform and postType are required for content work items",
+            message: "Platform is required for content work items",
+            details: "platform field is required when type is 'content'",
+          },
+        });
+      }
+      if (!postType) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "Post type is required for content work items",
+            details: "postType field is required when type is 'content'",
           },
         });
       }
     }
+
+    // Slot assignment validation
+    if (assignToSlot && !selectedSlot) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Slot selection is required when assigning to slot",
+          details: "selectedSlot field is required when assignToSlot is true",
+        },
+      });
+    }
     
-    // Check if project exists and get departments (support both single and multiple)
-    const projectExists = await Project.findById(project)
-      .populate("departments", "name") // New: multiple departments
-      .populate("department", "name");  // Legacy: single department
-    
+    // MINIMAL - Just check if project exists (no complex permission checks)
+    const projectExists = await Project.findById(project);
     if (!projectExists) {
       return res.status(404).json({
         success: false,
@@ -244,120 +363,115 @@ const createWorkItem = async (req, res) => {
       });
     }
     
-    // Auto-detect workflow type based on departments
-    let workflowType = "standard";
-    let departmentNames = [];
-    
-    // Handle multiple departments (new structure)
-    if (projectExists.departments && projectExists.departments.length > 0) {
-      departmentNames = projectExists.departments.map(dept => dept.name);
-    }
-    // Handle single department (legacy structure)
-    else if (projectExists.department) {
-      departmentNames = [projectExists.department.name];
-    }
-    
-    // Determine workflow type based on departments
-    // If any department is social media related, use advanced social media workflow
-    const hasSocialMedia = departmentNames.some(name => 
-      name.toLowerCase().includes('social') || 
-      name.toLowerCase().includes('marketing')
-    );
-    
-    if (hasSocialMedia) {
-      const workflow = getWorkflowByDepartment(departmentNames.find(name => 
-        name.toLowerCase().includes('social') || 
-        name.toLowerCase().includes('marketing')
-      ));
-      workflowType = workflow.type;
-    } else if (departmentNames.length > 0) {
-      const workflow = getWorkflowByDepartment(departmentNames[0]);
-      workflowType = workflow.type;
-    }
-    
-    // Check if user has permission to create work items for this project
-    const isProjectHead = projectExists.projectHead?.toString() === req.user._id.toString();
-    
-    // Check both assignedUsers and teamMembers arrays
-    const isAssignedUser = projectExists.assignedUsers?.some(
-      userId => userId.toString() === req.user._id.toString()
-    );
-    const isTeamMember = projectExists.teamMembers?.some(
-      member => member.user?.toString() === req.user._id.toString()
-    );
-    
-    const isAdmin = ["admin", "superadmin", "hod"].includes(req.user.role);
-    
-    console.log('🔍 [DEBUG] Authorization check:', {
-      userId: req.user._id.toString(),
-      userRole: req.user.role,
-      projectId: projectExists._id.toString(),
-      projectHead: projectExists.projectHead?.toString(),
-      assignedUsers: projectExists.assignedUsers?.map(id => id.toString()),
-      teamMembers: projectExists.teamMembers?.map(member => member.user?.toString()),
-      isProjectHead,
-      isAssignedUser,
-      isTeamMember,
-      isAdmin
-    });
-    
-    if (!isProjectHead && !isAssignedUser && !isTeamMember && !isAdmin) {
-      // Log security event
-      logSecurityEvent("UNAUTHORIZED_ACCESS_ATTEMPT", {
-        userId: req.user._id.toString(),
-        userEmail: req.user.email,
-        resource: "work_item",
-        action: "CREATE",
-        project: project,
-      });
-      
-      return res.status(403).json({
-        success: false,
-        error: {
-          code: "FORBIDDEN",
-          message: "You don't have permission to create work items for this project. You must be assigned to the project.",
-        },
-      });
-    }
-    
-    // Check if assignee exists and is part of the project
-    const assignee = await User.findById(assignedTo);
-    if (!assignee) {
-      return res.status(404).json({
-        success: false,
-        error: {
-          code: "NOT_FOUND",
-          message: "Assignee not found",
-        },
-      });
-    }
-    
-    // Create work item with auto-detected workflow
-    const workItem = await WorkItem.create({
+    // ENHANCED - Create work item with proper data handling
+    const workItemData = {
       type,
       title,
-      description,
+      description: description || '',
       project,
       assignedTo,
       createdBy: req.user._id,
       priority: priority || "medium",
       dueDate,
-      workflowType, // Auto-detected from department
-      platform: type === "content" ? platform : undefined,
-      postType: type === "content" ? postType : undefined,
-      contentBucket: type === "content" ? contentBucket : undefined,
-      caption: type === "content" ? caption : undefined,
-      hashtags: type === "content" ? hashtags : undefined,
-      tags: tags || [],
+      status: "To Do",
       estimatedHours: estimatedHours || 0,
-      status: "To Do", // Default status
-      departmentData: req.body.departmentData || {}, // Department-specific data
-    });
+      tags: Array.isArray(tags) ? tags : (tags ? [tags] : [])
+    };
+
+    // Add content-specific fields only if type is content
+    if (type === "content") {
+      workItemData.platform = platform;
+      workItemData.postType = postType;
+      if (contentBucket) {
+        workItemData.contentBucket = contentBucket;
+      }
+      if (caption) {
+        workItemData.caption = caption;
+      }
+      if (hashtags) {
+        workItemData.hashtags = hashtags;
+      }
+    }
+
+    const workItem = await WorkItem.create(workItemData);
     
-    // Populate the created work item
-    await workItem.populate("project", "name client");
+    // SLOT ASSIGNMENT - Handle slot assignment if requested
+    if (assignToSlot && selectedSlot) {
+      try {
+        console.log('🎯 Assigning work item to slot:', selectedSlot);
+        
+        // Simple slot assignment without transactions for now
+        const Slot = (await import('../models/slotModel.js')).default;
+        
+        // Find the slot
+        const slot = await Slot.findById(selectedSlot);
+        if (!slot) {
+          console.error('❌ Slot not found:', selectedSlot);
+        } else if (slot.assignmentStatus !== 'available') {
+          console.error('❌ Slot not available:', slot.assignmentStatus);
+        } else {
+          // Update slot
+          slot.assignmentStatus = 'assigned';
+          slot.assignedWorkItem = workItem._id;
+          slot.assignedAt = new Date();
+          slot.assignedBy = req.user._id;
+          await slot.save();
+          
+          // Update work item
+          workItem.slotAssignment = {
+            assignedSlot: slot._id,
+            slotNumber: slot.slotNumber,
+            slotIdentifier: slot.slotIdentifier,
+            slotType: slot.slotType,
+            assignedAt: new Date(),
+            assignedBy: req.user._id
+          };
+          await workItem.save();
+          
+          console.log('✅ Successfully assigned work item to slot');
+        }
+      } catch (slotError) {
+        console.error('❌ Error during slot assignment:', slotError);
+        // Don't fail work item creation if slot assignment fails
+        // Just log the error and continue
+      }
+    }
+    
+    // ENHANCED - Populate with proper department information
+    await workItem.populate({
+      path: "project", 
+      select: "name client department departments",
+      populate: [
+        {
+          path: "client",
+          select: "name company"
+        },
+        {
+          path: "department",
+          select: "name"
+        },
+        {
+          path: "departments",
+          select: "name"
+        }
+      ]
+    });
     await workItem.populate("assignedTo", "name email");
     await workItem.populate("createdBy", "name email");
+    
+    // Populate slot assignment if it exists
+    if (workItem.slotAssignment?.assignedSlot) {
+      await workItem.populate("slotAssignment.assignedSlot", "slotNumber slotIdentifier");
+    }
+    
+    // AUTO-SYNC TO WORK CALENDAR - Create calendar entry immediately
+    try {
+      const { createWorkCalendarEntry } = await import("../controllers/workCalendarController.js");
+      await createWorkCalendarEntry(workItem);
+    } catch (syncError) {
+      // Don't fail the request if calendar sync fails - just log error
+      console.error('Failed to sync to work calendar:', syncError.message);
+    }
     
     // Respond immediately to user
     res.status(201).json({
@@ -366,41 +480,6 @@ const createWorkItem = async (req, res) => {
       data: workItem,
     });
     
-    // Handle background operations asynchronously (don't wait for them)
-    setImmediate(async () => {
-      try {
-        // Initialize advanced workflow if applicable (background)
-        const { default: WorkflowAutomationService } = await import("../services/workflowAutomationService.js");
-        await WorkflowAutomationService.initializeWorkItemWorkflow(workItem, projectExists);
-        
-        // Auto-sync to work calendar (background)
-        try {
-          const { createWorkCalendarEntry } = await import('./workCalendarController.js');
-          await createWorkCalendarEntry(workItem);
-          console.log(`✅ Auto-synced work item ${workItem._id} to calendar`);
-        } catch (syncError) {
-          console.error('⚠️ Failed to auto-sync work item to calendar:', syncError);
-        }
-        
-        // Update project progress automatically (background)
-        await syncProjectProgress(project);
-        
-        // Send assignment notification (background)
-        await notifyWorkItemAssigned(workItem, req.user);
-        
-        // Log audit event (background)
-        logWorkItemOperation("CREATE", workItem._id.toString(), req.user._id.toString(), {
-          type: workItem.type,
-          title: workItem.title,
-          project: workItem.project._id.toString(),
-          assignedTo: workItem.assignedTo._id.toString(),
-        });
-        
-      } catch (backgroundError) {
-        console.error('⚠️ Background operation failed:', backgroundError);
-        // Don't affect the user experience
-      }
-    });
   } catch (error) {
     console.error("Error creating work item:", error);
     
@@ -1132,6 +1211,79 @@ const getWorkItemsByProject = async (req, res) => {
   }
 };
 
+// @desc    Check work item sync status
+// @route   GET /api/work-items/sync-status
+// @access  Private (Admin only)
+const checkSyncStatus = async (req, res) => {
+  try {
+    // Only admins can check sync status
+    if (!["admin", "superadmin", "hod"].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: "FORBIDDEN",
+          message: "Only administrators can check sync status",
+        },
+      });
+    }
+
+    // Get total work items
+    const totalWorkItems = await WorkItem.countDocuments({ isDeleted: false });
+    
+    // Get work items created in last 24 hours
+    const recentWorkItems = await WorkItem.countDocuments({
+      isDeleted: false,
+      createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+    });
+
+    // Try to get work calendar entries (if the collection exists)
+    let totalCalendarEntries = 0;
+    let recentCalendarEntries = 0;
+    
+    try {
+      const { default: WorkCalendar } = await import("../models/workCalendarModel.js");
+      totalCalendarEntries = await WorkCalendar.countDocuments();
+      recentCalendarEntries = await WorkCalendar.countDocuments({
+        createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+      });
+    } catch (calendarError) {
+      // WorkCalendar model not available or no entries found - this is expected
+    }
+
+    const syncStatus = {
+      workItems: {
+        total: totalWorkItems,
+        recent24h: recentWorkItems
+      },
+      workCalendar: {
+        total: totalCalendarEntries,
+        recent24h: recentCalendarEntries
+      },
+      syncHealth: {
+        isHealthy: totalCalendarEntries > 0 && (totalCalendarEntries >= totalWorkItems * 0.8),
+        syncRatio: totalWorkItems > 0 ? (totalCalendarEntries / totalWorkItems) : 0,
+        needsSync: totalWorkItems > totalCalendarEntries,
+        lastChecked: new Date().toISOString()
+      }
+    };
+
+    res.status(200).json({
+      success: true,
+      data: syncStatus,
+    });
+  } catch (error) {
+    console.error("Error checking sync status:", error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: "SERVER_ERROR",
+        message: "Failed to check sync status",
+        details: error.message,
+      },
+    });
+  }
+};
+
 // @desc    Get workflow configuration for a project/department
 // @route   GET /api/work-items/workflow-config/:projectId
 // @access  Private
@@ -1244,8 +1396,103 @@ const getWorkflowProgress = async (req, res) => {
   }
 };
 
+// @desc    Test endpoint to debug work items and date filtering
+// @route   GET /api/work-items/debug
+// @access  Private (Admin only)
+const debugWorkItems = async (req, res) => {
+  try {
+    // Only admins can access debug endpoint
+    if (!["admin", "superadmin", "hod"].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: "FORBIDDEN",
+          message: "Only administrators can access debug endpoint",
+        },
+      });
+    }
+
+    // Get all work items without any filters
+    const allWorkItems = await WorkItem.find({ isDeleted: { $ne: true } })
+      .populate("project", "name")
+      .populate("assignedTo", "name email")
+      .sort({ dueDate: 1 });
+
+    console.log(`📋 Found ${allWorkItems.length} total work items in database`);
+
+    // Group by due date for easier debugging
+    const workItemsByDate = {};
+    allWorkItems.forEach(item => {
+      const dueDate = item.dueDate ? item.dueDate.toISOString().split('T')[0] : 'no-date';
+      if (!workItemsByDate[dueDate]) {
+        workItemsByDate[dueDate] = [];
+      }
+      workItemsByDate[dueDate].push({
+        id: item._id,
+        title: item.title,
+        status: item.status,
+        assignedTo: item.assignedTo?.name || 'Unassigned',
+        project: item.project?.name || 'No Project',
+        dueDate: item.dueDate
+      });
+    });
+
+    // Test today's date filtering
+    const today = new Date().toISOString().split('T')[0];
+    const todayStart = new Date(today + 'T00:00:00.000Z');
+    const todayEnd = new Date(today + 'T23:59:59.999Z');
+    
+    const todayItems = await WorkItem.find({
+      isDeleted: { $ne: true },
+      dueDate: {
+        $gte: todayStart,
+        $lte: todayEnd
+      }
+    }).populate("project", "name").populate("assignedTo", "name");
+
+    res.status(200).json({
+      success: true,
+      debug: {
+        totalWorkItems: allWorkItems.length,
+        workItemsByDate,
+        todayFilter: {
+          date: today,
+          startTime: todayStart.toISOString(),
+          endTime: todayEnd.toISOString(),
+          itemsFound: todayItems.length,
+          items: todayItems.map(item => ({
+            id: item._id,
+            title: item.title,
+            dueDate: item.dueDate,
+            status: item.status
+          }))
+        },
+        sampleQueries: {
+          today: {
+            dueDate: {
+              $gte: todayStart,
+              $lte: todayEnd
+            }
+          }
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Error in debug endpoint:", error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: "SERVER_ERROR",
+        message: "Debug endpoint failed",
+        details: error.message,
+      },
+    });
+  }
+};
+
 // Named exports for individual imports
 export {
+  getAllWorkItems,
   getMyWorkItems,
   getWorkItemById,
   createWorkItem,
@@ -1258,7 +1505,273 @@ export {
   getCalendarWorkItems,
   getOverdueWorkItems,
   getWorkItemsByProject,
+  checkSyncStatus,
   getWorkflowConfig,
   progressWorkflowStage,
-  getWorkflowProgress
+  getWorkflowProgress,
+  debugWorkItems,
+  assignWorkItemToSlot,
+  reassignWorkItem
+};
+
+// @desc    Assign work item to slot (Utility function for testing)
+// @route   POST /api/work-items/:id/assign-slot
+// @access  Private (Admin)
+const assignWorkItemToSlot = async (req, res) => {
+  try {
+    const { slotId } = req.body;
+    const workItemId = req.params.id;
+
+    // Check admin access
+    if (!["admin", "superadmin", "hod"].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: "FORBIDDEN",
+          message: "Access denied. Admin privileges required.",
+        },
+      });
+    }
+
+    // Find work item
+    const workItem = await WorkItem.findById(workItemId);
+    if (!workItem) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: "NOT_FOUND",
+          message: "Work item not found",
+        },
+      });
+    }
+
+    // Find slot
+    const Slot = (await import('../models/slotModel.js')).default;
+    const slot = await Slot.findById(slotId);
+    if (!slot) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: "NOT_FOUND",
+          message: "Slot not found",
+        },
+      });
+    }
+
+    // Check if slot is available
+    if (slot.assignmentStatus !== 'available') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: "SLOT_NOT_AVAILABLE",
+          message: "Slot is not available for assignment",
+        },
+      });
+    }
+
+    // Update slot
+    slot.assignmentStatus = 'assigned';
+    slot.assignedWorkItem = workItem._id;
+    slot.assignedAt = new Date();
+    slot.assignedBy = req.user._id;
+    await slot.save();
+
+    // Update work item
+    workItem.slotAssignment = {
+      assignedSlot: slot._id,
+      slotNumber: slot.slotNumber,
+      slotIdentifier: slot.slotIdentifier,
+      slotType: slot.slotType || 'work',
+      assignedAt: new Date(),
+      assignedBy: req.user._id
+    };
+    await workItem.save();
+
+    // Populate and return updated work item
+    await workItem.populate([
+      {
+        path: "project",
+        select: "name client department departments",
+        populate: [
+          {
+            path: "client",
+            select: "name company",
+          },
+          {
+            path: "department",
+            select: "name",
+          },
+          {
+            path: "departments",
+            select: "name",
+          }
+        ],
+      },
+      {
+        path: "assignedTo",
+        select: "name email"
+      },
+      {
+        path: "slotAssignment.assignedSlot",
+        select: "slotNumber slotIdentifier slotType"
+      }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: "Work item successfully assigned to slot",
+      data: workItem,
+    });
+  } catch (error) {
+    console.error("Error assigning work item to slot:", error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: "SERVER_ERROR",
+        message: "Failed to assign work item to slot",
+        details: error.message,
+      },
+    });
+  }
+};
+
+// @desc    Reassign work item to different user (Slot reassignment)
+// @route   PUT /api/work-items/:id/reassign
+// @access  Private (Admin, Project Manager)
+const reassignWorkItem = async (req, res) => {
+  try {
+    const { newAssigneeId } = req.body;
+    const workItemId = req.params.id;
+
+    // Check admin access
+    if (!["admin", "superadmin", "hod", "manager"].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: "FORBIDDEN",
+          message: "Access denied. Admin or Manager privileges required.",
+        },
+      });
+    }
+
+    // Validate input
+    if (!newAssigneeId) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "New assignee ID is required",
+        },
+      });
+    }
+
+    // Find work item
+    const workItem = await WorkItem.findById(workItemId)
+      .populate('assignedTo', 'name email')
+      .populate('project', 'name');
+
+    if (!workItem) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: "NOT_FOUND",
+          message: "Work item not found",
+        },
+      });
+    }
+
+    // Find new assignee
+    const User = (await import('../models/userModel.js')).default;
+    const newAssignee = await User.findById(newAssigneeId).select('name email role');
+    
+    if (!newAssignee) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: "NOT_FOUND",
+          message: "New assignee not found",
+        },
+      });
+    }
+
+    const oldAssignee = workItem.assignedTo;
+
+    // Update work item assignee
+    workItem.assignedTo = newAssigneeId;
+    workItem.updatedAt = new Date();
+    await workItem.save();
+
+    // If work item has slot assignment, update the slot's assigned work item
+    if (workItem.slotAssignment && workItem.slotAssignment.assignedSlot) {
+      try {
+        const Slot = (await import('../models/slotModel.js')).default;
+        const slot = await Slot.findById(workItem.slotAssignment.assignedSlot);
+        
+        if (slot && slot.assignedWorkItem) {
+          // Update the slot's assigned work item to reflect new assignee
+          await slot.populate('assignedWorkItem');
+          if (slot.assignedWorkItem) {
+            slot.assignedWorkItem.assignedTo = newAssigneeId;
+            await slot.assignedWorkItem.save();
+          }
+        }
+      } catch (slotError) {
+        console.error('Error updating slot assignment:', slotError);
+        // Don't fail the reassignment if slot update fails
+      }
+    }
+
+    // Populate the updated work item
+    await workItem.populate([
+      {
+        path: "project",
+        select: "name client department departments",
+        populate: [
+          {
+            path: "client",
+            select: "name company",
+          },
+          {
+            path: "department",
+            select: "name",
+          },
+          {
+            path: "departments",
+            select: "name",
+          }
+        ],
+      },
+      {
+        path: "assignedTo",
+        select: "name email"
+      },
+      {
+        path: "slotAssignment.assignedSlot",
+        select: "slotNumber slotIdentifier slotType"
+      }
+    ]);
+
+    console.log(`✅ Work item "${workItem.title}" reassigned from ${oldAssignee?.name} to ${newAssignee.name}`);
+
+    res.status(200).json({
+      success: true,
+      message: `Work item successfully reassigned to ${newAssignee.name}`,
+      data: workItem,
+      reassignment: {
+        oldAssignee: oldAssignee ? { name: oldAssignee.name, email: oldAssignee.email } : null,
+        newAssignee: { name: newAssignee.name, email: newAssignee.email }
+      }
+    });
+
+  } catch (error) {
+    console.error("Error reassigning work item:", error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: "SERVER_ERROR",
+        message: "Failed to reassign work item",
+        details: error.message,
+      },
+    });
+  }
 };

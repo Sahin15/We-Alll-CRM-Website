@@ -173,7 +173,7 @@ const AdminDashboard = () => {
           return todayDate >= startDate && todayDate <= endDate;
         }).length || 0;
       } catch (err) {
-        console.log('Attendance/Leave data not available');
+        // console.log('Attendance/Leave data not available');
       }
       
       let pendingLeaves = 0;
@@ -181,7 +181,7 @@ const AdminDashboard = () => {
         const leavesRes = await leaveApi.getAllLeaves('pending');
         pendingLeaves = leavesRes.data?.length || 0;
       } catch (err) {
-        console.log('Leave data not available');
+        // console.log('Leave data not available');
       }
 
       // Calculate OFFICE health based on HR/operations factors
@@ -322,7 +322,7 @@ const AdminDashboard = () => {
           });
         });
       } catch (err) {
-        console.log('Could not fetch approved leaves for activity');
+        // console.log('Could not fetch approved leaves for activity');
       }
 
       // Sort by time (most recent first) and take top 15
@@ -398,7 +398,7 @@ const AdminDashboard = () => {
   const handleLeadsCardClick = async () => {
     try {
       const response = await leadApi.getAllLeads();
-      console.log('Leads data:', response.data); // Debug log
+      // console.log('Leads data:', response.data); // Debug log
       setLeadsList(response.data || []);
       setShowLeadsModal(true);
     } catch (error) {
@@ -431,7 +431,7 @@ const AdminDashboard = () => {
         });
       }
       
-      console.log('Today attendance:', todayAttendance);
+      // console.log('Today attendance:', todayAttendance);
       setAttendanceList(todayAttendance);
       setShowAttendanceModal(true);
     } catch (error) {
@@ -460,7 +460,7 @@ const AdminDashboard = () => {
         });
       }
       
-      console.log('Pending approvals:', pendingLeaves);
+      // console.log('Pending approvals:', pendingLeaves);
       setApprovalsList(pendingLeaves);
       setShowApprovalsModal(true);
     } catch (error) {
@@ -470,7 +470,7 @@ const AdminDashboard = () => {
   };
 
   const handleChartClick = async (chartType, segment, index) => {
-    console.log('Chart clicked:', chartType, segment, index);
+    // console.log('Chart clicked:', chartType, segment, index);
     
     if (chartType === 'projects') {
       try {
@@ -569,7 +569,7 @@ const AdminDashboard = () => {
       const response = await attendanceApi.getAllAttendance({ date: today });
       let lateEmployees = response.data?.filter(a => a.status === 'late') || [];
       
-      console.log('Raw late employees data:', lateEmployees); // Debug log
+      // console.log('Raw late employees data:', lateEmployees); // Debug log
       
       // The backend returns 'employee' field, not 'user'
       // If employee data is not populated, fetch it

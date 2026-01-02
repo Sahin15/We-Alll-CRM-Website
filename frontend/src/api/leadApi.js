@@ -5,6 +5,7 @@ export const leadApi = {
   getAllLeads: (params) => api.get("/leads", { params }),
   getLeadById: (id) => api.get(`/leads/${id}`),
   createLead: (data) => api.post("/leads", data),
+  createPublicLead: (data) => api.post("/leads/public", data), // Public endpoint for forms
   updateLead: (id, data) => api.put(`/leads/${id}`, data),
   deleteLead: (id) => api.delete(`/leads/${id}`),
   assignLead: (id, assignedTo) =>

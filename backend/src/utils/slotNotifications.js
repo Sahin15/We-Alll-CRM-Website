@@ -20,7 +20,7 @@ export const notifySlotAssigned = async (slot, assignedEmployee) => {
       },
       isRead: false
     });
-    console.log(`Notification sent to ${assignedEmployee.name} for slot assignment`);
+    // console.log(`Notification sent to ${assignedEmployee.name} for slot assignment`);
   } catch (error) {
     console.error('Error sending slot assignment notification:', error);
   }
@@ -48,7 +48,7 @@ export const notifySlotDeadlineApproaching = async (slot, employee) => {
       },
       isRead: false
     });
-    console.log(`Deadline reminder sent to ${employee.name} for slot ${slot._id}`);
+    // console.log(`Deadline reminder sent to ${employee.name} for slot ${slot._id}`);
   } catch (error) {
     console.error('Error sending deadline reminder:', error);
   }
@@ -74,7 +74,7 @@ export const notifySlotOverdue = async (slot, employee) => {
       },
       isRead: false
     });
-    console.log(`Overdue notification sent to ${employee.name} for slot ${slot._id}`);
+    // console.log(`Overdue notification sent to ${employee.name} for slot ${slot._id}`);
   } catch (error) {
     console.error('Error sending overdue notification:', error);
   }
@@ -100,7 +100,7 @@ export const notifyProjectHeadStatusUpdate = async (slot, projectHead, newStatus
       },
       isRead: false
     });
-    console.log(`Status update notification sent to project head ${projectHead.name}`);
+    // console.log(`Status update notification sent to project head ${projectHead.name}`);
   } catch (error) {
     console.error('Error sending status update notification:', error);
   }
@@ -125,7 +125,7 @@ export const notifyProjectHeadCreativeUploaded = async (slot, projectHead, emplo
       },
       isRead: false
     });
-    console.log(`Creative upload notification sent to project head ${projectHead.name}`);
+    // console.log(`Creative upload notification sent to project head ${projectHead.name}`);
   } catch (error) {
     console.error('Error sending creative upload notification:', error);
   }
@@ -155,7 +155,7 @@ export const notifySlotComment = async (slot, commentAuthor, recipients) => {
 
     if (notifications.length > 0) {
       await Notification.insertMany(notifications);
-      console.log(`Comment notifications sent to ${notifications.length} user(s)`);
+      // console.log(`Comment notifications sent to ${notifications.length} user(s)`);
     }
   } catch (error) {
     console.error('Error sending comment notifications:', error);

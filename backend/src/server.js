@@ -3,6 +3,8 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
+import { protect } from "./middleware/authMiddleware.js";
+import { authorizeRoles } from "./middleware/roleMiddleware.js";
 import userRoutes from "./routes/userRoutes.js";
 import connectDB from "./config/db.js";
 import adminRoutes from "./routes/adminRoutes.js";
@@ -102,8 +104,8 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-// Quick fix for HR attendance (no auth required)
-app.get("/api/fix-hr-now", async (_req, res) => {
+// Quick fix for HR attendance (requires admin authentication)
+app.get("/api/fix-hr-now", protect, authorizeRoles("admin", "superadmin"), async (_req, res) => {
   try {
     const { default: Attendance } = await import('./models/attendanceModel.js');
     const { default: User } = await import('./models/userModel.js');

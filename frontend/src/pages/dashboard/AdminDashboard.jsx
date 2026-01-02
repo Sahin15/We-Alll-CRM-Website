@@ -450,7 +450,7 @@ const AdminDashboard = () => {
   const handleLeadsCardClick = async () => {
     try {
       const response = await leadApi.getAllLeads();
-      console.log('Leads data:', response.data); // Debug log
+      // console.log('Leads data:', response.data); // Debug log
       setLeadsList(response.data || []);
       setShowLeadsModal(true);
     } catch (error) {
@@ -832,8 +832,8 @@ const AdminDashboard = () => {
                         >
                           <FaChartBar size={20} />
                         </div>
-                        <h4 className="mb-1 text-primary">{notificationStats.total}</h4>
-                        <small className="text-muted">Total Notifications</small>
+                        <h4 className="mb-1 text-dark fw-bold">{notificationStats.total}</h4>
+                        <small className="text-dark">Total Notifications</small>
                       </Card.Body>
                     </Card>
                   </div>
@@ -857,8 +857,8 @@ const AdminDashboard = () => {
                         >
                           <FaBell size={20} />
                         </div>
-                        <h4 className="mb-1 text-warning">{notificationStats.unread}</h4>
-                        <small className="text-muted">Unread System-wide</small>
+                        <h4 className="mb-1 text-dark fw-bold">{notificationStats.unread}</h4>
+                        <small className="text-dark">Unread System-wide</small>
                       </Card.Body>
                     </Card>
                   </div>
@@ -882,8 +882,8 @@ const AdminDashboard = () => {
                         >
                           <FaCalendarAlt size={20} />
                         </div>
-                        <h4 className="mb-1 text-success">{notificationStats.todayCount}</h4>
-                        <small className="text-muted">Sent Today</small>
+                        <h4 className="mb-1 text-dark fw-bold">{notificationStats.todayCount}</h4>
+                        <small className="text-dark">Sent Today</small>
                       </Card.Body>
                     </Card>
                   </div>
@@ -907,8 +907,8 @@ const AdminDashboard = () => {
                         >
                           <FaCog size={20} />
                         </div>
-                        <h4 className="mb-1 text-info">{notificationStats.weekCount}</h4>
-                        <small className="text-muted">This Week</small>
+                        <h4 className="mb-1 text-dark fw-bold">{notificationStats.weekCount}</h4>
+                        <small className="text-dark">This Week</small>
                       </Card.Body>
                     </Card>
                   </div>
@@ -992,8 +992,8 @@ const AdminDashboard = () => {
                         >
                           <FaUsers size={20} />
                         </div>
-                        <h4 className="mb-1 text-success">{stats.activeProjects}</h4>
-                        <small className="text-muted">Active Projects</small>
+                        <h4 className="mb-1 text-dark fw-bold">{stats.activeProjects}</h4>
+                        <small className="text-dark">Active Projects</small>
                       </Card.Body>
                     </Card>
                   </div>
@@ -1017,8 +1017,8 @@ const AdminDashboard = () => {
                         >
                           <FaProjectDiagram size={20} />
                         </div>
-                        <h4 className="mb-1 text-primary">{stats.clients}</h4>
-                        <small className="text-muted">Total Clients</small>
+                        <h4 className="mb-1 text-dark fw-bold">{stats.clients}</h4>
+                        <small className="text-dark">Total Clients</small>
                       </Card.Body>
                     </Card>
                   </div>
@@ -1042,8 +1042,8 @@ const AdminDashboard = () => {
                         >
                           <FaChartLine size={20} />
                         </div>
-                        <h4 className="mb-1 text-warning">{stats.completedProjects}</h4>
-                        <small className="text-muted">Completed Projects</small>
+                        <h4 className="mb-1 text-dark fw-bold">{stats.completedProjects}</h4>
+                        <small className="text-dark">Completed Projects</small>
                       </Card.Body>
                     </Card>
                   </div>
@@ -1067,8 +1067,8 @@ const AdminDashboard = () => {
                         >
                           <FaCalendarAlt size={20} />
                         </div>
-                        <h4 className="mb-1 text-info">{stats.employees}</h4>
-                        <small className="text-muted">Total Employees</small>
+                        <h4 className="mb-1 text-dark fw-bold">{stats.employees}</h4>
+                        <small className="text-dark">Total Employees</small>
                       </Card.Body>
                     </Card>
                   </div>

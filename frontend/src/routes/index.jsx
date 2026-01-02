@@ -47,7 +47,7 @@ import UserDetails from "../pages/users/UserDetails";
 // Employee Management Pages
 import EmployeeList from "../pages/employees/EmployeeList";
 import AddEmployee from "../pages/employees/AddEmployee";
-import EmployeeWorkView from "../pages/employees/EmployeeWorkView";
+import EnhancedEmployeeWorkView from "../pages/employees/EnhancedEmployeeWorkView";
 import EmployeeProfileManagement from "../components/hr/EmployeeProfileManagement";
 
 // Department Pages
@@ -111,6 +111,7 @@ import NotificationSettings from "../components/notifications/NotificationSettin
 // Error Pages
 import NotFound from "../pages/errors/NotFound";
 import Unauthorized from "../pages/errors/Unauthorized";
+import GrowthSummitFinal from "../pages/GrowthSummitFinal";
 
 const AppRoutes = () => {
   const { user } = useAuth();
@@ -143,6 +144,9 @@ const AppRoutes = () => {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
       </Route>
+      
+      {/* Growth Summit 2026 Landing Page - Public Route */}
+      <Route path="/growth-summit-2026" element={<GrowthSummitFinal />} />
       
       {/* Registration route - Only accessible from inside app by admins */}
       <Route path="/register" element={<Register />} />
@@ -207,7 +211,7 @@ const AppRoutes = () => {
           path="/employees/:userId/work"
           element={
             <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
-              <EmployeeWorkView />
+              <EnhancedEmployeeWorkView />
             </RoleBasedRoute>
           }
         />
@@ -318,7 +322,7 @@ const AppRoutes = () => {
         <Route
           path="/leads"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "accounts"]}>
               <LeadList />
             </RoleBasedRoute>
           }
@@ -326,7 +330,7 @@ const AppRoutes = () => {
         <Route
           path="/leads/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "accounts"]}>
               <LeadDetails />
             </RoleBasedRoute>
           }
@@ -334,11 +338,13 @@ const AppRoutes = () => {
         <Route
           path="/leads/:id/edit"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "accounts"]}>
               <LeadList />
             </RoleBasedRoute>
           }
         />
+
+
 
         {/* Project Management */}
         <Route path="/projects" element={<ProjectListPage />} />

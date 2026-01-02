@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Modal, 
   Form, 
@@ -6,7 +6,7 @@ import {
   Row, 
   Col, 
   Alert, 
-  Card, 
+  Card,
   Badge,
   Spinner,
   InputGroup
@@ -22,9 +22,9 @@ import {
   FaCheck
 } from 'react-icons/fa';
 import { toast } from 'react-toastify';
+import moment from 'moment';
 import { useAuth } from '../../context/AuthContext';
 import workItemApi from '../../api/workItemApi';
-import workCalendarApi from '../../api/workCalendarApi';
 import projectApi from '../../api/projectApi';
 import userApi from '../../api/userApi';
 
@@ -77,12 +77,117 @@ const ProfessionalWorkCreationModal = ({
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
 
+  // Auto-save draft functionality
+  const DRAFT_KEY = 'workItemDraft';
+  
+  // Save draft to localStorage
+  const saveDraft = useCallback((data) => {
+    try {
+      const draft = {
+        ...data,
+        savedAt: new Date().toISOString(),
+        userId: user?.id
+      };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    } catch (error) {
+      console.error('Error saving draft:', error);
+    }
+  }, [user?.id]);
+
+  // Load draft from localStorage
+  const loadDraft = useCallback(() => {
+    try {
+      const draft = localStorage.getItem(DRAFT_KEY);
+      if (draft) {
+        const parsedDraft = JSON.parse(draft);
+        // Only load if it's from the same user and less than 24 hours old
+        if (parsedDraft.userId === user?.id && 
+            moment().diff(moment(parsedDraft.savedAt), 'hours') < 24) {
+          return parsedDraft;
+        }
+      }
+    } catch (error) {
+      console.error('Error loading draft:', error);
+    }
+    return null;
+  }, [user?.id]);
+
+  // Clear draft from localStorage
+  const clearDraft = useCallback(() => {
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+    } catch (error) {
+      console.error('Error clearing draft:', error);
+    }
+  }, []);
+
+  // Filter users by selected project's departments
+  const availableUsers = useMemo(() => {
+    if (!formData.project || !selectedProject) {
+      return users; // Show all users if no project selected
+    }
+
+    // Get project departments (both single and multiple)
+    const projectDepartments = [];
+    if (selectedProject.departments && selectedProject.departments.length > 0) {
+      projectDepartments.push(...selectedProject.departments.map(dept => 
+        typeof dept === 'object' ? dept._id : dept
+      ));
+    } else if (selectedProject.department) {
+      const deptId = typeof selectedProject.department === 'object' 
+        ? selectedProject.department._id 
+        : selectedProject.department;
+      projectDepartments.push(deptId);
+    }
+
+    if (projectDepartments.length === 0) {
+      return users; // Show all users if project has no departments
+    }
+
+    // Filter users by project departments
+    return users.filter(user => {
+      const userDeptId = user.department?._id || user.department;
+      return projectDepartments.includes(userDeptId);
+    });
+  }, [formData.project, selectedProject, users]);
+  useEffect(() => {
+    if (show && (formData.title || formData.description)) {
+      const timeoutId = setTimeout(() => {
+        saveDraft(formData);
+      }, 2000); // Auto-save after 2 seconds of inactivity
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [show, formData, saveDraft]);
+
   useEffect(() => {
     if (show) {
       loadData();
-      resetForm();
+      
+      // Try to load draft
+      const draft = loadDraft();
+      if (draft) {
+        const shouldLoadDraft = window.confirm(
+          `Found a saved draft from ${moment(draft.savedAt).fromNow()}. Would you like to restore it?`
+        );
+        
+        if (shouldLoadDraft) {
+          setFormData(prev => ({
+            ...prev,
+            ...draft,
+            // Don't restore these fields
+            savedAt: undefined,
+            userId: undefined
+          }));
+          toast.info('Draft restored successfully!');
+        } else {
+          clearDraft();
+        }
+      } else {
+        resetForm();
+      }
     }
-  }, [show, selectedDate, defaultProject]);
+  }, [show, selectedDate, defaultProject, loadDraft, clearDraft]);
 
   // Load available slots when project changes
   useEffect(() => {
@@ -106,19 +211,7 @@ const ProfessionalWorkCreationModal = ({
       
       // Log slot-enabled projects for debugging (only if there are any)
       const slotEnabledProjects = projectsData.filter(p => p.slotConfiguration?.enableSlotSystem);
-      console.log(`🔍 Total projects loaded: ${projectsData.length}`);
-      console.log(`🎯 Projects with slot system enabled: ${slotEnabledProjects.length}`);
       
-      if (slotEnabledProjects.length > 0) {
-        console.log('✅ Slot-enabled projects:');
-        slotEnabledProjects.forEach(p => {
-          console.log(`   - ${p.name} (${p._id}): ${p.slotConfiguration?.totalSlots || 0} slots`);
-        });
-      } else {
-        console.log('❌ No projects found with slot system enabled!');
-        console.log('💡 To enable slots: Go to project settings → Enable "Slot-based Progress Tracking"');
-      }
-
       setProjects(projectsData);
       setUsers(usersRes.data || []);
     } catch (error) {
@@ -132,13 +225,33 @@ const ProfessionalWorkCreationModal = ({
     
     setLoadingSlots(true);
     try {
-      const response = await projectApi.getAvailableSlots(projectId);
-      if (response.success) {
-        setAvailableSlots(response.data?.slots || []);
+      console.log('🎯 Loading all slots for project:', projectId);
+      
+      // Get all slots for the project (both available and assigned) for better display
+      const response = await projectApi.getAvailableSlots(projectId, { includeAll: true });
+      console.log('🎯 All slots response:', response);
+      
+      if (response.success && response.data) {
+        const slots = response.data.slots || [];
+        console.log(`🎯 Found ${slots.length} total slots (${response.data.availableCount} available, ${response.data.assignedCount} assigned):`, slots);
+        setAvailableSlots(slots);
+      } else {
+        console.log('❌ No slots found or API error:', response);
+        setAvailableSlots([]);
       }
     } catch (error) {
-      console.error("Error loading available slots:", error);
+      console.error("❌ Error loading slots:", error);
+      console.error("❌ Error details:", error.response?.data);
       setAvailableSlots([]);
+      
+      // Show user-friendly error message
+      if (error.response?.status === 403) {
+        toast.error('You do not have permission to view slots for this project');
+      } else if (error.response?.status === 404) {
+        console.log('ℹ️ No slots found for this project yet');
+      } else {
+        toast.error('Failed to load slots');
+      }
     } finally {
       setLoadingSlots(false);
     }
@@ -153,31 +266,45 @@ const ProfessionalWorkCreationModal = ({
         const project = projects.find(p => p._id === projectId);
         if (project) {
           console.log('🔍 Selected project from list:', project.name);
-          console.log('🎯 Slot configuration:', project.slotConfiguration);
-          console.log('🎯 Slot system enabled:', project.slotConfiguration?.enableSlotSystem);
+          console.log('🎯 Project data:', {
+            id: project._id,
+            name: project.name,
+            slotConfiguration: project.slotConfiguration,
+            enableSlotSystem: project.slotConfiguration?.enableSlotSystem,
+            totalSlots: project.slotConfiguration?.totalSlots
+          });
           setSelectedProject(project);
           
-          // If project has slot system, we already have the data
+          // If project has slot system, load slots
           if (project.slotConfiguration?.enableSlotSystem) {
             console.log('✅ Project has slot system enabled, loading slots...');
+            await loadAvailableSlots(projectId);
           } else {
             console.log('❌ Project does NOT have slot system enabled');
+            setAvailableSlots([]);
           }
         } else {
           // Fallback: fetch project details from API
-          console.log('🔍 Project not found in list, fetching from API...');
           const projectResponse = await projectApi.getProjectById(projectId);
           if (projectResponse.success) {
-            console.log('🔍 Project details from API:', projectResponse.data.name);
-            console.log('🎯 API Slot configuration:', projectResponse.data.slotConfiguration);
-            setSelectedProject(projectResponse.data);
+            const projectData = projectResponse.data;
+            setSelectedProject(projectData);
+            
+            if (projectData.slotConfiguration?.enableSlotSystem) {
+              await loadAvailableSlots(projectId);
+            } else {
+              setAvailableSlots([]);
+            }
           }
         }
       } catch (error) {
         console.error('❌ Error loading project details:', error);
+        setSelectedProject(null);
+        setAvailableSlots([]);
       }
     } else {
       setSelectedProject(null);
+      setAvailableSlots([]);
     }
   };
 
@@ -228,6 +355,25 @@ const ProfessionalWorkCreationModal = ({
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleClose = () => {
+    // Clear draft when successfully closing (not canceling)
+    if (formData.title || formData.description) {
+      const shouldSaveDraft = window.confirm(
+        'You have unsaved changes. Would you like to save as draft?'
+      );
+      
+      if (shouldSaveDraft) {
+        saveDraft(formData);
+        toast.info('Draft saved for later!');
+      } else {
+        clearDraft();
+      }
+    }
+    
+    resetForm();
+    onHide();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -241,7 +387,7 @@ const ProfessionalWorkCreationModal = ({
     try {
       // Prepare work item data
       const workItemData = {
-        type: formData.workItemType,
+        type: formData.workItemType, // Map workItemType to type
         title: formData.title,
         description: formData.description,
         project: formData.project,
@@ -249,52 +395,51 @@ const ProfessionalWorkCreationModal = ({
         dueDate: formData.dueDate,
         priority: formData.priority,
         estimatedHours: formData.estimatedHours ? parseInt(formData.estimatedHours) : undefined,
-        tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()) : []
+        tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()) : [],
+        // Add slot assignment data
+        assignToSlot: formData.assignToSlot,
+        selectedSlot: formData.selectedSlot
       };
 
       // Add content-specific fields
       if (formData.workItemType === 'content') {
         workItemData.platform = formData.platform;
         workItemData.postType = formData.postType;
-        workItemData.contentBucket = formData.contentBucket;
+        if (formData.contentBucket) {
+          workItemData.contentBucket = formData.contentBucket;
+        }
       }
 
       // Create work item
       const workItemResult = await workItemApi.createWorkItem(workItemData);
       
-      // Handle slot assignment in parallel if needed
-      if (formData.assignToSlot && formData.selectedSlot && selectedProject?.slotConfiguration?.enableSlotSystem) {
-        // Don't wait for slot assignment - do it in background
-        projectApi.assignWorkItemToSlot(
-          formData.selectedSlot, 
-          workItemResult.data?._id || workItemResult._id,
-          'Work item created and assigned to slot'
-        ).then(() => {
-          console.log('✅ Work item assigned to slot successfully');
-        }).catch(slotError => {
-          console.error('⚠️ Error assigning work item to slot:', slotError);
-          // Show a non-blocking warning
-          setTimeout(() => {
-            toast.warning('Work item created but slot assignment failed. You can assign it manually later.');
-          }, 1000);
-        });
-        
-        toast.success('Work item created successfully! Slot assignment in progress...');
-      } else {
-        toast.success('Work item created successfully!');
-      }
+      toast.success('Work item created successfully!');
 
-      // Call success callback immediately
+      // Clear draft on successful submission
+      clearDraft();
+      
+      // Call success callback
       if (onSuccess) {
         onSuccess(workItemResult);
       }
 
-      // Close modal immediately
+      // Close modal
       onHide();
       
     } catch (error) {
-      console.error('Error creating work item:', error);
-      toast.error(error.response?.data?.message || 'Failed to create work item');
+      console.error('❌ Error creating work item:', error);
+      
+      // Enhanced error handling
+      let errorMessage = 'Failed to create work item';
+      if (error.response?.data?.error?.message) {
+        errorMessage = error.response.data.error.message;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -322,10 +467,11 @@ const ProfessionalWorkCreationModal = ({
     setSelectedProject(null);
   };
 
-  const handleClose = () => {
-    resetForm();
-    onHide();
-  };
+  // Check if there's a current draft
+  const hasDraft = useMemo(() => {
+    return formData.title || formData.description || formData.project || 
+           formData.assignedTo !== (user?.id || '') || formData.priority !== 'medium';
+  }, [formData, user?.id]);
 
   return (
     <Modal show={show} onHide={handleClose} size="lg" centered>
@@ -333,6 +479,11 @@ const ProfessionalWorkCreationModal = ({
         <Modal.Title className="d-flex align-items-center gap-2">
           <FaTasks />
           Create Work Item
+          {hasDraft && (
+            <Badge bg="warning" className="ms-2">
+              <small>Draft</small>
+            </Badge>
+          )}
         </Modal.Title>
       </Modal.Header>
 
@@ -437,9 +588,9 @@ const ProfessionalWorkCreationModal = ({
                       isInvalid={!!errors.assignedTo}
                     >
                       <option value="">Select Person...</option>
-                      {users.map(user => (
+                      {availableUsers.map(user => (
                         <option key={user._id} value={user._id}>
-                          {user.name} ({user.role})
+                          {user.name}
                         </option>
                       ))}
                     </Form.Select>
@@ -478,18 +629,51 @@ const ProfessionalWorkCreationModal = ({
                           <Spinner size="sm" /> Loading available slots...
                         </div>
                       ) : availableSlots.length > 0 ? (
-                        <Form.Select
-                          value={formData.selectedSlot}
-                          onChange={(e) => handleInputChange('selectedSlot', e.target.value)}
-                          isInvalid={!!errors.selectedSlot}
-                        >
-                          <option value="">Choose a slot...</option>
-                          {availableSlots.map(slot => (
-                            <option key={slot._id} value={slot._id}>
-                              Slot {slot.slotNumber} - {slot.title}
-                            </option>
-                          ))}
-                        </Form.Select>
+                        <>
+                          <Form.Select
+                            value={formData.selectedSlot}
+                            onChange={(e) => handleInputChange('selectedSlot', e.target.value)}
+                            isInvalid={!!errors.selectedSlot}
+                            className="slot-select"
+                          >
+                            <option value="">Choose a slot...</option>
+                            {availableSlots.map(slot => {
+                              const isAssigned = slot.assignmentStatus === 'assigned' || slot.assignedWorkItem;
+                              const displayText = `Slot ${slot.slotNumber}${isAssigned ? ' (Used)' : ' (Available)'}`;
+                              return (
+                                <option 
+                                  key={slot._id} 
+                                  value={slot._id}
+                                  disabled={isAssigned}
+                                  style={{
+                                    color: isAssigned ? '#dc3545' : '#28a745',
+                                    fontWeight: isAssigned ? 'normal' : '500'
+                                  }}
+                                >
+                                  {displayText}
+                                </option>
+                              );
+                            })}
+                          </Form.Select>
+                          
+                          {/* Slot Status Legend */}
+                          <div className="slot-status-legend">
+                            <div className="slot-status-item">
+                              <div className="slot-status-dot slot-status-available"></div>
+                              <span>Available</span>
+                            </div>
+                            <div className="slot-status-item">
+                              <div className="slot-status-dot slot-status-used"></div>
+                              <span>Used</span>
+                            </div>
+                          </div>
+                          
+                          {/* Slot Assignment Info */}
+                          <div className="slot-assignment-info text-muted">
+                            {availableSlots.filter(s => s.assignmentStatus === 'available' && !s.assignedWorkItem).length} available, {' '}
+                            {availableSlots.filter(s => s.assignmentStatus === 'assigned' || s.assignedWorkItem).length} used
+                          </div>
+                        </>
                       ) : (
                         <Alert variant="warning" className="mb-0">
                           No available slots found for this project.
@@ -720,6 +904,56 @@ const ProfessionalWorkCreationModal = ({
           )}
         </Button>
       </Modal.Footer>
+
+      {/* Custom Styles for Slot Selection */}
+      <style jsx>{`
+        .slot-select option[disabled] {
+          color: #dc3545 !important;
+          background-color: #f8d7da !important;
+          font-style: italic;
+        }
+        
+        .slot-select option:not([disabled]) {
+          color: #28a745 !important;
+          font-weight: 500;
+        }
+        
+        .slot-select option:hover:not([disabled]) {
+          background-color: #d4edda !important;
+        }
+        
+        .slot-assignment-info {
+          font-size: 0.875rem;
+          margin-top: 0.5rem;
+        }
+        
+        .slot-status-legend {
+          display: flex;
+          gap: 1rem;
+          margin-top: 0.5rem;
+          font-size: 0.8rem;
+        }
+        
+        .slot-status-item {
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
+        }
+        
+        .slot-status-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+        }
+        
+        .slot-status-available {
+          background-color: #28a745;
+        }
+        
+        .slot-status-used {
+          background-color: #dc3545;
+        }
+      `}</style>
     </Modal>
   );
 };

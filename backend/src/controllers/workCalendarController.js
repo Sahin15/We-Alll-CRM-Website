@@ -1100,7 +1100,7 @@ const sendReassignmentNotifications = async (successfulEntries, newAssigneeId, p
 /**
  * Auto-create work calendar entry from work item
  */
-const createWorkCalendarEntry = async (workItem) => {
+export const createWorkCalendarEntry = async (workItem) => {
   try {
     // Check if entry already exists
     const existing = await WorkCalendar.findOne({
@@ -3444,7 +3444,7 @@ export const getAnalyticsCacheStats = async (req, res) => {
 export const getAvailableSlots = async (req, res) => {
   try {
     const { projectId } = req.params;
-    const { slotType, priority, workType } = req.query;
+    const { slotType, priority, workType, includeAll } = req.query;
 
     // Permission check
     if (!['admin', 'superadmin', 'hr', 'manager', 'hod', 'hop'].includes(req.user.role)) {
@@ -3459,12 +3459,50 @@ export const getAvailableSlots = async (req, res) => {
     if (priority) filters.priority = priority;
     if (workType) filters.workType = workType;
 
-    const result = await slotManagementService.getAvailableSlots(projectId, filters);
+    let result;
+    
+    if (includeAll === 'true') {
+      // Get all slots (both available and assigned) for display purposes
+      const Slot = (await import('../models/slotModel.js')).default;
+      
+      const allSlots = await Slot.find({ 
+        project: projectId,
+        ...filters 
+      })
+        .sort({ slotNumber: 1 })
+        .populate('project', 'name client slotConfiguration')
+        .populate('assignedWorkItem', 'title status assignedTo')
+        .populate('assignedTo', 'name email')
+        .populate({
+          path: 'assignedWorkItem',
+          populate: {
+            path: 'assignedTo',
+            select: 'name email'
+          }
+        })
+        .lean();
+
+      result = {
+        slots: allSlots,
+        count: allSlots.length,
+        availableCount: allSlots.filter(slot => 
+          slot.assignmentStatus === 'available' && !slot.assignedWorkItem
+        ).length,
+        assignedCount: allSlots.filter(slot => 
+          slot.assignmentStatus === 'assigned' || slot.assignedWorkItem
+        ).length
+      };
+    } else {
+      // Get only available slots (original behavior)
+      result = await slotManagementService.getAvailableSlots(projectId, filters);
+    }
 
     res.json({
       success: true,
       data: result,
-      message: `Found ${result.count} available slots`
+      message: includeAll === 'true' 
+        ? `Found ${result.count} total slots (${result.availableCount} available, ${result.assignedCount} assigned)`
+        : `Found ${result.count} available slots`
     });
 
   } catch (error) {

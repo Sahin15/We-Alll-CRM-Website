@@ -171,7 +171,7 @@ const SubscriptionManagement = () => {
       status: formData.status,
     };
 
-    console.log("Submitting subscription data:", subscriptionData);
+    // console.log("Submitting subscription data:", subscriptionData);
 
     try {
       if (editMode) {

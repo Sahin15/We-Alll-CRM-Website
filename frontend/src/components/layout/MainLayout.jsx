@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
 import Footer from "./Footer";
+import GrowthSummitFloatingButton from "../common/GrowthSummitFloatingButton";
 import { useState, useEffect } from "react";
 
 const MainLayout = () => {
@@ -59,6 +60,9 @@ const MainLayout = () => {
         </div>
       </div>
       <Footer sidebarCollapsed={sidebarCollapsed} isMobile={isMobile} />
+      
+      {/* Growth Summit 2026 Floating Button */}
+      <GrowthSummitFloatingButton />
       
       {/* Floating Sidebar Toggle Button - Shows on scroll for both mobile and desktop */}
       {showFloatingToggle && (

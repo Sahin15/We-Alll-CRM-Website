@@ -2,6 +2,8 @@
   border: none !important;
   box-shadow: none !important;
   background: transparent !important;
+  position: relative !important;
+  overflow: visible !important;
 }
 
 .notification-bell-dropdown .dropdown-toggle:focus {
@@ -12,6 +14,75 @@
   background-color: rgba(255, 255, 255, 0.1) !important;
   border-radius: 8px;
   transition: background-color 0.2s ease;
+}
+
+/* Ensure badge is always visible */
+.notification-bell-toggle .badge {
+  z-index: 1050 !important;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* Additional mobile fixes for very small screens */
+@media (max-width: 480px) {
+  .notification-bell-toggle .badge {
+    top: -4px !important;
+    right: -4px !important;
+    min-width: 14px !important;
+    height: 14px !important;
+    font-size: 0.55rem !important;
+  }
+  
+  .notification-dropdown-menu {
+    top: 55px !important; /* Smaller navbar on very small screens */
+  }
+  
+  .notification-header {
+    padding: 12px 16px !important;
+  }
+  
+  .notification-header h6 {
+    font-size: 1rem !important;
+  }
+  
+  .notification-item {
+    padding: 12px 16px !important;
+  }
+  
+  .notification-title {
+    font-size: 0.85rem !important;
+  }
+  
+  .notification-message {
+    font-size: 0.75rem !important;
+  }
+  
+  .notification-footer {
+    padding: 12px 16px !important;
+  }
+}
+
+/* Ensure navbar doesn't clip notification badge */
+.navbar .nav,
+.navbar .navbar-nav,
+.navbar .nav-item {
+  overflow: visible !important;
+}
+
+/* Fix for Bootstrap navbar collapse on mobile */
+@media (max-width: 991.98px) {
+  .navbar-collapse {
+    overflow: visible !important;
+  }
+  
+  .navbar-nav {
+    overflow: visible !important;
+  }
+  
+  .nav-item {
+    overflow: visible !important;
+    position: relative;
+  }
 }
 
 .notification-dropdown-menu {
@@ -98,21 +169,130 @@
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .notification-dropdown-menu {
-    width: 320px;
-    margin-right: 16px;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    left: 0 !important;
+    right: 0 !important;
+    margin: 0 !important;
+    margin-top: 8px !important;
+    border-radius: 0 !important;
+    transform: none !important;
+    position: fixed !important;
+    top: 60px !important; /* Adjust based on navbar height */
+    z-index: 9999 !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+  }
+  
+  .notification-header {
+    padding: 16px 20px !important;
+    border-radius: 0 !important;
+  }
+  
+  .notification-header h6 {
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+  }
+  
+  .notification-list {
+    max-height: calc(100vh - 200px) !important;
+    overflow-y: auto !important;
   }
   
   .notification-item {
-    padding: 10px 12px;
+    padding: 16px 20px !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+  }
+  
+  .notification-item:last-child {
+    border-bottom: none !important;
   }
   
   .notification-title {
-    font-size: 0.85rem;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    margin-bottom: 4px !important;
   }
   
   .notification-message {
-    font-size: 0.75rem;
+    font-size: 0.8rem !important;
+    line-height: 1.4 !important;
+    margin-bottom: 8px !important;
   }
+  
+  .notification-actions {
+    opacity: 1 !important; /* Always show on mobile */
+  }
+  
+  .notification-actions .btn {
+    padding: 8px 12px !important;
+    font-size: 0.75rem !important;
+    min-width: 44px !important; /* Touch target size */
+    min-height: 44px !important;
+    border-radius: 8px !important;
+    margin: 0 2px !important;
+  }
+  
+  .notification-footer {
+    padding: 16px 20px !important;
+    border-radius: 0 !important;
+  }
+  
+  .notification-footer .btn {
+    padding: 12px 24px !important;
+    font-size: 0.9rem !important;
+    width: 100% !important;
+    border-radius: 8px !important;
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    color: #4F46E5 !important;
+    font-weight: 600 !important;
+  }
+  
+  .notification-footer .btn:hover {
+    background-color: rgba(255, 255, 255, 0.2) !important;
+  }
+  
+  /* Fix notification badge positioning on mobile */
+  .notification-bell-toggle {
+    position: relative !important;
+    overflow: visible !important;
+    display: inline-block !important;
+  }
+  
+  .notification-bell-toggle .badge {
+    position: absolute !important;
+    top: -6px !important;
+    right: -6px !important;
+    transform: none !important;
+    z-index: 9999 !important;
+    min-width: 16px !important;
+    height: 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 0.6rem !important;
+    line-height: 1 !important;
+    padding: 0 !important;
+    border: 2px solid white !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+  }
+  
+  /* Ensure parent containers don't clip the badge */
+  .notification-bell-dropdown {
+    position: relative !important;
+    overflow: visible !important;
+  }
+  
+  /* Fix navbar overflow issues on mobile */
+  .navbar .nav {
+    overflow: visible !important;
+  }
+  
+  .navbar .nav-item {
+    overflow: visible !important;
+  }
+  
+  /* Mobile dropdown backdrop */
+  /* Handled by component now */
 }
 
 /* Animation for new notifications */

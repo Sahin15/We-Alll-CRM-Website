@@ -284,7 +284,6 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
         
         // Convert to blob with high quality
         canvas.toBlob((blob) => {
-          console.log('✅ Canvas cropped successfully, blob size:', blob.size);
           resolve(blob);
         }, 'image/jpeg', 0.98);
       };
@@ -336,19 +335,12 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
       // Create preview to verify the crop worked correctly
       const reader = new FileReader();
       reader.onload = () => {
-        console.log("✅ Preview created from cropped image");
-        console.log("📸 Preview data URL length:", reader.result.length);
-        
         // Temporarily set preview to show what we actually cropped
         setPreview(reader.result);
         
         // Create a temporary image to verify dimensions
         const tempImg = document.createElement('img');
         tempImg.onload = () => {
-          console.log("🔍 Cropped image dimensions:", {
-            width: tempImg.width,
-            height: tempImg.height
-          });
         };
         tempImg.src = reader.result;
       };
@@ -408,9 +400,6 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
         }
       );
 
-      console.log("✅ Upload response:", response.data);
-      console.log("🔗 Uploaded image URL:", response.data.imageUrl);
-      
       // Show success message with custom styling
       toast.success("✅ Profile picture updated successfully!", {
         duration: 3000,
@@ -422,21 +411,17 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
       
       // Update preview immediately with the uploaded image URL
       if (response.data.imageUrl) {
-        console.log("🖼️ Setting preview to uploaded URL:", response.data.imageUrl);
         setPreview(response.data.imageUrl);
       }
       
       // Refresh user data from server with a delay to ensure DB is updated
       setTimeout(async () => {
         try {
-          console.log("🔄 Refreshing user data after upload...");
           await refreshUser();
           
           if (onUploadSuccess) {
             onUploadSuccess();
           }
-          
-          console.log("✅ Profile picture upload process completed successfully");
         } catch (refreshError) {
           console.error("Error refreshing user data:", refreshError);
           // Still call onUploadSuccess even if refresh fails

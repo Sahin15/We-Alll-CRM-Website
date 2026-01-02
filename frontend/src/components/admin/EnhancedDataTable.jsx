@@ -33,7 +33,9 @@ import {
   FaChevronUp,
   FaMobileAlt,
   FaExpandArrowsAlt,
-  FaCompressArrowsAlt
+  FaCompressArrowsAlt,
+  FaUser,
+  FaBuilding
 } from 'react-icons/fa';
 import moment from 'moment';
 import BulkOperationsPanel from './BulkOperationsPanel';
@@ -102,6 +104,13 @@ const EnhancedDataTable = ({
   const [mobileViewMode, setMobileViewMode] = useState('compact'); // 'compact', 'cards', 'list'
   const [touchStartX, setTouchStartX] = useState(null);
   const [touchStartY, setTouchStartY] = useState(null);
+
+  // Get nested value from object - MOVED TO TOP TO PREVENT HOISTING ISSUES
+  const getNestedValue = useCallback((obj, path) => {
+    return path.split('.').reduce((current, key) => {
+      return current && current[key] !== undefined ? current[key] : null;
+    }, obj);
+  }, []);
 
   // Initialize visible columns when columns change
   useEffect(() => {
@@ -227,7 +236,7 @@ const EnhancedDataTable = ({
     }
 
     return filtered;
-  }, [data, searchTerm, columnFilters, sortConfig, columns]);
+  }, [data, searchTerm, columnFilters, sortConfig, columns, getNestedValue]);
 
   // Handle sorting
   const handleSort = useCallback((columnKey) => {
@@ -264,8 +273,8 @@ const EnhancedDataTable = ({
   // Render cell value (wrapper for formatCellValue)
   const renderCellValue = useCallback((row, column) => {
     const value = getNestedValue(row, column.key);
-    return formatCellValue(value, column);
-  }, []);
+    return formatCellValue(value, column, row);
+  }, [getNestedValue]);
 
   // Handle select all
   const handleSelectAll = useCallback((checked) => {
@@ -343,15 +352,13 @@ const EnhancedDataTable = ({
     return processedData.filter(row => selectedRows.has(row[rowKey]));
   }, [processedData, selectedRows, rowKey]);
 
-  // Get nested value from object
-  const getNestedValue = (obj, path) => {
-    return path.split('.').reduce((current, key) => {
-      return current && current[key] !== undefined ? current[key] : null;
-    }, obj);
-  };
-
   // Format cell value based on column type
-  const formatCellValue = (value, column) => {
+  const formatCellValue = useCallback((value, column, row) => {
+    // Check if column has a custom render function first
+    if (column.render && typeof column.render === 'function') {
+      return column.render(value, row);
+    }
+    
     if (value === null || value === undefined) return '-';
 
     switch (column.type) {
@@ -463,9 +470,18 @@ const EnhancedDataTable = ({
         return '-';
       
       default:
-        return value.toString();
+        // Safely convert to string, handling objects
+        if (typeof value === 'object') {
+          // If it's an object, try to extract meaningful data
+          if (value && value.name) return String(value.name);
+          if (value && value.title) return String(value.title);
+          if (value && value.label) return String(value.label);
+          // If no meaningful property found, return a placeholder
+          return 'Complex Data';
+        }
+        return String(value);
     }
-  };
+  }, []); // Close useCallback with empty dependencies since it doesn't depend on any props/state
 
   // Get badge variant based on value
   const getBadgeVariant = (value, badgeMap) => {
@@ -552,7 +568,7 @@ const EnhancedDataTable = ({
       );
     }
 
-    const formattedValue = formatCellValue(value, column);
+    const formattedValue = formatCellValue(value, column, row);
     
     // Handle slot-specific columns - DISPLAY ONLY (no assignment controls)
     if (column.key === 'slotAssignment.slotNumber') {

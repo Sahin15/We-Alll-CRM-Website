@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, ProgressBar, Badge, Button, Tooltip, OverlayTrigger } from 'react-bootstrap';
-import { FaInfoCircle, FaCheckCircle, FaClock, FaExclamationTriangle } from 'react-icons/fa';
+import { Card, Row, Col, ProgressBar, Badge, Button, Tooltip, OverlayTrigger, Modal, Form, Alert } from 'react-bootstrap';
+import { FaInfoCircle, FaCheckCircle, FaClock, FaExclamationTriangle, FaEdit, FaUser } from 'react-icons/fa';
 
 /**
  * SlotProgressDisplay Component
@@ -13,6 +13,8 @@ const SlotProgressDisplay = ({
   slots = [], 
   showDetailed = true, 
   onSlotClick = null,
+  onSlotReassign = null,
+  availableUsers = [],
   realTimeUpdates = true 
 }) => {
   const [progressData, setProgressData] = useState({
@@ -22,6 +24,13 @@ const SlotProgressDisplay = ({
     availableSlots: 0,
     progressPercentage: 0
   });
+
+  // Slot reassignment modal state
+  const [showReassignModal, setShowReassignModal] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [selectedUser, setSelectedUser] = useState('');
+  const [reassignLoading, setReassignLoading] = useState(false);
+  const [reassignError, setReassignError] = useState('');
 
   useEffect(() => {
     calculateProgressData();
@@ -84,6 +93,15 @@ const SlotProgressDisplay = ({
     return <Badge bg={config.bg}>{config.text}</Badge>;
   };
 
+  const formatDateDMY = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
   const renderProgressTooltip = (props) => (
     <Tooltip id="progress-tooltip" {...props}>
       <div>
@@ -94,6 +112,51 @@ const SlotProgressDisplay = ({
       </div>
     </Tooltip>
   );
+
+  // Handle slot click for reassignment
+  const handleSlotClick = (slot) => {
+    if (slot.assignmentStatus === 'assigned' && slot.assignedWorkItem) {
+      setSelectedSlot(slot);
+      setSelectedUser(slot.assignedWorkItem?.assignedTo?._id || '');
+      setShowReassignModal(true);
+      setReassignError('');
+    } else if (onSlotClick) {
+      onSlotClick(slot);
+    }
+  };
+
+  // Handle slot reassignment
+  const handleReassignSlot = async () => {
+    if (!selectedSlot || !selectedUser) {
+      setReassignError('Please select a user to assign the slot to.');
+      return;
+    }
+
+    try {
+      setReassignLoading(true);
+      setReassignError('');
+
+      if (onSlotReassign) {
+        await onSlotReassign(selectedSlot, selectedUser);
+      }
+
+      setShowReassignModal(false);
+      setSelectedSlot(null);
+      setSelectedUser('');
+    } catch (error) {
+      setReassignError(error.message || 'Failed to reassign slot. Please try again.');
+    } finally {
+      setReassignLoading(false);
+    }
+  };
+
+  // Close reassignment modal
+  const handleCloseReassignModal = () => {
+    setShowReassignModal(false);
+    setSelectedSlot(null);
+    setSelectedUser('');
+    setReassignError('');
+  };
 
   return (
     <Card className="slot-progress-display">
@@ -163,47 +226,63 @@ const SlotProgressDisplay = ({
           <div>
             <h6 className="mb-3">Slot Details</h6>
             <div className="slot-list" style={{ maxHeight: '300px', overflowY: 'auto' }}>
-              {slots.map((slot, index) => (
+              {/* Sort slots to show assigned/in-progress first, then available */}
+              {[...slots]
+                .sort((a, b) => {
+                  const statusOrder = { 'assigned': 1, 'in-progress': 2, 'completed': 3, 'available': 4 };
+                  const aOrder = statusOrder[a.assignmentStatus] || 5;
+                  const bOrder = statusOrder[b.assignmentStatus] || 5;
+                  if (aOrder !== bOrder) return aOrder - bOrder;
+                  return (a.slotNumber || 0) - (b.slotNumber || 0);
+                })
+                .map((slot, index) => (
                 <div 
                   key={slot._id || index}
                   className={`d-flex justify-content-between align-items-center p-2 border-bottom ${
-                    onSlotClick ? 'slot-clickable' : ''
+                    slot.assignmentStatus === 'assigned' || slot.assignedWorkItem ? 'bg-light' : ''
                   }`}
-                  onClick={() => onSlotClick && onSlotClick(slot)}
-                  style={{ 
-                    cursor: onSlotClick ? 'pointer' : 'default',
-                    transition: 'background-color 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (onSlotClick) {
-                      e.target.style.backgroundColor = '#f8f9fa';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (onSlotClick) {
-                      e.target.style.backgroundColor = 'transparent';
-                    }
-                  }}
                 >
                   <div className="flex-grow-1">
-                    <div className="fw-semibold">
-                      {slot.slotIdentifier || `Slot ${slot.slotNumber || index + 1}`}
-                    </div>
-                    <div className="small text-muted">
-                      {slot.title || slot.description || 'No description'}
-                    </div>
-                    {slot.assignedTo && (
-                      <div className="small text-info">
-                        Assigned to: {slot.assignedTo.name || 'Unknown'}
+                    <div className="d-flex align-items-center">
+                      {/* Clickable Slot Number */}
+                      <Button
+                        variant={slot.assignmentStatus === 'assigned' ? 'primary' : 'outline-secondary'}
+                        size="sm"
+                        className="me-2"
+                        onClick={() => handleSlotClick(slot)}
+                        disabled={slot.assignmentStatus !== 'assigned'}
+                        title={slot.assignmentStatus === 'assigned' ? 'Click to reassign this slot' : 'Slot not assigned'}
+                        style={{ minWidth: '60px' }}
+                      >
+                        <FaEdit className="me-1" size={10} />
+                        {slot.slotNumber || index + 1}
+                      </Button>
+                      
+                      <div>
+                        <div className="fw-semibold small">
+                          {slot.assignmentStatus === 'assigned' && slot.assignedWorkItem ? 
+                            slot.assignedWorkItem.title : 
+                            (slot.title && slot.title !== `Slot ${slot.slotNumber} - Work Assignment` ? 
+                              slot.title : 
+                              'Available for assignment'
+                            )
+                          }
+                        </div>
+                        {(slot.assignmentStatus === 'assigned' && slot.assignedWorkItem) && (
+                          <div className="small text-info d-flex align-items-center">
+                            <FaUser className="me-1" size={10} />
+                            Assigned to: {slot.assignedWorkItem?.assignedTo?.name || 'Unknown'}
+                          </div>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
                   <div className="text-end">
                     {getSlotStatusBadge(slot)}
                     {slot.dueDate && (
                       <div className="small text-muted mt-1">
                         <FaClock className="me-1" />
-                        {new Date(slot.dueDate).toLocaleDateString()}
+                        {formatDateDMY(slot.dueDate)}
                       </div>
                     )}
                   </div>
@@ -221,6 +300,68 @@ const SlotProgressDisplay = ({
           </div>
         )}
       </Card.Body>
+
+      {/* Slot Reassignment Modal */}
+      <Modal show={showReassignModal} onHide={handleCloseReassignModal} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <FaEdit className="me-2" />
+            Reassign Slot {selectedSlot?.slotNumber}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {reassignError && (
+            <Alert variant="danger" className="mb-3">
+              {reassignError}
+            </Alert>
+          )}
+          
+          <div className="mb-3">
+            <h6>Current Assignment:</h6>
+            <div className="p-2 bg-light rounded">
+              <div><strong>Work Item:</strong> {selectedSlot?.assignedWorkItem?.title}</div>
+              <div><strong>Current Assignee:</strong> {selectedSlot?.assignedWorkItem?.assignedTo?.name}</div>
+            </div>
+          </div>
+
+          <Form.Group>
+            <Form.Label>
+              <strong>Reassign to:</strong>
+            </Form.Label>
+            <Form.Select
+              value={selectedUser}
+              onChange={(e) => setSelectedUser(e.target.value)}
+              disabled={reassignLoading}
+            >
+              <option value="">Select a user...</option>
+              {availableUsers.map(user => (
+                <option key={user._id} value={user._id}>
+                  {user.name} ({user.email})
+                </option>
+              ))}
+            </Form.Select>
+            <Form.Text className="text-muted">
+              Select a new user to assign this work item to.
+            </Form.Text>
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button 
+            variant="secondary" 
+            onClick={handleCloseReassignModal}
+            disabled={reassignLoading}
+          >
+            Cancel
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={handleReassignSlot}
+            disabled={reassignLoading || !selectedUser}
+          >
+            {reassignLoading ? 'Reassigning...' : 'Reassign Slot'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       <style>{`
         .slot-clickable:hover {

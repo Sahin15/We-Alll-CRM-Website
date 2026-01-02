@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  getAllWorkItems,
   getMyWorkItems,
   getWorkItemById,
   createWorkItem,
@@ -15,6 +16,9 @@ import {
   getWorkflowConfig,
   progressWorkflowStage,
   getWorkflowProgress,
+  debugWorkItems,
+  assignWorkItemToSlot,
+  reassignWorkItem,
 } from "../controllers/workItemController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { createWorkItemLimiter, validateRequest } from "../middleware/securityMiddleware.js";
@@ -32,6 +36,9 @@ const router = express.Router();
 // All routes require authentication
 router.use(protect);
 
+// Debug endpoint (admin only)
+router.get("/debug", debugWorkItems);
+
 // My Work - Get all work items for current user
 router.get("/my-work", queryValidation, validateRequest(queryValidation), getMyWorkItems);
 
@@ -46,6 +53,7 @@ router.get("/project/:projectId", queryValidation, validateRequest(queryValidati
 
 // Work item CRUD
 router.route("/")
+  .get(queryValidation, validateRequest(queryValidation), getAllWorkItems) // Get all work items (admin only)
   .post(
     createWorkItemLimiter,
     createWorkItemValidation,
@@ -93,5 +101,11 @@ router.post(
 router.get("/workflow-config/:projectId", getWorkflowConfig);
 router.post("/:id/progress-stage", progressWorkflowStage);
 router.get("/:id/workflow-progress", getWorkflowProgress);
+
+// Slot assignment (admin only)
+router.post("/:id/assign-slot", assignWorkItemToSlot);
+
+// Work item reassignment (admin/manager only)
+router.put("/:id/reassign", reassignWorkItem);
 
 export default router;

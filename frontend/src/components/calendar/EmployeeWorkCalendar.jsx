@@ -37,28 +37,20 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
   const currentEmployeeId = employeeId || user?.id || user?._id;
 
   useEffect(() => {
-
-    
     if (currentEmployeeId) {
       loadEmployeeWorkCalendar();
     } else {
       setLoading(false);
     }
-  }, [currentEmployeeId, selectedDate, filters]);
+  }, [currentEmployeeId, selectedDate, filters.status, filters.workType, filters.priority]);
 
   const loadEmployeeWorkCalendar = async () => {
     try {
       setLoading(true);
       
-      console.log('🔄 Loading work calendar for employee:', currentEmployeeId);
-      console.log('📅 Current user:', user);
-      console.log('🎯 Filters:', filters);
-      
       // Calculate date range based on current view
       const startDate = moment(selectedDate).startOf('month').subtract(1, 'week').toDate();
       const endDate = moment(selectedDate).endOf('month').add(1, 'week').toDate();
-      
-      console.log('📆 Date range:', { startDate, endDate });
 
       const response = await workCalendarApi.getEmployeeWorkCalendar(currentEmployeeId, {
         startDate: startDate.toISOString(),
@@ -66,45 +58,12 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
         ...filters
       });
       
-      console.log('✅ API Response received:', response);
-      
-
-      
-      // Check if data is nested under 'data' property
-      if (response.data?.data) {
-
-      }
-      
       // Fix: Extract the actual data from the nested structure
       const actualData = response.data.data || response.data;
       
-      if (actualData?.workCalendar?.length > 0) {
-        
-        // Test date parsing
-        actualData.workCalendar.forEach(entry => {
-          // Check if pre-formatted or raw
-          const startProp = entry.start || entry.startDate;
-          const endProp = entry.end || entry.endDate;
-          const startDate = new Date(startProp);
-          const endDate = new Date(endProp);
-          
-          // Date parsing for entry - validate dates
-          const isValid = !isNaN(startDate.getTime()) && !isNaN(endDate.getTime());
-        });
-      } else {
-
-      }
-      
       setCalendarData(actualData);
-      console.log('📊 Calendar data set:', actualData);
-      
-      // Force a re-render to ensure calendar updates
-      setTimeout(() => {
-        console.log('🔄 Calendar re-render triggered');
-      }, 100);
     } catch (error) {
       console.error('❌ Error loading employee work calendar:', error);
-      console.error('❌ Error details:', error.response);
       toast.error(`Failed to load work calendar: ${error.response?.data?.message || error.message}`);
     } finally {
       setLoading(false);
@@ -134,10 +93,7 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
 
   // Transform work calendar entries for calendar display
   const getCalendarEvents = () => {
-
-    
     if (!calendarData?.workCalendar) {
-
       return [];
     }
     
@@ -147,7 +103,6 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
       
       if (isPreFormatted) {
         // Backend already formatted the event - use as is
-
         return {
           id: entry.id,
           title: entry.title,
@@ -187,11 +142,9 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
           resource: entry,
         };
         
-
         return event;
       }
     });
-    
 
     return events;
   };

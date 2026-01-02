@@ -234,7 +234,10 @@ export const getAvailableSlots = async (projectId, filters = {}) => {
     `${API_URL}/work-calendar/projects/${projectId}/slots/available`,
     { 
       headers: getAuthHeader(),
-      params: filters
+      params: {
+        ...filters,
+        includeAll: filters.includeAll || false
+      }
     }
   );
   return response.data;

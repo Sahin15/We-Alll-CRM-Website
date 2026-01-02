@@ -253,7 +253,7 @@ const EmployeeDashboard = () => {
             const meetingsResponse = await api.get('/meetings/today');
             setTodaysMeetings(meetingsResponse.data);
           } catch (meetError) {
-            console.log('No meetings or error fetching meetings');
+            // console.log('No meetings or error fetching meetings');
           }
           
           // Fetch recent activities
@@ -276,7 +276,7 @@ const EmployeeDashboard = () => {
                 activities = [...recentAnnouncements, ...activities];
               }
             } catch (announcementError) {
-              console.log('No announcements or error fetching announcements');
+              // console.log('No announcements or error fetching announcements');
             }
             
             // Also fetch recent projects assigned to user's department
@@ -298,14 +298,14 @@ const EmployeeDashboard = () => {
                 activities = [...recentProjects, ...activities];
               }
             } catch (projectError) {
-              console.log('No projects or error fetching projects');
+              // console.log('No projects or error fetching projects');
             }
             
             // Sort by date and limit to 5
             activities.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             setRecentActivities(activities.slice(0, 5));
           } catch (actError) {
-            console.log('No activities or error fetching activities');
+            // console.log('No activities or error fetching activities');
           }
 
           // Fetch recent policies
@@ -313,7 +313,7 @@ const EmployeeDashboard = () => {
             const policiesResponse = await api.get('/policies/recent?limit=3');
             setPolicies(policiesResponse.data);
           } catch (policyError) {
-            console.log('No policies or error fetching policies');
+            // console.log('No policies or error fetching policies');
           }
           
           // Fetch attendance records for this month

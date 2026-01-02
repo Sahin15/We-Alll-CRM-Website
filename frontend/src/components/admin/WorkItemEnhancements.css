@@ -1,0 +1,345 @@
+/* Work Item System Enhancements CSS */
+
+/* Dashboard Cards */
+.dashboard-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-metric {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Quick Filter Buttons */
+.quick-filter-btn {
+  transition: all 0.2s ease;
+  border-radius: 20px;
+  font-size: 0.875rem;
+}
+
+.quick-filter-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.quick-filter-btn.active {
+  background: linear-gradient(45deg, #007bff, #0056b3);
+  border-color: #0056b3;
+}
+
+/* Quick Action Buttons */
+.quick-action-btn {
+  padding: 0.25rem 0.5rem;
+  margin: 0 0.125rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.quick-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.quick-action-btn.btn-success {
+  background-color: #28a745;
+  border-color: #28a745;
+}
+
+.quick-action-btn.btn-warning {
+  background-color: #ffc107;
+  border-color: #ffc107;
+  color: #212529;
+}
+
+.quick-action-btn.btn-info {
+  background-color: #17a2b8;
+  border-color: #17a2b8;
+}
+
+.quick-action-btn.btn-primary {
+  background-color: #007bff;
+  border-color: #007bff;
+}
+
+/* Priority and Type Icons */
+.priority-icon {
+  margin-right: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.work-type-icon {
+  margin-right: 0.25rem;
+  font-size: 1rem;
+}
+
+.text-purple {
+  color: #6f42c1 !important;
+}
+
+/* Status Badges */
+.status-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-badge.status-scheduled {
+  background-color: #6c757d;
+  color: white;
+}
+
+.status-badge.status-in-progress {
+  background-color: #007bff;
+  color: white;
+}
+
+.status-badge.status-completed {
+  background-color: #28a745;
+  color: white;
+}
+
+.status-badge.status-overdue {
+  background-color: #dc3545;
+  color: white;
+  animation: pulse 2s infinite;
+}
+
+.status-badge.status-cancelled {
+  background-color: #343a40;
+  color: white;
+}
+
+/* Priority Badges */
+.priority-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.priority-badge.priority-urgent {
+  background-color: #dc3545;
+  color: white;
+  animation: pulse 2s infinite;
+}
+
+.priority-badge.priority-high {
+  background-color: #fd7e14;
+  color: white;
+}
+
+.priority-badge.priority-medium {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.priority-badge.priority-low {
+  background-color: #6c757d;
+  color: white;
+}
+
+/* Due Date Status */
+.due-date-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.due-date-status.overdue {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.due-date-status.due-soon {
+  background-color: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+.due-date-status.upcoming {
+  background-color: #d1ecf1;
+  color: #0c5460;
+  border: 1px solid #bee5eb;
+}
+
+.due-date-status.on-track {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.due-date-status.completed {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+/* Draft Indicator */
+.draft-badge {
+  font-size: 0.65rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 8px;
+  background-color: #ffc107;
+  color: #212529;
+  animation: pulse-subtle 3s infinite;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+/* Comment Modal Enhancements */
+.comment-item {
+  border-left: 3px solid #007bff;
+  padding-left: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.comment-meta {
+  font-size: 0.75rem;
+  color: #6c757d;
+  margin-bottom: 0.25rem;
+}
+
+.quick-comment-btn {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  margin: 0.125rem;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.quick-comment-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Animations */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Progress Bar Enhancements */
+.progress-bar-enhanced {
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+  transition: width 0.3s ease;
+}
+
+.progress-bar-enhanced.low-progress {
+  background: linear-gradient(90deg, #dc3545 0%, #fd7e14 100%);
+}
+
+.progress-bar-enhanced.medium-progress {
+  background: linear-gradient(90deg, #fd7e14 0%, #ffc107 100%);
+}
+
+/* Table Row Hover Effects */
+.work-item-row {
+  transition: background-color 0.2s ease;
+}
+
+.work-item-row:hover {
+  background-color: rgba(0, 123, 255, 0.05);
+}
+
+.work-item-row.overdue {
+  border-left: 4px solid #dc3545;
+}
+
+.work-item-row.due-soon {
+  border-left: 4px solid #ffc107;
+}
+
+/* Auto-save Indicator */
+.auto-save-indicator {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: rgba(40, 167, 69, 0.9);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  z-index: 1050;
+  animation: fadeInOut 2s ease-in-out;
+}
+
+@keyframes fadeInOut {
+  0%, 100% { opacity: 0; transform: translateY(-10px); }
+  50% { opacity: 1; transform: translateY(0); }
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .dashboard-metric {
+    font-size: 1.5rem;
+  }
+  
+  .quick-filter-btn {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+  }
+  
+  .quick-action-btn {
+    font-size: 0.65rem;
+    padding: 0.2rem 0.4rem;
+    margin: 0.05rem;
+  }
+  
+  .status-badge,
+  .priority-badge,
+  .due-date-status {
+    font-size: 0.65rem;
+    padding: 0.2rem 0.4rem;
+  }
+  
+  .priority-icon,
+  .work-type-icon {
+    font-size: 0.75rem;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .dashboard-card {
+    background-color: #2d3748;
+    border-color: #4a5568;
+  }
+  
+  .work-item-row:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+  
+  .comment-item {
+    border-left-color: #4a90e2;
+  }
+}

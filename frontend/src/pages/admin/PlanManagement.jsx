@@ -259,7 +259,7 @@ const PlanManagement = () => {
       isPopular: formData.isPopular,
     };
 
-    console.log("Submitting plan data:", planData);
+    // console.log("Submitting plan data:", planData);
 
     try {
       if (editMode) {
@@ -267,7 +267,7 @@ const PlanManagement = () => {
         toast.success("Plan updated successfully");
       } else {
         const response = await planAPI.create(planData);
-        console.log("Plan created successfully:", response.data);
+        // console.log("Plan created successfully:", response.data);
         toast.success("Plan created successfully");
       }
       handleCloseBuilder();

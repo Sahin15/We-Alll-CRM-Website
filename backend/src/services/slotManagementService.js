@@ -71,7 +71,7 @@ class SlotManagementService {
           assignmentStatus: 'available',
           createdBy: fallbackUserId,
           assignedTo: fallbackUserId,
-          dueDate: project.endDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          dueDate: project.endDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now instead of 30
           slotConfiguration: {
             isRequired: true,
             canBeSkipped: false,

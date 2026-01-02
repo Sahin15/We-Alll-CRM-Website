@@ -176,12 +176,12 @@ const HoDDashboard = () => {
       });
 
       // Debug logging
-      console.log('Department Attendance Data:', {
-        departmentMemberIds: departmentMemberIds.length,
-        attendanceRes: Array.isArray(attendanceRes) ? attendanceRes.length : 'not array',
-        departmentAttendance: departmentAttendance.length,
-        attendanceStats
-      });
+      // console.log('Department Attendance Data:', {
+      //   departmentMemberIds: departmentMemberIds.length,
+      //   attendanceRes: Array.isArray(attendanceRes) ? attendanceRes.length : 'not array',
+      //   departmentAttendance: departmentAttendance.length,
+      //   attendanceStats
+      // });
 
       setStats({
         ...statsRes.data,

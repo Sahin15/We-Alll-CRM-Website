@@ -21,10 +21,10 @@ const leadSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    service: {
+    service: [{
       type: String,
       trim: true,
-    },
+    }],
     budget: {
       type: String,
       trim: true,
@@ -33,10 +33,11 @@ const leadSchema = new mongoose.Schema(
       type: String,
       enum: [
         "Website",
-        "Referral",
+        "Referral", 
         "Social Media",
         "Advertisement",
         "Cold Call",
+        "Growth Summit",
         "Other",
       ],
       default: "Website",
@@ -124,7 +125,7 @@ const leadSchema = new mongoose.Schema(
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false, // Allow public submissions without a user
     },
   },
   { timestamps: true }

@@ -1,0 +1,729 @@
+/* Lead Management Table Styles */
+.lead-management-table {
+  table-layout: fixed;
+  width: 100%;
+  margin-bottom: 0;
+}
+
+.lead-management-table th,
+.lead-management-table td {
+  vertical-align: middle;
+  padding: 0.5rem 0.3rem;
+  border-bottom: 1px solid #dee2e6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lead-management-table th {
+  background-color: #343a40;
+  color: white;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-align: left;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.lead-management-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+/* Improved table responsive wrapper - no horizontal scroll */
+.table-responsive {
+  border-radius: 0.5rem;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  overflow: visible; /* Remove horizontal scroll */
+}
+
+/* Percentage-based column widths that fit in viewport */
+.lead-management-table th:nth-child(1),
+.lead-management-table td:nth-child(1) { width: 16%; } /* Name */
+
+.lead-management-table th:nth-child(2),
+.lead-management-table td:nth-child(2) { width: 11%; } /* Phone */
+
+.lead-management-table th:nth-child(3),
+.lead-management-table td:nth-child(3) { width: 16%; } /* Email */
+
+.lead-management-table th:nth-child(4),
+.lead-management-table td:nth-child(4) { width: 12%; } /* Company */
+
+.lead-management-table th:nth-child(5),
+.lead-management-table td:nth-child(5) { width: 13%; } /* Service */
+
+.lead-management-table th:nth-child(6),
+.lead-management-table td:nth-child(6) { width: 10%; } /* Budget */
+
+.lead-management-table th:nth-child(7),
+.lead-management-table td:nth-child(7) { width: 8%; } /* Source */
+
+.lead-management-table th:nth-child(8),
+.lead-management-table td:nth-child(8) { width: 7%; } /* Status */
+
+.lead-management-table th:nth-child(9),
+.lead-management-table td:nth-child(9) { width: 8%; } /* Created */
+
+.lead-management-table th:nth-child(10),
+.lead-management-table td:nth-child(10) { width: 9%; } /* Actions */
+
+/* Text truncation utilities */
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/* Badge improvements */
+.lead-management-table .badge {
+  font-size: 0.65rem;
+  padding: 0.2rem 0.35rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+  max-width: 100%;
+}
+
+/* Action buttons improvements */
+.lead-management-table .btn {
+  border-radius: 0.2rem;
+  font-size: 0.65rem;
+  white-space: nowrap;
+  padding: 0.15rem 0.25rem;
+}
+
+.lead-management-table .btn-group .btn {
+  margin-right: 0.1rem;
+}
+
+.lead-management-table .btn-group .btn:last-child {
+  margin-right: 0;
+}
+
+/* Flex container for actions */
+.lead-management-table .d-flex.gap-1 {
+  gap: 0.1rem !important;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+}
+
+/* Service column special handling */
+.lead-management-table td:nth-child(5) .text-truncate {
+  font-size: 0.75rem;
+}
+
+/* Compact text for smaller columns */
+.lead-management-table td:nth-child(7) .badge,
+.lead-management-table td:nth-child(8) .badge {
+  font-size: 0.6rem;
+  padding: 0.15rem 0.25rem;
+}
+
+/* Date column compact styling */
+.lead-management-table td:nth-child(9) {
+  font-size: 0.7rem;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .lead-management-table {
+    font-size: 0.75rem;
+  }
+  
+  .lead-management-table th,
+  .lead-management-table td {
+    padding: 0.4rem 0.2rem;
+  }
+  
+  .lead-management-table .btn {
+    padding: 0.15rem 0.25rem;
+    font-size: 0.65rem;
+  }
+  
+  .lead-management-table .badge {
+    font-size: 0.6rem;
+    padding: 0.15rem 0.3rem;
+  }
+  
+  /* Adjust column widths for mobile */
+  .lead-management-table th:nth-child(1),
+  .lead-management-table td:nth-child(1) { width: 18%; } /* Name - slightly larger */
+  
+  .lead-management-table th:nth-child(2),
+  .lead-management-table td:nth-child(2) { width: 12%; } /* Phone */
+  
+  .lead-management-table th:nth-child(3),
+  .lead-management-table td:nth-child(3) { width: 15%; } /* Email */
+  
+  .lead-management-table th:nth-child(4),
+  .lead-management-table td:nth-child(4) { width: 10%; } /* Company - smaller */
+  
+  .lead-management-table th:nth-child(5),
+  .lead-management-table td:nth-child(5) { width: 12%; } /* Service */
+  
+  .lead-management-table th:nth-child(6),
+  .lead-management-table td:nth-child(6) { width: 9%; } /* Budget - smaller */
+  
+  .lead-management-table th:nth-child(7),
+  .lead-management-table td:nth-child(7) { width: 7%; } /* Source - smaller */
+  
+  .lead-management-table th:nth-child(8),
+  .lead-management-table td:nth-child(8) { width: 6%; } /* Status - smaller */
+  
+  .lead-management-table th:nth-child(9),
+  .lead-management-table td:nth-child(9) { width: 6%; } /* Created - smaller */
+  
+  .lead-management-table th:nth-child(10),
+  .lead-management-table td:nth-child(10) { width: 5%; } /* Actions - smaller */
+}
+
+@media (max-width: 576px) {
+  .lead-management-table {
+    font-size: 0.7rem;
+  }
+  
+  .lead-management-table th,
+  .lead-management-table td {
+    padding: 0.3rem 0.15rem;
+  }
+  
+  /* Hide less important columns on very small screens */
+  .lead-management-table th:nth-child(4),
+  .lead-management-table td:nth-child(4),
+  .lead-management-table th:nth-child(6),
+  .lead-management-table td:nth-child(6),
+  .lead-management-table th:nth-child(9),
+  .lead-management-table td:nth-child(9) {
+    display: none;
+  }
+  
+  /* Redistribute widths for remaining columns */
+  .lead-management-table th:nth-child(1),
+  .lead-management-table td:nth-child(1) { width: 25%; } /* Name */
+  
+  .lead-management-table th:nth-child(2),
+  .lead-management-table td:nth-child(2) { width: 18%; } /* Phone */
+  
+  .lead-management-table th:nth-child(3),
+  .lead-management-table td:nth-child(3) { width: 20%; } /* Email */
+  
+  .lead-management-table th:nth-child(5),
+  .lead-management-table td:nth-child(5) { width: 15%; } /* Service */
+  
+  .lead-management-table th:nth-child(7),
+  .lead-management-table td:nth-child(7) { width: 10%; } /* Source */
+  
+  .lead-management-table th:nth-child(8),
+  .lead-management-table td:nth-child(8) { width: 8%; } /* Status */
+  
+  .lead-management-table th:nth-child(10),
+  .lead-management-table td:nth-child(10) { width: 4%; } /* Actions */
+}
+
+/* Tooltip improvements for truncated text */
+.lead-management-table [title] {
+  cursor: help;
+}
+
+/* Empty state styling */
+.lead-management-table .text-muted {
+  color: #6c757d !important;
+}
+
+.lead-management-table .text-muted svg {
+  opacity: 0.5;
+}
+
+/* Column specific styles */
+.lead-management-table td:nth-child(1) {
+  font-weight: 600;
+}
+
+.lead-management-table td:nth-child(9) {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+/* Improved button spacing */
+.lead-management-table .d-flex.gap-1 {
+  gap: 0.25rem !important;
+}
+
+/* Status and source badge colors */
+.badge.bg-secondary { background-color: #6c757d !important; }
+.badge.bg-info { background-color: #0dcaf0 !important; }
+.badge.bg-primary { background-color: #0d6efd !important; }
+.badge.bg-warning { background-color: #ffc107 !important; color: #000 !important; }
+.badge.bg-dark { background-color: #212529 !important; }
+.badge.bg-success { background-color: #198754 !important; }
+.badge.bg-danger { background-color: #dc3545 !important; }
+
+/* Professional Lead Card Styles */
+.lead-card {
+  border: 1px solid #e3e6f0;
+  border-radius: 0.75rem;
+  transition: all 0.3s ease;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.lead-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1) !important;
+  border-color: #4e73df;
+}
+
+/* Card Header */
+.lead-card-header {
+  background: linear-gradient(135deg, #f8f9fc 0%, #ffffff 100%);
+  border-bottom: 1px solid #e3e6f0;
+}
+
+.lead-name {
+  color: #2c3e50;
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin-bottom: 0.25rem;
+}
+
+.lead-company {
+  font-size: 0.875rem;
+  color: #6c757d;
+  font-style: italic;
+}
+
+.lead-status-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.status-badge, .source-badge {
+  font-size: 0.7rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  min-width: 60px;
+  text-align: center;
+}
+
+/* Card Content */
+.lead-card-content {
+  background: #ffffff;
+}
+
+.contact-info, .service-budget-info {
+  margin-bottom: 0;
+}
+
+.info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: #f8f9fc;
+  border-radius: 0.5rem;
+  border: 1px solid #e3e6f0;
+  height: 100%;
+}
+
+.info-icon {
+  font-size: 1rem;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.info-content {
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.info-label {
+  display: block;
+  color: #6c757d;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.2rem;
+}
+
+.info-value {
+  color: #2c3e50;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+/* Card Footer */
+.lead-card-footer {
+  background: #f8f9fc !important;
+  border-top: 1px solid #e3e6f0 !important;
+}
+
+.lead-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.lead-actions .btn-group {
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.action-btn {
+  border: none !important;
+  padding: 0.375rem 0.5rem;
+  font-size: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+  transform: translateY(-1px);
+}
+
+/* Responsive adjustments for cards */
+@media (max-width: 768px) {
+  .lead-card {
+    margin-bottom: 1rem;
+    border-radius: 0.5rem;
+  }
+  
+  .lead-name {
+    font-size: 1rem;
+  }
+  
+  .info-item {
+    padding: 0.4rem;
+  }
+  
+  .info-value {
+    font-size: 0.8rem;
+  }
+  
+  .status-badge, .source-badge {
+    font-size: 0.65rem;
+    padding: 0.2rem 0.4rem;
+    min-width: 50px;
+  }
+}
+
+@media (max-width: 576px) {
+  .lead-card-header {
+    padding: 1rem !important;
+  }
+  
+  .lead-card-content {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+  
+  .lead-card-footer {
+    padding: 0.75rem 1rem !important;
+  }
+  
+  .info-item {
+    padding: 0.35rem;
+  }
+  
+  .action-btn {
+    padding: 0.3rem 0.4rem;
+  }
+}
+
+/* Enhanced color scheme for different statuses */
+.badge.bg-secondary { background-color: #6c757d !important; }
+.badge.bg-info { background-color: #17a2b8 !important; }
+.badge.bg-primary { background-color: #007bff !important; }
+.badge.bg-warning { background-color: #ffc107 !important; color: #212529 !important; }
+.badge.bg-dark { background-color: #343a40 !important; }
+.badge.bg-success { background-color: #28a745 !important; }
+.badge.bg-danger { background-color: #dc3545 !important; }
+
+/* Special styling for important information */
+.info-value.text-primary {
+  color: #4e73df !important;
+  font-weight: 600;
+}
+
+.info-value.text-success {
+  color: #1cc88a !important;
+  font-weight: 600;
+}
+
+/* Card grid layout improvements */
+.mobile-lead-cards {
+  display: grid;
+  gap: 1rem;
+  padding: 0.5rem 0;
+}
+
+@media (min-width: 768px) {
+  .mobile-lead-cards {
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .mobile-lead-cards {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+/* Professional Lead Modal Styles */
+.lead-modal .modal-dialog {
+  max-width: 900px;
+}
+
+.lead-modal-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-bottom: none;
+  padding: 2rem 2rem 1.5rem;
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.lead-modal-header .modal-title {
+  width: 100%;
+}
+
+.lead-modal-header .modal-icon {
+  width: 50px;
+  height: 50px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.lead-modal-header .btn-close {
+  filter: invert(1);
+  opacity: 0.8;
+}
+
+.lead-modal-header .btn-close:hover {
+  opacity: 1;
+}
+
+.lead-modal-body {
+  padding: 2rem;
+  background: #f8f9fc;
+}
+
+.lead-modal-footer {
+  background: white;
+  border-top: 1px solid #e3e6f0;
+  padding: 1.5rem 2rem;
+  border-radius: 0 0 0.5rem 0.5rem;
+}
+
+/* Form Sections */
+.form-section {
+  background: white;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  border: 1px solid #e3e6f0;
+}
+
+.section-header {
+  border-bottom: 2px solid #f1f3f4;
+  padding-bottom: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.section-title {
+  color: #2c3e50;
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin-bottom: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.section-subtitle {
+  color: #6c757d;
+  font-size: 0.875rem;
+  margin-bottom: 0;
+  font-style: italic;
+}
+
+/* Modern Form Controls */
+.form-label-modern {
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-control-modern, .form-select-modern {
+  border: 2px solid #e3e6f0;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  background-color: #ffffff;
+}
+
+.form-control-modern:focus, .form-select-modern:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+  background-color: #ffffff;
+}
+
+.form-control-modern::placeholder {
+  color: #adb5bd;
+  font-style: italic;
+}
+
+/* Services Grid */
+.services-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #f8f9fc;
+  border-radius: 0.5rem;
+  border: 2px solid #e3e6f0;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.service-checkbox-item {
+  background: white;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid #dee2e6;
+  transition: all 0.2s ease;
+}
+
+.service-checkbox-item:hover {
+  border-color: #667eea;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.service-checkbox {
+  margin-bottom: 0;
+}
+
+.service-checkbox .form-check-input {
+  margin-top: 0.125rem;
+}
+
+.service-checkbox .form-check-input:checked {
+  background-color: #667eea;
+  border-color: #667eea;
+}
+
+.service-checkbox .form-check-label {
+  font-weight: 500;
+  color: #495057;
+  cursor: pointer;
+  margin-left: 0.5rem;
+}
+
+/* Reference Input */
+.reference-input-wrapper {
+  position: relative;
+}
+
+.reference-input {
+  padding-left: 0.75rem;
+}
+
+/* Modern Buttons */
+.btn-modern {
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.btn-cancel {
+  background: #f8f9fc;
+  color: #6c757d;
+  border-color: #dee2e6;
+}
+
+.btn-cancel:hover {
+  background: #e9ecef;
+  color: #495057;
+  border-color: #adb5bd;
+}
+
+.btn-submit {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+}
+
+.btn-submit:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0.5rem 1rem rgba(102, 126, 234, 0.3);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .lead-modal .modal-dialog {
+    max-width: 95%;
+    margin: 1rem auto;
+  }
+  
+  .lead-modal-header {
+    padding: 1.5rem 1rem 1rem;
+  }
+  
+  .lead-modal-body {
+    padding: 1rem;
+  }
+  
+  .lead-modal-footer {
+    padding: 1rem;
+  }
+  
+  .form-section {
+    padding: 1rem;
+  }
+  
+  .services-grid {
+    grid-template-columns: 1fr;
+    max-height: 200px;
+  }
+  
+  .lead-modal-header .modal-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .section-title {
+    font-size: 1rem;
+  }
+  
+  .btn-modern {
+    padding: 0.6rem 1.2rem;
+    font-size: 0.875rem;
+  }
+  
+  .form-control-modern, .form-select-modern {
+    padding: 0.6rem 0.8rem;
+    font-size: 0.875rem;
+  }
+}

@@ -273,6 +273,23 @@ const EnhancedProjectOverview = () => {
     }
   };
 
+  // Handle slot reassignment
+  const handleSlotReassign = async (slot, newAssigneeId) => {
+    if (!slot?.assignedWorkItem?._id) {
+      throw new Error("No work item found for this slot");
+    }
+
+    try {
+      // This would be replaced with actual API call when integrated
+      console.log('Reassigning slot:', slot, 'to user:', newAssigneeId);
+      await fetchSlots();
+      toast.success("Work item reassigned successfully!");
+    } catch (error) {
+      console.error("Failed to reassign work item:", error);
+      throw new Error("Failed to reassign work item");
+    }
+  };
+
   if (loading) {
     return (
       <Container fluid className="py-4">
@@ -361,6 +378,8 @@ const EnhancedProjectOverview = () => {
                 slots={slots}
                 showDetailed={true}
                 onSlotClick={(slot) => console.log('Slot clicked:', slot)}
+                onSlotReassign={handleSlotReassign}
+                availableUsers={availableUsers}
                 realTimeUpdates={true}
               />
             </Col>

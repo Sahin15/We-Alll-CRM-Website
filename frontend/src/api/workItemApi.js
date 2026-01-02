@@ -16,6 +16,16 @@ export const workItemApi = {
   },
 
   /**
+   * Get all work items (admin function)
+   * @param {Object} params - Query parameters for filtering
+   * @returns {Promise} Work items data
+   */
+  getAllWorkItems: async (params = {}) => {
+    const response = await api.get('/work-items', { params });
+    return response.data;
+  },
+
+  /**
    * Get a single work item by ID
    * @param {string} id - Work item ID
    * @returns {Promise} Work item data
@@ -93,6 +103,19 @@ export const workItemApi = {
    */
   bulkUpdate: async (bulkData) => {
     const response = await api.post('/work-items/bulk-update', bulkData);
+    return response.data;
+  },
+
+  /**
+   * Reassign a work item to a different user
+   * @param {string} id - Work item ID
+   * @param {string} newAssigneeId - New assignee user ID
+   * @returns {Promise} Updated work item
+   */
+  reassignWorkItem: async (id, newAssigneeId) => {
+    const response = await api.patch(`/work-items/${id}/reassign`, { 
+      newAssigneeId 
+    });
     return response.data;
   }
 };

@@ -18,6 +18,8 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
     departments: [], // Changed to support multiple departments
     projectHead: '', // Now optional
     status: 'Pending',
+    priority: 'medium', // Add priority field
+    budget: '', // Add budget field
     startDate: '',
     endDate: '',
     teamRoles: {}, // For role-based team assignments
@@ -250,6 +252,12 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
       if (formData.endDate) {
         submitData.endDate = formData.endDate;
       }
+      if (formData.priority) {
+        submitData.priority = formData.priority;
+      }
+      if (formData.budget) {
+        submitData.budget = parseFloat(formData.budget);
+      }
       
       // Add team roles if any are assigned
       if (Object.keys(formData.teamRoles).length > 0) {
@@ -282,6 +290,8 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
         departments: [], // Reset to empty array
         projectHead: '',
         status: 'Pending',
+        priority: 'medium', // Reset priority
+        budget: '', // Reset budget
         startDate: '',
         endDate: '',
         teamRoles: {}, // Reset team roles
@@ -313,6 +323,8 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
       departments: [], // Reset to empty array
       projectHead: '',
       status: 'Pending',
+      priority: 'medium', // Reset priority
+      budget: '', // Reset budget
       startDate: '',
       endDate: '',
       teamRoles: {}, // Reset team roles
@@ -446,9 +458,11 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
                 </Form.Text>
               </Form.Group>
             </Col>
+          </Row>
 
+          <Row>
             {/* Status */}
-            <Col md={6}>
+            <Col md={4}>
               <Form.Group className="mb-3">
                 <Form.Label>Status</Form.Label>
                 <Form.Select
@@ -461,6 +475,40 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
                   <option value="Completed">Completed</option>
                   <option value="Cancelled">Cancelled</option>
                 </Form.Select>
+              </Form.Group>
+            </Col>
+
+            {/* Priority */}
+            <Col md={4}>
+              <Form.Group className="mb-3">
+                <Form.Label>Priority</Form.Label>
+                <Form.Select
+                  value={formData.priority}
+                  onChange={(e) => handleChange('priority', e.target.value)}
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </Form.Select>
+              </Form.Group>
+            </Col>
+
+            {/* Budget */}
+            <Col md={4}>
+              <Form.Group className="mb-3">
+                <Form.Label>Budget</Form.Label>
+                <Form.Control
+                  type="number"
+                  placeholder="Enter budget (optional)"
+                  value={formData.budget}
+                  onChange={(e) => handleChange('budget', e.target.value)}
+                  min="0"
+                  step="0.01"
+                />
+                <Form.Text className="text-muted">
+                  Project budget in your currency
+                </Form.Text>
               </Form.Group>
             </Col>
           </Row>

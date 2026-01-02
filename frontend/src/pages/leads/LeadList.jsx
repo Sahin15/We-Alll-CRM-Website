@@ -13,29 +13,66 @@ import {
 import { FaPlus, FaEdit, FaTrash, FaEye, FaFilter } from "react-icons/fa";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useAuth } from "../../context/AuthContext";
 import { leadApi } from "../../api/leadApi";
 import { formatDate } from "../../utils/helpers";
+import "./LeadList.css";
 
 const LeadList = () => {
+  const { user } = useAuth();
   const { id } = useParams(); // For edit mode
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentLead, setCurrentLead] = useState(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [viewMode, setViewMode] = useState('table'); // 'table' or 'cards'
   const [formData, setFormData] = useState({
     fullName: "",
     phone: "",
     email: "",
     companyName: "",
-    service: "",
+    service: [],
+    customService: "",
     budget: "",
-    source: "Website",
+    source: "",
+    reference: "",
     status: "New",
   });
   const [filterStatus, setFilterStatus] = useState("");
   const [filterSource, setFilterSource] = useState("");
   const navigate = useNavigate();
+
+  // Function to format budget for display (convert old format to new compact format)
+  const formatBudgetForDisplay = (budget) => {
+    if (!budget) return "N/A";
+    
+    // Convert old format to new format
+    const budgetMap = {
+      "20,000 to 50,000 /Month": "20k to 50k /Month",
+      "50,000 to 80,000 /Month": "50k to 80k /Month", 
+      "80,000 to 100,000 /Month": "80k to 100k /Month",
+      "100,000 to 200,000 /Month": "100k to 200k /Month"
+    };
+    
+    return budgetMap[budget] || budget;
+  };
+
+  // Handle window resize for mobile detection
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      // Auto-switch to cards on mobile
+      if (mobile) {
+        setViewMode('cards');
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const serviceOptions = [
     "Marketing",
@@ -50,15 +87,17 @@ const LeadList = () => {
   ];
 
   const budgetOptions = [
-    "20,000 to 50,000 /Month",
-    "50,000 to 80,000 /Month",
-    "80,000 to 100,000 /Month",
-    "100,000 to 200,000 /Month",
+    "20k to 50k /Month",
+    "50k to 80k /Month",
+    "80k to 100k /Month",
+    "100k to 200k /Month",
     "Custom",
   ];
 
   const sourceOptions = [
-    "Website",
+    "Growth Summit",
+    "Website", 
+    "Seminar",
     "Referral",
     "Social Media",
     "Advertisement",
@@ -97,9 +136,11 @@ const LeadList = () => {
         phone: response.data.phone || "",
         email: response.data.email || "",
         companyName: response.data.companyName || "",
-        service: response.data.service || "",
+        service: Array.isArray(response.data.service) ? response.data.service : (response.data.service ? [response.data.service] : []),
+        customService: response.data.customService || "",
         budget: response.data.budget || "",
-        source: response.data.source || "Website",
+        source: response.data.source || "",
+        reference: response.data.reference || "",
         status: response.data.status || "New",
       });
     } catch (error) {
@@ -135,9 +176,11 @@ const LeadList = () => {
         phone: lead.phone || "",
         email: lead.email || "",
         companyName: lead.companyName || "",
-        service: lead.service || "",
+        service: Array.isArray(lead.service) ? lead.service : (lead.service ? [lead.service] : []),
+        customService: lead.customService || "",
         budget: lead.budget || "",
-        source: lead.source || "Website",
+        source: lead.source || "",
+        reference: lead.reference || "",
         status: lead.status || "New",
       });
     } else {
@@ -148,9 +191,11 @@ const LeadList = () => {
         phone: "",
         email: "",
         companyName: "",
-        service: "",
+        service: [],
+        customService: "",
         budget: "",
-        source: "Website",
+        source: "",
+        reference: "",
         status: "New",
       });
     }
@@ -172,13 +217,24 @@ const LeadList = () => {
     setFormData({ ...formData, [name]: value });
   };
 
+  // Handle multiple service selection
+  const handleServiceChange = (service) => {
+    const currentServices = formData.service || [];
+    const updatedServices = currentServices.includes(service)
+      ? currentServices.filter(s => s !== service)
+      : [...currentServices, service];
+    
+    setFormData({ ...formData, service: updatedServices });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Convert phone to number for backend
+      // Prepare submit data
       const submitData = {
         ...formData,
         phone: formData.phone ? Number(formData.phone) : undefined,
+        service: formData.service, // Keep as array
       };
 
       if (editMode) {
@@ -237,8 +293,12 @@ const LeadList = () => {
 
   const getSourceVariant = (source) => {
     switch (source) {
+      case "Growth Summit":
+        return "warning";
       case "Website":
         return "primary";
+      case "Seminar":
+        return "info";
       case "Referral":
         return "success";
       case "Social Media":
@@ -254,22 +314,184 @@ const LeadList = () => {
     }
   };
 
+  // Professional mobile card component with enhanced design
+  const LeadCard = ({ lead }) => (
+    <Card className="mb-3 lead-card shadow-sm">
+      <Card.Body className="p-0">
+        {/* Header Section with Status */}
+        <div className="lead-card-header p-3 pb-2">
+          <div className="d-flex justify-content-between align-items-start">
+            <div className="flex-grow-1">
+              <h5 className="lead-name mb-1">{lead.fullName}</h5>
+              <div className="lead-company text-muted">
+                {lead.companyName || "Individual Client"}
+              </div>
+            </div>
+            <div className="lead-status-badges">
+              <Badge bg={getStatusVariant(lead.status)} className="status-badge mb-1">
+                {lead.status}
+              </Badge>
+              <Badge bg={getSourceVariant(lead.source)} className="source-badge d-block">
+                {lead.source}
+              </Badge>
+            </div>
+          </div>
+        </div>
+
+        {/* Contact Information */}
+        <div className="lead-card-content px-3 pb-2">
+          <div className="contact-info mb-3">
+            <div className="row g-2">
+              <div className="col-6">
+                <div className="info-item">
+                  <div className="info-icon">📞</div>
+                  <div className="info-content">
+                    <small className="info-label">Phone</small>
+                    <div className="info-value">{lead.phone || "Not provided"}</div>
+                  </div>
+                </div>
+              </div>
+              <div className="col-6">
+                <div className="info-item">
+                  <div className="info-icon">✉️</div>
+                  <div className="info-content">
+                    <small className="info-label">Email</small>
+                    <div className="info-value text-truncate" title={lead.email}>
+                      {lead.email || "Not provided"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Service & Budget Information */}
+          <div className="service-budget-info mb-3">
+            <div className="row g-2">
+              <div className="col-7">
+                <div className="info-item">
+                  <div className="info-icon">🎯</div>
+                  <div className="info-content">
+                    <small className="info-label">Service Required</small>
+                    <div className="info-value fw-medium text-primary">
+                      {Array.isArray(lead.service) && lead.service.length > 0 
+                        ? lead.service.join(", ") 
+                        : lead.service || "Not specified"}
+                      {lead.customService && (
+                        <div className="mt-1">
+                          <small className="text-muted">Custom: {lead.customService}</small>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="col-5">
+                <div className="info-item">
+                  <div className="info-icon">💰</div>
+                  <div className="info-content">
+                    <small className="info-label">Budget</small>
+                    <div className="info-value fw-bold text-success" title={formatBudgetForDisplay(lead.budget)}>
+                      {formatBudgetForDisplay(lead.budget)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer with Actions */}
+        <div className="lead-card-footer px-3 py-2 bg-light border-top">
+          <div className="d-flex justify-content-between align-items-center">
+            <div className="lead-meta">
+              <small className="text-muted">
+                <span className="me-2">📅 {formatDate(lead.createdAt)}</span>
+                {lead.reference && (
+                  <span className="me-2">👤 Ref: {lead.reference}</span>
+                )}
+              </small>
+            </div>
+            <div className="lead-actions">
+              <div className="btn-group" role="group">
+                <Button
+                  size="sm"
+                  variant="outline-primary"
+                  onClick={() => navigate(`/leads/${lead._id}`)}
+                  title="View Details"
+                  className="action-btn"
+                >
+                  <FaEye size={11} />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline-success"
+                  onClick={() => handleShowModal(lead)}
+                  title="Edit Lead"
+                  className="action-btn"
+                >
+                  <FaEdit size={11} />
+                </Button>
+                {(user?.role === 'admin' || user?.role === 'superadmin') && (
+                  <Button
+                    size="sm"
+                    variant="outline-danger"
+                    onClick={() => handleDelete(lead._id)}
+                    title="Delete Lead"
+                    className="action-btn"
+                  >
+                    <FaTrash size={11} />
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card.Body>
+    </Card>
+  );
+
   return (
     <Container fluid>
       <Row className="mb-4">
         <Col>
-          <h2>Lead Management</h2>
-        </Col>
-        <Col className="text-end">
-          <Button variant="primary" onClick={() => handleShowModal()}>
-            <FaPlus className="me-2" />
-            Add Lead
-          </Button>
+          <div className="d-flex justify-content-between align-items-center">
+            <h2>Lead Management</h2>
+            <div className="d-flex align-items-center gap-2">
+              {/* View Toggle - Desktop Only */}
+              {!isMobile && (
+                <div className="btn-group me-2" role="group">
+                  <Button
+                    variant={viewMode === 'table' ? 'primary' : 'outline-primary'}
+                    size="sm"
+                    onClick={() => setViewMode('table')}
+                    title="Table View"
+                  >
+                    <FaFilter className="me-1" />
+                    Table
+                  </Button>
+                  <Button
+                    variant={viewMode === 'cards' ? 'primary' : 'outline-primary'}
+                    size="sm"
+                    onClick={() => setViewMode('cards')}
+                    title="Card View"
+                  >
+                    <FaEye className="me-1" />
+                    Cards
+                  </Button>
+                </div>
+              )}
+              <Button variant="primary" onClick={() => handleShowModal()}>
+                <FaPlus className="me-2" />
+                Add Lead
+              </Button>
+            </div>
+          </div>
         </Col>
       </Row>
 
       {/* Filters */}
-      <Row className="mb-4">
+      <Row className="mb-4 filters-row">
         <Col md={3}>
           <Form.Group>
             <Form.Label>Status</Form.Label>
@@ -326,81 +548,174 @@ const LeadList = () => {
                     <span className="visually-hidden">Loading...</span>
                   </div>
                 </div>
+              ) : (isMobile || viewMode === 'cards') ? (
+                // Mobile Card View
+                <div className="mobile-lead-cards">
+                  {leads.length > 0 ? (
+                    leads.map((lead) => (
+                      <LeadCard key={lead._id} lead={lead} />
+                    ))
+                  ) : (
+                    <div className="text-center py-4">
+                      <div className="text-muted">
+                        <FaFilter className="mb-2" size={24} />
+                        <p className="mb-0">No leads found</p>
+                        <small>Try adjusting your filters or add a new lead</small>
+                      </div>
+                    </div>
+                  )}
+                </div>
               ) : (
-                <Table responsive hover>
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Phone</th>
-                      <th>Email</th>
-                      <th>Company</th>
-                      <th>Service</th>
-                      <th>Budget</th>
-                      <th>Source</th>
-                      <th>Status</th>
-                      <th>Created</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {leads.length > 0 ? (
-                      leads.map((lead) => (
-                        <tr key={lead._id}>
-                          <td>
-                            <strong>{lead.fullName}</strong>
-                          </td>
-                          <td>{lead.phone || "N/A"}</td>
-                          <td>{lead.email || "N/A"}</td>
-                          <td>{lead.companyName || "N/A"}</td>
-                          <td>{lead.service || "N/A"}</td>
-                          <td>{lead.budget || "N/A"}</td>
-                          <td>
-                            <Badge bg={getSourceVariant(lead.source)}>
-                              {lead.source}
-                            </Badge>
-                          </td>
-                          <td>
-                            <Badge bg={getStatusVariant(lead.status)}>
-                              {lead.status}
-                            </Badge>
-                          </td>
-                          <td>{formatDate(lead.createdAt)}</td>
-                          <td>
-                            <div className="btn-group" role="group">
-                              <Button
-                                size="sm"
-                                variant="outline-primary"
-                                onClick={() => navigate(`/leads/${lead._id}`)}
+                // Desktop Table View
+                <div className="table-responsive">
+                  <Table hover className="lead-management-table">
+                    <thead className="table-dark">
+                      <tr>
+                        <th>Name</th>
+                        <th>Phone</th>
+                        <th>Email</th>
+                        <th>Company</th>
+                        <th>Service</th>
+                        <th>Budget</th>
+                        <th>Source</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {leads.length > 0 ? (
+                        leads.map((lead) => (
+                          <tr key={lead._id}>
+                            <td>
+                              <div 
+                                className="text-truncate fw-bold" 
+                                title={lead.fullName}
                               >
-                                <FaEye />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline-success"
-                                onClick={() => handleShowModal(lead)}
+                                {lead.fullName}
+                              </div>
+                            </td>
+                            <td>
+                              <div 
+                                className="text-truncate" 
+                                title={lead.phone || "N/A"}
                               >
-                                <FaEdit />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline-danger"
-                                onClick={() => handleDelete(lead._id)}
+                                {lead.phone || "N/A"}
+                              </div>
+                            </td>
+                            <td>
+                              <div 
+                                className="text-truncate" 
+                                title={lead.email || "N/A"}
                               >
-                                <FaTrash />
-                              </Button>
+                                {lead.email || "N/A"}
+                              </div>
+                            </td>
+                            <td>
+                              <div 
+                                className="text-truncate" 
+                                title={lead.companyName || "N/A"}
+                              >
+                                {lead.companyName || "N/A"}
+                              </div>
+                            </td>
+                            <td>
+                              <div 
+                                className="text-truncate" 
+                                title={Array.isArray(lead.service) && lead.service.length > 0 
+                                  ? lead.service.join(", ") 
+                                  : lead.service || "N/A"}
+                              >
+                                {Array.isArray(lead.service) && lead.service.length > 0 
+                                  ? lead.service.slice(0, 2).join(", ") + (lead.service.length > 2 ? "..." : "")
+                                  : lead.service || "N/A"}
+                              </div>
+                            </td>
+                            <td>
+                              <div 
+                                className="text-truncate" 
+                                title={formatBudgetForDisplay(lead.budget)}
+                              >
+                                {formatBudgetForDisplay(lead.budget)}
+                              </div>
+                            </td>
+                            <td>
+                              <Badge 
+                                bg={getSourceVariant(lead.source)}
+                                className="text-truncate d-block"
+                                style={{ fontSize: '0.6rem', maxWidth: '100%' }}
+                                title={lead.source}
+                              >
+                                {lead.source}
+                              </Badge>
+                            </td>
+                            <td>
+                              <Badge 
+                                bg={getStatusVariant(lead.status)}
+                                className="text-truncate d-block"
+                                style={{ fontSize: '0.6rem', maxWidth: '100%' }}
+                                title={lead.status}
+                              >
+                                {lead.status}
+                              </Badge>
+                            </td>
+                            <td>
+                              <div 
+                                className="text-truncate small" 
+                                title={formatDate(lead.createdAt)}
+                              >
+                                {formatDate(lead.createdAt)}
+                              </div>
+                            </td>
+                            <td>
+                              <div className="d-flex gap-1 flex-nowrap">
+                                <Button
+                                  size="sm"
+                                  variant="outline-primary"
+                                  onClick={() => navigate(`/leads/${lead._id}`)}
+                                  title="View Details"
+                                  style={{ padding: '0.15rem 0.25rem', fontSize: '0.65rem' }}
+                                >
+                                  <FaEye size={8} />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline-success"
+                                  onClick={() => handleShowModal(lead)}
+                                  title="Edit Lead"
+                                  style={{ padding: '0.15rem 0.25rem', fontSize: '0.65rem' }}
+                                >
+                                  <FaEdit size={8} />
+                                </Button>
+                                {(user?.role === 'admin' || user?.role === 'superadmin') && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline-danger"
+                                    onClick={() => handleDelete(lead._id)}
+                                    title="Delete Lead"
+                                    style={{ padding: '0.15rem 0.25rem', fontSize: '0.65rem' }}
+                                  >
+                                    <FaTrash size={8} />
+                                  </Button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="10" className="text-center py-4">
+                            <div className="text-muted">
+                              <FaFilter className="mb-2" size={24} />
+                              <p className="mb-0">No leads found</p>
+                              <small>Try adjusting your filters or add a new lead</small>
                             </div>
                           </td>
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="10" className="text-center py-4">
-                          No leads found
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </Table>
+                      )}
+                    </tbody>
+                  </Table>
+                </div>
               )}
             </Card.Body>
           </Card>
@@ -408,111 +723,248 @@ const LeadList = () => {
       </Row>
 
       {/* Add/Edit Lead Modal */}
-      <Modal show={showModal} onHide={handleCloseModal} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>{editMode ? "Edit Lead" : "Add New Lead"}</Modal.Title>
+      <Modal show={showModal} onHide={handleCloseModal} size="xl" centered className="lead-modal">
+        <Modal.Header closeButton className="lead-modal-header">
+          <Modal.Title className="d-flex align-items-center">
+            <div className="modal-icon me-3">
+              {editMode ? <FaEdit /> : <FaPlus />}
+            </div>
+            <div>
+              <h4 className="mb-0">{editMode ? "Edit Lead" : "Add New Lead"}</h4>
+              <small className="opacity-75">
+                {editMode ? "Update lead information" : "Capture new lead details"}
+              </small>
+            </div>
+          </Modal.Title>
         </Modal.Header>
+        
         <Form onSubmit={handleSubmit}>
-          <Modal.Body>
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Full Name *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="fullName"
-                    value={formData.fullName}
-                    onChange={handleChange}
-                    required
-                    placeholder="Enter full name"
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Phone Number (WhatsApp) *</Form.Label>
-                  <Form.Control
-                    type="number"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    required
-                    placeholder="Enter phone number"
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
+          <Modal.Body className="lead-modal-body">
+            {/* Personal Information Section */}
+            <div className="form-section mb-4">
+              <div className="section-header mb-3">
+                <h5 className="section-title">👤 Personal Information</h5>
+                <p className="section-subtitle">Basic contact details</p>
+              </div>
+              <Row>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label className="form-label-modern">
+                      Full Name <span className="text-danger">*</span>
+                    </Form.Label>
+                    <Form.Control
+                      type="text"
+                      name="fullName"
+                      value={formData.fullName}
+                      onChange={handleChange}
+                      required
+                      placeholder="Enter full name"
+                      className="form-control-modern"
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label className="form-label-modern">
+                      Phone Number <span className="text-danger">*</span>
+                    </Form.Label>
+                    <Form.Control
+                      type="number"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      required
+                      placeholder="Enter phone number"
+                      className="form-control-modern"
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
 
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Email</Form.Label>
-                  <Form.Control
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}    
+              <Row>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label className="form-label-modern">Email Address</Form.Label>
+                    <Form.Control
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      placeholder="lead@example.com"
+                      className="form-control-modern"
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label className="form-label-modern">Company Name</Form.Label>
+                    <Form.Control
+                      type="text"
+                      name="companyName"
+                      value={formData.companyName}
+                      onChange={handleChange}
+                      placeholder="Enter company name"
+                      className="form-control-modern"
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+            </div>
 
-                    placeholder="lead@example.com"
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Company Name</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="companyName"
-                    value={formData.companyName}
-                    onChange={handleChange}
-                    placeholder="Enter company name"
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
+            {/* Service Requirements Section */}
+            <div className="form-section mb-4">
+              <div className="section-header mb-3">
+                <h5 className="section-title">🎯 Service Requirements</h5>
+                <p className="section-subtitle">What services does the client need?</p>
+              </div>
+              <Row>
+                <Col md={8}>
+                  <Form.Group className="mb-3">
+                    <Form.Label className="form-label-modern">
+                      Services Required <span className="text-danger">*</span>
+                    </Form.Label>
+                    <div className="services-grid">
+                      {serviceOptions.map((service) => (
+                        <div key={service} className="service-checkbox-item">
+                          <Form.Check
+                            type="checkbox"
+                            id={`service-${service}`}
+                            label={service}
+                            checked={formData.service.includes(service)}
+                            onChange={() => handleServiceChange(service)}
+                            className="service-checkbox"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </Form.Group>
+                </Col>
+                <Col md={4}>
+                  <Form.Group className="mb-3">
+                    <Form.Label className="form-label-modern">Custom Service</Form.Label>
+                    <Form.Control
+                      as="textarea"
+                      rows={4}
+                      name="customService"
+                      value={formData.customService}
+                      onChange={handleChange}
+                      placeholder="Describe any custom service requirements..."
+                      className="form-control-modern"
+                    />
+                    <Form.Text className="text-muted">
+                      Specify any services not listed above
+                    </Form.Text>
+                  </Form.Group>
+                </Col>
+              </Row>
+            </div>
 
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Services</Form.Label>
-                  <Form.Select
-                    name="service"
-                    value={formData.service}
-                    onChange={handleChange}
-                  >
-                    <option value="">Select a service</option>
-                    {serviceOptions.map((service) => (
-                      <option key={service} value={service}>
-                        {service}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Budget</Form.Label>
-                  <Form.Select
-                    name="budget"
-                    value={formData.budget}
-                    onChange={handleChange}
-                  >
-                    <option value="">Select a budget range</option>
-                    {budgetOptions.map((budget) => (
-                      <option key={budget} value={budget}>
-                        {budget}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-            </Row>
+            {/* Budget & Source Section */}
+            <div className="form-section mb-4">
+              <div className="section-header mb-3">
+                <h5 className="section-title">💰 Budget & Source</h5>
+                <p className="section-subtitle">Budget range and lead source information</p>
+              </div>
+              <Row>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label className="form-label-modern">Budget Range</Form.Label>
+                    <Form.Select
+                      name="budget"
+                      value={formData.budget}
+                      onChange={handleChange}
+                      className="form-select-modern"
+                    >
+                      <option value="">Select budget range</option>
+                      {budgetOptions.map((budget) => (
+                        <option key={budget} value={budget}>
+                          {budget}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label className="form-label-modern">Lead Source</Form.Label>
+                    <Form.Select
+                      name="source"
+                      value={formData.source}
+                      onChange={handleChange}
+                      className="form-select-modern"
+                    >
+                      <option value="">Select lead source</option>
+                      {sourceOptions.map((source) => (
+                        <option key={source} value={source}>
+                          {source}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+              </Row>
+            </div>
+
+            {/* Additional Information Section */}
+            <div className="form-section">
+              <div className="section-header mb-3">
+                <h5 className="section-title">📋 Additional Information</h5>
+                <p className="section-subtitle">Reference and status details</p>
+              </div>
+              <Row>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label className="form-label-modern">Reference</Form.Label>
+                    <Form.Control
+                      type="text"
+                      name="reference"
+                      value={formData.reference}
+                      onChange={handleChange}
+                      placeholder="Who referred this lead?"
+                      className="form-control-modern"
+                    />
+                    <Form.Text className="text-muted">
+                      Name of person or company who referred this lead
+                    </Form.Text>
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label className="form-label-modern">Lead Status</Form.Label>
+                    <Form.Select
+                      name="status"
+                      value={formData.status}
+                      onChange={handleChange}
+                      className="form-select-modern"
+                    >
+                      {statusOptions.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+              </Row>
+            </div>
           </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={handleCloseModal}>
+          
+          <Modal.Footer className="lead-modal-footer">
+            <Button 
+              variant="outline-secondary" 
+              onClick={handleCloseModal}
+              className="btn-modern btn-cancel"
+            >
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
+            <Button 
+              variant="primary" 
+              type="submit"
+              className="btn-modern btn-submit"
+            >
+              <span className="me-2">
+                {editMode ? <FaEdit /> : <FaPlus />}
+              </span>
               {editMode ? "Update Lead" : "Create Lead"}
             </Button>
           </Modal.Footer>

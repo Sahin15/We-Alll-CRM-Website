@@ -254,36 +254,69 @@ router.post('/sync-my-work', protect, workCalendarController.syncMyWorkItemsToCa
  */
 router.get('/test', protect, async (req, res) => {
   try {
-    console.error('[TEST] Work calendar API test endpoint hit by user:', req.user.id);
+    console.log('[TEST] Work calendar API test endpoint hit by user:', req.user.email, 'Role:', req.user.role);
     
     // Import WorkItem model to test database query
     const WorkItem = (await import('../models/workItemModel.js')).default;
     
     // Check if user has work items
-    const workItems = await WorkItem.find({ assignedTo: req.user.id });
-    console.error(`[TEST] Found ${workItems.length} work items for user ${req.user.id}`);
+    const userWorkItems = await WorkItem.find({ assignedTo: req.user.id });
+    console.log(`[TEST] Found ${userWorkItems.length} work items assigned to user ${req.user.email}`);
     
-    if (workItems.length > 0) {
-      console.error('[TEST] Work items:', workItems.map(item => ({
+    // Check all work items if user is admin
+    let allWorkItems = [];
+    if (['admin', 'superadmin', 'hod', 'hr', 'manager'].includes(req.user.role)) {
+      allWorkItems = await WorkItem.find({});
+      console.log(`[TEST] Found ${allWorkItems.length} total work items in database`);
+    }
+    
+    if (userWorkItems.length > 0) {
+      console.log('[TEST] User work items:', userWorkItems.map(item => ({
         id: item._id,
         title: item.title,
         dueDate: item.dueDate,
-        status: item.status
+        status: item.status,
+        createdAt: item.createdAt
+      })));
+    }
+    
+    if (allWorkItems.length > 0) {
+      console.log('[TEST] Recent work items:', allWorkItems.slice(-3).map(item => ({
+        id: item._id,
+        title: item.title,
+        dueDate: item.dueDate,
+        status: item.status,
+        assignedTo: item.assignedTo,
+        createdAt: item.createdAt
       })));
     }
     
     res.json({
       success: true,
       message: 'Work calendar API is working',
-      user: req.user.id,
-      email: req.user.email,
-      role: req.user.role,
-      workItemsCount: workItems.length,
-      workItems: workItems.map(item => ({
+      user: {
+        id: req.user.id,
+        email: req.user.email,
+        role: req.user.role
+      },
+      workItemsCount: {
+        userItems: userWorkItems.length,
+        totalItems: allWorkItems.length
+      },
+      userWorkItems: userWorkItems.map(item => ({
         id: item._id,
         title: item.title,
         dueDate: item.dueDate,
-        status: item.status
+        status: item.status,
+        createdAt: item.createdAt
+      })),
+      recentWorkItems: allWorkItems.slice(-3).map(item => ({
+        id: item._id,
+        title: item.title,
+        dueDate: item.dueDate,
+        status: item.status,
+        assignedTo: item.assignedTo,
+        createdAt: item.createdAt
       })),
       timestamp: new Date().toISOString()
     });

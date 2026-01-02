@@ -41,6 +41,7 @@ import { userApi } from "../../api/userApi";
 import { leaveApi } from "../../api/leaveApi";
 import { attendanceApi } from "../../api/attendanceApi";
 import { departmentApi } from "../../api/departmentApi";
+import { leadApi } from "../../api/leadApi";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
 import toast from "../../utils/toast";
 
@@ -52,6 +53,7 @@ const HRDashboard = () => {
     pendingLeaves: 0,
     presentToday: 0,
     departments: 0,
+    leads: 0,
     lateToday: 0,
   });
   const [loading, setLoading] = useState(true);
@@ -63,10 +65,12 @@ const HRDashboard = () => {
   const [showEmployeesModal, setShowEmployeesModal] = useState(false);
   const [showLeavesModal, setShowLeavesModal] = useState(false);
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+  const [showLeadsModal, setShowLeadsModal] = useState(false);
   const [showLateModal, setShowLateModal] = useState(false);
   
   // Modal data
   const [employeesList, setEmployeesList] = useState([]);
+  const [leadsList, setLeadsList] = useState([]);
   const [attendanceToday, setAttendanceToday] = useState([]);
 
   useEffect(() => {
@@ -88,6 +92,8 @@ const HRDashboard = () => {
       const attendanceRes = await attendanceApi.getAllAttendance({ date: today });
       // Fetch department data
       const departmentRes = await departmentApi.getAllDepartments();
+      // Fetch leads data
+      const leadsRes = await leadApi.getAllLeads().catch(() => ({ data: [] }));
 
       // Count all who clocked in today (present, late, half-day) as "present today"
       const todayPresentCount = attendanceRes.data?.filter((a) => 
@@ -112,6 +118,7 @@ const HRDashboard = () => {
         pendingLeaves: leaveRes.data?.length || 0,
         presentToday: todayPresentCount,
         departments: departmentRes.data?.length || 0,
+        leads: leadsRes.data?.length || 0,
         lateToday: todayLateCount,
       });
 
@@ -203,6 +210,16 @@ const HRDashboard = () => {
 
   const handleLateEntriesCardClick = () => {
     setShowLateModal(true);
+  };
+
+  const handleLeadsCardClick = async () => {
+    try {
+      const response = await leadApi.getAllLeads();
+      setLeadsList(response.data || []);
+      setShowLeadsModal(true);
+    } catch (error) {
+      toast.error('Failed to load leads');
+    }
   };
 
   const quickActions = [
@@ -318,12 +335,12 @@ const HRDashboard = () => {
           </div>
         </Col>
         <Col lg={3} md={6}>
-          <div onClick={handleLateEntriesCardClick} style={{ cursor: 'pointer', height: '100%' }}>
+          <div onClick={handleLeadsCardClick} style={{ cursor: 'pointer', height: '100%' }}>
             <StatCard
-              title="Late & Half Day"
-              value={stats.lateToday}
-              icon={<FaClock />}
-              bgColor="danger"
+              title="Total Leads"
+              value={stats.leads}
+              icon={<FaChartLine />}
+              bgColor="info"
             />
           </div>
         </Col>
@@ -574,6 +591,46 @@ const HRDashboard = () => {
               </tbody>
             </Table>
           )}
+        </Modal.Body>
+      </Modal>
+
+      {/* Leads Modal */}
+      <Modal show={showLeadsModal} onHide={() => setShowLeadsModal(false)} size="lg" centered>
+        <Modal.Header closeButton>
+          <Modal.Title><FaChartLine className="me-2 text-primary" />All Leads ({leadsList.length})</Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{ maxHeight: '500px', overflowY: 'auto' }}>
+          <Table striped hover responsive>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Company</th>
+                <th>Status</th>
+                <th>Source</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leadsList.map(lead => (
+                <tr key={lead._id}>
+                  <td><strong>{lead.fullName || lead.name || 'N/A'}</strong></td>
+                  <td>{lead.companyName || lead.company || 'N/A'}</td>
+                  <td><Badge bg={lead.status === 'hot' ? 'danger' : lead.status === 'warm' ? 'warning' : 'info'}>{lead.status || 'cold'}</Badge></td>
+                  <td><Badge bg="secondary">{lead.source || 'N/A'}</Badge></td>
+                  <td>
+                    <Button size="sm" variant="outline-primary" onClick={() => navigate(`/leads/${lead._id}`)}>
+                      <FaEye className="me-1" />View
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+              {leadsList.length === 0 && (
+                <tr>
+                  <td colSpan="5" className="text-center text-muted">No leads found</td>
+                </tr>
+              )}
+            </tbody>
+          </Table>
         </Modal.Body>
       </Modal>
     </Container>

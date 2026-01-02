@@ -15,12 +15,38 @@ export const createLead = async (req, res) => {
       status,
       assignedTo,
       notes,
+      reference,
     } = req.body;
 
-    // Check if lead with same email or phone already exists
-    const existingLead = await Lead.findOne({
-      $or: [{ email }, { phone: Number(phone) }],
-    });
+    console.log("Creating lead with data:", req.body);
+
+    // Validate required fields
+    if (!fullName || !phone) {
+      return res.status(400).json({
+        message: "Full name and phone number are required",
+      });
+    }
+
+    // Validate phone number
+    const phoneNumber = Number(phone);
+    if (isNaN(phoneNumber) || phoneNumber <= 0) {
+      return res.status(400).json({
+        message: "Please provide a valid phone number",
+      });
+    }
+
+    // Check if lead with same phone already exists
+    // If email is provided, also check for email duplicates
+    let existingLeadQuery;
+    if (email && email.trim()) {
+      existingLeadQuery = {
+        $or: [{ email: email.trim() }, { phone: phoneNumber }]
+      };
+    } else {
+      existingLeadQuery = { phone: phoneNumber };
+    }
+
+    const existingLead = await Lead.findOne(existingLeadQuery);
 
     if (existingLead) {
       return res.status(400).json({
@@ -28,23 +54,34 @@ export const createLead = async (req, res) => {
       });
     }
 
-    const lead = new Lead({
+    const leadData = {
       fullName,
-      phone: Number(phone),
-      email,
+      phone: phoneNumber,
       companyName,
-      service,
+      service: Array.isArray(service) ? service : (service ? [service] : []),
       budget,
       source: source || "Website",
       status: status || "New",
       assignedTo,
-      notes,
-      createdBy: req.user.id,
-    });
+      notes: notes || reference, // Use reference as notes if provided
+    };
 
+    // Only add createdBy if user is authenticated
+    if (req.user && req.user.id) {
+      leadData.createdBy = req.user.id;
+    }
+
+    // Only add email if provided (since it's not required for public forms)
+    if (email) {
+      leadData.email = email;
+    }
+
+    const lead = new Lead(leadData);
     await lead.save();
 
-    // Populate assigned user and creator details
+    console.log("Lead created successfully:", lead._id);
+
+    // Populate assigned user and creator details if they exist
     const populatedLead = await Lead.findById(lead._id)
       .populate("assignedTo", "name email")
       .populate("createdBy", "name email");
@@ -54,8 +91,13 @@ export const createLead = async (req, res) => {
       lead: populatedLead,
     });
   } catch (error) {
-    console.error("Error in createLead:", error.message);
-    return res.status(500).json({ message: "Server error" });
+    console.error("Error in createLead:", error);
+    console.error("Error stack:", error.stack);
+    console.error("Request body:", req.body);
+    return res.status(500).json({ 
+      message: "Server error",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 

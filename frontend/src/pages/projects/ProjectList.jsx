@@ -87,18 +87,18 @@ const ProjectList = () => {
         response = await projectApi.getMyProjects();
       }
       
-      console.log('📊 Projects API Response:', response);
+      // console.log('📊 Projects API Response:', response);
       
       // Handle both old and new response formats
       if (response.data && Array.isArray(response.data)) {
         // New paginated format
-        console.log('📊 First project sample:', response.data[0]);
-        console.log('📊 assignedUsers:', response.data[0]?.assignedUsers);
+        // console.log('📊 First project sample:', response.data[0]);
+        // console.log('📊 assignedUsers:', response.data[0]?.assignedUsers);
         setProjects(response.data);
       } else if (Array.isArray(response)) {
         // Old format
-        console.log('📊 First project sample:', response[0]);
-        console.log('📊 assignedUsers:', response[0]?.assignedUsers);
+        // console.log('📊 First project sample:', response[0]);
+        // console.log('📊 assignedUsers:', response[0]?.assignedUsers);
         setProjects(response);
       } else {
         setProjects([]);
@@ -151,7 +151,7 @@ const ProjectList = () => {
       const response = await departmentApi.getAllDepartments();
       // Backend returns array directly, not wrapped in data
       const depts = Array.isArray(response) ? response : (response.data || []);
-      console.log('Fetched departments:', depts);
+      // console.log('Fetched departments:', depts);
       setDepartments(depts);
     } catch (error) {
       console.error("Failed to fetch departments:", error);

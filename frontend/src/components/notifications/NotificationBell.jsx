@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dropdown, Badge, Button, ListGroup, Spinner } from 'react-bootstrap';
-import { FaBell, FaCheck, FaTrash, FaEye, FaCheckDouble } from 'react-icons/fa';
+import { FaBell, FaCheck, FaTrash, FaEye, FaCheckDouble, FaTimes } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
 import { formatDistanceToNow } from 'date-fns';
@@ -19,6 +19,16 @@ const NotificationBell = () => {
   } = useNotifications();
 
   const [showDropdown, setShowDropdown] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const getNotificationIcon = (type) => {
     const iconMap = {
@@ -53,6 +63,11 @@ const NotificationBell = () => {
   const handleNotificationClick = async (notification) => {
     if (!notification.isRead) {
       await markAsRead(notification._id);
+    }
+    
+    // Close dropdown on mobile after clicking a notification
+    if (isMobile) {
+      setShowDropdown(false);
     }
     
     // Navigate to link if provided
@@ -99,40 +114,42 @@ const NotificationBell = () => {
   const recentNotifications = notifications.slice(0, 5);
 
   return (
-    <Dropdown 
-      show={showDropdown} 
-      onToggle={setShowDropdown}
-      className="notification-bell-dropdown"
-    >
-      <Dropdown.Toggle
-        variant="link"
-        className="notification-bell-toggle p-2 position-relative"
-        id="notification-dropdown"
+    <>
+      <Dropdown 
+        show={showDropdown} 
+        onToggle={setShowDropdown}
+        className="notification-bell-dropdown"
       >
-        <FaBell size={20} className="text-white" />
-        {unreadCount > 0 && (
-          <Badge 
-            bg="danger" 
-            pill 
-            className="position-absolute top-0 start-100 translate-middle"
-            style={{ fontSize: '0.7rem' }}
-          >
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </Badge>
-        )}
-      </Dropdown.Toggle>
+        <Dropdown.Toggle
+          variant="link"
+          className="notification-bell-toggle p-2 position-relative"
+          id="notification-dropdown"
+        >
+          <FaBell size={20} className="text-white" />
+          {unreadCount > 0 && (
+            <Badge 
+              bg="danger" 
+              pill 
+              className="position-absolute top-0 start-100 translate-middle"
+              style={{ fontSize: '0.7rem' }}
+            >
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </Badge>
+          )}
+        </Dropdown.Toggle>
 
-      <Dropdown.Menu className="notification-dropdown-menu shadow-lg" align="end">
+        <Dropdown.Menu className="notification-dropdown-menu shadow-lg" align="end">
         <div className="notification-header p-3 border-bottom">
           <div className="d-flex justify-content-between align-items-center">
             <h6 className="mb-0 fw-semibold">Notifications</h6>
-            <div className="d-flex gap-2">
+            <div className="d-flex gap-2 align-items-center">
               <Button
                 variant="link"
                 size="sm"
-                className="p-0 text-decoration-none"
+                className="p-0 text-decoration-none text-white"
                 onClick={fetchNotifications}
                 disabled={loading}
+                title="Refresh"
               >
                 {loading ? <Spinner size="sm" /> : '🔄'}
               </Button>
@@ -140,11 +157,22 @@ const NotificationBell = () => {
                 <Button
                   variant="link"
                   size="sm"
-                  className="p-0 text-decoration-none"
+                  className="p-0 text-decoration-none text-white"
                   onClick={markAllAsRead}
                   title="Mark all as read"
                 >
                   <FaCheckDouble />
+                </Button>
+              )}
+              {isMobile && (
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="p-0 text-decoration-none text-white ms-2"
+                  onClick={() => setShowDropdown(false)}
+                  title="Close"
+                >
+                  <FaTimes size={16} />
                 </Button>
               )}
             </div>
@@ -249,15 +277,31 @@ const NotificationBell = () => {
               variant="link"
               size="sm"
               className="text-decoration-none"
-              href="/employee/announcements"
+              onClick={() => {
+                navigate('/employee/announcements');
+                if (isMobile) setShowDropdown(false);
+              }}
             >
               <FaEye className="me-1" />
               View All Notifications
             </Button>
           </div>
         )}
-      </Dropdown.Menu>
-    </Dropdown>
+        </Dropdown.Menu>
+      </Dropdown>
+
+      {/* Mobile backdrop */}
+      {isMobile && showDropdown && (
+        <div 
+          className="position-fixed top-0 start-0 w-100 h-100"
+          style={{ 
+            backgroundColor: 'rgba(0, 0, 0, 0.3)', 
+            zIndex: 9998 
+          }}
+          onClick={() => setShowDropdown(false)}
+        />
+      )}
+    </>
   );
 };
 

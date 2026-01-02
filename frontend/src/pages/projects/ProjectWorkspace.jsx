@@ -4,6 +4,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { FaArrowLeft, FaPlus, FaCheckCircle } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import projectApi from '../../api/projectApi';
+import { workItemApi } from '../../api/workItemApi';
+import { userApi } from '../../api/userApi';
 import OverviewTab from '../../components/projects/workspace/OverviewTab';
 import WorkBoardTab from '../../components/projects/workspace/WorkBoardTab';
 import CalendarTab from '../../components/projects/workspace/CalendarTab';
@@ -29,6 +31,7 @@ const ProjectWorkspace = () => {
   const [slots, setSlots] = useState([]);
   const [slotStatistics, setSlotStatistics] = useState(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [availableUsers, setAvailableUsers] = useState([]);
 
   useEffect(() => {
     loadProject();
@@ -38,6 +41,7 @@ const ProjectWorkspace = () => {
     // Fetch slot data when project is loaded and uses slot system
     if (project && project.slotConfiguration?.enableSlotSystem) {
       fetchSlotData();
+      fetchAvailableUsersForReassignment();
     }
   }, [project]);
 
@@ -66,8 +70,8 @@ const ProjectWorkspace = () => {
         setSlotStatistics(statsResponse.data);
       }
 
-      // Fetch available slots
-      const slotsResponse = await projectApi.getAvailableSlots(project._id);
+      // Fetch all slots (both available and assigned) for proper display
+      const slotsResponse = await projectApi.getAvailableSlots(project._id, { includeAll: true });
       if (slotsResponse.success) {
         setSlots(slotsResponse.data?.slots || []);
       }
@@ -81,6 +85,55 @@ const ProjectWorkspace = () => {
 
   const handleRefreshSlotData = async () => {
     await fetchSlotData();
+  };
+
+  // Fetch available users for slot reassignment
+  const fetchAvailableUsersForReassignment = async () => {
+    try {
+      const response = await userApi.getAllUsers();
+      const allUsers = response.data || [];
+      
+      const projectDeptId = project?.department?._id || project?.department;
+      
+      // Filter users from the same department (employees and HoDs only)
+      const available = allUsers.filter(u => {
+        // Only include employees and HoDs
+        if (u.role !== 'employee' && u.role !== 'hod') {
+          return false;
+        }
+        
+        // Include only if from same department
+        if (projectDeptId) {
+          const userDeptId = u.department?._id || u.department;
+          return userDeptId === projectDeptId;
+        }
+        
+        return true;
+      });
+      
+      setAvailableUsers(available);
+    } catch (error) {
+      console.error("Failed to fetch available users:", error);
+      toast.error("Failed to load available users");
+    }
+  };
+
+  // Handle slot reassignment
+  const handleSlotReassign = async (slot, newAssigneeId) => {
+    if (!slot?.assignedWorkItem?._id) {
+      throw new Error("No work item found for this slot");
+    }
+
+    try {
+      await workItemApi.reassignWorkItem(slot.assignedWorkItem._id, newAssigneeId);
+      toast.success("Work item reassigned successfully!");
+      
+      // Refresh slot data to show updated assignment
+      await fetchSlotData();
+    } catch (error) {
+      console.error("Failed to reassign work item:", error);
+      throw new Error(error.response?.data?.message || "Failed to reassign work item");
+    }
   };
 
   if (loading) {
@@ -285,6 +338,8 @@ const ProjectWorkspace = () => {
                     // Handle slot click - could navigate to slot details
                     // console.log('Slot clicked:', slot);
                   }}
+                  onSlotReassign={handleSlotReassign}
+                  availableUsers={availableUsers}
                   realTimeUpdates={true}
                 />
               </Col>

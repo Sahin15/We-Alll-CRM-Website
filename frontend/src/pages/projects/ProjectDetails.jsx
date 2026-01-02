@@ -26,6 +26,7 @@ import {
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { projectApi } from "../../api/projectApi";
+import { workItemApi } from "../../api/workItemApi";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
 import { useAuth } from "../../context/AuthContext";
 import { userApi } from "../../api/userApi";
@@ -59,6 +60,9 @@ const ProjectDetails = () => {
   const [selectedHoPId, setSelectedHoPId] = useState("");
   const [isAssigningHoP, setIsAssigningHoP] = useState(false);
   
+  // Slot reassignment states
+  const [availableUsers, setAvailableUsers] = useState([]);
+  
 
 
   // Check if user can edit (admin, superadmin, hod)
@@ -81,26 +85,27 @@ const ProjectDetails = () => {
   useEffect(() => {
     // Fetch slot data when project is loaded and uses slot system
     if (project && project.slotConfiguration?.enableSlotSystem) {
-      console.log("🎯 Slot system detected! Fetching slot data...");
+      // console.log("🎯 Slot system detected! Fetching slot data...");
       fetchSlotData();
+      fetchAvailableUsersForReassignment();
     } else if (project) {
-      console.log("📋 Traditional project - no slot system enabled");
-      console.log("Project slot config:", project.slotConfiguration);
+      // console.log("📋 Traditional project - no slot system enabled");
+      // console.log("Project slot config:", project.slotConfiguration);
     }
   }, [project]);
 
   const fetchProjectDetails = async () => {
     try {
       const response = await projectApi.getProjectById(id);
-      console.log("Project API response:", response); // Debug log
+      // console.log("Project API response:", response); // Debug log
       
       // Handle different response formats
       const projectData = response?.data || response;
       
       if (projectData) {
-        console.log("🔍 Project data loaded:", projectData);
-        console.log("🔍 Slot configuration:", projectData.slotConfiguration);
-        console.log("🔍 Progress tracking:", projectData.progressTracking);
+        // console.log("🔍 Project data loaded:", projectData);
+        // console.log("🔍 Slot configuration:", projectData.slotConfiguration);
+        // console.log("🔍 Progress tracking:", projectData.progressTracking);
         setProject(projectData);
       } else {
         console.error("No project data in response:", response);
@@ -139,8 +144,8 @@ const ProjectDetails = () => {
         setSlotStatistics(statsResponse.data);
       }
 
-      // Fetch available slots (we'll use this to get all slots for now)
-      const slotsResponse = await projectApi.getAvailableSlots(project._id);
+      // Fetch all slots (both available and assigned) for proper display
+      const slotsResponse = await projectApi.getAvailableSlots(project._id, { includeAll: true });
       if (slotsResponse.success) {
         setSlots(slotsResponse.data?.slots || []);
       }
@@ -169,9 +174,9 @@ const ProjectDetails = () => {
       const projectHeadId = project?.projectHead?._id || project?.projectHead;
       const projectDeptId = project?.department?._id || project?.department;
       
-      console.log('Project department:', projectDeptId);
-      console.log('Current member IDs:', currentMemberIds);
-      console.log('Project head ID:', projectHeadId);
+      // console.log('Project department:', projectDeptId);
+      // console.log('Current member IDs:', currentMemberIds);
+      // console.log('Project head ID:', projectHeadId);
       
       const available = allUsers.filter(u => {
         // Only include employees and HoDs (exclude admins, clients, superadmins)
@@ -194,7 +199,7 @@ const ProjectDetails = () => {
           const userDeptId = u.department?._id || u.department;
           const matches = userDeptId === projectDeptId;
           if (!matches) {
-            console.log(`User ${u.name} excluded: dept ${userDeptId} !== ${projectDeptId}`);
+            // console.log(`User ${u.name} excluded: dept ${userDeptId} !== ${projectDeptId}`);
           }
           return matches;
         }
@@ -204,7 +209,7 @@ const ProjectDetails = () => {
       });
       
       setAvailableMembers(available);
-      console.log('Filtered available members:', available.map(u => ({ name: u.name, dept: u.department })));
+      // console.log('Filtered available members:', available.map(u => ({ name: u.name, dept: u.department })));
     } catch (error) {
       console.error("Failed to fetch available members:", error);
       toast.error("Failed to load available members");
@@ -293,6 +298,55 @@ const ProjectDetails = () => {
       toast.error(error.response?.data?.message || "Failed to assign Project Head");
     } finally {
       setIsAssigningHoP(false);
+    }
+  };
+
+  // Fetch available users for slot reassignment
+  const fetchAvailableUsersForReassignment = async () => {
+    try {
+      const response = await userApi.getAllUsers();
+      const allUsers = response.data || [];
+      
+      const projectDeptId = project?.department?._id || project?.department;
+      
+      // Filter users from the same department (employees and HoDs only)
+      const available = allUsers.filter(u => {
+        // Only include employees and HoDs
+        if (u.role !== 'employee' && u.role !== 'hod') {
+          return false;
+        }
+        
+        // Include only if from same department
+        if (projectDeptId) {
+          const userDeptId = u.department?._id || u.department;
+          return userDeptId === projectDeptId;
+        }
+        
+        return true;
+      });
+      
+      setAvailableUsers(available);
+    } catch (error) {
+      console.error("Failed to fetch available users:", error);
+      toast.error("Failed to load available users");
+    }
+  };
+
+  // Handle slot reassignment
+  const handleSlotReassign = async (slot, newAssigneeId) => {
+    if (!slot?.assignedWorkItem?._id) {
+      throw new Error("No work item found for this slot");
+    }
+
+    try {
+      await workItemApi.reassignWorkItem(slot.assignedWorkItem._id, newAssigneeId);
+      toast.success("Work item reassigned successfully!");
+      
+      // Refresh slot data to show updated assignment
+      await fetchSlotData();
+    } catch (error) {
+      console.error("Failed to reassign work item:", error);
+      throw new Error(error.response?.data?.message || "Failed to reassign work item");
     }
   };
 
@@ -959,8 +1013,10 @@ const ProjectDetails = () => {
                   showDetailed={true}
                   onSlotClick={(slot) => {
                     // Handle slot click - could navigate to slot details
-                    console.log('Slot clicked:', slot);
+                    // console.log('Slot clicked:', slot);
                   }}
+                  onSlotReassign={handleSlotReassign}
+                  availableUsers={availableUsers}
                   realTimeUpdates={true}
                 />
               </Col>

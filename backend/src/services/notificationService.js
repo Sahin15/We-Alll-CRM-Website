@@ -517,7 +517,7 @@ export const checkDueSoonWorkItems = async () => {
       },
     });
     
-    console.log(`Found ${dueSoonItems.length} work items due soon`);
+    // console.log(`Found ${dueSoonItems.length} work items due soon`);
     
     // Send notifications
     for (const item of dueSoonItems) {
@@ -545,7 +545,7 @@ export const checkOverdueWorkItems = async () => {
       dueDate: { $lt: today },
     });
     
-    console.log(`Found ${overdueItems.length} overdue work items`);
+    // console.log(`Found ${overdueItems.length} overdue work items`);
     
     // Send notifications
     for (const item of overdueItems) {

@@ -39,23 +39,23 @@ const PaymentVerification = () => {
   const fetchPendingPayments = async () => {
     try {
       setLoading(true);
-      console.log("🔄 Fetching pending payments from API...");
-      console.log("API URL:", import.meta.env.VITE_API_URL);
+      // console.log("🔄 Fetching pending payments from API...");
+      // console.log("API URL:", import.meta.env.VITE_API_URL);
       
       const response = await paymentAPI.getPending();
-      console.log("✅ Pending payments response:", response);
-      console.log("Response data:", response.data);
+      // console.log("✅ Pending payments response:", response);
+      // console.log("Response data:", response.data);
       
       // Handle both response.data and direct array response
       const paymentsData = Array.isArray(response.data) ? response.data : response.data?.data || [];
-      console.log("Payments data array:", paymentsData);
-      console.log("Selected company:", selectedCompany);
+      // console.log("Payments data array:", paymentsData);
+      // console.log("Selected company:", selectedCompany);
       
       // Filter by company on frontend since backend returns all pending
       const filteredPayments = paymentsData.filter(
         (payment) => payment.subscription?.company === selectedCompany
       );
-      console.log("Filtered payments:", filteredPayments);
+      // console.log("Filtered payments:", filteredPayments);
       
       setPayments(filteredPayments);
     } catch (error) {

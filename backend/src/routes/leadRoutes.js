@@ -20,16 +20,19 @@ import { authorizeRoles } from "../middleware/roleMiddleware.js";
 const router = express.Router();
 
 // Create new lead (public or admin)
-router.post("/", protect, authorizeRoles("admin", "superadmin"), createLead);
+router.post("/", protect, authorizeRoles("admin", "superadmin", "hr", "employee", "hod", "accounts"), createLead);
+
+// Create new lead (public endpoint for forms like Growth Summit)
+router.post("/public", createLead);
 
 // Get all leads
-router.get("/", protect, authorizeRoles("admin", "superadmin"), getAllLeads);
+router.get("/", protect, authorizeRoles("admin", "superadmin", "hr", "employee", "hod", "accounts"), getAllLeads);
 
 // Get lead by ID
-router.get("/:id", protect, authorizeRoles("admin", "superadmin"), getLeadById);
+router.get("/:id", protect, authorizeRoles("admin", "superadmin", "hr", "employee", "hod", "accounts"), getLeadById);
 
 // Update lead
-router.put("/:id", protect, authorizeRoles("admin", "superadmin"), updateLead);
+router.put("/:id", protect, authorizeRoles("admin", "superadmin", "hr", "employee", "hod", "accounts"), updateLead);
 
 // Delete lead
 router.delete(
@@ -43,7 +46,7 @@ router.delete(
 router.put(
   "/:id/assign",
   protect,
-  authorizeRoles("admin", "superadmin"),
+  authorizeRoles("admin", "superadmin", "hr", "employee", "hod", "accounts"),
   assignLead
 );
 
@@ -51,7 +54,7 @@ router.put(
 router.put(
   "/:id/status",
   protect,
-  authorizeRoles("admin", "superadmin"),
+  authorizeRoles("admin", "superadmin", "hr", "employee", "hod", "accounts"),
   updateLeadStatus
 );
 
@@ -59,7 +62,7 @@ router.put(
 router.put(
   "/:id/temperature",
   protect,
-  authorizeRoles("admin", "superadmin"),
+  authorizeRoles("admin", "superadmin", "hr", "employee", "hod", "accounts"),
   updateLeadTemperature
 );
 
@@ -67,25 +70,25 @@ router.put(
 router.post(
   "/:id/follow-ups",
   protect,
-  authorizeRoles("admin", "superadmin"),
+  authorizeRoles("admin", "superadmin", "hr", "employee", "hod", "accounts"),
   scheduleFollowUp
 );
 router.get(
   "/:id/follow-ups",
   protect,
-  authorizeRoles("admin", "superadmin"),
+  authorizeRoles("admin", "superadmin", "hr", "employee", "hod", "accounts"),
   getLeadFollowUps
 );
 router.put(
   "/:id/follow-ups/:followUpId/complete",
   protect,
-  authorizeRoles("admin", "superadmin"),
+  authorizeRoles("admin", "superadmin", "hr", "employee", "hod", "accounts"),
   completeFollowUp
 );
 router.put(
   "/:id/follow-ups/:followUpId/cancel",
   protect,
-  authorizeRoles("admin", "superadmin"),
+  authorizeRoles("admin", "superadmin", "hr", "employee", "hod", "accounts"),
   cancelFollowUp
 );
 

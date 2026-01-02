@@ -1,0 +1,259 @@
+/* File Attachments Component Styles */
+
+.file-attachments-card {
+  border: 1px solid #dee2e6;
+  border-radius: 0.375rem;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.file-attachments-card .card-header {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  padding: 0.75rem 1rem;
+}
+
+/* Drag & Drop Zone */
+.drag-drop-zone {
+  transition: all 0.3s ease;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+.drag-drop-zone:hover {
+  border-color: var(--bs-primary) !important;
+  background-color: var(--bs-light) !important;
+}
+
+.drag-drop-zone.drag-over {
+  border-color: var(--bs-primary) !important;
+  background-color: var(--bs-primary-bg-subtle) !important;
+  transform: scale(1.02);
+}
+
+/* File List Styles */
+.list-group-item {
+  border-left: none;
+  border-right: none;
+  padding: 0.75rem 1rem;
+}
+
+.list-group-item:first-child {
+  border-top: none;
+}
+
+.list-group-item:last-child {
+  border-bottom: none;
+}
+
+/* File Icons */
+.file-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+/* Progress Bar */
+.progress {
+  height: 0.5rem;
+}
+
+.progress-bar {
+  font-size: 0.75rem;
+  line-height: 0.5rem;
+}
+
+/* Compact View */
+.file-attachments-compact {
+  padding: 0.5rem;
+  border: 1px solid #dee2e6;
+  border-radius: 0.25rem;
+  background-color: #f8f9fa;
+}
+
+.file-attachments-compact .attachment-list-compact {
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.file-attachments-compact .attachment-list-compact::-webkit-scrollbar {
+  width: 4px;
+}
+
+.file-attachments-compact .attachment-list-compact::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 2px;
+}
+
+.file-attachments-compact .attachment-list-compact::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 2px;
+}
+
+.file-attachments-compact .attachment-list-compact::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Animation for spinning icons */
+.fa-spin {
+  animation: fa-spin 1s infinite linear;
+}
+
+@keyframes fa-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* File type specific colors */
+.file-type-image { color: #28a745; }
+.file-type-pdf { color: #dc3545; }
+.file-type-word { color: #007bff; }
+.file-type-excel { color: #28a745; }
+.file-type-code { color: #6f42c1; }
+.file-type-archive { color: #ffc107; }
+.file-type-default { color: #6c757d; }
+
+/* Hover effects */
+.list-group-item:hover {
+  background-color: #f8f9fa;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-success:hover,
+.btn-outline-danger:hover,
+.btn-outline-info:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Modal styles */
+.modal-header {
+  border-bottom: 1px solid #dee2e6;
+}
+
+.modal-footer {
+  border-top: 1px solid #dee2e6;
+}
+
+/* Preview modal */
+.preview-image {
+  max-width: 100%;
+  max-height: 400px;
+  border-radius: 0.375rem;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .file-attachments-card .card-header {
+    padding: 0.5rem;
+  }
+  
+  .list-group-item {
+    padding: 0.5rem;
+  }
+  
+  .drag-drop-zone {
+    min-height: 150px;
+    padding: 2rem 1rem;
+  }
+  
+  .btn-group .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+  }
+}
+
+/* Accessibility */
+.drag-drop-zone:focus {
+  outline: 2px solid var(--bs-primary);
+  outline-offset: 2px;
+}
+
+.btn:focus {
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Loading states */
+.uploading .list-group-item {
+  opacity: 0.7;
+}
+
+.uploading .btn {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Success states */
+.upload-success {
+  animation: uploadSuccess 0.5s ease-in-out;
+}
+
+@keyframes uploadSuccess {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* Error states */
+.upload-error {
+  border-color: var(--bs-danger);
+  background-color: var(--bs-danger-bg-subtle);
+}
+
+/* Tooltip styles */
+.tooltip {
+  font-size: 0.875rem;
+}
+
+/* Badge styles */
+.badge {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+}
+
+/* File size and date styles */
+.file-meta {
+  font-size: 0.875rem;
+  color: #6c757d;
+}
+
+.file-meta .separator {
+  margin: 0 0.5rem;
+}
+
+/* Drag and drop visual feedback */
+.drag-drop-zone.drag-active {
+  border-color: var(--bs-success);
+  background-color: var(--bs-success-bg-subtle);
+}
+
+.drag-drop-zone.drag-active .upload-icon {
+  color: var(--bs-success);
+  transform: scale(1.1);
+}
+
+/* File list animations */
+.file-list-enter {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.file-list-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms, transform 300ms;
+}
+
+.file-list-exit {
+  opacity: 1;
+}
+
+.file-list-exit-active {
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 300ms, transform 300ms;
+}

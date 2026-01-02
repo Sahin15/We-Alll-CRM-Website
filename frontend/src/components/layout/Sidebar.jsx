@@ -66,7 +66,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       path: "/leads",
       icon: <FaUserTie />,
       label: "Leads",
-      roles: ["admin", "superadmin", "accounts"],
+      roles: ["admin", "superadmin", "accounts", "hr", "employee", "hod"],
     },
     {
       id: "billing",
@@ -264,7 +264,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
                 /* Expanded: Show full We Alll Office logo */
                 <div className="logo-full-container">
                   <img 
-                    src="/We-Alll-Office-Logo.png" 
+                    src="/We Alll Office Logo.png" 
                     alt="We Alll Office" 
                     className="logo-img-full"
                   />
