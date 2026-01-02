@@ -49,8 +49,10 @@ const QuickStatsWidget = ({
         
         {trendValue && (
           <div className="d-flex align-items-center mt-2">
-            <span className={`badge bg-${getTrendColor()} bg-opacity-10 text-${getTrendColor()} d-flex align-items-center`}>
-              {getTrendIcon()}
+            <span className={`badge bg-${getTrendColor()} bg-opacity-15 text-dark fw-semibold d-flex align-items-center px-2 py-1`}>
+              <span className={`text-${getTrendColor()}`}>
+                {getTrendIcon()}
+              </span>
               <span className="ms-1">{trendValue}</span>
             </span>
             <small className="text-muted ms-2">vs last week</small>
