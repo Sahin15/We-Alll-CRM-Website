@@ -355,7 +355,7 @@ const GrowthSummitFinal = () => {
 
       case 4:
         return (
-          <div style={{ padding: '1rem' }}>
+          <div style={{ padding: '1rem', paddingBottom: '0.5rem' }}>
             <h3 style={{ color: '#2d3436', marginBottom: '1rem', fontSize: '1.3rem', textAlign: 'center' }}>
               🎯 Final Step: Choose Your Interests
             </h3>
@@ -433,7 +433,8 @@ const GrowthSummitFinal = () => {
               borderRadius: '12px',
               padding: '1.25rem',
               textAlign: 'center',
-              marginTop: '1rem'
+              marginTop: '1rem',
+              marginBottom: '1rem'
             }}>
               <h4 style={{ color: '#15803d', marginBottom: '0.5rem', fontSize: '1.1rem' }}>
                 🎉 Ready to Complete Registration!
@@ -441,6 +442,17 @@ const GrowthSummitFinal = () => {
               <p style={{ color: '#16a34a', fontSize: '0.9rem', margin: '0' }}>
                 Click the green "Secure My Spot!" button below to finalize your Growth Summit 2026 registration
               </p>
+            </div>
+            
+            {/* Scroll indicator for mobile */}
+            <div style={{
+              textAlign: 'center',
+              padding: '0.5rem',
+              fontSize: '0.8rem',
+              color: '#64748b',
+              fontStyle: 'italic'
+            }}>
+              ↓ Scroll down to see the registration button ↓
             </div>
           </div>
         );
@@ -823,7 +835,33 @@ const GrowthSummitFinal = () => {
         size="lg" 
         centered
         style={{ zIndex: 9999 }}
+        dialogClassName={currentStep === 4 ? "step-4-modal" : ""}
       >
+        <style>{`
+          .step-4-modal .modal-dialog {
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+          }
+          .step-4-modal .modal-content {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+          }
+          .step-4-modal .modal-body {
+            flex: 1;
+            overflow-y: auto;
+          }
+          .step-4-modal .modal-footer {
+            flex-shrink: 0;
+            position: sticky;
+            bottom: 0;
+            background: white;
+            border-top: 2px solid #e2e8f0;
+            box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+          }
+        `}</style>
         <Modal.Header 
           closeButton 
           style={{
@@ -870,7 +908,10 @@ const GrowthSummitFinal = () => {
           <Modal.Body style={{ 
             padding: '0',
             background: 'white',
-            minHeight: '300px'
+            minHeight: '300px',
+            maxHeight: currentStep === 4 ? '70vh' : '300px',
+            overflowY: currentStep === 4 ? 'auto' : 'visible',
+            paddingBottom: currentStep === 4 ? '1rem' : '0'
           }}>
             {renderStepContent()}
           </Modal.Body>
@@ -880,7 +921,11 @@ const GrowthSummitFinal = () => {
             borderTop: '1px solid #e2e8f0',
             padding: '1rem 1.5rem',
             display: 'flex',
-            justifyContent: 'space-between'
+            justifyContent: 'space-between',
+            position: 'sticky',
+            bottom: '0',
+            zIndex: 10,
+            boxShadow: currentStep === 4 ? '0 -4px 15px rgba(0, 0, 0, 0.1)' : 'none'
           }}>
             <div>
               {currentStep > 1 && (
