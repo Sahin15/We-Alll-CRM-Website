@@ -12,8 +12,8 @@ const GrowthSummitFinal = () => {
     phone: "",
     email: "",
     companyName: "",
-    service: [],
-    budget: "",
+    service: ["Bridal Package"], // Auto-select Bridal Package
+    budget: "20k to 50k /Month", // Auto-select first budget option
     source: "Growth Summit",
     reference: "",
     status: "New"
@@ -59,7 +59,7 @@ const GrowthSummitFinal = () => {
   };
 
   const nextStep = () => {
-    if (currentStep < 4) {
+    if (currentStep < 3) { // Changed from 4 to 3
       setCurrentStep(currentStep + 1);
     }
   };
@@ -77,9 +77,7 @@ const GrowthSummitFinal = () => {
       case 2:
         return formData.fullName && formData.fullName.trim().length > 0;
       case 3:
-        return true; // Optional fields
-      case 4:
-        return true; // Review step
+        return true; // Final step - ready to submit
       default:
         return false;
     }
@@ -89,10 +87,10 @@ const GrowthSummitFinal = () => {
     // Prevent Enter key from submitting form unless on final step and explicitly intended
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (currentStep < 4 && canProceedToNext()) {
+      if (currentStep < 3 && canProceedToNext()) {
         nextStep();
       }
-      // Don't auto-submit on step 4 - user must click the button
+      // Don't auto-submit on step 3 - user must click the button
     }
   };
 
@@ -100,7 +98,7 @@ const GrowthSummitFinal = () => {
     e.preventDefault();
     e.stopPropagation();
     
-    if (currentStep !== 4 || loading) {
+    if (currentStep !== 3 || loading) {
       return;
     }
     
@@ -111,8 +109,8 @@ const GrowthSummitFinal = () => {
     e.preventDefault();
     e.stopPropagation();
     
-    // Only allow submission on the final step (step 4) and when explicitly submitted
-    if (currentStep !== 4) {
+    // Only allow submission on the final step (step 3) and when explicitly submitted
+    if (currentStep !== 3) {
       return;
     }
     
@@ -148,8 +146,8 @@ const GrowthSummitFinal = () => {
         phone: "",
         email: "",
         companyName: "",
-        service: [],
-        budget: "",
+        service: ["Bridal Package"], // Reset to auto-selected
+        budget: "20k to 50k /Month", // Reset to auto-selected
         source: "Growth Summit",
         reference: "",
         status: "New"
@@ -293,13 +291,13 @@ const GrowthSummitFinal = () => {
             </Form.Group>
 
             <Form.Group className="mb-3">
-              <Form.Label style={{ fontWeight: '600', color: '#374151' }}>Company Name</Form.Label>
+              <Form.Label style={{ fontWeight: '600', color: '#374151' }}>Brand Name</Form.Label>
               <Form.Control
                 type="text"
                 name="companyName"
                 value={formData.companyName}
                 onChange={handleChange}
-                placeholder="Your business name"
+                placeholder="Your brand name"
                 style={{
                   fontSize: '1rem',
                   padding: '0.8rem',
@@ -308,29 +306,6 @@ const GrowthSummitFinal = () => {
                 }}
                 autoComplete="off"
               />
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label style={{ fontWeight: '600', color: '#374151' }}>Investment Range</Form.Label>
-              <Form.Select
-                name="budget"
-                value={formData.budget}
-                onChange={handleChange}
-                style={{
-                  fontSize: '1rem',
-                  padding: '0.8rem',
-                  borderRadius: '8px',
-                  border: '2px solid #e2e8f0'
-                }}
-                autoComplete="off"
-              >
-                <option value="">Select your investment capacity</option>
-                {budgetOptions.map((budget) => (
-                  <option key={budget} value={budget}>
-                    {budget}
-                  </option>
-                ))}
-              </Form.Select>
             </Form.Group>
 
             <Form.Group className="mb-3">
@@ -350,81 +325,6 @@ const GrowthSummitFinal = () => {
                 autoComplete="off"
               />
             </Form.Group>
-          </div>
-        );
-
-      case 4:
-        return (
-          <div style={{ padding: '1rem', paddingBottom: '0.5rem' }}>
-            <h3 style={{ color: '#2d3436', marginBottom: '1rem', fontSize: '1.3rem', textAlign: 'center' }}>
-              🎯 Final Step: Choose Your Interests
-            </h3>
-            <p style={{ color: '#64748b', marginBottom: '1.5rem', fontSize: '0.95rem', textAlign: 'center' }}>
-              Select the services you'd like to learn about at the Growth Summit (optional - you can skip this step)
-            </p>
-            
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '0.75rem',
-              marginBottom: '1.5rem'
-            }}>
-              {serviceOptions.map((service) => (
-                <div
-                  key={service}
-                  onClick={(e) => handleServiceClick(e, service)}
-                  style={{
-                    padding: '1rem',
-                    borderRadius: '10px',
-                    border: formData.service.includes(service) 
-                      ? '3px solid #667eea' 
-                      : '2px solid #e2e8f0',
-                    background: formData.service.includes(service) 
-                      ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(102, 126, 234, 0.05))' 
-                      : 'white',
-                    cursor: 'pointer',
-                    textAlign: 'center',
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                    color: formData.service.includes(service) ? '#667eea' : '#374151',
-                    transition: 'all 0.3s ease',
-                    boxShadow: formData.service.includes(service) 
-                      ? '0 4px 15px rgba(102, 126, 234, 0.2)' 
-                      : '0 2px 8px rgba(0, 0, 0, 0.1)'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!formData.service.includes(service)) {
-                      e.target.style.borderColor = '#667eea';
-                      e.target.style.transform = 'translateY(-2px)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!formData.service.includes(service)) {
-                      e.target.style.borderColor = '#e2e8f0';
-                      e.target.style.transform = 'translateY(0px)';
-                    }
-                  }}
-                >
-                  {formData.service.includes(service) && '✅ '}{service}
-                </div>
-              ))}
-            </div>
-            
-            {/* Show selected services count */}
-            {formData.service.length > 0 && (
-              <div style={{
-                background: 'linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%)',
-                border: '2px solid #0ea5e9',
-                borderRadius: '10px',
-                padding: '0.75rem',
-                textAlign: 'center',
-                marginBottom: '1rem'
-              }}>
-                <p style={{ color: '#0369a1', fontSize: '0.9rem', margin: '0', fontWeight: '600' }}>
-                  ✨ {formData.service.length} service{formData.service.length !== 1 ? 's' : ''} selected: {formData.service.join(', ')}
-                </p>
-              </div>
-            )}
             
             {/* Final step confirmation */}
             <div style={{
@@ -440,19 +340,8 @@ const GrowthSummitFinal = () => {
                 🎉 Ready to Complete Registration!
               </h4>
               <p style={{ color: '#16a34a', fontSize: '0.9rem', margin: '0' }}>
-                Click the green "Secure My Spot!" button below to finalize your Growth Summit 2026 registration
+                You're registering for our Bridal Package services at Growth Summit 2026
               </p>
-            </div>
-            
-            {/* Scroll indicator for mobile */}
-            <div style={{
-              textAlign: 'center',
-              padding: '0.5rem',
-              fontSize: '0.8rem',
-              color: '#64748b',
-              fontStyle: 'italic'
-            }}>
-              ↓ Scroll down to see the registration button ↓
             </div>
           </div>
         );
@@ -464,10 +353,9 @@ const GrowthSummitFinal = () => {
 
   const getStepTitle = () => {
     switch (currentStep) {
-      case 1: return "Step 1 of 4";
-      case 2: return "Step 2 of 4";
-      case 3: return "Step 3 of 4";
-      case 4: return "Step 4 of 4";
+      case 1: return "Step 1 of 3";
+      case 2: return "Step 2 of 3";
+      case 3: return "Step 3 of 3";
       default: return "";
     }
   };
@@ -835,30 +723,28 @@ const GrowthSummitFinal = () => {
         size="lg" 
         centered
         style={{ zIndex: 9999 }}
-        dialogClassName={currentStep === 4 ? "step-4-modal" : ""}
       >
         <style>{`
-          .step-4-modal .modal-dialog {
+          .modal-dialog {
             max-height: 90vh;
             display: flex;
             flex-direction: column;
           }
-          .step-4-modal .modal-content {
+          .modal-content {
             height: 100%;
             display: flex;
             flex-direction: column;
           }
-          .step-4-modal .modal-body {
+          .modal-body {
             flex: 1;
             overflow-y: auto;
           }
-          .step-4-modal .modal-footer {
+          .modal-footer {
             flex-shrink: 0;
             position: sticky;
             bottom: 0;
             background: white;
             border-top: 2px solid #e2e8f0;
-            box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.1);
             z-index: 1000;
           }
         `}</style>
@@ -888,7 +774,7 @@ const GrowthSummitFinal = () => {
             }}>
               <span>{getStepTitle()}</span>
               <div style={{ display: 'flex', gap: '0.3rem' }}>
-                {[1, 2, 3, 4].map((step) => (
+                {[1, 2, 3].map((step) => (
                   <div
                     key={step}
                     style={{
@@ -909,9 +795,8 @@ const GrowthSummitFinal = () => {
             padding: '0',
             background: 'white',
             minHeight: '300px',
-            maxHeight: currentStep === 4 ? '70vh' : '300px',
-            overflowY: currentStep === 4 ? 'auto' : 'visible',
-            paddingBottom: currentStep === 4 ? '1rem' : '0'
+            maxHeight: '70vh',
+            overflowY: 'auto'
           }}>
             {renderStepContent()}
           </Modal.Body>
@@ -924,8 +809,7 @@ const GrowthSummitFinal = () => {
             justifyContent: 'space-between',
             position: 'sticky',
             bottom: '0',
-            zIndex: 10,
-            boxShadow: currentStep === 4 ? '0 -4px 15px rgba(0, 0, 0, 0.1)' : 'none'
+            zIndex: 10
           }}>
             <div>
               {currentStep > 1 && (
@@ -963,7 +847,7 @@ const GrowthSummitFinal = () => {
             </div>
             
             <div>
-              {currentStep < 4 ? (
+              {currentStep < 3 ? (
                 <Button 
                   type="button"
                   onClick={nextStep}
@@ -1004,8 +888,7 @@ const GrowthSummitFinal = () => {
                 >
                   <span style={{ position: 'relative', zIndex: 1 }}>
                     {currentStep === 1 ? '🚀 Let\'s Go!' : 
-                     currentStep === 2 ? '✨ Next Step' : 
-                     currentStep === 3 ? '📋 Choose Services' : 'Continue'}
+                     currentStep === 2 ? '✨ Next Step' : 'Continue'}
                   </span>
                   {canProceedToNext() && (
                     <div style={{
