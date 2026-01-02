@@ -44,7 +44,6 @@ const Login = () => {
         // Extract first name for personalized greeting
         const firstName = fullName ? fullName.split(' ')[0] : email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1);
         
-        console.log("Login successful, user name:", fullName, "First name:", firstName);
         setUserName(firstName);
         
         // Show welcome animation before navigating

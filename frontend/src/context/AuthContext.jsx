@@ -49,21 +49,12 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     try {
-      console.log("Login attempt with email:", credentials.email);
-
       // Clear any existing data before login
       localStorage.removeItem("token");
       localStorage.removeItem("user");
 
       const response = await authApi.login(credentials);
       const { token, user } = response.data;
-
-      console.log("Login response received:", {
-        userName: user.name,
-        userEmail: user.email,
-        userId: user.id,
-        userRole: user.role,
-      });
 
       localStorage.setItem("token", token);
       
@@ -74,8 +65,6 @@ export const AuthProvider = ({ children }) => {
         const freshUserData = await authApi.getCurrentUser();
         const completeUser = freshUserData.data.user;
         
-        console.log(`[AUTH] Login - Profile picture: ${completeUser?.profilePicture || 'null'}`);
-        
         localStorage.setItem("user", JSON.stringify(completeUser));
         setUser(completeUser);
         
@@ -84,7 +73,6 @@ export const AuthProvider = ({ children }) => {
         console.error("Failed to refresh user data after login:", refreshError);
         // Fallback to login response data
         localStorage.setItem("user", JSON.stringify(user));
-        console.log(`[AUTH] Login (fallback) - Profile picture: ${user?.profilePicture || 'null'}`);
         setUser(user);
         return { success: true, data: response.data };
       }
