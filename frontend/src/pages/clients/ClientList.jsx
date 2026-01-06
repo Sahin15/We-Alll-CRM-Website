@@ -252,8 +252,25 @@ const ClientList = () => {
         await clientApi.updateClient(currentClient._id, formData);
         toast.success("Client updated successfully");
       } else {
-        await clientApi.createClient(formData);
-        toast.success("Client created successfully");
+        // Create the client (backend will automatically create project)
+        console.log('Creating client with data:', formData);
+        const response = await clientApi.createClient(formData);
+        console.log('Client creation response:', response);
+        console.log('Response data:', response.data);
+        console.log('Response data keys:', Object.keys(response.data || {}));
+        
+        // Check if project was also created
+        if (response.data?.project) {
+          console.log('Project created:', response.data.project);
+          toast.success("Client and project created successfully!");
+        } else if (response.data?.projectError) {
+          console.log('Project creation failed:', response.data.projectError);
+          toast.success("Client created successfully, but project creation failed. You can create the project manually.");
+        } else {
+          console.log('No project in response, only client created');
+          console.log('Full response.data:', JSON.stringify(response.data, null, 2));
+          toast.success("Client created successfully!");
+        }
       }
       handleCloseModal();
       fetchClients();

@@ -1,0 +1,59 @@
+/* Holiday Section Styles */
+.holiday-card {
+  transition: all 0.2s ease-in-out;
+  border-radius: 8px !important;
+}
+
+.holiday-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.holiday-card .card-body {
+  border-radius: 8px;
+}
+
+/* Holiday type icons styling */
+.holiday-card .text-success,
+.holiday-card .text-warning,
+.holiday-card .text-primary,
+.holiday-card .text-info {
+  font-size: 1.1rem;
+}
+
+/* Badge styling for better visibility */
+.holiday-card .badge {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Description text styling */
+.holiday-card .text-muted {
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .holiday-card {
+    margin-bottom: 1rem;
+  }
+  
+  .holiday-card .card-body {
+    padding: 0.75rem !important;
+  }
+  
+  .holiday-card h6 {
+    font-size: 0.9rem;
+  }
+}
+
+/* Animation for collapse */
+.collapse {
+  transition: height 0.3s ease;
+}
+
+/* Improved spacing for holiday section */
+.holiday-section-container {
+  padding: 0.5rem 0;
+}

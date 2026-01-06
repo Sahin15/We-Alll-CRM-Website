@@ -190,7 +190,7 @@ const Navbar = ({ toggleSidebar }) => {
         { keyword: 'profile', title: 'My Profile', path: user?.role === 'employee' ? '/employee/profile' : '/profile', icon: <FaUserCircle className="text-secondary" /> },
         { keyword: 'leave', title: 'My Leaves', path: user?.role === 'employee' ? '/employee/leaves' : '/leaves/my-leaves', icon: <FaCalendarAlt className="text-danger" /> },
         { keyword: 'attendance', title: 'My Attendance', path: user?.role === 'employee' ? '/employee/attendance' : '/attendance/my-attendance', icon: <FaClock className="text-primary" /> },
-        { keyword: 'task', title: 'My Tasks', path: user?.role === 'employee' ? '/employee/tasks' : '/tasks', icon: <FaTasks className="text-info" /> },
+        { keyword: 'task', title: 'My Tasks', path: user?.role === 'employee' ? '/employee/my-work' : '/tasks', icon: <FaTasks className="text-info" /> },
       ].filter(nav => nav.keyword.includes(query.toLowerCase()) || nav.title.toLowerCase().includes(query.toLowerCase()));
 
       quickNav.forEach(nav => {

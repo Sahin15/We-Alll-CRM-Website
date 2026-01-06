@@ -64,7 +64,7 @@ const AccountsDashboard = () => {
   ];
 
   return (
-    <Container fluid className="py-4">
+    <Container fluid className="py-2">
       <GreetingBanner subtitle="Financial overview and management" />
 
       <Row className="g-4 mb-4">

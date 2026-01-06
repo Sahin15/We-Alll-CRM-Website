@@ -108,6 +108,9 @@ import NotificationManagement from "../components/admin/NotificationManagement";
 import NotificationDashboard from "../components/notifications/NotificationDashboard";
 import NotificationSettings from "../components/notifications/NotificationSettings";
 
+// Holiday Management
+import HolidayManagement from "../components/hr/HolidayManagement";
+
 // Error Pages
 import NotFound from "../pages/errors/NotFound";
 import Unauthorized from "../pages/errors/Unauthorized";
@@ -261,6 +264,7 @@ const AppRoutes = () => {
         <Route path="/employee/time-tracking" element={<TimeTracking />} />
         <Route path="/employee/team" element={<TeamDirectory />} />
         <Route path="/employee/announcements" element={<Announcements />} />
+        <Route path="/employee/notifications" element={<Announcements />} />
         <Route path="/employee/policies" element={<Policies />} />
         <Route path="/employee/settings" element={<Settings />} />
         <Route path="/employee/profile" element={<MyProfile />} />
@@ -283,6 +287,25 @@ const AppRoutes = () => {
             </RoleBasedRoute>
           }
         />
+        
+        {/* Holiday Management Routes */}
+        <Route
+          path="/hr/holidays"
+          element={
+            <RoleBasedRoute allowedRoles={["hr"]}>
+              <HolidayManagement />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/admin/holidays"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
+              <HolidayManagement />
+            </RoleBasedRoute>
+          }
+        />
+        
         <Route
           path="/hod/settings"
           element={

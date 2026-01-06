@@ -24,7 +24,7 @@ import {
   FaFilter,
   FaExclamationTriangle,
 } from 'react-icons/fa';
-import { toast } from 'react-toastify';
+import toast from "../../utils/toast";
 import api from '../../services/api';
 
 const DocumentManagement = () => {

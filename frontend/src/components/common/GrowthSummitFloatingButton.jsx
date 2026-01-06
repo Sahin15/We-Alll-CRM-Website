@@ -4,6 +4,13 @@ import { FaRocket } from 'react-icons/fa';
 import { useLocation } from 'react-router-dom';
 import './GrowthSummitFloatingButton.css';
 
+/**
+ * Growth Summit Floating Button Component
+ * 
+ * NOTE: This component is currently disabled as the Growth Summit 2026 event has concluded.
+ * The functionality is preserved for future events/seminars.
+ * To re-enable: Import and use this component in MainLayout.jsx
+ */
 const GrowthSummitFloatingButton = () => {
   const location = useLocation();
 

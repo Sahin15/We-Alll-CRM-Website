@@ -246,7 +246,7 @@ const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
   const greeting = getGreeting();
 
   return (
-    <Card className="greeting-banner shadow-lg mb-4">
+    <Card className="greeting-banner shadow-lg mb-2">
       <Card.Body className="text-white position-relative">
         <div className="greeting-content">
           <div className="d-flex align-items-center mb-2">

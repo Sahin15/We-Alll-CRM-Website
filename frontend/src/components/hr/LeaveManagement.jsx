@@ -22,8 +22,8 @@ import {
   FaChevronDown,
   FaChevronUp
 } from "react-icons/fa";
-import { toast } from "react-toastify";
-import leaveApi from "../../api/leaveApi";
+import toast from "../../utils/toast";
+import { leaveApi } from "../../api/leaveApi";
 import LeaveRequestCard from "../leaves/LeaveRequestCard";
 import "../../pages/leaves/LeaveManagement.css";
 

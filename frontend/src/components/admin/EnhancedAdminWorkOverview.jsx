@@ -521,6 +521,37 @@ const EnhancedAdminWorkOverview = () => {
       }
     },
     {
+      key: 'createdBy.name',
+      title: 'Assigned By',
+      sortable: true,
+      filterable: true,
+      minWidth: '140px',
+      editable: false,
+      render: (value, row) => {
+        if (!row.createdBy || !row.createdBy.name) {
+          return <span className="text-muted">Unknown</span>;
+        }
+        
+        return (
+          <span
+            className="text-dark"
+            style={{ 
+              textDecoration: 'underline', 
+              cursor: 'pointer',
+              fontSize: 'inherit'
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEmployeeClick(row.createdBy);
+            }}
+            title={`View all work assigned by ${row.createdBy.name}`}
+          >
+            {row.createdBy.name}
+          </span>
+        );
+      }
+    },
+    {
       key: 'departmentName',
       title: 'Department',
       sortable: true,

@@ -3,7 +3,7 @@ import { Card, Form, InputGroup, Table, Badge, Button, Spinner } from "react-boo
 import { FaSearch, FaUser, FaEnvelope, FaPhone, FaEye } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { userApi } from "../../api/userApi";
-import { toast } from "react-toastify";
+import toast from "../../utils/toast";
 
 const EmployeeDirectory = () => {
   const navigate = useNavigate();

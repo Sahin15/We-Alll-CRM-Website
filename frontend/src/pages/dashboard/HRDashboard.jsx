@@ -28,6 +28,7 @@ import QuickActions from "../../components/dashboard/QuickActions";
 import GreetingBanner from "../../components/common/GreetingBanner";
 import QuickClockInOut from "../../components/attendance/QuickClockInOut";
 import LeaveManagement from "../../components/hr/LeaveManagement";
+import HolidayManagement from "../../components/hr/HolidayManagement";
 import TaskManagement from "../../components/hr/TaskManagement";
 import MeetingManagement from "../../components/hr/MeetingManagement";
 import AttendanceOverview from "../../components/hr/AttendanceOverview";
@@ -230,6 +231,12 @@ const HRDashboard = () => {
       variant: "primary",
     },
     {
+      label: "Manage Holidays",
+      icon: <FaCalendarAlt />,
+      path: "/hr/holidays",
+      variant: "warning",
+    },
+    {
       label: "View Attendance",
       icon: <FaClock />,
       path: "/attendance/tracking",
@@ -281,7 +288,7 @@ const HRDashboard = () => {
   };
 
   return (
-    <Container fluid className="py-3">
+    <Container fluid className="py-2">
       <GreetingBanner subtitle="Manage your workforce efficiently" />
 
       {/* Clock In/Out Widget */}
@@ -376,8 +383,6 @@ const HRDashboard = () => {
           <AttendanceOverview />
         </Col>
       </Row>
-
-
 
       {/* Meeting Management - Full Width */}
       <Row className="mb-4">
@@ -488,7 +493,7 @@ const HRDashboard = () => {
                     <td><strong>{leave.employee?.name}</strong></td>
                     <td><Badge bg="info">{leave.leaveType}</Badge></td>
                     <td>
-                      <small>{new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}</small>
+                      <small>{new Date(leave.startDate).toLocaleDateString('en-GB')} - {new Date(leave.endDate).toLocaleDateString('en-GB')}</small>
                     </td>
                     <td>
                       <Button size="sm" variant="success" className="me-2" onClick={() => handleApproveLeave(leave._id)}>Approve</Button>

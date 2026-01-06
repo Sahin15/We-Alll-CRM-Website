@@ -8,9 +8,10 @@ import userApi from '../../api/userApi';
 
 /**
  * CreateProjectModal Component
- * Modal for creating new projects
+ * Modal for creating new projects or editing existing ones
  */
-const CreateProjectModal = ({ show, onHide, onSuccess }) => {
+const CreateProjectModal = ({ show, onHide, onSuccess, editProject = null }) => {
+  const isEditMode = !!editProject;
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -39,8 +40,50 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
   useEffect(() => {
     if (show) {
       loadData();
+      
+      // Populate form data for edit mode
+      if (isEditMode && editProject) {
+        setFormData({
+          name: editProject.name || '',
+          description: editProject.description || '',
+          client: editProject.client?._id || editProject.client || '',
+          departments: Array.isArray(editProject.departments) 
+            ? editProject.departments.map(d => d._id || d)
+            : editProject.department ? [editProject.department._id || editProject.department] : [],
+          projectHead: editProject.projectHead?._id || editProject.projectHead || '',
+          status: editProject.status || 'Pending',
+          priority: editProject.priority || 'medium',
+          budget: editProject.budget || '',
+          startDate: editProject.startDate ? new Date(editProject.startDate).toISOString().split('T')[0] : '',
+          endDate: editProject.endDate ? new Date(editProject.endDate).toISOString().split('T')[0] : '',
+          teamRoles: {},
+          enableSlotSystem: editProject.slotConfiguration?.enableSlotSystem || false,
+          totalSlots: editProject.slotConfiguration?.totalSlots || 10,
+          slotType: editProject.slotConfiguration?.slotType || 'generic',
+          calculationMethod: editProject.progressTracking?.calculationMethod || 'manual'
+        });
+      } else {
+        // Reset form for create mode
+        setFormData({
+          name: '',
+          description: '',
+          client: '',
+          departments: [],
+          projectHead: '',
+          status: 'Pending',
+          priority: 'medium',
+          budget: '',
+          startDate: '',
+          endDate: '',
+          teamRoles: {},
+          enableSlotSystem: false,
+          totalSlots: 10,
+          slotType: 'generic',
+          calculationMethod: 'manual'
+        });
+      }
     }
-  }, [show]);
+  }, [show, isEditMode, editProject]);
 
   const loadData = async () => {
     try {
@@ -279,8 +322,13 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
         }
       }
 
-      await projectApi.createProject(submitData);
-      toast.success('Project created successfully!');
+      if (isEditMode) {
+        await projectApi.updateProject(editProject._id, submitData);
+        toast.success('Project updated successfully!');
+      } else {
+        await projectApi.createProject(submitData);
+        toast.success('Project created successfully!');
+      }
 
       // Reset form
       setFormData({
@@ -341,7 +389,7 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
   return (
     <Modal show={show} onHide={handleCancel} size="lg" centered>
       <Modal.Header closeButton>
-        <Modal.Title>Create New Project</Modal.Title>
+        <Modal.Title>{isEditMode ? 'Edit Project' : 'Create New Project'}</Modal.Title>
       </Modal.Header>
 
       <Form onSubmit={handleSubmit}>
@@ -674,7 +722,7 @@ const CreateProjectModal = ({ show, onHide, onSuccess }) => {
             Cancel
           </Button>
           <Button variant="primary" type="submit" disabled={loading}>
-            {loading ? 'Creating...' : 'Create Project'}
+            {loading ? (isEditMode ? 'Updating...' : 'Creating...') : (isEditMode ? 'Update Project' : 'Create Project')}
           </Button>
         </Modal.Footer>
       </Form>

@@ -27,7 +27,7 @@ const ClientDashboard = () => {
   ];
 
   return (
-    <Container fluid className="py-4">
+    <Container fluid className="py-2">
       <GreetingBanner subtitle="Track your projects and communications" />
 
       <Row className="g-4 mb-4">

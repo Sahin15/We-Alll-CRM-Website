@@ -21,9 +21,9 @@ import {
   FaCalendarAlt,
   FaEdit
 } from "react-icons/fa";
-import { toast } from "react-toastify";
+import toast from "../../utils/toast";
 import api from "../../services/api";
-import workItemApi from "../../api/workItemApi";
+import { workItemApi } from "../../api/workItemApi";
 
 const TaskManagement = () => {
   const [tasks, setTasks] = useState([]);

@@ -93,10 +93,73 @@ export const createClient = async (req, res) => {
     const client = await Client.create(clientData);
     console.log('Client created successfully:', client._id);
 
-    res.status(201).json({
-      message: "Client added successfully",
-      client,
-    });
+    // Automatically create a project for the new client
+    try {
+      console.log('=== CREATING PROJECT FOR CLIENT ===');
+      console.log('Testing Project model availability...');
+      
+      // Test if Project model is available
+      if (!Project) {
+        throw new Error('Project model is not available');
+      }
+      
+      const projectData = {
+        name: `${name} Project`,
+        description: `Project for ${name}${company ? ` (${company})` : ''}`,
+        client: client._id,
+        status: 'Pending', // Use correct enum value
+        priority: 'medium',
+        startDate: new Date(),
+        createdBy: req.user.id,
+      };
+
+      console.log('Project data to create:', JSON.stringify(projectData, null, 2));
+      console.log('About to call Project.create...');
+      
+      const project = await Project.create(projectData);
+      
+      console.log('Project created successfully:', project._id);
+      console.log('Project name:', project.name);
+      console.log('About to send response...');
+
+      // Send a clean response without circular references
+      const responseData = {
+        message: "Client and project created successfully",
+        client: {
+          _id: client._id,
+          name: client.name,
+          email: client.email,
+          company: client.company
+        },
+        project: {
+          _id: project._id,
+          name: project.name,
+          description: project.description,
+          status: project.status,
+          priority: project.priority,
+          client: project.client
+        }
+      };
+
+      console.log('Sending response:', JSON.stringify(responseData, null, 2));
+      res.status(201).json(responseData);
+      console.log('Response sent successfully');
+    } catch (projectError) {
+      console.log('=== PROJECT CREATION ERROR ===');
+      console.log('Error name:', projectError.name);
+      console.log('Error message:', projectError.message);
+      console.log('Error code:', projectError.code);
+      console.log('Error stack:', projectError.stack);
+      console.log('Full project error:', projectError);
+      
+      // Client was created successfully, but project creation failed
+      // Still return success for client creation
+      res.status(201).json({
+        message: "Client created successfully, but project creation failed",
+        client,
+        projectError: projectError.message,
+      });
+    }
   } catch (error) {
     console.log('=== CREATE CLIENT ERROR ===');
     console.log('Error name:', error.name);

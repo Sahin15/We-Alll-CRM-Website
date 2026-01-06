@@ -30,6 +30,7 @@ import { toast } from 'react-toastify';
 import moment from 'moment';
 import { useAuth } from '../../context/AuthContext';
 import workItemApi from '../../api/workItemApi';
+import workCalendarApi from '../../api/workCalendarApi';
 import './EnhancedExportPanel.css';
 
 /**

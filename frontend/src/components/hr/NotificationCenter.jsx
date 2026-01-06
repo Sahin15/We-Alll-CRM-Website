@@ -3,7 +3,7 @@ import { Card, Badge, ListGroup, Button, Spinner, Nav } from "react-bootstrap";
 import { FaBell, FaCalendarAlt, FaTasks, FaUsers, FaExclamationCircle } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { leaveApi } from "../../api/leaveApi";
-import { toast } from "react-toastify";
+import toast from "../../utils/toast";
 
 const NotificationCenter = () => {
   const navigate = useNavigate();

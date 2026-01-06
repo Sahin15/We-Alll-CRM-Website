@@ -676,7 +676,7 @@ const AdminDashboard = () => {
   }
 
   return (
-    <Container fluid className="py-4">
+    <Container fluid className="py-2">
       <GreetingBanner subtitle="System overview and management" />
 
       {systemAlerts.length > 0 && (
@@ -1058,8 +1058,8 @@ const AdminDashboard = () => {
                   <tr key={leave._id}>
                     <td><strong>{leave.user?.name || 'N/A'}</strong></td>
                     <td><Badge bg="info">{leave.leaveType}</Badge></td>
-                    <td>{new Date(leave.startDate).toLocaleDateString()}</td>
-                    <td>{new Date(leave.endDate).toLocaleDateString()}</td>
+                    <td>{new Date(leave.startDate).toLocaleDateString('en-GB')}</td>
+                    <td>{new Date(leave.endDate).toLocaleDateString('en-GB')}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1274,8 +1274,8 @@ const AdminDashboard = () => {
                     <tr key={leave._id}>
                       <td><strong>{leave.user?.name || 'N/A'}</strong></td>
                       <td><Badge bg="info">{leave.leaveType}</Badge></td>
-                      <td>{startDate.toLocaleDateString()}</td>
-                      <td>{endDate.toLocaleDateString()}</td>
+                      <td>{startDate.toLocaleDateString('en-GB')}</td>
+                      <td>{endDate.toLocaleDateString('en-GB')}</td>
                       <td>{days} day{days > 1 ? 's' : ''}</td>
                       <td>
                         <Button 

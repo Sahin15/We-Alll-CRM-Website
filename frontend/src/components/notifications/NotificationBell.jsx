@@ -111,7 +111,7 @@ const NotificationBell = () => {
     }
   };
 
-  const recentNotifications = notifications.slice(0, 5);
+  const recentNotifications = notifications.filter(n => !n.isRead).slice(0, 5);
 
   return (
     <>
@@ -278,7 +278,7 @@ const NotificationBell = () => {
               size="sm"
               className="text-decoration-none"
               onClick={() => {
-                navigate('/employee/announcements');
+                navigate('/employee/notifications');
                 if (isMobile) setShowDropdown(false);
               }}
             >

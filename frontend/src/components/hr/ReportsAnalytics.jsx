@@ -4,7 +4,7 @@ import { FaChartBar, FaDownload, FaUsers, FaCalendarAlt, FaClock } from "react-i
 import { userApi } from "../../api/userApi";
 import { leaveApi } from "../../api/leaveApi";
 import { attendanceApi } from "../../api/attendanceApi";
-import { toast } from "react-toastify";
+import toast from "../../utils/toast";
 
 const ReportsAnalytics = () => {
   const [loading, setLoading] = useState(true);

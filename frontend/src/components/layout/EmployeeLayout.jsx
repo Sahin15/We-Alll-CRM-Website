@@ -38,8 +38,6 @@ const EmployeeLayout = () => {
     { path: '/employee/my-work', icon: FaTasks, label: 'My Work' },
     { path: '/employee/attendance', icon: FaClock, label: 'Attendance' },
     { path: '/employee/leaves', icon: FaCalendarAlt, label: 'Leaves' },
-    { path: '/employee/tasks', icon: FaTasks, label: 'Tasks' },
-    { path: '/employee/slots', icon: FaProjectDiagram, label: 'My Slots' },
     { path: '/employee/time-tracking', icon: FaClock, label: 'Time Tracking' },
     { path: '/employee/projects', icon: FaProjectDiagram, label: 'Projects' },
     { path: '/employee/team', icon: FaUsers, label: 'Team' },

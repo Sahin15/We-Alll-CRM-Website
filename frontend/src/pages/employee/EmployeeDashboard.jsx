@@ -775,7 +775,7 @@ const EmployeeDashboard = () => {
   }
 
   return (
-    <Container fluid className="py-4 dashboard-container">
+    <Container fluid className="py-2 dashboard-container">
       {/* Greeting Banner */}
       <GreetingBanner subtitle="Welcome to your dashboard" />
 
@@ -957,7 +957,7 @@ const EmployeeDashboard = () => {
                   <FaCalendarAlt className="me-2" />
                   Apply for Leave
                 </Button>
-                <Button variant="outline-primary" size="lg" href="/employee/tasks">
+                <Button variant="outline-primary" size="lg" href="/employee/my-work">
                   <FaTasks className="me-2" />
                   View My Tasks
                 </Button>
@@ -1071,7 +1071,7 @@ const EmployeeDashboard = () => {
                     })}
                   </div>
 
-                  <Button variant="link" className="mt-3 p-0" href="/employee/tasks">
+                  <Button variant="link" className="mt-3 p-0" href="/employee/my-work">
                     View All Tasks →
                   </Button>
                 </div>
@@ -1784,7 +1784,7 @@ const EmployeeDashboard = () => {
           </div>
 
           <div className="mt-4">
-            <Button variant="primary" className="w-100" onClick={() => window.location.href = '/employee/tasks'}>
+            <Button variant="primary" className="w-100" onClick={() => window.location.href = '/employee/my-work'}>
               View All Tasks
             </Button>
           </div>

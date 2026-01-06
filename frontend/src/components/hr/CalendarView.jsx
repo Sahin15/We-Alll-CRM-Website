@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, Badge, Button, Spinner, Form } from "react-bootstrap";
 import { FaCalendarAlt, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { leaveApi } from "../../api/leaveApi";
-import { toast } from "react-toastify";
+import toast from "../../utils/toast";
 
 const CalendarView = () => {
   const [currentDate, setCurrentDate] = useState(new Date());

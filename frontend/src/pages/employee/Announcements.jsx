@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Container, Card, Badge, Alert, Spinner, Form, InputGroup, Modal, Button, Row, Col, Tabs, Tab } from 'react-bootstrap';
 import { FaBullhorn, FaBell, FaEye, FaCalendarAlt, FaUser, FaBuilding, FaExclamationTriangle, FaInfoCircle, FaCheckCircle } from 'react-icons/fa';
+import { useNotifications } from '../../context/NotificationContext';
+import HolidaySection from '../../components/common/HolidaySection';
 import api from '../../services/api';
 
 const Announcements = () => {
   const [announcements, setAnnouncements] = useState([]);
-  const [notifications, setNotifications] = useState([]);
   const [filteredItems, setFilteredItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -15,8 +16,13 @@ const Announcements = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
+  // Use NotificationContext for notifications
+  const { notifications, loading: notificationsLoading, fetchNotifications, markAsRead: markNotificationAsRead } = useNotifications();
+
   useEffect(() => {
     fetchData();
+    // Fetch notifications using context
+    fetchNotifications();
   }, []);
 
   useEffect(() => {
@@ -29,26 +35,13 @@ const Announcements = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      // Fetch both announcements and notifications
-      const [announcementsRes, notificationsRes] = await Promise.all([
-        api.get('/announcements'),
-        api.get('/notifications') // Assuming this endpoint exists
-      ]);
-      
-      setAnnouncements(Array.isArray(announcementsRes.data) ? announcementsRes.data : []);
-      setNotifications(Array.isArray(notificationsRes.data) ? notificationsRes.data : []);
+      // Only fetch announcements, notifications come from context
+      const response = await api.get('/announcements');
+      setAnnouncements(Array.isArray(response.data?.data || response.data) ? (response.data?.data || response.data) : []);
       setLoading(false);
     } catch (err) {
-      // If notifications endpoint doesn't exist, just fetch announcements
-      try {
-        const response = await api.get('/announcements');
-        setAnnouncements(Array.isArray(response.data) ? response.data : []);
-        setNotifications([]); // Empty notifications for now
-        setLoading(false);
-      } catch (announcementErr) {
-        setError(announcementErr.response?.data?.message || 'Failed to fetch data');
-        setLoading(false);
-      }
+      setError(err.response?.data?.message || 'Failed to fetch announcements');
+      setLoading(false);
     }
   };
 
@@ -138,13 +131,9 @@ const Announcements = () => {
 
   const markAsRead = async (itemId) => {
     try {
-      await api.put(`/notifications/${itemId}/read`);
-      // Update local state
-      setNotifications(prev => 
-        Array.isArray(prev) ? prev.map(notif => 
-          notif._id === itemId ? { ...notif, isRead: true } : notif
-        ) : []
-      );
+      await markNotificationAsRead(itemId);
+      // Refresh the filtered items after marking as read
+      filterItems();
     } catch (err) {
       console.error('Failed to mark as read:', err);
     }
@@ -183,9 +172,9 @@ const Announcements = () => {
   }
 
   return (
-    <Container fluid className="py-4">
+    <Container fluid className="py-2">
       {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
+      <div className="d-flex justify-content-between align-items-center mb-2">
         <div>
           <h2 className="mb-1">
             <FaBullhorn className="me-2 text-primary" />
@@ -197,7 +186,10 @@ const Announcements = () => {
 
       {error && <Alert variant="danger">{error}</Alert>}
 
-      {loading ? (
+      {/* Holiday Section */}
+      <HolidaySection />
+
+      {(loading || notificationsLoading) ? (
         <div className="text-center py-5">
           <Spinner animation="border" role="status">
             <span className="visually-hidden">Loading...</span>
@@ -206,7 +198,7 @@ const Announcements = () => {
       ) : (
         <>
           {/* Filters and Search */}
-          <Card className="mb-4 shadow-sm">
+          <Card className="mb-2 shadow-sm">
             <Card.Body>
               <Row className="g-3">
                 <Col md={6}>
@@ -246,64 +238,46 @@ const Announcements = () => {
           <Tabs
             activeKey={activeTab}
             onSelect={(k) => setActiveTab(k)}
-            className="mb-4"
+            className="mb-2"
           >
-            <Tab eventKey="all" title={`All (${(announcements?.length || 0) + (notifications?.length || 0)})`} />
-            <Tab eventKey="announcements" title={`Announcements (${announcements?.length || 0})`} />
-            <Tab eventKey="notifications" title={`Notifications (${notifications?.length || 0})`} />
-          </Tabs>
+            <Tab eventKey="all" title={`All (${(announcements?.length || 0) + (notifications?.length || 0)})`}>
+              {/* Results Count */}
+              <div className="d-flex justify-content-between align-items-center mb-3 mt-3">
+                <small className="text-muted">
+                  Showing {filteredItems.length} items
+                </small>
+                {Array.isArray(notifications) && notifications.filter(n => !n.isRead).length > 0 && (
+                  <Badge bg="danger" pill>
+                    {notifications.filter(n => !n.isRead).length} unread
+                  </Badge>
+                )}
+              </div>
 
-          {/* Results Count */}
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <small className="text-muted">
-              Showing {filteredItems.length} items
-            </small>
-            {Array.isArray(notifications) && notifications.filter(n => !n.isRead).length > 0 && (
-              <Badge bg="danger" pill>
-                {notifications.filter(n => !n.isRead).length} unread
-              </Badge>
-            )}
-          </div>
-
-          {/* Items List */}
-          {filteredItems.length === 0 ? (
-            <Card className="text-center py-5">
-              <Card.Body>
-                <FaInfoCircle size={48} className="text-muted mb-3" />
-                <h5 className="text-muted">No items found</h5>
-                <p className="text-muted">Try adjusting your search or filter criteria</p>
-              </Card.Body>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {filteredItems.map((item) => (
-                <Card 
-                  key={`${item.itemType}-${item._id}`} 
-                  className={`mb-3 shadow-sm cursor-pointer border-start border-4 ${
-                    item.itemType === 'notification' && !item.isRead 
-                      ? 'border-primary bg-light' 
-                      : item.type === 'important' || item.type === 'urgent'
-                      ? 'border-danger'
-                      : 'border-secondary'
-                  }`}
-                  style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
-                  onClick={() => handleItemClick(item)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '';
-                  }}
-                >
+              {/* Items List */}
+              {filteredItems.length === 0 ? (
+                <Card className="text-center py-5">
                   <Card.Body>
-                    <div className="d-flex align-items-start">
-                      <div className="me-3 mt-1">
-                        {item.icon}
-                      </div>
-                      <div className="flex-grow-1">
-                        <div className="d-flex justify-content-between align-items-start mb-2">
+                    <FaInfoCircle size={48} className="text-muted mb-3" />
+                    <h5 className="text-muted">No items found</h5>
+                    <p className="text-muted">Try adjusting your search or filter criteria</p>
+                  </Card.Body>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {filteredItems.map((item) => (
+                    <Card 
+                      key={`${item.itemType}-${item._id}`} 
+                      className={`mb-3 shadow-sm cursor-pointer border-start border-4 ${
+                        item.itemType === 'notification' && !item.isRead 
+                          ? 'border-primary bg-light' 
+                          : item.type === 'important' || item.type === 'urgent'
+                          ? 'border-danger'
+                          : 'border-secondary'
+                      }`}
+                      onClick={() => handleItemClick(item)}
+                    >
+                      <Card.Body className="p-3">
+                        <div className="d-flex justify-content-between align-items-start">
                           <div className="flex-grow-1">
                             <div className="d-flex align-items-center gap-2 mb-2">
                               {getTypeIcon(item.type)}
@@ -349,95 +323,240 @@ const Announcements = () => {
                             </Button>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  </Card.Body>
-                </Card>
-              ))}
-            </div>
-          )}
-
-          {/* Detail Modal */}
-          <Modal show={showDetailModal} onHide={closeDetailModal} size="lg" centered>
-            <Modal.Header closeButton>
-              <Modal.Title className="d-flex align-items-center">
-                {selectedItem?.icon}
-                <span className="ms-2">{selectedItem?.title}</span>
-                <Badge bg={getTypeBadge(selectedItem?.type)} className="ms-2">
-                  {selectedItem?.type}
-                </Badge>
-              </Modal.Title>
-            </Modal.Header>
-            <Modal.Body>
-              {selectedItem && (
-                <div>
-                  <div className="mb-3">
-                    <div className="d-flex gap-3 text-muted small mb-3">
-                      <span>
-                        <FaUser className="me-1" />
-                        <strong>From:</strong> {selectedItem.createdBy?.name || selectedItem.sender?.name || 'System'}
-                      </span>
-                      <span>
-                        <FaCalendarAlt className="me-1" />
-                        <strong>Date:</strong> {formatDate(selectedItem.createdAt)}
-                      </span>
-                      {selectedItem.department && (
-                        <span>
-                          <FaBuilding className="me-1" />
-                          <strong>Department:</strong> {selectedItem.department.name}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="content">
-                    <h6>Content:</h6>
-                    <div className="p-3 bg-light rounded">
-                      {selectedItem.content || selectedItem.message || 'No additional details available.'}
-                    </div>
-                  </div>
-
-                  {selectedItem.attachments && selectedItem.attachments.length > 0 && (
-                    <div className="mt-3">
-                      <h6>Attachments:</h6>
-                      <div className="list-group">
-                        {selectedItem.attachments.map((attachment, index) => (
-                          <a 
-                            key={index}
-                            href={attachment.url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="list-group-item list-group-item-action"
-                          >
-                            📎 {attachment.name}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                      </Card.Body>
+                    </Card>
+                  ))}
                 </div>
               )}
-            </Modal.Body>
-            <Modal.Footer>
-              <Button variant="secondary" onClick={closeDetailModal}>
-                Close
-              </Button>
-              {selectedItem?.itemType === 'notification' && !selectedItem?.isRead && (
-                <Button 
-                  variant="primary" 
-                  onClick={() => {
-                    markAsRead(selectedItem._id);
-                    closeDetailModal();
-                  }}
-                >
-                  <FaCheckCircle className="me-1" />
-                  Mark as Read
-                </Button>
+            </Tab>
+            
+            <Tab eventKey="announcements" title={`Announcements (${announcements?.length || 0})`}>
+              {/* Results Count for Announcements */}
+              <div className="d-flex justify-content-between align-items-center mb-3 mt-3">
+                <small className="text-muted">
+                  Showing {filteredItems.filter(item => item.itemType === 'announcement').length} announcements
+                </small>
+              </div>
+
+              {/* Announcements List */}
+              {filteredItems.filter(item => item.itemType === 'announcement').length === 0 ? (
+                <Card className="text-center py-5">
+                  <Card.Body>
+                    <FaBullhorn size={48} className="text-muted mb-3" />
+                    <h5 className="text-muted">No announcements found</h5>
+                    <p className="text-muted">Check back later for new announcements</p>
+                  </Card.Body>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {filteredItems.filter(item => item.itemType === 'announcement').map((item) => (
+                    <Card 
+                      key={`${item.itemType}-${item._id}`} 
+                      className={`mb-3 shadow-sm cursor-pointer border-start border-4 ${
+                        item.type === 'important' || item.type === 'urgent'
+                        ? 'border-danger'
+                        : 'border-secondary'
+                      }`}
+                      onClick={() => handleItemClick(item)}
+                    >
+                      <Card.Body className="p-3">
+                        <div className="d-flex justify-content-between align-items-start">
+                          <div className="flex-grow-1">
+                            <div className="d-flex align-items-center gap-2 mb-2">
+                              {getTypeIcon(item.type)}
+                              <h6 className="mb-0 fw-semibold">{item.title}</h6>
+                              <Badge bg={getTypeBadge(item.type)} className="ms-2">
+                                {item.type}
+                              </Badge>
+                              {item.isPinned && (
+                                <Badge bg="warning">
+                                  📌 Pinned
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-muted mb-2 line-clamp-2">
+                              {item.content || item.message || 'Click to view details'}
+                            </p>
+                            <div className="d-flex gap-3 text-muted small">
+                              <span>
+                                <FaUser className="me-1" />
+                                {item.createdBy?.name || item.sender?.name || 'System'}
+                              </span>
+                              <span>
+                                <FaCalendarAlt className="me-1" />
+                                {formatDate(item.createdAt)}
+                              </span>
+                              {item.department && (
+                                <span>
+                                  <FaBuilding className="me-1" />
+                                  {item.department.name}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-end">
+                            <Button variant="outline-primary" size="sm">
+                              <FaEye className="me-1" />
+                              View Details
+                            </Button>
+                          </div>
+                        </div>
+                      </Card.Body>
+                    </Card>
+                  ))}
+                </div>
               )}
-            </Modal.Footer>
-          </Modal>
+            </Tab>
+            
+            <Tab eventKey="notifications" title={`Notifications (${notifications?.length || 0})`}>
+              {/* Results Count for Notifications */}
+              <div className="d-flex justify-content-between align-items-center mb-3 mt-3">
+                <small className="text-muted">
+                  Showing {filteredItems.filter(item => item.itemType === 'notification').length} notifications
+                </small>
+                {Array.isArray(notifications) && notifications.filter(n => !n.isRead).length > 0 && (
+                  <Badge bg="danger" pill>
+                    {notifications.filter(n => !n.isRead).length} unread
+                  </Badge>
+                )}
+              </div>
+
+              {/* Notifications List */}
+              {filteredItems.filter(item => item.itemType === 'notification').length === 0 ? (
+                <Card className="text-center py-5">
+                  <Card.Body>
+                    <FaBell size={48} className="text-muted mb-3" />
+                    <h5 className="text-muted">No notifications found</h5>
+                    <p className="text-muted">You're all caught up!</p>
+                  </Card.Body>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {filteredItems.filter(item => item.itemType === 'notification').map((item) => (
+                    <Card 
+                      key={`${item.itemType}-${item._id}`} 
+                      className={`mb-3 shadow-sm cursor-pointer border-start border-4 ${
+                        !item.isRead 
+                          ? 'border-primary bg-light' 
+                          : item.type === 'important' || item.type === 'urgent'
+                          ? 'border-danger'
+                          : 'border-secondary'
+                      }`}
+                      onClick={() => handleItemClick(item)}
+                    >
+                      <Card.Body className="p-3">
+                        <div className="d-flex justify-content-between align-items-start">
+                          <div className="flex-grow-1">
+                            <div className="d-flex align-items-center gap-2 mb-2">
+                              {getTypeIcon(item.type)}
+                              <h6 className="mb-0 fw-semibold">{item.title}</h6>
+                              <Badge bg={getTypeBadge(item.type)} className="ms-2">
+                                {item.type}
+                              </Badge>
+                              {!item.isRead && (
+                                <Badge bg="primary">
+                                  New
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-muted mb-2 line-clamp-2">
+                              {item.content || item.message || 'Click to view details'}
+                            </p>
+                            <div className="d-flex gap-3 text-muted small">
+                              <span>
+                                <FaUser className="me-1" />
+                                {item.createdBy?.name || item.sender?.name || 'System'}
+                              </span>
+                              <span>
+                                <FaCalendarAlt className="me-1" />
+                                {formatDate(item.createdAt)}
+                              </span>
+                              {item.department && (
+                                <span>
+                                  <FaBuilding className="me-1" />
+                                  {item.department.name}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-end">
+                            <Button variant="outline-primary" size="sm">
+                              <FaEye className="me-1" />
+                              View Details
+                            </Button>
+                          </div>
+                        </div>
+                      </Card.Body>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </Tab>
+          </Tabs>
         </>
       )}
+
+      {/* Detail Modal */}
+      <Modal show={showDetailModal} onHide={closeDetailModal} size="lg" centered>
+        <Modal.Header closeButton>
+          <Modal.Title className="d-flex align-items-center">
+            {selectedItem?.icon}
+            <span className="ms-2">{selectedItem?.title}</span>
+            <Badge bg={getTypeBadge(selectedItem?.type)} className="ms-2">
+              {selectedItem?.type}
+            </Badge>
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedItem && (
+            <div>
+              <div className="mb-3">
+                <div className="d-flex gap-3 text-muted small mb-3">
+                  <span>
+                    <FaUser className="me-1" />
+                    <strong>From:</strong> {selectedItem.createdBy?.name || selectedItem.sender?.name || 'System'}
+                  </span>
+                  <span>
+                    <FaCalendarAlt className="me-1" />
+                    <strong>Date:</strong> {formatDate(selectedItem.createdAt)}
+                  </span>
+                  {selectedItem.department && (
+                    <span>
+                      <FaBuilding className="me-1" />
+                      <strong>Department:</strong> {selectedItem.department.name}
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              <div className="content">
+                <div 
+                  dangerouslySetInnerHTML={{ 
+                    __html: selectedItem.content || selectedItem.message || 'No content available' 
+                  }} 
+                />
+              </div>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={closeDetailModal}>
+            Close
+          </Button>
+          {selectedItem?.itemType === 'notification' && !selectedItem?.isRead && (
+            <Button 
+              variant="primary" 
+              onClick={() => {
+                markAsRead(selectedItem._id);
+                closeDetailModal();
+              }}
+            >
+              <FaCheckCircle className="me-1" />
+              Mark as Read
+            </Button>
+          )}
+        </Modal.Footer>
+      </Modal>
 
       <style>{`
         .line-clamp-2 {

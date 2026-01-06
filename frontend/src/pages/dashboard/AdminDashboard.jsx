@@ -33,12 +33,22 @@ import QuickActions from "../../components/dashboard/QuickActions";
 import GreetingBanner from "../../components/common/GreetingBanner";
 import AnalyticsCharts from "../../components/dashboard/AnalyticsCharts";
 import AdminQuickStats from "../../components/dashboard/AdminQuickStats";
+import HolidayManagement from "../../components/hr/HolidayManagement";
 import AdminRecentActivity from "../../components/dashboard/AdminRecentActivity";
-import QuickAnnouncements from "../../components/dashboard/QuickAnnouncements";
 import DocumentQuickAccess from "../../components/dashboard/DocumentQuickAccess";
 import PolicyUpdates from "../../components/dashboard/PolicyUpdates";
 import UpcomingEvents from "../../components/dashboard/UpcomingEvents";
-import ProjectSlotDebug from "../../components/debug/ProjectSlotDebug";
+// HR Management Components - Admin has full access
+import LeaveManagement from "../../components/hr/LeaveManagement";
+import TaskManagement from "../../components/hr/TaskManagement";
+import MeetingManagement from "../../components/hr/MeetingManagement";
+import AttendanceOverview from "../../components/hr/AttendanceOverview";
+import PolicyManagement from "../../components/hr/PolicyManagement";
+import AnnouncementManagement from "../../components/hr/AnnouncementManagement";
+import QuickStatsWidgets from "../../components/hr/QuickStatsWidgets";
+import NotificationCenter from "../../components/hr/NotificationCenter";
+import ReportsAnalytics from "../../components/hr/ReportsAnalytics";
+import QuickClockInOut from "../../components/attendance/QuickClockInOut";
 import { userApi } from "../../api/userApi";
 import { projectApi } from "../../api/projectApi";
 import { clientApi } from "../../api/clientApi";
@@ -715,8 +725,16 @@ const AdminDashboard = () => {
     { label: "Add User", icon: <FaUsers />, path: "/users", variant: "primary" },
     { label: "Add Project", icon: <FaProjectDiagram />, path: "/projects", variant: "success" },
     { label: "Add Client", icon: <FaUserTie />, path: "/clients", variant: "info" },
+    { label: "Manage Holidays", icon: <FaCalendarAlt />, path: "/admin/holidays", variant: "warning" },
     { label: "Employee Profiles", icon: <FaUserCheck />, path: "/employees", variant: "secondary" },
-    { label: "Enhanced Work Management", icon: <FaCalendarAlt />, path: "/work-calendar/enhanced-admin-overview", variant: "warning" },
+    { label: "Enhanced Work Management", icon: <FaCalendarAlt />, path: "/work-calendar/enhanced-admin-overview", variant: "danger" },
+    // HR Management Actions - Admin has full access
+    { label: "Approve Leaves", icon: <FaCalendarCheck />, path: "/leaves/requests", variant: "primary" },
+    { label: "View Attendance", icon: <FaUserClock />, path: "/attendance/tracking", variant: "success" },
+    { label: "Manage Departments", icon: <FaBuilding />, path: "/departments", variant: "warning" },
+    { label: "Create Announcement", icon: <FaBullhorn />, path: "/admin/announcements/create", variant: "info" },
+    { label: "Manage Policies", icon: <FaShieldAlt />, path: "/admin/policies", variant: "secondary" },
+    { label: "Schedule Meeting", icon: <FaClock />, path: "/admin/meetings/create", variant: "primary" },
     { label: "Send Notification", icon: <FaBell />, path: "/admin/notifications/create", variant: "primary" },
     { label: "Notification Analytics", icon: <FaChartBar />, path: "/admin/notifications/dashboard", variant: "info" },
   ];
@@ -732,11 +750,8 @@ const AdminDashboard = () => {
   }
 
   return (
-    <Container fluid className="py-4">
+    <Container fluid className="py-2">
       <GreetingBanner subtitle="System overview and management" />
-      
-      {/* Temporary Debug Component */}
-      <ProjectSlotDebug />
 
       {systemAlerts.length > 0 && (
         <Row className="mb-4">
@@ -1189,13 +1204,7 @@ const AdminDashboard = () => {
         <Col lg={4}>
           <AdminRecentActivity activities={recentActivities} />
         </Col>
-        <Col lg={4}>
-          <QuickAnnouncements 
-            announcements={announcements} 
-            onAnnouncementClick={handleAnnouncementClick} 
-          />
-        </Col>
-        <Col lg={4}>
+        <Col lg={8}>
           {/* Recent Notifications Widget */}
           <Card className="border-0 shadow-sm h-100">
             <Card.Header className="bg-gradient-primary text-white border-0">
@@ -1290,6 +1299,94 @@ const AdminDashboard = () => {
         </Col>
         <Col lg={4}>
           <UpcomingEvents events={upcomingEvents} onEventClick={handleEventClick} />
+        </Col>
+      </Row>
+
+      {/* HR Management Sections - Admin has full access to all HR functions */}
+      
+      {/* Quick Clock In/Out Widget */}
+      <Row className="mb-4">
+        <Col>
+          <Card className="border-0 shadow-sm">
+            <Card.Body className="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 className="mb-1">
+                  <FaClock className="me-2 text-primary" />
+                  Quick Attendance
+                </h6>
+                <small className="text-muted">Clock in/out for today</small>
+              </div>
+              <QuickClockInOut variant="primary" size="md" showLabel={true} />
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* HR Management Sections - Admin has full access to all HR functions */}
+      
+      {/* Quick Stats Widgets - Important Alerts */}
+      <Row className="mb-4">
+        <Col>
+          <QuickStatsWidgets />
+        </Col>
+      </Row>
+
+      {/* Notification Center - High Priority */}
+      <Row className="g-4 mb-4">
+        <Col lg={12}>
+          <NotificationCenter />
+        </Col>
+      </Row>
+
+      {/* Leave Management - Most Actionable */}
+      <Row className="mb-4">
+        <Col>
+          <LeaveManagement />
+        </Col>
+      </Row>
+
+      {/* Attendance Overview - Daily Priority */}
+      <Row className="mb-4">
+        <Col>
+          <AttendanceOverview />
+        </Col>
+      </Row>
+
+      {/* Meeting Management - Full Width */}
+      <Row className="mb-4">
+        <Col lg={12}>
+          <MeetingManagement />
+        </Col>
+      </Row>
+
+      {/* Task Management - Full Width */}
+      <Row className="mb-4">
+        <Col lg={12}>
+          <TaskManagement />
+        </Col>
+      </Row>
+
+      {/* Policy & Announcement Management */}
+      <Row className="g-4 mb-4">
+        <Col lg={6}>
+          <PolicyManagement />
+        </Col>
+        <Col lg={6}>
+          <AnnouncementManagement />
+        </Col>
+      </Row>
+
+      {/* Holiday Management - Full Width */}
+      <Row className="mb-4">
+        <Col lg={12}>
+          <HolidayManagement />
+        </Col>
+      </Row>
+
+      {/* Reports & Analytics */}
+      <Row className="mb-4">
+        <Col lg={12}>
+          <ReportsAnalytics />
         </Col>
       </Row>
 
@@ -1521,8 +1618,8 @@ const AdminDashboard = () => {
                   <tr key={leave._id}>
                     <td><strong>{leave.user?.name || 'N/A'}</strong></td>
                     <td><Badge bg="info">{leave.leaveType}</Badge></td>
-                    <td>{new Date(leave.startDate).toLocaleDateString()}</td>
-                    <td>{new Date(leave.endDate).toLocaleDateString()}</td>
+                    <td>{new Date(leave.startDate).toLocaleDateString('en-GB')}</td>
+                    <td>{new Date(leave.endDate).toLocaleDateString('en-GB')}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1737,8 +1834,8 @@ const AdminDashboard = () => {
                     <tr key={leave._id}>
                       <td><strong>{leave.user?.name || 'N/A'}</strong></td>
                       <td><Badge bg="info">{leave.leaveType}</Badge></td>
-                      <td>{startDate.toLocaleDateString()}</td>
-                      <td>{endDate.toLocaleDateString()}</td>
+                      <td>{startDate.toLocaleDateString('en-GB')}</td>
+                      <td>{endDate.toLocaleDateString('en-GB')}</td>
                       <td>{days} day{days > 1 ? 's' : ''}</td>
                       <td>
                         <Button 

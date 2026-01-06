@@ -62,6 +62,11 @@ const ProjectList = () => {
     description: "",
     startDate: "",
     endDate: "",
+    status: "Pending",
+    priority: "medium",
+    budget: "",
+    services: "",
+    notes: "",
   });
 
   useEffect(() => {
@@ -176,6 +181,11 @@ const ProjectList = () => {
         endDate: project.endDate
           ? new Date(project.endDate).toISOString().split("T")[0]
           : "",
+        status: project.status || "Pending",
+        priority: project.priority || "medium",
+        budget: project.budget || "",
+        services: Array.isArray(project.services) ? project.services.join(", ") : "",
+        notes: project.notes || "",
       });
     } else {
       setEditMode(false);
@@ -187,6 +197,11 @@ const ProjectList = () => {
         description: "",
         startDate: "",
         endDate: "",
+        status: "Pending",
+        priority: "medium",
+        budget: "",
+        services: "",
+        notes: "",
       });
     }
     setShowModal(true);
@@ -203,6 +218,11 @@ const ProjectList = () => {
       description: "",
       startDate: "",
       endDate: "",
+      status: "Pending",
+      priority: "medium",
+      budget: "",
+      services: "",
+      notes: "",
     });
   };
 
@@ -229,11 +249,18 @@ const ProjectList = () => {
     }
     
     try {
+      // Prepare the data for submission
+      const submitData = {
+        ...formData,
+        budget: formData.budget ? parseFloat(formData.budget) : 0,
+        services: formData.services ? formData.services.split(',').map(s => s.trim()).filter(s => s) : [],
+      };
+
       if (editMode) {
-        await projectApi.updateProject(currentProject._id, formData);
+        await projectApi.updateProject(currentProject._id, submitData);
         toast.success("Project updated successfully");
       } else {
-        await projectApi.createProject(formData);
+        await projectApi.createProject(submitData);
         toast.success("Project created successfully");
       }
       handleCloseModal();
@@ -646,7 +673,14 @@ const ProjectList = () => {
                   <Card.Body>
                     <div className="d-flex justify-content-between align-items-start mb-3">
                       <div className="flex-grow-1">
-                        <h5 className="mb-1">{project.name}</h5>
+                        <h5 className="mb-1">
+                          {project.name}
+                          {project.name.includes(' Project') && project.client && (
+                            <Badge bg="info" className="ms-2" style={{ fontSize: '0.7rem' }}>
+                              Auto-created
+                            </Badge>
+                          )}
+                        </h5>
                         <small className="text-muted">
                           {project.client?.name || 'No client'}
                         </small>
@@ -805,7 +839,14 @@ const ProjectList = () => {
                     return (
                       <tr key={project._id}>
                         <td>
-                          <div className="fw-bold">{project.name}</div>
+                          <div className="fw-bold">
+                            {project.name}
+                            {project.name.includes(' Project') && project.client && (
+                              <Badge bg="info" className="ms-2" style={{ fontSize: '0.7rem' }}>
+                                Auto-created
+                              </Badge>
+                            )}
+                          </div>
                           {project.description && (
                             <small className="text-muted">{project.description.substring(0, 50)}...</small>
                           )}
@@ -863,6 +904,7 @@ const ProjectList = () => {
                                 size="sm"
                                 variant="outline-secondary"
                                 onClick={() => handleShowModal(project)}
+                                title="Edit Project"
                               >
                                 <FaEdit />
                               </Button>
@@ -938,6 +980,75 @@ const ProjectList = () => {
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
+                  <Form.Label>Status</Form.Label>
+                  <Form.Select
+                    name="status"
+                    value={formData.status}
+                    onChange={handleChange}
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                    <option value="On Hold">On Hold</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Priority</Form.Label>
+                  <Form.Select
+                    name="priority"
+                    value={formData.priority}
+                    onChange={handleChange}
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Budget</Form.Label>
+                  <Form.Control
+                    type="number"
+                    name="budget"
+                    value={formData.budget}
+                    onChange={handleChange}
+                    placeholder="Enter project budget"
+                    min="0"
+                    step="0.01"
+                  />
+                  <Form.Text className="text-muted">
+                    Enter amount in your local currency
+                  </Form.Text>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Services</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="services"
+                    value={formData.services}
+                    onChange={handleChange}
+                    placeholder="e.g., Web Development, SEO, Social Media"
+                  />
+                  <Form.Text className="text-muted">
+                    Separate multiple services with commas
+                  </Form.Text>
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
                   <Form.Label>Start Date *</Form.Label>
                   <Form.Control
                     type="date"
@@ -986,6 +1097,18 @@ const ProjectList = () => {
                   The HoD of this department will manage the project
                 </Form.Text>
               )}
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Additional Notes</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                name="notes"
+                value={formData.notes}
+                onChange={handleChange}
+                placeholder="Any additional notes or requirements for this project"
+              />
             </Form.Group>
           </Modal.Body>
           <Modal.Footer>
