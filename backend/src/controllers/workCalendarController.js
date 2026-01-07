@@ -2900,7 +2900,7 @@ const getEnhancedFilterOptions = async () => {
   try {
     const [clients, projects, employees, departments] = await Promise.all([
       Client.find({ status: 'active' }).select('name email company').sort({ name: 1 }),
-      Project.find({ status: 'active' }).populate('client', 'name').select('name client').sort({ name: 1 }),
+      Project.find({ status: 'active' }).populate('client', 'name serviceCompany').select('name client').sort({ name: 1 }),
       User.find({ 
         role: { $in: ['employee', 'hod', 'manager'] },
         status: 'active' 

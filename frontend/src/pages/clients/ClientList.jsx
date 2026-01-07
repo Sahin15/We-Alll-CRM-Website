@@ -5,6 +5,7 @@ import {
   Col,
   Card,
   Button,
+  ButtonGroup,
   Modal,
   Form,
   Badge,
@@ -87,7 +88,7 @@ const ClientList = () => {
     notes: ''
   });
   const [searchTerm, setSearchTerm] = useState("");
-  const [serviceFilter, setServiceFilter] = useState("");
+  const [serviceFilter, setServiceFilter] = useState("all"); // Changed default to "all"
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -143,7 +144,7 @@ const ClientList = () => {
     }
 
     // Service company filter
-    if (serviceFilter) {
+    if (serviceFilter && serviceFilter !== "all") {
       filtered = filtered.filter((client) => client.serviceCompany === serviceFilter);
     }
 
@@ -531,8 +532,8 @@ const ClientList = () => {
           </h5>
         </Card.Header>
         <Card.Body className="p-4">
-          <Row className="g-3">
-            <Col lg={6} md={8}>
+          <Row className="g-3 align-items-end">
+            <Col lg={5} md={6}>
               <Form.Label className="fw-semibold text-muted small">SEARCH CLIENTS</Form.Label>
               <InputGroup className="shadow-sm">
                 <InputGroup.Text className="bg-light border-0">
@@ -548,20 +549,58 @@ const ClientList = () => {
                 />
               </InputGroup>
             </Col>
-            <Col lg={2} md={2}>
-              <Form.Label className="fw-semibold text-muted small">SERVICE</Form.Label>
-              <Form.Select
-                value={serviceFilter}
-                onChange={(e) => setServiceFilter(e.target.value)}
-                className="shadow-sm border-0 bg-light"
-                style={{ borderRadius: '10px' }}
-              >
-                <option value="">All Services</option>
-                <option value="We Alll">We Alll</option>
-                <option value="Kolkata Digital">Kolkata Digital</option>
-              </Form.Select>
+            <Col lg={4} md={4}>
+              <Form.Label className="fw-semibold text-muted small">SERVICE COMPANY</Form.Label>
+              <div className="d-flex">
+                <ButtonGroup className="w-100 shadow-sm">
+                  <Button
+                    variant={serviceFilter === "all" ? "success" : "outline-success"}
+                    onClick={() => setServiceFilter("all")}
+                    className="fw-semibold"
+                    style={{ borderRadius: '10px 0 0 10px' }}
+                  >
+                    All Clients
+                    <Badge 
+                      bg={serviceFilter === "all" ? "light" : "success"} 
+                      text={serviceFilter === "all" ? "dark" : "white"}
+                      className="ms-2"
+                    >
+                      {clients.length}
+                    </Badge>
+                  </Button>
+                  <Button
+                    variant={serviceFilter === "We Alll" ? "primary" : "outline-primary"}
+                    onClick={() => setServiceFilter("We Alll")}
+                    className="fw-semibold"
+                  >
+                    We Alll
+                    <Badge 
+                      bg={serviceFilter === "We Alll" ? "light" : "primary"} 
+                      text={serviceFilter === "We Alll" ? "dark" : "white"}
+                      className="ms-2"
+                    >
+                      {clients.filter(c => c.serviceCompany === "We Alll").length}
+                    </Badge>
+                  </Button>
+                  <Button
+                    variant={serviceFilter === "Kolkata Digital" ? "info" : "outline-info"}
+                    onClick={() => setServiceFilter("Kolkata Digital")}
+                    className="fw-semibold"
+                    style={{ borderRadius: '0 10px 10px 0' }}
+                  >
+                    Kolkata Digital
+                    <Badge 
+                      bg={serviceFilter === "Kolkata Digital" ? "light" : "info"} 
+                      text={serviceFilter === "Kolkata Digital" ? "dark" : "white"}
+                      className="ms-2"
+                    >
+                      {clients.filter(c => c.serviceCompany === "Kolkata Digital").length}
+                    </Badge>
+                  </Button>
+                </ButtonGroup>
+              </div>
             </Col>
-            <Col lg={4} md={2}>
+            <Col lg={3} md={2}>
               <Form.Label className="fw-semibold text-muted small">ACTIONS</Form.Label>
               <div className="d-flex gap-2">
                 <Button 
@@ -580,7 +619,7 @@ const ClientList = () => {
                     variant="outline-secondary"
                     onClick={() => {
                       setSearchTerm('');
-                      setServiceFilter('');
+                      setServiceFilter('all');
                     }}
                     style={{ borderRadius: '10px' }}
                   >
@@ -804,12 +843,12 @@ const ClientList = () => {
               </div>
               <h5 className="text-muted mb-2">No Clients Found</h5>
               <p className="text-muted mb-4">
-                {searchTerm || serviceFilter 
+                {searchTerm || (serviceFilter && serviceFilter !== "all")
                   ? "Try adjusting your search criteria or filters"
                   : "Start by adding your first client to the system"
                 }
               </p>
-              {!searchTerm && !serviceFilter && (
+              {!searchTerm && (!serviceFilter || serviceFilter === "all") && (
                 <Button
                   variant="success"
                   onClick={() => handleShowModal()}

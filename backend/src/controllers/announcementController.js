@@ -186,9 +186,20 @@ export const deleteAnnouncement = async (req, res) => {
       return res.status(404).json({ message: "Announcement not found" });
     }
 
+    // Delete the announcement
     await announcement.deleteOne();
 
-    res.status(200).json({ message: "Announcement deleted successfully" });
+    // Also delete all related notifications
+    const deletedNotifications = await Notification.deleteMany({
+      'data.announcementId': id
+    });
+
+    console.log(`Deleted announcement "${announcement.title}" and ${deletedNotifications.deletedCount} related notifications`);
+
+    res.status(200).json({ 
+      message: "Announcement and related notifications deleted successfully",
+      deletedNotifications: deletedNotifications.deletedCount
+    });
   } catch (error) {
     console.error("Error in deleteAnnouncement:", error.message);
     res.status(500).json({ message: "Server error", error: error.message });

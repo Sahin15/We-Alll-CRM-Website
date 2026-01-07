@@ -26,7 +26,8 @@ const ProjectListPage = () => {
   const [filters, setFilters] = useState({
     status: 'all',
     client: 'all',
-    department: 'all'
+    department: 'all',
+    serviceCompany: 'all' // Add service company filter
   });
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list' - default to grid for better overview
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -162,6 +163,13 @@ const ProjectListPage = () => {
       );
     }
 
+    // Service Company filter (filter by client's service company)
+    if (filters.serviceCompany && filters.serviceCompany !== 'all') {
+      filtered = filtered.filter(
+        (project) => project.client?.serviceCompany === filters.serviceCompany
+      );
+    }
+
     // Separate incomplete auto-generated projects from regular projects
     const incompleteAuto = [];
     const regular = [];
@@ -193,7 +201,8 @@ const ProjectListPage = () => {
     setFilters({
       status: 'all',
       client: 'all',
-      department: 'all'
+      department: 'all',
+      serviceCompany: 'all'
     });
     setSearchTerm('');
   };
@@ -275,6 +284,7 @@ const ProjectListPage = () => {
                 onClearFilters={handleClearFilters}
                 clients={clients}
                 departments={departments}
+                projects={projects}
               />
             </Col>
           </Row>

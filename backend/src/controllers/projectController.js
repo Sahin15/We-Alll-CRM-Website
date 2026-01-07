@@ -285,7 +285,7 @@ export const createProject = async (req, res) => {
 
     // Populate and return
     const populatedProject = await Project.findById(project._id)
-      .populate("client", "name email")
+      .populate("client", "name email serviceCompany")
       .populate("departments", "name") // New: populate multiple departments
       .populate("department", "name")  // Legacy: keep for backward compatibility
       .populate("projectHead", "name email")
@@ -497,7 +497,7 @@ export const getProjectsForUser = async (req, res) => {
     const userId = req.user.id;
 
     const projects = await Project.find({ assignedUsers: userId })
-      .populate("client", "name email")
+      .populate("client", "name email serviceCompany")
       .populate("assignedUsers", "name email");
 
     res.status(200).json(projects);
@@ -515,7 +515,7 @@ export const getProjectById = async (req, res) => {
     logger.info(`Fetching project ${id} for user ${req.user.email} (${req.user.role})`);
 
     const project = await Project.findById(id)
-      .populate("client", "name email")
+      .populate("client", "name email serviceCompany")
       .populate("department", "name")
       .populate("projectHead", "name email designation")
       .populate("assignedUsers", "name email role")
@@ -1207,7 +1207,7 @@ export const getMyLeadingProjects = async (req, res) => {
     const userId = req.user._id;
 
     const projects = await Project.find({ projectHead: userId })
-      .populate("client", "name email")
+      .populate("client", "name email serviceCompany")
       .populate("department", "name")
       .populate("teamMembers.user", "name email designation")
       .sort({ createdAt: -1 });
@@ -1244,7 +1244,7 @@ export const getMyDepartmentProjects = async (req, res) => {
     const projects = await Project.find({
       department: user.headOfDepartment._id,
     })
-      .populate("client", "name email")
+      .populate("client", "name email serviceCompany")
       .populate("projectHead", "name email designation")
       .populate("teamMembers.user", "name email")
       .sort({ createdAt: -1 });

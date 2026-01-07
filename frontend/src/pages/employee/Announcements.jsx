@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Container, Card, Badge, Alert, Spinner, Form, InputGroup, Modal, Button, Row, Col, Tabs, Tab } from 'react-bootstrap';
-import { FaBullhorn, FaBell, FaEye, FaCalendarAlt, FaUser, FaBuilding, FaExclamationTriangle, FaInfoCircle, FaCheckCircle } from 'react-icons/fa';
+import { FaBullhorn, FaBell, FaEye, FaCalendarAlt, FaUser, FaBuilding, FaExclamationTriangle, FaInfoCircle, FaCheckCircle, FaTrash } from 'react-icons/fa';
 import { useNotifications } from '../../context/NotificationContext';
 import HolidaySection from '../../components/common/HolidaySection';
 import api from '../../services/api';
@@ -17,7 +17,7 @@ const Announcements = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
 
   // Use NotificationContext for notifications
-  const { notifications, loading: notificationsLoading, fetchNotifications, markAsRead: markNotificationAsRead } = useNotifications();
+  const { notifications, loading: notificationsLoading, fetchNotifications, markAsRead: markNotificationAsRead, deleteNotification } = useNotifications();
 
   useEffect(() => {
     fetchData();
@@ -136,6 +136,21 @@ const Announcements = () => {
       filterItems();
     } catch (err) {
       console.error('Failed to mark as read:', err);
+    }
+  };
+
+  const handleDeleteNotification = async (notificationId, event) => {
+    event.stopPropagation(); // Prevent opening the detail modal
+    
+    if (window.confirm('Are you sure you want to delete this notification?')) {
+      try {
+        await deleteNotification(notificationId);
+        // Refresh the filtered items after deletion
+        filterItems();
+      } catch (error) {
+        console.error('Failed to delete notification:', error);
+        alert('Failed to delete notification. Please try again.');
+      }
     }
   };
 
@@ -317,10 +332,22 @@ const Announcements = () => {
                             </div>
                           </div>
                           <div className="text-end">
-                            <Button variant="outline-primary" size="sm">
-                              <FaEye className="me-1" />
-                              View Details
-                            </Button>
+                            <div className="d-flex gap-1">
+                              <Button variant="outline-primary" size="sm">
+                                <FaEye className="me-1" />
+                                View Details
+                              </Button>
+                              {item.itemType === 'notification' && (
+                                <Button 
+                                  variant="outline-danger" 
+                                  size="sm"
+                                  onClick={(e) => handleDeleteNotification(item._id, e)}
+                                  title="Delete Notification"
+                                >
+                                  <FaTrash />
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </Card.Body>
@@ -480,10 +507,20 @@ const Announcements = () => {
                             </div>
                           </div>
                           <div className="text-end">
-                            <Button variant="outline-primary" size="sm">
-                              <FaEye className="me-1" />
-                              View Details
-                            </Button>
+                            <div className="d-flex gap-1">
+                              <Button variant="outline-primary" size="sm">
+                                <FaEye className="me-1" />
+                                View Details
+                              </Button>
+                              <Button 
+                                variant="outline-danger" 
+                                size="sm"
+                                onClick={(e) => handleDeleteNotification(item._id, e)}
+                                title="Delete Notification"
+                              >
+                                <FaTrash />
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </Card.Body>
@@ -553,6 +590,18 @@ const Announcements = () => {
             >
               <FaCheckCircle className="me-1" />
               Mark as Read
+            </Button>
+          )}
+          {selectedItem?.itemType === 'notification' && (
+            <Button 
+              variant="danger" 
+              onClick={() => {
+                handleDeleteNotification(selectedItem._id, { stopPropagation: () => {} });
+                closeDetailModal();
+              }}
+            >
+              <FaTrash className="me-1" />
+              Delete Notification
             </Button>
           )}
         </Modal.Footer>
