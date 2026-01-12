@@ -561,16 +561,94 @@ export const updateProject = async (req, res) => {
     const project = await Project.findById(id);
     if (!project) return res.status(404).json({ message: "Project not found" });
 
+    // Store original slot configuration for comparison
+    const originalSlotConfig = project.slotConfiguration ? { ...project.slotConfiguration.toObject() } : null;
+
+    // Update project fields
     Object.keys(req.body || {}).forEach((k) => {
       project[k] = req.body[k];
     });
 
     await project.save();
 
-    return res.status(200).json({ message: "Project updated", project });
+    // Check if slot configuration was updated and handle slot creation
+    const newSlotConfig = project.slotConfiguration;
+    
+    if (newSlotConfig && newSlotConfig.enableSlotSystem) {
+      try {
+        // Import slot management service
+        const slotManagementService = (await import('../services/slotManagementService.js')).default;
+        const Slot = (await import('../models/slotModel.js')).default;
+        
+        // Check if slot system was just enabled or slot count changed
+        const wasSlotSystemEnabled = originalSlotConfig?.enableSlotSystem || false;
+        const originalSlotCount = originalSlotConfig?.totalSlots || 0;
+        const newSlotCount = newSlotConfig.totalSlots || 0;
+        
+        // Get current slot count in database
+        const existingSlots = await Slot.countDocuments({ project: id });
+        
+        console.log(`🎰 Slot configuration update for project ${id}:`, {
+          wasEnabled: wasSlotSystemEnabled,
+          nowEnabled: newSlotConfig.enableSlotSystem,
+          originalCount: originalSlotCount,
+          newCount: newSlotCount,
+          existingSlots: existingSlots
+        });
+        
+        // If slot system is newly enabled or slot count increased
+        if (!wasSlotSystemEnabled || newSlotCount > existingSlots) {
+          const slotsToCreate = newSlotCount - existingSlots;
+          
+          if (slotsToCreate > 0) {
+            console.log(`🎰 Creating ${slotsToCreate} new slots for project ${project.name}`);
+            
+            const slotResult = await slotManagementService.createSlotsForProject(id, {
+              count: slotsToCreate,
+              startingSlotNumber: existingSlots + 1,
+              slotType: newSlotConfig.slotType || 'generic',
+              createdBy: req.user._id
+            });
+            
+            console.log(`✅ Created ${slotResult.created.length} slots for project ${project.name}`);
+            
+            // Update progress tracking
+            project.progressTracking.totalSlots = newSlotCount;
+            project.progressTracking.calculationMethod = 'slot-based';
+            await project.save();
+          }
+        }
+        
+        // If slot count was reduced, we might want to handle this case too
+        else if (newSlotCount < existingSlots) {
+          console.log(`⚠️  Slot count reduced from ${existingSlots} to ${newSlotCount}. Existing slots preserved.`);
+          // Note: We don't automatically delete slots as they might have work assigned
+          // This should be handled manually by the admin if needed
+        }
+        
+      } catch (slotError) {
+        console.error('❌ Error handling slot configuration update:', slotError);
+        // Don't fail the project update if slot creation fails
+        // Just log the error and continue
+      }
+    }
+
+    // Populate and return updated project
+    const updatedProject = await Project.findById(id)
+      .populate("client", "name email serviceCompany")
+      .populate("departments", "name")
+      .populate("department", "name")
+      .populate("projectHead", "name email")
+      .populate("assignedUsers", "name email")
+      .populate("createdBy", "name email");
+
+    return res.status(200).json({ 
+      message: "Project updated successfully", 
+      project: updatedProject 
+    });
   } catch (error) {
     console.error("Error in updateProject:", error.message);
-    return res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
