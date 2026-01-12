@@ -279,11 +279,21 @@ const CreateProjectModal = ({ show, onHide, onSuccess, editProject = null }) => 
         departments: formData.departments, // Send multiple departments
         status: formData.status,
         startDate: formData.startDate,
-        // Slot system configuration
-        enableSlotSystem: formData.enableSlotSystem,
-        totalSlots: formData.totalSlots,
-        slotType: formData.slotType,
-        calculationMethod: formData.enableSlotSystem ? 'slot-based' : 'manual'
+        // Slot system configuration - properly nested
+        slotConfiguration: {
+          enableSlotSystem: formData.enableSlotSystem,
+          totalSlots: parseInt(formData.totalSlots) || 10,
+          slotType: formData.slotType || 'generic',
+          autoCreateSlots: formData.enableSlotSystem,
+          allowDynamicSlots: true,
+          slotNamingPattern: 'Slot {number}'
+        },
+        progressTracking: {
+          calculationMethod: formData.enableSlotSystem ? 'slot-based' : 'manual',
+          totalSlots: parseInt(formData.totalSlots) || 10,
+          completedSlots: 0,
+          progressPercentage: 0
+        }
       };
 
       if (formData.client) {

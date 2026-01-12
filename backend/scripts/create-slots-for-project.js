@@ -10,6 +10,7 @@ import dotenv from 'dotenv';
 import Project from '../src/models/projectModel.js';
 import Slot from '../src/models/slotModel.js';
 import User from '../src/models/userModel.js';
+import Client from '../src/models/clientModel.js';
 
 dotenv.config();
 
@@ -70,7 +71,7 @@ const createSlotsForProject = async (projectId, forceCreate = false) => {
     }
     
     // Import slot management service
-    const slotManagementService = (await import('../services/slotManagementService.js')).default;
+    const slotManagementService = (await import('../src/services/slotManagementService.js')).default;
     
     const slotsToCreate = forceCreate ? slotConfig.totalSlots : slotsNeeded;
     const startingSlotNumber = forceCreate ? 1 : existingSlots + 1;

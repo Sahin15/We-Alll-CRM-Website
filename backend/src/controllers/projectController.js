@@ -558,11 +558,15 @@ export const updateProject = async (req, res) => {
   try {
     const { id } = req.params;
 
+    console.log(`🔄 Updating project ${id} with data:`, JSON.stringify(req.body, null, 2));
+
     const project = await Project.findById(id);
     if (!project) return res.status(404).json({ message: "Project not found" });
 
     // Store original slot configuration for comparison
     const originalSlotConfig = project.slotConfiguration ? { ...project.slotConfiguration.toObject() } : null;
+    
+    console.log(`📋 Original slot config:`, originalSlotConfig);
 
     // Update project fields
     Object.keys(req.body || {}).forEach((k) => {
@@ -570,6 +574,8 @@ export const updateProject = async (req, res) => {
     });
 
     await project.save();
+    
+    console.log(`📋 New slot config:`, project.slotConfiguration?.toObject());
 
     // Check if slot configuration was updated and handle slot creation
     const newSlotConfig = project.slotConfiguration;
@@ -616,6 +622,8 @@ export const updateProject = async (req, res) => {
             project.progressTracking.totalSlots = newSlotCount;
             project.progressTracking.calculationMethod = 'slot-based';
             await project.save();
+            
+            console.log(`✅ Updated progress tracking for project ${project.name}`);
           }
         }
         
@@ -642,12 +650,15 @@ export const updateProject = async (req, res) => {
       .populate("assignedUsers", "name email")
       .populate("createdBy", "name email");
 
+    console.log(`✅ Project ${project.name} updated successfully`);
+
     return res.status(200).json({ 
       message: "Project updated successfully", 
       project: updatedProject 
     });
   } catch (error) {
-    console.error("Error in updateProject:", error.message);
+    console.error("❌ Error in updateProject:", error.message);
+    console.error("❌ Error stack:", error.stack);
     return res.status(500).json({ message: "Server error", error: error.message });
   }
 };

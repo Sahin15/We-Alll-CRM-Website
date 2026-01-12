@@ -29,7 +29,7 @@ const slotSchema = new mongoose.Schema(
     },
     slotType: { 
       type: String, 
-      enum: ['work', 'milestone', 'deliverable', 'review', 'approval'], 
+      enum: ['work', 'milestone', 'deliverable', 'review', 'approval', 'generic'], 
       default: 'work' 
     },
 
