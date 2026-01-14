@@ -20,13 +20,7 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true
-      }
-    },
+    minify: 'esbuild', // Changed from 'terser' to 'esbuild' (faster and built-in)
     rollupOptions: {
       output: {
         manualChunks: (id) => {
