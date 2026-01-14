@@ -153,11 +153,17 @@ export const getAllFeedback = async (req, res) => {
     // Get total count for pagination
     const total = await Feedback.countDocuments(filter);
 
-    // Add hasUserUpvoted property to each feedback item
+    // Add hasUserUpvoted property and hide employee info for anonymous feedback
     const userId = req.user.id;
     const feedbackWithUpvoteStatus = feedback.map(item => {
       const feedbackObj = item.toObject({ virtuals: true });
       feedbackObj.hasUserUpvoted = item.hasUserUpvoted(userId);
+      
+      // Hide employee information for anonymous feedback
+      if (feedbackObj.isAnonymous) {
+        feedbackObj.employee = null;
+      }
+      
       return feedbackObj;
     });
 

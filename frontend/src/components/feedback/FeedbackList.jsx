@@ -76,9 +76,9 @@ const FeedbackList = ({ isAdminView = false, refreshTrigger }) => {
       if (filters.status !== 'all') params.status = filters.status;
       if (filters.priority !== 'all') params.priority = filters.priority;
 
-      const response = isAdminView 
-        ? await feedbackApi.getAllFeedback(params)
-        : await feedbackApi.getMyFeedback(params);
+      // All users can now see all feedback (for transparency)
+      // isAdminView only affects what actions they can take
+      const response = await feedbackApi.getAllFeedback(params);
 
       setFeedback(response.data.feedback || []);
       setPagination(response.data.pagination || pagination);

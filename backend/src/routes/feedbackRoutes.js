@@ -28,13 +28,8 @@ router.post(
 router.get("/my-feedback", protect, getMyFeedback);
 router.post("/:id/upvote", protect, toggleUpvote);
 
-// Admin/HR routes
-router.get(
-  "/",
-  protect,
-  authorizeRoles("admin", "superadmin", "hr"),
-  getAllFeedback
-);
+// All employees can view feedback (for transparency and collaboration)
+router.get("/", protect, getAllFeedback);
 
 router.get(
   "/statistics",

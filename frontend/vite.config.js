@@ -16,60 +16,33 @@ export default defineConfig({
       },
     },
   },
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+  },
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
-    minify: 'esbuild', // Changed from 'terser' to 'esbuild' (faster and built-in)
+    minify: 'esbuild',
     rollupOptions: {
       output: {
-        manualChunks: (id) => {
-          // Core React libraries
-          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
-            return 'react-vendor';
-          }
-          // Router
-          if (id.includes('node_modules/react-router-dom')) {
-            return 'router';
-          }
-          // UI Libraries
-          if (id.includes('node_modules/react-bootstrap') || id.includes('node_modules/bootstrap')) {
-            return 'ui-bootstrap';
-          }
-          // Icons
-          if (id.includes('node_modules/react-icons')) {
-            return 'icons';
-          }
-          // Charts
-          if (id.includes('node_modules/chart.js') || id.includes('node_modules/react-chartjs-2') || id.includes('node_modules/recharts')) {
-            return 'charts';
-          }
-          // Calendar
-          if (id.includes('node_modules/react-big-calendar') || id.includes('node_modules/moment')) {
-            return 'calendar';
-          }
-          // Utilities
-          if (id.includes('node_modules/axios') || id.includes('node_modules/date-fns')) {
-            return 'utils';
-          }
-          // Other node_modules
-          if (id.includes('node_modules')) {
-            return 'vendor';
-          }
+        manualChunks: {
+          // Keep React and ReactDOM together in one chunk
+          'react-vendor': ['react', 'react-dom'],
+          'react-router': ['react-router-dom'],
+          'ui': ['react-bootstrap', 'bootstrap'],
+          'icons': ['react-icons'],
+          'charts': ['chart.js', 'react-chartjs-2'],
         },
-        // Optimize chunk sizes
         chunkFileNames: 'assets/js/[name]-[hash].js',
         entryFileNames: 'assets/js/[name]-[hash].js',
         assetFileNames: 'assets/[ext]/[name]-[hash].[ext]'
       }
     },
-    // Increase chunk size warning limit
     chunkSizeWarningLimit: 1000,
   },
-  // Optimize dependencies
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom'],
-    exclude: []
   },
-  base: '/', // Ensure assets are loaded from root
+  base: '/',
 });
