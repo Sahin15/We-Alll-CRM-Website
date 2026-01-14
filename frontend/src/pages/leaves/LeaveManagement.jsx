@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Button, Badge, Nav } from 'react-bootstrap';
-import { FaPlus, FaCalendarAlt, FaFilter, FaDownload, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { Container, Row, Col, Card, Button, Badge, Nav, Table, Form, InputGroup } from 'react-bootstrap';
+import { FaPlus, FaCalendarAlt, FaFilter, FaDownload, FaChevronDown, FaChevronUp, FaSearch, FaUsers, FaEye } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
-import leaveApi from '../../api/leaveApi';
+import { leaveApi } from '../../api/leaveApi';
+import { LEAVE_TYPE_DETAILS } from '../../utils/constants';
+import { formatDate, getStatusVariant } from '../../utils/helpers';
 import CreateLeaveModal from '../../components/leaves/CreateLeaveModal';
 import LeaveRequestCard from '../../components/leaves/LeaveRequestCard';
 import LeaveApprovalModal from '../../components/leaves/LeaveApprovalModal';
@@ -11,41 +13,67 @@ import './LeaveManagement.css';
 
 const LeaveManagement = () => {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'hr';
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'hr' || user?.role === 'hod';
+  
+  // Redirect employees to their proper leave page
+  useEffect(() => {
+    if (!isAdmin) {
+      window.location.href = '/employee/leaves';
+      return;
+    }
+  }, [isAdmin]);
   
   const [leaves, setLeaves] = useState([]);
   const [displayedLeaves, setDisplayedLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(isAdmin ? 'all-leaves' : 'my-leaves');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [filters, setFilters] = useState({
+    status: 'all',
+    leaveType: 'all',
+    year: new Date().getFullYear(),
+    search: ''
+  });
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState(null);
-  const [itemsToShow, setItemsToShow] = useState(9); // Show 9 items initially (3x3 grid)
+  const [itemsToShow, setItemsToShow] = useState(9);
+  const [employeeBalances, setEmployeeBalances] = useState({});
 
   useEffect(() => {
     loadLeaves();
-  }, [activeTab, statusFilter]);
+  }, [activeTab, filters]);
 
   useEffect(() => {
     updateDisplayedLeaves();
-  }, [leaves, statusFilter, itemsToShow]);
+  }, [leaves, itemsToShow]);
 
   const updateDisplayedLeaves = () => {
-    const filtered = leaves.filter(leave => {
-      if (statusFilter === 'all') return true;
-      return leave.status === statusFilter;
-    });
+    let filtered = [...leaves];
+
+    // Apply filters
+    if (filters.status !== 'all') {
+      filtered = filtered.filter(leave => leave.status === filters.status);
+    }
+    
+    if (filters.leaveType !== 'all') {
+      filtered = filtered.filter(leave => leave.leaveType === filters.leaveType);
+    }
+
+    if (filters.search) {
+      const searchTerm = filters.search.toLowerCase();
+      filtered = filtered.filter(leave => 
+        leave.employee?.name?.toLowerCase().includes(searchTerm) ||
+        leave.employee?.email?.toLowerCase().includes(searchTerm) ||
+        leave.reason?.toLowerCase().includes(searchTerm)
+      );
+    }
 
     // Sort by priority: pending first, then by creation date (newest first)
-    const sortedLeaves = [...filtered].sort((a, b) => {
-      // Pending leaves first for admin view
+    const sortedLeaves = filtered.sort((a, b) => {
       if (isAdmin && activeTab === 'all-leaves') {
         if (a.status === 'pending' && b.status !== 'pending') return -1;
         if (b.status === 'pending' && a.status !== 'pending') return 1;
       }
-      
-      // Then by creation date (newest first)
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
     
@@ -55,24 +83,59 @@ const LeaveManagement = () => {
   const loadLeaves = async () => {
     try {
       setLoading(true);
-      // Reset pagination when loading new data
       setItemsToShow(9);
       
       let response;
+      const params = {
+        year: filters.year
+      };
       
       if (activeTab === 'my-leaves') {
         response = await leaveApi.getMyLeaves();
       } else {
-        const filter = statusFilter !== 'all' ? statusFilter : undefined;
-        response = await leaveApi.getAllLeaves(filter);
+        if (filters.status !== 'all') params.status = filters.status;
+        if (filters.leaveType !== 'all') params.leaveType = filters.leaveType;
+        response = await leaveApi.getAllLeaves(params);
       }
       
       setLeaves(response.data);
+      
+      // Load employee balances for admin view
+      if (isAdmin && activeTab === 'all-leaves') {
+        loadEmployeeBalances(response.data);
+      }
     } catch (error) {
       console.error('Error loading leaves:', error);
       toast.error('Failed to load leave requests');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadEmployeeBalances = async (leaveData) => {
+    try {
+      const uniqueEmployees = [...new Set(leaveData.map(leave => leave.employee?._id))].filter(Boolean);
+      const balances = {};
+      
+      for (const employeeId of uniqueEmployees) {
+        try {
+          const response = await leaveApi.getLeaveUsageSummary(employeeId, filters.year);
+          balances[employeeId] = response.data;
+        } catch (error) {
+          console.error(`Error loading usage summary for employee ${employeeId}:`, error);
+          // Fallback to regular balance if usage summary fails
+          try {
+            const balanceResponse = await leaveApi.getLeaveBalance(employeeId, filters.year);
+            balances[employeeId] = { balance: balanceResponse.data.balance, summary: null };
+          } catch (balanceError) {
+            console.error(`Error loading balance for employee ${employeeId}:`, balanceError);
+          }
+        }
+      }
+      
+      setEmployeeBalances(balances);
+    } catch (error) {
+      console.error('Error loading employee balances:', error);
     }
   };
 
@@ -134,19 +197,35 @@ const LeaveManagement = () => {
 
   const getLeaveTypeColor = (type) => {
     const colors = {
-      vacation: 'primary',
-      sick: 'danger',
-      personal: 'info',
-      maternity: 'success',
-      paternity: 'success',
+      personal: 'primary',
+      medical: 'danger',
+      vacation: 'success',
       unpaid: 'secondary'
     };
     return colors[type] || 'secondary';
   };
 
   const filteredLeaves = leaves.filter(leave => {
-    if (statusFilter === 'all') return true;
-    return leave.status === statusFilter;
+    let matches = true;
+    
+    if (filters.status !== 'all') {
+      matches = matches && leave.status === filters.status;
+    }
+    
+    if (filters.leaveType !== 'all') {
+      matches = matches && leave.leaveType === filters.leaveType;
+    }
+
+    if (filters.search) {
+      const searchTerm = filters.search.toLowerCase();
+      matches = matches && (
+        leave.employee?.name?.toLowerCase().includes(searchTerm) ||
+        leave.employee?.email?.toLowerCase().includes(searchTerm) ||
+        leave.reason?.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    return matches;
   });
 
   const handleShowMore = () => {
@@ -158,11 +237,13 @@ const LeaveManagement = () => {
   };
 
   const getStats = () => {
+    // Calculate stats from all leaves to show overall statistics
     const stats = {
       total: leaves.length,
       pending: leaves.filter(l => l.status === 'pending').length,
       approved: leaves.filter(l => l.status === 'approved').length,
       rejected: leaves.filter(l => l.status === 'rejected').length,
+      totalDays: leaves.filter(l => l.status === 'approved').reduce((sum, l) => sum + l.numberOfDays, 0)
     };
     return stats;
   };
@@ -181,7 +262,7 @@ const LeaveManagement = () => {
                 Leave Management
               </h2>
               <p className="text-muted mb-0">
-                Manage leave requests, approvals, and employee time off
+                Manage leave requests, approvals, and employee time off (24 days annual allowance)
                 {filteredLeaves.length > 9 && displayedLeaves.length < filteredLeaves.length && (
                   <span className="ms-2">
                     <Badge bg="info" className="small">
@@ -261,11 +342,11 @@ const LeaveManagement = () => {
             <Card.Body>
               <div className="d-flex justify-content-between align-items-center">
                 <div>
-                  <h6 className="text-muted mb-1">Rejected</h6>
-                  <h3 className="mb-0 text-danger">{stats.rejected}</h3>
+                  <h6 className="text-muted mb-1">Total Days</h6>
+                  <h3 className="mb-0 text-info">{stats.totalDays}</h3>
                 </div>
-                <div className="stats-icon bg-danger">
-                  <FaCalendarAlt />
+                <div className="stats-icon bg-info">
+                  <FaUsers />
                 </div>
               </div>
             </Card.Body>
@@ -273,49 +354,77 @@ const LeaveManagement = () => {
         </Col>
       </Row>
 
-      {/* Navigation Tabs */}
+      {/* Navigation and Filters */}
       <Row className="mb-4">
         <Col>
           <Card className="border-0 shadow-sm">
             <Card.Body className="py-3">
-              <Nav variant="pills" className="d-flex justify-content-between">
-                <div className="d-flex">
-                  <Nav.Item>
-                    <Nav.Link 
-                      active={activeTab === 'my-leaves'}
-                      onClick={() => setActiveTab('my-leaves')}
-                    >
-                      My Leave Requests
-                    </Nav.Link>
-                  </Nav.Item>
-                  {isAdmin && (
+              <Row className="align-items-center">
+                <Col md={6}>
+                  <Nav variant="pills">
                     <Nav.Item>
                       <Nav.Link 
-                        active={activeTab === 'all-leaves'}
-                        onClick={() => setActiveTab('all-leaves')}
+                        active={activeTab === 'my-leaves'}
+                        onClick={() => setActiveTab('my-leaves')}
                       >
-                        All Leave Requests
+                        My Leave Requests
                       </Nav.Link>
                     </Nav.Item>
-                  )}
-                </div>
+                    {isAdmin && (
+                      <Nav.Item>
+                        <Nav.Link 
+                          active={activeTab === 'all-leaves'}
+                          onClick={() => setActiveTab('all-leaves')}
+                        >
+                          All Leave Requests
+                        </Nav.Link>
+                      </Nav.Item>
+                    )}
+                  </Nav>
+                </Col>
                 
-                {/* Status Filter */}
-                <div className="d-flex align-items-center gap-2">
-                  <span className="text-muted small">Filter:</span>
-                  {['all', 'pending', 'approved', 'rejected'].map(status => (
-                    <Badge
-                      key={status}
-                      bg={statusFilter === status ? 'primary' : 'light'}
-                      text={statusFilter === status ? 'white' : 'dark'}
-                      className="cursor-pointer"
-                      onClick={() => setStatusFilter(status)}
-                    >
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
-                    </Badge>
-                  ))}
-                </div>
-              </Nav>
+                <Col md={6}>
+                  <Row className="g-2">
+                    <Col md={4}>
+                      <Form.Select
+                        size="sm"
+                        value={filters.status}
+                        onChange={(e) => setFilters({...filters, status: e.target.value})}
+                      >
+                        <option value="all">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="cancelled">Cancelled</option>
+                      </Form.Select>
+                    </Col>
+                    <Col md={4}>
+                      <Form.Select
+                        size="sm"
+                        value={filters.leaveType}
+                        onChange={(e) => setFilters({...filters, leaveType: e.target.value})}
+                      >
+                        <option value="all">All Types</option>
+                        {Object.entries(LEAVE_TYPE_DETAILS).map(([type, details]) => (
+                          <option key={type} value={type}>{details.name}</option>
+                        ))}
+                      </Form.Select>
+                    </Col>
+                    <Col md={4}>
+                      <InputGroup size="sm">
+                        <InputGroup.Text>
+                          <FaSearch />
+                        </InputGroup.Text>
+                        <Form.Control
+                          placeholder="Search employees..."
+                          value={filters.search}
+                          onChange={(e) => setFilters({...filters, search: e.target.value})}
+                        />
+                      </InputGroup>
+                    </Col>
+                  </Row>
+                </Col>
+              </Row>
             </Card.Body>
           </Card>
         </Col>
@@ -356,20 +465,102 @@ const LeaveManagement = () => {
             </Card>
           ) : (
             <>
-              <div className="leave-requests-grid">
-                {displayedLeaves.map(leave => (
-                  <LeaveRequestCard
-                    key={leave._id}
-                    leave={leave}
-                    isAdmin={isAdmin}
-                    currentUserId={user?.id}
-                    onApproveReject={handleApproveReject}
-                    onCancel={handleCancelLeave}
-                    getStatusColor={getStatusColor}
-                    getLeaveTypeColor={getLeaveTypeColor}
-                  />
-                ))}
-              </div>
+              {/* Enhanced Table View for Admin */}
+              {isAdmin && activeTab === 'all-leaves' ? (
+                <Card className="border-0 shadow-sm">
+                  <Card.Body>
+                    <Table responsive hover>
+                      <thead>
+                        <tr>
+                          <th>Employee</th>
+                          <th>Leave Type</th>
+                          <th>Duration</th>
+                          <th>Days</th>
+                          <th>Status</th>
+                          <th>Usage Ratio</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {displayedLeaves.map(leave => {
+                          const balance = employeeBalances[leave.employee?._id];
+                          return (
+                            <tr key={leave._id}>
+                              <td>
+                                <div>
+                                  <strong>{leave.employee?.name}</strong>
+                                  <br />
+                                  <small className="text-muted">{leave.employee?.email}</small>
+                                </div>
+                              </td>
+                              <td>
+                                <Badge bg={getLeaveTypeColor(leave.leaveType)}>
+                                  {LEAVE_TYPE_DETAILS[leave.leaveType]?.name || leave.leaveType}
+                                </Badge>
+                              </td>
+                              <td>
+                                <div>
+                                  {formatDate(leave.startDate)} - {formatDate(leave.endDate)}
+                                </div>
+                              </td>
+                              <td>
+                                <strong>{leave.numberOfDays}</strong>
+                              </td>
+                              <td>
+                                <Badge bg={getStatusColor(leave.status)}>
+                                  {leave.status}
+                                </Badge>
+                              </td>
+                              <td>
+                                {balance ? (
+                                  <div>
+                                    <div className="fw-bold text-primary">
+                                      {balance.summary?.currentRatio || `${balance.balance?.earned?.used || 0}/24`}
+                                    </div>
+                                    <small className="text-muted">
+                                      {balance.balance?.earned?.remaining || 0} available
+                                    </small>
+                                  </div>
+                                ) : (
+                                  <small className="text-muted">Loading...</small>
+                                )}
+                              </td>
+                              <td>
+                                <div className="d-flex gap-1">
+                                  {leave.status === 'pending' && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline-primary"
+                                      onClick={() => handleApproveReject(leave)}
+                                    >
+                                      <FaEye />
+                                    </Button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </Table>
+                  </Card.Body>
+                </Card>
+              ) : (
+                <div className="leave-requests-grid">
+                  {displayedLeaves.map(leave => (
+                    <LeaveRequestCard
+                      key={leave._id}
+                      leave={leave}
+                      isAdmin={isAdmin}
+                      currentUserId={user?.id}
+                      onApproveReject={handleApproveReject}
+                      onCancel={handleCancelLeave}
+                      getStatusColor={getStatusColor}
+                      getLeaveTypeColor={getLeaveTypeColor}
+                    />
+                  ))}
+                </div>
+              )}
               
               {/* Show More/Less Controls */}
               {filteredLeaves.length > 9 && (

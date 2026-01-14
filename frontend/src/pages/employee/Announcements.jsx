@@ -1,11 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Container, Card, Badge, Alert, Spinner, Form, InputGroup, Modal, Button, Row, Col, Tabs, Tab } from 'react-bootstrap';
-import { FaBullhorn, FaBell, FaEye, FaCalendarAlt, FaUser, FaBuilding, FaExclamationTriangle, FaInfoCircle, FaCheckCircle, FaTrash } from 'react-icons/fa';
+import { FaBullhorn, FaBell, FaEye, FaCalendarAlt, FaUser, FaBuilding, FaExclamationTriangle, FaInfoCircle, FaCheckCircle, FaTrash, FaComments, FaPlus } from 'react-icons/fa';
+import { toast } from 'react-toastify';
 import { useNotifications } from '../../context/NotificationContext';
+import { useAuth } from '../../context/AuthContext';
 import HolidaySection from '../../components/common/HolidaySection';
+import FeedbackForm from '../../components/feedback/FeedbackForm';
+import FeedbackList from '../../components/feedback/FeedbackList';
 import api from '../../services/api';
+import { announcementApi } from '../../api/announcementApi';
 
 const Announcements = () => {
+  const { user } = useAuth();
   const [announcements, setAnnouncements] = useState([]);
   const [filteredItems, setFilteredItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -15,22 +21,35 @@ const Announcements = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [selectedItem, setSelectedItem] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+  const [feedbackRefreshTrigger, setFeedbackRefreshTrigger] = useState(0);
+  const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
+  const [announcementFormData, setAnnouncementFormData] = useState({
+    title: '',
+    content: '',
+    type: 'general',
+    priority: 'normal',
+    department: ''
+  });
+  const [submittingAnnouncement, setSubmittingAnnouncement] = useState(false);
 
   // Use NotificationContext for notifications
   const { notifications, loading: notificationsLoading, fetchNotifications, markAsRead: markNotificationAsRead, deleteNotification } = useNotifications();
+
+  const isAdminUser = ['admin', 'superadmin', 'hr'].includes(user?.role);
 
   useEffect(() => {
     fetchData();
     // Fetch notifications using context
     fetchNotifications();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     // Only run filter if we have proper arrays
     if (Array.isArray(announcements) && Array.isArray(notifications)) {
       filterItems();
     }
-  }, [searchTerm, filterType, activeTab, announcements, notifications]);
+  }, [searchTerm, filterType, activeTab, announcements, notifications]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchData = async () => {
     try {
@@ -89,6 +108,35 @@ const Announcements = () => {
     allItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     setFilteredItems(allItems);
+  };
+
+  const handleCreateAnnouncement = async (e) => {
+    e.preventDefault();
+    
+    if (!announcementFormData.title || !announcementFormData.content) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    setSubmittingAnnouncement(true);
+    try {
+      await announcementApi.createAnnouncement(announcementFormData);
+      toast.success('Announcement created successfully');
+      setShowAnnouncementForm(false);
+      setAnnouncementFormData({
+        title: '',
+        content: '',
+        type: 'general',
+        priority: 'normal',
+        department: ''
+      });
+      fetchData(); // Refresh announcements
+    } catch (error) {
+      console.error('Error creating announcement:', error);
+      toast.error(error.response?.data?.message || 'Failed to create announcement');
+    } finally {
+      setSubmittingAnnouncement(false);
+    }
   };
 
   const getTypeBadge = (type) => {
@@ -159,6 +207,10 @@ const Announcements = () => {
     setSelectedItem(null);
   };
 
+  const handleFeedbackSuccess = () => {
+    setFeedbackRefreshTrigger(prev => prev + 1);
+  };
+
   const formatDate = (date) => {
     const now = new Date();
     const announcementDate = new Date(date);
@@ -195,7 +247,27 @@ const Announcements = () => {
             <FaBullhorn className="me-2 text-primary" />
             News & Alerts
           </h2>
-          <p className="text-muted mb-0">Stay updated with the latest news and notifications</p>
+          <p className="text-muted mb-0">Stay updated with the latest news, notifications, and share your feedback</p>
+        </div>
+        <div className="d-flex gap-2">
+          {isAdminUser && (
+            <Button
+              variant="success"
+              onClick={() => setShowAnnouncementForm(true)}
+              className="d-flex align-items-center gap-2"
+            >
+              <FaPlus />
+              Create Announcement
+            </Button>
+          )}
+          <Button
+            variant="primary"
+            onClick={() => setShowFeedbackForm(true)}
+            className="d-flex align-items-center gap-2"
+          >
+            <FaPlus />
+            Submit Feedback
+          </Button>
         </div>
       </div>
 
@@ -529,6 +601,72 @@ const Announcements = () => {
                 </div>
               )}
             </Tab>
+            
+            <Tab eventKey="feedback" title={
+              <span className="d-flex align-items-center gap-1">
+                <FaComments />
+                Feedback
+              </span>
+            }>
+              {/* Feedback Tab Content */}
+              <div className="mt-3">
+                {activeTab === 'feedback' && (
+                  <div>
+                    {/* Feedback Header */}
+                    <div className="d-flex justify-content-between align-items-center mb-4">
+                      <div>
+                        <h5 className="mb-1">💬 Share Your Feedback</h5>
+                        <p className="text-muted mb-0">
+                          Help us improve by sharing your thoughts, reporting issues, or suggesting new features.
+                        </p>
+                      </div>
+                      <Button
+                        variant="primary"
+                        onClick={() => setShowFeedbackForm(true)}
+                        className="d-flex align-items-center gap-2"
+                      >
+                        <FaPlus />
+                        New Feedback
+                      </Button>
+                    </div>
+
+                    {/* Feedback Categories Info */}
+                    <Alert variant="info" className="mb-4">
+                      <Row>
+                        <Col md={6}>
+                          <div className="mb-2">
+                            <strong>📝 What can you share?</strong>
+                          </div>
+                          <ul className="mb-0 small">
+                            <li>🐛 Bug reports and system issues</li>
+                            <li>💡 Feature requests and suggestions</li>
+                            <li>🎨 UI/UX feedback and improvements</li>
+                            <li>⚡ Performance issues</li>
+                          </ul>
+                        </Col>
+                        <Col md={6}>
+                          <div className="mb-2">
+                            <strong>🎯 How it helps:</strong>
+                          </div>
+                          <ul className="mb-0 small">
+                            <li>✅ Direct communication with admin team</li>
+                            <li>📊 Track status of your feedback</li>
+                            <li>👥 Upvote feedback from other users</li>
+                            <li>🔄 Get updates on resolutions</li>
+                          </ul>
+                        </Col>
+                      </Row>
+                    </Alert>
+
+                    {/* Feedback List */}
+                    <FeedbackList 
+                      isAdminView={isAdminUser}
+                      refreshTrigger={feedbackRefreshTrigger}
+                    />
+                  </div>
+                )}
+              </div>
+            </Tab>
           </Tabs>
         </>
       )}
@@ -605,6 +743,125 @@ const Announcements = () => {
             </Button>
           )}
         </Modal.Footer>
+      </Modal>
+
+      {/* Feedback Form Modal */}
+      <FeedbackForm
+        show={showFeedbackForm}
+        onHide={() => setShowFeedbackForm(false)}
+        onSuccess={handleFeedbackSuccess}
+      />
+
+      {/* Create Announcement Modal */}
+      <Modal 
+        show={showAnnouncementForm} 
+        onHide={() => setShowAnnouncementForm(false)}
+        size="lg"
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <FaBullhorn className="me-2 text-success" />
+            Create New Announcement
+          </Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleCreateAnnouncement}>
+          <Modal.Body>
+            <Form.Group className="mb-3">
+              <Form.Label>Title <span className="text-danger">*</span></Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="Enter announcement title"
+                value={announcementFormData.title}
+                onChange={(e) => setAnnouncementFormData({ ...announcementFormData, title: e.target.value })}
+                required
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Content <span className="text-danger">*</span></Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={5}
+                placeholder="Enter announcement content"
+                value={announcementFormData.content}
+                onChange={(e) => setAnnouncementFormData({ ...announcementFormData, content: e.target.value })}
+                required
+              />
+            </Form.Group>
+
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Type</Form.Label>
+                  <Form.Select
+                    value={announcementFormData.type}
+                    onChange={(e) => setAnnouncementFormData({ ...announcementFormData, type: e.target.value })}
+                  >
+                    <option value="general">General</option>
+                    <option value="important">Important</option>
+                    <option value="urgent">Urgent</option>
+                    <option value="event">Event</option>
+                    <option value="policy">Policy</option>
+                    <option value="holiday">Holiday</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Priority</Form.Label>
+                  <Form.Select
+                    value={announcementFormData.priority}
+                    onChange={(e) => setAnnouncementFormData({ ...announcementFormData, priority: e.target.value })}
+                  >
+                    <option value="low">Low</option>
+                    <option value="normal">Normal</option>
+                    <option value="high">High</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Department (Optional)</Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="Leave empty for all departments"
+                value={announcementFormData.department}
+                onChange={(e) => setAnnouncementFormData({ ...announcementFormData, department: e.target.value })}
+              />
+              <Form.Text className="text-muted">
+                Leave empty to send to all employees
+              </Form.Text>
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button 
+              variant="secondary" 
+              onClick={() => setShowAnnouncementForm(false)}
+              disabled={submittingAnnouncement}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="success" 
+              type="submit"
+              disabled={submittingAnnouncement}
+            >
+              {submittingAnnouncement ? (
+                <>
+                  <Spinner size="sm" className="me-1" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <FaPlus className="me-1" />
+                  Create Announcement
+                </>
+              )}
+            </Button>
+          </Modal.Footer>
+        </Form>
       </Modal>
 
       <style>{`

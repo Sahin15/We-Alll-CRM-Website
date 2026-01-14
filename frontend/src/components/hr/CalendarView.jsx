@@ -24,7 +24,7 @@ const CalendarView = () => {
   const fetchLeaves = async () => {
     try {
       setLoading(true);
-      const response = await leaveApi.getAllLeaves();
+      const response = await leaveApi.getAllLeaves({});
       setLeaves(response.data || []);
     } catch (error) {
       console.error("Error fetching leaves:", error);

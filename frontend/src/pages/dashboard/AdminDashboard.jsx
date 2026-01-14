@@ -227,7 +227,7 @@ const AdminDashboard = () => {
         
         console.log('[ADMIN DASHBOARD] Calculated stats:', { presentToday, lateToday });
         
-        const allLeavesRes = await leaveApi.getAllLeaves('approved');
+        const allLeavesRes = await leaveApi.getAllLeaves({ status: 'approved' });
         const todayDate = new Date(today);
         onLeaveToday = allLeavesRes.data?.filter(leave => {
           const startDate = new Date(leave.startDate);
@@ -240,7 +240,7 @@ const AdminDashboard = () => {
       
       let pendingLeaves = 0;
       try {
-        const leavesRes = await leaveApi.getAllLeaves('pending');
+        const leavesRes = await leaveApi.getAllLeaves({ status: 'pending' });
         pendingLeaves = leavesRes.data?.length || 0;
       } catch (err) {
         console.log('Leave data not available');
@@ -374,7 +374,7 @@ const AdminDashboard = () => {
 
       // Add recent leave approvals
       try {
-        const approvedLeaves = await leaveApi.getAllLeaves('approved');
+        const approvedLeaves = await leaveApi.getAllLeaves({ status: 'approved' });
         (approvedLeaves.data || []).slice(-3).reverse().forEach(leave => {
           activities.push({
             id: activityId++,
@@ -504,7 +504,7 @@ const AdminDashboard = () => {
 
   const handleApprovalsWidgetClick = async () => {
     try {
-      const response = await leaveApi.getAllLeaves('pending');
+      const response = await leaveApi.getAllLeaves({ status: 'pending' });
       let pendingLeaves = response.data || [];
       
       // Fetch user data if needed
@@ -661,7 +661,7 @@ const AdminDashboard = () => {
 
   const handleOnLeaveCardClick = async () => {
     try {
-      const response = await leaveApi.getAllLeaves('approved');
+      const response = await leaveApi.getAllLeaves({ status: 'approved' });
       const today = new Date();
       const todayStr = today.toISOString().split('T')[0];
       const onLeaveToday = response.data?.filter(leave => {

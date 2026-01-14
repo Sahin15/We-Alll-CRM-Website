@@ -9,7 +9,7 @@ import {
 } from "react-bootstrap";
 import { FaCalendarAlt, FaFilter } from "react-icons/fa";
 import { toast } from "react-toastify";
-import leaveApi from "../../api/leaveApi";
+import { leaveApi } from "../../api/leaveApi";
 import LeaveRequestCard from "../../components/leaves/LeaveRequestCard";
 import LeaveApprovalModal from "../../components/leaves/LeaveApprovalModal";
 import { useAuth } from "../../context/AuthContext";
@@ -25,13 +25,13 @@ const LeaveRequests = () => {
 
   useEffect(() => {
     fetchLeaves();
-  }, [statusFilter]);
+  }, []); // Remove statusFilter dependency since we filter in frontend now
 
   const fetchLeaves = async () => {
     try {
       setLoading(true);
-      const filter = statusFilter !== 'all' ? statusFilter : undefined;
-      const response = await leaveApi.getAllLeaves(filter);
+      // Get ALL leaves, don't filter at API level
+      const response = await leaveApi.getAllLeaves({});
       setLeaves(response.data);
     } catch (error) {
       console.error('Error loading leaves:', error);
@@ -78,22 +78,16 @@ const LeaveRequests = () => {
 
   const getLeaveTypeColor = (type) => {
     const colors = {
-      vacation: 'primary',
-      sick: 'danger',
-      personal: 'info',
-      maternity: 'success',
-      paternity: 'success',
+      personal: 'primary',
+      medical: 'danger',
+      vacation: 'success',
       unpaid: 'secondary'
     };
     return colors[type] || 'secondary';
   };
 
-  const filteredLeaves = leaves.filter(leave => {
-    if (statusFilter === 'all') return true;
-    return leave.status === statusFilter;
-  });
-
   const getStats = () => {
+    // Calculate stats from ALL leaves (not filtered)
     const stats = {
       total: leaves.length,
       pending: leaves.filter(l => l.status === 'pending').length,
@@ -104,6 +98,12 @@ const LeaveRequests = () => {
   };
 
   const stats = getStats();
+
+  // Filter leaves for display based on selected tab
+  const filteredLeaves = leaves.filter(leave => {
+    if (statusFilter === 'all') return true;
+    return leave.status === statusFilter;
+  });
 
   return (
     <Container fluid className="leave-requests">

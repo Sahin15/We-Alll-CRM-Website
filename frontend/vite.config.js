@@ -20,16 +20,62 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true
+      }
+    },
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          router: ['react-router-dom'],
-          ui: ['react-bootstrap', 'bootstrap'],
-          utils: ['axios', 'moment']
-        }
+        manualChunks: (id) => {
+          // Core React libraries
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+            return 'react-vendor';
+          }
+          // Router
+          if (id.includes('node_modules/react-router-dom')) {
+            return 'router';
+          }
+          // UI Libraries
+          if (id.includes('node_modules/react-bootstrap') || id.includes('node_modules/bootstrap')) {
+            return 'ui-bootstrap';
+          }
+          // Icons
+          if (id.includes('node_modules/react-icons')) {
+            return 'icons';
+          }
+          // Charts
+          if (id.includes('node_modules/chart.js') || id.includes('node_modules/react-chartjs-2') || id.includes('node_modules/recharts')) {
+            return 'charts';
+          }
+          // Calendar
+          if (id.includes('node_modules/react-big-calendar') || id.includes('node_modules/moment')) {
+            return 'calendar';
+          }
+          // Utilities
+          if (id.includes('node_modules/axios') || id.includes('node_modules/date-fns')) {
+            return 'utils';
+          }
+          // Other node_modules
+          if (id.includes('node_modules')) {
+            return 'vendor';
+          }
+        },
+        // Optimize chunk sizes
+        chunkFileNames: 'assets/js/[name]-[hash].js',
+        entryFileNames: 'assets/js/[name]-[hash].js',
+        assetFileNames: 'assets/[ext]/[name]-[hash].[ext]'
       }
-    }
+    },
+    // Increase chunk size warning limit
+    chunkSizeWarningLimit: 1000,
+  },
+  // Optimize dependencies
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom'],
+    exclude: []
   },
   base: '/', // Ensure assets are loaded from root
 });

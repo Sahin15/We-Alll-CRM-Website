@@ -27,7 +27,7 @@ const ReportsAnalytics = () => {
       // Fetch all data
       const [usersRes, leavesRes, attendanceRes] = await Promise.all([
         userApi.getAllUsers(),
-        leaveApi.getAllLeaves(),
+        leaveApi.getAllLeaves({}),
         attendanceApi.getAllAttendance({}),
       ]);
 

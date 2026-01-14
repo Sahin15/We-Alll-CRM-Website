@@ -15,12 +15,43 @@ export const ROLES = {
 
 // Leave Types
 export const LEAVE_TYPES = {
-  VACATION: "vacation",
-  SICK: "sick",
   PERSONAL: "personal",
-  MATERNITY: "maternity",
-  PATERNITY: "paternity",
-  UNPAID: "unpaid",
+  MEDICAL: "medical", 
+  VACATION: "vacation",
+};
+
+// Leave Type Details
+export const LEAVE_TYPE_DETAILS = {
+  personal: {
+    name: "Personal Leave",
+    total: 12,
+    advanceNotice: 3,
+    description: "Personal matters, family events, etc."
+  },
+  medical: {
+    name: "Medical Leave", 
+    total: 6,
+    advanceNotice: 0,
+    description: "Illness, medical appointments, health issues"
+  },
+  vacation: {
+    name: "Vacation Leave",
+    total: 6, 
+    advanceNotice: 30,
+    description: "Planned holidays, travel, recreation"
+  },
+  half_day: {
+    name: "Half Day",
+    total: 0,
+    advanceNotice: 0,
+    description: "Leave for half of the working day (counts as 0.5 day)"
+  },
+  unpaid: {
+    name: "Unpaid Leave",
+    total: 0,
+    advanceNotice: 7,
+    description: "Extended leave without pay (no limit)"
+  }
 };
 
 // Leave Status

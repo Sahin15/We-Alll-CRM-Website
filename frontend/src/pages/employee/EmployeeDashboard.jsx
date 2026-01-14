@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { Container, Row, Col, Card, Button, Badge, Modal, Form } from "react-bootstrap";
-import { FaClock, FaCalendarAlt, FaTasks, FaChartLine, FaFileAlt, FaShieldAlt, FaBullhorn } from "react-icons/fa";
+import { Container, Row, Col, Card, Button, Badge, Modal, Form, Alert } from "react-bootstrap";
+import { FaClock, FaCalendarAlt, FaTasks, FaChartLine, FaFileAlt, FaShieldAlt, FaBullhorn, FaInfoCircle, FaExclamationTriangle } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import toast from "../../utils/toast";
 import api from "../../services/api";
 import workItemApi from "../../api/workItemApi";
+import { LEAVE_TYPE_DETAILS } from "../../utils/constants";
 import GreetingBanner from "../../components/common/GreetingBanner";
 import ConfirmModal from "../../components/common/ConfirmModal";
 import HoDSection from "../../components/dashboard/HoDSection";
@@ -136,19 +137,19 @@ const EmployeeDashboard = () => {
     
     loadData();
     
-    // Update current time every second
+    // Update current time every 30 seconds instead of every second
     const timer = setInterval(() => {
       if (isMounted) {
         setCurrentTime(new Date());
       }
-    }, 1000);
+    }, 30000); // Changed from 1000ms to 30000ms
 
-    // Update work hours every minute
+    // Update work hours every 5 minutes instead of every minute
     const workHoursTimer = setInterval(() => {
       if (isMounted) {
         updateWorkHours();
       }
-    }, 60000); // Update every minute
+    }, 300000); // Changed from 60000ms to 300000ms (5 minutes)
 
     // Listen for attendance updates from navbar
     const handleAttendanceUpdate = (event) => {
@@ -342,15 +343,10 @@ const EmployeeDashboard = () => {
           );
           const daysWorkedThisWeek = thisWeekRecords.filter(r => r.clockIn).length;
           
-          // Fetch leave balance
-          const leavesResponse = await api.get('/leaves/my-leaves');
-          const approvedLeaves = leavesResponse.data.filter(leave => leave.status === 'approved');
-          const usedLeaves = approvedLeaves.reduce((sum, leave) => {
-            const days = Math.ceil((new Date(leave.endDate) - new Date(leave.startDate)) / (1000 * 60 * 60 * 24)) + 1;
-            return sum + days;
-          }, 0);
-          const totalLeaves = 18; // 12 casual + 6 medical
-          const remainingLeaves = totalLeaves - usedLeaves;
+          // Fetch leave balance using new earned leave system
+          const leaveBalanceResponse = await api.get('/leaves/balance');
+          const leaveBalance = leaveBalanceResponse.data.balance;
+          const remainingLeaves = leaveBalance.earned.remaining;
           
           setStats({
             attendanceToday: response.data && response.data.clockIn ? 
@@ -365,7 +361,7 @@ const EmployeeDashboard = () => {
           setStats({
             attendanceToday: response.data && response.data.clockIn ? 
               (response.data.clockOut ? "Completed" : "Present") : "Not Clocked In",
-            leaveBalance: 18,
+            leaveBalance: 2, // Default to 2 earned leaves in January
             pendingTasks: 0,
             hoursThisWeek: 0,
             attendanceThisMonth: "0/25",
@@ -389,15 +385,10 @@ const EmployeeDashboard = () => {
             .slice(0, 3);
           setRecentTasks(topTasks);
           
-          // Fetch leave balance
-          const leavesResponse = await api.get('/leaves/my-leaves');
-          const approvedLeaves = leavesResponse.data.filter(leave => leave.status === 'approved');
-          const usedLeaves = approvedLeaves.reduce((sum, leave) => {
-            const days = Math.ceil((new Date(leave.endDate) - new Date(leave.startDate)) / (1000 * 60 * 60 * 24)) + 1;
-            return sum + days;
-          }, 0);
-          const totalLeaves = 18; // 12 casual + 6 medical
-          const remainingLeaves = totalLeaves - usedLeaves;
+          // Fetch leave balance using new earned leave system
+          const leaveBalanceResponse = await api.get('/leaves/balance');
+          const leaveBalance = leaveBalanceResponse.data.balance;
+          const remainingLeaves = leaveBalance.earned.remaining;
           
           setStats({
             attendanceToday: "Not Clocked In",
@@ -594,6 +585,33 @@ const EmployeeDashboard = () => {
            (currentYear === SATURDAY_OFF_FROM.year && currentMonth < SATURDAY_OFF_FROM.month);
   };
 
+  const calculateDays = (startDate, endDate) => {
+    if (!startDate || !endDate) return 0;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    return Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+  };
+
+  const validateAdvanceNotice = (leaveType, startDate) => {
+    if (!startDate) return { valid: true };
+    
+    const start = new Date(startDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const daysDifference = Math.ceil((start - today) / (1000 * 60 * 60 * 24));
+    const requiredDays = LEAVE_TYPE_DETAILS[leaveType]?.advanceNotice || 0;
+    
+    if (daysDifference < requiredDays) {
+      return {
+        valid: false,
+        message: `${LEAVE_TYPE_DETAILS[leaveType]?.name} requires ${requiredDays} days advance notice`
+      };
+    }
+    
+    return { valid: true };
+  };
+
   const handleLeaveFormChange = (e) => {
     const { name, value } = e.target;
     setLeaveFormData(prev => ({
@@ -616,8 +634,42 @@ const EmployeeDashboard = () => {
       return;
     }
 
+    // Validate advance notice
+    const advanceNoticeCheck = validateAdvanceNotice(leaveFormData.leaveType, leaveFormData.startDate);
+    if (!advanceNoticeCheck.valid) {
+      toast.error(advanceNoticeCheck.message);
+      return;
+    }
+
+    // Check leave balance (skip for unpaid leave)
+    const requestedDays = calculateDays(leaveFormData.startDate, leaveFormData.endDate);
+    
+    if (leaveFormData.leaveType !== 'unpaid') {
+      // Get current leave balance
+      try {
+        const balanceResponse = await api.get('/leaves/balance');
+        const balance = balanceResponse.data.balance;
+        const availableBalance = balance.earned.remaining;
+        
+        if (requestedDays > availableBalance) {
+          toast.error(`Insufficient earned leave balance. Available: ${availableBalance} days, Requested: ${requestedDays} days. You have earned ${balance.earned.earned} out of 24 annual leaves.`);
+          return;
+        }
+      } catch (error) {
+        console.error('Error checking leave balance:', error);
+        toast.error('Failed to check leave balance. Please try again.');
+        return;
+      }
+    }
+
     try {
-      await api.post('/leaves', leaveFormData);
+      const formDataToSend = new FormData();
+      formDataToSend.append('leaveType', leaveFormData.leaveType);
+      formDataToSend.append('startDate', leaveFormData.startDate);
+      formDataToSend.append('endDate', leaveFormData.endDate);
+      formDataToSend.append('reason', leaveFormData.reason);
+
+      await api.post('/leaves', formDataToSend);
       toast.success('Leave application submitted successfully!');
       setShowLeaveModal(false);
       setLeaveFormData({
@@ -635,34 +687,32 @@ const EmployeeDashboard = () => {
 
   const handleLeaveCardClick = async () => {
     try {
-      const response = await api.get('/leaves/my-leaves');
-      const allLeaves = response.data;
+      // Fetch leave balance using new earned leave system
+      const balanceResponse = await api.get('/leaves/balance');
+      const balance = balanceResponse.data.balance;
       
-      const approvedLeaves = allLeaves.filter(leave => leave.status === 'approved');
-      const personalLeaves = approvedLeaves.filter(l => l.leaveType === 'personal');
-      const sickLeaves = approvedLeaves.filter(l => l.leaveType === 'sick');
-      
-      const calculateDays = (leaves) => {
-        return leaves.reduce((sum, leave) => {
-          const days = Math.ceil((new Date(leave.endDate) - new Date(leave.startDate)) / (1000 * 60 * 60 * 24)) + 1;
-          return sum + days;
-        }, 0);
-      };
-      
-      const personalUsed = calculateDays(personalLeaves);
-      const sickUsed = calculateDays(sickLeaves);
-      const totalUsed = personalUsed + sickUsed;
+      // Fetch leave history
+      const leavesResponse = await api.get('/leaves/my-leaves');
+      const allLeaves = leavesResponse.data;
       
       const recentLeaves = allLeaves
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         .slice(0, 5);
       
       setLeaveDetails({
-        total: 18,
-        used: totalUsed,
-        remaining: 18 - totalUsed,
-        personal: { total: 12, used: personalUsed },
-        sick: { total: 6, used: sickUsed },
+        // Earned leave system data
+        earned: {
+          total: balance.earned.total,
+          earned: balance.earned.earned,
+          used: balance.earned.used,
+          remaining: balance.earned.remaining,
+          monthlyRate: balance.earned.monthlyRate
+        },
+        // Category breakdown (for reference)
+        personal: balance.personal,
+        medical: balance.medical,
+        vacation: balance.vacation,
+        unpaid: balance.unpaid,
         recentLeaves
       });
       
@@ -823,7 +873,7 @@ const EmployeeDashboard = () => {
                 <div>
                   <h6 className="text-muted mb-2">Leave Balance</h6>
                   <h3 className="mb-1">{stats.leaveBalance} days</h3>
-                  <small className="text-info">Remaining this year • Click for details</small>
+                  <small className="text-info">Available earned leaves • Click for details</small>
                 </div>
                 <div className="bg-info bg-opacity-10 p-3 rounded">
                   <FaCalendarAlt className="text-info fs-4" />
@@ -1437,76 +1487,217 @@ const EmployeeDashboard = () => {
         .cursor-pointer:active {
           transform: translateY(-2px) !important;
         }
+
+        /* Leave Type Card Styles */
+        .leave-type-card {
+          transition: all 0.2s ease;
+          cursor: pointer;
+          border-radius: 8px;
+        }
+
+        .leave-type-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .leave-type-card.selected {
+          background-color: #f8f9fa;
+          border-color: #0d6efd !important;
+          box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1);
+        }
+
+        .leave-type-card h6 {
+          font-size: 0.95rem;
+          font-weight: 600;
+          margin-bottom: 0.25rem;
+        }
+
+        .leave-type-card small {
+          font-size: 0.8rem;
+          line-height: 1.3;
+        }
       `}</style>
 
       {/* Leave Application Modal */}
-      <Modal show={showLeaveModal} onHide={() => setShowLeaveModal(false)} centered className="leave-modal">
+      <Modal show={showLeaveModal} onHide={() => setShowLeaveModal(false)} size="lg" centered className="leave-modal">
         <Modal.Header closeButton>
           <Modal.Title>
             <FaCalendarAlt className="me-2" />
-            Apply for Leave
+            Request Leave
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form onSubmit={handleLeaveSubmit}>
-            <Form.Group className="mb-3">
-              <Form.Label>Leave Type</Form.Label>
-              <Form.Select
-                name="leaveType"
-                value={leaveFormData.leaveType}
-                onChange={handleLeaveFormChange}
-                required
-              >
-                <option value="personal">Personal Leave</option>
-                <option value="sick">Sick Leave</option>
-                <option value="vacation">Vacation</option>
-                <option value="emergency">Emergency Leave</option>
-              </Form.Select>
-            </Form.Group>
+            {/* Leave Type Selection - Card Style */}
+            <div className="mb-4">
+              <h6 className="mb-3">Leave Type</h6>
+              <Row className="g-3">
+                <Col md={6}>
+                  <Card 
+                    className={`leave-type-card ${leaveFormData.leaveType === 'vacation' ? 'selected' : ''}`}
+                    onClick={() => setLeaveFormData(prev => ({ ...prev, leaveType: 'vacation' }))}
+                    style={{ cursor: 'pointer', border: leaveFormData.leaveType === 'vacation' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
+                  >
+                    <Card.Body>
+                      <div className="d-flex align-items-start">
+                        <div className="me-3">
+                          <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#6f42c1' }}></div>
+                        </div>
+                        <div>
+                          <h6 className="mb-1">Vacation</h6>
+                          <small className="text-muted">Planned time off for rest and recreation</small>
+                        </div>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col md={6}>
+                  <Card 
+                    className={`leave-type-card ${leaveFormData.leaveType === 'medical' ? 'selected' : ''}`}
+                    onClick={() => setLeaveFormData(prev => ({ ...prev, leaveType: 'medical' }))}
+                    style={{ cursor: 'pointer', border: leaveFormData.leaveType === 'medical' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
+                  >
+                    <Card.Body>
+                      <div className="d-flex align-items-start">
+                        <div className="me-3">
+                          <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#dc3545' }}></div>
+                        </div>
+                        <div>
+                          <h6 className="mb-1">Sick Leave</h6>
+                          <small className="text-muted">Medical leave for illness or health issues</small>
+                        </div>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col md={6}>
+                  <Card 
+                    className={`leave-type-card ${leaveFormData.leaveType === 'personal' ? 'selected' : ''}`}
+                    onClick={() => setLeaveFormData(prev => ({ ...prev, leaveType: 'personal' }))}
+                    style={{ cursor: 'pointer', border: leaveFormData.leaveType === 'personal' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
+                  >
+                    <Card.Body>
+                      <div className="d-flex align-items-start">
+                        <div className="me-3">
+                          <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#0dcaf0' }}></div>
+                        </div>
+                        <div>
+                          <h6 className="mb-1">Personal Leave</h6>
+                          <small className="text-muted">Personal matters and family obligations</small>
+                        </div>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col md={6}>
+                  <Card 
+                    className={`leave-type-card ${leaveFormData.leaveType === 'half_day' ? 'selected' : ''}`}
+                    onClick={() => setLeaveFormData(prev => ({ ...prev, leaveType: 'half_day' }))}
+                    style={{ cursor: 'pointer', border: leaveFormData.leaveType === 'half_day' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
+                  >
+                    <Card.Body>
+                      <div className="d-flex align-items-start">
+                        <div className="me-3">
+                          <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#fd7e14' }}></div>
+                        </div>
+                        <div>
+                          <h6 className="mb-1">Half Day</h6>
+                          <small className="text-muted">Leave for half of the working day</small>
+                        </div>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col md={6}>
+                  <Card 
+                    className={`leave-type-card ${leaveFormData.leaveType === 'unpaid' ? 'selected' : ''}`}
+                    onClick={() => setLeaveFormData(prev => ({ ...prev, leaveType: 'unpaid' }))}
+                    style={{ cursor: 'pointer', border: leaveFormData.leaveType === 'unpaid' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
+                  >
+                    <Card.Body>
+                      <div className="d-flex align-items-start">
+                        <div className="me-3">
+                          <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#6c757d' }}></div>
+                        </div>
+                        <div>
+                          <h6 className="mb-1">Unpaid Leave</h6>
+                          <small className="text-muted">Extended leave without pay</small>
+                        </div>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              </Row>
+            </div>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Start Date</Form.Label>
-              <Form.Control
-                type="date"
-                name="startDate"
-                value={leaveFormData.startDate}
-                onChange={handleLeaveFormChange}
-                min={new Date().toISOString().split('T')[0]}
-                required
-              />
-            </Form.Group>
+            {/* Date Fields */}
+            <Row className="mb-3">
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>Start Date</Form.Label>
+                  <Form.Control
+                    type="date"
+                    name="startDate"
+                    value={leaveFormData.startDate}
+                    onChange={handleLeaveFormChange}
+                    min={new Date().toISOString().split('T')[0]}
+                    required
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>End Date</Form.Label>
+                  <Form.Control
+                    type="date"
+                    name="endDate"
+                    value={leaveFormData.endDate}
+                    onChange={handleLeaveFormChange}
+                    min={leaveFormData.startDate || new Date().toISOString().split('T')[0]}
+                    required
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
 
+            {/* Reason Field */}
             <Form.Group className="mb-3">
-              <Form.Label>End Date</Form.Label>
-              <Form.Control
-                type="date"
-                name="endDate"
-                value={leaveFormData.endDate}
-                onChange={handleLeaveFormChange}
-                min={leaveFormData.startDate || new Date().toISOString().split('T')[0]}
-                required
-              />
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Reason</Form.Label>
+              <Form.Label>
+                <FaFileAlt className="me-2" />
+                Reason for Leave
+              </Form.Label>
               <Form.Control
                 as="textarea"
-                rows={3}
+                rows={4}
                 name="reason"
                 value={leaveFormData.reason}
                 onChange={handleLeaveFormChange}
-                placeholder="Please provide a reason for your leave..."
+                placeholder="Please provide a reason for your leave request..."
+                maxLength={500}
                 required
               />
+              <Form.Text className="text-muted">
+                {leaveFormData.reason.length}/500 characters
+              </Form.Text>
             </Form.Group>
 
-            <div className="d-flex flex-column flex-sm-row justify-content-end gap-2">
-              <Button variant="secondary" onClick={() => setShowLeaveModal(false)} className="w-mobile-100">
+            {/* Attachments (Optional) - Placeholder for future */}
+            <Form.Group className="mb-4">
+              <Form.Label className="text-muted">
+                📎 Attachments (Optional)
+              </Form.Label>
+              <div className="text-muted small">
+                <em>Attachment feature coming soon</em>
+              </div>
+            </Form.Group>
+
+            {/* Action Buttons */}
+            <div className="d-flex justify-content-end gap-2">
+              <Button variant="secondary" onClick={() => setShowLeaveModal(false)}>
                 Cancel
               </Button>
-              <Button variant="primary" type="submit" className="w-mobile-100">
-                Submit Application
+              <Button variant="primary" type="submit">
+                Submit Request
               </Button>
             </div>
           </Form>
@@ -1522,65 +1713,112 @@ const EmployeeDashboard = () => {
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          {/* Summary Cards */}
-          <Row className="mb-4">
-            <Col xs={12} sm={4} md={4}>
-              <Card className="border-0 bg-light">
-                <Card.Body className="text-center">
-                  <h6 className="text-muted mb-2">Total Leave</h6>
-                  <h2 className="mb-0 text-primary">{leaveDetails.total}</h2>
-                  <small className="text-muted">days/year</small>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col xs={12} sm={4} md={4}>
-              <Card className="border-0 bg-light">
-                <Card.Body className="text-center">
-                  <h6 className="text-muted mb-2">Used</h6>
-                  <h2 className="mb-0 text-warning">{leaveDetails.used}</h2>
-                  <small className="text-muted">days</small>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col xs={12} sm={4} md={4}>
-              <Card className="border-0 bg-light">
-                <Card.Body className="text-center">
-                  <h6 className="text-muted mb-2">Remaining</h6>
-                  <h2 className="mb-0 text-success">{leaveDetails.remaining}</h2>
-                  <small className="text-muted">days</small>
-                </Card.Body>
-              </Card>
-            </Col>
-          </Row>
+          {/* Earned Leave Summary */}
+          {leaveDetails.earned && (
+            <>
+              <div className="mb-4 p-3 bg-primary bg-opacity-10 rounded">
+                <h6 className="text-primary mb-2">
+                  <FaCalendarAlt className="me-2" />
+                  Earned Leave System (2026)
+                </h6>
+                <p className="mb-2 small text-muted">
+                  You earn 2 leaves per month. Total annual allowance: 24 days.
+                </p>
+                <Row className="text-center">
+                  <Col xs={6} sm={3}>
+                    <div className="mb-2">
+                      <div className="h5 mb-0 text-primary">{leaveDetails.earned.earned}</div>
+                      <small className="text-muted">Earned</small>
+                    </div>
+                  </Col>
+                  <Col xs={6} sm={3}>
+                    <div className="mb-2">
+                      <div className="h5 mb-0 text-danger">{leaveDetails.earned.used}</div>
+                      <small className="text-muted">Used</small>
+                    </div>
+                  </Col>
+                  <Col xs={6} sm={3}>
+                    <div className="mb-2">
+                      <div className="h5 mb-0 text-success">{leaveDetails.earned.remaining}</div>
+                      <small className="text-muted">Available</small>
+                    </div>
+                  </Col>
+                  <Col xs={6} sm={3}>
+                    <div className="mb-2">
+                      <div className="h5 mb-0 text-info">{leaveDetails.earned.total}</div>
+                      <small className="text-muted">Annual Total</small>
+                    </div>
+                  </Col>
+                </Row>
+                <div className="progress mt-3" style={{ height: '10px' }}>
+                  <div 
+                    className="progress-bar bg-primary" 
+                    style={{ width: `${(leaveDetails.earned.used / leaveDetails.earned.earned) * 100}%` }}
+                  ></div>
+                </div>
+                <div className="d-flex justify-content-between mt-2">
+                  <small className="text-muted">Usage: {leaveDetails.earned.used}/{leaveDetails.earned.earned}</small>
+                  <small className="text-muted">Monthly Rate: {leaveDetails.earned.monthlyRate} days</small>
+                </div>
+              </div>
+            </>
+          )}
 
-          {/* Leave Type Breakdown */}
-          <h6 className="mb-3">Leave Type Breakdown</h6>
+          {/* Leave Type Breakdown (Reference) */}
+          <h6 className="mb-3">Leave Type Breakdown (Reference)</h6>
           <div className="mb-4">
             <div className="d-flex justify-content-between align-items-center mb-2">
               <span>Personal Leave</span>
               <span className="text-muted">
-                {leaveDetails.personal.used} / {leaveDetails.personal.total} days
+                {leaveDetails.personal?.used || 0} / {leaveDetails.personal?.total || 12} days
               </span>
             </div>
             <div className="progress mb-3" style={{ height: '8px' }}>
               <div 
                 className="progress-bar bg-info" 
-                style={{ width: `${(leaveDetails.personal.used / leaveDetails.personal.total) * 100}%` }}
+                style={{ width: `${((leaveDetails.personal?.used || 0) / (leaveDetails.personal?.total || 12)) * 100}%` }}
               ></div>
             </div>
 
             <div className="d-flex justify-content-between align-items-center mb-2">
-              <span>Sick Leave</span>
+              <span>Medical Leave</span>
               <span className="text-muted">
-                {leaveDetails.sick.used} / {leaveDetails.sick.total} days
+                {leaveDetails.medical?.used || 0} / {leaveDetails.medical?.total || 6} days
               </span>
             </div>
             <div className="progress mb-3" style={{ height: '8px' }}>
               <div 
                 className="progress-bar bg-warning" 
-                style={{ width: `${(leaveDetails.sick.used / leaveDetails.sick.total) * 100}%` }}
+                style={{ width: `${((leaveDetails.medical?.used || 0) / (leaveDetails.medical?.total || 6)) * 100}%` }}
               ></div>
             </div>
+
+            <div className="d-flex justify-content-between align-items-center mb-2">
+              <span>Vacation Leave</span>
+              <span className="text-muted">
+                {leaveDetails.vacation?.used || 0} / {leaveDetails.vacation?.total || 6} days
+              </span>
+            </div>
+            <div className="progress mb-3" style={{ height: '8px' }}>
+              <div 
+                className="progress-bar bg-success" 
+                style={{ width: `${((leaveDetails.vacation?.used || 0) / (leaveDetails.vacation?.total || 6)) * 100}%` }}
+              ></div>
+            </div>
+
+            {leaveDetails.unpaid && leaveDetails.unpaid.used > 0 && (
+              <>
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <span>Unpaid Leave</span>
+                  <span className="text-muted">
+                    {leaveDetails.unpaid.used} days (no limit)
+                  </span>
+                </div>
+                <div className="progress mb-3" style={{ height: '8px' }}>
+                  <div className="progress-bar bg-secondary" style={{ width: '100%' }}></div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Recent Leaves */}

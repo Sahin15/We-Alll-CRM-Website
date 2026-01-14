@@ -37,6 +37,7 @@ import workItemRoutes from "./routes/workItemRoutes.js";
 import calendarRoutes from "./routes/calendarRoutes.js";
 import workCalendarRoutes from "./routes/workCalendarRoutes.js";
 import fixRoutes from "./routes/fixRoutes.js";
+import feedbackRoutes from "./routes/feedbackRoutes.js";
 // Legacy routes removed - use workItemRoutes instead
 // Old: taskRoutes, slotRoutes, workRoutes → New: workItemRoutes
 import { initializeCronJobs } from "./config/cronJobs.js";
@@ -218,6 +219,7 @@ app.use("/api/work-items", apiLimiter, workItemRoutes);
 app.use("/api/calendar", apiLimiter, calendarRoutes);
 app.use("/api/work-calendar", apiLimiter, workCalendarRoutes);
 app.use("/api/fix", apiLimiter, fixRoutes);
+app.use("/api/feedback", apiLimiter, feedbackRoutes);
 // Legacy routes removed:
 // - /api/tasks → use /api/work-items
 // - /api/slots → use /api/work-items

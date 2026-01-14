@@ -21,7 +21,7 @@ const NotificationCenter = () => {
       const notifs = [];
 
       // Fetch pending leaves
-      const leaveRes = await leaveApi.getAllLeaves("pending");
+      const leaveRes = await leaveApi.getAllLeaves({ status: "pending" });
       if (leaveRes.data?.length > 0) {
         leaveRes.data.forEach((leave) => {
           notifs.push({

@@ -13,11 +13,46 @@ export const createLeaveRequest = async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
 
+    // Validate leave type
+    if (!['personal', 'medical', 'vacation', 'unpaid'].includes(leaveType)) {
+      return res.status(400).json({ message: "Invalid leave type" });
+    }
+
     // Validate dates
-    if (new Date(startDate) > new Date(endDate)) {
-      return res
-        .status(400)
-        .json({ message: "End date must be after start date" });
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (start > end) {
+      return res.status(400).json({ message: "End date must be after start date" });
+    }
+
+    // Calculate number of days
+    const numberOfDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+
+    // Validate advance notice requirements
+    const daysDifference = Math.ceil((start - today) / (1000 * 60 * 60 * 24));
+    
+    if (leaveType === 'personal' && daysDifference < 3) {
+      return res.status(400).json({ 
+        message: "Personal leave must be requested at least 3 days in advance" 
+      });
+    }
+    
+    if (leaveType === 'vacation' && daysDifference < 30) {
+      return res.status(400).json({ 
+        message: "Vacation leave must be requested at least 30 days in advance" 
+      });
+    }
+
+    // Check leave balance (skip for unpaid leave)
+    if (leaveType !== 'unpaid') {
+      try {
+        await LeaveRequest.validateLeaveRequest(employee, leaveType, numberOfDays);
+      } catch (balanceError) {
+        return res.status(400).json({ message: balanceError.message });
+      }
     }
 
     // Upload attachments to S3 if any
@@ -50,6 +85,8 @@ export const createLeaveRequest = async (req, res) => {
       endDate,
       reason,
       attachments: attachmentUrls,
+      numberOfDays,
+      leaveYear: start.getFullYear()
     });
 
     console.log("✅ Leave request created successfully:", leaveRequest._id);
@@ -68,11 +105,96 @@ export const createLeaveRequest = async (req, res) => {
   }
 };
 
+// Get leave balance for an employee
+export const getLeaveBalance = async (req, res) => {
+  try {
+    const employeeId = req.params.employeeId || req.user.id;
+    const year = parseInt(req.query.year) || new Date().getFullYear();
+
+    // Check if user can access this employee's data
+    if (employeeId !== req.user.id && !['admin', 'superadmin', 'hr', 'hod'].includes(req.user.role)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const balance = await LeaveRequest.getLeaveBalance(employeeId, year);
+    
+    res.status(200).json({
+      employeeId,
+      year,
+      balance
+    });
+  } catch (error) {
+    console.error("Error in getLeaveBalance:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Get leave usage summary for HR (shows usage ratio like 1/24, 2/24)
+export const getLeaveUsageSummary = async (req, res) => {
+  try {
+    const employeeId = req.params.employeeId;
+    const year = parseInt(req.query.year) || new Date().getFullYear();
+
+    // Check if user can access this data
+    if (!['admin', 'superadmin', 'hr', 'hod'].includes(req.user.role)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    // Get all approved leaves for the employee in chronological order
+    const approvedLeaves = await LeaveRequest.find({
+      employee: employeeId, // Mongoose will automatically convert string to ObjectId
+      status: 'approved',
+      leaveYear: year
+    }).sort({ startDate: 1 });
+
+    // Calculate cumulative usage
+    let cumulativeUsed = 0;
+    const leaveHistory = approvedLeaves
+      .filter(leave => leave.leaveType !== 'unpaid') // Exclude unpaid leaves
+      .map(leave => {
+        cumulativeUsed += leave.numberOfDays;
+        return {
+          leaveId: leave._id,
+          leaveType: leave.leaveType,
+          startDate: leave.startDate,
+          endDate: leave.endDate,
+          numberOfDays: leave.numberOfDays,
+          usageRatio: `${cumulativeUsed}/24`,
+          cumulativeUsed: cumulativeUsed
+        };
+      });
+
+    // Get current balance
+    const balance = await LeaveRequest.getLeaveBalance(employeeId, year);
+
+    res.status(200).json({
+      employeeId,
+      year,
+      balance,
+      leaveHistory,
+      summary: {
+        totalEarned: balance.earned.earned,
+        totalUsed: balance.earned.used,
+        totalRemaining: balance.earned.remaining,
+        currentRatio: `${balance.earned.used}/24`
+      }
+    });
+  } catch (error) {
+    console.error("Error in getLeaveUsageSummary:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 // Get all leave requests (Admin/HR)
 export const getAllLeaveRequests = async (req, res) => {
   try {
-    const { status } = req.query;
-    const filter = status ? { status } : {};
+    const { status, year, leaveType, employeeId } = req.query;
+    const filter = {};
+    
+    if (status) filter.status = status;
+    if (year) filter.leaveYear = parseInt(year);
+    if (leaveType) filter.leaveType = leaveType;
+    if (employeeId) filter.employee = employeeId;
 
     const leaveRequests = await LeaveRequest.find(filter)
       .populate({

@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
-import { Container, Row, Col, Card, Button, Table, Badge, Modal, Form, ProgressBar } from "react-bootstrap";
-import { FaPlus, FaCalendarAlt, FaUmbrellaBeach, FaHospital, FaPlane } from "react-icons/fa";
-import toast from "../../utils/toast";
-import api from "../../services/api";
+import { Container, Row, Col, Card, Button, Table, Badge, Modal, Form, ProgressBar, Alert } from "react-bootstrap";
+import { FaPlus, FaCalendarAlt, FaUmbrellaBeach, FaHospital, FaPlane, FaExclamationTriangle, FaInfoCircle } from "react-icons/fa";
+import { toast } from "react-toastify";
+import { leaveApi } from "../../api/leaveApi";
+import { LEAVE_TYPE_DETAILS } from "../../utils/constants";
+import { formatDate, getStatusVariant } from "../../utils/helpers";
 import "../../styles/table-mobile.css";
 import "../../styles/modal-mobile.css";
 
@@ -10,6 +12,7 @@ const MyLeaves = () => {
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [leaveBalance, setLeaveBalance] = useState(null);
   const [formData, setFormData] = useState({
     leaveType: "personal",
     startDate: "",
@@ -17,52 +20,17 @@ const MyLeaves = () => {
     reason: "",
     document: null,
   });
-  const [leaveBalance, setLeaveBalance] = useState({
-    casual: { total: 12, used: 0, remaining: 12 },
-    sick: { total: 6, used: 0, remaining: 6 },
-    vacation: { total: 0, used: 0, remaining: 0 },
-  });
 
   useEffect(() => {
     fetchLeaves();
+    fetchLeaveBalance();
   }, []);
 
   const fetchLeaves = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/leaves/my-leaves");
+      const response = await leaveApi.getMyLeaves();
       setLeaves(response.data);
-      
-      // Calculate used leaves from approved leaves
-      const approvedLeaves = response.data.filter(leave => leave.status === 'approved');
-      
-      const casualUsed = approvedLeaves
-        .filter(leave => leave.leaveType === 'personal')
-        .reduce((sum, leave) => {
-          const days = Math.ceil((new Date(leave.endDate) - new Date(leave.startDate)) / (1000 * 60 * 60 * 24)) + 1;
-          return sum + days;
-        }, 0);
-      
-      const sickUsed = approvedLeaves
-        .filter(leave => leave.leaveType === 'sick')
-        .reduce((sum, leave) => {
-          const days = Math.ceil((new Date(leave.endDate) - new Date(leave.startDate)) / (1000 * 60 * 60 * 24)) + 1;
-          return sum + days;
-        }, 0);
-      
-      const vacationUsed = approvedLeaves
-        .filter(leave => leave.leaveType === 'vacation')
-        .reduce((sum, leave) => {
-          const days = Math.ceil((new Date(leave.endDate) - new Date(leave.startDate)) / (1000 * 60 * 60 * 24)) + 1;
-          return sum + days;
-        }, 0);
-      
-      // Update leave balance with actual used leaves
-      setLeaveBalance({
-        casual: { total: 12, used: casualUsed, remaining: 12 - casualUsed },
-        sick: { total: 6, used: sickUsed, remaining: 6 - sickUsed },
-        vacation: { total: 0, used: vacationUsed, remaining: 0 - vacationUsed },
-      });
     } catch (error) {
       console.error("Error fetching leaves:", error);
       if (error.response?.status !== 404) {
@@ -71,6 +39,16 @@ const MyLeaves = () => {
       setLeaves([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchLeaveBalance = async () => {
+    try {
+      const response = await leaveApi.getLeaveBalance();
+      setLeaveBalance(response.data.balance);
+    } catch (error) {
+      console.error("Error fetching leave balance:", error);
+      toast.error("Failed to load leave balance");
     }
   };
 
@@ -95,6 +73,33 @@ const MyLeaves = () => {
     setFormData({ ...formData, document: e.target.files[0] });
   };
 
+  const calculateDays = (startDate, endDate) => {
+    if (!startDate || !endDate) return 0;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    return Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+  };
+
+  const validateAdvanceNotice = (leaveType, startDate) => {
+    if (!startDate) return { valid: true };
+    
+    const start = new Date(startDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const daysDifference = Math.ceil((start - today) / (1000 * 60 * 60 * 24));
+    const requiredDays = LEAVE_TYPE_DETAILS[leaveType]?.advanceNotice || 0;
+    
+    if (daysDifference < requiredDays) {
+      return {
+        valid: false,
+        message: `${LEAVE_TYPE_DETAILS[leaveType]?.name} requires ${requiredDays} days advance notice`
+      };
+    }
+    
+    return { valid: true };
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -102,32 +107,86 @@ const MyLeaves = () => {
       toast.error("Please fill all required fields");
       return;
     }
+
+    // Validate advance notice
+    const advanceNoticeCheck = validateAdvanceNotice(formData.leaveType, formData.startDate);
+    if (!advanceNoticeCheck.valid) {
+      toast.error(advanceNoticeCheck.message);
+      return;
+    }
+
+    // Check leave balance (skip for unpaid leave)
+    const requestedDays = calculateDays(formData.startDate, formData.endDate);
+    
+    if (formData.leaveType !== 'unpaid') {
+      const availableBalance = leaveBalance?.earned?.remaining || 0;
+      
+      if (requestedDays > availableBalance) {
+        toast.error(`Insufficient earned leave balance. Available: ${availableBalance} days, Requested: ${requestedDays} days. You have earned ${leaveBalance?.earned?.earned || 0} out of 24 annual leaves.`);
+        return;
+      }
+    }
     
     try {
-      await api.post("/leaves", {
-        leaveType: formData.leaveType,
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        reason: formData.reason,
-      });
+      const formDataToSend = new FormData();
+      formDataToSend.append('leaveType', formData.leaveType);
+      formDataToSend.append('startDate', formData.startDate);
+      formDataToSend.append('endDate', formData.endDate);
+      formDataToSend.append('reason', formData.reason);
+      
+      if (formData.document) {
+        formDataToSend.append('attachments', formData.document);
+      }
+
+      await leaveApi.createLeaveRequest(formDataToSend);
       
       toast.success("Leave application submitted successfully!");
       handleCloseModal();
       fetchLeaves();
+      fetchLeaveBalance();
     } catch (error) {
       console.error("Error applying for leave:", error);
       toast.error(error.response?.data?.message || "Failed to submit leave application");
     }
   };
 
-  const getStatusBadge = (status) => {
-    const variants = {
-      Approved: "success",
-      Pending: "warning",
-      Rejected: "danger",
-    };
-    return <Badge bg={variants[status] || "secondary"}>{status}</Badge>;
+  const handleCancel = async (id) => {
+    if (window.confirm("Are you sure you want to cancel this leave request?")) {
+      try {
+        await leaveApi.cancelLeave(id);
+        toast.success("Leave request cancelled");
+        fetchLeaves();
+        fetchLeaveBalance();
+      } catch (error) {
+        toast.error("Failed to cancel leave request");
+      }
+    }
   };
+
+  const getLeaveTypeIcon = (type) => {
+    const icons = {
+      personal: FaUmbrellaBeach,
+      medical: FaHospital,
+      vacation: FaPlane,
+      unpaid: FaCalendarAlt
+    };
+    const IconComponent = icons[type] || FaCalendarAlt;
+    return <IconComponent />;
+  };
+
+  const getLeaveTypeColor = (type) => {
+    const colors = {
+      personal: "primary",
+      medical: "danger", 
+      vacation: "success",
+      unpaid: "secondary"
+    };
+    return colors[type] || "secondary";
+  };
+
+  const requestedDays = calculateDays(formData.startDate, formData.endDate);
+  const availableBalance = leaveBalance?.earned?.remaining || 0;
+  const advanceNoticeCheck = validateAdvanceNotice(formData.leaveType, formData.startDate);
 
   return (
     <Container fluid className="py-4">
@@ -136,7 +195,7 @@ const MyLeaves = () => {
           <div className="d-flex justify-content-between align-items-center">
             <div>
               <h2>My Leaves</h2>
-              <p className="text-muted mb-0">Manage your leave applications</p>
+              <p className="text-muted mb-0">Manage your leave applications - 24 days annual allowance</p>
             </div>
             <Button variant="primary" onClick={handleShowModal}>
               <FaPlus className="me-2" />
@@ -147,100 +206,175 @@ const MyLeaves = () => {
       </Row>
 
       {/* Leave Balance Cards */}
-      <Row className="mb-4">
-        <Col xs={12} md={6} className="mb-3">
-          <Card className="border-0 shadow-sm h-100">
-            <Card.Body>
-              <div className="d-flex align-items-center mb-3">
-                <div className="bg-primary bg-opacity-10 p-3 rounded me-3">
-                  <FaUmbrellaBeach className="text-primary fs-4" />
-                </div>
-                <div>
-                  <h6 className="mb-0">Casual Leave</h6>
-                  <small className="text-muted">{leaveBalance.casual.remaining} of {leaveBalance.casual.total} remaining</small>
-                </div>
-              </div>
-              <ProgressBar 
-                now={(leaveBalance.casual.remaining / leaveBalance.casual.total) * 100} 
-                variant="primary"
-                className="mb-2"
-              />
-              <small className="text-muted">Used: {leaveBalance.casual.used} days</small>
-            </Card.Body>
-          </Card>
-        </Col>
+      {leaveBalance && (
+        <>
+          {/* Earned Leave Summary Card */}
+          <Row className="mb-4">
+            <Col xs={12}>
+              <Card className="border-0 shadow-sm bg-primary bg-opacity-10">
+                <Card.Body>
+                  <Row className="align-items-center">
+                    <Col xs={12} md={8}>
+                      <h5 className="mb-2 text-primary">
+                        <FaInfoCircle className="me-2" />
+                        Annual Leave Balance (Earned System)
+                      </h5>
+                      <p className="mb-0 text-muted">
+                        You earn 2 leaves per month. Total annual allowance: 24 days.
+                        {leaveBalance.earned && (
+                          <span className="ms-2">
+                            <strong>Earned so far:</strong> {leaveBalance.earned.earned} days | 
+                            <strong className="ms-2">Used:</strong> {leaveBalance.earned.used} days | 
+                            <strong className="ms-2">Available:</strong> {leaveBalance.earned.remaining} days
+                          </span>
+                        )}
+                      </p>
+                    </Col>
+                    <Col xs={12} md={4} className="text-md-end mt-3 mt-md-0">
+                      {leaveBalance.earned && (
+                        <div className="d-flex justify-content-between justify-content-md-end align-items-center">
+                          <div className="me-3">
+                            <div className="text-muted small">Progress</div>
+                            <div className="h4 mb-0 text-primary">
+                              {leaveBalance.earned.used}/{leaveBalance.earned.earned}
+                            </div>
+                          </div>
+                          <div>
+                            <ProgressBar 
+                              now={(leaveBalance.earned.used / leaveBalance.earned.earned) * 100} 
+                              variant="primary"
+                              style={{ width: '100px', height: '8px' }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </Col>
+                  </Row>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
 
-        <Col xs={12} md={6} className="mb-3">
-          <Card className="border-0 shadow-sm h-100">
-            <Card.Body>
-              <div className="d-flex align-items-center mb-3">
-                <div className="bg-danger bg-opacity-10 p-3 rounded me-3">
-                  <FaHospital className="text-danger fs-4" />
-                </div>
-                <div>
-                  <h6 className="mb-0">Medical Leave</h6>
-                  <small className="text-muted">{leaveBalance.sick.remaining} of {leaveBalance.sick.total} remaining</small>
-                </div>
-              </div>
-              <ProgressBar 
-                now={(leaveBalance.sick.remaining / leaveBalance.sick.total) * 100} 
-                variant="danger"
-                className="mb-2"
-              />
-              <small className="text-muted">Used: {leaveBalance.sick.used} days</small>
-            </Card.Body>
-          </Card>
-        </Col>
-
-
-      </Row>
+          {/* Individual Leave Type Cards */}
+          <Row className="mb-4">
+            {Object.entries(LEAVE_TYPE_DETAILS).map(([type, details]) => {
+              const balance = leaveBalance?.[type];
+              
+              // Skip displaying unpaid leave card since it has no limit
+              if (type === 'unpaid') return null;
+              
+              // Skip if balance data is not available for this leave type
+              if (!balance || balance.total === 0) return null;
+              
+              const percentage = (balance.remaining / balance.total) * 100;
+              
+              return (
+                <Col xs={12} md={4} key={type} className="mb-3">
+                  <Card className="border-0 shadow-sm h-100">
+                    <Card.Body>
+                      <div className="d-flex align-items-center mb-3">
+                        <div className={`bg-${getLeaveTypeColor(type)} bg-opacity-10 p-3 rounded me-3`}>
+                          <div className={`text-${getLeaveTypeColor(type)} fs-4`}>
+                            {getLeaveTypeIcon(type)}
+                          </div>
+                        </div>
+                        <div>
+                          <h6 className="mb-0">{details.name}</h6>
+                          <small className="text-muted">
+                            {balance.remaining} of {balance.total} remaining
+                          </small>
+                        </div>
+                      </div>
+                      <ProgressBar 
+                        now={percentage} 
+                        variant={getLeaveTypeColor(type)}
+                        className="mb-2"
+                      />
+                      <div className="d-flex justify-content-between">
+                        <small className="text-muted">Used: {balance.used} days</small>
+                        <small className="text-muted">
+                          Notice: {details.advanceNotice === 0 ? 'Same day' : `${details.advanceNotice} days`}
+                        </small>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              );
+            })}
+            
+            {/* Unpaid Leave Card - Special Display */}
+            {leaveBalance.unpaid && leaveBalance.unpaid.used > 0 && (
+              <Col xs={12} md={4} className="mb-3">
+                <Card className="border-0 shadow-sm h-100">
+                  <Card.Body>
+                    <div className="d-flex align-items-center mb-3">
+                      <div className="bg-secondary bg-opacity-10 p-3 rounded me-3">
+                        <div className="text-secondary fs-4">
+                          {getLeaveTypeIcon('unpaid')}
+                        </div>
+                      </div>
+                      <div>
+                        <h6 className="mb-0">Unpaid Leave</h6>
+                        <small className="text-muted">
+                          {leaveBalance.unpaid.used} days taken (no limit)
+                        </small>
+                      </div>
+                    </div>
+                    <div className="d-flex justify-content-between">
+                      <small className="text-muted">Used: {leaveBalance.unpaid.used} days</small>
+                      <small className="text-muted">Notice: 7 days</small>
+                    </div>
+                  </Card.Body>
+                </Card>
+              </Col>
+            )}
+          </Row>
+        </>
+      )}
 
       {/* Leave Balance Summary */}
-      <Row className="mb-4">
-        <Col xs={6} sm={6} md={3} className="mb-3">
-          <Card className="border-0 shadow-sm">
-            <Card.Body className="text-center">
-              <h6 className="text-muted">Total Annual Leave</h6>
-              <h2 className="mb-0">
-                {leaveBalance.casual.total + leaveBalance.sick.total + leaveBalance.vacation.total} days
-              </h2>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col xs={6} sm={6} md={3} className="mb-3">
-          <Card className="border-0 shadow-sm">
-            <Card.Body className="text-center">
-              <h6 className="text-muted">Used</h6>
-              <h2 className="mb-0 text-danger">
-                {leaveBalance.casual.used + leaveBalance.sick.used + leaveBalance.vacation.used} days
-              </h2>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col xs={6} sm={6} md={3} className="mb-3">
-          <Card className="border-0 shadow-sm">
-            <Card.Body className="text-center">
-              <h6 className="text-muted">Remaining</h6>
-              <h2 className="mb-0 text-success">
-                {leaveBalance.casual.remaining + leaveBalance.sick.remaining + leaveBalance.vacation.remaining} days
-              </h2>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col xs={6} sm={6} md={3} className="mb-3">
-          <Card className="border-0 shadow-sm">
-            <Card.Body className="text-center">
-              <h6 className="text-muted">Pending Approval</h6>
-              <h2 className="mb-0 text-warning">
-                {leaves.filter(leave => leave.status === 'pending').reduce((sum, leave) => {
-                  const days = Math.ceil((new Date(leave.endDate) - new Date(leave.startDate)) / (1000 * 60 * 60 * 24)) + 1;
-                  return sum + days;
-                }, 0)} days
-              </h2>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+      {leaveBalance && leaveBalance.earned && (
+        <Row className="mb-4">
+          <Col xs={6} sm={6} md={3} className="mb-3">
+            <Card className="border-0 shadow-sm">
+              <Card.Body className="text-center">
+                <h6 className="text-muted">Earned This Year</h6>
+                <h2 className="mb-0 text-primary">{leaveBalance.earned.earned} days</h2>
+                <small className="text-muted">of 24 total</small>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col xs={6} sm={6} md={3} className="mb-3">
+            <Card className="border-0 shadow-sm">
+              <Card.Body className="text-center">
+                <h6 className="text-muted">Used</h6>
+                <h2 className="mb-0 text-danger">{leaveBalance.earned.used} days</h2>
+                <small className="text-muted">paid leaves</small>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col xs={6} sm={6} md={3} className="mb-3">
+            <Card className="border-0 shadow-sm">
+              <Card.Body className="text-center">
+                <h6 className="text-muted">Available</h6>
+                <h2 className="mb-0 text-success">{leaveBalance.earned.remaining} days</h2>
+                <small className="text-muted">can be used</small>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col xs={6} sm={6} md={3} className="mb-3">
+            <Card className="border-0 shadow-sm">
+              <Card.Body className="text-center">
+                <h6 className="text-muted">Pending Approval</h6>
+                <h2 className="mb-0 text-warning">
+                  {leaves.filter(leave => leave.status === 'pending' && leave.leaveType !== 'unpaid').reduce((sum, leave) => sum + leave.numberOfDays, 0)} days
+                </h2>
+                <small className="text-muted">awaiting decision</small>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
+      )}
 
       {/* Leave History */}
       <Row>
@@ -265,26 +399,44 @@ const MyLeaves = () => {
                       <th>Days</th>
                       <th className="hide-mobile">Reason</th>
                       <th>Status</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {leaves.length === 0 ? (
                       <tr>
-                        <td colSpan="6" className="text-center text-muted py-4">
+                        <td colSpan="7" className="text-center text-muted py-4">
                           No leave applications yet
                         </td>
                       </tr>
                     ) : (
                       leaves.map((leave) => (
                         <tr key={leave._id}>
-                          <td>{leave.leaveType}</td>
-                          <td className="date-cell">{new Date(leave.startDate).toLocaleDateString()}</td>
-                          <td className="date-cell">{new Date(leave.endDate).toLocaleDateString()}</td>
                           <td>
-                            {Math.ceil((new Date(leave.endDate) - new Date(leave.startDate)) / (1000 * 60 * 60 * 24)) + 1}
+                            <Badge bg={getLeaveTypeColor(leave.leaveType)} className="text-capitalize">
+                              {LEAVE_TYPE_DETAILS[leave.leaveType]?.name || leave.leaveType}
+                            </Badge>
                           </td>
+                          <td className="date-cell">{formatDate(leave.startDate)}</td>
+                          <td className="date-cell">{formatDate(leave.endDate)}</td>
+                          <td>{leave.numberOfDays}</td>
                           <td className="reason-cell hide-mobile">{leave.reason}</td>
-                          <td>{getStatusBadge(leave.status)}</td>
+                          <td>
+                            <Badge bg={getStatusVariant(leave.status)}>
+                              {leave.status}
+                            </Badge>
+                          </td>
+                          <td>
+                            {leave.status === "pending" && (
+                              <Button
+                                size="sm"
+                                variant="outline-danger"
+                                onClick={() => handleCancel(leave._id)}
+                              >
+                                Cancel
+                              </Button>
+                            )}
+                          </td>
                         </tr>
                       ))
                     )}
@@ -299,89 +451,254 @@ const MyLeaves = () => {
       {/* Apply Leave Modal */}
       <Modal show={showModal} onHide={handleCloseModal} size="lg" centered>
         <Modal.Header closeButton>
-          <Modal.Title>Apply for Leave</Modal.Title>
+          <Modal.Title>
+            <FaCalendarAlt className="me-2" />
+            Request Leave
+          </Modal.Title>
         </Modal.Header>
         <Form onSubmit={handleSubmit}>
           <Modal.Body>
-            <Form.Group className="mb-3">
-              <Form.Label>Leave Type *</Form.Label>
-              <Form.Select
-                name="leaveType"
-                value={formData.leaveType}
-                onChange={handleChange}
-                required
-              >
-                <option value="personal">Casual Leave (12 days/year)</option>
-                <option value="sick">Medical Leave (6 days/year)</option>
-                <option value="maternity">Maternity Leave</option>
-                <option value="paternity">Paternity Leave</option>
-                <option value="unpaid">Unpaid Leave</option>
-              </Form.Select>
-            </Form.Group>
-            <Row>
-              <Col xs={12} md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Start Date *</Form.Label>
+            {/* Leave Type Selection - Card Style */}
+            <div className="mb-4">
+              <h6 className="mb-3">Leave Type</h6>
+              <Row className="g-3">
+                <Col md={6}>
+                  <Card 
+                    className={`leave-type-card ${formData.leaveType === 'vacation' ? 'selected' : ''}`}
+                    onClick={() => setFormData(prev => ({ ...prev, leaveType: 'vacation' }))}
+                    style={{ cursor: 'pointer', border: formData.leaveType === 'vacation' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
+                  >
+                    <Card.Body>
+                      <div className="d-flex align-items-start">
+                        <div className="me-3">
+                          <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#6f42c1' }}></div>
+                        </div>
+                        <div>
+                          <h6 className="mb-1">Vacation</h6>
+                          <small className="text-muted">Planned time off for rest and recreation</small>
+                        </div>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col md={6}>
+                  <Card 
+                    className={`leave-type-card ${formData.leaveType === 'medical' ? 'selected' : ''}`}
+                    onClick={() => setFormData(prev => ({ ...prev, leaveType: 'medical' }))}
+                    style={{ cursor: 'pointer', border: formData.leaveType === 'medical' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
+                  >
+                    <Card.Body>
+                      <div className="d-flex align-items-start">
+                        <div className="me-3">
+                          <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#dc3545' }}></div>
+                        </div>
+                        <div>
+                          <h6 className="mb-1">Sick Leave</h6>
+                          <small className="text-muted">Medical leave for illness or health issues</small>
+                        </div>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col md={6}>
+                  <Card 
+                    className={`leave-type-card ${formData.leaveType === 'personal' ? 'selected' : ''}`}
+                    onClick={() => setFormData(prev => ({ ...prev, leaveType: 'personal' }))}
+                    style={{ cursor: 'pointer', border: formData.leaveType === 'personal' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
+                  >
+                    <Card.Body>
+                      <div className="d-flex align-items-start">
+                        <div className="me-3">
+                          <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#0dcaf0' }}></div>
+                        </div>
+                        <div>
+                          <h6 className="mb-1">Personal Leave</h6>
+                          <small className="text-muted">Personal matters and family obligations</small>
+                        </div>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col md={6}>
+                  <Card 
+                    className={`leave-type-card ${formData.leaveType === 'half_day' ? 'selected' : ''}`}
+                    onClick={() => setFormData(prev => ({ ...prev, leaveType: 'half_day' }))}
+                    style={{ cursor: 'pointer', border: formData.leaveType === 'half_day' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
+                  >
+                    <Card.Body>
+                      <div className="d-flex align-items-start">
+                        <div className="me-3">
+                          <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#fd7e14' }}></div>
+                        </div>
+                        <div>
+                          <h6 className="mb-1">Half Day</h6>
+                          <small className="text-muted">Leave for half of the working day</small>
+                        </div>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col md={6}>
+                  <Card 
+                    className={`leave-type-card ${formData.leaveType === 'unpaid' ? 'selected' : ''}`}
+                    onClick={() => setFormData(prev => ({ ...prev, leaveType: 'unpaid' }))}
+                    style={{ cursor: 'pointer', border: formData.leaveType === 'unpaid' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
+                  >
+                    <Card.Body>
+                      <div className="d-flex align-items-start">
+                        <div className="me-3">
+                          <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#6c757d' }}></div>
+                        </div>
+                        <div>
+                          <h6 className="mb-1">Unpaid Leave</h6>
+                          <small className="text-muted">Extended leave without pay</small>
+                        </div>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              </Row>
+            </div>
+
+            {/* Date Fields */}
+            <Row className="mb-3">
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>Start Date</Form.Label>
                   <Form.Control
                     type="date"
                     name="startDate"
                     value={formData.startDate}
                     onChange={handleChange}
+                    min={new Date().toISOString().split('T')[0]}
                     required
                   />
                 </Form.Group>
               </Col>
-              <Col xs={12} md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>End Date *</Form.Label>
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>End Date</Form.Label>
                   <Form.Control
                     type="date"
                     name="endDate"
                     value={formData.endDate}
                     onChange={handleChange}
+                    min={formData.startDate || new Date().toISOString().split('T')[0]}
                     required
                   />
                 </Form.Group>
               </Col>
             </Row>
 
+            {/* Validation Alerts */}
+            {formData.startDate && formData.endDate && (
+              <Alert variant="info" className="mb-3">
+                <FaInfoCircle className="me-2" />
+                <strong>Leave Duration:</strong> {requestedDays} day(s)
+                <br />
+                {formData.leaveType === 'unpaid' ? (
+                  <span>
+                    <strong>Type:</strong> Unpaid Leave (no limit)
+                  </span>
+                ) : (
+                  <>
+                    <strong>Available Balance:</strong> {availableBalance} day(s) (earned leaves)
+                    {requestedDays > availableBalance && (
+                      <div className="text-danger mt-1">
+                        <FaExclamationTriangle className="me-1" />
+                        Insufficient earned leave balance! You have earned {leaveBalance?.earned?.earned || 0} out of 24 annual leaves.
+                      </div>
+                    )}
+                  </>
+                )}
+              </Alert>
+            )}
+
+            {!advanceNoticeCheck.valid && (
+              <Alert variant="warning" className="mb-3">
+                <FaExclamationTriangle className="me-2" />
+                {advanceNoticeCheck.message}
+              </Alert>
+            )}
+
+            {/* Reason Field */}
             <Form.Group className="mb-3">
-              <Form.Label>Reason *</Form.Label>
+              <Form.Label>Reason for Leave</Form.Label>
               <Form.Control
                 as="textarea"
-                rows={3}
+                rows={4}
                 name="reason"
                 value={formData.reason}
                 onChange={handleChange}
-                placeholder="Please provide a reason for your leave..."
+                placeholder="Please provide a reason for your leave request..."
+                maxLength={500}
                 required
               />
+              <Form.Text className="text-muted">
+                {formData.reason.length}/500 characters
+              </Form.Text>
             </Form.Group>
 
+            {/* Attachments */}
             <Form.Group className="mb-3">
-              <Form.Label>Attach Document (Optional)</Form.Label>
+              <Form.Label>📎 Attachments (Optional)</Form.Label>
               <Form.Control
                 type="file"
                 onChange={handleFileChange}
                 accept=".pdf,.jpg,.jpeg,.png"
               />
               <Form.Text className="text-muted">
-                For sick leave, please attach medical certificate
+                For medical leave, please attach medical certificate if available
               </Form.Text>
             </Form.Group>
           </Modal.Body>
           <Modal.Footer>
-            <div className="d-flex flex-column flex-sm-row gap-2 w-100">
-              <Button variant="secondary" onClick={handleCloseModal} className="w-mobile-100">
+            <div className="d-flex justify-content-end gap-2">
+              <Button variant="secondary" onClick={handleCloseModal}>
                 Cancel
               </Button>
-              <Button variant="primary" type="submit" className="w-mobile-100">
-                Submit Application
+              <Button 
+                variant="primary" 
+                type="submit"
+                disabled={!advanceNoticeCheck.valid || (formData.leaveType !== 'unpaid' && requestedDays > availableBalance)}
+              >
+                Submit Request
               </Button>
             </div>
           </Modal.Footer>
         </Form>
       </Modal>
+
+      {/* Add CSS for leave type cards */}
+      <style>{`
+        .leave-type-card {
+          transition: all 0.2s ease;
+          cursor: pointer;
+          border-radius: 8px;
+        }
+
+        .leave-type-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .leave-type-card.selected {
+          background-color: #f8f9fa;
+          border-color: #0d6efd !important;
+          box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1);
+        }
+
+        .leave-type-card h6 {
+          font-size: 0.95rem;
+          font-weight: 600;
+          margin-bottom: 0.25rem;
+        }
+
+        .leave-type-card small {
+          font-size: 0.8rem;
+          line-height: 1.3;
+        }
+      `}</style>
     </Container>
   );
 };

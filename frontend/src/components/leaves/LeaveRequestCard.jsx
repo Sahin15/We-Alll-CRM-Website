@@ -1,7 +1,9 @@
 
 import { Card, Badge, Button, Row, Col } from 'react-bootstrap';
-import { FaClock, FaUser, FaCheck, FaTimes, FaEdit, FaTrash, FaPaperclip, FaDownload } from 'react-icons/fa';
+import { FaClock, FaUser, FaCheck, FaTimes, FaEdit, FaTrash, FaPaperclip, FaDownload, FaChartLine } from 'react-icons/fa';
 import moment from 'moment';
+import { useState, useEffect } from 'react';
+import { leaveApi } from '../../api/leaveApi';
 
 const LeaveRequestCard = ({ 
   leave, 
@@ -14,6 +16,9 @@ const LeaveRequestCard = ({
   getStatusColor, 
   getLeaveTypeColor 
 }) => {
+  const [usageSummary, setUsageSummary] = useState(null);
+  const [loadingUsage, setLoadingUsage] = useState(false);
+
   // Add comprehensive null checks to prevent runtime errors
   if (!leave) {
     return null;
@@ -28,6 +33,25 @@ const LeaveRequestCard = ({
   const canEdit = isOwnRequest && leave.status === 'pending';
   const canCancel = isOwnRequest && ['pending', 'approved'].includes(leave.status);
   const canApproveReject = isAdmin && leave.status === 'pending';
+
+  // Load usage summary for admin view
+  useEffect(() => {
+    if (isAdmin && !isOwnRequest && employeeId) {
+      loadUsageSummary();
+    }
+  }, [isAdmin, isOwnRequest, employeeId]);
+
+  const loadUsageSummary = async () => {
+    try {
+      setLoadingUsage(true);
+      const response = await leaveApi.getLeaveUsageSummary(employeeId, leave.leaveYear || new Date().getFullYear());
+      setUsageSummary(response.data);
+    } catch (error) {
+      console.error('Error loading usage summary:', error);
+    } finally {
+      setLoadingUsage(false);
+    }
+  };
 
   const formatDate = (date) => {
     return moment(date).format('MMM DD, YYYY');
@@ -69,13 +93,37 @@ const LeaveRequestCard = ({
         {/* Employee Info (for admin view) */}
         {isAdmin && !isOwnRequest && (
           <div className="employee-info mb-3 p-2 bg-light rounded">
-            <div className="d-flex align-items-center gap-2">
-              <FaUser className="text-muted" />
-              <div>
-                <div className="fw-bold">{employeeName}</div>
-                <div className="small text-muted">
-                  {employee.designation || 'N/A'} • {employee.department?.name || 'N/A'}
+            <div className="d-flex align-items-center justify-content-between">
+              <div className="d-flex align-items-center gap-2">
+                <FaUser className="text-muted" />
+                <div>
+                  <div className="fw-bold">{employeeName}</div>
+                  <div className="small text-muted">
+                    {employee.designation || 'N/A'} • {employee.department?.name || 'N/A'}
+                  </div>
                 </div>
+              </div>
+              
+              {/* Usage Ratio Display */}
+              <div className="text-end">
+                {loadingUsage ? (
+                  <div className="small text-muted">Loading...</div>
+                ) : usageSummary ? (
+                  <div>
+                    <div className="small text-muted">
+                      <FaChartLine className="me-1" />
+                      Leave Usage
+                    </div>
+                    <div className="fw-bold text-primary">
+                      {usageSummary.summary.currentRatio}
+                    </div>
+                    <div className="small text-muted">
+                      {usageSummary.balance.earned.remaining} days available
+                    </div>
+                  </div>
+                ) : (
+                  <div className="small text-muted">Usage data unavailable</div>
+                )}
               </div>
             </div>
           </div>

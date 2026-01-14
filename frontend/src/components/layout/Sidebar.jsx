@@ -171,7 +171,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       ],
     },
     {
-      path: "/leaves",
+      path: "/employee/leaves",
       icon: <FaCalendarAlt />,
       label: "My Leaves",
       roles: ["employee", "hod"],

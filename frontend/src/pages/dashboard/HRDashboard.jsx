@@ -88,7 +88,7 @@ const HRDashboard = () => {
       // Fetch users data
       const usersRes = await userApi.getAllUsers();
       // Fetch leave data
-      const leaveRes = await leaveApi.getAllLeaves("pending");
+      const leaveRes = await leaveApi.getAllLeaves({ status: "pending" });
       // Fetch today's attendance data only
       const attendanceRes = await attendanceApi.getAllAttendance({ date: today });
       // Fetch department data

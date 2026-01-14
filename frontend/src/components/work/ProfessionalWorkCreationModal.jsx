@@ -9,7 +9,9 @@ import {
   Card,
   Badge,
   Spinner,
-  InputGroup
+  InputGroup,
+  Dropdown,
+  ListGroup
 } from 'react-bootstrap';
 import { 
   FaTasks, 
@@ -19,7 +21,9 @@ import {
   FaClock,
   FaFlag,
   FaLayerGroup,
-  FaCheck
+  FaCheck,
+  FaSearch,
+  FaTimes
 } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import moment from 'moment';
@@ -76,6 +80,11 @@ const ProfessionalWorkCreationModal = ({
   const [availableSlots, setAvailableSlots] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
+
+  // Project search states
+  const [projectSearchTerm, setProjectSearchTerm] = useState('');
+  const [showProjectDropdown, setShowProjectDropdown] = useState(false);
+  const [projectInputRef, setProjectInputRef] = useState(null);
 
   // Auto-save draft functionality
   const DRAFT_KEY = 'workItemDraft';
@@ -150,6 +159,27 @@ const ProfessionalWorkCreationModal = ({
       return projectDepartments.includes(userDeptId);
     });
   }, [formData.project, selectedProject, users]);
+
+  // Filter projects based on search term
+  const filteredProjects = useMemo(() => {
+    if (!projectSearchTerm.trim()) {
+      return projects;
+    }
+    
+    const searchLower = projectSearchTerm.toLowerCase();
+    return projects.filter(project => 
+      project.name.toLowerCase().includes(searchLower) ||
+      project.client?.name?.toLowerCase().includes(searchLower) ||
+      project.description?.toLowerCase().includes(searchLower)
+    );
+  }, [projects, projectSearchTerm]);
+
+  // Get selected project name for display
+  const selectedProjectName = useMemo(() => {
+    if (!formData.project) return '';
+    const project = projects.find(p => p._id === formData.project);
+    return project ? project.name : '';
+  }, [formData.project, projects]);
   useEffect(() => {
     if (show && (formData.title || formData.description)) {
       const timeoutId = setTimeout(() => {
@@ -308,6 +338,38 @@ const ProfessionalWorkCreationModal = ({
     }
   };
 
+  // Handle project search and selection
+  const handleProjectSelect = (project) => {
+    handleProjectChange(project._id);
+    setProjectSearchTerm('');
+    setShowProjectDropdown(false);
+  };
+
+  const handleProjectSearchChange = (value) => {
+    setProjectSearchTerm(value);
+    setShowProjectDropdown(true);
+  };
+
+  const clearProjectSelection = () => {
+    handleProjectChange('');
+    setProjectSearchTerm('');
+    setShowProjectDropdown(false);
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (projectInputRef && !projectInputRef.contains(event.target)) {
+        setShowProjectDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [projectInputRef]);
+
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
@@ -465,6 +527,8 @@ const ProfessionalWorkCreationModal = ({
     setErrors({});
     setAvailableSlots([]);
     setSelectedProject(null);
+    setProjectSearchTerm('');
+    setShowProjectDropdown(false);
   };
 
   // Check if there's a current draft
@@ -559,22 +623,103 @@ const ProfessionalWorkCreationModal = ({
                     <Form.Label className="fw-bold">
                       Project <span className="text-danger">*</span>
                     </Form.Label>
-                    <Form.Select
-                      value={formData.project}
-                      onChange={(e) => handleProjectChange(e.target.value)}
-                      isInvalid={!!errors.project}
-                    >
-                      <option value="">Select Project...</option>
-                      {projects.map(project => (
-                        <option key={project._id} value={project._id}>
-                          {project.name}
-                          {project.slotConfiguration?.enableSlotSystem && ' 🎯'}
-                        </option>
-                      ))}
-                    </Form.Select>
-                    <Form.Control.Feedback type="invalid">
-                      {errors.project}
-                    </Form.Control.Feedback>
+                    <div className="position-relative" ref={setProjectInputRef}>
+                      <InputGroup>
+                        <InputGroup.Text>
+                          <FaSearch className="text-muted" />
+                        </InputGroup.Text>
+                        <Form.Control
+                          type="text"
+                          placeholder={selectedProjectName || "Search and select project..."}
+                          value={projectSearchTerm}
+                          onChange={(e) => handleProjectSearchChange(e.target.value)}
+                          onFocus={() => setShowProjectDropdown(true)}
+                          isInvalid={!!errors.project}
+                          autoComplete="off"
+                          className="project-search-input"
+                        />
+                        {formData.project && (
+                          <Button
+                            variant="outline-secondary"
+                            onClick={clearProjectSelection}
+                            size="sm"
+                            title="Clear selection"
+                          >
+                            <FaTimes />
+                          </Button>
+                        )}
+                      </InputGroup>
+                      
+                      {/* Project Dropdown */}
+                      {showProjectDropdown && (
+                        <div 
+                          className="position-absolute w-100 project-dropdown"
+                          style={{ 
+                            top: '100%'
+                          }}
+                        >
+                          {filteredProjects.length > 0 ? (
+                            <ListGroup variant="flush">
+                              {filteredProjects.map(project => (
+                                <ListGroup.Item
+                                  key={project._id}
+                                  action
+                                  onClick={() => handleProjectSelect(project)}
+                                  className={`d-flex justify-content-between align-items-center ${
+                                    formData.project === project._id ? 'active' : ''
+                                  }`}
+                                  style={{ cursor: 'pointer' }}
+                                >
+                                  <div className="fw-bold d-flex align-items-center gap-2">
+                                    {project.name}
+                                    {project.slotConfiguration?.enableSlotSystem && (
+                                      <Badge bg="info" size="sm">🎯</Badge>
+                                    )}
+                                  </div>
+                                  {formData.project === project._id && (
+                                    <FaCheck className="text-success" />
+                                  )}
+                                </ListGroup.Item>
+                              ))}
+                            </ListGroup>
+                          ) : (
+                            <div className="p-3 text-center text-muted">
+                              <FaSearch className="mb-2" />
+                              <div>No projects found matching "{projectSearchTerm}"</div>
+                              <small>Try a different search term</small>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      <Form.Control.Feedback type="invalid">
+                        {errors.project}
+                      </Form.Control.Feedback>
+                      
+                      {/* Selected Project Display */}
+                      {formData.project && selectedProject && (
+                        <div className="mt-2 p-2 selected-project-display">
+                          <div className="d-flex align-items-center justify-content-between">
+                            <div className="fw-bold text-success d-flex align-items-center gap-2">
+                              <FaCheck size={12} />
+                              {selectedProject.name}
+                              {selectedProject.slotConfiguration?.enableSlotSystem && (
+                                <Badge bg="info" size="sm">🎯</Badge>
+                              )}
+                            </div>
+                            <Button
+                              variant="link"
+                              size="sm"
+                              onClick={clearProjectSelection}
+                              className="text-muted p-0"
+                              title="Change project"
+                            >
+                              <FaTimes />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </Form.Group>
                 </Col>
                 <Col md={6}>
@@ -905,8 +1050,8 @@ const ProfessionalWorkCreationModal = ({
         </Button>
       </Modal.Footer>
 
-      {/* Custom Styles for Slot Selection */}
-      <style jsx>{`
+      {/* Custom Styles for Slot Selection and Project Search */}
+      <style>{`
         .slot-select option[disabled] {
           color: #dc3545 !important;
           background-color: #f8d7da !important;
@@ -952,6 +1097,91 @@ const ProfessionalWorkCreationModal = ({
         
         .slot-status-used {
           background-color: #dc3545;
+        }
+
+        /* Project Search Dropdown Styles */
+        .project-dropdown {
+          border: 1px solid #dee2e6;
+          border-radius: 0.375rem;
+          box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+          background-color: white;
+          max-height: 300px;
+          overflow-y: auto;
+          z-index: 1050;
+        }
+
+        .project-dropdown .list-group-item {
+          border: none;
+          border-bottom: 1px solid #f8f9fa;
+          transition: all 0.2s ease;
+        }
+
+        .project-dropdown .list-group-item:hover {
+          background-color: #f8f9fa;
+          transform: translateY(-1px);
+        }
+
+        .project-dropdown .list-group-item.active {
+          background-color: #e3f2fd;
+          border-color: #2196f3;
+          color: #1976d2;
+        }
+
+        .project-dropdown .list-group-item:last-child {
+          border-bottom: none;
+        }
+
+        /* Project search input focus styles */
+        .project-search-input:focus {
+          border-color: #80bdff;
+          box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+
+        /* Selected project display */
+        .selected-project-display {
+          background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%);
+          border: 1px solid #28a745;
+          border-radius: 0.375rem;
+          transition: all 0.3s ease;
+        }
+
+        .selected-project-display:hover {
+          box-shadow: 0 2px 4px rgba(40, 167, 69, 0.1);
+        }
+
+        /* Animation for dropdown appearance */
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .project-dropdown {
+          animation: slideDown 0.2s ease-out;
+        }
+
+        /* Scrollbar styling for project dropdown */
+        .project-dropdown::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .project-dropdown::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 3px;
+        }
+
+        .project-dropdown::-webkit-scrollbar-thumb {
+          background: #c1c1c1;
+          border-radius: 3px;
+        }
+
+        .project-dropdown::-webkit-scrollbar-thumb:hover {
+          background: #a8a8a8;
         }
       `}</style>
     </Modal>

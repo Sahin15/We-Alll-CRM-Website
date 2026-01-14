@@ -83,7 +83,7 @@ const LeaveManagement = () => {
   const fetchLeaves = async () => {
     try {
       setLoading(true);
-      const response = await leaveApi.getAllLeaves();
+      const response = await leaveApi.getAllLeaves({});
       const allLeaves = response.data;
       
       setLeaves(allLeaves);

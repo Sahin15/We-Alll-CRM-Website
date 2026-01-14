@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { Modal, Form, Button, Row, Col, Alert } from 'react-bootstrap';
 import { FaCalendarAlt, FaFileAlt, FaPaperclip } from 'react-icons/fa';
-import leaveApi from '../../api/leaveApi';
+import { leaveApi } from '../../api/leaveApi';
+import { LEAVE_TYPE_DETAILS } from '../../utils/constants';
 import moment from 'moment';
 import '../../pages/leaves/LeaveManagement.css';
 
 const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
   const [formData, setFormData] = useState({
-    leaveType: '',
+    leaveType: 'personal',
     startDate: '',
     endDate: '',
     reason: '',
@@ -17,14 +18,12 @@ const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const leaveTypes = [
-    { value: 'vacation', label: 'Vacation', description: 'Planned time off for rest and recreation' },
-    { value: 'sick', label: 'Sick Leave', description: 'Medical leave for illness or health issues' },
-    { value: 'personal', label: 'Personal Leave', description: 'Personal matters and family obligations' },
-    { value: 'maternity', label: 'Maternity Leave', description: 'Leave for childbirth and newborn care' },
-    { value: 'paternity', label: 'Paternity Leave', description: 'Leave for fathers after childbirth' },
-    { value: 'unpaid', label: 'Unpaid Leave', description: 'Extended leave without pay' }
-  ];
+  const leaveTypes = Object.entries(LEAVE_TYPE_DETAILS).map(([value, details]) => ({
+    value,
+    label: details.name,
+    description: details.description,
+    advanceNotice: details.advanceNotice
+  }));
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
