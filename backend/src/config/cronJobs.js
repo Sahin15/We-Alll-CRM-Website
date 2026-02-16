@@ -5,6 +5,7 @@ import Client from "../models/clientModel.js";
 import User from "../models/userModel.js";
 import Notification from "../models/notificationModel.js";
 import Slot from "../models/slotModel.js";
+import Attendance from "../models/attendanceModel.js";
 import { notifySlotDeadlineApproaching, notifySlotOverdue } from "../utils/slotNotifications.js";
 
 // Helper: create notification for a user
@@ -370,6 +371,77 @@ const checkSlotDeadlines = async () => {
   }
 };
 
+// Cron job: Auto clock-out employees who forgot to clock out (runs at 10 PM)
+const autoClockOutForgottenEmployees = async () => {
+  try {
+    console.log("⏰ Running auto clock-out for forgotten employees...");
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Find all attendance records for today that are clocked in but not clocked out
+    const forgottenClockOuts = await Attendance.find({
+      date: {
+        $gte: today,
+        $lt: tomorrow,
+      },
+      clockIn: { $exists: true },
+      clockOut: { $exists: false },
+    }).populate("employee", "name email");
+
+    if (forgottenClockOuts.length === 0) {
+      console.log("✅ No forgotten clock-outs found");
+      return;
+    }
+
+    console.log(`📋 Found ${forgottenClockOuts.length} employees who forgot to clock out`);
+
+    // Auto clock-out at 10 PM
+    const clockOutTime = new Date();
+    clockOutTime.setHours(22, 0, 0, 0); // 10:00 PM
+
+    let autoClockOutCount = 0;
+
+    for (const attendance of forgottenClockOuts) {
+      // Set clock out time to 10 PM
+      attendance.clockOut = clockOutTime;
+      attendance.notes = attendance.notes 
+        ? `${attendance.notes}\n⚠️ Auto clocked-out at 10:00 PM - You forgot to clock out!`
+        : "⚠️ Auto clocked-out at 10:00 PM - You forgot to clock out!";
+      
+      await attendance.save();
+      autoClockOutCount++;
+
+      // Create notification for the employee
+      if (attendance.employee && attendance.employee._id) {
+        await createNotificationForUser(
+          attendance.employee._id,
+          "attendance_auto_clockout",
+          "⚠️ Auto Clock-Out",
+          `You forgot to clock out today! System automatically clocked you out at 10:00 PM. Please remember to clock out on time.`,
+          `/attendance`,
+          {
+            attendanceId: attendance._id,
+            autoClockOutTime: clockOutTime,
+            date: attendance.date,
+          },
+          "high"
+        );
+
+        console.log(`   ✓ Auto clocked-out: ${attendance.employee.name} at 10:00 PM`);
+      }
+    }
+
+    console.log(
+      `✅ Auto clock-out completed: ${autoClockOutCount} employees clocked out automatically`
+    );
+  } catch (error) {
+    console.error("Error in autoClockOutForgottenEmployees:", error.message);
+  }
+};
+
 // Schedule cron jobs
 export const initializeCronJobs = () => {
   // Run daily at 9 AM: Check bills due soon (7 days and 3 days)
@@ -396,7 +468,13 @@ export const initializeCronJobs = () => {
     checkSlotDeadlines();
   });
 
+  // Run daily at 10 PM: Auto clock-out employees who forgot to clock out
+  cron.schedule("0 22 * * *", () => {
+    console.log("⏰ Running scheduled job: autoClockOutForgottenEmployees");
+    autoClockOutForgottenEmployees();
+  });
+
   console.log(
-    "✅ Cron jobs initialized: Bill reminders, Overdue checks, Plan renewals, Slot deadlines"
+    "✅ Cron jobs initialized: Bill reminders, Overdue checks, Plan renewals, Slot deadlines, Auto clock-out"
   );
 };

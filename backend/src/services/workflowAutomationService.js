@@ -3,7 +3,7 @@ import Project from "../models/projectModel.js";
 import User from "../models/userModel.js";
 import CalendarEvent from "../models/calendarEventModel.js";
 import { getAdvancedWorkflowByDepartment } from "../utils/departmentWorkflowConfig.js";
-import { notifyWorkItemAssigned, notifyStatusChanged, notifyWorkItemCompleted } from "./notificationService.js";
+import notificationService from "./notificationService.js";
 import logger from "../utils/logger.js";
 
 /**
@@ -161,7 +161,11 @@ class WorkflowAutomationService {
           workItem.assignedTo = nextStageAssignment.assignedTo;
           
           // Send notification to next assignee
-          await notifyWorkItemAssigned(workItem, completedBy);
+          await notificationService.sendWorkItemAssignedNotification(
+            nextStageAssignment.assignedTo,
+            workItem.title,
+            completedBy.name
+          );
         }
         
         // Update calendar events
@@ -175,7 +179,11 @@ class WorkflowAutomationService {
         workItem.nextStage = null;
         
         // Notify completion
-        await notifyStatusChanged(workItem, workItem.status, 'Completed', completedBy);
+        await notificationService.sendWorkItemCompletedNotification(
+          workItem.assignedTo,
+          workItem.title,
+          completedBy.name
+        );
       }
       
       await workItem.save();

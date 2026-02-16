@@ -139,7 +139,7 @@ leaveRequestSchema.statics.getLeaveBalance = async function(employeeId, year = n
     if (usedByCategory.hasOwnProperty(leave.leaveType)) {
       usedByCategory[leave.leaveType] += leave.numberOfDays;
       
-      // Count only paid leaves against the 24 total
+      // Count only paid leaves against the 24 total (exclude unpaid)
       if (leave.leaveType !== 'unpaid') {
         totalPaidLeavesUsed += leave.numberOfDays;
       }

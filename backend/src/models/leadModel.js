@@ -25,22 +25,22 @@ const leadSchema = new mongoose.Schema(
       type: String,
       trim: true,
     }],
+    customService: {
+      type: String,
+      trim: true,
+    },
     budget: {
       type: String,
       trim: true,
     },
     source: {
       type: String,
-      enum: [
-        "Website",
-        "Referral", 
-        "Social Media",
-        "Advertisement",
-        "Cold Call",
-        "Growth Summit",
-        "Other",
-      ],
+      trim: true,
       default: "Website",
+    },
+    reference: {
+      type: String,
+      trim: true,
     },
     status: {
       type: String,
@@ -126,6 +126,25 @@ const leadSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: false, // Allow public submissions without a user
+    },
+    
+    // Email Tracking Fields
+    emailStats: {
+      totalEmailsSent: {
+        type: Number,
+        default: 0
+      },
+      lastEmailSentAt: {
+        type: Date
+      },
+      lastEmailTemplate: {
+        type: String
+      },
+      emailStatus: {
+        type: String,
+        enum: ['never-sent', 'sent', 'failed', 'bounced'],
+        default: 'never-sent'
+      }
     },
   },
   { timestamps: true }

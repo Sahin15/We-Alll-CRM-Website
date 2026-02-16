@@ -9,12 +9,13 @@ import {
   FaCheckCircle, FaSave, FaMapMarkerAlt,
   FaIdCard, FaBriefcase, FaUser, FaHome,
   FaFileUpload, FaDownload, FaEye, FaTrash, FaPlus, FaFileAlt,
-  FaUniversity, FaArrowLeft
+  FaUniversity, FaArrowLeft, FaMoneyBillWave
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate, useParams } from "react-router-dom";
 import ProfilePictureUpload from "../profile/ProfilePictureUpload";
 import ProfilePictureDisplay from "../profile/ProfilePictureDisplay";
+import EmployeeSalaryInfo from "../salary/EmployeeSalaryInfo";
 import api from "../../services/api";
 import toast from "../../utils/toast";
 import "../../styles/pages-mobile.css";
@@ -26,6 +27,7 @@ const EmployeeProfileManagement = () => {
   const navigate = useNavigate();
   
   const [user, setUser] = useState(null);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('personal');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -45,11 +47,123 @@ const EmployeeProfileManagement = () => {
     job: false
   });
   const [sameAsCurrentAddress, setSameAsCurrentAddress] = useState(false);
+  const [isIntern, setIsIntern] = useState(false);
+  const [currentEmploymentType, setCurrentEmploymentType] = useState('');
+  const [showCustomDesignation, setShowCustomDesignation] = useState(false);
+  const [customDesignation, setCustomDesignation] = useState('');
 
   const [passwordForm, setPasswordForm] = useState({
     newPassword: '',
     confirmPassword: ''
   });
+
+  // Common designations list
+  const commonDesignations = [
+    // Software Development
+    'Software Engineer',
+    'Senior Software Engineer',
+    'Lead Software Engineer',
+    'Principal Software Engineer',
+    'Software Architect',
+    'Full Stack Developer',
+    'Frontend Developer',
+    'Backend Developer',
+    'Mobile App Developer',
+    'DevOps Engineer',
+    'QA Engineer',
+    'Test Engineer',
+    'Automation Engineer',
+    
+    // Management
+    'Team Lead',
+    'Technical Lead',
+    'Project Manager',
+    'Senior Project Manager',
+    'Program Manager',
+    'Product Manager',
+    'Senior Product Manager',
+    'Engineering Manager',
+    'Development Manager',
+    
+    // Design & UI/UX
+    'UI/UX Designer',
+    'Senior UI/UX Designer',
+    'Graphic Designer',
+    'Product Designer',
+    'Visual Designer',
+    'Web Designer',
+    
+    // Data & Analytics
+    'Data Analyst',
+    'Senior Data Analyst',
+    'Data Scientist',
+    'Senior Data Scientist',
+    'Business Analyst',
+    'Senior Business Analyst',
+    'Data Engineer',
+    
+    // Sales & Marketing
+    'Sales Executive',
+    'Senior Sales Executive',
+    'Sales Manager',
+    'Business Development Executive',
+    'Marketing Executive',
+    'Digital Marketing Executive',
+    'Senior Digital Marketing Executive',
+    'Digital Marketing Specialist',
+    'Social Media Manager',
+    'Content Marketing Manager',
+    'Content Writer',
+    'Content Strategist',
+    'SEO Specialist',
+    'SEO Executive',
+    'SEM Specialist',
+    'Performance Marketing Manager',
+    'Brand Manager',
+    'Marketing Manager',
+    
+    // HR & Admin
+    'HR Executive',
+    'Senior HR Executive',
+    'HR Manager',
+    'HR Business Partner',
+    'Talent Acquisition Specialist',
+    'Recruiter',
+    'Admin Executive',
+    'Office Manager',
+    
+    // Finance & Accounts
+    'Accountant',
+    'Senior Accountant',
+    'Finance Executive',
+    'Finance Manager',
+    'Accounts Executive',
+    'Financial Analyst',
+    
+    // Operations
+    'Operations Executive',
+    'Operations Manager',
+    'Process Executive',
+    'Quality Analyst',
+    'Customer Support Executive',
+    'Technical Support Engineer',
+    
+    // Internships & Entry Level
+    'Intern',
+    'Trainee',
+    'Junior Developer',
+    'Associate',
+    'Executive',
+    
+    // Leadership
+    'Director',
+    'Senior Director',
+    'Vice President',
+    'Chief Technology Officer',
+    'Chief Executive Officer',
+    'Head of Department',
+    'Department Head'
+  ].sort();
 
   // Check if current user has permission to edit
   const canEdit = ['admin', 'superadmin', 'hr'].includes(currentUser?.role);
@@ -57,6 +171,7 @@ const EmployeeProfileManagement = () => {
   useEffect(() => {
     if (userId) {
       fetchUserProfile();
+      fetchDepartments();
     }
   }, [userId]);
 
@@ -73,6 +188,13 @@ const EmployeeProfileManagement = () => {
     }
   }, [editMode.contact]);
 
+  // Track if user is an intern
+  useEffect(() => {
+    const employmentType = user?.employmentType || '';
+    setIsIntern(employmentType === 'intern');
+    setCurrentEmploymentType(employmentType);
+  }, [user?.employmentType]);
+
   const fetchUserProfile = async () => {
     try {
       setLoading(true);
@@ -84,6 +206,15 @@ const EmployeeProfileManagement = () => {
       navigate('/hr-dashboard');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchDepartments = async () => {
+    try {
+      const response = await api.get('/departments');
+      setDepartments(response.data);
+    } catch (error) {
+      console.error('Error fetching departments:', error);
     }
   };
 
@@ -156,13 +287,43 @@ const EmployeeProfileManagement = () => {
           },
         };
       } else if (section === 'job') {
+        const designationValue = showCustomDesignation 
+          ? customDesignation 
+          : document.getElementById('job-designation')?.value || user?.designation;
+        
         updateData = {
-          designation: document.getElementById('job-designation')?.value || user?.designation,
+          designation: designationValue,
+          department: document.getElementById('job-department')?.value || user?.department?._id,
           employeeId: document.getElementById('job-employeeId')?.value || user?.employeeId,
           joiningDate: document.getElementById('job-joiningDate')?.value || user?.joiningDate,
           employmentType: document.getElementById('job-employmentType')?.value || user?.employmentType,
           funBadge: document.getElementById('job-funBadge')?.value || user?.funBadge,
         };
+
+        // Add internship details if employment type is intern
+        const employmentType = currentEmploymentType || document.getElementById('job-employmentType')?.value || user?.employmentType;
+        
+        if (employmentType === 'intern') {
+          const durationField = document.getElementById('internship-duration');
+          const startDateField = document.getElementById('internship-startDate');
+          const endDateField = document.getElementById('internship-endDate');
+          const stipendField = document.getElementById('internship-stipend');
+          const objectivesField = document.getElementById('internship-objectives');
+          
+          const internshipData = {
+            duration: durationField?.value || user?.internshipDetails?.duration || '',
+            startDate: startDateField?.value || user?.internshipDetails?.startDate || '',
+            endDate: endDateField?.value || user?.internshipDetails?.endDate || '',
+            stipend: stipendField?.value ? Number(stipendField.value) : (user?.internshipDetails?.stipend || 0),
+            objectives: objectivesField?.value || user?.internshipDetails?.objectives || '',
+            isActive: true,
+          };
+          
+          // Only add internship details if at least one field has meaningful data
+          if (internshipData.duration || internshipData.startDate || internshipData.stipend || internshipData.objectives) {
+            updateData.internshipDetails = internshipData;
+          }
+        }
       } else if (section === 'bank') {
         updateData = {
           bankDetails: {
@@ -184,12 +345,21 @@ const EmployeeProfileManagement = () => {
       }
 
 
+      // Clean up updateData - remove any undefined or null values
+      Object.keys(updateData).forEach(key => {
+        if (updateData[key] === undefined || updateData[key] === null || updateData[key] === '') {
+          delete updateData[key];
+        }
+      });
+
+      console.log('Sending update data:', updateData);
       await api.put(`/users/${userId}/profile`, updateData);
       toast.success('Profile updated successfully');
       setEditMode(prev => ({ ...prev, [section]: false }));
       await fetchUserProfile();
     } catch (error) {
       console.error('Error updating profile:', error);
+      console.error('Error response:', error.response?.data);
       toast.error(error.response?.data?.message || 'Failed to update profile');
     } finally {
       setSaving(false);
@@ -1118,12 +1288,54 @@ const EmployeeProfileManagement = () => {
                         <Form.Group>
                           <Form.Label>Designation</Form.Label>
                           {editMode.job ? (
-                            <Form.Control
-                              type="text"
-                              defaultValue={user?.designation || ''}
-                              placeholder="Enter designation"
-                              id="job-designation"
-                            />
+                            <>
+                              {!showCustomDesignation ? (
+                                <Form.Select
+                                  defaultValue={user?.designation || ''}
+                                  id="job-designation"
+                                  onChange={(e) => {
+                                    if (e.target.value === 'custom') {
+                                      setShowCustomDesignation(true);
+                                      setCustomDesignation(user?.designation || '');
+                                    }
+                                  }}
+                                >
+                                  <option value="">Select Designation</option>
+                                  {commonDesignations.map(designation => (
+                                    <option key={designation} value={designation}>
+                                      {designation}
+                                    </option>
+                                  ))}
+                                  <option value="custom" className="fw-bold text-primary">
+                                    ➕ Add Custom Designation
+                                  </option>
+                                </Form.Select>
+                              ) : (
+                                <div className="d-flex gap-2">
+                                  <Form.Control
+                                    type="text"
+                                    value={customDesignation}
+                                    onChange={(e) => setCustomDesignation(e.target.value)}
+                                    id="job-designation"
+                                    placeholder="Enter custom designation"
+                                  />
+                                  <Button
+                                    variant="outline-secondary"
+                                    size="sm"
+                                    onClick={() => {
+                                      setShowCustomDesignation(false);
+                                      setCustomDesignation('');
+                                    }}
+                                    title="Back to list"
+                                  >
+                                    ↩️
+                                  </Button>
+                                </div>
+                              )}
+                              <Form.Text className="text-muted">
+                                {showCustomDesignation ? 'Enter custom designation or click ↩️ to select from list' : 'Select from list or add custom'}
+                              </Form.Text>
+                            </>
                           ) : (
                             <div className="form-control-plaintext border rounded p-2 bg-light">
                               {user?.designation || '—'}
@@ -1151,7 +1363,15 @@ const EmployeeProfileManagement = () => {
                         <Form.Group>
                           <Form.Label>Employment Type</Form.Label>
                           {editMode.job ? (
-                            <Form.Select defaultValue={user?.employmentType || ''} id="job-employmentType">
+                            <Form.Select 
+                              defaultValue={user?.employmentType || ''} 
+                              id="job-employmentType"
+                              onChange={(e) => {
+                                const newType = e.target.value;
+                                setIsIntern(newType === 'intern');
+                                setCurrentEmploymentType(newType);
+                              }}
+                            >
                               <option value="">Select Type</option>
                               <option value="full-time">Full Time</option>
                               <option value="part-time">Part Time</option>
@@ -1169,9 +1389,23 @@ const EmployeeProfileManagement = () => {
                       <Col md={6} className="mb-3">
                         <Form.Group>
                           <Form.Label>Department</Form.Label>
-                          <div className="form-control-plaintext border rounded p-2 bg-light">
-                            {user?.department?.name || 'Not assigned'}
-                          </div>
+                          {editMode.job ? (
+                            <Form.Select
+                              defaultValue={user?.department?._id || ''}
+                              id="job-department"
+                            >
+                              <option value="">Select Department</option>
+                              {departments.map(dept => (
+                                <option key={dept._id} value={dept._id}>
+                                  {dept.name}
+                                </option>
+                              ))}
+                            </Form.Select>
+                          ) : (
+                            <div className="form-control-plaintext border rounded p-2 bg-light">
+                              {user?.department?.name || 'Not assigned'}
+                            </div>
+                          )}
                         </Form.Group>
                       </Col>
                       <Col md={6} className="mb-3">
@@ -1220,6 +1454,133 @@ const EmployeeProfileManagement = () => {
                         </Form.Group>
                       </Col>
                     </Row>
+
+                    {/* Internship Details Section - Only show if employment type is intern */}
+                    {(isIntern || currentEmploymentType === 'intern') && (
+                      <>
+                        <hr className="my-4" />
+                        <h6 className="mb-3 text-primary">
+                          <FaUser className="me-2" />
+                          Internship Details
+                        </h6>
+                        <Row>
+                          <Col md={6} className="mb-3">
+                            <Form.Group>
+                              <Form.Label>Internship Duration</Form.Label>
+                              {editMode.job ? (
+                                <Form.Select 
+                                  defaultValue={user?.internshipDetails?.duration || ''} 
+                                  id="internship-duration"
+                                  onChange={(e) => {
+                                    const startDateField = document.getElementById('internship-startDate');
+                                    const endDateField = document.getElementById('internship-endDate');
+                                    if (startDateField?.value && e.target.value) {
+                                      const startDate = new Date(startDateField.value);
+                                      const months = e.target.value === '3-months' ? 3 : 6;
+                                      const endDate = new Date(startDate);
+                                      endDate.setMonth(endDate.getMonth() + months);
+                                      endDateField.value = endDate.toISOString().split('T')[0];
+                                    }
+                                  }}
+                                >
+                                  <option value="">Select Duration</option>
+                                  <option value="3-months">3 Months</option>
+                                  <option value="6-months">6 Months</option>
+                                </Form.Select>
+                              ) : (
+                                <div className="form-control-plaintext border rounded p-2 bg-light">
+                                  {user?.internshipDetails?.duration ? 
+                                    user.internshipDetails.duration.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()) : '—'}
+                                </div>
+                              )}
+                            </Form.Group>
+                          </Col>
+                          <Col md={6} className="mb-3">
+                            <Form.Group>
+                              <Form.Label>Start Date</Form.Label>
+                              {editMode.job ? (
+                                <Form.Control
+                                  type="date"
+                                  defaultValue={user?.internshipDetails?.startDate ? 
+                                    new Date(user.internshipDetails.startDate).toISOString().split('T')[0] : ''}
+                                  id="internship-startDate"
+                                  onChange={(e) => {
+                                    const durationField = document.getElementById('internship-duration');
+                                    const endDateField = document.getElementById('internship-endDate');
+                                    if (e.target.value && durationField?.value) {
+                                      const startDate = new Date(e.target.value);
+                                      const months = durationField.value === '3-months' ? 3 : 6;
+                                      const endDate = new Date(startDate);
+                                      endDate.setMonth(endDate.getMonth() + months);
+                                      endDateField.value = endDate.toISOString().split('T')[0];
+                                    }
+                                  }}
+                                />
+                              ) : (
+                                <div className="form-control-plaintext border rounded p-2 bg-light">
+                                  {user?.internshipDetails?.startDate ? 
+                                    new Date(user.internshipDetails.startDate).toLocaleDateString('en-GB') : '—'}
+                                </div>
+                              )}
+                            </Form.Group>
+                          </Col>
+                          <Col md={6} className="mb-3">
+                            <Form.Group>
+                              <Form.Label>End Date</Form.Label>
+                              {editMode.job ? (
+                                <Form.Control
+                                  type="date"
+                                  defaultValue={user?.internshipDetails?.endDate ? 
+                                    new Date(user.internshipDetails.endDate).toISOString().split('T')[0] : ''}
+                                  id="internship-endDate"
+                                />
+                              ) : (
+                                <div className="form-control-plaintext border rounded p-2 bg-light">
+                                  {user?.internshipDetails?.endDate ? 
+                                    new Date(user.internshipDetails.endDate).toLocaleDateString('en-GB') : '—'}
+                                </div>
+                              )}
+                            </Form.Group>
+                          </Col>
+                          <Col md={6} className="mb-3">
+                            <Form.Group>
+                              <Form.Label>Monthly Stipend (Rs.)</Form.Label>
+                              {editMode.job ? (
+                                <Form.Control
+                                  type="number"
+                                  defaultValue={user?.internshipDetails?.stipend || ''}
+                                  placeholder="Enter monthly stipend"
+                                  id="internship-stipend"
+                                />
+                              ) : (
+                                <div className="form-control-plaintext border rounded p-2 bg-light">
+                                  {user?.internshipDetails?.stipend ? 
+                                    `Rs. ${user.internshipDetails.stipend.toLocaleString('en-IN')}` : '—'}
+                                </div>
+                              )}
+                            </Form.Group>
+                          </Col>
+                          <Col md={12} className="mb-3">
+                            <Form.Group>
+                              <Form.Label>Learning Objectives</Form.Label>
+                              {editMode.job ? (
+                                <Form.Control
+                                  as="textarea"
+                                  rows={3}
+                                  defaultValue={user?.internshipDetails?.objectives || ''}
+                                  placeholder="Enter learning objectives and goals for this internship"
+                                  id="internship-objectives"
+                                />
+                              ) : (
+                                <div className="form-control-plaintext border rounded p-2 bg-light" style={{ minHeight: '80px' }}>
+                                  {user?.internshipDetails?.objectives || '—'}
+                                </div>
+                              )}
+                            </Form.Group>
+                          </Col>
+                        </Row>
+                      </>
+                    )}
                   </Tab>
 
                   {/* Bank Details Tab */}
@@ -1434,6 +1795,25 @@ const EmployeeProfileManagement = () => {
                         </Row>
                       </Col>
                     </Row>
+                  </Tab>
+
+                  {/* Salary Information Tab */}
+                  <Tab eventKey="salary" title={<><FaMoneyBillWave className="me-2" />Salary Information</>}>
+                    <div className="d-flex justify-content-between align-items-center mb-4">
+                      <h5 className="mb-0">Salary & Compensation Details</h5>
+                      {canEdit && (
+                        <Alert variant="info" className="mb-0 py-2 px-3">
+                          <small>
+                            <strong>Note:</strong> Salary structures are managed from the Salary Management section.
+                          </small>
+                        </Alert>
+                      )}
+                    </div>
+
+                    <EmployeeSalaryInfo 
+                      employeeId={userId} 
+                      canEdit={canEdit}
+                    />
                   </Tab>
 
                   {/* Documents Tab */}

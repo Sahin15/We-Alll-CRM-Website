@@ -13,6 +13,7 @@ import {
   Alert,
   OverlayTrigger,
   Tooltip,
+  Table,
 } from "react-bootstrap";
 import {
   FaPlus,
@@ -30,6 +31,10 @@ import {
   FaBell,
   FaEnvelope,
   FaIdCard,
+  FaTh,
+  FaList,
+  FaPhone,
+  FaUser,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -48,6 +53,7 @@ const EmployeeList = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
   const [departments, setDepartments] = useState([]);
+  const [viewMode, setViewMode] = useState("cards"); // Default to cards view
 
   useEffect(() => {
     fetchEmployees();
@@ -433,9 +439,34 @@ const EmployeeList = () => {
               <FaUsers className="me-2 text-primary" />
               Employee Directory ({filteredEmployees.length})
             </h5>
-            <Badge bg="primary" className="px-3 py-2 rounded-pill">
-              {filteredEmployees.length} Results
-            </Badge>
+            <div className="d-flex align-items-center gap-2">
+              {/* View Toggle */}
+              <div className="btn-group" role="group">
+                <Button
+                  variant={viewMode === "cards" ? "primary" : "outline-primary"}
+                  size="sm"
+                  onClick={() => setViewMode("cards")}
+                  title="Card View"
+                  className="fw-semibold"
+                >
+                  <FaTh className="me-1" />
+                  Cards
+                </Button>
+                <Button
+                  variant={viewMode === "list" ? "primary" : "outline-primary"}
+                  size="sm"
+                  onClick={() => setViewMode("list")}
+                  title="List View"
+                  className="fw-semibold"
+                >
+                  <FaList className="me-1" />
+                  List
+                </Button>
+              </div>
+              <Badge bg="primary" className="px-3 py-2 rounded-pill">
+                {filteredEmployees.length} Results
+              </Badge>
+            </div>
           </div>
         </Card.Header>
         <Card.Body className="p-0" style={{ overflow: 'visible' }}>
@@ -582,112 +613,244 @@ const EmployeeList = () => {
           
           {filteredEmployees.length > 0 ? (
             <div className="p-4" style={{ overflow: 'visible' }}>
-              <Row className="g-4" style={{ overflow: 'visible' }}>
-                {filteredEmployees.map((employee) => (
-                  <Col lg={6} xl={4} key={employee._id}>
-                    <Card className="employee-card h-100 border-0 shadow-sm">
-                      <Card.Body className="p-4">
-                        {/* Employee Header */}
-                        <div className="d-flex align-items-start mb-3">
-                          <div className="me-3 flex-shrink-0">
-                            <ProfilePictureDisplay
-                              profilePicture={employee.profilePicture}
-                              userName={employee.name}
-                              size={60}
-                              showViewButton={false}
-                            />
+              {viewMode === "cards" ? (
+                // Card View (Original)
+                <Row className="g-4" style={{ overflow: 'visible' }}>
+                  {filteredEmployees.map((employee) => (
+                    <Col lg={6} xl={4} key={employee._id}>
+                      <Card className="employee-card h-100 border-0 shadow-sm">
+                        <Card.Body className="p-4">
+                          {/* Employee Header */}
+                          <div className="d-flex align-items-start mb-3">
+                            <div className="me-3 flex-shrink-0">
+                              <ProfilePictureDisplay
+                                profilePicture={employee.profilePicture}
+                                userName={employee.name}
+                                size={60}
+                                showViewButton={false}
+                              />
+                            </div>
+                            <div className="flex-grow-1 min-width-0">
+                              <h6 className="mb-1 fw-bold text-dark text-truncate">{employee.name}</h6>
+                              <p className="mb-2 text-muted small text-truncate">{employee.designation || "N/A"}</p>
+                              <Badge 
+                                bg={employee.status === 'active' ? 'success' : employee.status === 'inactive' ? 'secondary' : 'danger'} 
+                                className="status-badge"
+                              >
+                                {employee.status}
+                              </Badge>
+                            </div>
                           </div>
-                          <div className="flex-grow-1 min-width-0">
-                            <h6 className="mb-1 fw-bold text-dark text-truncate">{employee.name}</h6>
-                            <p className="mb-2 text-muted small text-truncate">{employee.designation || "N/A"}</p>
+
+                          {/* Employee Info */}
+                          <div className="mb-3">
+                            <div className="employee-info-item">
+                              <FaIdCard className="icon" />
+                              <span>ID: {employee.employeeId || "Not assigned"}</span>
+                            </div>
+                            <div className="employee-info-item">
+                              <FaEnvelope className="icon" />
+                              <span className="text-truncate">{employee.email}</span>
+                            </div>
+                            <div className="employee-info-item">
+                              <FaBuilding className="icon" />
+                              <span>{employee.department?.name || "No department"}</span>
+                            </div>
+                            <div className="employee-info-item">
+                              <FaCalendarAlt className="icon" />
+                              <span>Joined: {formatDate(employee.joiningDate || employee.hireDate)}</span>
+                            </div>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="d-flex gap-2">
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              className="action-btn flex-fill"
+                              onClick={() => navigate(`/employees/${employee._id}/profile`)}
+                            >
+                              <FaUserShield className="me-1" />
+                              Manage Profile
+                            </Button>
+                            <SmartDropdown>
+                              <Dropdown.Toggle
+                                variant="outline-secondary"
+                                size="sm"
+                                className="action-btn smart-dropdown-toggle"
+                                style={{ minWidth: '40px' }}
+                              >
+                                <FaEye />
+                              </Dropdown.Toggle>
+                              <Dropdown.Menu 
+                                className="shadow-lg border-0 smart-dropdown-menu" 
+                                style={{ borderRadius: '10px' }}
+                              >
+                                <Dropdown.Item
+                                  onClick={() => navigate(`/employees/${employee._id}/work`)}
+                                  className="py-2"
+                                >
+                                  <FaClock className="me-2 text-success" />
+                                  Work Details
+                                </Dropdown.Item>
+                                <Dropdown.Item
+                                  onClick={() => handleSendNotification(employee)}
+                                  className="py-2"
+                                >
+                                  <FaBell className="me-2 text-info" />
+                                  Send Notification
+                                </Dropdown.Item>
+                                {/* Only admin and superadmin can delete employees */}
+                                {(currentUser?.role === "admin" || currentUser?.role === "superadmin") && employee.role !== "superadmin" && (
+                                  <>
+                                    <Dropdown.Divider />
+                                    <Dropdown.Item
+                                      className="py-2 text-danger"
+                                      onClick={() => handleDelete(employee._id)}
+                                    >
+                                      <FaTrash className="me-2" />
+                                      Delete Employee
+                                    </Dropdown.Item>
+                                  </>
+                                )}
+                              </Dropdown.Menu>
+                            </SmartDropdown>
+                          </div>
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                  ))}
+                </Row>
+              ) : (
+                // List View (New Table)
+                <div className="table-responsive">
+                  <Table hover className="mb-0">
+                    <thead className="table-dark">
+                      <tr>
+                        <th className="border-0">Employee</th>
+                        <th className="border-0">Department</th>
+                        <th className="border-0">Contact</th>
+                        <th className="border-0">Status</th>
+                        <th className="border-0">Joined</th>
+                        <th className="border-0 text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredEmployees.map((employee) => (
+                        <tr key={employee._id} className="align-middle">
+                          <td className="py-3">
+                            <div className="d-flex align-items-center">
+                              <div className="me-3 flex-shrink-0">
+                                <ProfilePictureDisplay
+                                  profilePicture={employee.profilePicture}
+                                  userName={employee.name}
+                                  size={40}
+                                  showViewButton={false}
+                                />
+                              </div>
+                              <div>
+                                <div className="fw-bold text-dark">{employee.name}</div>
+                                <small className="text-muted">
+                                  <FaIdCard className="me-1" size={10} />
+                                  {employee.employeeId || "Not assigned"}
+                                </small>
+                                <div className="small text-muted">{employee.designation || "N/A"}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3">
+                            <div className="d-flex align-items-center">
+                              <FaBuilding className="me-2 text-primary" size={12} />
+                              <span>{employee.department?.name || "No department"}</span>
+                            </div>
+                          </td>
+                          <td className="py-3">
+                            <div className="small">
+                              <div className="mb-1">
+                                <FaEnvelope className="me-1 text-primary" size={12} />
+                                {employee.email}
+                              </div>
+                              {employee.phone && (
+                                <div>
+                                  <FaPhone className="me-1 text-primary" size={12} />
+                                  {employee.phone}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3">
                             <Badge 
                               bg={employee.status === 'active' ? 'success' : employee.status === 'inactive' ? 'secondary' : 'danger'} 
-                              className="status-badge"
+                              className="rounded-pill"
                             >
                               {employee.status}
                             </Badge>
-                          </div>
-                        </div>
-
-                        {/* Employee Info */}
-                        <div className="mb-3">
-                          <div className="employee-info-item">
-                            <FaIdCard className="icon" />
-                            <span>ID: {employee.employeeId || "Not assigned"}</span>
-                          </div>
-                          <div className="employee-info-item">
-                            <FaEnvelope className="icon" />
-                            <span className="text-truncate">{employee.email}</span>
-                          </div>
-                          <div className="employee-info-item">
-                            <FaBuilding className="icon" />
-                            <span>{employee.department?.name || "No department"}</span>
-                          </div>
-                          <div className="employee-info-item">
-                            <FaCalendarAlt className="icon" />
-                            <span>Joined: {formatDate(employee.joiningDate || employee.hireDate)}</span>
-                          </div>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="d-flex gap-2">
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            className="action-btn flex-fill"
-                            onClick={() => navigate(`/employees/${employee._id}/profile`)}
-                          >
-                            <FaUserShield className="me-1" />
-                            Manage Profile
-                          </Button>
-                          <SmartDropdown>
-                            <Dropdown.Toggle
-                              variant="outline-secondary"
-                              size="sm"
-                              className="action-btn smart-dropdown-toggle"
-                              style={{ minWidth: '40px' }}
-                            >
-                              <FaEye />
-                            </Dropdown.Toggle>
-                            <Dropdown.Menu 
-                              className="shadow-lg border-0 smart-dropdown-menu" 
-                              style={{ borderRadius: '10px' }}
-                            >
-                              <Dropdown.Item
-                                onClick={() => navigate(`/employees/${employee._id}/work`)}
-                                className="py-2"
+                          </td>
+                          <td className="py-3">
+                            <small className="text-muted">
+                              {formatDate(employee.joiningDate || employee.hireDate)}
+                            </small>
+                          </td>
+                          <td className="py-3 text-center">
+                            <div className="d-flex gap-1 justify-content-center">
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => navigate(`/employees/${employee._id}/profile`)}
+                                title="Manage Profile"
+                                style={{ padding: '0.25rem 0.5rem' }}
                               >
-                                <FaClock className="me-2 text-success" />
-                                Work Details
-                              </Dropdown.Item>
-                              <Dropdown.Item
-                                onClick={() => handleSendNotification(employee)}
-                                className="py-2"
-                              >
-                                <FaBell className="me-2 text-info" />
-                                Send Notification
-                              </Dropdown.Item>
-                              {/* Only admin and superadmin can delete employees */}
-                              {(currentUser?.role === "admin" || currentUser?.role === "superadmin") && employee.role !== "superadmin" && (
-                                <>
-                                  <Dropdown.Divider />
+                                <FaUserShield size={12} />
+                              </Button>
+                              <SmartDropdown>
+                                <Dropdown.Toggle
+                                  variant="outline-secondary"
+                                  size="sm"
+                                  className="smart-dropdown-toggle"
+                                  style={{ padding: '0.25rem 0.5rem' }}
+                                >
+                                  <FaEye size={12} />
+                                </Dropdown.Toggle>
+                                <Dropdown.Menu 
+                                  className="shadow-lg border-0 smart-dropdown-menu" 
+                                  style={{ borderRadius: '10px' }}
+                                >
                                   <Dropdown.Item
-                                    className="py-2 text-danger"
-                                    onClick={() => handleDelete(employee._id)}
+                                    onClick={() => navigate(`/employees/${employee._id}/work`)}
+                                    className="py-2"
                                   >
-                                    <FaTrash className="me-2" />
-                                    Delete Employee
+                                    <FaClock className="me-2 text-success" />
+                                    Work Details
                                   </Dropdown.Item>
-                                </>
-                              )}
-                            </Dropdown.Menu>
-                          </SmartDropdown>
-                        </div>
-                      </Card.Body>
-                    </Card>
-                  </Col>
-                ))}
-              </Row>
+                                  <Dropdown.Item
+                                    onClick={() => handleSendNotification(employee)}
+                                    className="py-2"
+                                  >
+                                    <FaBell className="me-2 text-info" />
+                                    Send Notification
+                                  </Dropdown.Item>
+                                  {(currentUser?.role === "admin" || currentUser?.role === "superadmin") && employee.role !== "superadmin" && (
+                                    <>
+                                      <Dropdown.Divider />
+                                      <Dropdown.Item
+                                        className="py-2 text-danger"
+                                        onClick={() => handleDelete(employee._id)}
+                                      >
+                                        <FaTrash className="me-2" />
+                                        Delete Employee
+                                      </Dropdown.Item>
+                                    </>
+                                  )}
+                                </Dropdown.Menu>
+                              </SmartDropdown>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-center py-5">

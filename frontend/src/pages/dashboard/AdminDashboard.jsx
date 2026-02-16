@@ -725,18 +725,8 @@ const AdminDashboard = () => {
     { label: "Add User", icon: <FaUsers />, path: "/users", variant: "primary" },
     { label: "Add Project", icon: <FaProjectDiagram />, path: "/projects", variant: "success" },
     { label: "Add Client", icon: <FaUserTie />, path: "/clients", variant: "info" },
-    { label: "Manage Holidays", icon: <FaCalendarAlt />, path: "/admin/holidays", variant: "warning" },
-    { label: "Employee Profiles", icon: <FaUserCheck />, path: "/employees", variant: "secondary" },
-    { label: "Enhanced Work Management", icon: <FaCalendarAlt />, path: "/work-calendar/enhanced-admin-overview", variant: "danger" },
-    // HR Management Actions - Admin has full access
-    { label: "Approve Leaves", icon: <FaCalendarCheck />, path: "/leaves/requests", variant: "primary" },
-    { label: "View Attendance", icon: <FaUserClock />, path: "/attendance/tracking", variant: "success" },
-    { label: "Manage Departments", icon: <FaBuilding />, path: "/departments", variant: "warning" },
-    { label: "Create Announcement", icon: <FaBullhorn />, path: "/admin/announcements/create", variant: "info" },
-    { label: "Manage Policies", icon: <FaShieldAlt />, path: "/admin/policies", variant: "secondary" },
-    { label: "Schedule Meeting", icon: <FaClock />, path: "/admin/meetings/create", variant: "primary" },
-    { label: "Send Notification", icon: <FaBell />, path: "/admin/notifications/create", variant: "primary" },
-    { label: "Notification Analytics", icon: <FaChartBar />, path: "/admin/notifications/dashboard", variant: "info" },
+    { label: "Approve Leaves", icon: <FaCalendarCheck />, path: "/leaves/requests", variant: "warning" },
+    { label: "View Attendance", icon: <FaUserClock />, path: "/attendance/tracking", variant: "secondary" },
   ];
 
   if (loading) {

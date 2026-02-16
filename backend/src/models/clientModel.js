@@ -95,10 +95,22 @@ const clientSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    // Department Assignment - NEW
+    assignedDepartments: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department",
+    }],
+    departmentAssignedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    departmentAssignedAt: {
+      type: Date,
+    },
     status: {
       type: String,
-      enum: ["active", "inactive", "suspended"],
-      default: "active",
+      enum: ["Active", "On Hold", "Lost"],
+      default: "Active",
     },
     // VIP Client Status
     isVip: {

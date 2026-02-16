@@ -54,26 +54,61 @@ export const createProject = async (req, res) => {
     console.log('User:', req.user?.email, req.user?.role);
     console.log('User ID:', req.user?._id);
     
-    const { 
-      name, 
-      client, 
-      departments, // New: multiple departments
-      department,  // Legacy: single department (for backward compatibility)
-      description, 
-      startDate,
-      endDate, 
-      budget,
-      status,
-      priority,
-      projectHead, // Now optional
-      assignedUsers,
-      teamMembers, // New: team members with roles from frontend
-      // Slot system configuration
-      enableSlotSystem,
-      totalSlots,
-      slotType,
-      calculationMethod
-    } = req.body;
+    assignProjectHead = async (req, res) => {
+      try {
+        const { projectId } = req.params;
+        const { userId } = req.body;
+
+        if (!userId) {
+          return res.status(400).json({ message: "User ID is required" });
+        }
+
+        // Find project
+        const project = await Project.findById(projectId);
+        if (!project) {
+          return res.status(404).json({ message: "Project not found" });
+        }
+
+        // Find user and verify they are an employee
+        const user = await User.findById(userId);
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        if (user.role === "client") {
+          return res.status(400).json({ message: "Clients cannot be assigned as project managers" });
+        }
+
+        // Remove from previous project manager's headOfProjects array
+        if (project.projectHead) {
+          await User.findByIdAndUpdate(project.projectHead, {
+            $pull: { headOfProjects: projectId },
+          });
+        }
+
+        // Assign project manager
+        project.projectHead = userId;
+        project.projectHeadAssignedBy = req.user._id;
+        project.projectHeadAssignedAt = new Date();
+        await project.save();
+
+        // Update user's headOfProjects array
+        await User.findByIdAndUpdate(userId, {
+          $addToSet: { headOfProjects: projectId },
+        });
+
+        await project.populate("projectHead", "name email designation");
+        await project.populate("projectHeadAssignedBy", "name email");
+
+        res.status(200).json({
+          message: "Project Manager assigned successfully",
+          project,
+        });
+      } catch (error) {
+        console.error("Error in assignProjectHead:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
+      }
+    }
 
     console.log('📋 Extracted fields:', {
       name,
@@ -111,7 +146,7 @@ export const createProject = async (req, res) => {
         .json({ message: "At least one service/department is required" });
     }
 
-    // Check HOD permissions - HOD can only create projects for their own department
+    // Check HOD permissions - HOD can only create projects for their own department AND assigned clients
     if (req.user.role === 'hod') {
       const user = await User.findById(req.user.id).select('headOfDepartment isHeadOfDepartment');
       
@@ -119,6 +154,25 @@ export const createProject = async (req, res) => {
         return res.status(403).json({ 
           message: "You are not assigned as Head of Department" 
         });
+      }
+
+      // Check if client is assigned to HoD's department
+      if (client) {
+        const clientDoc = await Client.findById(client).select('assignedDepartments');
+        if (!clientDoc) {
+          return res.status(404).json({ message: "Client not found" });
+        }
+
+        const hodDepartmentId = user.headOfDepartment.toString();
+        const isClientAssignedToHoDDept = clientDoc.assignedDepartments?.some(
+          deptId => deptId.toString() === hodDepartmentId
+        );
+
+        if (!isClientAssignedToHoDDept) {
+          return res.status(403).json({ 
+            message: "You can only create projects for clients assigned to your department" 
+          });
+        }
       }
 
       // Check if all selected departments include the HOD's department
@@ -937,17 +991,32 @@ export const assignProjectHead = async (req, res) => {
     }
 
     if (user.role === "client") {
-      return res.status(400).json({ message: "Clients cannot be assigned as project heads" });
+      return res.status(400).json({ message: "Clients cannot be assigned as project managers" });
     }
 
-    // Assign project head
+    // Remove from previous project manager's headOfProjects array
+    if (project.projectHead) {
+      await User.findByIdAndUpdate(project.projectHead, {
+        $pull: { headOfProjects: projectId },
+      });
+    }
+
+    // Assign project manager
     project.projectHead = userId;
+    project.projectHeadAssignedBy = req.user._id;
+    project.projectHeadAssignedAt = new Date();
     await project.save();
 
+    // Update user's headOfProjects array
+    await User.findByIdAndUpdate(userId, {
+      $addToSet: { headOfProjects: projectId },
+    });
+
     await project.populate("projectHead", "name email designation");
+    await project.populate("projectHeadAssignedBy", "name email");
 
     res.status(200).json({
-      message: "Project head assigned successfully",
+      message: "Project Manager assigned successfully",
       project,
     });
   } catch (error) {
@@ -1069,19 +1138,18 @@ export const assignHoP = async (req, res) => {
       });
     }
 
-    // Verify user is in the department
+    // SIMPLIFIED: Department check is now optional (just a warning, not blocking)
+    // This allows HR/Admin to assign any employee as project manager
     if (
       project.department &&
       user.department &&
       user.department.toString() !== project.department._id.toString()
     ) {
-      return res.status(400).json({
-        success: false,
-        message: "User must be a member of the project's department",
-      });
+      console.log(`⚠️ Warning: Assigning user from different department. User dept: ${user.department}, Project dept: ${project.department._id}`);
+      // Don't block - just log warning
     }
 
-    // Remove from previous HoP's headOfProjects array
+    // Remove from previous project manager's headOfProjects array
     if (project.projectHead) {
       await User.findByIdAndUpdate(project.projectHead, {
         $pull: { headOfProjects: projectId },
@@ -1106,14 +1174,14 @@ export const assignHoP = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Head of Project assigned successfully",
+      message: "Project Manager assigned successfully",
       data: updatedProject,
     });
   } catch (error) {
     console.error("Error in assignHoP:", error);
     res.status(500).json({
       success: false,
-      message: "Error assigning Head of Project",
+      message: "Error assigning Project Manager",
       error: error.message,
     });
   }

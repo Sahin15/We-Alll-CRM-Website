@@ -93,7 +93,7 @@ export const getUsers = async (req, res) => {
     
     // Optimized query WITHOUT pagination (backward compatible)
     const users = await User.find(query)
-      .select('name email role department phone status designation profilePicture employeeId joiningDate hireDate')
+      .select('name email role department phone status designation profilePicture employeeId joiningDate hireDate dateOfBirth')
       .populate('department', 'name')
       .populate('manager', 'name email')
       .sort({ createdAt: -1 })
@@ -164,11 +164,14 @@ export const getUserById = async (req, res) => {
     const user = await User.findById(req.params.id)
       .select("-password +governmentIds.aadhaarNumber +governmentIds.panNumber +governmentIds.uanNumber +governmentIds.esicNumber +bankDetails.accountNumber +salary")
       .populate("department", "name")
-      .populate("manager", "name email");
+      .populate("manager", "name email")
+      .populate("reportingManager", "name email");
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+
+    logger.info("Fetched user with internship details:", user.internshipDetails);
 
     res.status(200).json(user);
   } catch (error) {
@@ -295,6 +298,7 @@ export const updateUser = async (req, res) => {
     const updateData = { ...req.body };
 
     logger.info("Updating user:", id);
+    logger.info("Update data received:", updateData);
 
     const user = await User.findById(id);
     if (!user) {
@@ -309,6 +313,29 @@ export const updateUser = async (req, res) => {
       updateData.password = await bcrypt.hash(updateData.password, 10);
     }
 
+    // Handle internship details specifically
+    if (updateData.internshipDetails) {
+      logger.info("Processing internship details:", updateData.internshipDetails);
+      
+      // Validate internship details
+      const internshipDetails = updateData.internshipDetails;
+      if (internshipDetails.startDate) {
+        internshipDetails.startDate = new Date(internshipDetails.startDate);
+      }
+      if (internshipDetails.endDate) {
+        internshipDetails.endDate = new Date(internshipDetails.endDate);
+      }
+      if (internshipDetails.stipend) {
+        internshipDetails.stipend = Number(internshipDetails.stipend);
+      }
+      
+      user.internshipDetails = {
+        ...user.internshipDetails,
+        ...internshipDetails
+      };
+      delete updateData.internshipDetails; // Remove from generic update to avoid conflicts
+    }
+
     // Update user with all provided fields
     Object.keys(updateData).forEach((key) => {
       if (updateData[key] !== undefined && updateData[key] !== null) {
@@ -319,18 +346,16 @@ export const updateUser = async (req, res) => {
     await user.save();
 
     logger.success("User updated successfully:", user._id);
+    logger.info("Updated user internship details:", user.internshipDetails);
+
+    // Populate the user data for response
+    const updatedUser = await User.findById(id)
+      .select("-password")
+      .populate("department", "name");
 
     res.status(200).json({
       message: "User updated successfully",
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        phone: user.phone,
-        position: user.position,
-        address: user.address,
-      },
+      user: updatedUser,
     });
   } catch (error) {
     logger.error("Error in updateUser:", error);

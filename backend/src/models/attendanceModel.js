@@ -19,6 +19,21 @@ const attendanceSchema = new mongoose.Schema(
     clockOut: {
       type: Date,
     },
+    breaks: [
+      {
+        startTime: {
+          type: Date,
+          required: true,
+        },
+        endTime: {
+          type: Date,
+        },
+      },
+    ],
+    totalBreakTime: {
+      type: Number,
+      default: 0, // in minutes
+    },
     status: {
       type: String,
       enum: ["present", "absent", "half-day", "late", "on-leave"],
@@ -30,7 +45,66 @@ const attendanceSchema = new mongoose.Schema(
     },
     overtime: {
       type: Number,
-      default: 0,
+      default: 0, // Auto-calculated overtime (work hours > 8)
+    },
+    // Manual overtime entries (work done after clock out)
+    overtimeEntries: [
+      {
+        startTime: {
+          type: Date,
+          required: true,
+        },
+        endTime: {
+          type: Date,
+        },
+        duration: {
+          type: Number, // in hours
+        },
+        reason: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        taskReference: {
+          type: String,
+          trim: true,
+        },
+        proofOfWork: {
+          type: String, // URL to uploaded screenshot/photo
+        },
+        status: {
+          type: String,
+          enum: ['pending', 'approved', 'rejected'],
+          default: 'pending',
+        },
+        isActive: {
+          type: Boolean,
+          default: false, // True when timer is running
+        },
+        approvedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+        },
+        approvedAt: {
+          type: Date,
+        },
+        rejectionReason: {
+          type: String,
+          trim: true,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+    totalManualOvertime: {
+      type: Number,
+      default: 0, // Sum of approved manual overtime entries
+    },
+    totalWorkHours: {
+      type: Number,
+      default: 0, // workHours + overtime + totalManualOvertime
     },
     location: {
       latitude: { type: Number },
@@ -87,6 +161,189 @@ const attendanceSchema = new mongoose.Schema(
   }
 );
 
+// Method to calculate total break time in minutes
+attendanceSchema.methods.calculateBreakTime = function() {
+  if (!this.breaks || this.breaks.length === 0) {
+    return 0;
+  }
+  
+  let totalBreakMinutes = 0;
+  for (const breakPeriod of this.breaks) {
+    if (breakPeriod.startTime && breakPeriod.endTime) {
+      const diffTime = Math.abs(breakPeriod.endTime - breakPeriod.startTime);
+      const diffMinutes = diffTime / (1000 * 60);
+      totalBreakMinutes += diffMinutes;
+    }
+  }
+  
+  return parseFloat(totalBreakMinutes.toFixed(2));
+};
+
+// Method to check if currently on break
+attendanceSchema.methods.isOnBreak = function() {
+  if (!this.breaks || this.breaks.length === 0) {
+    return false;
+  }
+  
+  // Check if the last break has no end time (still ongoing)
+  const lastBreak = this.breaks[this.breaks.length - 1];
+  return lastBreak && lastBreak.startTime && !lastBreak.endTime;
+};
+
+// Method to calculate total approved manual overtime
+attendanceSchema.methods.calculateManualOvertime = function() {
+  if (!this.overtimeEntries || this.overtimeEntries.length === 0) {
+    return 0;
+  }
+  
+  const approvedEntries = this.overtimeEntries.filter(entry => entry.status === 'approved');
+  const totalHours = approvedEntries.reduce((sum, entry) => sum + (entry.duration || 0), 0);
+  
+  return parseFloat(totalHours.toFixed(2));
+};
+
+// Method to calculate total work hours including all overtime
+attendanceSchema.methods.calculateTotalWorkHours = function() {
+  const regularHours = this.workHours || 0;
+  const autoOvertime = this.overtime || 0;
+  const manualOvertime = this.calculateManualOvertime();
+  
+  return parseFloat((regularHours + autoOvertime + manualOvertime).toFixed(2));
+};
+
+// Method to add overtime entry
+attendanceSchema.methods.addOvertimeEntry = function(overtimeData) {
+  const { startTime, endTime, reason, taskReference, proofOfWork } = overtimeData;
+  
+  // Calculate duration in hours if endTime is provided
+  let duration = 0;
+  if (endTime) {
+    const diffTime = Math.abs(new Date(endTime) - new Date(startTime));
+    duration = parseFloat((diffTime / (1000 * 60 * 60)).toFixed(2));
+  }
+  
+  const entry = {
+    startTime: new Date(startTime),
+    endTime: endTime ? new Date(endTime) : null,
+    duration,
+    reason,
+    taskReference: taskReference || '',
+    proofOfWork: proofOfWork || '',
+    status: 'pending',
+    isActive: !endTime, // Active if no end time (timer running)
+    createdAt: new Date(),
+  };
+  
+  this.overtimeEntries.push(entry);
+  console.log(`[OVERTIME] Added overtime entry: ${duration || 'Timer started'} hours - ${reason}`);
+  
+  return entry;
+};
+
+// Method to start overtime timer
+attendanceSchema.methods.startOvertimeTimer = function(reason, taskReference) {
+  // Check if there's already an active timer
+  const activeTimer = this.overtimeEntries.find(e => e.isActive);
+  if (activeTimer) {
+    throw new Error('An overtime timer is already running. Please stop it first.');
+  }
+  
+  const entry = {
+    startTime: new Date(),
+    endTime: null,
+    duration: 0,
+    reason,
+    taskReference: taskReference || '',
+    status: 'pending',
+    isActive: true,
+    createdAt: new Date(),
+  };
+  
+  this.overtimeEntries.push(entry);
+  console.log(`[OVERTIME] Started overtime timer - ${reason}`);
+  
+  return entry;
+};
+
+// Method to stop overtime timer
+attendanceSchema.methods.stopOvertimeTimer = function(entryId) {
+  const entry = this.overtimeEntries.id(entryId);
+  
+  if (!entry) {
+    throw new Error('Overtime entry not found');
+  }
+  
+  if (!entry.isActive) {
+    throw new Error('This overtime timer is not active');
+  }
+  
+  // Set end time and calculate duration
+  entry.endTime = new Date();
+  const diffTime = Math.abs(entry.endTime - entry.startTime);
+  entry.duration = parseFloat((diffTime / (1000 * 60 * 60)).toFixed(2));
+  entry.isActive = false;
+  
+  console.log(`[OVERTIME] Stopped overtime timer: ${entry.duration} hours`);
+  
+  return entry;
+};
+
+// Method to get active overtime timer
+attendanceSchema.methods.getActiveOvertimeTimer = function() {
+  return this.overtimeEntries.find(e => e.isActive) || null;
+};
+
+// Method to approve overtime entry
+attendanceSchema.methods.approveOvertimeEntry = function(entryId, approvedBy) {
+  const entry = this.overtimeEntries.id(entryId);
+  
+  if (!entry) {
+    throw new Error('Overtime entry not found');
+  }
+  
+  if (entry.status === 'approved') {
+    throw new Error('Overtime entry already approved');
+  }
+  
+  entry.status = 'approved';
+  entry.approvedBy = approvedBy;
+  entry.approvedAt = new Date();
+  
+  // Recalculate totals
+  this.totalManualOvertime = this.calculateManualOvertime();
+  this.totalWorkHours = this.calculateTotalWorkHours();
+  
+  console.log(`[OVERTIME] Approved overtime entry: ${entry.duration} hours`);
+  
+  return entry;
+};
+
+// Method to reject overtime entry
+attendanceSchema.methods.rejectOvertimeEntry = function(entryId, rejectionReason, rejectedBy) {
+  const entry = this.overtimeEntries.id(entryId);
+  
+  if (!entry) {
+    throw new Error('Overtime entry not found');
+  }
+  
+  if (entry.status === 'rejected') {
+    throw new Error('Overtime entry already rejected');
+  }
+  
+  entry.status = 'rejected';
+  entry.rejectionReason = rejectionReason;
+  entry.approvedBy = rejectedBy; // Track who rejected it
+  entry.approvedAt = new Date();
+  
+  // Recalculate totals
+  this.totalManualOvertime = this.calculateManualOvertime();
+  this.totalWorkHours = this.calculateTotalWorkHours();
+  
+  console.log(`[OVERTIME] Rejected overtime entry: ${entry.duration} hours - ${rejectionReason}`);
+  
+  return entry;
+};
+
 // Method to track manual modifications
 attendanceSchema.methods.trackManualModification = function(modifiedBy, reason, changes) {
   // Store original values if this is the first modification
@@ -124,38 +381,54 @@ attendanceSchema.methods.calculateStatus = function() {
     // Validate date
     if (isNaN(clockInTime.getTime())) {
       console.error('[STATUS] Invalid clockIn date:', this.clockIn);
-      return 'present'; // Default to present if date is invalid
+      return 'present';
     }
     
-    const clockInHour = clockInTime.getHours();
-    const clockInMinute = clockInTime.getMinutes();
+    // Convert to IST time - ALWAYS use Asia/Kolkata timezone
+    const istTimeString = clockInTime.toLocaleString('en-IN', { 
+      timeZone: 'Asia/Kolkata',
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit'
+    });
     
-    // Convert to total minutes for easier comparison
+    // Parse IST time (format: "HH:MM")
+    const [clockInHour, clockInMinute] = istTimeString.split(':').map(Number);
     const totalMinutes = clockInHour * 60 + clockInMinute;
     
-    // FIXED BUSINESS RULES (NO EXCEPTIONS FOR ANY ROLE):
-    // - 00:00 to 10:30 (0-630 minutes) = Present
-    // - 10:31 to 11:59 (631-719 minutes) = Late  
-    // - 12:00 onwards (720+ minutes) = Half-day
+    // BUSINESS RULES - CRYSTAL CLEAR (ALL TIMES IN IST):
+    // 00:00 to 10:30 (0-630 min) = Present
+    // 10:31 to 11:59 (631-719 min) = Late
+    // 12:00 to 19:00 (720-1140 min) = Half-day
+    // After 19:00 (1140+ min) = Absent (too late)
     
     let calculatedStatus;
-    if (totalMinutes >= 720) {
-      // 12:00 PM (720 minutes) or later = Half day
+    
+    if (totalMinutes > 1140) {
+      // After 7:00 PM (19:00) - Too late, mark as absent
+      calculatedStatus = "absent";
+      console.log(`[STATUS] ${clockInHour}:${String(clockInMinute).padStart(2, '0')} IST (${totalMinutes} min) > 19:00 → ABSENT (too late)`);
+    } else if (totalMinutes >= 720) {
+      // 12:00 PM to 7:00 PM (720-1140 min) - Half day
       calculatedStatus = "half-day";
+      console.log(`[STATUS] ${clockInHour}:${String(clockInMinute).padStart(2, '0')} IST (${totalMinutes} min) 12:00-19:00 → HALF-DAY`);
     } else if (totalMinutes > 630) {
-      // 10:31 AM (631 minutes) to 11:59 AM (719 minutes) = Late
+      // 10:31 AM to 11:59 AM (631-719 min) - Late
       calculatedStatus = "late";
+      console.log(`[STATUS] ${clockInHour}:${String(clockInMinute).padStart(2, '0')} IST (${totalMinutes} min) 10:31-11:59 → LATE`);
     } else {
-      // 00:00 to 10:30 AM (0-630 minutes) = Present
+      // 00:00 to 10:30 AM (0-630 min) - Present
       calculatedStatus = "present";
+      console.log(`[STATUS] ${clockInHour}:${String(clockInMinute).padStart(2, '0')} IST (${totalMinutes} min) 00:00-10:30 → PRESENT`);
     }
     
-    console.log(`[STATUS] Clock-in: ${clockInHour}:${String(clockInMinute).padStart(2, '0')} (${totalMinutes} min) = ${calculatedStatus.toUpperCase()}`);
+    console.log(`[STATUS] FINAL: Clock-in ${clockInHour}:${String(clockInMinute).padStart(2, '0')} IST = ${calculatedStatus.toUpperCase()}`);
+    
     return calculatedStatus;
     
   } catch (error) {
     console.error('[STATUS] Error calculating status:', error);
-    return 'present'; // Default to present on error
+    return 'present';
   }
 };
 
@@ -193,15 +466,29 @@ attendanceSchema.pre("save", function (next) {
     if (this.clockIn && this.clockOut) {
       const diffTime = Math.abs(this.clockOut - this.clockIn);
       const diffHours = diffTime / (1000 * 60 * 60);
-      this.workHours = parseFloat(diffHours.toFixed(2));
+      
+      // Calculate total break time
+      this.totalBreakTime = this.calculateBreakTime();
+      
+      // Subtract break time from work hours
+      const breakHours = this.totalBreakTime / 60;
+      this.workHours = parseFloat((diffHours - breakHours).toFixed(2));
 
-      // Calculate overtime (assuming 8 hours is standard)
-      if (diffHours > 8) {
-        this.overtime = parseFloat((diffHours - 8).toFixed(2));
+      // Calculate auto overtime (assuming 8 hours is standard)
+      if (this.workHours > 8) {
+        this.overtime = parseFloat((this.workHours - 8).toFixed(2));
+      } else {
+        this.overtime = 0;
       }
       
-      console.log(`[ATTENDANCE] PRE-SAVE: Work hours calculated: ${this.workHours}`);
+      console.log(`[ATTENDANCE] PRE-SAVE: Work hours calculated: ${this.workHours} (Break time: ${this.totalBreakTime} min, Auto overtime: ${this.overtime})`);
     }
+    
+    // 3. Calculate manual overtime and total work hours
+    this.totalManualOvertime = this.calculateManualOvertime();
+    this.totalWorkHours = this.calculateTotalWorkHours();
+    
+    console.log(`[ATTENDANCE] PRE-SAVE: Total work hours: ${this.totalWorkHours} (Regular: ${this.workHours}, Auto OT: ${this.overtime}, Manual OT: ${this.totalManualOvertime})`);
     
     console.log(`[ATTENDANCE] PRE-SAVE: ✅ Final status: ${this.status}`);
     next();

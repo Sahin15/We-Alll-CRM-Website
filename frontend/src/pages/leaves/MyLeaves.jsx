@@ -12,16 +12,18 @@ import {
   Alert,
   ProgressBar,
 } from "react-bootstrap";
-import { FaPlus, FaEdit, FaTimes, FaInfoCircle, FaExclamationTriangle } from "react-icons/fa";
+import { FaPlus, FaTimes, FaInfoCircle, FaExclamationTriangle } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { leaveApi } from "../../api/leaveApi";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
 import { LEAVE_TYPE_DETAILS } from "../../utils/constants";
+import ApplyWFHModal from "../../components/wfh/ApplyWFHModal";
 
 const MyLeaves = () => {
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showWFHModal, setShowWFHModal] = useState(false);
   const [leaveBalance, setLeaveBalance] = useState(null);
   const [formData, setFormData] = useState({
     leaveType: "personal",
@@ -246,7 +248,8 @@ const MyLeaves = () => {
                             <Badge bg={
                               leave.leaveType === 'personal' ? 'primary' :
                               leave.leaveType === 'medical' ? 'danger' :
-                              leave.leaveType === 'vacation' ? 'success' : 'secondary'
+                              leave.leaveType === 'vacation' ? 'success' :
+                              leave.leaveType === 'half_day' ? 'warning' : 'secondary'
                             } className="text-capitalize">
                               {LEAVE_TYPE_DETAILS[leave.leaveType]?.name || leave.leaveType}
                             </Badge>
@@ -284,6 +287,24 @@ const MyLeaves = () => {
                 </Table>
               )}
             </Card.Body>
+            <Card.Footer className="bg-light border-top-0">
+              <div className="text-center py-2">
+                <small className="text-muted">
+                  Need to work from home?{' '}
+                  <a 
+                    href="#" 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setShowWFHModal(true);
+                    }}
+                    className="text-decoration-none text-secondary"
+                    style={{ fontSize: '0.9rem' }}
+                  >
+                    Apply here
+                  </a>
+                </small>
+              </div>
+            </Card.Footer>
           </Card>
         </Col>
       </Row>
@@ -412,6 +433,16 @@ const MyLeaves = () => {
           </Modal.Footer>
         </Form>
       </Modal>
+
+      {/* Apply for WFH Modal */}
+      <ApplyWFHModal
+        show={showWFHModal}
+        onHide={() => setShowWFHModal(false)}
+        onSuccess={() => {
+          // Optionally refresh data or show success message
+          toast.success("WFH request submitted successfully!");
+        }}
+      />
     </Container>
   );
 };

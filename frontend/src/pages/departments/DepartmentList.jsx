@@ -17,6 +17,7 @@ import {
   ProgressBar,
   OverlayTrigger,
   Tooltip,
+  Spinner,
 } from "react-bootstrap";
 import {
   FaPlus,
@@ -168,23 +169,41 @@ const DepartmentList = () => {
         setAnalytics(response);
       } else {
         console.warn('getAllDepartmentsAnalytics function not available');
-        setAnalytics(null);
+        // Set fallback analytics data
+        setAnalytics({
+          overallStats: {
+            totalDepartments: 0,
+            activeDepartments: 0,
+            totalEmployees: 0,
+            departmentsWithHead: 0
+          }
+        });
       }
     } catch (error) {
       console.error("Failed to fetch analytics:", error);
-      setAnalytics(null);
+      // Set fallback analytics data on error
+      setAnalytics({
+        overallStats: {
+          totalDepartments: 0,
+          activeDepartments: 0,
+          totalEmployees: 0,
+          departmentsWithHead: 0
+        }
+      });
     }
   };
 
   const fetchDepartmentAnalytics = async (id) => {
     try {
+      setShowAnalyticsModal(true); // Show modal immediately with loading state
       const response = await departmentApi.getDepartmentAnalytics(id);
-      // The API already returns response.data, so use it directly
-      setSelectedDeptAnalytics(response);
-      setShowAnalyticsModal(true);
+      // The API returns response.data from axios, which should contain the analytics
+      console.log('Analytics response:', response);
+      setSelectedDeptAnalytics(response.data || response);
     } catch (error) {
       console.error("Failed to fetch department analytics:", error);
       toast.error("Failed to fetch department analytics");
+      setShowAnalyticsModal(false); // Close modal on error
     }
   };
 
@@ -330,7 +349,7 @@ const DepartmentList = () => {
       </div>
 
       {/* Enhanced Analytics Dashboard */}
-      {analytics && (
+      {analytics && analytics.overallStats && (
         <Row className="mb-4">
           <Col lg={3} md={6} className="mb-3">
             <Card className="border-0 shadow-sm h-100">
@@ -342,7 +361,7 @@ const DepartmentList = () => {
                 </div>
                 <div className="flex-grow-1">
                   <h3 className="mb-1 text-primary fw-bold">
-                    {analytics.overallStats.totalDepartments}
+                    {analytics.overallStats.totalDepartments || 0}
                   </h3>
                   <p className="text-muted mb-0 small">Total Departments</p>
                   <div className="mt-1">
@@ -365,12 +384,12 @@ const DepartmentList = () => {
                 </div>
                 <div className="flex-grow-1">
                   <h3 className="mb-1 text-success fw-bold">
-                    {analytics.overallStats.activeDepartments}
+                    {analytics.overallStats.activeDepartments || 0}
                   </h3>
                   <p className="text-muted mb-0 small">Active Departments</p>
                   <div className="mt-1">
                     <ProgressBar 
-                      now={(analytics.overallStats.activeDepartments / analytics.overallStats.totalDepartments) * 100} 
+                      now={analytics.overallStats.totalDepartments > 0 ? (analytics.overallStats.activeDepartments / analytics.overallStats.totalDepartments) * 100 : 0} 
                       size="sm" 
                       variant="success"
                     />
@@ -389,12 +408,12 @@ const DepartmentList = () => {
                 </div>
                 <div className="flex-grow-1">
                   <h3 className="mb-1 text-info fw-bold">
-                    {analytics.overallStats.totalEmployees}
+                    {analytics.overallStats.totalEmployees || 0}
                   </h3>
                   <p className="text-muted mb-0 small">Total Employees</p>
                   <div className="mt-1">
                     <small className="text-info">
-                      Avg: {Math.round(analytics.overallStats.totalEmployees / analytics.overallStats.totalDepartments)} per dept
+                      Avg: {analytics.overallStats.totalDepartments > 0 ? Math.round(analytics.overallStats.totalEmployees / analytics.overallStats.totalDepartments) : 0} per dept
                     </small>
                   </div>
                 </div>
@@ -411,11 +430,11 @@ const DepartmentList = () => {
                 </div>
                 <div className="flex-grow-1">
                   <h3 className="mb-1 text-warning fw-bold">
-                    {analytics.overallStats.departmentsWithHead}
+                    {analytics.overallStats.departmentsWithHead || 0}
                   </h3>
                   <p className="text-muted mb-0 small">With Department Head</p>
                   <div className="mt-1">
-                    {analytics.overallStats.departmentsWithHead === analytics.overallStats.totalDepartments ? (
+                    {(analytics.overallStats.departmentsWithHead || 0) === (analytics.overallStats.totalDepartments || 0) ? (
                       <small className="text-success">
                         <FaCheckCircle className="me-1" />
                         All assigned
@@ -423,7 +442,7 @@ const DepartmentList = () => {
                     ) : (
                       <small className="text-warning">
                         <FaExclamationTriangle className="me-1" />
-                        {analytics.overallStats.totalDepartments - analytics.overallStats.departmentsWithHead} pending
+                        {(analytics.overallStats.totalDepartments || 0) - (analytics.overallStats.departmentsWithHead || 0)} pending
                       </small>
                     )}
                   </div>
@@ -949,11 +968,11 @@ const DepartmentList = () => {
       >
         <Modal.Header closeButton>
           <Modal.Title>
-            Department Analytics - {selectedDeptAnalytics?.department.name}
+            Department Analytics - {selectedDeptAnalytics?.department?.name || 'Loading...'}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          {selectedDeptAnalytics && (
+          {selectedDeptAnalytics && selectedDeptAnalytics.stats ? (
             <>
               {/* Statistics Cards */}
               <Row className="mb-4">
@@ -961,7 +980,7 @@ const DepartmentList = () => {
                   <Card className="text-center">
                     <Card.Body>
                       <h4 className="text-primary">
-                        {selectedDeptAnalytics.stats.totalEmployees}
+                        {selectedDeptAnalytics.stats.totalEmployees || 0}
                       </h4>
                       <small className="text-muted">Total Employees</small>
                     </Card.Body>
@@ -971,7 +990,7 @@ const DepartmentList = () => {
                   <Card className="text-center">
                     <Card.Body>
                       <h4 className="text-success">
-                        {selectedDeptAnalytics.stats.activeEmployees}
+                        {selectedDeptAnalytics.stats.activeEmployees || 0}
                       </h4>
                       <small className="text-muted">Active</small>
                     </Card.Body>
@@ -981,7 +1000,7 @@ const DepartmentList = () => {
                   <Card className="text-center">
                     <Card.Body>
                       <h4 className="text-warning">
-                        {selectedDeptAnalytics.stats.inactiveEmployees}
+                        {selectedDeptAnalytics.stats.inactiveEmployees || 0}
                       </h4>
                       <small className="text-muted">Inactive</small>
                     </Card.Body>
@@ -1015,29 +1034,29 @@ const DepartmentList = () => {
                     <Col md={6}>
                       <p>
                         <strong>Name:</strong>{" "}
-                        {selectedDeptAnalytics.department.name}
+                        {selectedDeptAnalytics.department?.name || 'N/A'}
                       </p>
                       <p>
                         <strong>Description:</strong>{" "}
-                        {selectedDeptAnalytics.department.description || "N/A"}
+                        {selectedDeptAnalytics.department?.description || "N/A"}
                       </p>
                     </Col>
                     <Col md={6}>
                       <p>
                         <strong>Head:</strong>{" "}
-                        {selectedDeptAnalytics.department.head?.name ||
+                        {selectedDeptAnalytics.department?.head?.name ||
                           "Not Assigned"}
                       </p>
                       <p>
                         <strong>Status:</strong>{" "}
                         <Badge
                           bg={
-                            selectedDeptAnalytics.department.status === "active"
+                            selectedDeptAnalytics.department?.status === "active"
                               ? "success"
                               : "secondary"
                           }
                         >
-                          {selectedDeptAnalytics.department.status}
+                          {selectedDeptAnalytics.department?.status || 'N/A'}
                         </Badge>
                       </p>
                     </Col>
@@ -1052,7 +1071,7 @@ const DepartmentList = () => {
                     <Card.Body>
                       <h6>Employees by Role</h6>
                       <ListGroup>
-                        {Object.entries(
+                        {selectedDeptAnalytics.roleDistribution && Object.entries(
                           selectedDeptAnalytics.roleDistribution
                         ).map(([role, count]) => (
                           <ListGroup.Item
@@ -1072,7 +1091,7 @@ const DepartmentList = () => {
                     <Card.Body>
                       <h6>Employees by Position</h6>
                       <ListGroup>
-                        {Object.entries(
+                        {selectedDeptAnalytics.positionDistribution && Object.entries(
                           selectedDeptAnalytics.positionDistribution
                         ).map(([position, count]) => (
                           <ListGroup.Item
@@ -1131,6 +1150,11 @@ const DepartmentList = () => {
                 </Tab>
               </Tabs>
             </>
+          ) : (
+            <div className="text-center py-5">
+              <Spinner animation="border" variant="primary" />
+              <p className="mt-3 text-muted">Loading analytics...</p>
+            </div>
           )}
         </Modal.Body>
         <Modal.Footer>

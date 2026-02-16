@@ -1,10 +1,15 @@
-import { Table, Badge, Button } from 'react-bootstrap';
+import { Table, Badge, Button, Dropdown } from 'react-bootstrap';
 import { FaEye, FaClock, FaExclamationTriangle, FaCalendarAlt } from 'react-icons/fa';
 import { formatDate } from '../../utils/helpers';
 import './WorkItemList.css';
 
-const WorkItemList = ({ workItems, onViewItem, emptyMessage }) => {
+const WorkItemList = ({ workItems, onViewItem, onStatusChange, currentUser, emptyMessage }) => {
   const onView = onViewItem; // Support both prop names for compatibility
+  
+  const canEdit = (workItem) => {
+    return workItem.assignedTo?._id === currentUser?._id || 
+           ['admin', 'superadmin', 'hod'].includes(currentUser?.role);
+  };
   
   const getStatusColor = (status) => {
     const colors = {
@@ -154,14 +159,54 @@ const WorkItemList = ({ workItems, onViewItem, emptyMessage }) => {
                     </div>
                   </td>
 
-                  {/* Status Column - Clean badge design */}
+                  {/* Status Column - Interactive status change */}
                   <td className="py-3">
-                    <Badge 
-                      bg={getStatusColor(item.status)} 
-                      className="work-item-status-badge"
-                    >
-                      {item.status}
-                    </Badge>
+                    {canEdit(item) && onStatusChange ? (
+                      <Dropdown align="end">
+                        <Dropdown.Toggle
+                          as={Badge}
+                          bg={getStatusColor(item.status)}
+                          className="status-table-dropdown"
+                          style={{
+                            cursor: 'pointer',
+                            border: 'none',
+                            fontSize: '0.75rem',
+                            padding: '6px 10px',
+                            minWidth: '80px',
+                            textAlign: 'center'
+                          }}
+                        >
+                          {item.status} ▼
+                        </Dropdown.Toggle>
+
+                        <Dropdown.Menu className="status-table-dropdown-menu">
+                          {['To Do', 'In Progress', 'Review', 'Done'].map((status) => (
+                            <Dropdown.Item
+                              key={status}
+                              onClick={() => onStatusChange(item._id, status, item.type)}
+                              disabled={status === item.status}
+                              className={`status-table-dropdown-item ${status === item.status ? 'active' : ''}`}
+                            >
+                              <Badge 
+                                bg={getStatusColor(status)} 
+                                className="me-2"
+                                style={{ fontSize: '0.7rem', minWidth: '60px', textAlign: 'center' }}
+                              >
+                                {status}
+                              </Badge>
+                              {status === item.status && <span className="text-success">✓</span>}
+                            </Dropdown.Item>
+                          ))}
+                        </Dropdown.Menu>
+                      </Dropdown>
+                    ) : (
+                      <Badge 
+                        bg={getStatusColor(item.status)} 
+                        className="work-item-status-badge"
+                      >
+                        {item.status}
+                      </Badge>
+                    )}
                   </td>
 
                   {/* Priority Column - Visual priority indicators */}

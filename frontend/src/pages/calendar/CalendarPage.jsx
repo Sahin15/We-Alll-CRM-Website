@@ -113,7 +113,7 @@ const CalendarPage = () => {
     }
   };
 
-  const handleUpdateStatus = async (itemId, newStatus) => {
+  const handleUpdateStatus = async (itemId, newStatus, itemType) => {
     try {
       await workItemApi.updateStatus(itemId, newStatus);
       toast.success('Status updated successfully!');
@@ -121,6 +121,18 @@ const CalendarPage = () => {
     } catch (error) {
       console.error('Error updating status:', error);
       toast.error('Failed to update status');
+      throw error;
+    }
+  };
+
+  const handleAddComment = async (workItemId, commentText) => {
+    try {
+      const result = await workItemApi.addComment(workItemId, commentText);
+      // Refresh the work items to get updated data
+      loadWorkItems();
+      return result.data || result;
+    } catch (error) {
+      console.error('Error adding comment:', error);
       throw error;
     }
   };
@@ -356,6 +368,7 @@ const CalendarPage = () => {
           workItem={selectedItem}
           onUpdate={handleUpdateStatus}
           onRefresh={loadWorkItems}
+          onAddComment={handleAddComment}
           currentUser={user}
         />
       )}

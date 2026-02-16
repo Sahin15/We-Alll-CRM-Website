@@ -1,11 +1,13 @@
 import Client from "../models/clientModel.js";
 import Project from "../models/projectModel.js";
+import Department from "../models/departmentModel.js";
 import Bill from "../models/billModel.js";
 import Payment from "../models/paymentModel.js";
 import Notification from "../models/notificationModel.js";
 import User from "../models/userModel.js";
 import logger from '../utils/logger.js';
 import { buildTextSearch } from '../utils/queryOptimizer.js';
+import { securityService } from '../services/securityService.js';
 
 // Add new client
 export const createClient = async (req, res) => {
@@ -57,20 +59,20 @@ export const createClient = async (req, res) => {
 
     // Prepare client data, excluding empty enum fields
     const clientData = {
-      name,
-      email,
+      name: securityService.sanitizeClientData(name),
+      email: securityService.sanitizeClientData(email),
       phone,
       whatsappnumber,
-      company,
-      ownername,
-      address,
-      industry,
-      website,
-      targetAudience,
-      previousChallenges,
-      legalGuidelines,
+      company: securityService.sanitizeClientData(company),
+      ownername: securityService.sanitizeClientData(ownername),
+      address: securityService.sanitizeClientData(address),
+      industry: securityService.sanitizeClientData(industry),
+      website: securityService.sanitizeClientData(website),
+      targetAudience: securityService.sanitizeClientData(targetAudience),
+      previousChallenges: securityService.sanitizeClientData(previousChallenges),
+      legalGuidelines: securityService.sanitizeClientData(legalGuidelines),
       yearlyTurnover,
-      expectations,
+      expectations: securityService.sanitizeClientData(expectations),
     };
 
     // Add createdBy if user is authenticated
@@ -218,8 +220,9 @@ export const getClients = async (req, res) => {
     
     // Optimized query WITHOUT pagination (backward compatible)
     const clients = await Client.find(query)
-      .select('name email phone company serviceCompany status industry isVip vipLevel vipSince createdAt')
+      .select('name email phone whatsappnumber company ownername address industry website targetAudience audienceGender previousChallenges legalGuidelines yearlyTurnover expectations serviceCompany status isVip vipLevel vipSince createdAt assignedDepartments')
       .populate('createdBy', 'name email')
+      .populate('assignedDepartments', 'name')
       .sort({ isVip: -1, vipLevel: 1, createdAt: -1 }) // VIP clients first
       .lean();
     
@@ -236,10 +239,9 @@ export const getClients = async (req, res) => {
 // Get single client by ID
 export const getClientById = async (req, res) => {
   try {
-    const client = await Client.findById(req.params.id).populate(
-      "createdBy",
-      "name email"
-    );
+    const client = await Client.findById(req.params.id)
+      .populate("createdBy", "name email")
+      .populate("assignedDepartments", "name");
     if (!client) return res.status(404).json({ message: "Client not found" });
     res.status(200).json(client);
   } catch (error) {
@@ -248,21 +250,137 @@ export const getClientById = async (req, res) => {
   }
 };
 
+// Get clients accessible to employee/HoD (based on department assignments)
+export const getEmployeeClients = async (req, res) => {
+  try {
+    const { search, status, industry } = req.query;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    
+    logger.info(`🔍 Getting clients for user: ${userId} (${userRole})`);
+    
+    let clientIds = [];
+    
+    if (userRole === 'hod') {
+      // HoD can see clients assigned to their department
+      const user = await User.findById(userId).select('headOfDepartment isHeadOfDepartment');
+      
+      if (user.isHeadOfDepartment && user.headOfDepartment) {
+        // Check if this is an administrative department
+        const department = await Department.findById(user.headOfDepartment).select('type');
+        
+        if (department && department.type === 'administrative') {
+          // Administrative department HoDs can see all clients
+          logger.info(`📋 Administrative HoD - access to all clients`);
+          const allClients = await Client.find().select('_id').lean();
+          clientIds = allClients.map(client => client._id.toString());
+        } else {
+          // Operational department HoDs see only clients assigned to their department
+          const departmentClients = await Client.find({
+            assignedDepartments: user.headOfDepartment
+          }).select('_id').lean();
+          
+          clientIds = departmentClients.map(client => client._id.toString());
+          logger.info(`📋 Operational HoD department clients: [${clientIds.join(', ')}]`);
+        }
+      }
+    } else if (userRole === 'employee') {
+      // Check if employee is in an administrative department
+      const user = await User.findById(userId).populate('department', 'type');
+      
+      if (user.department && user.department.type === 'administrative') {
+        // Administrative department employees can see all clients
+        logger.info(`📋 Administrative employee - access to all clients`);
+        const allClients = await Client.find().select('_id').lean();
+        clientIds = allClients.map(client => client._id.toString());
+      } else {
+        // Regular employees can see clients from projects they're assigned to
+        const userProjects = await Project.find({
+          $or: [
+            { assignedUsers: userId },
+            { projectHead: userId },
+            { 'teamMembers.user': userId },
+            { createdBy: userId }
+          ]
+        })
+        .select('client')
+        .populate('client', '_id')
+        .lean();
+        
+        clientIds = [...new Set(
+          userProjects
+            .filter(project => project.client)
+            .map(project => project.client._id.toString())
+        )];
+        
+        logger.info(`📋 Employee project clients: [${clientIds.join(', ')}]`);
+      }
+    }
+    
+    if (clientIds.length === 0) {
+      logger.info(`❌ No clients found for user: ${userId}`);
+      return res.status(200).json([]);
+    }
+    
+    // Build query for clients
+    let query = { _id: { $in: clientIds } };
+    
+    // Apply additional filters
+    if (search) {
+      Object.assign(query, buildTextSearch(search, ['name', 'email', 'company', 'ownername']));
+    }
+    
+    if (status) query.status = status;
+    if (industry) query.industry = industry;
+    
+    logger.info('🔍 Final client query:', query);
+    
+    // Get filtered clients with department information
+    const clients = await Client.find(query)
+      .select('name email phone whatsappnumber company ownername address industry website targetAudience audienceGender previousChallenges legalGuidelines yearlyTurnover expectations serviceCompany status isVip vipLevel vipSince createdAt assignedDepartments')
+      .populate('createdBy', 'name email')
+      .populate('assignedDepartments', 'name')
+      .sort({ isVip: -1, vipLevel: 1, createdAt: -1 })
+      .lean();
+    
+    logger.success(`✅ Found ${clients.length} accessible clients for user: ${userId}`);
+    clients.forEach(client => {
+      logger.info(`  - Client: "${client.name}" (Departments: ${client.assignedDepartments?.map(d => d.name).join(', ') || 'None'})`);
+    });
+    
+    res.status(200).json(clients);
+  } catch (error) {
+    logger.error("❌ Error fetching employee clients:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 // Update client
 export const updateClient = async (req, res) => {
   try {
+    // Sanitize string fields
+    const sanitizedData = { ...req.body };
+    
+    // Apply light sanitization to string fields
+    const stringFields = ['name', 'email', 'company', 'ownername', 'address', 'industry', 'website', 'targetAudience', 'previousChallenges', 'legalGuidelines', 'expectations'];
+    stringFields.forEach(field => {
+      if (sanitizedData[field]) {
+        sanitizedData[field] = securityService.sanitizeClientData(sanitizedData[field]);
+      }
+    });
+    
     // Convert phone numbers to Number type if provided
-    if (req.body.phone) {
-      req.body.phone = Number(req.body.phone);
+    if (sanitizedData.phone) {
+      sanitizedData.phone = Number(sanitizedData.phone);
     }
-    if (req.body.whatsappnumber) {
-      req.body.whatsappnumber = Number(req.body.whatsappnumber);
+    if (sanitizedData.whatsappnumber) {
+      sanitizedData.whatsappnumber = Number(sanitizedData.whatsappnumber);
     }
-    if (req.body.yearlyTurnover) {
-      req.body.yearlyTurnover = Number(req.body.yearlyTurnover);
+    if (sanitizedData.yearlyTurnover) {
+      sanitizedData.yearlyTurnover = Number(sanitizedData.yearlyTurnover);
     }
 
-    const client = await Client.findByIdAndUpdate(req.params.id, req.body, {
+    const client = await Client.findByIdAndUpdate(req.params.id, sanitizedData, {
       new: true,
     });
     if (!client) return res.status(404).json({ message: "Client not found" });
@@ -597,7 +715,107 @@ export const renewClientPlan = async (req, res) => {
   }
 };
 
-// Toggle VIP status for client
+// Assign departments to client (HR/Manager only)
+export const assignDepartmentsToClient = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { departmentIds } = req.body;
+
+    // Only HR, Manager, Admin, SuperAdmin can assign departments
+    if (!['hr', 'manager', 'admin', 'superadmin'].includes(req.user.role)) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Access denied. HR/Manager privileges required to assign departments.' 
+      });
+    }
+
+    if (!departmentIds || !Array.isArray(departmentIds)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Department IDs array is required' 
+      });
+    }
+
+    const client = await Client.findById(id);
+    if (!client) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Client not found" 
+      });
+    }
+
+    // Update client with assigned departments
+    client.assignedDepartments = departmentIds;
+    client.departmentAssignedBy = req.user.id;
+    client.departmentAssignedAt = new Date();
+
+    await client.save();
+
+    // Populate departments for response
+    await client.populate('assignedDepartments', 'name');
+
+    logger.info(`Departments assigned to client: ${client.name} - Departments: ${client.assignedDepartments.map(d => d.name).join(', ')}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Departments assigned successfully',
+      client: {
+        _id: client._id,
+        name: client.name,
+        email: client.email,
+        assignedDepartments: client.assignedDepartments,
+        departmentAssignedBy: client.departmentAssignedBy,
+        departmentAssignedAt: client.departmentAssignedAt
+      }
+    });
+  } catch (error) {
+    logger.error("Error assigning departments to client:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error", 
+      error: error.message 
+    });
+  }
+};
+
+// Get clients by department (for HoDs)
+export const getClientsByDepartment = async (req, res) => {
+  try {
+    const { departmentId } = req.params;
+    const { search, status, industry } = req.query;
+
+    // Build query
+    let query = { assignedDepartments: departmentId };
+    
+    // Apply filters
+    if (search) {
+      Object.assign(query, buildTextSearch(search, ['name', 'email', 'company', 'ownername']));
+    }
+    
+    if (status) query.status = status;
+    if (industry) query.industry = industry;
+
+    const clients = await Client.find(query)
+      .select('name email phone company serviceCompany status industry isVip vipLevel vipSince createdAt assignedDepartments')
+      .populate('createdBy', 'name email')
+      .populate('assignedDepartments', 'name')
+      .sort({ isVip: -1, vipLevel: 1, createdAt: -1 })
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      data: clients,
+      count: clients.length
+    });
+  } catch (error) {
+    logger.error("Error getting clients by department:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error", 
+      error: error.message 
+    });
+  }
+};
 export const toggleClientVip = async (req, res) => {
   try {
     const { id } = req.params;

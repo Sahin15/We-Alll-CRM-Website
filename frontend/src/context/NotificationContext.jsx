@@ -113,52 +113,49 @@ export const NotificationProvider = ({ children }) => {
 
   // Enable/disable real-time notifications
   const enableRealTime = useCallback(async () => {
-    const hasPermission = await notificationService.requestNotificationPermission();
-    if (hasPermission) {
-      setRealTimeEnabled(true);
-      notificationService.startPolling(30000); // Poll every 30 seconds
-      
-      // Add listener for real-time updates
-      notificationService.addListener((data) => {
-        if (data.type === 'NEW_NOTIFICATIONS') {
-          setUnreadCount(data.totalUnread);
-          // Optionally refresh notifications list
-          fetchNotifications();
-        } else if (data.type === 'COUNT_UPDATE') {
-          setUnreadCount(data.count);
-        }
-      });
+    try {
+      const hasPermission = await notificationService.requestPermission();
+      if (hasPermission) {
+        setRealTimeEnabled(true);
+        // Permission request already initializes messaging
+      }
+      return hasPermission;
+    } catch (error) {
+      console.error("Error enabling real-time notifications:", error);
+      return false;
     }
-    return hasPermission;
-  }, [fetchNotifications]);
+  }, []);
 
   const disableRealTime = useCallback(() => {
     setRealTimeEnabled(false);
-    notificationService.stopPolling();
+    // Note: Firebase messaging doesn't need explicit stopping
   }, []);
 
-  // Fetch notifications on mount (only once)
+  // Initialize notifications on mount
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
     
     fetchNotifications();
     
-    // Start real-time service if user is logged in
+    // Check if notifications are already enabled
     const initRealTime = async () => {
       const permission = notificationService.getPermissionStatus();
       if (permission === 'granted') {
-        enableRealTime();
+        setRealTimeEnabled(true);
+        // Only initialize if not already initialized
+        if (!notificationService.isServiceInitialized()) {
+          try {
+            await notificationService.initializeMessaging();
+          } catch (error) {
+            console.error("Error initializing messaging:", error);
+          }
+        }
       }
     };
     
     initRealTime();
-    
-    // Cleanup on unmount
-    return () => {
-      notificationService.stopPolling();
-    };
-  }, [fetchNotifications, enableRealTime]); // Added dependencies
+  }, [fetchNotifications]);
 
   const value = {
     notifications,

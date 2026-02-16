@@ -31,7 +31,7 @@ const ReportsAnalytics = () => {
         attendanceApi.getAllAttendance({}),
       ]);
 
-      const employees = usersRes.data?.filter((u) => u.role === "employee") || [];
+      const employees = usersRes.data?.filter((u) => u.role === "employee" || u.role === "hod") || [];
       const leaves = leavesRes.data || [];
       const attendance = attendanceRes.data || [];
 
@@ -61,7 +61,17 @@ const ReportsAnalytics = () => {
       const ageCount = { "18-25": 0, "26-35": 0, "36-45": 0, "46+": 0 };
       employees.forEach((emp) => {
         if (emp.dateOfBirth) {
-          const age = new Date().getFullYear() - new Date(emp.dateOfBirth).getFullYear();
+          const birthDate = new Date(emp.dateOfBirth);
+          const today = new Date();
+          let age = today.getFullYear() - birthDate.getFullYear();
+          
+          // Adjust age if birthday hasn't occurred this year yet
+          const monthDiff = today.getMonth() - birthDate.getMonth();
+          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+          }
+          
+          // Only count valid ages (18+)
           if (age >= 18 && age <= 25) ageCount["18-25"]++;
           else if (age >= 26 && age <= 35) ageCount["26-35"]++;
           else if (age >= 36 && age <= 45) ageCount["36-45"]++;

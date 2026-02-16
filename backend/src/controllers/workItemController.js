@@ -4,13 +4,7 @@ import User from "../models/userModel.js";
 import { validateStatusTransition, VALID_STATUSES } from "../utils/statusValidation.js";
 import { getWorkflowByDepartment, getWorkflowUIConfig, validateDepartmentFields } from "../utils/departmentWorkflows.js";
 import { syncProjectProgress } from "../services/projectProgressService.js";
-import {
-  notifyWorkItemAssigned,
-  notifyReviewRequested,
-  notifyStatusChanged,
-  notifyWorkItemCompleted,
-  notifyWorkItemCommented,
-} from "../services/notificationService.js";
+import notificationService from "../services/notificationService.js";
 import { logWorkItemOperation, logSecurityEvent } from "../utils/auditLogger.js";
 
 // @desc    Get all work items for current user (My Work)
@@ -60,6 +54,7 @@ const getMyWorkItems = async (req, res) => {
       })
       .populate("assignedTo", "name email")
       .populate("createdBy", "name email")
+      .populate("comments.user", "name email")
       .populate({
         path: "slotAssignment.assignedSlot",
         select: "slotNumber slotIdentifier slotType"
@@ -175,6 +170,7 @@ const getAllWorkItems = async (req, res) => {
       })
       .populate("assignedTo", "name email")
       .populate("createdBy", "name email")
+      .populate("comments.user", "name email")
       .populate({
         path: "slotAssignment.assignedSlot",
         select: "slotNumber slotIdentifier slotType"
@@ -657,7 +653,7 @@ const updateWorkItemStatus = async (req, res) => {
     }
     
     // Check if user has permission
-    const isAssigned = workItem.assignedTo.toString() === req.user._id.toString();
+    const isAssigned = workItem.assignedTo && workItem.assignedTo.toString() === req.user._id.toString();
     const project = await Project.findById(workItem.project);
     const isProjectHead = project?.projectHead?.toString() === req.user._id.toString();
     const isAdmin = ["admin", "superadmin", "hod"].includes(req.user.role);
@@ -679,28 +675,75 @@ const updateWorkItemStatus = async (req, res) => {
     workItem.status = status;
     workItem.modifiedBy = req.user._id;
     
+    // Add automatic status change comment
+    workItem.comments.push({
+      user: req.user._id,
+      text: `Status changed from "${oldStatus}" to "${status}"`,
+      createdAt: new Date(),
+      isSystemComment: true
+    });
+    
     await workItem.save();
     
-    // Update project progress automatically
-    await syncProjectProgress(workItem.project.toString());
+    // Populate the work item with user data for comments
+    await workItem.populate("comments.user", "name email");
     
-    // Send notifications based on status change
-    if (status === "Review") {
-      await notifyReviewRequested(workItem, req.user);
-    } else if (status === "Done") {
-      await notifyWorkItemCompleted(workItem);
-    } else {
-      await notifyStatusChanged(workItem, oldStatus, status, req.user);
+    // Update project progress automatically (with error handling)
+    try {
+      await syncProjectProgress(workItem.project.toString());
+    } catch (progressError) {
+      console.error("⚠️ Error updating project progress:", progressError);
+      // Don't fail the request for this
     }
     
+    // Send notifications based on status change (with error handling)
+    try {
+      if (status === "Review") {
+        // Notify project manager or reviewer
+        if (project?.manager) {
+          await notificationService.sendReviewRequestedNotification(
+            project.manager,
+            workItem.title,
+            req.user.name
+          );
+        }
+      } else if (status === "Done") {
+        // Notify assignee and project manager
+        if (workItem.assignedTo) {
+          await notificationService.sendWorkItemCompletedNotification(
+            workItem.assignedTo,
+            workItem.title,
+            req.user.name
+          );
+        }
+      } else {
+        // Notify assignee of status change
+        if (workItem.assignedTo && workItem.assignedTo.toString() !== req.user._id.toString()) {
+          await notificationService.sendStatusChangedNotification(
+            workItem.assignedTo,
+            workItem.title,
+            oldStatus,
+            status
+          );
+        }
+      }
+    } catch (notificationError) {
+      console.error("⚠️ Error sending work item notification:", notificationError);
+    }
+    
+    // Populate work item data
     await workItem.populate("project", "name");
     await workItem.populate("assignedTo", "name email");
     
-    // Log audit event
-    logWorkItemOperation("STATUS_UPDATE", workItem._id.toString(), req.user._id.toString(), {
-      oldStatus,
-      newStatus: status,
-    });
+    // Log audit event (with error handling)
+    try {
+      logWorkItemOperation("STATUS_UPDATE", workItem._id.toString(), req.user._id.toString(), {
+        oldStatus,
+        newStatus: status,
+      });
+    } catch (auditError) {
+      console.error("⚠️ Error logging audit event:", auditError);
+    }
     
     res.status(200).json({
       success: true,
@@ -1026,7 +1069,31 @@ const addComment = async (req, res) => {
     const newComment = workItem.comments[workItem.comments.length - 1];
     
     // Send notification
-    await notifyWorkItemCommented(workItem, newComment, req.user);
+    try {
+      // Notify assignee if they didn't make the comment
+      if (workItem.assignedTo && workItem.assignedTo.toString() !== req.user._id.toString()) {
+        await notificationService.sendWorkItemCommentedNotification(
+          workItem.assignedTo,
+          workItem.title,
+          req.user.name,
+          newComment.text
+        );
+      }
+      
+      // Also notify project manager if different from assignee and commenter
+      if (workItem.project && workItem.project.manager && 
+          workItem.project.manager.toString() !== req.user._id.toString() &&
+          workItem.project.manager.toString() !== workItem.assignedTo?.toString()) {
+        await notificationService.sendWorkItemCommentedNotification(
+          workItem.project.manager,
+          workItem.title,
+          req.user.name,
+          newComment.text
+        );
+      }
+    } catch (notificationError) {
+      console.error("⚠️ Error sending comment notification:", notificationError);
+    }
     
     res.status(201).json({
       success: true,
@@ -1040,6 +1107,73 @@ const addComment = async (req, res) => {
       error: {
         code: "SERVER_ERROR",
         message: "Failed to add comment",
+        details: error.message,
+      },
+    });
+  }
+};
+
+// @desc    Delete a comment from work item
+// @route   DELETE /api/work-items/:id/comments/:commentId
+// @access  Private
+const deleteComment = async (req, res) => {
+  try {
+    const { id: workItemId, commentId } = req.params;
+    
+    const workItem = await WorkItem.findById(workItemId);
+    
+    if (!workItem) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: "NOT_FOUND",
+          message: "Work item not found",
+        },
+      });
+    }
+    
+    // Find the comment
+    const comment = workItem.comments.id(commentId);
+    
+    if (!comment) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: "NOT_FOUND",
+          message: "Comment not found",
+        },
+      });
+    }
+    
+    // Check if user has permission to delete the comment
+    const isCommentOwner = comment.user.toString() === req.user._id.toString();
+    const isAdmin = ["admin", "superadmin"].includes(req.user.role);
+    
+    if (!isCommentOwner && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: "FORBIDDEN",
+          message: "You don't have permission to delete this comment",
+        },
+      });
+    }
+    
+    // Remove the comment
+    workItem.comments.pull(commentId);
+    await workItem.save();
+    
+    res.status(200).json({
+      success: true,
+      message: "Comment deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting comment:", error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: "SERVER_ERROR",
+        message: "Failed to delete comment",
         details: error.message,
       },
     });
@@ -1502,6 +1636,7 @@ export {
   restoreWorkItem,
   bulkUpdateWorkItems,
   addComment,
+  deleteComment,
   getCalendarWorkItems,
   getOverdueWorkItems,
   getWorkItemsByProject,

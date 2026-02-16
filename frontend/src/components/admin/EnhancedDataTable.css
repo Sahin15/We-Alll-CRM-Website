@@ -3,7 +3,7 @@
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+  overflow: visible; /* Changed from hidden to allow horizontal scroll */
 }
 
 /* Table Controls */
@@ -13,10 +13,62 @@
   border-bottom: 1px solid #dee2e6;
 }
 
-/* Enhanced Table */
+/* Enhanced Table - Allow horizontal scroll for full information */
 .enhanced-table {
   margin-bottom: 0;
   font-size: 0.875rem;
+  min-width: 1400px; /* Ensure table is wide enough to show all columns */
+  width: max-content; /* Allow table to expand to fit content */
+}
+
+/* Table responsive container - Excel-like horizontal scroll */
+.enhanced-data-table .table-responsive {
+  position: relative;
+  overflow-x: auto !important;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Make scrollbar always visible and prominent (Excel-like) */
+.enhanced-data-table .table-responsive::-webkit-scrollbar {
+  height: 16px !important;
+  background: #f1f3f4;
+  border-radius: 8px;
+}
+
+.enhanced-data-table .table-responsive::-webkit-scrollbar-track {
+  background: #f1f3f4;
+  border-radius: 8px;
+  border: 1px solid #dadce0;
+}
+
+.enhanced-data-table .table-responsive::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #4285f4 0%, #1967d2 100%);
+  border-radius: 8px;
+  border: 2px solid #f1f3f4;
+  min-width: 50px;
+}
+
+.enhanced-data-table .table-responsive::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #1967d2 0%, #174ea6 100%);
+  cursor: grab;
+}
+
+.enhanced-data-table .table-responsive::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(135deg, #174ea6 0%, #0d47a1 100%);
+  cursor: grabbing;
+}
+
+/* Firefox scrollbar styling */
+.enhanced-data-table .table-responsive {
+  scrollbar-width: auto;
+  scrollbar-color: #4285f4 #f1f3f4;
+}
+
+/* Ensure table container has proper positioning context */
+.enhanced-data-table {
+  position: relative;
 }
 
 .enhanced-table th {

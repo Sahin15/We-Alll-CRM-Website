@@ -83,7 +83,22 @@ const userSchema = new mongoose.Schema(
     },
     funBadge: {
       type: String,
-      enum: ["Team Member", "Contributor", "Team Player", "Rockstar", "Rising Star", "Go-Getter"],
+      enum: [
+        "Team Member", 
+        "Contributor", 
+        "Team Player", 
+        "Rockstar", 
+        "Rising Star", 
+        "Go-Getter",
+        "Problem Solver",
+        "Creative Thinker",
+        "Innovation Champion",
+        "Mentor",
+        "Tech Guru",
+        "Communication Expert",
+        "Leadership Potential",
+        "Quality Champion"
+      ],
       default: function() {
         // Randomly assign a fun badge for employees
         if (this.role === 'employee') {
@@ -127,6 +142,37 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["full-time", "part-time", "intern", "freelancer", "contract"],
       default: "full-time",
+    },
+    
+    // Internship Details (only applicable when employmentType is 'intern')
+    internshipDetails: {
+      duration: {
+        type: String,
+        enum: ["3-months", "6-months"],
+      },
+      startDate: {
+        type: Date,
+      },
+      endDate: {
+        type: Date,
+      },
+      stipend: {
+        type: Number,
+      },
+      mentor: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      department: {
+        type: String, // Can be different from main department for cross-functional internships
+      },
+      objectives: {
+        type: String, // Learning objectives for the internship
+      },
+      isActive: {
+        type: Boolean,
+        default: true,
+      },
     },
     reportingManager: {
       type: mongoose.Schema.Types.ObjectId,
@@ -270,6 +316,35 @@ const userSchema = new mongoose.Schema(
     resetPasswordExpire: {
       type: Date,
       select: false,
+    },
+    
+    // FCM Token for push notifications
+    fcmToken: {
+      type: String,
+      select: false, // Hidden by default for security
+    },
+    
+    // Notification preferences
+    notificationPreferences: {
+      email: {
+        type: Boolean,
+        default: true
+      },
+      push: {
+        type: Boolean,
+        default: true
+      },
+      sms: {
+        type: Boolean,
+        default: false
+      },
+      categories: {
+        leaves: { type: Boolean, default: true },
+        salary: { type: Boolean, default: true },
+        meetings: { type: Boolean, default: true },
+        announcements: { type: Boolean, default: true },
+        projects: { type: Boolean, default: true }
+      }
     },
   },
   {

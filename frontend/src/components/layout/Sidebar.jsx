@@ -41,6 +41,19 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Auto-expand groups based on current path
+  useEffect(() => {
+    const currentPath = location.pathname;
+    
+    // Auto-expand Business Management if on leads or clients page
+    if (currentPath.includes('/leads') || currentPath.includes('/clients')) {
+      setExpandedGroups(prev => ({
+        ...prev,
+        'business-management': true
+      }));
+    }
+  }, [location.pathname]);
+
   const toggleGroup = (groupId) => {
     setExpandedGroups(prev => ({
       ...prev,
@@ -63,10 +76,28 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       roles: ["superadmin", "admin", "hr", "accounts", "employee", "client", "hod"],
     },
     {
-      path: "/leads",
+      id: "business-management",
       icon: <FaUserTie />,
-      label: "Leads",
+      label: "Business Management",
       roles: ["admin", "superadmin", "accounts", "hr", "employee", "hod"],
+      isGroup: true,
+      children: [
+        {
+          path: "/leads",
+          icon: <FaUserTie />,
+          label: "Leads",
+        },
+        {
+          path: "/clients",
+          icon: <FaUsers />,
+          label: "Clients",
+          roleLabels: {
+            employee: "My Clients",
+            hod: "My Clients",
+            default: "Clients"
+          }
+        },
+      ],
     },
     {
       id: "billing",
@@ -159,11 +190,6 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           label: "Employees",
         },
         {
-          path: "/clients",
-          icon: <FaUserTie />,
-          label: "Clients",
-        },
-        {
           path: "/departments",
           icon: <FaBuilding />,
           label: "Departments",
@@ -174,6 +200,18 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       path: "/employee/leaves",
       icon: <FaCalendarAlt />,
       label: "My Leaves",
+      roles: ["employee", "hod"],
+    },
+    {
+      path: "/employee/salary-slips",
+      icon: <FaFileInvoiceDollar />,
+      label: "My Salary Slips",
+      roles: ["employee", "hod"],
+    },
+    {
+      path: "/employee/salary-preview",
+      icon: <FaMoneyBillWave />,
+      label: "Salary Preview",
       roles: ["employee", "hod"],
     },
     {
@@ -219,6 +257,12 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           label: "Tracking",
         },
       ],
+    },
+    {
+      path: "/salary-management",
+      icon: <FaMoneyBillWave />,
+      label: "Salary Management",
+      roles: ["admin", "superadmin", "hr"],
     },
     {
       path: "/profile",
@@ -326,7 +370,9 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
               >
                 <span className="sidebar-icon">{item.icon}</span>
                 {!collapsed && (
-                  <span className="sidebar-label">{item.label}</span>
+                  <span className="sidebar-label">
+                    {item.roleLabels ? (item.roleLabels[user?.role] || item.roleLabels.default || item.label) : item.label}
+                  </span>
                 )}
               </Nav.Link>
             );

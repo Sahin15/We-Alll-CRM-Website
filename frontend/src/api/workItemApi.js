@@ -117,6 +117,28 @@ export const workItemApi = {
       newAssigneeId 
     });
     return response.data;
+  },
+
+  /**
+   * Add a comment to a work item
+   * @param {string} id - Work item ID
+   * @param {string} text - Comment text
+   * @returns {Promise} Added comment
+   */
+  addComment: async (id, text) => {
+    const response = await api.post(`/work-items/${id}/comments`, { text });
+    return response.data;
+  },
+
+  /**
+   * Delete a comment from a work item
+   * @param {string} workItemId - Work item ID
+   * @param {string} commentId - Comment ID
+   * @returns {Promise} Deletion result
+   */
+  deleteComment: async (workItemId, commentId) => {
+    const response = await api.delete(`/work-items/${workItemId}/comments/${commentId}`);
+    return response.data;
   }
 };
 

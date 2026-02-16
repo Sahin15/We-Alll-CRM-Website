@@ -12,6 +12,13 @@ const departmentSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    // Department type to distinguish administrative vs operational departments
+    type: {
+      type: String,
+      enum: ["operational", "administrative"],
+      default: "operational",
+      required: true,
+    },
     head: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

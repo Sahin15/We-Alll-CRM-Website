@@ -10,6 +10,8 @@ import {
   Form,
   Dropdown,
   Modal,
+  Table,
+  ProgressBar,
 } from "react-bootstrap";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -25,19 +27,30 @@ import {
   FaBell,
   FaCheck,
   FaTimes,
+  FaHistory,
+  FaChartLine,
+  FaClock,
+  FaExclamationTriangle,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
+import { useAuth } from "../../context/AuthContext";
 import { leadApi } from "../../api/leadApi";
+import emailService from "../../services/emailService";
 import { formatDate } from "../../utils/helpers";
 
 const LeadDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [lead, setLead] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState("");
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
   const [showAllNotes, setShowAllNotes] = useState(false);
+  const [emailHistory, setEmailHistory] = useState([]);
+  const [emailStats, setEmailStats] = useState(null);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [showAllEmails, setShowAllEmails] = useState(false);
   const [followUpData, setFollowUpData] = useState({
     type: "Call",
     scheduledDate: "",
@@ -49,7 +62,23 @@ const LeadDetails = () => {
 
   useEffect(() => {
     fetchLeadDetails();
+    fetchEmailHistory();
   }, [id]);
+
+  const fetchEmailHistory = async () => {
+    try {
+      setEmailLoading(true);
+      const response = await emailService.getLeadEmailHistory(id);
+      if (response.success) {
+        setEmailHistory(response.data.campaigns);
+        setEmailStats(response.data.stats);
+      }
+    } catch (error) {
+      console.error('Error fetching email history:', error);
+    } finally {
+      setEmailLoading(false);
+    }
+  };
 
   const fetchLeadDetails = async () => {
     try {
@@ -60,6 +89,28 @@ const LeadDetails = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Check if current user can edit this lead
+  const canEditLead = () => {
+    if (!user || !lead) return false;
+    
+    // Admin and superadmin can edit any lead
+    if (user.role === 'admin' || user.role === 'superadmin') {
+      return true;
+    }
+    
+    // User can edit if they are assigned to the lead
+    if (lead.assignedTo && lead.assignedTo._id === user.id) {
+      return true;
+    }
+    
+    // User can edit if they created the lead
+    if (lead.createdBy && lead.createdBy._id === user.id) {
+      return true;
+    }
+    
+    return false;
   };
 
   const getStatusVariant = (status) => {
@@ -87,6 +138,10 @@ const LeadDetails = () => {
     switch (source) {
       case "Website":
         return "primary";
+      case "Seminar":
+        return "info";
+      case "Vyapaar Expo":
+        return "warning"; // Orange/yellow for Vyapaar Expo
       case "Referral":
         return "success";
       case "Social Media":
@@ -94,11 +149,15 @@ const LeadDetails = () => {
       case "Advertisement":
         return "warning";
       case "Cold Call":
-        return "secondary";
+        return "danger";
+      case "Kaustav Mukherjee":
+        return "success"; // Green for personal referral
+      case "Rahul Shaw":
+        return "info"; // Blue for personal referral
       case "Other":
         return "dark";
       default:
-        return "secondary";
+        return "secondary"; // Gray for unknown sources
     }
   };
 
@@ -252,6 +311,51 @@ const LeadDetails = () => {
     }
   };
 
+  const getEmailStatusIcon = (status) => {
+    switch (status) {
+      case 'sent':
+        return <FaCheck className="text-success" />;
+      case 'failed':
+        return <FaTimes className="text-danger" />;
+      case 'bounced':
+        return <FaExclamationTriangle className="text-warning" />;
+      case 'pending':
+        return <FaClock className="text-info" />;
+      default:
+        return <FaClock className="text-muted" />;
+    }
+  };
+
+  const getEmailStatusVariant = (status) => {
+    switch (status) {
+      case 'sent':
+        return 'success';
+      case 'failed':
+        return 'danger';
+      case 'bounced':
+        return 'warning';
+      case 'pending':
+        return 'info';
+      default:
+        return 'secondary';
+    }
+  };
+
+  const getTemplateColor = (template) => {
+    switch (template) {
+      case 'vyapaar-expo':
+        return 'primary';
+      case 'vyapaar-expo-2':
+        return 'success';
+      case 'general-followup':
+        return 'info';
+      case 'service-inquiry':
+        return 'warning';
+      default:
+        return 'secondary';
+    }
+  };
+
   const getFollowUpIcon = (followUpType) => {
     switch (followUpType) {
       case "Call":
@@ -313,6 +417,8 @@ const LeadDetails = () => {
           <Button
             variant="primary"
             onClick={() => navigate(`/leads/${id}/edit`)}
+            disabled={!canEditLead()}
+            title={canEditLead() ? "Edit Lead" : "You don't have permission to edit this lead"}
           >
             <FaEdit className="me-2" />
             Edit Lead
@@ -386,6 +492,32 @@ const LeadDetails = () => {
                   <strong>Last Updated:</strong>
                   <br />
                   {formatDate(lead.updatedAt)}
+                </ListGroup.Item>
+
+                {/* Email Statistics */}
+                <ListGroup.Item className="px-0">
+                  <FaEnvelope className="me-2 text-primary" />
+                  <strong>Email Status:</strong>
+                  <br />
+                  <div className="d-flex align-items-center gap-2 mt-1">
+                    {lead.emailStats ? (
+                      <>
+                        <Badge bg={lead.emailStats.emailStatus === 'sent' ? 'success' : 
+                                   lead.emailStats.emailStatus === 'failed' ? 'danger' : 'secondary'}>
+                          {lead.emailStats.emailStatus === 'sent' ? 
+                            `${lead.emailStats.totalEmailsSent} Sent` : 
+                            lead.emailStats.emailStatus === 'failed' ? 'Failed' : 'No Emails'}
+                        </Badge>
+                        {lead.emailStats.lastEmailSentAt && (
+                          <small className="text-muted">
+                            Last: {formatDate(lead.emailStats.lastEmailSentAt)}
+                          </small>
+                        )}
+                      </>
+                    ) : (
+                      <Badge bg="secondary">No Emails</Badge>
+                    )}
+                  </div>
                 </ListGroup.Item>
               </ListGroup>
             </Card.Body>
@@ -691,6 +823,188 @@ const LeadDetails = () => {
                   </Button>
                 </div>
               </Form.Group>
+            </Card.Body>
+          </Card>
+
+          {/* Email History Section */}
+          <Card className="shadow-sm mt-3">
+            <Card.Header className="bg-white d-flex justify-content-between align-items-center">
+              <h5 className="mb-0">
+                <FaEnvelope className="me-2" />
+                Email History & Statistics
+              </h5>
+              <Button
+                size="sm"
+                variant="outline-primary"
+                onClick={fetchEmailHistory}
+                disabled={emailLoading}
+              >
+                <FaHistory className="me-1" />
+                Refresh
+              </Button>
+            </Card.Header>
+            <Card.Body>
+              {emailLoading ? (
+                <div className="text-center py-3">
+                  <div className="spinner-border spinner-border-sm text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                  <p className="mt-2 mb-0">Loading email history...</p>
+                </div>
+              ) : (
+                <>
+                  {/* Email Statistics Cards */}
+                  {emailStats && (
+                    <Row className="mb-4">
+                      <Col md={3}>
+                        <Card className="text-center h-100 border-primary">
+                          <Card.Body className="py-3">
+                            <h4 className="text-primary mb-1">{emailStats.totalEmails}</h4>
+                            <small className="text-muted">Total Emails</small>
+                          </Card.Body>
+                        </Card>
+                      </Col>
+                      <Col md={3}>
+                        <Card className="text-center h-100 border-success">
+                          <Card.Body className="py-3">
+                            <h4 className="text-success mb-1">{emailStats.sentEmails}</h4>
+                            <small className="text-muted">Successfully Sent</small>
+                          </Card.Body>
+                        </Card>
+                      </Col>
+                      <Col md={3}>
+                        <Card className="text-center h-100 border-danger">
+                          <Card.Body className="py-3">
+                            <h4 className="text-danger mb-1">{emailStats.failedEmails}</h4>
+                            <small className="text-muted">Failed</small>
+                          </Card.Body>
+                        </Card>
+                      </Col>
+                      <Col md={3}>
+                        <Card className="text-center h-100 border-info">
+                          <Card.Body className="py-3">
+                            <h6 className="text-info mb-1">
+                              {emailStats.lastEmailSent ? formatDate(emailStats.lastEmailSent) : 'Never'}
+                            </h6>
+                            <small className="text-muted">Last Email</small>
+                          </Card.Body>
+                        </Card>
+                      </Col>
+                    </Row>
+                  )}
+
+                  {/* Success Rate Progress Bar */}
+                  {emailStats && emailStats.totalEmails > 0 && (
+                    <div className="mb-4">
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <strong>Email Success Rate</strong>
+                        <span className="text-muted">
+                          {Math.round((emailStats.sentEmails / emailStats.totalEmails) * 100)}%
+                        </span>
+                      </div>
+                      <ProgressBar 
+                        now={(emailStats.sentEmails / emailStats.totalEmails) * 100}
+                        variant={emailStats.sentEmails === emailStats.totalEmails ? 'success' : 
+                                emailStats.failedEmails > emailStats.sentEmails ? 'danger' : 'warning'}
+                        style={{ height: '8px' }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Email History Table */}
+                  {emailHistory.length > 0 ? (
+                    <>
+                      <div className="table-responsive">
+                        <Table hover size="sm">
+                          <thead className="table-light">
+                            <tr>
+                              <th>Status</th>
+                              <th>Template</th>
+                              <th>Subject</th>
+                              <th>Sent By</th>
+                              <th>Date</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {emailHistory
+                              .slice(0, showAllEmails ? emailHistory.length : 5)
+                              .map((campaign, index) => (
+                                <tr key={campaign._id || index}>
+                                  <td>
+                                    <div className="d-flex align-items-center">
+                                      {getEmailStatusIcon(campaign.status)}
+                                      <Badge 
+                                        bg={getEmailStatusVariant(campaign.status)} 
+                                        className="ms-2"
+                                        style={{ fontSize: '0.7rem' }}
+                                      >
+                                        {campaign.status}
+                                      </Badge>
+                                    </div>
+                                  </td>
+                                  <td>
+                                    <Badge 
+                                      bg={getTemplateColor(campaign.template)}
+                                      style={{ fontSize: '0.7rem' }}
+                                    >
+                                      {campaign.templateName}
+                                    </Badge>
+                                  </td>
+                                  <td>
+                                    <div 
+                                      className="text-truncate" 
+                                      style={{ maxWidth: '200px' }}
+                                      title={campaign.subject}
+                                    >
+                                      {campaign.subject}
+                                    </div>
+                                  </td>
+                                  <td>
+                                    <div>
+                                      <div className="fw-bold" style={{ fontSize: '0.85rem' }}>
+                                        {campaign.sentByName}
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td>
+                                    <div>
+                                      <div style={{ fontSize: '0.85rem' }}>
+                                        {formatDate(campaign.sentAt)}
+                                      </div>
+                                      <small className="text-muted">
+                                        {new Date(campaign.sentAt).toLocaleTimeString()}
+                                      </small>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </Table>
+                      </div>
+                      
+                      {emailHistory.length > 5 && (
+                        <div className="text-center mt-3">
+                          <Button
+                            size="sm"
+                            variant="outline-primary"
+                            onClick={() => setShowAllEmails(!showAllEmails)}
+                          >
+                            {showAllEmails ? 'Show Less' : `Show All (${emailHistory.length})`}
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-center py-4">
+                      <FaEnvelope size={48} className="text-muted mb-3" />
+                      <h5 className="text-muted">No Email History</h5>
+                      <p className="text-muted mb-0">
+                        No emails have been sent to this lead yet.
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
             </Card.Body>
           </Card>
         </Col>

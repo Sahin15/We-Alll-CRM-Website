@@ -287,17 +287,43 @@ class SecurityService {
       throw new Error('Search term must be a string');
     }
 
-    // Remove XSS attempts
-    let sanitized = xss(searchTerm);
+    // Light sanitization - remove dangerous patterns but keep normal punctuation
+    let sanitized = searchTerm;
 
     // Remove potential MongoDB injection patterns
     sanitized = sanitized.replace(/[\$\{\}]/g, '');
+
+    // Remove script tags and dangerous HTML
+    sanitized = sanitized.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    sanitized = sanitized.replace(/<[^>]*>/g, '');
 
     // Limit length
     sanitized = sanitized.substring(0, 200);
 
     // Remove excessive whitespace
     sanitized = sanitized.trim().replace(/\s+/g, ' ');
+
+    return sanitized;
+  }
+
+  /**
+   * Light sanitization for client data (names, addresses, etc.)
+   * Removes dangerous content but preserves normal punctuation
+   */
+  sanitizeClientData(value) {
+    if (typeof value !== 'string') return value;
+
+    let sanitized = value;
+
+    // Remove script tags and dangerous HTML
+    sanitized = sanitized.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    sanitized = sanitized.replace(/<[^>]*>/g, '');
+
+    // Remove potential MongoDB injection patterns
+    sanitized = sanitized.replace(/[\$\{\}]/g, '');
+
+    // Trim whitespace
+    sanitized = sanitized.trim();
 
     return sanitized;
   }

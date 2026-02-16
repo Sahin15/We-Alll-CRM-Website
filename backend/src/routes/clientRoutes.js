@@ -3,6 +3,7 @@ import {
   createClient,
   getClients,
   getClientById,
+  getEmployeeClients,
   updateClient,
   deleteClient,
   getClientOverview,
@@ -15,6 +16,8 @@ import {
   renewClientPlan,
   toggleClientVip,
   getVipClients,
+  assignDepartmentsToClient,
+  getClientsByDepartment,
 } from "../controllers/clientController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
@@ -24,6 +27,10 @@ const router = express.Router();
 // Admin, superadmin, hr can manage clients; hod and manager can view
 router.post("/", protect, authorizeRoles("admin", "superadmin", "hr"), createClient);
 router.get("/", protect, authorizeRoles("admin", "superadmin", "hr", "hod", "manager"), getClients);
+
+// Employee route - get clients from their assigned projects
+router.get("/my-clients", protect, authorizeRoles("employee", "hod"), getEmployeeClients);
+
 router.get(
   "/:id",
   protect,
@@ -106,6 +113,20 @@ router.get(
   protect,
   authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
   getVipClients
+);
+
+// Department Assignment Routes
+router.put(
+  "/:id/departments",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  assignDepartmentsToClient
+);
+router.get(
+  "/department/:departmentId",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
+  getClientsByDepartment
 );
 
 export default router;

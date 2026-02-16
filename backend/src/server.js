@@ -7,6 +7,7 @@ import { protect } from "./middleware/authMiddleware.js";
 import { authorizeRoles } from "./middleware/roleMiddleware.js";
 import userRoutes from "./routes/userRoutes.js";
 import connectDB from "./config/db.js";
+import "./config/firebase.js"; // Initialize Firebase Admin
 import adminRoutes from "./routes/adminRoutes.js";
 import clientRoutes from "./routes/clientRoutes.js";
 import clientWorkRoutes from "./routes/clientWorkRoutes.js";
@@ -38,6 +39,12 @@ import calendarRoutes from "./routes/calendarRoutes.js";
 import workCalendarRoutes from "./routes/workCalendarRoutes.js";
 import fixRoutes from "./routes/fixRoutes.js";
 import feedbackRoutes from "./routes/feedbackRoutes.js";
+import salaryStructureRoutes from "./routes/salaryStructureRoutes.js";
+import salarySlipRoutes from "./routes/salarySlipRoutes.js";
+import salaryPreviewRoutes from "./routes/salaryPreviewRoutes.js";
+import salaryTemplateRoutes from "./routes/salaryTemplateRoutes.js";
+import emailRoutes from "./routes/emailRoutes.js";
+import wfhRoutes from "./routes/wfhRoutes.js";
 // Legacy routes removed - use workItemRoutes instead
 // Old: taskRoutes, slotRoutes, workRoutes → New: workItemRoutes
 import { initializeCronJobs } from "./config/cronJobs.js";
@@ -220,6 +227,32 @@ app.use("/api/calendar", apiLimiter, calendarRoutes);
 app.use("/api/work-calendar", apiLimiter, workCalendarRoutes);
 app.use("/api/fix", apiLimiter, fixRoutes);
 app.use("/api/feedback", apiLimiter, feedbackRoutes);
+app.use("/api/salary-structures", apiLimiter, salaryStructureRoutes);
+app.use("/api/salary-slips", apiLimiter, salarySlipRoutes);
+app.use("/api/salary-preview", apiLimiter, salaryPreviewRoutes);
+app.use("/api/salary-templates", apiLimiter, salaryTemplateRoutes);
+app.use("/api/emails", apiLimiter, emailRoutes);
+app.use("/api/wfh", apiLimiter, wfhRoutes);
+
+// Diagnostic endpoint to check server status and timezone
+app.get("/api/diagnostic", (req, res) => {
+  const now = new Date();
+  const istTime = now.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+  const istDateString = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  
+  res.json({
+    status: "ok",
+    timestamp: now.toISOString(),
+    serverTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    serverTime: now.toString(),
+    istTime: istTime,
+    istDate: istDateString,
+    nodeVersion: process.version,
+    environment: process.env.NODE_ENV || 'development',
+    message: "Server is running with updated timezone logic (Feb 16, 2026)"
+  });
+});
+
 // Legacy routes removed:
 // - /api/tasks → use /api/work-items
 // - /api/slots → use /api/work-items

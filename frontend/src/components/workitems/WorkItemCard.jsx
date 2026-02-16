@@ -1,6 +1,6 @@
-import React from 'react';
-import { Card, Badge, Button } from 'react-bootstrap';
-import { FaCalendar, FaTasks, FaClock, FaUser } from 'react-icons/fa';
+import React, { useState } from 'react';
+import { Card, Badge, Button, Dropdown } from 'react-bootstrap';
+import { FaCalendar, FaTasks, FaClock, FaUser, FaEllipsisV } from 'react-icons/fa';
 import { formatDate } from '../../utils/helpers';
 import {
   getStatusAriaLabel,
@@ -8,8 +8,12 @@ import {
   getDueDateAriaLabel,
   handleKeyboardNavigation,
 } from '../../utils/accessibility';
+import './WorkItemCard.css';
 
-const WorkItemCard = ({ workItem, onView, onStatusChange }) => {
+const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  
   const isOverdue = workItem.isOverdue || (
     workItem.dueDate && 
     new Date(workItem.dueDate) < new Date() && 
@@ -21,6 +25,9 @@ const WorkItemCard = ({ workItem, onView, onStatusChange }) => {
     new Date(workItem.dueDate).toDateString() === new Date().toDateString() &&
     workItem.status !== 'Done'
   );
+
+  const canEdit = workItem.assignedTo?._id === currentUser?._id || 
+                  ['admin', 'superadmin', 'hod'].includes(currentUser?.role);
 
   const getStatusColor = (status) => {
     const colors = {
@@ -42,14 +49,33 @@ const WorkItemCard = ({ workItem, onView, onStatusChange }) => {
 
   const handleClick = () => onView(workItem);
   
+  const handleStatusUpdate = async (newStatus) => {
+    if (newStatus === workItem.status || !onStatusChange) return;
+    
+    setIsUpdating(true);
+    try {
+      await onStatusChange(workItem._id, newStatus, workItem.type);
+    } catch (error) {
+      console.error('Error updating status:', error);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+  
   return (
     <Card 
-      className={`h-100 ${isOverdue ? 'border-danger' : isDueToday ? 'border-warning' : ''}`}
+      className={`h-100 work-item-card ${isOverdue ? 'border-danger' : isDueToday ? 'border-warning' : ''}`}
       style={{ cursor: 'pointer', transition: 'all 0.2s' }}
       onClick={handleClick}
       onKeyDown={(e) => handleKeyboardNavigation(e, handleClick, handleClick)}
-      onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-      onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'translateY(-2px)';
+        setIsHovered(true);
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'translateY(0)';
+        setIsHovered(false);
+      }}
       tabIndex={0}
       role="button"
       aria-label={`Work item: ${workItem.title}. ${getStatusAriaLabel(workItem.status)}. ${getDueDateAriaLabel(workItem.dueDate, isOverdue, isDueToday)}`}
@@ -64,13 +90,70 @@ const WorkItemCard = ({ workItem, onView, onStatusChange }) => {
             {getTypeIcon(workItem.type)} 
             <span aria-hidden="true">{workItem.type === 'content' ? 'Content' : 'Task'}</span>
           </Badge>
-          <Badge 
-            bg={getStatusColor(workItem.status)}
-            aria-label={getStatusAriaLabel(workItem.status)}
-            className="text-capitalize"
-          >
-            <span aria-hidden="true">{workItem.status}</span>
-          </Badge>
+          
+          <div className="d-flex align-items-center gap-2">
+            {/* Interactive Status Badge */}
+            {canEdit && isHovered && !isUpdating ? (
+              <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
+                <Dropdown.Toggle
+                  as={Badge}
+                  bg={getStatusColor(workItem.status)}
+                  className="status-dropdown-toggle"
+                  style={{
+                    cursor: 'pointer',
+                    border: 'none',
+                    fontSize: '0.75rem',
+                    padding: '6px 8px',
+                    position: 'relative'
+                  }}
+                >
+                  {workItem.status} ▼
+                </Dropdown.Toggle>
+
+                <Dropdown.Menu className="status-dropdown-menu">
+                  {['To Do', 'In Progress', 'Review', 'Done'].map((status) => (
+                    <Dropdown.Item
+                      key={status}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleStatusUpdate(status);
+                      }}
+                      disabled={status === workItem.status}
+                      className={`status-dropdown-item ${status === workItem.status ? 'active' : ''}`}
+                    >
+                      <Badge 
+                        bg={getStatusColor(status)} 
+                        className="me-2"
+                        style={{ fontSize: '0.7rem' }}
+                      >
+                        {status}
+                      </Badge>
+                      {status === workItem.status && <span className="text-success">✓</span>}
+                    </Dropdown.Item>
+                  ))}
+                </Dropdown.Menu>
+              </Dropdown>
+            ) : (
+              <Badge 
+                bg={getStatusColor(workItem.status)}
+                aria-label={getStatusAriaLabel(workItem.status)}
+                className="text-capitalize"
+                style={{
+                  position: 'relative',
+                  fontSize: '0.75rem',
+                  padding: '6px 8px'
+                }}
+              >
+                {isUpdating && (
+                  <span 
+                    className="spinner-border spinner-border-sm me-1" 
+                    style={{ width: '0.8rem', height: '0.8rem' }}
+                  />
+                )}
+                <span aria-hidden="true">{workItem.status}</span>
+              </Badge>
+            )}
+          </div>
         </div>
 
         <h6 className="mb-2">{workItem.title}</h6>

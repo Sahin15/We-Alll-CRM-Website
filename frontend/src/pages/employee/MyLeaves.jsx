@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { Container, Row, Col, Card, Button, Table, Badge, Modal, Form, ProgressBar, Alert } from "react-bootstrap";
-import { FaPlus, FaCalendarAlt, FaUmbrellaBeach, FaHospital, FaPlane, FaExclamationTriangle, FaInfoCircle } from "react-icons/fa";
+import { FaPlus, FaCalendarAlt, FaUmbrellaBeach, FaHospital, FaPlane, FaExclamationTriangle, FaInfoCircle, FaHome } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { leaveApi } from "../../api/leaveApi";
 import { LEAVE_TYPE_DETAILS } from "../../utils/constants";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
+import ApplyWFHModal from "../../components/wfh/ApplyWFHModal";
 import "../../styles/table-mobile.css";
 import "../../styles/modal-mobile.css";
 
@@ -12,6 +13,7 @@ const MyLeaves = () => {
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showWFHModal, setShowWFHModal] = useState(false);
   const [leaveBalance, setLeaveBalance] = useState(null);
   const [formData, setFormData] = useState({
     leaveType: "personal",
@@ -115,7 +117,7 @@ const MyLeaves = () => {
       return;
     }
 
-    // Check leave balance (skip for unpaid leave)
+    // Check leave balance (skip for unpaid leave and work from home)
     const requestedDays = calculateDays(formData.startDate, formData.endDate);
     
     if (formData.leaveType !== 'unpaid') {
@@ -197,10 +199,12 @@ const MyLeaves = () => {
               <h2>My Leaves</h2>
               <p className="text-muted mb-0">Manage your leave applications - 24 days annual allowance</p>
             </div>
-            <Button variant="primary" onClick={handleShowModal}>
-              <FaPlus className="me-2" />
-              Apply for Leave
-            </Button>
+            <div className="d-flex gap-2">
+              <Button variant="primary" onClick={handleShowModal}>
+                <FaPlus className="me-2" />
+                Apply for Leave
+              </Button>
+            </div>
           </div>
         </Col>
       </Row>
@@ -444,6 +448,24 @@ const MyLeaves = () => {
                 </Table>
               )}
             </Card.Body>
+            <Card.Footer className="bg-light border-top-0">
+              <div className="text-center py-2">
+                <small className="text-muted">
+                  Need to work from home?{' '}
+                  <a 
+                    href="#" 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setShowWFHModal(true);
+                    }}
+                    className="text-decoration-none text-secondary"
+                    style={{ fontSize: '0.9rem' }}
+                  >
+                    Apply here
+                  </a>
+                </small>
+              </div>
+            </Card.Footer>
           </Card>
         </Col>
       </Row>
@@ -598,7 +620,7 @@ const MyLeaves = () => {
                 <br />
                 {formData.leaveType === 'unpaid' ? (
                   <span>
-                    <strong>Type:</strong> Unpaid Leave (no limit)
+                    <strong>Type:</strong> Unpaid Leave (no limit, no pay)
                   </span>
                 ) : (
                   <>
@@ -699,6 +721,16 @@ const MyLeaves = () => {
           line-height: 1.3;
         }
       `}</style>
+
+      {/* Apply WFH Modal */}
+      <ApplyWFHModal
+        show={showWFHModal}
+        onHide={() => setShowWFHModal(false)}
+        onSuccess={() => {
+          setShowWFHModal(false);
+          toast.success('WFH request submitted! You can view it in the WFH section.');
+        }}
+      />
     </Container>
   );
 };

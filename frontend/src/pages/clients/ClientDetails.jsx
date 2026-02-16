@@ -10,6 +10,7 @@ import {
   Modal,
   Form,
   Spinner,
+  Alert,
 } from "react-bootstrap";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -22,12 +23,16 @@ import {
   FaMapMarkerAlt,
   FaSave,
   FaTimes,
+  FaPlus,
+  FaProjectDiagram,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { clientApi } from "../../api/clientApi";
+import { departmentApi } from "../../api/departmentApi";
 import { projectApi } from "../../api/projectApi";
 import { subscriptionAPI } from "../../services/api";
 import { formatDate } from "../../utils/helpers";
+import { decodeObjectHtmlEntities } from "../../utils/htmlDecoder";
 
 const ClientDetails = () => {
   const { id } = useParams();
@@ -38,7 +43,14 @@ const ClientDetails = () => {
   const [subscriptions, setSubscriptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showAddProjectModal, setShowAddProjectModal] = useState(false);
+  const [showDepartmentModal, setShowDepartmentModal] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
+  const [projectLoading, setProjectLoading] = useState(false);
+  const [departmentLoading, setDepartmentLoading] = useState(false);
+  const [departments, setDepartments] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [selectedDepartments, setSelectedDepartments] = useState([]);
   const [editFormData, setEditFormData] = useState({
     name: "",
     email: "",
@@ -56,36 +68,60 @@ const ClientDetails = () => {
     yearlyTurnover: "",
     expectations: "",
     serviceCompany: "",
+    status: "Active", // Add status field
+  });
+  const [newProjectData, setNewProjectData] = useState({
+    name: "",
+    description: "",
+    department: "",
+    startDate: "",
+    endDate: "",
+    budget: "",
+    priority: "medium",
+    status: "Pending",
+    assignedUsers: [],
   });
 
   useEffect(() => {
     fetchClientDetails();
     fetchClientProjects();
     fetchClientSubscriptions();
+    fetchDepartments();
+    fetchUsers();
   }, [id]);
 
   const fetchClientDetails = async () => {
     try {
       const response = await clientApi.getClientById(id);
-      setClient(response.data);
+      const decodedClient = decodeObjectHtmlEntities(response.data);
+      setClient(decodedClient);
+      
+      // Set selected departments if they exist
+      if (decodedClient.assignedDepartments) {
+        setSelectedDepartments(decodedClient.assignedDepartments.map(dept => 
+          typeof dept === 'object' ? dept._id : dept
+        ));
+      }
+      
       // Populate edit form data
       setEditFormData({
-        name: response.data.name || "",
-        email: response.data.email || "",
-        phone: response.data.phone || "",
-        whatsappnumber: response.data.whatsappnumber || "",
-        company: response.data.company || "",
-        ownername: response.data.ownername || "",
-        address: response.data.address || "",
-        industry: response.data.industry || "",
-        website: response.data.website || "",
-        targetAudience: response.data.targetAudience || "",
-        audienceGender: response.data.audienceGender || "",
-        previousChallenges: response.data.previousChallenges || "",
-        legalGuidelines: response.data.legalGuidelines || "",
-        yearlyTurnover: response.data.yearlyTurnover || "",
-        expectations: response.data.expectations || "",
-        serviceCompany: response.data.serviceCompany || "",
+        name: decodedClient.name || "",
+        email: decodedClient.email || "",
+        phone: decodedClient.phone || "",
+        whatsappnumber: decodedClient.whatsappnumber || "",
+        company: decodedClient.company || "",
+        ownername: decodedClient.ownername || "",
+        address: decodedClient.address || "",
+        industry: decodedClient.industry || "",
+        website: decodedClient.website || "",
+        targetAudience: decodedClient.targetAudience || "",
+        audienceGender: decodedClient.audienceGender || "",
+        previousChallenges: decodedClient.previousChallenges || "",
+        legalGuidelines: decodedClient.legalGuidelines || "",
+        yearlyTurnover: decodedClient.yearlyTurnover || "",
+        expectations: decodedClient.expectations || "",
+        serviceCompany: decodedClient.serviceCompany || "",
+        status: decodedClient.status || "Active", // Add status field
       });
     } catch (error) {
       toast.error("Failed to fetch client details");
@@ -98,7 +134,20 @@ const ClientDetails = () => {
     e.preventDefault();
     try {
       setEditLoading(true);
+      
+      // Update client basic information
       await clientApi.updateClient(id, editFormData);
+      
+      // Update department assignments if user has permission
+      if (['hr', 'manager', 'admin', 'superadmin'].includes(user?.role)) {
+        try {
+          await clientApi.assignDepartments(id, selectedDepartments);
+        } catch (deptError) {
+          console.error('Department assignment error:', deptError);
+          toast.warning("Client updated successfully, but department assignment failed.");
+        }
+      }
+      
       toast.success("Client updated successfully");
       setShowEditModal(false);
       // Refresh client data
@@ -147,6 +196,15 @@ const ClientDetails = () => {
         expectations: client.expectations || "",
         serviceCompany: client.serviceCompany || "",
       });
+      
+      // Reset selected departments to original client departments
+      if (client.assignedDepartments) {
+        setSelectedDepartments(client.assignedDepartments.map(dept => 
+          typeof dept === 'object' ? dept._id : dept
+        ));
+      } else {
+        setSelectedDepartments([]);
+      }
     }
   };
 
@@ -176,6 +234,41 @@ const ClientDetails = () => {
     }
   };
 
+  const fetchDepartments = async () => {
+    try {
+      // Fetch only operational departments for client assignment
+      const data = await departmentApi.getOperationalDepartments();
+      setDepartments(data);
+    } catch (error) {
+      console.error("Failed to fetch departments:", error);
+      toast.error("Failed to load departments");
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch('/api/users', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Filter to get only employees and HoDs from operational departments
+        const employeeUsers = data.filter(user => 
+          ['employee', 'hod'].includes(user.role) &&
+          user.department?.type !== 'administrative' // Exclude administrative department staff
+        );
+        setUsers(employeeUsers);
+      } else {
+        console.error('Failed to fetch users:', response.status, response.statusText);
+      }
+    } catch (error) {
+      console.error("Failed to fetch users:", error);
+    }
+  };
+
   const fetchClientSubscriptions = async () => {
     try {
       const response = await subscriptionAPI.getAll({ client: id });
@@ -183,6 +276,83 @@ const ClientDetails = () => {
     } catch (error) {
       console.error("Failed to fetch subscriptions:", error);
     }
+  };
+
+  const handleAddProject = async (e) => {
+    e.preventDefault();
+    setProjectLoading(true);
+
+    try {
+      const projectData = {
+        ...newProjectData,
+        client: id,
+        createdBy: user.id,
+      };
+
+      const response = await projectApi.createProject(projectData);
+      
+      if (response.data) {
+        toast.success("Project created successfully!");
+        setShowAddProjectModal(false);
+        setNewProjectData({
+          name: "",
+          description: "",
+          department: "",
+          startDate: "",
+          endDate: "",
+          budget: "",
+          priority: "medium",
+          status: "Pending",
+          assignedUsers: [],
+        });
+        // Refresh projects list
+        fetchClientProjects();
+      }
+    } catch (error) {
+      console.error("Error creating project:", error);
+      toast.error(error.response?.data?.message || "Failed to create project");
+    } finally {
+      setProjectLoading(false);
+    }
+  };
+
+  const handleProjectInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewProjectData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleAssignedUsersChange = (e) => {
+    const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+    setNewProjectData(prev => ({
+      ...prev,
+      assignedUsers: selectedOptions
+    }));
+  };
+
+  const handleDepartmentAssignment = async (e) => {
+    e.preventDefault();
+    setDepartmentLoading(true);
+
+    try {
+      await clientApi.assignDepartments(id, selectedDepartments);
+      toast.success("Departments assigned successfully!");
+      setShowDepartmentModal(false);
+      // Refresh client data
+      fetchClientDetails();
+    } catch (error) {
+      console.error("Error assigning departments:", error);
+      toast.error(error.response?.data?.message || "Failed to assign departments");
+    } finally {
+      setDepartmentLoading(false);
+    }
+  };
+
+  const handleDepartmentSelectionChange = (e) => {
+    const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+    setSelectedDepartments(selectedOptions);
   };
 
   if (loading) {
@@ -247,7 +417,15 @@ const ClientDetails = () => {
             <Card.Body>
               <div className="mb-3">
                 <h4 className="mb-1">{client.name}</h4>
-                <Badge bg="success">Active</Badge>
+                <Badge 
+                  bg={
+                    client.status === "Active" ? "success" : 
+                    client.status === "On Hold" ? "warning" : 
+                    client.status === "Lost" ? "danger" : "success"
+                  }
+                >
+                  {client.status || "Active"}
+                </Badge>
               </div>
 
               <ListGroup variant="flush">
@@ -285,6 +463,38 @@ const ClientDetails = () => {
                     {client.company}
                   </ListGroup.Item>
                 )}
+
+                {/* Department Assignment Section */}
+                <ListGroup.Item className="px-0">
+                  <div className="d-flex justify-content-between align-items-start">
+                    <div>
+                      <FaBuilding className="me-2 text-success" />
+                      <strong>Assigned Departments:</strong>
+                      <br />
+                      {client.assignedDepartments && client.assignedDepartments.length > 0 ? (
+                        <div className="mt-2">
+                          {client.assignedDepartments.map((dept, index) => (
+                            <Badge key={index} bg="success" className="me-1 mb-1">
+                              {typeof dept === 'object' ? dept.name : dept}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <small className="text-muted">No departments assigned</small>
+                      )}
+                    </div>
+                    {(user?.role === 'hr' || user?.role === 'manager' || user?.role === 'admin' || user?.role === 'superadmin') && (
+                      <Button
+                        variant="outline-success"
+                        size="sm"
+                        onClick={() => setShowDepartmentModal(true)}
+                        title="Assign Departments"
+                      >
+                        <FaEdit size={12} />
+                      </Button>
+                    )}
+                  </div>
+                </ListGroup.Item>
 
                 {client.ownername && (
                   <ListGroup.Item className="px-0">
@@ -555,8 +765,18 @@ const ClientDetails = () => {
       <Row className="g-4 mt-2">
         <Col lg={12}>
           <Card className="shadow-sm">
-            <Card.Header className="bg-white">
+            <Card.Header className="bg-white d-flex justify-content-between align-items-center">
               <h5 className="mb-0">Projects ({projects.length})</h5>
+              {(user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'hr' || user?.role === 'hod') && (
+                <Button
+                  variant="success"
+                  size="sm"
+                  onClick={() => setShowAddProjectModal(true)}
+                >
+                  <FaPlus className="me-1" />
+                  Add Project
+                </Button>
+              )}
             </Card.Header>
             <Card.Body>
               {projects.length > 0 ? (
@@ -604,14 +824,22 @@ const ClientDetails = () => {
                 </ListGroup>
               ) : (
                 <div className="text-center py-5 text-muted">
-                  <p>No projects found for this client</p>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => navigate("/projects")}
-                  >
-                    Create New Project
-                  </Button>
+                  <FaProjectDiagram size={48} className="mb-3 opacity-50" />
+                  <p className="mb-3">No projects found for this client</p>
+                  {(user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'hr' || user?.role === 'hod') ? (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => setShowAddProjectModal(true)}
+                    >
+                      <FaPlus className="me-1" />
+                      Create First Project
+                    </Button>
+                  ) : (
+                    <Alert variant="info" className="mt-3">
+                      Contact your administrator to create projects for this client.
+                    </Alert>
+                  )}
                 </div>
               )}
             </Card.Body>
@@ -710,7 +938,7 @@ const ClientDetails = () => {
             </Row>
 
             <Row>
-              <Col md={12}>
+              <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Service Company *</Form.Label>
                   <Form.Select
@@ -728,7 +956,90 @@ const ClientDetails = () => {
                   </Form.Text>
                 </Form.Group>
               </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Client Status *</Form.Label>
+                  <Form.Select
+                    name="status"
+                    value={editFormData.status}
+                    onChange={handleEditInputChange}
+                    required
+                  >
+                    <option value="Active">Active</option>
+                    <option value="On Hold">On Hold</option>
+                    <option value="Lost">Lost</option>
+                  </Form.Select>
+                  <Form.Text className="text-muted">
+                    Current status of the client relationship.
+                  </Form.Text>
+                </Form.Group>
+              </Col>
             </Row>
+
+            {/* Department Assignment Section - Only for HR/Manager/Admin */}
+            {['hr', 'manager', 'admin', 'superadmin'].includes(user?.role) && (
+              <Row>
+                <Col md={12}>
+                  <Form.Group className="mb-3">
+                    <Form.Label className="d-flex align-items-center">
+                      <FaBuilding className="me-2 text-primary" />
+                      Department Assignment
+                      <small className="ms-2 text-muted">({departments.length} available)</small>
+                    </Form.Label>
+                    <div className="border rounded p-3" style={{ backgroundColor: '#f8f9fa' }}>
+                      <Form.Text className="text-muted d-block mb-3">
+                        Select which operational departments will work with this client. HR and administrative departments have access to all clients by default.
+                      </Form.Text>
+                      {departments.length > 0 ? (
+                        <Row>
+                          {departments.map((department) => (
+                            <Col md={6} key={department._id} className="mb-2">
+                              <Form.Check
+                                type="checkbox"
+                                id={`edit-dept-${department._id}`}
+                                label={department.name}
+                                checked={selectedDepartments.includes(department._id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedDepartments(prev => [...prev, department._id]);
+                                  } else {
+                                    setSelectedDepartments(prev => prev.filter(id => id !== department._id));
+                                  }
+                                }}
+                                className="fw-semibold"
+                              />
+                            </Col>
+                          ))}
+                        </Row>
+                      ) : (
+                        <div className="text-center py-3">
+                          <FaBuilding size={32} className="text-muted mb-2" />
+                          <p className="text-muted mb-0">No departments available</p>
+                          <small className="text-muted">Contact your administrator to set up departments</small>
+                        </div>
+                      )}
+                      {selectedDepartments.length > 0 && (
+                        <div className="mt-3 pt-3 border-top">
+                          <small className="text-success fw-semibold">
+                            Selected Departments ({selectedDepartments.length}):
+                          </small>
+                          <div className="mt-2">
+                            {departments
+                              .filter(dept => selectedDepartments.includes(dept._id))
+                              .map(dept => (
+                                <Badge key={dept._id} bg="success" className="me-2 mb-1">
+                                  {dept.name}
+                                </Badge>
+                              ))
+                            }
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </Form.Group>
+                </Col>
+              </Row>
+            )}
 
             <Form.Group className="mb-3">
               <Form.Label>Address</Form.Label>
@@ -865,6 +1176,246 @@ const ClientDetails = () => {
                 <>
                   <FaSave className="me-2" />
                   Update Client
+                </>
+              )}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+
+      {/* Add Project Modal */}
+      <Modal show={showAddProjectModal} onHide={() => setShowAddProjectModal(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <FaPlus className="me-2" />
+            Add New Project for {client?.name}
+          </Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleAddProject}>
+          <Modal.Body>
+            <Alert variant="info" className="mb-4">
+              <strong>Multi-Service Client:</strong> Create additional projects for different services 
+              (e.g., Social Media Marketing, Website Development, SEO, etc.)
+            </Alert>
+            
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Project Name *</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="name"
+                    value={newProjectData.name}
+                    onChange={handleProjectInputChange}
+                    placeholder="e.g., Website Development, Social Media Campaign"
+                    required
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Department/Service *</Form.Label>
+                  <Form.Select
+                    name="department"
+                    value={newProjectData.department}
+                    onChange={handleProjectInputChange}
+                    required
+                  >
+                    <option value="">Select Department</option>
+                    {departments.map((dept) => (
+                      <option key={dept._id} value={dept._id}>
+                        {dept.name}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Project Description</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                name="description"
+                value={newProjectData.description}
+                onChange={handleProjectInputChange}
+                placeholder="Describe the project scope and objectives..."
+              />
+            </Form.Group>
+
+            <Row>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Priority</Form.Label>
+                  <Form.Select
+                    name="priority"
+                    value={newProjectData.priority}
+                    onChange={handleProjectInputChange}
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Start Date</Form.Label>
+                  <Form.Control
+                    type="date"
+                    name="startDate"
+                    value={newProjectData.startDate}
+                    onChange={handleProjectInputChange}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>End Date</Form.Label>
+                  <Form.Control
+                    type="date"
+                    name="endDate"
+                    value={newProjectData.endDate}
+                    onChange={handleProjectInputChange}
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Budget (Optional)</Form.Label>
+                  <Form.Control
+                    type="number"
+                    name="budget"
+                    value={newProjectData.budget}
+                    onChange={handleProjectInputChange}
+                    placeholder="Enter project budget"
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Assign Team Members</Form.Label>
+                  <Form.Select
+                    multiple
+                    name="assignedUsers"
+                    value={newProjectData.assignedUsers}
+                    onChange={handleAssignedUsersChange}
+                    size={4}
+                  >
+                    {users.map((user) => (
+                      <option key={user._id} value={user._id}>
+                        {user.name} ({user.role}) - {user.department?.name || 'No Dept'}
+                      </option>
+                    ))}
+                  </Form.Select>
+                  <Form.Text className="text-muted">
+                    Hold Ctrl/Cmd to select multiple team members
+                  </Form.Text>
+                </Form.Group>
+              </Col>
+            </Row>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button 
+              variant="secondary" 
+              onClick={() => setShowAddProjectModal(false)} 
+              disabled={projectLoading}
+            >
+              <FaTimes className="me-2" />
+              Cancel
+            </Button>
+            <Button variant="success" type="submit" disabled={projectLoading}>
+              {projectLoading ? (
+                <>
+                  <Spinner animation="border" size="sm" className="me-2" />
+                  Creating Project...
+                </>
+              ) : (
+                <>
+                  <FaPlus className="me-2" />
+                  Create Project
+                </>
+              )}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+
+      {/* Department Assignment Modal */}
+      <Modal show={showDepartmentModal} onHide={() => setShowDepartmentModal(false)} size="md">
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <FaBuilding className="me-2" />
+            Assign Departments to {client?.name}
+          </Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleDepartmentAssignment}>
+          <Modal.Body>
+            <Alert variant="info" className="mb-4">
+              <strong>Department Assignment:</strong> Select which departments will work with this client. 
+              Only employees and HoDs from assigned departments will be able to see this client.
+            </Alert>
+            
+            <Form.Group className="mb-3">
+              <Form.Label>Select Departments *</Form.Label>
+              <Form.Select
+                multiple
+                value={selectedDepartments}
+                onChange={handleDepartmentSelectionChange}
+                size={6}
+                required
+              >
+                {departments.map((dept) => (
+                  <option key={dept._id} value={dept._id}>
+                    {dept.name}
+                  </option>
+                ))}
+              </Form.Select>
+              <Form.Text className="text-muted">
+                Hold Ctrl/Cmd to select multiple departments. Only employees from selected departments will see this client.
+              </Form.Text>
+            </Form.Group>
+
+            {selectedDepartments.length > 0 && (
+              <Alert variant="success" className="mt-3">
+                <strong>Selected Departments:</strong>
+                <div className="mt-2">
+                  {selectedDepartments.map((deptId) => {
+                    const dept = departments.find(d => d._id === deptId);
+                    return dept ? (
+                      <Badge key={deptId} bg="success" className="me-1 mb-1">
+                        {dept.name}
+                      </Badge>
+                    ) : null;
+                  })}
+                </div>
+              </Alert>
+            )}
+          </Modal.Body>
+          <Modal.Footer>
+            <Button 
+              variant="secondary" 
+              onClick={() => setShowDepartmentModal(false)} 
+              disabled={departmentLoading}
+            >
+              <FaTimes className="me-2" />
+              Cancel
+            </Button>
+            <Button variant="success" type="submit" disabled={departmentLoading || selectedDepartments.length === 0}>
+              {departmentLoading ? (
+                <>
+                  <Spinner animation="border" size="sm" className="me-2" />
+                  Assigning...
+                </>
+              ) : (
+                <>
+                  <FaSave className="me-2" />
+                  Assign Departments
                 </>
               )}
             </Button>

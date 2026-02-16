@@ -25,6 +25,25 @@ export const clientApi = {
       return response.data;
     }
   },
+  
+  // Employee-specific client API - get clients from assigned projects
+  getMyClients: async (params = {}) => {
+    const response = await api.get("/clients/my-clients", { params });
+    if (Array.isArray(response.data)) {
+      return {
+        success: true,
+        data: response.data,
+        pagination: {
+          page: 1,
+          limit: response.data.length,
+          total: response.data.length,
+          pages: 1
+        }
+      };
+    }
+    return response.data;
+  },
+  
   getClientById: (id) => api.get(`/clients/${id}`),
   createClient: (data) => api.post("/clients", data),
   updateClient: (id, data) => api.put(`/clients/${id}`, data),
@@ -36,6 +55,11 @@ export const clientApi = {
   },
   getVipClients: async (params = {}) => {
     return api.get("/clients/vip/list", { params });
+  },
+  
+  // Department Assignment
+  assignDepartments: async (id, departmentIds) => {
+    return api.put(`/clients/${id}/departments`, { departmentIds });
   },
 };
 

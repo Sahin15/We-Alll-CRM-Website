@@ -487,11 +487,11 @@ const CreateProjectModal = ({ show, onHide, onSuccess, editProject = null }) => 
           </Row>
 
           <Row>
-            {/* Project Head */}
+            {/* Project Manager */}
             <Col md={6}>
               <Form.Group className="mb-3">
                 <Form.Label>
-                  Project Head <span className="text-muted">(Optional)</span>
+                  Project Manager <span className="text-muted">(Optional)</span>
                 </Form.Label>
                 <Form.Select
                   value={formData.projectHead}
@@ -503,7 +503,7 @@ const CreateProjectModal = ({ show, onHide, onSuccess, editProject = null }) => 
                       ? 'Select services first...' 
                       : availableProjectHeads.length === 0
                       ? 'No employees in selected services'
-                      : 'Select project head (optional)...'}
+                      : 'Select project manager (optional)...'}
                   </option>
                   {availableProjectHeads.map((user) => (
                     <option key={user._id} value={user._id}>
@@ -512,7 +512,7 @@ const CreateProjectModal = ({ show, onHide, onSuccess, editProject = null }) => 
                   ))}
                 </Form.Select>
                 <Form.Text className="text-muted">
-                  Project head can be assigned later if not selected now
+                  Project manager can be assigned later if not selected now
                 </Form.Text>
               </Form.Group>
             </Col>

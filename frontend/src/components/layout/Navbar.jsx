@@ -233,10 +233,7 @@ const Navbar = ({ toggleSidebar }) => {
   // Quick action based on role
   const getQuickActions = () => {
     if (user?.role === 'hr') {
-      return [
-        { label: 'Add Employee', icon: <FaPlus />, action: () => navigate('/employees/add') },
-        { label: 'Approve Leaves', icon: <FaClock />, action: () => navigate('/leaves/requests') },
-      ];
+      return []; // Removed Add Employee and Approve Leaves buttons from navbar
     } else if (user?.role === 'admin' || user?.role === 'superadmin') {
       return [
         { label: 'Add Employee', icon: <FaPlus />, action: () => navigate('/employees/add') },
@@ -257,9 +254,10 @@ const Navbar = ({ toggleSidebar }) => {
         minHeight: '70px',
         zIndex: 1030,
         borderRadius: '0 0 0 16px',
+        overflow: 'visible',
       }}
     >
-      <Container fluid className="px-2 px-md-3">
+      <Container fluid className="px-2 px-md-3" style={{ overflow: 'visible' }}>
         {/* Left Section: Menu Toggle */}
         <div className="d-flex align-items-center">
           <button 
@@ -421,11 +419,13 @@ const Navbar = ({ toggleSidebar }) => {
         )}
 
         {/* Right Section: Quick Actions, Notifications, User Menu */}
-        <Nav className="ms-auto align-items-center gap-1 gap-md-2">
+        <Nav className="ms-auto align-items-center gap-1 gap-md-2" style={{ overflow: 'visible' }}>
           {/* Clock In/Out for Employees, HR, HOD, and Accounts */}
           {['employee', 'hr', 'hod', 'accounts'].includes(user?.role) && (
-            <div className="d-none d-xl-flex me-2">
-              <QuickClockInOut />
+            <div className="d-none d-xl-flex me-2" style={{ position: 'relative', zIndex: 1 }}>
+              <div style={{ position: 'relative', zIndex: 1 }}>
+                <QuickClockInOut />
+              </div>
             </div>
           )}
 
@@ -673,6 +673,19 @@ const Navbar = ({ toggleSidebar }) => {
           transform: rotate(180deg);
         }
         
+        /* User Dropdown - Higher z-index to appear above other elements */
+        .user-dropdown {
+          position: relative !important;
+          z-index: 1050 !important;
+        }
+        
+        /* Ensure navbar doesn't clip dropdown */
+        .mobile-navbar,
+        .mobile-navbar .container-fluid,
+        .mobile-navbar .navbar-nav {
+          overflow: visible !important;
+        }
+        
         /* Dropdown Menu */
         .user-dropdown .dropdown-menu {
           font-family: 'Inter', sans-serif !important;
@@ -684,6 +697,11 @@ const Navbar = ({ toggleSidebar }) => {
           min-width: 280px !important;
           overflow: hidden !important;
           animation: dropdownSlideIn 0.3s ease-out !important;
+          z-index: 1051 !important;
+          position: absolute !important;
+          top: 100% !important;
+          right: 0 !important;
+          left: auto !important;
         }
         
         /* Mobile dropdown adjustments */

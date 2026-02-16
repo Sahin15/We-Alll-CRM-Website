@@ -1,6 +1,7 @@
 import Announcement from "../models/announcementModel.js";
 import Notification from "../models/notificationModel.js";
 import User from "../models/userModel.js";
+import notificationService from "../services/notificationService.js";
 
 // @desc    Get all announcements
 // @route   GET /api/announcements
@@ -290,28 +291,36 @@ async function createAnnouncementNotifications(announcement, creator) {
     const targetUsers = await User.find({
       ...userQuery,
       _id: { $ne: creator._id },
-    }).select("_id");
+    }).select("_id name");
 
-    // Create notifications for all target users
-    const notifications = targetUsers.map((user) => ({
-      recipient: user._id,  // Changed from 'user' to 'recipient'
-      recipientType: "employee",
-      type: "general",  // Use 'general' type which exists in the enum
-      title: `New Announcement: ${announcement.title}`,
-      message: announcement.content.substring(0, 200) + (announcement.content.length > 200 ? "..." : ""),
-      link: `/employee/announcements`,
-      data: {
-        announcementId: announcement._id,
-        announcementType: announcement.type,  // Store actual announcement type in data
-      },
-    }));
+    if (targetUsers.length > 0) {
+      // Send push notifications using our notification service
+      const userIds = targetUsers.map(user => user._id);
+      await notificationService.sendAnnouncementNotification(
+        userIds,
+        announcement.title,
+        announcement.content.substring(0, 100) + (announcement.content.length > 100 ? "..." : "")
+      );
 
-    if (notifications.length > 0) {
+      // Also create database notifications for backward compatibility
+      const notifications = targetUsers.map((user) => ({
+        recipient: user._id,
+        recipientType: "employee",
+        type: "general",
+        title: `New Announcement: ${announcement.title}`,
+        message: announcement.content.substring(0, 200) + (announcement.content.length > 200 ? "..." : ""),
+        link: `/employee/announcements`,
+        data: {
+          announcementId: announcement._id,
+          announcementType: announcement.type,
+        },
+      }));
+
       await Notification.insertMany(notifications);
-      console.log(`Created ${notifications.length} notifications for announcement: ${announcement.title}`);
+      console.log(`✅ Created ${notifications.length} notifications for announcement: ${announcement.title}`);
     }
   } catch (error) {
-    console.error("Error creating announcement notifications:", error);
+    console.error("❌ Error creating announcement notifications:", error);
     // Don't throw error - notification creation failure shouldn't block announcement creation
   }
 }

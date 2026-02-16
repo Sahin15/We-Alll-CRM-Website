@@ -20,6 +20,8 @@ import {
   FaEye,
   FaUserShield,
   FaChartLine,
+  FaMoneyBillWave,
+  FaHome,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import StatCard from "../../components/dashboard/StatCard";
@@ -37,12 +39,16 @@ import AnnouncementManagement from "../../components/hr/AnnouncementManagement";
 import QuickStatsWidgets from "../../components/hr/QuickStatsWidgets";
 import NotificationCenter from "../../components/hr/NotificationCenter";
 import ReportsAnalytics from "../../components/hr/ReportsAnalytics";
+import OvertimeApprovalPanel from "../../components/hr/OvertimeApprovalPanel";
+import WFHApprovalPanel from "../../components/wfh/WFHApprovalPanel";
 import { useAuth } from "../../context/AuthContext";
 import { userApi } from "../../api/userApi";
 import { leaveApi } from "../../api/leaveApi";
 import { attendanceApi } from "../../api/attendanceApi";
 import { departmentApi } from "../../api/departmentApi";
 import { leadApi } from "../../api/leadApi";
+import { getPendingOvertimeEntries } from "../../api/overtimeApi";
+import { getPendingWFHRequests } from "../../api/wfhApi";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
 import toast from "../../utils/toast";
 
@@ -56,6 +62,8 @@ const HRDashboard = () => {
     departments: 0,
     leads: 0,
     lateToday: 0,
+    pendingOvertime: 0,
+    pendingWFH: 0,
   });
   const [loading, setLoading] = useState(true);
   const [pendingLeaves, setPendingLeaves] = useState([]);
@@ -112,6 +120,24 @@ const HRDashboard = () => {
       ) || [];
       setLateEntries(lateEntriesData);
 
+      // Fetch pending overtime count
+      let pendingOvertimeCount = 0;
+      try {
+        const overtimeRes = await getPendingOvertimeEntries();
+        pendingOvertimeCount = overtimeRes.total || 0;
+      } catch (error) {
+        console.log('Could not fetch pending overtime:', error);
+      }
+
+      // Fetch pending WFH count
+      let pendingWFHCount = 0;
+      try {
+        const wfhRes = await getPendingWFHRequests();
+        pendingWFHCount = wfhRes.data?.length || 0;
+      } catch (error) {
+        console.log('Could not fetch pending WFH requests:', error);
+      }
+
       setStats({
         // Include both employees AND HoDs in employee count (HoDs are also employees)
         employees:
@@ -121,6 +147,8 @@ const HRDashboard = () => {
         departments: departmentRes.data?.length || 0,
         leads: leadsRes.data?.length || 0,
         lateToday: todayLateCount,
+        pendingOvertime: pendingOvertimeCount,
+        pendingWFH: pendingWFHCount,
       });
 
       // Set pending leaves for table
@@ -225,40 +253,51 @@ const HRDashboard = () => {
 
   const quickActions = [
     {
+      label: "Salary Management",
+      icon: <FaMoneyBillWave />,
+      path: "/salary-management",
+      variant: "success",
+    },
+    {
       label: "Approve Leaves",
       icon: <FaCalendarAlt />,
       path: "/leaves/requests",
       variant: "primary",
+      badge: stats.pendingLeaves > 0 ? stats.pendingLeaves : null,
     },
     {
-      label: "Manage Holidays",
-      icon: <FaCalendarAlt />,
-      path: "/hr/holidays",
+      label: "Approve Overtime",
+      icon: <FaClock />,
+      path: "#overtime-approvals",
       variant: "warning",
+      badge: stats.pendingOvertime > 0 ? stats.pendingOvertime : null,
+      onClick: () => {
+        // Scroll to overtime approval panel
+        const overtimeSection = document.getElementById('overtime-approvals');
+        if (overtimeSection) {
+          overtimeSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      },
+    },
+    {
+      label: "Approve WFH",
+      icon: <FaHome />,
+      path: "#wfh-approvals",
+      variant: "success",
+      badge: stats.pendingWFH > 0 ? stats.pendingWFH : null,
+      onClick: () => {
+        // Scroll to WFH approval panel
+        const wfhSection = document.getElementById('wfh-approvals');
+        if (wfhSection) {
+          wfhSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      },
     },
     {
       label: "View Attendance",
       icon: <FaClock />,
       path: "/attendance/tracking",
-      variant: "success",
-    },
-    {
-      label: "Manage Employees",
-      icon: <FaUsers />,
-      path: "/users",
       variant: "info",
-    },
-    {
-      label: "Employee Profiles",
-      icon: <FaUserShield />,
-      path: "/employees",
-      variant: "secondary",
-    },
-    {
-      label: "Manage Departments",
-      icon: <FaBuilding />,
-      path: "/departments",
-      variant: "warning",
     },
   ];
 
@@ -353,6 +392,53 @@ const HRDashboard = () => {
         </Col>
       </Row>
 
+      {/* Salary Management Card */}
+      <Row className="mb-4">
+        <Col>
+          <Card 
+            className="border-0 shadow-sm"
+            style={{ 
+              backgroundColor: '#f8f9fa',
+              minHeight: '120px'
+            }}
+          >
+            <Card.Body className="d-flex align-items-center">
+              <Row className="w-100 align-items-center">
+                <Col md={8}>
+                  <div className="d-flex align-items-center">
+                    <div className="me-4">
+                      <FaMoneyBillWave 
+                        size={50} 
+                        className="text-primary"
+                      />
+                    </div>
+                    <div>
+                      <h4 className="mb-2 fw-bold text-dark" style={{ fontSize: '20px' }}>
+                        Salary Management System
+                      </h4>
+                      <p className="mb-0 text-muted fs-6">
+                        Manage salary structures, generate salary slips, and view payroll reports
+                      </p>
+                    </div>
+                  </div>
+                </Col>
+                <Col md={4} className="text-end">
+                  <Button 
+                    variant="primary" 
+                    size="lg"
+                    onClick={() => navigate('/salary-management')}
+                    className="fw-bold px-4 py-3"
+                  >
+                    <FaMoneyBillWave className="me-2" />
+                    Manage Salaries
+                  </Button>
+                </Col>
+              </Row>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
       {/* Quick Actions & Notifications - High Priority */}
       <Row className="g-4 mb-4">
         <Col lg={4}>
@@ -374,6 +460,20 @@ const HRDashboard = () => {
       <Row className="mb-4">
         <Col>
           <LeaveManagement />
+        </Col>
+      </Row>
+
+      {/* Overtime Approval - Important for HR */}
+      <Row className="mb-4" id="overtime-approvals">
+        <Col>
+          <OvertimeApprovalPanel />
+        </Col>
+      </Row>
+
+      {/* WFH Approval - Work From Home Requests */}
+      <Row className="mb-4" id="wfh-approvals">
+        <Col>
+          <WFHApprovalPanel />
         </Col>
       </Row>
 

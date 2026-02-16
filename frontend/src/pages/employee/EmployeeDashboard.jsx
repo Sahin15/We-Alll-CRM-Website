@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Container, Row, Col, Card, Button, Badge, Modal, Form, Alert } from "react-bootstrap";
-import { FaClock, FaCalendarAlt, FaTasks, FaChartLine, FaFileAlt, FaShieldAlt, FaBullhorn, FaInfoCircle, FaExclamationTriangle } from "react-icons/fa";
+import { FaClock, FaCalendarAlt, FaTasks, FaChartLine, FaFileAlt, FaShieldAlt, FaBullhorn, FaInfoCircle, FaExclamationTriangle, FaHome } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import toast from "../../utils/toast";
 import api from "../../services/api";
@@ -641,7 +641,7 @@ const EmployeeDashboard = () => {
       return;
     }
 
-    // Check leave balance (skip for unpaid leave)
+    // Check leave balance (skip for unpaid leave only)
     const requestedDays = calculateDays(leaveFormData.startDate, leaveFormData.endDate);
     
     if (leaveFormData.leaveType !== 'unpaid') {
@@ -839,9 +839,9 @@ const EmployeeDashboard = () => {
         <HoPSection user={user} />
       )}
 
-      {/* Quick Stats */}
+      {/* Quick Stats - Clean 4-Card Layout */}
       <Row className="mb-4">
-        <Col xs={12} sm={6} md={3} className="mb-3">
+        <Col xs={12} sm={6} lg={3} className="mb-3">
           <Card 
             className="dashboard-card stat-card border-0 shadow-sm h-100 cursor-pointer"
             onClick={handleAttendanceCardClick}
@@ -862,7 +862,7 @@ const EmployeeDashboard = () => {
           </Card>
         </Col>
 
-        <Col xs={12} sm={6} md={3} className="mb-3">
+        <Col xs={12} sm={6} lg={3} className="mb-3">
           <Card 
             className="dashboard-card stat-card border-0 shadow-sm h-100 cursor-pointer" 
             onClick={handleLeaveCardClick}
@@ -883,7 +883,7 @@ const EmployeeDashboard = () => {
           </Card>
         </Col>
 
-        <Col xs={12} sm={6} md={3} className="mb-3">
+        <Col xs={12} sm={6} lg={3} className="mb-3">
           <Card 
             className="dashboard-card stat-card border-0 shadow-sm h-100 cursor-pointer"
             onClick={handleTasksCardClick}
@@ -904,7 +904,7 @@ const EmployeeDashboard = () => {
           </Card>
         </Col>
 
-        <Col xs={12} sm={6} md={3} className="mb-3">
+        <Col xs={12} sm={6} lg={3} className="mb-3">
           <Card 
             className="dashboard-card stat-card border-0 shadow-sm h-100 cursor-pointer"
             onClick={handleWorkHoursCardClick}

@@ -19,19 +19,33 @@ export const createLead = async (req, res) => {
     } = req.body;
 
     console.log("Creating lead with data:", req.body);
+    console.log("Validation check - fullName:", fullName, "phone:", phone);
 
     // Validate required fields
     if (!fullName || !phone) {
+      console.log("❌ Validation failed: Missing required fields");
+      console.log("fullName provided:", !!fullName, "phone provided:", !!phone);
       return res.status(400).json({
         message: "Full name and phone number are required",
+        details: {
+          fullName: !fullName ? "Full name is required" : "OK",
+          phone: !phone ? "Phone number is required" : "OK"
+        }
       });
     }
 
     // Validate phone number
     const phoneNumber = Number(phone);
+    console.log("Phone validation - original:", phone, "converted:", phoneNumber, "isNaN:", isNaN(phoneNumber));
     if (isNaN(phoneNumber) || phoneNumber <= 0) {
+      console.log("❌ Validation failed: Invalid phone number");
       return res.status(400).json({
         message: "Please provide a valid phone number",
+        details: {
+          phone: phone,
+          converted: phoneNumber,
+          error: "Phone must be a valid positive number"
+        }
       });
     }
 
@@ -46,11 +60,28 @@ export const createLead = async (req, res) => {
       existingLeadQuery = { phone: phoneNumber };
     }
 
+    console.log("Checking for existing lead with query:", existingLeadQuery);
     const existingLead = await Lead.findOne(existingLeadQuery);
 
     if (existingLead) {
+      console.log("❌ Validation failed: Duplicate lead found");
+      console.log("Existing lead:", { 
+        id: existingLead._id, 
+        phone: existingLead.phone, 
+        email: existingLead.email,
+        fullName: existingLead.fullName 
+      });
       return res.status(400).json({
         message: "Lead with this email or phone number already exists",
+        details: {
+          duplicateField: existingLead.phone === phoneNumber ? "phone" : "email",
+          existingLead: {
+            id: existingLead._id,
+            fullName: existingLead.fullName,
+            phone: existingLead.phone,
+            email: existingLead.email
+          }
+        }
       });
     }
 
@@ -66,20 +97,27 @@ export const createLead = async (req, res) => {
       notes: notes || reference, // Use reference as notes if provided
     };
 
+    console.log("Prepared lead data:", leadData);
+
     // Only add createdBy if user is authenticated
     if (req.user && req.user.id) {
       leadData.createdBy = req.user.id;
+      console.log("Added createdBy:", req.user.id);
+    } else {
+      console.log("No authenticated user, creating public lead");
     }
 
     // Only add email if provided (since it's not required for public forms)
     if (email) {
       leadData.email = email;
+      console.log("Added email:", email);
     }
 
     const lead = new Lead(leadData);
+    console.log("About to save lead...");
     await lead.save();
 
-    console.log("Lead created successfully:", lead._id);
+    console.log("✅ Lead created successfully:", lead._id);
 
     // Populate assigned user and creator details if they exist
     const populatedLead = await Lead.findById(lead._id)
@@ -91,12 +129,48 @@ export const createLead = async (req, res) => {
       lead: populatedLead,
     });
   } catch (error) {
-    console.error("Error in createLead:", error);
+    console.error("❌ Error in createLead:", error);
+    console.error("Error name:", error.name);
+    console.error("Error code:", error.code);
     console.error("Error stack:", error.stack);
     console.error("Request body:", req.body);
+    
+    // Handle mongoose validation errors
+    if (error.name === 'ValidationError') {
+      console.log("Mongoose validation error details:", error.errors);
+      const validationErrors = Object.keys(error.errors).map(key => ({
+        field: key,
+        message: error.errors[key].message
+      }));
+      
+      return res.status(400).json({ 
+        message: "Validation failed",
+        errors: validationErrors,
+        details: error.errors
+      });
+    }
+    
+    // Handle duplicate key errors (unique constraint violations)
+    if (error.code === 11000) {
+      console.log("Duplicate key error:", error.keyPattern, error.keyValue);
+      const duplicateField = Object.keys(error.keyPattern)[0];
+      return res.status(400).json({
+        message: `A lead with this ${duplicateField} already exists`,
+        details: {
+          duplicateField: duplicateField,
+          value: error.keyValue[duplicateField],
+          error: "Duplicate key constraint violation"
+        }
+      });
+    }
+    
     return res.status(500).json({ 
       message: "Server error",
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      details: process.env.NODE_ENV === 'development' ? {
+        name: error.name,
+        code: error.code
+      } : undefined
     });
   }
 };
@@ -149,6 +223,17 @@ export const updateLead = async (req, res) => {
     const lead = await Lead.findById(req.params.id);
     if (!lead) {
       return res.status(404).json({ message: "Lead not found" });
+    }
+
+    // Permission check: Only allow admin/superadmin, assigned user, or creator to edit
+    const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
+    const isAssigned = lead.assignedTo && lead.assignedTo.toString() === req.user.id;
+    const isCreator = lead.createdBy && lead.createdBy.toString() === req.user.id;
+
+    if (!isAdmin && !isAssigned && !isCreator) {
+      return res.status(403).json({ 
+        message: "Access denied. You can only edit leads assigned to you or created by you." 
+      });
     }
 
     // Convert phone to number if provided

@@ -2,6 +2,12 @@ import Attendance from "../models/attendanceModel.js";
 import User from "../models/userModel.js";
 import logger from '../utils/logger.js';
 import { buildDateRangeQuery } from '../utils/queryOptimizer.js';
+import { 
+  getCurrentISTTime, 
+  getTodayMidnightIST, 
+  getTodayRangeIST,
+  logTimezoneInfo 
+} from '../utils/timezone.js';
 
 // Clock in (HoD is also an employee)
 export const clockIn = async (req, res) => {
@@ -17,62 +23,62 @@ export const clockIn = async (req, res) => {
       });
     }
 
-    // Get today's date at midnight for comparison
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // TIMEZONE FIX: Use IST time consistently
+    const { start: todayStart, end: todayEnd } = getTodayRangeIST();
+    const clockInTime = getCurrentISTTime();
+    
+    // Log timezone info for debugging
+    console.log(`[CLOCK-IN] Timezone Info:`);
+    logTimezoneInfo();
+    console.log(`[CLOCK-IN] Clock-in time (IST): ${clockInTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
 
     // Check if already clocked in today
     const existingAttendance = await Attendance.findOne({
       employee,
       date: {
-        $gte: today,
-        $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+        $gte: todayStart,
+        $lt: todayEnd,
       },
     });
 
     if (existingAttendance) {
-      const clockInTime = new Date(existingAttendance.clockIn).toLocaleTimeString('en-US', {
+      const clockInTimeStr = new Date(existingAttendance.clockIn).toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit'
       });
+      
+      console.log(`[CLOCK-IN] ❌ Duplicate attempt by ${req.user.name}`);
+      console.log(`[CLOCK-IN] Existing record ID: ${existingAttendance._id}`);
+      console.log(`[CLOCK-IN] Existing clock-in: ${existingAttendance.clockIn.toISOString()}`);
+      console.log(`[CLOCK-IN] Date range checked: ${todayStart.toISOString()} to ${todayEnd.toISOString()}`);
+      
       return res.status(400).json({ 
-        message: `You've already clocked in today at ${clockInTime}`,
+        message: `You've already clocked in today at ${clockInTimeStr}`,
         type: 'already_clocked_in',
-        clockInTime: existingAttendance.clockIn
+        clockInTime: existingAttendance.clockIn,
+        recordId: existingAttendance._id
       });
     }
 
-    // Create attendance - status will be calculated automatically by the model
-    const clockInTime = new Date();
+    // Create attendance - status will be calculated automatically by the pre-save hook
+    console.log(`[CLOCK-IN] Creating attendance for ${req.user.name} (${req.user.role})`);
     
-    // Create attendance with date at midnight for consistency with unique index
-    // Status will be calculated by the pre-save hook in the model
-    console.log(`[CLOCK-IN] Creating attendance for ${req.user.name} (${req.user.role}) at ${clockInTime.toLocaleString()}`);
-    
-    // Create attendance object without status - let the model calculate it
+    // Create attendance object WITHOUT explicit status - let pre-save hook calculate it
     const attendanceData = {
       employee,
-      date: today, // Use today at midnight, not new Date()
-      clockIn: clockInTime,
+      date: todayStart, // Use IST midnight
+      clockIn: clockInTime, // Use IST time
       location,
-      // Explicitly NO status field - model will calculate it
+      // NO status field - let the pre-save hook calculate it
     };
     
-    console.log(`[CLOCK-IN] Attendance data:`, attendanceData);
+    console.log(`[CLOCK-IN] Attendance data:`, {
+      ...attendanceData,
+      clockIn: clockInTime.toISOString(),
+      clockInIST: clockInTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+    });
     
     const attendance = await Attendance.create(attendanceData);
-
-    // ALWAYS FORCE recalculation to ensure correct status
-    const calculatedStatus = attendance.calculateStatus();
-    console.log(`[CLOCK-IN] 🔧 FORCE STATUS CHECK: Current: ${attendance.status}, Calculated: ${calculatedStatus}`);
-    
-    if (attendance.status !== calculatedStatus) {
-      console.log(`[CLOCK-IN] 🔧 FORCE FIXING: ${attendance.status} → ${calculatedStatus}`);
-      attendance.status = calculatedStatus;
-      await attendance.save();
-    } else {
-      console.log(`[CLOCK-IN] ✅ Status is already correct: ${attendance.status}`);
-    }
 
     console.log(`[CLOCK-IN] ✅ Attendance created with status: ${attendance.status} for ${req.user.name} (${req.user.role})`);
 
@@ -86,7 +92,7 @@ export const clockIn = async (req, res) => {
       message = "Clocked in successfully";
     }
     
-    console.log(`[CLOCK-IN] ✅ Attendance created with status: ${attendance.status} at ${clockInTime.toLocaleTimeString()}`);
+    console.log(`[CLOCK-IN] ✅ Final status: ${attendance.status} at ${clockInTime.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
 
     res.status(201).json({
       message: message,
@@ -127,15 +133,15 @@ export const clockOut = async (req, res) => {
       });
     }
 
-    // Get today's date at midnight for comparison
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // TIMEZONE FIX: Use IST time consistently
+    const { start: todayStart, end: todayEnd } = getTodayRangeIST();
+    const clockOutTime = getCurrentISTTime();
 
     const attendance = await Attendance.findOne({
       employee,
       date: {
-        $gte: today,
-        $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+        $gte: todayStart,
+        $lt: todayEnd,
       },
     });
 
@@ -147,18 +153,18 @@ export const clockOut = async (req, res) => {
     }
 
     if (attendance.clockOut) {
-      const clockOutTime = new Date(attendance.clockOut).toLocaleTimeString('en-US', {
+      const clockOutTimeStr = new Date(attendance.clockOut).toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit'
       });
       return res.status(400).json({ 
-        message: `You've already clocked out today at ${clockOutTime}. See you tomorrow!`,
+        message: `You've already clocked out today at ${clockOutTimeStr}. See you tomorrow!`,
         type: 'already_clocked_out',
         clockOutTime: attendance.clockOut
       });
     }
 
-    attendance.clockOut = new Date();
+    attendance.clockOut = clockOutTime; // Use IST time
     if (notes) attendance.notes = notes;
 
     await attendance.save();
@@ -277,13 +283,24 @@ export const getAllAttendance = async (req, res) => {
     let attendance;
     try {
       attendance = await Attendance.find(filter)
-        .select('employee date clockIn clockOut status workHours overtime isManuallyModified originalStatus modificationHistory')
+        .select('employee date clockIn clockOut breaks totalBreakTime status workHours overtime isManuallyModified originalStatus modificationHistory')
         .populate("employee", "name email department")
         .populate("approvedBy", "name")
         .populate("modificationHistory.modifiedBy", "name email role")
         .sort({ date: -1 })
         .lean();
       console.log('[ATTENDANCE API] Database query successful');
+      
+      // Log sample record to check breaks field
+      if (attendance.length > 0) {
+        console.log('[ATTENDANCE API] Sample record:', {
+          id: attendance[0]._id,
+          employee: attendance[0].employee?.name,
+          breaks: attendance[0].breaks,
+          totalBreakTime: attendance[0].totalBreakTime,
+          hasBreaksField: attendance[0].hasOwnProperty('breaks')
+        });
+      }
     } catch (dbError) {
       console.error('[ATTENDANCE API] Database query failed:', dbError);
       throw dbError;
@@ -848,7 +865,7 @@ export const debugStatusCalculation = async (req, res) => {
     
     const totalMinutes = hours * 60 + minutes;
     
-    // Apply the same logic as the model
+    // Apply the same logic as the model (with IST timezone handling)
     let calculatedStatus;
     if (totalMinutes >= 720) {
       calculatedStatus = "half-day"; // 12:00 PM or later
@@ -858,17 +875,32 @@ export const debugStatusCalculation = async (req, res) => {
       calculatedStatus = "present"; // 00:00 to 10:30 AM
     }
     
+    // Also test with a simulated UTC->IST conversion
+    const testDate = new Date();
+    testDate.setHours(hours, minutes, 0, 0);
+    const utcTime = new Date(testDate.getTime() - (5.5 * 60 * 60 * 1000)); // Simulate UTC storage
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istTime = new Date(utcTime.getTime() + istOffset);
+    
     res.status(200).json({
       inputTime: time,
       hours: hours,
       minutes: minutes,
       totalMinutes: totalMinutes,
       calculatedStatus: calculatedStatus,
+      timezoneTest: {
+        originalIST: testDate.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+        simulatedUTC: utcTime.toISOString(),
+        convertedBackToIST: istTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+        istHours: istTime.getHours(),
+        istMinutes: istTime.getMinutes()
+      },
       rules: {
         present: "00:00 - 10:30 (0-630 minutes)",
         late: "10:31 - 11:59 (631-719 minutes)", 
         halfDay: "12:00+ (720+ minutes)"
-      }
+      },
+      note: "Status calculation now uses IST timezone (UTC+5:30) for accurate results"
     });
     
   } catch (error) {
@@ -1497,11 +1529,16 @@ export const fixTodayAttendance = async (req, res) => {
 
     for (const record of attendanceRecords) {
       const clockInTime = new Date(record.clockIn);
-      const clockInHour = clockInTime.getHours();
-      const clockInMinute = clockInTime.getMinutes();
+      
+      // CRITICAL FIX: Convert UTC time to IST (Asia/Calcutta) for calculation
+      const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
+      const istTime = new Date(clockInTime.getTime() + istOffset);
+      
+      const clockInHour = istTime.getHours();
+      const clockInMinute = istTime.getMinutes();
       const totalMinutes = clockInHour * 60 + clockInMinute;
 
-      // Calculate correct status
+      // Calculate correct status using IST time
       let correctStatus;
       if (totalMinutes >= 720) {
         // 12:00 PM (720 minutes) or later = Half day
@@ -1524,26 +1561,32 @@ export const fixTodayAttendance = async (req, res) => {
         
         fixedRecords.push({
           employee: record.employee?.name || 'Unknown',
-          clockIn: timeStr,
+          clockInUTC: clockInTime.toISOString(),
+          clockInIST: timeStr,
+          totalMinutes: totalMinutes,
           oldStatus: oldStatus,
           newStatus: correctStatus
         });
 
-        console.log(`[FIX-TODAY] Fixed: ${record.employee?.name || 'Unknown'} - ${timeStr} - ${oldStatus} → ${correctStatus}`);
+        console.log(`[FIX-TODAY] Fixed: ${record.employee?.name || 'Unknown'} - UTC: ${clockInTime.toISOString()} -> IST: ${timeStr} (${totalMinutes}min) - ${oldStatus} → ${correctStatus}`);
         fixedCount++;
       }
     }
 
     res.status(200).json({
       success: true,
-      message: fixedCount > 0 ? `Fixed ${fixedCount} attendance records` : 'All attendance records are already correct',
+      message: fixedCount > 0 ? `Fixed ${fixedCount} attendance records with timezone correction` : 'All attendance records are already correct',
       totalRecords: attendanceRecords.length,
       fixedCount: fixedCount,
       fixedRecords: fixedRecords,
       rules: {
-        present: 'Before 10:30 AM',
-        late: '10:31 AM - 11:59 AM',
-        halfDay: '12:00 PM or later'
+        present: 'Before 10:30 AM IST',
+        late: '10:31 AM - 11:59 AM IST',
+        halfDay: '12:00 PM or later IST'
+      },
+      timezoneInfo: {
+        serverTimezone: 'Asia/Calcutta (UTC+5:30)',
+        note: 'All calculations now use IST timezone for accurate status determination'
       }
     });
 
@@ -1553,6 +1596,826 @@ export const fixTodayAttendance = async (req, res) => {
       success: false,
       message: "Error fixing attendance records",
       error: error.message
+    });
+  }
+};
+
+
+// Start break (pause)
+export const startBreak = async (req, res) => {
+  try {
+    const employee = req.user._id;
+    
+    // Employees, HoDs, and HR can take breaks (not clients, admin, superadmin)
+    if (['client', 'admin', 'superadmin'].includes(req.user.role)) {
+      return res.status(403).json({ 
+        message: "Admins and clients cannot take breaks. This feature is for employees only.",
+        type: 'invalid_role'
+      });
+    }
+
+    // Get today's date at midnight for comparison
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const attendance = await Attendance.findOne({
+      employee,
+      date: {
+        $gte: today,
+        $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+      },
+    });
+
+    if (!attendance) {
+      return res.status(404).json({ 
+        message: "You haven't clocked in yet today. Please clock in first.",
+        type: 'not_clocked_in'
+      });
+    }
+
+    if (attendance.clockOut) {
+      return res.status(400).json({ 
+        message: "You've already clocked out. Cannot start a break.",
+        type: 'already_clocked_out'
+      });
+    }
+
+    // Check if already on break
+    if (attendance.isOnBreak()) {
+      return res.status(400).json({ 
+        message: "You're already on a break. Please end your current break first.",
+        type: 'already_on_break'
+      });
+    }
+
+    // Add new break
+    attendance.breaks.push({
+      startTime: new Date(),
+    });
+
+    await attendance.save();
+
+    res.status(200).json({
+      message: "Break started successfully",
+      attendance,
+      isOnBreak: true,
+    });
+  } catch (error) {
+    console.error("Error in startBreak:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// End break (resume)
+export const endBreak = async (req, res) => {
+  try {
+    const employee = req.user._id;
+    
+    // Employees, HoDs, and HR can end breaks (not clients, admin, superadmin)
+    if (['client', 'admin', 'superadmin'].includes(req.user.role)) {
+      return res.status(403).json({ 
+        message: "Admins and clients cannot end breaks. This feature is for employees only.",
+        type: 'invalid_role'
+      });
+    }
+
+    // Get today's date at midnight for comparison
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const attendance = await Attendance.findOne({
+      employee,
+      date: {
+        $gte: today,
+        $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+      },
+    });
+
+    if (!attendance) {
+      return res.status(404).json({ 
+        message: "You haven't clocked in yet today.",
+        type: 'not_clocked_in'
+      });
+    }
+
+    // Check if on break
+    if (!attendance.isOnBreak()) {
+      return res.status(400).json({ 
+        message: "You're not currently on a break.",
+        type: 'not_on_break'
+      });
+    }
+
+    // End the current break
+    const lastBreak = attendance.breaks[attendance.breaks.length - 1];
+    lastBreak.endTime = new Date();
+
+    // Calculate total break time
+    attendance.totalBreakTime = attendance.calculateBreakTime();
+
+    await attendance.save();
+
+    res.status(200).json({
+      message: "Break ended successfully",
+      attendance,
+      isOnBreak: false,
+      totalBreakTime: attendance.totalBreakTime,
+    });
+  } catch (error) {
+    console.error("Error in endBreak:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+
+// Initialize breaks field for existing attendance records
+export const initializeBreaksField = async (req, res) => {
+  try {
+    console.log('[INIT-BREAKS] Starting breaks field initialization...');
+    
+    // Find all attendance records that don't have breaks field or have null/undefined breaks
+    const recordsToUpdate = await Attendance.find({
+      $or: [
+        { breaks: { $exists: false } },
+        { breaks: null },
+        { breaks: [] }
+      ]
+    });
+    
+    console.log(`[INIT-BREAKS] Found ${recordsToUpdate.length} records to initialize`);
+    
+    let updatedCount = 0;
+    
+    for (const record of recordsToUpdate) {
+      // Initialize breaks as empty array and totalBreakTime as 0
+      record.breaks = [];
+      record.totalBreakTime = 0;
+      await record.save();
+      updatedCount++;
+    }
+    
+    console.log(`[INIT-BREAKS] Successfully initialized ${updatedCount} records`);
+    
+    res.status(200).json({
+      success: true,
+      message: `Initialized breaks field for ${updatedCount} attendance records`,
+      totalRecords: recordsToUpdate.length,
+      updatedCount: updatedCount
+    });
+    
+  } catch (error) {
+    console.error('[INIT-BREAKS] Error initializing breaks field:', error);
+    res.status(500).json({
+      success: false,
+      message: "Error initializing breaks field",
+      error: error.message
+    });
+  }
+};
+
+
+// Manual trigger for auto clock-out (for testing)
+export const manualAutoClockOut = async (req, res) => {
+  try {
+    console.log('[MANUAL-AUTO-CLOCKOUT] Starting manual auto clock-out...');
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Find all attendance records for today that are clocked in but not clocked out
+    const forgottenClockOuts = await Attendance.find({
+      date: {
+        $gte: today,
+        $lt: tomorrow,
+      },
+      clockIn: { $exists: true },
+      clockOut: { $exists: false },
+    }).populate("employee", "name email");
+
+    if (forgottenClockOuts.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No employees found who forgot to clock out",
+        count: 0
+      });
+    }
+
+    console.log(`[MANUAL-AUTO-CLOCKOUT] Found ${forgottenClockOuts.length} employees who forgot to clock out`);
+
+    // Auto clock-out at 10 PM
+    const clockOutTime = new Date();
+    clockOutTime.setHours(22, 0, 0, 0); // 10:00 PM
+
+    let autoClockOutCount = 0;
+    const clockedOutEmployees = [];
+
+    for (const attendance of forgottenClockOuts) {
+      // Set clock out time to 10 PM
+      attendance.clockOut = clockOutTime;
+      attendance.notes = attendance.notes 
+        ? `${attendance.notes}\n⚠️ Auto clocked-out at 10:00 PM - You forgot to clock out!`
+        : "⚠️ Auto clocked-out at 10:00 PM - You forgot to clock out!";
+      
+      await attendance.save();
+      autoClockOutCount++;
+
+      clockedOutEmployees.push({
+        name: attendance.employee?.name || 'Unknown',
+        email: attendance.employee?.email || 'Unknown',
+        clockInTime: attendance.clockIn,
+        autoClockOutTime: clockOutTime
+      });
+
+      console.log(`[MANUAL-AUTO-CLOCKOUT] Auto clocked-out: ${attendance.employee?.name} at 10:00 PM`);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully auto clocked-out ${autoClockOutCount} employees`,
+      count: autoClockOutCount,
+      employees: clockedOutEmployees
+    });
+    
+  } catch (error) {
+    console.error('[MANUAL-AUTO-CLOCKOUT] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: "Error during auto clock-out",
+      error: error.message
+    });
+  }
+};
+
+
+// ==================== OVERTIME MANAGEMENT ====================
+
+// Start overtime timer (Employee starts working overtime)
+export const startOvertimeTimer = async (req, res) => {
+  try {
+    const employee = req.user._id;
+    const { reason, taskReference } = req.body;
+
+    if (!reason) {
+      return res.status(400).json({
+        message: "Reason is required to start overtime timer",
+      });
+    }
+
+    // Get today's attendance record
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const attendance = await Attendance.findOne({
+      employee,
+      date: {
+        $gte: today,
+        $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+      },
+    });
+
+    if (!attendance) {
+      return res.status(404).json({
+        message: "No attendance record found for today. Please clock in first.",
+      });
+    }
+
+    // Start the timer
+    const entry = attendance.startOvertimeTimer(reason, taskReference);
+    await attendance.save();
+
+    console.log(`[OVERTIME] ${req.user.name} started overtime timer`);
+
+    res.status(201).json({
+      message: "Overtime timer started successfully",
+      entry,
+      attendance,
+    });
+  } catch (error) {
+    console.error("Error starting overtime timer:", error);
+    res.status(500).json({
+      message: error.message || "Failed to start overtime timer",
+    });
+  }
+};
+
+// Stop overtime timer (Employee finishes overtime work)
+export const stopOvertimeTimer = async (req, res) => {
+  try {
+    const employee = req.user._id;
+    const { entryId } = req.params;
+
+    // Get today's attendance record
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const attendance = await Attendance.findOne({
+      employee,
+      date: {
+        $gte: today,
+        $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+      },
+    });
+
+    if (!attendance) {
+      return res.status(404).json({
+        message: "No attendance record found",
+      });
+    }
+
+    // Stop the timer
+    const entry = attendance.stopOvertimeTimer(entryId);
+    await attendance.save();
+
+    console.log(`[OVERTIME] ${req.user.name} stopped overtime timer: ${entry.duration} hours`);
+
+    res.status(200).json({
+      message: `Overtime timer stopped. Duration: ${entry.duration} hours`,
+      entry,
+      attendance,
+    });
+  } catch (error) {
+    console.error("Error stopping overtime timer:", error);
+    res.status(500).json({
+      message: error.message || "Failed to stop overtime timer",
+    });
+  }
+};
+
+// Get active overtime timer
+export const getActiveOvertimeTimer = async (req, res) => {
+  try {
+    const employee = req.user._id;
+
+    // Get today's attendance record
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const attendance = await Attendance.findOne({
+      employee,
+      date: {
+        $gte: today,
+        $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+      },
+    });
+
+    if (!attendance) {
+      return res.status(200).json({
+        activeTimer: null,
+      });
+    }
+
+    const activeTimer = attendance.getActiveOvertimeTimer();
+
+    res.status(200).json({
+      activeTimer,
+      attendance: activeTimer ? attendance : null,
+    });
+  } catch (error) {
+    console.error("Error getting active overtime timer:", error);
+    res.status(500).json({
+      message: "Failed to get active overtime timer",
+    });
+  }
+};
+
+// Add overtime entry (Legacy - for manual entry with specific times)
+export const addOvertimeEntry = async (req, res) => {
+  try {
+    const employee = req.user._id;
+    const { date, startTime, endTime, reason, taskReference, proofOfWork } = req.body;
+
+    // Validate required fields
+    if (!date || !startTime || !endTime || !reason) {
+      return res.status(400).json({
+        message: "Date, start time, end time, and reason are required",
+      });
+    }
+
+    // Validate time range
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    
+    if (end <= start) {
+      return res.status(400).json({
+        message: "End time must be after start time",
+      });
+    }
+
+    // Calculate duration
+    const duration = (end - start) / (1000 * 60 * 60); // hours
+    
+    if (duration > 12) {
+      return res.status(400).json({
+        message: "Overtime duration cannot exceed 12 hours",
+      });
+    }
+
+    // Get attendance record for the date
+    const attendanceDate = new Date(date);
+    attendanceDate.setHours(0, 0, 0, 0);
+
+    const attendance = await Attendance.findOne({
+      employee,
+      date: {
+        $gte: attendanceDate,
+        $lt: new Date(attendanceDate.getTime() + 24 * 60 * 60 * 1000),
+      },
+    });
+
+    if (!attendance) {
+      return res.status(404).json({
+        message: "No attendance record found for this date. Please clock in first.",
+      });
+    }
+
+    if (!attendance.clockOut) {
+      return res.status(400).json({
+        message: "You must clock out before logging overtime",
+      });
+    }
+
+    // Validate overtime is after clock out
+    if (start < attendance.clockOut) {
+      return res.status(400).json({
+        message: "Overtime start time must be after your clock out time",
+      });
+    }
+
+    // Add overtime entry
+    const entry = attendance.addOvertimeEntry({
+      startTime,
+      endTime,
+      reason,
+      taskReference,
+      proofOfWork,
+    });
+
+    await attendance.save();
+
+    console.log(`[OVERTIME] Employee ${req.user.name} logged ${duration.toFixed(2)} hours overtime`);
+
+    res.status(201).json({
+      message: "Overtime entry added successfully. Pending approval.",
+      entry,
+      attendance,
+    });
+  } catch (error) {
+    console.error("Error adding overtime entry:", error);
+    res.status(500).json({
+      message: "Failed to add overtime entry",
+      error: error.message,
+    });
+  }
+};
+
+// Get overtime entries for employee
+export const getMyOvertimeEntries = async (req, res) => {
+  try {
+    const employee = req.user._id;
+    const { status, startDate, endDate } = req.query;
+
+    // Build query
+    const query = { employee };
+
+    if (startDate || endDate) {
+      query.date = {};
+      if (startDate) {
+        query.date.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        query.date.$lte = new Date(endDate);
+      }
+    }
+
+    const attendanceRecords = await Attendance.find(query)
+      .sort({ date: -1 })
+      .populate('employee', 'name email')
+      .lean();
+
+    // Extract and filter overtime entries
+    let overtimeEntries = [];
+    
+    attendanceRecords.forEach(record => {
+      if (record.overtimeEntries && record.overtimeEntries.length > 0) {
+        record.overtimeEntries.forEach(entry => {
+          if (!status || entry.status === status) {
+            overtimeEntries.push({
+              ...entry,
+              attendanceId: record._id,
+              date: record.date,
+              employee: record.employee,
+            });
+          }
+        });
+      }
+    });
+
+    // Calculate summary
+    const summary = {
+      total: overtimeEntries.length,
+      pending: overtimeEntries.filter(e => e.status === 'pending').length,
+      approved: overtimeEntries.filter(e => e.status === 'approved').length,
+      rejected: overtimeEntries.filter(e => e.status === 'rejected').length,
+      totalHours: overtimeEntries
+        .filter(e => e.status === 'approved')
+        .reduce((sum, e) => sum + e.duration, 0)
+        .toFixed(2),
+    };
+
+    res.status(200).json({
+      entries: overtimeEntries,
+      summary,
+    });
+  } catch (error) {
+    console.error("Error fetching overtime entries:", error);
+    res.status(500).json({
+      message: "Failed to fetch overtime entries",
+      error: error.message,
+    });
+  }
+};
+
+// Get all pending overtime entries (HR/Admin/HoD)
+export const getPendingOvertimeEntries = async (req, res) => {
+  try {
+    const { departmentId } = req.query;
+    
+    // Build query based on role
+    let query = {};
+    
+    // If HoD, only show their department's overtime
+    if (req.user.role === 'hod' && req.user.department) {
+      query = { 'employee.department': req.user.department };
+    }
+    
+    // If department filter is provided
+    if (departmentId) {
+      query = { 'employee.department': departmentId };
+    }
+
+    const attendanceRecords = await Attendance.find({
+      'overtimeEntries.status': 'pending',
+    })
+      .populate({
+        path: 'employee',
+        select: 'name email department',
+        populate: {
+          path: 'department',
+          select: 'name',
+        },
+      })
+      .sort({ date: -1 })
+      .lean();
+
+    // Extract pending overtime entries
+    let pendingEntries = [];
+    
+    attendanceRecords.forEach(record => {
+      if (record.overtimeEntries && record.overtimeEntries.length > 0) {
+        record.overtimeEntries.forEach(entry => {
+          if (entry.status === 'pending') {
+            // Apply department filter if HoD
+            if (req.user.role === 'hod' && req.user.department) {
+              if (record.employee?.department?._id?.toString() === req.user.department.toString()) {
+                pendingEntries.push({
+                  ...entry,
+                  attendanceId: record._id,
+                  date: record.date,
+                  employee: record.employee,
+                });
+              }
+            } else {
+              pendingEntries.push({
+                ...entry,
+                attendanceId: record._id,
+                date: record.date,
+                employee: record.employee,
+              });
+            }
+          }
+        });
+      }
+    });
+
+    res.status(200).json({
+      entries: pendingEntries,
+      total: pendingEntries.length,
+    });
+  } catch (error) {
+    console.error("Error fetching pending overtime entries:", error);
+    res.status(500).json({
+      message: "Failed to fetch pending overtime entries",
+      error: error.message,
+    });
+  }
+};
+
+// Approve overtime entry (HR/Admin/HoD)
+export const approveOvertimeEntry = async (req, res) => {
+  try {
+    const { attendanceId, entryId } = req.params;
+
+    const attendance = await Attendance.findById(attendanceId).populate('employee', 'name email department');
+
+    if (!attendance) {
+      return res.status(404).json({
+        message: "Attendance record not found",
+      });
+    }
+
+    // Check if HoD can approve (only their department)
+    if (req.user.role === 'hod') {
+      if (attendance.employee.department?.toString() !== req.user.department?.toString()) {
+        return res.status(403).json({
+          message: "You can only approve overtime for your department",
+        });
+      }
+    }
+
+    // Approve the entry
+    const entry = attendance.approveOvertimeEntry(entryId, req.user._id);
+    await attendance.save();
+
+    console.log(`[OVERTIME] ${req.user.name} approved ${entry.duration} hours overtime for ${attendance.employee.name}`);
+
+    // TODO: Send notification to employee about approval
+    // Example: notificationService.sendOvertimeApprovalNotification(attendance.employee._id, entry);
+
+    res.status(200).json({
+      message: "Overtime entry approved successfully",
+      entry,
+      attendance,
+    });
+  } catch (error) {
+    console.error("Error approving overtime entry:", error);
+    res.status(500).json({
+      message: error.message || "Failed to approve overtime entry",
+    });
+  }
+};
+
+// Reject overtime entry (HR/Admin/HoD)
+export const rejectOvertimeEntry = async (req, res) => {
+  try {
+    const { attendanceId, entryId } = req.params;
+    const { rejectionReason } = req.body;
+
+    if (!rejectionReason) {
+      return res.status(400).json({
+        message: "Rejection reason is required",
+      });
+    }
+
+    const attendance = await Attendance.findById(attendanceId).populate('employee', 'name email department');
+
+    if (!attendance) {
+      return res.status(404).json({
+        message: "Attendance record not found",
+      });
+    }
+
+    // Check if HoD can reject (only their department)
+    if (req.user.role === 'hod') {
+      if (attendance.employee.department?.toString() !== req.user.department?.toString()) {
+        return res.status(403).json({
+          message: "You can only reject overtime for your department",
+        });
+      }
+    }
+
+    // Reject the entry
+    const entry = attendance.rejectOvertimeEntry(entryId, rejectionReason, req.user._id);
+    await attendance.save();
+
+    console.log(`[OVERTIME] ${req.user.name} rejected overtime for ${attendance.employee.name}: ${rejectionReason}`);
+
+    // TODO: Send notification to employee about rejection
+    // Example: notificationService.sendOvertimeRejectionNotification(attendance.employee._id, entry, rejectionReason);
+
+    res.status(200).json({
+      message: "Overtime entry rejected",
+      entry,
+      attendance,
+    });
+  } catch (error) {
+    console.error("Error rejecting overtime entry:", error);
+    res.status(500).json({
+      message: error.message || "Failed to reject overtime entry",
+    });
+  }
+};
+
+// Get overtime statistics (HR/Admin)
+export const getOvertimeStatistics = async (req, res) => {
+  try {
+    const { startDate, endDate, departmentId } = req.query;
+
+    // Build query
+    const query = {};
+    
+    if (startDate || endDate) {
+      query.date = {};
+      if (startDate) {
+        query.date.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        query.date.$lte = new Date(endDate);
+      }
+    }
+
+    const attendanceRecords = await Attendance.find(query)
+      .populate({
+        path: 'employee',
+        select: 'name email department',
+        populate: {
+          path: 'department',
+          select: 'name',
+        },
+      })
+      .lean();
+
+    // Calculate statistics
+    const stats = {
+      totalAutoOvertime: 0,
+      totalManualOvertime: 0,
+      totalOvertime: 0,
+      pendingApprovals: 0,
+      approvedEntries: 0,
+      rejectedEntries: 0,
+      byEmployee: {},
+      byDepartment: {},
+    };
+
+    attendanceRecords.forEach(record => {
+      // Filter by department if specified
+      if (departmentId && record.employee?.department?._id?.toString() !== departmentId) {
+        return;
+      }
+
+      // Auto overtime
+      stats.totalAutoOvertime += record.overtime || 0;
+
+      // Manual overtime
+      if (record.overtimeEntries && record.overtimeEntries.length > 0) {
+        record.overtimeEntries.forEach(entry => {
+          if (entry.status === 'pending') {
+            stats.pendingApprovals++;
+          } else if (entry.status === 'approved') {
+            stats.approvedEntries++;
+            stats.totalManualOvertime += entry.duration;
+          } else if (entry.status === 'rejected') {
+            stats.rejectedEntries++;
+          }
+        });
+      }
+
+      // By employee
+      const empId = record.employee._id.toString();
+      if (!stats.byEmployee[empId]) {
+        stats.byEmployee[empId] = {
+          name: record.employee.name,
+          email: record.employee.email,
+          department: record.employee.department?.name || 'N/A',
+          autoOvertime: 0,
+          manualOvertime: 0,
+          totalOvertime: 0,
+        };
+      }
+      stats.byEmployee[empId].autoOvertime += record.overtime || 0;
+      stats.byEmployee[empId].manualOvertime += record.totalManualOvertime || 0;
+      stats.byEmployee[empId].totalOvertime += record.totalWorkHours || 0;
+
+      // By department
+      const deptName = record.employee.department?.name || 'Unassigned';
+      if (!stats.byDepartment[deptName]) {
+        stats.byDepartment[deptName] = {
+          autoOvertime: 0,
+          manualOvertime: 0,
+          totalOvertime: 0,
+        };
+      }
+      stats.byDepartment[deptName].autoOvertime += record.overtime || 0;
+      stats.byDepartment[deptName].manualOvertime += record.totalManualOvertime || 0;
+      stats.byDepartment[deptName].totalOvertime += record.totalWorkHours || 0;
+    });
+
+    stats.totalOvertime = stats.totalAutoOvertime + stats.totalManualOvertime;
+
+    // Convert objects to arrays
+    stats.byEmployee = Object.values(stats.byEmployee).sort((a, b) => b.totalOvertime - a.totalOvertime);
+    stats.byDepartment = Object.entries(stats.byDepartment).map(([name, data]) => ({
+      department: name,
+      ...data,
+    })).sort((a, b) => b.totalOvertime - a.totalOvertime);
+
+    res.status(200).json(stats);
+  } catch (error) {
+    console.error("Error fetching overtime statistics:", error);
+    res.status(500).json({
+      message: "Failed to fetch overtime statistics",
+      error: error.message,
     });
   }
 };

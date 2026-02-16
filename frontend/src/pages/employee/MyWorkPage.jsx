@@ -217,7 +217,7 @@ const MyWorkPage = () => {
     setShowModal(true);
   };
 
-  const handleUpdateStatus = async (itemId, newStatus) => {
+  const handleUpdateStatus = async (itemId, newStatus, itemType) => {
     try {
       await workItemApi.updateStatus(itemId, newStatus);
       toast.success('Status updated successfully!');
@@ -234,6 +234,18 @@ const MyWorkPage = () => {
     }
   };
 
+  const handleAddComment = async (workItemId, commentText) => {
+    try {
+      const result = await workItemApi.addComment(workItemId, commentText);
+      // Refresh the work items to get updated data
+      loadWorkItems();
+      return result.data || result;
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      throw error;
+    }
+  };
+
   const handleClearFilters = () => {
     setFilters({
       status: 'all',
@@ -245,7 +257,7 @@ const MyWorkPage = () => {
     setSearchTerm('');
   };
 
-  const handleBulkAction = async (action, selectedIds, data) => {
+  const handleBulkAction = async (action, data, selectedIds) => {
     try {
       const bulkData = {
         workItemIds: selectedIds,
@@ -415,6 +427,8 @@ const MyWorkPage = () => {
             <WorkItemList
               workItems={filteredItems}
               onViewItem={handleViewItem}
+              onStatusChange={handleUpdateStatus}
+              currentUser={user}
               emptyMessage={
                 workItems.length === 0
                   ? 'No work items assigned to you yet.'
@@ -436,6 +450,7 @@ const MyWorkPage = () => {
           workItem={selectedItem}
           onUpdate={handleUpdateStatus}
           onRefresh={loadWorkItems}
+          onAddComment={handleAddComment}
           currentUser={user}
         />
       )}

@@ -28,6 +28,13 @@ import HoDDashboard from "../pages/hod/HoDDashboard";
 import MyProjects from "../pages/employee/MyProjects";
 import MyWorkPage from "../pages/employee/MyWorkPage";
 import TeamDirectory from "../pages/employee/TeamDirectory";
+import MySalarySlips from "../pages/employee/MySalarySlips";
+import MySalaryPreview from "../pages/employee/MySalaryPreview";
+
+// HR Pages
+import SalaryManagement from "../pages/hr/SalaryManagement";
+import HRSalaryPreviewManagement from "../components/salary/HRSalaryPreviewManagement";
+import TemplateManagement from "../components/salary/TemplateManagement";
 import Announcements from "../pages/employee/Announcements";
 import EmployeeMyAttendance from "../pages/employee/MyAttendance";
 import EmployeeMyLeaves from "../pages/employee/MyLeaves";
@@ -59,9 +66,13 @@ import MyLeaves from "../pages/leaves/MyLeaves";
 import LeaveRequests from "../pages/leaves/LeaveRequests";
 import LeaveManagement from "../pages/leaves/LeaveManagement";
 
+// WFH Pages
+import MyWFHRequests from "../pages/wfh/MyWFHRequests";
+
 // Attendance Pages
 import MyAttendance from "../pages/attendance/MyAttendance";
 import AttendanceTracking from "../pages/attendance/AttendanceTracking";
+import OvertimeStatistics from "../pages/attendance/OvertimeStatistics";
 
 // Client Pages
 import ClientList from "../pages/clients/ClientList";
@@ -243,6 +254,32 @@ const AppRoutes = () => {
           }
         />
 
+        {/* Salary Management */}
+        <Route
+          path="/salary-management"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "accounts"]}>
+              <SalaryManagement />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/salary-preview-management"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "accounts"]}>
+              <HRSalaryPreviewManagement />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/salary-templates"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "accounts"]}>
+              <TemplateManagement />
+            </RoleBasedRoute>
+          }
+        />
+
         {/* Attendance Management */}
         <Route path="/attendance/my-attendance" element={<MyAttendance />} />
         <Route
@@ -253,6 +290,14 @@ const AppRoutes = () => {
             </RoleBasedRoute>
           }
         />
+        <Route
+          path="/attendance/overtime-statistics"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
+              <OvertimeStatistics />
+            </RoleBasedRoute>
+          }
+        />
 
         {/* Employee Portal Routes */}
         <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
@@ -260,6 +305,9 @@ const AppRoutes = () => {
         <Route path="/employee/attendance" element={<EmployeeMyAttendance />} />
         <Route path="/employee/attendance-report/:employeeId" element={<EmployeeAttendanceReport />} />
         <Route path="/employee/leaves" element={<EmployeeMyLeaves />} />
+        <Route path="/employee/wfh" element={<MyWFHRequests />} />
+        <Route path="/employee/salary-slips" element={<MySalarySlips />} />
+        <Route path="/employee/salary-preview" element={<MySalaryPreview />} />
         <Route path="/employee/projects" element={<MyProjects />} />
         <Route path="/employee/time-tracking" element={<TimeTracking />} />
         <Route path="/employee/team" element={<TeamDirectory />} />
@@ -327,7 +375,7 @@ const AppRoutes = () => {
         <Route
           path="/clients"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod"]}>
               <ClientList />
             </RoleBasedRoute>
           }
@@ -335,7 +383,7 @@ const AppRoutes = () => {
         <Route
           path="/clients/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod"]}>
               <ClientDetails />
             </RoleBasedRoute>
           }

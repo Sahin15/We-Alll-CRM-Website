@@ -4,6 +4,8 @@ import api from "./axios";
 export const attendanceApi = {
   clockIn: (location) => api.post("/attendance/clock-in", { location }),
   clockOut: (notes) => api.post("/attendance/clock-out", { notes }),
+  startBreak: () => api.post("/attendance/start-break"),
+  endBreak: () => api.post("/attendance/end-break"),
   getMyAttendance: (params) => api.get("/attendance/my-attendance", { params }),
   getTodayAttendance: () => api.get("/attendance/today"),
   getAllAttendance: (params) => api.get("/attendance", { params }),

@@ -104,6 +104,7 @@ const EnhancedDataTable = ({
   const [mobileViewMode, setMobileViewMode] = useState('compact'); // 'compact', 'cards', 'list'
   const [touchStartX, setTouchStartX] = useState(null);
   const [touchStartY, setTouchStartY] = useState(null);
+  const tableContainerRef = React.useRef(null);
 
   // Get nested value from object - MOVED TO TOP TO PREVENT HOISTING ISSUES
   const getNestedValue = useCallback((obj, path) => {
@@ -879,7 +880,11 @@ const EnhancedDataTable = ({
         </div>
       ) : (
         // Standard Table View (Desktop and Mobile Compact)
-        <div className={`table-responsive ${isMobile ? 'touch-enabled' : ''}`}>
+        <div 
+          ref={tableContainerRef}
+          className={`table-responsive ${isMobile ? 'touch-enabled' : ''}`}
+          style={{ position: 'relative' }}
+        >
           <Table 
             striped 
             hover 

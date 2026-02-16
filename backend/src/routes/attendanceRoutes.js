@@ -21,6 +21,20 @@ import {
   fixTodayAttendance,
   removeDuplicateAttendance,
   recalculateWorkHours,
+  startBreak,
+  endBreak,
+  initializeBreaksField,
+  manualAutoClockOut,
+  // Overtime management
+  startOvertimeTimer,
+  stopOvertimeTimer,
+  getActiveOvertimeTimer,
+  addOvertimeEntry,
+  getMyOvertimeEntries,
+  getPendingOvertimeEntries,
+  approveOvertimeEntry,
+  rejectOvertimeEntry,
+  getOvertimeStatistics,
 } from "../controllers/attendanceController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
@@ -93,6 +107,8 @@ router.get("/debug-db", protect, authorizeRoles("admin", "superadmin", "hr"), as
 // Employee routes
 router.post("/clock-in", protect, clockIn);
 router.post("/clock-out", protect, clockOut);
+router.post("/start-break", protect, startBreak);
+router.post("/end-break", protect, endBreak);
 router.get("/my-attendance", protect, getMyAttendance);
 router.get("/today", protect, getTodayAttendance);
 router.post("/recalculate-today", protect, recalculateTodayStatus);
@@ -181,6 +197,62 @@ router.post(
   protect,
   authorizeRoles("admin", "superadmin", "hr"),
   recalculateWorkHours
+);
+
+// Initialize breaks field for existing records
+router.post(
+  "/initialize-breaks",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr"),
+  initializeBreaksField
+);
+
+// Manual trigger for auto clock-out (for testing)
+router.post(
+  "/manual-auto-clockout",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr"),
+  manualAutoClockOut
+);
+
+// ==================== OVERTIME ROUTES ====================
+
+// Employee overtime timer routes
+router.post("/overtime/start-timer", protect, startOvertimeTimer);
+router.post("/overtime/stop-timer/:entryId", protect, stopOvertimeTimer);
+router.get("/overtime/active-timer", protect, getActiveOvertimeTimer);
+
+// Employee overtime routes
+router.post("/overtime/add", protect, addOvertimeEntry);
+router.get("/overtime/my-entries", protect, getMyOvertimeEntries);
+
+// HR/Admin/HoD overtime routes
+router.get(
+  "/overtime/pending",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr", "hod"),
+  getPendingOvertimeEntries
+);
+
+router.post(
+  "/overtime/:attendanceId/:entryId/approve",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr", "hod"),
+  approveOvertimeEntry
+);
+
+router.post(
+  "/overtime/:attendanceId/:entryId/reject",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr", "hod"),
+  rejectOvertimeEntry
+);
+
+router.get(
+  "/overtime/statistics",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr"),
+  getOvertimeStatistics
 );
 
 export default router;

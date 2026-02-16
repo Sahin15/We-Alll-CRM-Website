@@ -21,6 +21,66 @@ const AddEmployee = () => {
   const [departments, setDepartments] = useState([]);
   const [managers, setManagers] = useState([]);
   const [activeTab, setActiveTab] = useState("basic");
+  const [showCustomDesignation, setShowCustomDesignation] = useState(false);
+
+  // Common designations list
+  const commonDesignations = [
+    // Software Development
+    'Software Engineer',
+    'Senior Software Engineer',
+    'Lead Software Engineer',
+    'Full Stack Developer',
+    'Frontend Developer',
+    'Backend Developer',
+    'Mobile App Developer',
+    'DevOps Engineer',
+    'QA Engineer',
+    
+    // Management
+    'Team Lead',
+    'Technical Lead',
+    'Project Manager',
+    'Product Manager',
+    'Engineering Manager',
+    
+    // Design & UI/UX
+    'UI/UX Designer',
+    'Graphic Designer',
+    'Product Designer',
+    'Web Designer',
+    
+    // Data & Analytics
+    'Data Analyst',
+    'Data Scientist',
+    'Business Analyst',
+    'Data Engineer',
+    
+    // Sales & Marketing
+    'Sales Executive',
+    'Sales Manager',
+    'Business Development Executive',
+    'Marketing Executive',
+    'Digital Marketing Executive',
+    'Senior Digital Marketing Executive',
+    'Social Media Manager',
+    'Content Writer',
+    'SEO Specialist',
+    
+    // HR & Admin
+    'HR Executive',
+    'HR Manager',
+    'Recruiter',
+    'Admin Executive',
+    
+    // Finance & Accounts
+    'Accountant',
+    'Finance Manager',
+    'Accounts Executive',
+    
+    // Operations
+    'Operations Manager',
+    'Operations Executive',
+  ];
 
   const [formData, setFormData] = useState({
     // Basic Information
@@ -90,6 +150,16 @@ const AddEmployee = () => {
   useEffect(() => {
     fetchDepartments();
     fetchManagers();
+    
+    console.log('[ADD-EMPLOYEE] Component mounted');
+    console.log('[ADD-EMPLOYEE] Common designations count:', commonDesignations.length);
+    console.log('[ADD-EMPLOYEE] Includes Digital Marketing Executive:', commonDesignations.includes('Digital Marketing Executive'));
+    
+    // Reset form when component mounts (in case user navigates back)
+    return () => {
+      // Cleanup function - reset form when component unmounts
+      console.log('[ADD-EMPLOYEE] Component unmounting, form will be reset on next mount');
+    };
   }, []);
 
   const fetchDepartments = async () => {
@@ -162,6 +232,79 @@ const AddEmployee = () => {
       
       await api.post("/users/register", submitData);
       toast.success("Employee added successfully");
+      
+      // Reset form data before navigating
+      setFormData({
+        // Basic Information
+        name: "",
+        email: "",
+        password: "",
+        phone: "",
+        dateOfBirth: "",
+        gender: "",
+        bloodGroup: "",
+        
+        // Job Details
+        employeeId: "",
+        designation: "",
+        department: "",
+        joiningDate: "",
+        employmentType: "full-time",
+        reportingManager: "",
+        
+        // Address
+        currentAddress: {
+          street: "",
+          city: "",
+          state: "",
+          pincode: "",
+          country: "India",
+        },
+        permanentAddress: {
+          street: "",
+          city: "",
+          state: "",
+          pincode: "",
+          country: "India",
+        },
+        sameAsCurrentAddress: false,
+        
+        // Emergency Contact
+        emergencyContact: {
+          name: "",
+          phone: "",
+          relationship: "",
+          address: "",
+        },
+        
+        // Bank Details
+        bankDetails: {
+          accountNumber: "",
+          accountHolderName: "",
+          ifscCode: "",
+          bankName: "",
+          branchName: "",
+          upiId: "",
+        },
+        
+        // Government IDs
+        governmentIds: {
+          aadhaarNumber: "",
+          panNumber: "",
+          uanNumber: "",
+          esicNumber: "",
+        },
+        
+        status: "active",
+        role: "employee",
+      });
+      
+      // Reset custom designation state
+      setShowCustomDesignation(false);
+      
+      // Reset to first tab
+      setActiveTab("basic");
+      
       navigate("/employees");
     } catch (error) {
       console.error("Error adding employee:", error);
@@ -333,14 +476,62 @@ const AddEmployee = () => {
                   </Col>
                   <Col md={6}>
                     <Form.Group className="mb-3">
-                      <Form.Label>Designation</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="designation"
-                        value={formData.designation}
-                        onChange={handleChange}
-                        placeholder="Software Engineer"
-                      />
+                      <Form.Label>Designation <span className="text-danger">*</span></Form.Label>
+                      {!showCustomDesignation ? (
+                        <>
+                          <Form.Select
+                            name="designation"
+                            value={formData.designation}
+                            onChange={(e) => {
+                              console.log('[DESIGNATION] Selected value:', e.target.value);
+                              if (e.target.value === 'custom') {
+                                setShowCustomDesignation(true);
+                                setFormData({ ...formData, designation: '' });
+                              } else {
+                                handleChange(e);
+                              }
+                            }}
+                            required
+                          >
+                            <option value="">Select Designation</option>
+                            {commonDesignations.map((designation, index) => {
+                              if (index === 0) console.log('[DESIGNATION] Rendering options, total:', commonDesignations.length);
+                              return (
+                                <option key={index} value={designation}>
+                                  {designation}
+                                </option>
+                              );
+                            })}
+                            <option value="custom" className="fw-bold text-primary">
+                              ➕ Add Custom Designation
+                            </option>
+                          </Form.Select>
+                        </>
+                      ) : (
+                        <div className="d-flex gap-2">
+                          <Form.Control
+                            type="text"
+                            name="designation"
+                            value={formData.designation}
+                            onChange={handleChange}
+                            placeholder="Enter custom designation"
+                            required
+                          />
+                          <Button
+                            variant="outline-secondary"
+                            onClick={() => {
+                              setShowCustomDesignation(false);
+                              setFormData({ ...formData, designation: '' });
+                            }}
+                            title="Back to list"
+                          >
+                            ↩️
+                          </Button>
+                        </div>
+                      )}
+                      <Form.Text className="text-muted">
+                        {showCustomDesignation ? 'Enter a custom designation or click ↩️ to select from list' : 'Select from list or add custom'}
+                      </Form.Text>
                     </Form.Group>
                   </Col>
                   <Col md={6}>
@@ -717,27 +908,107 @@ const AddEmployee = () => {
             </Tabs>
 
             {/* Action Buttons */}
-            <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+            <div className="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
               <Button
-                variant="outline-secondary"
-                onClick={() => navigate("/employees")}
+                variant="outline-warning"
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to clear all form data?')) {
+                    setFormData({
+                      // Basic Information
+                      name: "",
+                      email: "",
+                      password: "",
+                      phone: "",
+                      dateOfBirth: "",
+                      gender: "",
+                      bloodGroup: "",
+                      
+                      // Job Details
+                      employeeId: "",
+                      designation: "",
+                      department: "",
+                      joiningDate: "",
+                      employmentType: "full-time",
+                      reportingManager: "",
+                      
+                      // Address
+                      currentAddress: {
+                        street: "",
+                        city: "",
+                        state: "",
+                        pincode: "",
+                        country: "India",
+                      },
+                      permanentAddress: {
+                        street: "",
+                        city: "",
+                        state: "",
+                        pincode: "",
+                        country: "India",
+                      },
+                      sameAsCurrentAddress: false,
+                      
+                      // Emergency Contact
+                      emergencyContact: {
+                        name: "",
+                        phone: "",
+                        relationship: "",
+                        address: "",
+                      },
+                      
+                      // Bank Details
+                      bankDetails: {
+                        accountNumber: "",
+                        accountHolderName: "",
+                        ifscCode: "",
+                        bankName: "",
+                        branchName: "",
+                        upiId: "",
+                      },
+                      
+                      // Government IDs
+                      governmentIds: {
+                        aadhaarNumber: "",
+                        panNumber: "",
+                        uanNumber: "",
+                        esicNumber: "",
+                      },
+                      
+                      status: "active",
+                      role: "employee",
+                    });
+                    setShowCustomDesignation(false);
+                    setActiveTab("basic");
+                    toast.info("Form cleared");
+                  }
+                }}
                 disabled={loading}
               >
-                Cancel
+                Clear Form
               </Button>
-              <Button type="submit" variant="primary" disabled={loading}>
-                {loading ? (
-                  <>
-                    <Spinner animation="border" size="sm" className="me-2" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <FaSave className="me-2" />
-                    Save Employee
-                  </>
-                )}
-              </Button>
+              
+              <div className="d-flex gap-2">
+                <Button
+                  variant="outline-secondary"
+                  onClick={() => navigate("/employees")}
+                  disabled={loading}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" variant="primary" disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Spinner animation="border" size="sm" className="me-2" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <FaSave className="me-2" />
+                      Save Employee
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </Card.Body>
         </Card>

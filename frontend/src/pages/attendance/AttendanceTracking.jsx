@@ -39,6 +39,38 @@ const AttendanceTracking = () => {
     .attendance-dropdown-item:hover {
       background-color: #f8f9fa !important;
     }
+    
+    /* Pulse animation for "On Break" badge */
+    @keyframes pulse-badge {
+      0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 0.8;
+        transform: scale(1.05);
+      }
+    }
+    
+    .pulse-badge {
+      animation: pulse-badge 2s ease-in-out infinite;
+    }
+    
+    /* Better table styling */
+    .table th {
+      background-color: #f8f9fa;
+      font-weight: 600;
+      border-bottom: 2px solid #dee2e6;
+      white-space: nowrap;
+    }
+    
+    .table td {
+      vertical-align: middle;
+    }
+    
+    .table tbody tr:hover {
+      background-color: #f8f9fa;
+    }
   `;
   const [attendances, setAttendances] = useState([]);
   const [users, setUsers] = useState([]);
@@ -63,6 +95,10 @@ const AttendanceTracking = () => {
   const [statusFilter, setStatusFilter] = useState(null); // Filter by status when card clicked
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  
+  // Break details modal state
+  const [showBreakDetailsModal, setShowBreakDetailsModal] = useState(false);
+  const [selectedBreakDetails, setSelectedBreakDetails] = useState(null);
   
   // Edit attendance modal state
   const [showEditModal, setShowEditModal] = useState(false);
@@ -115,17 +151,10 @@ const AttendanceTracking = () => {
       if (filters.startDate) params.startDate = filters.startDate;
       if (filters.endDate) params.endDate = filters.endDate;
 
-      console.log('[FRONTEND] Calling attendanceApi.getAllAttendance with params:', params);
       const response = await attendanceApi.getAllAttendance(params);
-      console.log('[FRONTEND] API Response:', response);
-      console.log('[FRONTEND] Response data:', response.data);
-      console.log('[FRONTEND] Response data type:', typeof response.data);
-      console.log('[FRONTEND] Response data length:', response.data?.length);
-      
       setAttendances(response.data || []);
     } catch (error) {
-      console.error('[FRONTEND] Error fetching attendance:', error);
-      console.error('[FRONTEND] Error response:', error.response);
+      console.error('Error fetching attendance:', error);
       toast.error("Failed to fetch attendance records");
     } finally {
       setLoading(false);
@@ -286,6 +315,8 @@ const AttendanceTracking = () => {
         onLeave: 0,
         totalHours: "0.00",
         totalOvertime: "0.00",
+        totalBreakTime: "0",
+        totalBreaks: 0,
         totalDays: 0,
         avgHoursPerDay: 0,
       };
@@ -298,6 +329,8 @@ const AttendanceTracking = () => {
     const onLeave = attendances.filter((a) => a.status === "on-leave").length;
     const totalHours = attendances.reduce((sum, a) => sum + (a.workHours || 0), 0);
     const totalOvertime = attendances.reduce((sum, a) => sum + (a.overtime || 0), 0);
+    const totalBreakMinutes = attendances.reduce((sum, a) => sum + (a.totalBreakTime || 0), 0);
+    const totalBreaks = attendances.reduce((sum, a) => sum + (a.breaks?.length || 0), 0);
     const totalDays = attendances.length;
 
     return {
@@ -309,6 +342,8 @@ const AttendanceTracking = () => {
       onLeave,
       totalHours: totalHours.toFixed(2),
       totalOvertime: totalOvertime.toFixed(2),
+      totalBreakTime: Math.floor(totalBreakMinutes),
+      totalBreaks,
       totalDays,
       avgHoursPerDay: totalDays > 0 ? (totalHours / totalDays).toFixed(2) : 0,
     };
@@ -738,28 +773,40 @@ const AttendanceTracking = () => {
                 )}
                 <hr />
                 <Row className="text-center">
-                  <Col xs={6} md={3}>
+                  <Col xs={6} md={2}>
                     <div className="p-2">
                       <h5 className="text-primary mb-0">{stats.totalDays}</h5>
                       <small className="text-muted">Total Days</small>
                     </div>
                   </Col>
-                  <Col xs={6} md={3}>
+                  <Col xs={6} md={2}>
                     <div className="p-2">
                       <h5 className="text-success mb-0">{stats.totalHours}</h5>
                       <small className="text-muted">Total Hours</small>
                     </div>
                   </Col>
-                  <Col xs={6} md={3}>
+                  <Col xs={6} md={2}>
                     <div className="p-2">
                       <h5 className="text-info mb-0">{stats.avgHoursPerDay}</h5>
                       <small className="text-muted">Avg Hours/Day</small>
                     </div>
                   </Col>
-                  <Col xs={6} md={3}>
+                  <Col xs={6} md={2}>
                     <div className="p-2">
                       <h5 className="text-warning mb-0">{stats.totalOvertime}</h5>
                       <small className="text-muted">Total Overtime</small>
+                    </div>
+                  </Col>
+                  <Col xs={6} md={2}>
+                    <div className="p-2">
+                      <h5 className="text-secondary mb-0">{stats.totalBreaks}</h5>
+                      <small className="text-muted">Total Breaks</small>
+                    </div>
+                  </Col>
+                  <Col xs={6} md={2}>
+                    <div className="p-2">
+                      <h5 className="text-secondary mb-0">{stats.totalBreakTime}</h5>
+                      <small className="text-muted">Break Time (min)</small>
                     </div>
                   </Col>
                 </Row>
@@ -797,6 +844,8 @@ const AttendanceTracking = () => {
                       <th>Date</th>
                       <th>Clock In</th>
                       <th>Clock Out</th>
+                      <th>Breaks</th>
+                      <th>Break Time</th>
                       <th>Work Hours</th>
                       <th>Overtime</th>
                       <th>Status</th>
@@ -807,64 +856,121 @@ const AttendanceTracking = () => {
                     {attendances.length > 0 ? (
                       attendances
                         .filter(attendance => !statusFilter || attendance.status === statusFilter)
-                        .map((attendance) => (
-                        <tr key={attendance._id}>
-                          {!filters.employee && <td>{attendance.employee?.name || "N/A"}</td>}
-                          <td>{formatDate(attendance.date)}</td>
-                          <td>{formatTime(attendance.clockIn)}</td>
-                          <td>
-                            {attendance.clockOut
-                              ? formatTime(attendance.clockOut)
-                              : "-"}
-                          </td>
-                          <td>{attendance.workHours || 0} hours</td>
-                          <td>{attendance.overtime || 0} hours</td>
-                          <td>
-                            <Badge bg={getStatusVariant(attendance.status)}>
-                              {attendance.status}
-                            </Badge>
-                          </td>
-                          {(!filters.employee || canEditAttendance()) && (
-                            <td>
-                              <div className="d-flex gap-1">
-                                {!filters.employee && (
-                                  <Button
-                                    variant="outline-primary"
-                                    size="sm"
-                                    onClick={() => handleViewDetails(attendance.employee?._id)}
-                                    title="View Details"
-                                    style={{
-                                      padding: '0.25rem 0.5rem',
-                                      fontSize: '0.875rem',
-                                      whiteSpace: 'nowrap'
+                        .map((attendance) => {
+                          // Calculate break information
+                          const breaks = attendance.breaks || [];
+                          const breakCount = breaks.length;
+                          const totalBreakMinutes = attendance.totalBreakTime || 0;
+                          const isOnBreak = breaks.length > 0 && breaks[breaks.length - 1].startTime && !breaks[breaks.length - 1].endTime;
+                          
+                          return (
+                            <tr key={attendance._id}>
+                              {!filters.employee && <td>{attendance.employee?.name || "N/A"}</td>}
+                              <td>{formatDate(attendance.date)}</td>
+                              <td>{formatTime(attendance.clockIn)}</td>
+                              <td>
+                                {attendance.clockOut
+                                  ? formatTime(attendance.clockOut)
+                                  : isOnBreak 
+                                  ? <Badge bg="warning" className="pulse-badge">On Break</Badge>
+                                  : <Badge bg="success">Working</Badge>}
+                              </td>
+                              <td>
+                                {breakCount > 0 ? (
+                                  <div 
+                                    className="d-flex align-items-center gap-1"
+                                    onClick={() => {
+                                      setSelectedBreakDetails({
+                                        employeeName: attendance.employee?.name || "Unknown",
+                                        date: attendance.date,
+                                        breaks: breaks,
+                                        totalBreakTime: totalBreakMinutes
+                                      });
+                                      setShowBreakDetailsModal(true);
                                     }}
+                                    style={{ cursor: 'pointer' }}
+                                    title="Click to view break details"
                                   >
-                                    📊 View
-                                  </Button>
+                                    <Badge bg="secondary" className="d-flex align-items-center gap-1">
+                                      <span>{breakCount}</span>
+                                      <span style={{ fontSize: '0.7em' }}>break{breakCount > 1 ? 's' : ''}</span>
+                                    </Badge>
+                                    {isOnBreak && (
+                                      <Badge bg="warning" className="pulse-badge" style={{ fontSize: '0.7em' }}>
+                                        Active
+                                      </Badge>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted">-</span>
                                 )}
-                                {canEditAttendance() && (
-                                  <Button
-                                    variant="outline-warning"
-                                    size="sm"
-                                    onClick={() => handleEditAttendance(attendance)}
-                                    title="Edit Attendance"
-                                    style={{
-                                      padding: '0.25rem 0.5rem',
-                                      fontSize: '0.875rem',
-                                      whiteSpace: 'nowrap'
-                                    }}
-                                  >
-                                    ✏️ Edit
-                                  </Button>
+                              </td>
+                              <td>
+                                {totalBreakMinutes > 0 ? (
+                                  <Badge bg="info">
+                                    {Math.floor(totalBreakMinutes)} min
+                                  </Badge>
+                                ) : (
+                                  <span className="text-muted">-</span>
                                 )}
-                              </div>
-                            </td>
-                          )}
-                        </tr>
-                      ))
+                              </td>
+                              <td>
+                                <strong>{attendance.workHours || 0}</strong> hrs
+                              </td>
+                              <td>
+                                {attendance.overtime > 0 ? (
+                                  <Badge bg="warning">{attendance.overtime} hrs</Badge>
+                                ) : (
+                                  <span className="text-muted">-</span>
+                                )}
+                              </td>
+                              <td>
+                                <Badge bg={getStatusVariant(attendance.status)}>
+                                  {attendance.status}
+                                </Badge>
+                              </td>
+                              {(!filters.employee || canEditAttendance()) && (
+                                <td>
+                                  <div className="d-flex gap-1">
+                                    {!filters.employee && (
+                                      <Button
+                                        variant="outline-primary"
+                                        size="sm"
+                                        onClick={() => handleViewDetails(attendance.employee?._id)}
+                                        title="View Details"
+                                        style={{
+                                          padding: '0.25rem 0.5rem',
+                                          fontSize: '0.875rem',
+                                          whiteSpace: 'nowrap'
+                                        }}
+                                      >
+                                        📊 View
+                                      </Button>
+                                    )}
+                                    {canEditAttendance() && (
+                                      <Button
+                                        variant="outline-warning"
+                                        size="sm"
+                                        onClick={() => handleEditAttendance(attendance)}
+                                        title="Edit Attendance"
+                                        style={{
+                                          padding: '0.25rem 0.5rem',
+                                          fontSize: '0.875rem',
+                                          whiteSpace: 'nowrap'
+                                        }}
+                                      >
+                                        ✏️ Edit
+                                      </Button>
+                                    )}
+                                  </div>
+                                </td>
+                              )}
+                            </tr>
+                          );
+                        })
                     ) : (
                       <tr>
-                        <td colSpan={(!filters.employee || canEditAttendance()) ? (filters.employee ? "7" : "8") : (filters.employee ? "6" : "8")} className="text-center py-4">
+                        <td colSpan={(!filters.employee || canEditAttendance()) ? (filters.employee ? "9" : "10") : (filters.employee ? "8" : "10")} className="text-center py-4">
                           No attendance records found
                         </td>
                       </tr>
@@ -1043,6 +1149,92 @@ const AttendanceTracking = () => {
             disabled={!editForm.clockIn || !editForm.status || !editForm.reason.trim()}
           >
             💾 Save Changes
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Break Details Modal */}
+      <Modal 
+        show={showBreakDetailsModal} 
+        onHide={() => setShowBreakDetailsModal(false)}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            ⏸️ Break Details
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedBreakDetails && (
+            <>
+              <div className="mb-3 p-3 bg-light rounded">
+                <h6 className="mb-2">Employee Information</h6>
+                <p className="mb-1"><strong>Name:</strong> {selectedBreakDetails.employeeName}</p>
+                <p className="mb-0"><strong>Date:</strong> {formatDate(selectedBreakDetails.date)}</p>
+              </div>
+
+              <div className="mb-3">
+                <h6 className="mb-3">Break Periods</h6>
+                {selectedBreakDetails.breaks && selectedBreakDetails.breaks.length > 0 ? (
+                  <div className="d-flex flex-column gap-2">
+                    {selectedBreakDetails.breaks.map((breakPeriod, index) => {
+                      const isOngoing = breakPeriod.startTime && !breakPeriod.endTime;
+                      const duration = breakPeriod.startTime && breakPeriod.endTime 
+                        ? Math.round((new Date(breakPeriod.endTime) - new Date(breakPeriod.startTime)) / (1000 * 60))
+                        : null;
+                      
+                      return (
+                        <Card key={index} className={`border-${isOngoing ? 'warning' : 'secondary'}`}>
+                          <Card.Body className="p-3">
+                            <div className="d-flex justify-content-between align-items-center">
+                              <div>
+                                <h6 className="mb-1">
+                                  Break {index + 1}
+                                  {isOngoing && (
+                                    <Badge bg="warning" className="ms-2 pulse-badge">
+                                      Active
+                                    </Badge>
+                                  )}
+                                </h6>
+                                <div className="text-muted small">
+                                  <div>
+                                    <strong>Start:</strong> {formatTime(breakPeriod.startTime)}
+                                  </div>
+                                  <div>
+                                    <strong>End:</strong> {breakPeriod.endTime ? formatTime(breakPeriod.endTime) : <span className="text-warning">Ongoing</span>}
+                                  </div>
+                                  {duration && (
+                                    <div className="mt-1">
+                                      <Badge bg="info">{duration} minutes</Badge>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </Card.Body>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-muted">No breaks recorded</p>
+                )}
+              </div>
+
+              <div className="p-3 bg-primary bg-opacity-10 rounded">
+                <div className="d-flex justify-content-between align-items-center">
+                  <span className="fw-semibold">Total Break Time:</span>
+                  <Badge bg="primary" className="fs-6">
+                    {selectedBreakDetails.totalBreakTime} minutes
+                  </Badge>
+                </div>
+              </div>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowBreakDetailsModal(false)}>
+            Close
           </Button>
         </Modal.Footer>
       </Modal>

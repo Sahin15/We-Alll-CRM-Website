@@ -2,6 +2,7 @@ import express from "express";
 import {
   createDepartment,
   getDepartments,
+  getOperationalDepartments,
   getDepartmentById,
   updateDepartment,
   deleteDepartment,
@@ -45,6 +46,9 @@ router.post(
   createDepartment
 );
 router.get("/", protect, getDepartments);
+
+// Get only operational departments (for client assignment)
+router.get("/operational", protect, getOperationalDepartments);
 
 // HoD Management (New) - MUST come before /:id route
 router.post(

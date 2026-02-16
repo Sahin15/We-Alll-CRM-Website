@@ -54,3 +54,7 @@ Thumbs.db
 uploads/
 temp/
 tmp/
+
+# Firebase credentials - NEVER commit these
+firebase-service-account.json
+firebase-service-account-*.json

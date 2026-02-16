@@ -5,6 +5,7 @@ import { CompanyProvider } from "./context/CompanyContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import AppRoutes from "./routes";
 import SkipToMain from "./components/common/SkipToMain";
+import NotificationInitializer from "./components/common/NotificationInitializer";
 import "./styles/toast.css";
 import "./styles/accessibility.css";
 
@@ -19,6 +20,7 @@ function App() {
       <AuthProvider>
         <CompanyProvider>
           <NotificationProvider>
+            <NotificationInitializer />
             <SkipToMain />
             <div className="app-container">
               <main id="main-content" role="main" tabIndex="-1">

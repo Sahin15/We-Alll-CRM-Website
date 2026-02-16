@@ -1627,7 +1627,7 @@ const EnhancedAdminWorkOverview = () => {
       {/* Main Content Area */}
       <Row>
         <Col>
-          <Card className="border-0 shadow-sm">
+          <Card className="border-0 shadow-sm" style={{ overflow: 'visible' }}>
             <Card.Header className="d-flex justify-content-between align-items-center">
               <div>
                 <h5 className="mb-0">
@@ -1645,7 +1645,7 @@ const EnhancedAdminWorkOverview = () => {
                     <>
                       {' • '}
                       <span className="text-muted">
-                        Work Progress Management
+                        Work Progress Management • Scroll horizontally to see all columns
                       </span>
                     </>
                   )}
@@ -1734,7 +1734,7 @@ const EnhancedAdminWorkOverview = () => {
               </div>
             </Card.Header>
             
-            <Card.Body className="p-0">
+            <Card.Body className="p-0" style={{ overflow: 'visible' }}>
               {/* Empty State - Enhanced with better guidance */}
               {viewMode === 'table' && workData.length === 0 && !loading && (
                 <div className="p-5 text-center">

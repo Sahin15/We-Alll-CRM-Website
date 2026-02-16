@@ -1,4 +1,6 @@
 import LeaveRequest from "../models/leaveRequestModel.js";
+import User from "../models/userModel.js";
+import notificationService from "../services/notificationService.js";
 
 // Create leave request
 export const createLeaveRequest = async (req, res) => {
@@ -14,7 +16,7 @@ export const createLeaveRequest = async (req, res) => {
     }
 
     // Validate leave type
-    if (!['personal', 'medical', 'vacation', 'unpaid'].includes(leaveType)) {
+    if (!['personal', 'medical', 'vacation', 'unpaid', 'work_from_home', 'half_day'].includes(leaveType)) {
       return res.status(400).json({ message: "Invalid leave type" });
     }
 
@@ -46,8 +48,8 @@ export const createLeaveRequest = async (req, res) => {
       });
     }
 
-    // Check leave balance (skip for unpaid leave)
-    if (leaveType !== 'unpaid') {
+    // Check leave balance (skip for unpaid leave and work from home)
+    if (leaveType !== 'unpaid' && leaveType !== 'work_from_home') {
       try {
         await LeaveRequest.validateLeaveRequest(employee, leaveType, numberOfDays);
       } catch (balanceError) {
@@ -90,6 +92,45 @@ export const createLeaveRequest = async (req, res) => {
     });
 
     console.log("✅ Leave request created successfully:", leaveRequest._id);
+
+    // Send notification to manager/HR
+    try {
+      const employeeData = await User.findById(employee).populate('reportingManager department');
+      console.log(`🔔 Sending leave request notifications for ${employeeData.name}`);
+      
+      // Send to reporting manager if exists
+      if (employeeData.reportingManager) {
+        console.log(`📤 Sending notification to manager: ${employeeData.reportingManager.name}`);
+        const managerResult = await notificationService.sendLeaveRequestNotification(
+          employeeData.reportingManager._id,
+          employeeData.name,
+          leaveType
+        );
+        console.log(`📤 Manager notification result:`, managerResult);
+      }
+      
+      // Also send to HR department
+      console.log(`📤 Sending notification to HR department`);
+      const hrResult = await notificationService.sendToRole(['hr'], {
+        title: '📋 New Leave Request',
+        body: `${employeeData.name} has requested ${leaveType} leave for ${numberOfDays} day(s)`,
+        icon: '/icons/leave-icon.png',
+        tag: 'leave-request',
+        clickAction: '/leaves',
+        data: {
+          type: 'leave_request',
+          leaveRequestId: leaveRequest._id.toString(),
+          employeeName: employeeData.name,
+          leaveType: leaveType
+        }
+      });
+      console.log(`📤 HR notification result:`, hrResult);
+      
+      console.log("✅ Leave request notifications sent successfully");
+    } catch (notificationError) {
+      console.error("⚠️ Error sending leave request notifications:", notificationError);
+      // Don't fail the request if notification fails
+    }
 
     res.status(201).json({
       message: "Leave request submitted successfully",
@@ -150,7 +191,7 @@ export const getLeaveUsageSummary = async (req, res) => {
     // Calculate cumulative usage
     let cumulativeUsed = 0;
     const leaveHistory = approvedLeaves
-      .filter(leave => leave.leaveType !== 'unpaid') // Exclude unpaid leaves
+      .filter(leave => leave.leaveType !== 'unpaid' && leave.leaveType !== 'work_from_home') // Exclude unpaid and WFH leaves
       .map(leave => {
         cumulativeUsed += leave.numberOfDays;
         return {
@@ -286,6 +327,90 @@ export const approveLeaveRequest = async (req, res) => {
 
     await leaveRequest.save();
 
+    // Create attendance records for the leave period with "on-leave" status
+    try {
+      const Attendance = (await import("../models/attendanceModel.js")).default;
+      
+      const startDate = new Date(leaveRequest.startDate);
+      const endDate = new Date(leaveRequest.endDate);
+      
+      console.log(`📅 Creating attendance records for leave period: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+      
+      // Loop through each day in the leave period
+      const currentDate = new Date(startDate);
+      let recordsCreated = 0;
+      
+      while (currentDate <= endDate) {
+        // Set time to start of day for consistent date comparison
+        const dateOnly = new Date(currentDate);
+        dateOnly.setHours(0, 0, 0, 0);
+        
+        // Check if attendance record already exists for this date
+        const existingRecord = await Attendance.findOne({
+          employee: leaveRequest.employee,
+          date: {
+            $gte: dateOnly,
+            $lt: new Date(dateOnly.getTime() + 24 * 60 * 60 * 1000)
+          }
+        });
+        
+        if (!existingRecord) {
+          // Create new attendance record with "on-leave" status
+          // Set clockIn to 9:00 AM for the date (just for record keeping)
+          const clockInTime = new Date(dateOnly);
+          clockInTime.setHours(9, 0, 0, 0);
+          
+          await Attendance.create({
+            employee: leaveRequest.employee,
+            date: dateOnly,
+            clockIn: clockInTime,
+            status: 'on-leave',
+            workHours: 0,
+            overtime: 0,
+            notes: `On ${leaveRequest.leaveType} leave (Approved by ${approvedBy})`,
+            approvedBy: approvedBy,
+            isManuallyModified: true, // Mark as manually set so it won't be recalculated
+            originalStatus: 'on-leave'
+          });
+          
+          recordsCreated++;
+          console.log(`✅ Created on-leave attendance record for ${dateOnly.toISOString().split('T')[0]}`);
+        } else {
+          console.log(`⚠️ Attendance record already exists for ${dateOnly.toISOString().split('T')[0]} - skipping`);
+        }
+        
+        // Move to next day
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      
+      console.log(`✅ Created ${recordsCreated} attendance records for leave period`);
+    } catch (attendanceError) {
+      console.error("⚠️ Error creating attendance records for leave:", attendanceError);
+      // Don't fail the approval if attendance creation fails
+    }
+
+    // Send notification to employee
+    try {
+      const employeeData = await User.findById(leaveRequest.employee);
+      if (employeeData) {
+        await notificationService.sendToUser(employeeData._id, {
+          title: '✅ Leave Request Approved',
+          body: `Your ${leaveRequest.leaveType} leave request has been approved`,
+          icon: '/icons/leave-approved-icon.png',
+          tag: 'leave-approved',
+          clickAction: '/leaves',
+          data: {
+            type: 'leave_approved',
+            leaveRequestId: leaveRequest._id.toString(),
+            leaveType: leaveRequest.leaveType
+          }
+        });
+        console.log("✅ Leave approval notification sent to employee");
+      }
+    } catch (notificationError) {
+      console.error("⚠️ Error sending leave approval notification:", notificationError);
+    }
+
     res.status(200).json({
       message: "Leave request approved successfully",
       leaveRequest,
@@ -331,6 +456,29 @@ export const rejectLeaveRequest = async (req, res) => {
     leaveRequest.approvedDate = new Date();
 
     await leaveRequest.save();
+
+    // Send notification to employee
+    try {
+      const employeeData = await User.findById(leaveRequest.employee);
+      if (employeeData) {
+        await notificationService.sendToUser(employeeData._id, {
+          title: '❌ Leave Request Rejected',
+          body: `Your ${leaveRequest.leaveType} leave request has been rejected`,
+          icon: '/icons/leave-rejected-icon.png',
+          tag: 'leave-rejected',
+          clickAction: '/leaves',
+          data: {
+            type: 'leave_rejected',
+            leaveRequestId: leaveRequest._id.toString(),
+            leaveType: leaveRequest.leaveType,
+            rejectionReason: rejectionReason
+          }
+        });
+        console.log("✅ Leave rejection notification sent to employee");
+      }
+    } catch (notificationError) {
+      console.error("⚠️ Error sending leave rejection notification:", notificationError);
+    }
 
     res.status(200).json({
       message: "Leave request rejected",

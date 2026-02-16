@@ -23,6 +23,7 @@ import { toast } from "react-toastify";
 import { attendanceApi } from "../../api/attendanceApi";
 import { formatDate, formatDateTime, formatTime, getStatusVariant } from "../../utils/helpers";
 import ConfirmModal from "../../components/common/ConfirmModal";
+import MyOvertimeHistory from "../../components/attendance/MyOvertimeHistory";
 import * as XLSX from "xlsx";
 import "../../styles/table-mobile.css";
 import "../../styles/modal-mobile.css";
@@ -505,6 +506,10 @@ const MyAttendance = () => {
               </div>
             </Card.Body>
           </Card>
+        </Tab>
+
+        <Tab eventKey="overtime" title="Overtime History">
+          <MyOvertimeHistory />
         </Tab>
       </Tabs>
     </Container>

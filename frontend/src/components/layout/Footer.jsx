@@ -101,6 +101,9 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
                 style={{ fontSize: "0.7rem", lineHeight: "1.4" }}
               >
                 © {currentYear} We Alll. All rights reserved.
+                <span className="ms-2 text-white-50">
+                  V 3.3
+                </span>
               </div>
             </Col>
           </Row>
@@ -153,7 +156,10 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
             </Col>
 
             <Col md={6} className="text-center text-md-end">
-              <div className="d-flex gap-2 justify-content-center justify-content-md-end align-items-center">
+              <div className="d-flex gap-3 justify-content-center justify-content-md-end align-items-center">
+                <span className="text-white-50 me-2" style={{ fontSize: "0.75rem" }}>
+                  Follow us:
+                </span>
                 <a
                   href="https://www.facebook.com/profile.php?id=61556163594429"
                   className="text-white footer-social-link"
@@ -283,8 +289,8 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
         }
 
         .footer-social-link {
-          width: 32px;
-          height: 32px;
+          width: 36px;
+          height: 36px;
           display: inline-flex;
           align-items: center;
           justify-content: center;
@@ -292,18 +298,68 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
           background: rgba(255, 255, 255, 0.15);
           transition: all 0.3s ease;
           backdrop-filter: blur(10px);
+          text-decoration: none;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          animation: fadeInUp 0.6s ease-out forwards;
+          opacity: 0;
+          transform: translateY(20px);
+          position: relative;
         }
 
+        .footer-social-link:nth-child(2) { animation-delay: 0.1s; }
+        .footer-social-link:nth-child(3) { animation-delay: 0.2s; }
+        .footer-social-link:nth-child(4) { animation-delay: 0.3s; }
+        .footer-social-link:nth-child(5) { animation-delay: 0.4s; }
+        .footer-social-link:nth-child(6) { animation-delay: 0.5s; }
+        .footer-social-link:nth-child(7) { animation-delay: 0.6s; }
+
         .footer-social-link svg {
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
+          width: 20px;
+          height: 20px;
+          color: white;
+          transition: all 0.3s ease;
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
         }
 
         .footer-social-link:hover {
-          background: rgba(255, 255, 255, 0.25);
-          transform: translateY(-3px);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+          background: rgba(255, 255, 255, 0.3);
+          transform: translateY(-3px) scale(1.1);
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+          color: white;
+          border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+
+        .footer-social-link:hover svg {
+          color: white;
+          transform: translate(-50%, -50%) scale(1.2);
+        }
+
+        /* Individual social media platform colors on hover */
+        .footer-social-link:hover:nth-child(2) {
+          background: rgba(24, 119, 242, 0.8); /* Facebook blue */
+        }
+
+        .footer-social-link:hover:nth-child(3) {
+          background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%); /* Instagram gradient */
+        }
+
+        .footer-social-link:hover:nth-child(4) {
+          background: rgba(234, 67, 53, 0.8); /* Gmail red */
+        }
+
+        .footer-social-link:hover:nth-child(5) {
+          background: rgba(0, 119, 181, 0.8); /* LinkedIn blue */
+        }
+
+        .footer-social-link:hover:nth-child(6) {
+          background: rgba(0, 0, 0, 0.8); /* X (Twitter) black */
+        }
+
+        .footer-social-link:hover:nth-child(7) {
+          background: rgba(51, 51, 51, 0.8); /* GitHub dark */
         }
 
         @keyframes heartbeat {
@@ -313,6 +369,33 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
           50% {
             transform: scale(1.1);
           }
+        }
+
+        @keyframes socialPulse {
+          0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
+          }
+          50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 0 8px rgba(255, 255, 255, 0);
+          }
+        }
+
+        @keyframes fadeInUp {
+          0% {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .footer-social-link:focus {
+          animation: socialPulse 0.6s ease-in-out;
+          outline: none;
         }
 
         /* Mobile styles */
@@ -348,13 +431,13 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
           }
 
           .footer-social-link {
-            width: 34px;
-            height: 34px;
+            width: 36px;
+            height: 36px;
           }
 
           .footer-social-link svg {
-            width: 16px !important;
-            height: 16px !important;
+            width: 18px !important;
+            height: 18px !important;
           }
 
           /* Stack footer sections on mobile */
@@ -377,6 +460,11 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
           .footer-gradient .d-flex.gap-3 {
             gap: 0.75rem !important;
           }
+
+          /* Hide "Follow us:" text on mobile */
+          .footer-gradient .d-flex span {
+            display: none;
+          }
         }
 
         /* Very small screens */
@@ -395,8 +483,8 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
           }
           
           .footer-social-link svg {
-            width: 14px !important;
-            height: 14px !important;
+            width: 16px !important;
+            height: 16px !important;
           }
         }
       `}</style>

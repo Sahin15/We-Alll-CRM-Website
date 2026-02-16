@@ -8,7 +8,7 @@ import toast from '../../utils/toast';
 
 const HoDSection = ({ user }) => {
   const navigate = useNavigate();
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState(null);
   const [projects, setProjects] = useState([]);

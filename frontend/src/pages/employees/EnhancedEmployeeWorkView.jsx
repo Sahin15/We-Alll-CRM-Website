@@ -600,17 +600,6 @@ const EnhancedEmployeeWorkView = () => {
 
                   {/* Assignments Sidebar */}
                   <Col lg={4}>
-                    {/* Debug Test */}
-                    <Card className="border-0 shadow-sm mb-4" style={{ backgroundColor: '#e3f2fd' }}>
-                      <Card.Header className="bg-info text-white">
-                        <h6 className="mb-0">🔧 Assignments Sidebar Test</h6>
-                      </Card.Header>
-                      <Card.Body>
-                        <p className="mb-0">Assignments sidebar is working!</p>
-                        <small className="text-muted">Work items: {recentWork.length}</small>
-                      </Card.Body>
-                    </Card>
-
                     {/* Work Statistics */}
                     <Card className="border-0 shadow-sm mb-4">
                       <Card.Header className="bg-light">
@@ -740,17 +729,6 @@ const EnhancedEmployeeWorkView = () => {
 
                   {/* Calendar Sidebar */}
                   <Col lg={4}>
-                    {/* Debug Test */}
-                    <Card className="border-0 shadow-sm mb-4" style={{ backgroundColor: '#fff3e0' }}>
-                      <Card.Header className="bg-warning text-dark">
-                        <h6 className="mb-0">🔧 Calendar Sidebar Test</h6>
-                      </Card.Header>
-                      <Card.Body>
-                        <p className="mb-0">Calendar sidebar is working!</p>
-                        <small className="text-muted">Current tab: Calendar View</small>
-                      </Card.Body>
-                    </Card>
-
                     {/* Calendar Legend */}
                     <Card className="border-0 shadow-sm mb-4">
                       <Card.Header className="bg-light">

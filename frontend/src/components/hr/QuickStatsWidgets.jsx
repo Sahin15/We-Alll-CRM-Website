@@ -12,6 +12,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
 import { formatDate } from "../../utils/helpers";
+import "./QuickStatsWidgets.css";
 
 const QuickStatsWidgets = () => {
   const navigate = useNavigate();
@@ -42,12 +43,52 @@ const QuickStatsWidgets = () => {
       const todayDate = today.getDate();
       const thirtyDaysLater = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-      // Today's Birthdays - ALL USERS
+      // Upcoming Birthdays (next 7 days) - ALL USERS
       const birthdays = allUsers.filter(user => {
         if (!user.dateOfBirth) return false;
+        
         const dob = new Date(user.dateOfBirth);
-        return dob.getMonth() === todayMonth && dob.getDate() === todayDate;
-      });
+        const dobMonth = dob.getMonth();
+        const dobDate = dob.getDate();
+        
+        // Get today at midnight (no time component)
+        const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        
+        // Get the birthday for this year at midnight
+        const thisYearBirthday = new Date(today.getFullYear(), dobMonth, dobDate);
+        
+        // If birthday already passed this year, check next year's birthday
+        let birthdayToCheck = thisYearBirthday;
+        if (thisYearBirthday < todayMidnight) {
+          birthdayToCheck = new Date(today.getFullYear() + 1, dobMonth, dobDate);
+        }
+        
+        // Check if birthday is within the next 7 days
+        const sevenDaysLater = new Date(todayMidnight.getTime() + 7 * 24 * 60 * 60 * 1000);
+        
+        return birthdayToCheck >= todayMidnight && birthdayToCheck <= sevenDaysLater;
+      }).map(user => {
+        const dob = new Date(user.dateOfBirth);
+        const dobMonth = dob.getMonth();
+        const dobDate = dob.getDate();
+        
+        const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const thisYearBirthday = new Date(today.getFullYear(), dobMonth, dobDate);
+        
+        let birthdayToCheck = thisYearBirthday;
+        if (thisYearBirthday < todayMidnight) {
+          birthdayToCheck = new Date(today.getFullYear() + 1, dobMonth, dobDate);
+        }
+        
+        // Calculate days until birthday (using midnight dates)
+        const daysUntil = Math.ceil((birthdayToCheck - todayMidnight) / (1000 * 60 * 60 * 24));
+        
+        return {
+          ...user,
+          upcomingBirthday: birthdayToCheck,
+          daysUntil: daysUntil
+        };
+      }).sort((a, b) => a.daysUntil - b.daysUntil); // Sort by days until birthday
 
       // Work Anniversaries (today) - ALL USERS
       const anniversaries = allUsers.filter(user => {
@@ -68,7 +109,27 @@ const QuickStatsWidgets = () => {
         
         const joinDate = new Date(user.joiningDate);
         const probationEnd = new Date(joinDate.getTime() + 90 * 24 * 60 * 60 * 1000); // 90 days probation
-        return probationEnd >= today && probationEnd <= thirtyDaysLater;
+        
+        // Use midnight dates for accurate comparison
+        const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const probationEndMidnight = new Date(probationEnd.getFullYear(), probationEnd.getMonth(), probationEnd.getDate());
+        const thirtyDaysLaterMidnight = new Date(todayMidnight.getTime() + 30 * 24 * 60 * 60 * 1000);
+        
+        return probationEndMidnight >= todayMidnight && probationEndMidnight <= thirtyDaysLaterMidnight;
+      }).map(user => {
+        const joinDate = new Date(user.joiningDate);
+        const probationEnd = new Date(joinDate.getTime() + 90 * 24 * 60 * 60 * 1000);
+        const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const probationEndMidnight = new Date(probationEnd.getFullYear(), probationEnd.getMonth(), probationEnd.getDate());
+        
+        // Calculate accurate days until
+        const daysUntil = Math.ceil((probationEndMidnight - todayMidnight) / (1000 * 60 * 60 * 24));
+        
+        return {
+          ...user,
+          probationEnd: probationEndMidnight,
+          daysUntilProbationEnd: daysUntil
+        };
       });
 
       // Contract Renewals Due (within 30 days) - ALL USERS with contract employment
@@ -79,7 +140,27 @@ const QuickStatsWidgets = () => {
         // Assuming 1 year contract from joining date
         const joinDate = new Date(user.joiningDate);
         const contractEnd = new Date(joinDate.getTime() + 365 * 24 * 60 * 60 * 1000);
-        return contractEnd >= today && contractEnd <= thirtyDaysLater;
+        
+        // Use midnight dates for accurate comparison
+        const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const contractEndMidnight = new Date(contractEnd.getFullYear(), contractEnd.getMonth(), contractEnd.getDate());
+        const thirtyDaysLaterMidnight = new Date(todayMidnight.getTime() + 30 * 24 * 60 * 60 * 1000);
+        
+        return contractEndMidnight >= todayMidnight && contractEndMidnight <= thirtyDaysLaterMidnight;
+      }).map(user => {
+        const joinDate = new Date(user.joiningDate);
+        const contractEnd = new Date(joinDate.getTime() + 365 * 24 * 60 * 60 * 1000);
+        const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const contractEndMidnight = new Date(contractEnd.getFullYear(), contractEnd.getMonth(), contractEnd.getDate());
+        
+        // Calculate accurate days until
+        const daysUntil = Math.ceil((contractEndMidnight - todayMidnight) / (1000 * 60 * 60 * 24));
+        
+        return {
+          ...user,
+          contractEnd: contractEndMidnight,
+          daysUntilContractEnd: daysUntil
+        };
       });
 
       // Document Expiry Alerts - Check for passport, visa, certifications expiry
@@ -193,24 +274,24 @@ const QuickStatsWidgets = () => {
   return (
     <>
     <Row className="g-3 mb-4">
-      {/* Today's Birthdays */}
+      {/* Upcoming Birthdays */}
       <Col lg={2} md={4} sm={6}>
         <Card 
           className="dashboard-card border-0 shadow-sm h-100" 
           style={{ cursor: stats.birthdays.length > 0 ? 'pointer' : 'default' }}
-          onClick={() => handleCardClick('birthdays', "Today's Birthdays", stats.birthdays)}
+          onClick={() => handleCardClick('birthdays', "Upcoming Birthdays (Next 7 Days)", stats.birthdays)}
         >
           <Card.Body className="text-center">
             <div className="mb-2">
               <FaBirthdayCake className="text-danger" style={{ fontSize: '2rem' }} />
             </div>
             <h4 className="mb-1">{stats.birthdays.length}</h4>
-            <small className="text-muted">Today's Birthdays</small>
+            <small className="text-muted">Upcoming Birthdays</small>
             {stats.birthdays.length > 0 && (
               <div className="mt-2">
                 {stats.birthdays.slice(0, 2).map(emp => (
                   <Badge key={emp._id} bg="danger" className="d-block mb-1 text-truncate">
-                    {emp.name}
+                    {emp.name} {emp.daysUntil === 0 ? '(Today)' : `(${emp.daysUntil}d)`}
                   </Badge>
                 ))}
                 {stats.birthdays.length > 2 && (
@@ -321,140 +402,230 @@ const QuickStatsWidgets = () => {
       </Col>
     </Row>
 
-    {/* Details Modal */}
-    <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
-      <Modal.Header closeButton>
-        <Modal.Title>{modalData.title}</Modal.Title>
+    {/* Details Modal - Modern Card Design */}
+    <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered>
+      <Modal.Header closeButton className="border-0 pb-0">
+        <Modal.Title className="d-flex align-items-center gap-2">
+          {modalData.type === 'birthdays' && <FaBirthdayCake className="text-danger" />}
+          {modalData.type === 'anniversaries' && <FaTrophy className="text-warning" />}
+          {modalData.type === 'probation' && <FaUserClock className="text-info" />}
+          {modalData.type === 'contracts' && <FaFileContract className="text-primary" />}
+          {modalData.type === 'documents' && <FaExclamationTriangle className="text-danger" />}
+          {modalData.title}
+        </Modal.Title>
       </Modal.Header>
-      <Modal.Body>
+      <Modal.Body className="pt-2" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
         {modalData.items.length > 0 ? (
-          <Table hover responsive>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Role</th>
-                <th>Department</th>
-                {modalData.type === 'birthdays' && <th>Date of Birth</th>}
-                {modalData.type === 'anniversaries' && <><th>Joining Date</th><th>Years</th></>}
-                {modalData.type === 'probation' && <><th>Joining Date</th><th>Probation Ends</th></>}
-                {modalData.type === 'contracts' && <><th>Joining Date</th><th>Contract Ends</th></>}
-                {modalData.type === 'documents' && <th>Expiring Documents</th>}
-                <th>Contact</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {modalData.items.map((item) => {
-                const joinDate = item.joiningDate ? new Date(item.joiningDate) : null;
-                const probationEnd = joinDate ? new Date(joinDate.getTime() + 90 * 24 * 60 * 60 * 1000) : null;
-                const contractEnd = joinDate ? new Date(joinDate.getTime() + 365 * 24 * 60 * 60 * 1000) : null;
-                
-                return (
-                  <tr key={item._id}>
-                    <td>
-                      <strong>{item.name}</strong>
-                      <br />
-                      <small className="text-muted">{item.employeeId || item.email}</small>
-                    </td>
-                    <td>
-                      <Badge bg="secondary" className="text-capitalize">
-                        {item.role}
-                      </Badge>
-                    </td>
-                    <td>{item.department?.name || 'N/A'}</td>
-                    
-                    {modalData.type === 'birthdays' && (
-                      <td>{item.dateOfBirth ? formatDate(item.dateOfBirth) : 'N/A'}</td>
-                    )}
-                    
-                    {modalData.type === 'anniversaries' && (
-                      <>
-                        <td>{joinDate ? formatDate(joinDate) : 'N/A'}</td>
-                        <td><Badge bg="warning">{item.years} years</Badge></td>
-                      </>
-                    )}
-                    
-                    {modalData.type === 'probation' && (
-                      <>
-                        <td>{joinDate ? formatDate(joinDate) : 'N/A'}</td>
-                        <td>
-                          {probationEnd ? formatDate(probationEnd) : 'N/A'}
-                          <br />
-                          <small className="text-info">
-                            {probationEnd ? `${getDaysUntil(probationEnd)} days left` : ''}
-                          </small>
-                        </td>
-                      </>
-                    )}
-                    
-                    {modalData.type === 'contracts' && (
-                      <>
-                        <td>{joinDate ? formatDate(joinDate) : 'N/A'}</td>
-                        <td>
-                          {contractEnd ? formatDate(contractEnd) : 'N/A'}
-                          <br />
-                          <small className="text-primary">
-                            {contractEnd ? `${getDaysUntil(contractEnd)} days left` : ''}
-                          </small>
-                        </td>
-                      </>
-                    )}
-                    
-                    {modalData.type === 'documents' && (
-                      <td>
-                        {item.expiringDocs && item.expiringDocs.length > 0 ? (
-                          item.expiringDocs.map((doc, idx) => (
-                            <div key={idx} className="mb-1">
-                              <Badge bg="danger" className="me-1">{doc.type}</Badge>
-                              <small className="text-muted">
-                                {formatDate(doc.date)} ({getDaysUntil(doc.date)} days)
-                              </small>
+          <div className="row g-3">
+            {modalData.items.map((item) => {
+              const joinDate = item.joiningDate ? new Date(item.joiningDate) : null;
+              const probationEnd = joinDate ? new Date(joinDate.getTime() + 90 * 24 * 60 * 60 * 1000) : null;
+              const contractEnd = joinDate ? new Date(joinDate.getTime() + 365 * 24 * 60 * 60 * 1000) : null;
+              
+              return (
+                <div key={item._id} className="col-12">
+                  <Card className="border-0 shadow-sm hover-shadow" style={{ transition: 'all 0.3s ease' }}>
+                    <Card.Body className="p-3">
+                      <div className="d-flex justify-content-between align-items-start">
+                        <div className="flex-grow-1">
+                          {/* Name and Role */}
+                          <div className="d-flex align-items-center gap-2 mb-2">
+                            <div 
+                              className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold"
+                              style={{ 
+                                width: '48px', 
+                                height: '48px',
+                                background: modalData.type === 'birthdays' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' :
+                                           modalData.type === 'anniversaries' ? 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' :
+                                           modalData.type === 'probation' ? 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' :
+                                           modalData.type === 'contracts' ? 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' :
+                                           'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+                                fontSize: '18px'
+                              }}
+                            >
+                              {item.name.charAt(0).toUpperCase()}
                             </div>
-                          ))
-                        ) : (
-                          <span className="text-muted">No expiring documents</span>
-                        )}
-                      </td>
-                    )}
-                    
-                    <td>
-                      <div className="small">
-                        {item.email && (
-                          <div>
-                            <FaEnvelope className="me-1" />
-                            {item.email}
+                            <div>
+                              <h6 className="mb-0 fw-bold">{item.name}</h6>
+                              <div className="d-flex gap-2 align-items-center mt-1">
+                                <Badge 
+                                  bg="" 
+                                  className="text-capitalize"
+                                  style={{ 
+                                    background: modalData.type === 'birthdays' ? '#667eea' :
+                                               modalData.type === 'anniversaries' ? '#f5576c' :
+                                               modalData.type === 'probation' ? '#4facfe' :
+                                               modalData.type === 'contracts' ? '#43e97b' :
+                                               '#fa709a'
+                                  }}
+                                >
+                                  {item.role}
+                                </Badge>
+                                {item.department?.name && (
+                                  <small className="text-muted">• {item.department.name}</small>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        )}
-                        {item.phone && (
-                          <div>
-                            <FaPhone className="me-1" />
-                            {item.phone}
+
+                          {/* Type-specific Information */}
+                          <div className="mt-3">
+                            {modalData.type === 'birthdays' && (
+                              <div className="d-flex flex-wrap gap-3">
+                                <div>
+                                  <small className="text-muted d-block">Date of Birth</small>
+                                  <strong>{item.dateOfBirth ? formatDate(item.dateOfBirth) : 'N/A'}</strong>
+                                </div>
+                                <div>
+                                  <small className="text-muted d-block">Upcoming Birthday</small>
+                                  <strong>{item.upcomingBirthday ? formatDate(item.upcomingBirthday) : 'N/A'}</strong>
+                                </div>
+                                <div>
+                                  <small className="text-muted d-block">Days Until</small>
+                                  <Badge 
+                                    bg="" 
+                                    className="fs-6"
+                                    style={{ 
+                                      background: item.daysUntil === 0 ? '#10b981' : 
+                                                 item.daysUntil <= 2 ? '#f59e0b' : '#667eea',
+                                      padding: '6px 12px'
+                                    }}
+                                  >
+                                    {item.daysUntil === 0 ? '🎉 Today!' : `${item.daysUntil} days`}
+                                  </Badge>
+                                </div>
+                              </div>
+                            )}
+
+                            {modalData.type === 'anniversaries' && (
+                              <div className="d-flex flex-wrap gap-3">
+                                <div>
+                                  <small className="text-muted d-block">Joining Date</small>
+                                  <strong>{joinDate ? formatDate(joinDate) : 'N/A'}</strong>
+                                </div>
+                                <div>
+                                  <small className="text-muted d-block">Years Completed</small>
+                                  <Badge bg="" style={{ background: '#f5576c', padding: '6px 12px', fontSize: '14px' }}>
+                                    🏆 {item.years} {item.years === 1 ? 'Year' : 'Years'}
+                                  </Badge>
+                                </div>
+                              </div>
+                            )}
+
+                            {modalData.type === 'probation' && (
+                              <div className="d-flex flex-wrap gap-3">
+                                <div>
+                                  <small className="text-muted d-block">Joining Date</small>
+                                  <strong>{joinDate ? formatDate(joinDate) : 'N/A'}</strong>
+                                </div>
+                                <div>
+                                  <small className="text-muted d-block">Probation Ends</small>
+                                  <strong>{probationEnd ? formatDate(probationEnd) : 'N/A'}</strong>
+                                </div>
+                                <div>
+                                  <small className="text-muted d-block">Days Left</small>
+                                  <Badge bg="" style={{ background: '#4facfe', padding: '6px 12px', fontSize: '14px' }}>
+                                    {item.daysUntilProbationEnd || (probationEnd ? getDaysUntil(probationEnd) : 0)} days
+                                  </Badge>
+                                </div>
+                              </div>
+                            )}
+
+                            {modalData.type === 'contracts' && (
+                              <div className="d-flex flex-wrap gap-3">
+                                <div>
+                                  <small className="text-muted d-block">Contract Start</small>
+                                  <strong>{joinDate ? formatDate(joinDate) : 'N/A'}</strong>
+                                </div>
+                                <div>
+                                  <small className="text-muted d-block">Contract Ends</small>
+                                  <strong>{contractEnd ? formatDate(contractEnd) : 'N/A'}</strong>
+                                </div>
+                                <div>
+                                  <small className="text-muted d-block">Days Left</small>
+                                  <Badge bg="" style={{ background: '#43e97b', padding: '6px 12px', fontSize: '14px' }}>
+                                    {item.daysUntilContractEnd || (contractEnd ? getDaysUntil(contractEnd) : 0)} days
+                                  </Badge>
+                                </div>
+                              </div>
+                            )}
+
+                            {modalData.type === 'documents' && (
+                              <div>
+                                <small className="text-muted d-block mb-2">Expiring Documents</small>
+                                {item.expiringDocs && item.expiringDocs.length > 0 ? (
+                                  <div className="d-flex flex-wrap gap-2">
+                                    {item.expiringDocs.map((doc, idx) => (
+                                      <Badge 
+                                        key={idx} 
+                                        bg="" 
+                                        style={{ background: '#fa709a', padding: '6px 12px' }}
+                                      >
+                                        {doc.type} - {formatDate(doc.date)} ({getDaysUntil(doc.date)} days)
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted">No expiring documents</span>
+                                )}
+                              </div>
+                            )}
                           </div>
-                        )}
+
+                          {/* Contact Information */}
+                          <div className="mt-3 pt-3 border-top">
+                            <div className="d-flex flex-wrap gap-3 small">
+                              {item.email && (
+                                <div className="d-flex align-items-center gap-1">
+                                  <FaEnvelope className="text-muted" />
+                                  <span className="text-muted">{item.email}</span>
+                                </div>
+                              )}
+                              {item.phone && (
+                                <div className="d-flex align-items-center gap-1">
+                                  <FaPhone className="text-muted" />
+                                  <span className="text-muted">{item.phone}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Action Button */}
+                        <div>
+                          <Button
+                            variant="outline-primary"
+                            size="sm"
+                            onClick={() => {
+                              setShowModal(false);
+                              navigate(`/users/${item._id}`);
+                            }}
+                            style={{ whiteSpace: 'nowrap' }}
+                          >
+                            View Profile
+                          </Button>
+                        </div>
                       </div>
-                    </td>
-                    <td>
-                      <Button
-                        variant="outline-primary"
-                        size="sm"
-                        onClick={() => {
-                          setShowModal(false);
-                          navigate(`/users/${item._id}`);
-                        }}
-                      >
-                        View Profile
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </Table>
+                    </Card.Body>
+                  </Card>
+                </div>
+              );
+            })}
+          </div>
         ) : (
-          <p className="text-center text-muted py-4">No items to display</p>
+          <div className="text-center py-5">
+            <div className="mb-3" style={{ fontSize: '3rem', opacity: 0.3 }}>
+              {modalData.type === 'birthdays' && '🎂'}
+              {modalData.type === 'anniversaries' && '🏆'}
+              {modalData.type === 'probation' && '⏰'}
+              {modalData.type === 'contracts' && '📄'}
+              {modalData.type === 'documents' && '⚠️'}
+            </div>
+            <p className="text-muted">No items to display</p>
+          </div>
         )}
       </Modal.Body>
-      <Modal.Footer>
+      <Modal.Footer className="border-0 pt-0">
         <Button variant="secondary" onClick={() => setShowModal(false)}>
           Close
         </Button>

@@ -29,6 +29,15 @@ const MyAttendance = () => {
     fetchAttendance();
   }, []);
 
+  useEffect(() => {
+    console.log('[MY-ATTENDANCE] ===== Status Update =====');
+    console.log('[MY-ATTENDANCE] Current status:', status);
+    console.log('[MY-ATTENDANCE] Today attendance:', todayAttendance);
+    console.log('[MY-ATTENDANCE] Has clockIn:', !!todayAttendance?.clockIn);
+    console.log('[MY-ATTENDANCE] Has clockOut:', !!todayAttendance?.clockOut);
+    console.log('[MY-ATTENDANCE] ===========================');
+  }, [status, todayAttendance]);
+
   const fetchTodayAttendance = async () => {
     try {
       const response = await attendanceApi.getTodayAttendance();
@@ -111,19 +120,28 @@ const MyAttendance = () => {
   };
 
   const handleClockOutClick = () => {
+    console.log('[MY-ATTENDANCE] ===== Clock Out button clicked =====');
+    console.log('[MY-ATTENDANCE] Current status:', status);
+    console.log('[MY-ATTENDANCE] Today attendance:', todayAttendance);
+    console.log('[MY-ATTENDANCE] Clocking in state:', clockingIn);
+    alert('Clock Out button clicked! Check console for details.');
     setShowClockOutConfirm(true);
   };
 
   const handleClockOut = async () => {
+    console.log('[MY-ATTENDANCE] Confirming clock out');
     setShowClockOutConfirm(false);
     
     try {
       setClockingIn(true);
+      console.log('[MY-ATTENDANCE] Calling clockOut API');
       await attendanceApi.clockOut("End of day");
+      console.log('[MY-ATTENDANCE] Clock out successful');
       toast.success("Clocked out successfully!");
       await fetchTodayAttendance();
       await fetchAttendance();
     } catch (error) {
+      console.error('[MY-ATTENDANCE] Clock out error:', error);
       toast.error(error.response?.data?.message || "Failed to clock out");
     } finally {
       setClockingIn(false);
@@ -131,9 +149,23 @@ const MyAttendance = () => {
   };
 
   const getCurrentStatus = () => {
-    if (!todayAttendance) return "not-clocked-in";
-    if (todayAttendance.clockOut) return "clocked-out";
-    return "clocked-in";
+    if (!todayAttendance) {
+      console.log('[MY-ATTENDANCE] Status: not-clocked-in (no attendance record)');
+      return "not-clocked-in";
+    }
+    
+    if (todayAttendance.clockOut) {
+      console.log('[MY-ATTENDANCE] Status: clocked-out (has clockOut)');
+      return "clocked-out";
+    }
+    
+    if (todayAttendance.clockIn) {
+      console.log('[MY-ATTENDANCE] Status: clocked-in (has clockIn, no clockOut)');
+      return "clocked-in";
+    }
+    
+    console.log('[MY-ATTENDANCE] Status: not-clocked-in (fallback)');
+    return "not-clocked-in";
   };
 
   const getStatusBadge = (status) => {
@@ -324,7 +356,12 @@ const MyAttendance = () => {
                 </div>
               )}
 
-              <div className="d-grid gap-2">
+              <div className="d-grid gap-2" style={{ position: 'relative', zIndex: 1 }}>
+                {/* Debug Info */}
+                <div className="alert alert-secondary small mb-2">
+                  <strong>Debug:</strong> Status = {status} | Clocking In = {clockingIn ? 'Yes' : 'No'} | Has Attendance = {todayAttendance ? 'Yes' : 'No'} | Has ClockIn = {todayAttendance?.clockIn ? 'Yes' : 'No'} | Has ClockOut = {todayAttendance?.clockOut ? 'Yes' : 'No'}
+                </div>
+                
                 {status === "not-clocked-in" && (
                   <Button
                     variant="primary"

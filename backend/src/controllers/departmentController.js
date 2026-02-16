@@ -56,7 +56,7 @@ export const getDepartments = async (req, res) => {
     logger.info('Fetching departments from database');
     
     const departments = await Department.find()
-      .select('name description head status employees')
+      .select('name description head status employees type')
       .populate("head", "name email")
       .lean();
 
@@ -67,6 +67,23 @@ export const getDepartments = async (req, res) => {
     res.status(200).json(departments);
   } catch (error) {
     logger.error("Error in getDepartments:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Get only operational departments (for client assignment)
+export const getOperationalDepartments = async (req, res) => {
+  try {
+    logger.info('Fetching operational departments from database');
+    
+    const departments = await Department.find({ type: 'operational', status: 'active' })
+      .select('name description head status employees type')
+      .populate("head", "name email")
+      .lean();
+
+    res.status(200).json(departments);
+  } catch (error) {
+    logger.error("Error in getOperationalDepartments:", error);
     res.status(500).json({ message: "Server error" });
   }
 };

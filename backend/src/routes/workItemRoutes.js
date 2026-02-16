@@ -10,6 +10,7 @@ import {
   restoreWorkItem,
   bulkUpdateWorkItems,
   addComment,
+  deleteComment,
   getCalendarWorkItems,
   getOverdueWorkItems,
   getWorkItemsByProject,
@@ -96,6 +97,9 @@ router.post(
   validateRequest(addCommentValidation),
   addComment
 );
+
+// Delete comment
+router.delete("/:id/comments/:commentId", deleteComment);
 
 // Workflow configuration and progression
 router.get("/workflow-config/:projectId", getWorkflowConfig);

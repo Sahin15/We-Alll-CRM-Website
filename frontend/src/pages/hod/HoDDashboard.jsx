@@ -253,21 +253,6 @@ const HoDDashboard = () => {
 
   return (
     <Container fluid className="py-4">
-      {/* 🔴 TEST MARKER - FILE LOADED */}
-      <div style={{
-        background: '#ff0000',
-        color: 'white',
-        padding: '15px',
-        textAlign: 'center',
-        fontWeight: 'bold',
-        fontSize: '18px',
-        marginBottom: '20px',
-        borderRadius: '8px',
-        border: '3px solid #ffffff'
-      }}>
-        🔴 TEST: HoDDashboard.jsx LOADED - Version: {new Date().toLocaleTimeString()} 🔴
-      </div>
-
       {/* Header */}
       <Row className="mb-4">
         <Col>
@@ -470,37 +455,15 @@ const HoDDashboard = () => {
         </Col>
       </Row>
 
-      {/* ⚠️ TEST MARKER - ATTENDANCE SECTION STARTS HERE ⚠️ */}
+      {/* Attendance Section */}
       <Row className="mb-4">
         <Col>
-          <div style={{ 
-            background: 'linear-gradient(90deg, #ff0000, #ff6b6b)', 
-            color: 'white', 
-            padding: '10px', 
-            textAlign: 'center',
-            fontWeight: 'bold',
-            marginBottom: '10px',
-            borderRadius: '5px'
-          }}>
-            🔴 ATTENDANCE CARDS SECTION - IF YOU SEE THIS, THE CODE IS WORKING! 🔴
-          </div>
           <Card className="border-info border-3">
             <Card.Header className="bg-info bg-opacity-10">
               <h5 className="mb-0">
                 <FaClock className="me-2" />
                 Today's Department Attendance
               </h5>
-              {/* Debug info */}
-              <small className="text-muted d-block">
-                {stats?.attendance ? 
-                  `✅ Loaded: ${stats.attendance.total} total records` : 
-                  '⏳ Loading attendance data...'}
-              </small>
-              <small className="text-success d-block">
-                Present: {stats?.attendance?.present || 0} | 
-                Absent: {stats?.attendance?.absent || 0} | 
-                Late: {stats?.attendance?.late || 0}
-              </small>
             </Card.Header>
             <Card.Body>
               <Row className="g-3">
