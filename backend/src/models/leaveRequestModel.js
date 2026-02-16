@@ -104,8 +104,18 @@ leaveRequestSchema.statics.calculateEarnedLeaves = function(year = new Date().ge
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth() + 1; // 1-12
   
+  // Debug logging
+  const debugLog = (message, data = {}) => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[LEAVE_CALC] ${message}`, data);
+    }
+  };
+  
+  debugLog('Calculating earned leaves', { year, joiningDate, currentYear, currentMonth });
+  
   if (year > currentYear) {
     // Future year - no leaves earned yet
+    debugLog('Future year - returning 0');
     return 0;
   } else if (year < currentYear) {
     // Past year - check if employee had joined by then
@@ -113,16 +123,20 @@ leaveRequestSchema.statics.calculateEarnedLeaves = function(year = new Date().ge
       const joiningYear = new Date(joiningDate).getFullYear();
       if (joiningYear > year) {
         // Employee hadn't joined in this past year
+        debugLog('Employee not joined in past year - returning 0');
         return 0;
       } else if (joiningYear === year) {
         // Employee joined during this past year - calculate pro-rata
         const joiningMonth = new Date(joiningDate).getMonth() + 1; // 1-12
         // Count from joining month to December
         const monthsWorked = 12 - joiningMonth + 1;
-        return Math.min(monthsWorked * 2, 24);
+        const earned = Math.min(monthsWorked * 2, 24);
+        debugLog('Past year, joined mid-year', { joiningMonth, monthsWorked, earned });
+        return earned;
       }
     }
     // Past year and employee had joined - full 24 leaves earned
+    debugLog('Past year, full leaves - returning 24');
     return 24;
   } else {
     // Current year - calculate based on months passed
@@ -132,28 +146,37 @@ leaveRequestSchema.statics.calculateEarnedLeaves = function(year = new Date().ge
       const joiningDay = new Date(joiningDate).getDate();
       const currentDay = currentDate.getDate();
       
+      debugLog('Has joining date', { joiningYear, joiningMonth, joiningDay, currentDay });
+      
       if (joiningYear > currentYear) {
         // Employee hasn't joined yet
+        debugLog('Employee not joined yet - returning 0');
         return 0;
       } else if (joiningYear === currentYear) {
         // Employee joined this year
         if (joiningMonth > currentMonth) {
           // Joining month is in the future
+          debugLog('Joining month in future - returning 0');
           return 0;
         } else if (joiningMonth === currentMonth && joiningDay > currentDay) {
           // Joining day is in the future (same month)
+          debugLog('Joining day in future - returning 0');
           return 0;
         }
         
         // Calculate months from joining month to current month (inclusive)
         const monthsWorked = currentMonth - joiningMonth + 1;
-        return Math.min(monthsWorked * 2, 24);
+        const earned = Math.min(monthsWorked * 2, 24);
+        debugLog('Current year calculation', { joiningMonth, currentMonth, monthsWorked, earned });
+        return earned;
       }
     }
     
     // Employee joined before this year OR no joining date - calculate normally
     // Count all months from January to current month
-    return Math.min(currentMonth * 2, 24);
+    const earned = Math.min(currentMonth * 2, 24);
+    debugLog('No joining date or joined before this year', { currentMonth, earned });
+    return earned;
   }
 };
 
