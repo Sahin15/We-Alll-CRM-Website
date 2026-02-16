@@ -92,6 +92,12 @@ app.use(express.json({ limit: "10mb" })); // Limit payload size
 app.use(sanitizeInput); // Sanitize MongoDB queries
 app.use(auditMiddleware); // Audit logging for authenticated requests
 
+// Prevent search engine indexing (internal office use only)
+app.use((req, res, next) => {
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
+  next();
+});
+
 // Global request logger for debugging (disabled in production)
 // app.use((req, res, next) => {
 //   console.log(`🌐 GLOBAL REQUEST: ${req.method} ${req.path}`);
