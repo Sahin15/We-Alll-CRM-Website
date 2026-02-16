@@ -198,27 +198,29 @@ const OvertimeTimer = ({ variant = 'primary', size = 'md', showLabel = true }) =
       {activeTimer ? (
         // Timer Running - Show elapsed time and stop button
         <div className="d-flex gap-2 align-items-center">
-          <Card
-            className="border-0 shadow-sm mb-0"
+          <div
+            className="overtime-timer-display"
             style={{
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              borderRadius: '12px',
+              padding: '8px 16px',
+              boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
               animation: 'pulse 2s ease-in-out infinite',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
             }}
           >
-            <Card.Body className="p-2 px-3">
-              <div className="d-flex align-items-center gap-2">
-                <FaClock className="text-white" style={{ fontSize: '1.2rem' }} />
-                <div className="text-white">
-                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold', lineHeight: 1 }}>
-                    {formatTime(elapsedTime)}
-                  </div>
-                  <small style={{ fontSize: '0.7rem', opacity: 0.9 }}>
-                    Overtime Running
-                  </small>
-                </div>
+            <FaClock className="text-white" style={{ fontSize: '1rem' }} />
+            <div className="text-white">
+              <div style={{ fontSize: '1.1rem', fontWeight: '600', lineHeight: 1, fontFamily: 'monospace' }}>
+                {formatTime(elapsedTime)}
               </div>
-            </Card.Body>
-          </Card>
+              <small style={{ fontSize: '0.65rem', opacity: 0.85, display: 'block', marginTop: '2px' }}>
+                Overtime Running
+              </small>
+            </div>
+          </div>
 
           <Button
             variant="danger"
@@ -226,6 +228,11 @@ const OvertimeTimer = ({ variant = 'primary', size = 'md', showLabel = true }) =
             onClick={() => setShowStopModal(true)}
             disabled={loading}
             className="d-flex align-items-center"
+            style={{
+              borderRadius: '10px',
+              padding: '8px 16px',
+              fontWeight: '500',
+            }}
           >
             <FaStop className={showLabel ? 'me-2' : ''} />
             {showLabel && 'Stop'}
@@ -242,7 +249,19 @@ const OvertimeTimer = ({ variant = 'primary', size = 'md', showLabel = true }) =
           style={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             border: 'none',
+            borderRadius: '10px',
+            padding: '8px 16px',
+            fontWeight: '500',
             boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+            transition: 'all 0.3s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.5)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.4)';
           }}
         >
           <FaClock className={showLabel ? 'me-2' : ''} />
@@ -464,19 +483,24 @@ const OvertimeTimer = ({ variant = 'primary', size = 'md', showLabel = true }) =
         <Modal.Body>
           <div className="text-center py-3">
             <div
-              className="mb-3"
+              className="mb-3 p-4"
               style={{
-                fontSize: '3rem',
-                fontWeight: 'bold',
-                color: '#667eea',
+                fontSize: '2.5rem',
+                fontWeight: '700',
+                fontFamily: 'monospace',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                letterSpacing: '2px',
               }}
             >
               {formatTime(elapsedTime)}
             </div>
-            <h5>Duration: {formatDuration(elapsedTime)}</h5>
+            <h5 className="text-muted mb-3">Duration: {formatDuration(elapsedTime)}</h5>
             {activeTimer && (
-              <div className="mt-3">
-                <p className="text-muted mb-1">
+              <div className="mt-3 p-3 bg-light rounded">
+                <p className="text-dark mb-2">
                   <strong>Task:</strong> {activeTimer.reason}
                 </p>
                 {activeTimer.taskReference && (
@@ -488,7 +512,7 @@ const OvertimeTimer = ({ variant = 'primary', size = 'md', showLabel = true }) =
             )}
             <div className="alert alert-warning mt-3 mb-0">
               <small>
-                This overtime will be submitted for approval. Your manager will review it.
+                <strong>Note:</strong> This overtime will be submitted for approval. Your manager will review it.
               </small>
             </div>
           </div>
