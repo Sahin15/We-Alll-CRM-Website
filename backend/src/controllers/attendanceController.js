@@ -796,14 +796,14 @@ export const getTodayAttendance = async (req, res) => {
       });
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Use IST timezone-aware date range
+    const { start, end } = getTodayRangeIST();
 
     const attendance = await Attendance.findOne({
       employee,
       date: {
-        $gte: today,
-        $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+        $gte: start,
+        $lt: end,
       },
     });
 
