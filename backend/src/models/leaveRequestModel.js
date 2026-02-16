@@ -96,8 +96,8 @@ leaveRequestSchema.pre("save", function (next) {
   next();
 });
 
-// Static method to calculate earned leaves based on current date
-leaveRequestSchema.statics.calculateEarnedLeaves = function(year = new Date().getFullYear()) {
+// Static method to calculate earned leaves based on current date and joining date
+leaveRequestSchema.statics.calculateEarnedLeaves = function(year = new Date().getFullYear(), joiningDate = null) {
   const currentDate = new Date();
   const currentYear = currentDate.getFullYear();
   
@@ -105,25 +105,62 @@ leaveRequestSchema.statics.calculateEarnedLeaves = function(year = new Date().ge
     // Future year - no leaves earned yet
     return 0;
   } else if (year < currentYear) {
-    // Past year - full 24 leaves earned
+    // Past year - check if employee had joined by then
+    if (joiningDate) {
+      const joiningYear = new Date(joiningDate).getFullYear();
+      if (joiningYear > year) {
+        // Employee hadn't joined in this past year
+        return 0;
+      } else if (joiningYear === year) {
+        // Employee joined during this past year - calculate pro-rata
+        const joiningMonth = new Date(joiningDate).getMonth() + 1; // 1-12
+        const monthsWorked = 12 - joiningMonth + 1; // Months from joining to end of year
+        return Math.min(monthsWorked * 2, 24);
+      }
+    }
+    // Past year and employee had joined - full 24 leaves earned
     return 24;
   } else {
     // Current year - calculate based on months passed
     const currentMonth = currentDate.getMonth() + 1; // 1-12
+    
+    if (joiningDate) {
+      const joiningYear = new Date(joiningDate).getFullYear();
+      const joiningMonth = new Date(joiningDate).getMonth() + 1; // 1-12
+      
+      if (joiningYear > currentYear) {
+        // Employee hasn't joined yet
+        return 0;
+      } else if (joiningYear === currentYear) {
+        // Employee joined this year - calculate from joining month
+        if (joiningMonth > currentMonth) {
+          // Joining date is in the future
+          return 0;
+        }
+        const monthsWorked = currentMonth - joiningMonth + 1;
+        return Math.min(monthsWorked * 2, 24);
+      }
+    }
+    
+    // Employee joined before this year - calculate normally
     return Math.min(currentMonth * 2, 24); // 2 leaves per month, max 24
   }
 };
 
 // Static method to get comprehensive leave balance for an employee
 leaveRequestSchema.statics.getLeaveBalance = async function(employeeId, year = new Date().getFullYear()) {
+  // Fetch employee to get joining date
+  const User = mongoose.model('User');
+  const employee = await User.findById(employeeId).select('joiningDate');
+  
   const approvedLeaves = await this.find({
     employee: employeeId,
     status: 'approved',
     leaveYear: year
   });
 
-  // Calculate earned leaves for the year
-  const earnedLeaves = this.calculateEarnedLeaves(year);
+  // Calculate earned leaves for the year considering joining date
+  const earnedLeaves = this.calculateEarnedLeaves(year, employee?.joiningDate);
   
   // Calculate used leaves by category
   const usedByCategory = {
