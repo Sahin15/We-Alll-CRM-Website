@@ -55,14 +55,38 @@ export const generateSalarySlipPDF = async (salarySlip, outputPath) => {
       // Header Section with Logo and Company Info
       let yPosition = 50;
       
-      // Try to load company logo - better positioning
-      const logoPath = path.join(process.cwd(), "uploads", "we-alll-logo.png");
+      // Try to load company logo - multiple fallback paths
+      let logoPath = path.join(process.cwd(), "backend", "uploads", "we-alll-logo.png");
+      
+      // Fallback paths if first doesn't work
+      if (!fs.existsSync(logoPath)) {
+        logoPath = path.join(process.cwd(), "uploads", "we-alll-logo.png");
+      }
+      if (!fs.existsSync(logoPath)) {
+        logoPath = path.join(process.cwd(), "backend", "uploads", "Wealll_mini.png");
+      }
+      if (!fs.existsSync(logoPath)) {
+        logoPath = path.join(process.cwd(), "uploads", "Wealll_mini.png");
+      }
+      
+      let logoLoaded = false;
       if (fs.existsSync(logoPath)) {
         try {
+          console.log(`✅ Loading logo from: ${logoPath}`);
           doc.image(logoPath, 50, yPosition, { width: 100, height: 50, fit: [100, 50] });
+          logoLoaded = true;
         } catch (error) {
-          console.log("Logo load failed, using text fallback");
+          console.error("❌ Logo load failed:", error.message);
         }
+      } else {
+        console.warn(`⚠️  Logo file not found at: ${logoPath}`);
+      }
+      
+      // Fallback to text if logo didn't load
+      if (!logoLoaded) {
+        console.log("📝 Using text fallback for logo");
+        doc.fontSize(24).fillColor(primaryColor).font("Helvetica-Bold");
+        doc.text("We Alll", 50, yPosition + 10);
       }
 
       // Company name and address (next to logo) - better alignment
