@@ -938,14 +938,14 @@ export const recalculateTodayStatus = async (req, res) => {
   try {
     const employee = req.user._id;
     
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Use IST timezone-aware date range
+    const { start, end } = getTodayRangeIST();
 
     const attendance = await Attendance.findOne({
       employee,
       date: {
-        $gte: today,
-        $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+        $gte: start,
+        $lt: end,
       },
     });
 
@@ -1532,12 +1532,8 @@ export const recalculateWorkHours = async (req, res) => {
 
 export const fixTodayAttendance = async (req, res) => {
   try {
-    // Get today's date
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    // Use IST timezone-aware date range
+    const { start: today, end: tomorrow } = getTodayRangeIST();
 
     // Find today's attendance records that have clockIn
     const attendanceRecords = await Attendance.find({
@@ -1638,15 +1634,14 @@ export const startBreak = async (req, res) => {
       });
     }
 
-    // Get today's date at midnight for comparison
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Use IST timezone-aware date range
+    const { start, end } = getTodayRangeIST();
 
     const attendance = await Attendance.findOne({
       employee,
       date: {
-        $gte: today,
-        $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+        $gte: start,
+        $lt: end,
       },
     });
 
@@ -1703,15 +1698,14 @@ export const endBreak = async (req, res) => {
       });
     }
 
-    // Get today's date at midnight for comparison
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Use IST timezone-aware date range
+    const { start, end } = getTodayRangeIST();
 
     const attendance = await Attendance.findOne({
       employee,
       date: {
-        $gte: today,
-        $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+        $gte: start,
+        $lt: end,
       },
     });
 
@@ -1803,10 +1797,8 @@ export const manualAutoClockOut = async (req, res) => {
   try {
     console.log('[MANUAL-AUTO-CLOCKOUT] Starting manual auto clock-out...');
     
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    // Use IST timezone-aware date range
+    const { start: today, end: tomorrow } = getTodayRangeIST();
 
     // Find all attendance records for today that are clocked in but not clocked out
     const forgottenClockOuts = await Attendance.find({
@@ -1887,15 +1879,14 @@ export const startOvertimeTimer = async (req, res) => {
       });
     }
 
-    // Get today's attendance record
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Use IST timezone-aware date range
+    const { start, end } = getTodayRangeIST();
 
     const attendance = await Attendance.findOne({
       employee,
       date: {
-        $gte: today,
-        $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+        $gte: start,
+        $lt: end,
       },
     });
 
@@ -1930,15 +1921,14 @@ export const stopOvertimeTimer = async (req, res) => {
     const employee = req.user._id;
     const { entryId } = req.params;
 
-    // Get today's attendance record
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Use IST timezone-aware date range
+    const { start, end } = getTodayRangeIST();
 
     const attendance = await Attendance.findOne({
       employee,
       date: {
-        $gte: today,
-        $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+        $gte: start,
+        $lt: end,
       },
     });
 
@@ -1972,15 +1962,14 @@ export const getActiveOvertimeTimer = async (req, res) => {
   try {
     const employee = req.user._id;
 
-    // Get today's attendance record
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Use IST timezone-aware date range
+    const { start, end } = getTodayRangeIST();
 
     const attendance = await Attendance.findOne({
       employee,
       date: {
-        $gte: today,
-        $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+        $gte: start,
+        $lt: end,
       },
     });
 
