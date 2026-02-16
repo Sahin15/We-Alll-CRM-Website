@@ -32,14 +32,15 @@ export const clockIn = async (req, res) => {
     logTimezoneInfo();
     console.log(`[CLOCK-IN] Clock-in time (IST): ${clockInTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
 
-    // Check if already clocked in today
+    // Check if already clocked in today (with retry for race condition)
+    // Use findOne with sort to get the earliest record if duplicates exist
     const existingAttendance = await Attendance.findOne({
       employee,
       date: {
         $gte: todayStart,
         $lt: todayEnd,
       },
-    });
+    }).sort({ clockIn: 1 }); // Get earliest clock-in if multiple exist
 
     if (existingAttendance) {
       const clockInTimeStr = new Date(existingAttendance.clockIn).toLocaleTimeString('en-US', {
@@ -51,6 +52,29 @@ export const clockIn = async (req, res) => {
       console.log(`[CLOCK-IN] Existing record ID: ${existingAttendance._id}`);
       console.log(`[CLOCK-IN] Existing clock-in: ${existingAttendance.clockIn.toISOString()}`);
       console.log(`[CLOCK-IN] Date range checked: ${todayStart.toISOString()} to ${todayEnd.toISOString()}`);
+      
+      // Check if there are multiple records (race condition happened)
+      const duplicateCount = await Attendance.countDocuments({
+        employee,
+        date: {
+          $gte: todayStart,
+          $lt: todayEnd,
+        },
+      });
+      
+      if (duplicateCount > 1) {
+        console.log(`[CLOCK-IN] ⚠️  Found ${duplicateCount} records for today - cleaning up duplicates`);
+        // Delete all except the earliest one
+        await Attendance.deleteMany({
+          employee,
+          date: {
+            $gte: todayStart,
+            $lt: todayEnd,
+          },
+          _id: { $ne: existingAttendance._id } // Keep the earliest record
+        });
+        console.log(`[CLOCK-IN] ✅ Cleaned up ${duplicateCount - 1} duplicate record(s)`);
+      }
       
       return res.status(400).json({ 
         message: `You've already clocked in today at ${clockInTimeStr}`,
