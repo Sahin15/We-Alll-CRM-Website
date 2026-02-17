@@ -86,12 +86,12 @@ export const generateSalarySlipPDF = async (salarySlip, outputPath) => {
       const textStartX = 180;
       
       // Company name heading
-      doc.fontSize(18).fillColor(primaryColor).font("Helvetica-Bold");
-      doc.text(companyName, textStartX, yPosition);
+      doc.fontSize(16).fillColor(primaryColor).font("Helvetica-Bold");
+      doc.text(companyName, textStartX, yPosition + 5);
       
-      // Address below company name with reduced width for wrapping
-      doc.fontSize(9).fillColor(secondaryColor).font("Helvetica");
-      doc.text(companyAddress, textStartX, yPosition + 25, { width: 220, align: 'left' });
+      // Address below company name with narrow width for better wrapping
+      doc.fontSize(8).fillColor(secondaryColor).font("Helvetica");
+      doc.text(companyAddress, textStartX, yPosition + 25, { width: 200, align: 'left', lineGap: 2 });
 
       // Payslip title and month (right side) - fixed text collision
       doc.fontSize(11).fillColor(secondaryColor).font("Helvetica");
