@@ -56,8 +56,10 @@ export const generateSalarySlipPDF = async (salarySlip, outputPath) => {
       let yPosition = 50;
       
       // Load company logo - We Alll.png only
-      // Use __dirname to get absolute path regardless of where the app is run from
+      // __dirname is in backend/src/utils, so go up one level to backend, then to uploads
       const logoPath = path.join(__dirname, "..", "..", "uploads", "We Alll.png");
+      console.log('[SALARY SLIP] Logo path:', logoPath);
+      console.log('[SALARY SLIP] Logo exists:', fs.existsSync(logoPath));
       
       let logoLoaded = false;
       
