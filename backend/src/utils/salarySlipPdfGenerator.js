@@ -55,36 +55,10 @@ export const generateSalarySlipPDF = async (salarySlip, outputPath) => {
       // Header Section with Logo and Company Info
       let yPosition = 50;
       
-      // Try to load company logo - prioritize full logo over mini
-      // Priority order: We Alll.png > We Alll Office Logo.png > we-alll-logo.png > Wealll_mini.png
-      let logoPath = path.join(process.cwd(), "backend", "uploads", "We Alll.png");
-      
-      // Fallback paths if first doesn't work
-      if (!fs.existsSync(logoPath)) {
-        logoPath = path.join(process.cwd(), "uploads", "We Alll.png");
-      }
-      if (!fs.existsSync(logoPath)) {
-        logoPath = path.join(process.cwd(), "backend", "uploads", "We Alll Office Logo.png");
-      }
-      if (!fs.existsSync(logoPath)) {
-        logoPath = path.join(process.cwd(), "uploads", "We Alll Office Logo.png");
-      }
-      if (!fs.existsSync(logoPath)) {
-        logoPath = path.join(process.cwd(), "backend", "uploads", "we-alll-logo.png");
-      }
-      if (!fs.existsSync(logoPath)) {
-        logoPath = path.join(process.cwd(), "uploads", "we-alll-logo.png");
-      }
-      // Mini logo as last resort
-      if (!fs.existsSync(logoPath)) {
-        logoPath = path.join(process.cwd(), "backend", "uploads", "Wealll_mini.png");
-      }
-      if (!fs.existsSync(logoPath)) {
-        logoPath = path.join(process.cwd(), "uploads", "Wealll_mini.png");
-      }
+      // Load company logo - We Alll.png only
+      const logoPath = path.join(process.cwd(), "backend", "uploads", "We Alll.png");
       
       let logoLoaded = false;
-      let logoWidth = 100; // Reserve space for logo
       
       if (fs.existsSync(logoPath)) {
         try {
