@@ -1,6 +1,7 @@
 import WFHRequest from "../models/wfhRequestModel.js";
 import User from "../models/userModel.js";
 import Attendance from "../models/attendanceModel.js";
+import { buildDateRangeQuery } from "../utils/queryOptimizer.js";
 
 // @desc    Apply for Work From Home
 // @route   POST /api/wfh/apply
@@ -74,13 +75,8 @@ export const getMyWFHRequests = async (req, res) => {
     }
 
     if (startDate || endDate) {
-      query.date = {};
-      if (startDate) {
-        query.date.$gte = new Date(startDate);
-      }
-      if (endDate) {
-        query.date.$lte = new Date(endDate);
-      }
+      const dateRangeFilter = buildDateRangeQuery(startDate, endDate, 'date');
+      Object.assign(query, dateRangeFilter);
     }
 
     const requests = await WFHRequest.find(query)
@@ -122,13 +118,8 @@ export const getAllWFHRequests = async (req, res) => {
     }
 
     if (startDate || endDate) {
-      query.date = {};
-      if (startDate) {
-        query.date.$gte = new Date(startDate);
-      }
-      if (endDate) {
-        query.date.$lte = new Date(endDate);
-      }
+      const dateRangeFilter = buildDateRangeQuery(startDate, endDate, 'date');
+      Object.assign(query, dateRangeFilter);
     }
 
     const requests = await WFHRequest.find(query)
@@ -369,13 +360,8 @@ export const getWFHStatistics = async (req, res) => {
 
     const query = {};
     if (startDate || endDate) {
-      query.date = {};
-      if (startDate) {
-        query.date.$gte = new Date(startDate);
-      }
-      if (endDate) {
-        query.date.$lte = new Date(endDate);
-      }
+      const dateRangeFilter = buildDateRangeQuery(startDate, endDate, 'date');
+      Object.assign(query, dateRangeFilter);
     }
 
     const [total, pending, approved, rejected] = await Promise.all([

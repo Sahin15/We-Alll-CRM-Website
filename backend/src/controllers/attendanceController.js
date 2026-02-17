@@ -413,10 +413,8 @@ export const getMyAttendance = async (req, res) => {
     let filter = { employee };
 
     if (startDate && endDate) {
-      filter.date = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate),
-      };
+      const dateRangeFilter = buildDateRangeQuery(startDate, endDate, 'date');
+      Object.assign(filter, dateRangeFilter);
     }
 
     const attendance = await Attendance.find(filter).sort({ date: -1 });
@@ -625,11 +623,21 @@ export const createManualAttendance = async (req, res) => {
     }
 
     // Check if attendance already exists for this date
+    // Parse date string as IST date
+    const dateStr = typeof date === 'string' ? date : date.toISOString().split('T')[0];
+    const [year, month, day] = dateStr.split('-').map(Number);
+    
+    // Create UTC date representing IST midnight
+    const startUTC = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    const istOffset = 5.5 * 60 * 60 * 1000; // 5:30 in milliseconds
+    const startOfDay = new Date(startUTC.getTime() - istOffset);
+    const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+    
     const existingAttendance = await Attendance.findOne({
       employee: employeeId,
       date: {
-        $gte: new Date(new Date(date).setHours(0, 0, 0, 0)),
-        $lt: new Date(new Date(date).setHours(23, 59, 59, 999)),
+        $gte: startOfDay,
+        $lt: endOfDay,
       },
     });
 
@@ -747,10 +755,8 @@ export const getAttendanceReport = async (req, res) => {
 
     if (employeeId) filter.employee = employeeId;
     if (startDate && endDate) {
-      filter.date = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate),
-      };
+      const dateRangeFilter = buildDateRangeQuery(startDate, endDate, 'date');
+      Object.assign(filter, dateRangeFilter);
     }
 
     const attendance = await Attendance.find(filter)
@@ -1201,10 +1207,8 @@ export const downloadAttendancePDF = async (req, res) => {
     const query = { employee };
     
     if (startDate && endDate) {
-      query.date = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate),
-      };
+      const dateRangeFilter = buildDateRangeQuery(startDate, endDate, 'date');
+      Object.assign(query, dateRangeFilter);
     }
 
     // Fetch attendance records
@@ -2109,13 +2113,8 @@ export const getMyOvertimeEntries = async (req, res) => {
     const query = { employee };
 
     if (startDate || endDate) {
-      query.date = {};
-      if (startDate) {
-        query.date.$gte = new Date(startDate);
-      }
-      if (endDate) {
-        query.date.$lte = new Date(endDate);
-      }
+      const dateRangeFilter = buildDateRangeQuery(startDate, endDate, 'date');
+      Object.assign(query, dateRangeFilter);
     }
 
     const attendanceRecords = await Attendance.find(query)
@@ -2345,13 +2344,8 @@ export const getOvertimeStatistics = async (req, res) => {
     const query = {};
     
     if (startDate || endDate) {
-      query.date = {};
-      if (startDate) {
-        query.date.$gte = new Date(startDate);
-      }
-      if (endDate) {
-        query.date.$lte = new Date(endDate);
-      }
+      const dateRangeFilter = buildDateRangeQuery(startDate, endDate, 'date');
+      Object.assign(query, dateRangeFilter);
     }
 
     const attendanceRecords = await Attendance.find(query)
