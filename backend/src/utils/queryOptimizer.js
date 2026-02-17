@@ -69,15 +69,42 @@ export const buildTextSearch = (searchTerm, fields) => {
 };
 
 /**
- * Build date range query
+ * Build date range query with IST timezone awareness
+ * 
+ * CRITICAL: When querying by date strings (YYYY-MM-DD), we need to interpret them as IST dates.
+ * The database stores dates in UTC, but they represent IST midnight.
+ * 
+ * Example: "2026-02-17" should query for records from 2026-02-17 00:00:00 IST to 2026-02-17 23:59:59 IST
+ * which is stored as 2026-02-16 18:30:00 UTC to 2026-02-17 18:29:59 UTC
  */
 export const buildDateRangeQuery = (startDate, endDate, field = 'createdAt') => {
   const query = {};
   
   if (startDate || endDate) {
     query[field] = {};
-    if (startDate) query[field].$gte = new Date(startDate);
-    if (endDate) query[field].$lte = new Date(endDate);
+    
+    if (startDate) {
+      // Parse date string as IST date
+      const dateStr = typeof startDate === 'string' ? startDate : startDate.toISOString().split('T')[0];
+      const [year, month, day] = dateStr.split('-').map(Number);
+      
+      // Create UTC date representing IST midnight
+      // IST is UTC+5:30, so IST midnight is 18:30 UTC of previous day
+      const startUTC = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+      const istOffset = 5.5 * 60 * 60 * 1000; // 5:30 in milliseconds
+      query[field].$gte = new Date(startUTC.getTime() - istOffset);
+    }
+    
+    if (endDate) {
+      // Parse date string as IST date
+      const dateStr = typeof endDate === 'string' ? endDate : endDate.toISOString().split('T')[0];
+      const [year, month, day] = dateStr.split('-').map(Number);
+      
+      // Create UTC date representing end of IST day (23:59:59.999)
+      const endUTC = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+      const istOffset = 5.5 * 60 * 60 * 1000; // 5:30 in milliseconds
+      query[field].$lte = new Date(endUTC.getTime() - istOffset);
+    }
   }
   
   return query;

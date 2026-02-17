@@ -281,14 +281,30 @@ export const getAllAttendance = async (req, res) => {
     
     // Handle single date filter (for specific day)
     if (date) {
-      const targetDate = new Date(date);
-      const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
-      const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999));
+      // Parse date string as IST date (YYYY-MM-DD format)
+      const dateStr = typeof date === 'string' ? date : date.toISOString().split('T')[0];
+      const [year, month, day] = dateStr.split('-').map(Number);
+      
+      // Create UTC date representing IST midnight
+      // IST is UTC+5:30, so IST midnight is 18:30 UTC of previous day
+      const startUTC = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+      const istOffset = 5.5 * 60 * 60 * 1000; // 5:30 in milliseconds
+      const startOfDay = new Date(startUTC.getTime() - istOffset);
+      
+      // End of day is start of next day
+      const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000 - 1);
+      
       filter.date = {
         $gte: startOfDay,
         $lte: endOfDay,
       };
-      console.log('[ATTENDANCE API] Single date filter:', { date, startOfDay, endOfDay });
+      console.log('[ATTENDANCE API] Single date filter (IST-aware):', { 
+        date, 
+        startOfDay: startOfDay.toISOString(), 
+        endOfDay: endOfDay.toISOString(),
+        startOfDayIST: startOfDay.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+        endOfDayIST: endOfDay.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+      });
     }
     // Handle date range filter
     else if (startDate && endDate) {
