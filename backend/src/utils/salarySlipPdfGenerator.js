@@ -81,15 +81,12 @@ export const generateSalarySlipPDF = async (salarySlip, outputPath) => {
         doc.text("We Alll", 50, yPosition + 10);
       }
 
-      // Company name and address (next to logo) - increased spacing to prevent overlap
+      // Company address (next to logo) - no company name since it's in the logo
       // Logo ends at 50 + 100 = 150, add 30px gap = 180
       const textStartX = 180;
       
-      doc.fontSize(18).fillColor(primaryColor).font("Helvetica-Bold");
-      doc.text(companyName, textStartX, yPosition);
-      
       doc.fontSize(9).fillColor(secondaryColor).font("Helvetica");
-      doc.text(companyAddress, textStartX, yPosition + 25, { width: 260 });
+      doc.text(companyAddress, textStartX, yPosition + 10, { width: 260 });
 
       // Payslip title and month (right side) - fixed text collision
       doc.fontSize(11).fillColor(secondaryColor).font("Helvetica");
