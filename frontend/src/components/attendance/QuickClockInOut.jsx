@@ -217,7 +217,7 @@ const QuickClockInOut = ({ variant = "light", size = "sm", showLabel = true }) =
 
   return (
     <>
-      <div className="d-flex gap-2 align-items-center flex-wrap">
+      <div className="d-flex align-items-center" style={{ flexWrap: 'nowrap', gap: showLabel ? '0.5rem' : '0.25rem' }}>
         <Button
           variant={variant}
           size={size}

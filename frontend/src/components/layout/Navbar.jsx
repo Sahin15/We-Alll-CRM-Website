@@ -422,11 +422,20 @@ const Navbar = ({ toggleSidebar }) => {
         <Nav className="ms-auto align-items-center gap-1 gap-md-2" style={{ overflow: 'visible' }}>
           {/* Clock In/Out for Employees, HR, HOD, and Accounts */}
           {['employee', 'hr', 'hod', 'accounts'].includes(user?.role) && (
-            <div className="d-none d-xl-flex me-2" style={{ position: 'relative', zIndex: 1 }}>
-              <div style={{ position: 'relative', zIndex: 1 }}>
-                <QuickClockInOut />
+            <>
+              {/* Desktop version with labels */}
+              <div className="d-none d-lg-flex me-2" style={{ position: 'relative', zIndex: 1 }}>
+                <div style={{ position: 'relative', zIndex: 1 }}>
+                  <QuickClockInOut showLabel={true} />
+                </div>
               </div>
-            </div>
+              {/* Mobile/Tablet version without labels (icon only) */}
+              <div className="d-flex d-lg-none me-1" style={{ position: 'relative', zIndex: 1 }}>
+                <div style={{ position: 'relative', zIndex: 1 }}>
+                  <QuickClockInOut showLabel={false} size="sm" />
+                </div>
+              </div>
+            </>
           )}
 
           {/* Quick Actions for other roles */}
