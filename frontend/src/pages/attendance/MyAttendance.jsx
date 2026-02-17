@@ -11,6 +11,7 @@ import {
   Alert,
   Tabs,
   Tab,
+  Modal,
 } from "react-bootstrap";
 import {
   FaClock,
@@ -41,6 +42,10 @@ const MyAttendance = () => {
   });
   const [stats, setStats] = useState(null);
   const [calendarView, setCalendarView] = useState([]);
+  
+  // Break details modal state
+  const [showBreakDetailsModal, setShowBreakDetailsModal] = useState(false);
+  const [selectedBreakDetails, setSelectedBreakDetails] = useState(null);
 
   useEffect(() => {
     fetchTodayAttendance();
@@ -75,6 +80,7 @@ const MyAttendance = () => {
       const halfDay = data.filter((a) => a.status === "half-day").length;
       const totalHours = data.reduce((sum, a) => sum + (a.workHours || 0), 0);
       const overtime = data.reduce((sum, a) => sum + (a.overtime || 0), 0);
+      const totalBreakMinutes = data.reduce((sum, a) => sum + (a.totalBreakTime || 0), 0);
 
       setStats({
         present,
@@ -83,6 +89,7 @@ const MyAttendance = () => {
         halfDay,
         totalHours: totalHours.toFixed(2),
         overtime: overtime.toFixed(2),
+        totalBreakTime: totalBreakMinutes.toFixed(0),
         total: data.length,
       });
 
@@ -166,6 +173,9 @@ const MyAttendance = () => {
         Date: formatDate(a.date),
         "Clock In": formatDateTime(a.clockIn),
         "Clock Out": a.clockOut ? formatDateTime(a.clockOut) : "N/A",
+        "Break Time": a.totalBreakTime > 0 
+          ? `${Math.floor(a.totalBreakTime / 60)}h ${a.totalBreakTime % 60}m`
+          : "No breaks",
         "Work Hours": a.workHours || 0,
         Overtime: a.overtime || 0,
         Status: a.status,
@@ -243,30 +253,66 @@ const MyAttendance = () => {
               {todayAttendance && (
                 <div className="mb-3">
                   <div className="mb-2">
-                    <Badge bg={getStatusVariant(todayAttendance.status)} className="px-3 py-2">
+                    <Badge bg={getStatusVariant(todayAttendance.status)} className="px-3 py-2 me-2">
                       Status: {todayAttendance.status.toUpperCase()}
                     </Badge>
+                    {todayAttendance.breaks && todayAttendance.breaks.length > 0 && 
+                     todayAttendance.breaks[todayAttendance.breaks.length - 1].startTime && 
+                     !todayAttendance.breaks[todayAttendance.breaks.length - 1].endTime && (
+                      <Badge bg="warning" className="px-3 py-2">
+                        ☕ ON BREAK
+                      </Badge>
+                    )}
                   </div>
                   <Row>
-                    <Col>
+                    <Col xs={6} md={3}>
                       <p className="mb-1 text-muted">Clock In</p>
                       <h6>{formatTime(todayAttendance.clockIn)}</h6>
                     </Col>
                     {todayAttendance.clockOut && (
-                      <>
-                        <Col>
-                          <p className="mb-1 text-muted">Clock Out</p>
-                          <h6>{formatTime(todayAttendance.clockOut)}</h6>
-                        </Col>
-                        <Col>
-                          <p className="mb-1 text-muted">Hours Worked</p>
-                          <h6 className="text-success">
-                            {todayAttendance.workHours} hrs
-                          </h6>
-                        </Col>
-                      </>
+                      <Col xs={6} md={3}>
+                        <p className="mb-1 text-muted">Clock Out</p>
+                        <h6>{formatTime(todayAttendance.clockOut)}</h6>
+                      </Col>
+                    )}
+                    <Col xs={6} md={3}>
+                      <p className="mb-1 text-muted">Break Time</p>
+                      <h6 className="text-info">
+                        {todayAttendance.totalBreakTime > 0 
+                          ? `${Math.floor(todayAttendance.totalBreakTime / 60)}h ${todayAttendance.totalBreakTime % 60}m`
+                          : "No breaks"}
+                      </h6>
+                    </Col>
+                    {todayAttendance.clockOut && (
+                      <Col xs={6} md={3}>
+                        <p className="mb-1 text-muted">Hours Worked</p>
+                        <h6 className="text-success">
+                          {todayAttendance.workHours} hrs
+                        </h6>
+                      </Col>
                     )}
                   </Row>
+                  
+                  {/* Break Details */}
+                  {todayAttendance.breaks && todayAttendance.breaks.length > 0 && (
+                    <div className="mt-3 pt-3 border-top">
+                      <p className="mb-2 text-muted small">
+                        <strong>Break Details:</strong>
+                      </p>
+                      {todayAttendance.breaks.map((breakPeriod, index) => (
+                        <div key={index} className="d-flex justify-content-between align-items-center mb-1">
+                          <span className="small">
+                            ☕ Break {index + 1}: {formatTime(breakPeriod.startTime)} - {breakPeriod.endTime ? formatTime(breakPeriod.endTime) : "In Progress"}
+                          </span>
+                          {breakPeriod.endTime && (
+                            <Badge bg="secondary" className="small">
+                              {Math.round((new Date(breakPeriod.endTime) - new Date(breakPeriod.startTime)) / 60000)}m
+                            </Badge>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -339,13 +385,21 @@ const MyAttendance = () => {
                       <small className="text-muted">Absent</small>
                     </div>
                   </Col>
-                  <Col xs={6} className="mb-2">
+                  <Col xs={6} md={4} className="mb-2">
                     <div className="border-end">
                       <h4 className="text-primary mb-0">{stats.totalHours}</h4>
                       <small className="text-muted">Total Hours</small>
                     </div>
                   </Col>
-                  <Col xs={6} className="mb-2">
+                  <Col xs={6} md={4} className="mb-2">
+                    <div className="border-end">
+                      <h4 className="text-info mb-0">
+                        {Math.floor(stats.totalBreakTime / 60)}h {stats.totalBreakTime % 60}m
+                      </h4>
+                      <small className="text-muted">Total Breaks</small>
+                    </div>
+                  </Col>
+                  <Col xs={12} md={4} className="mb-2">
                     <div>
                       <h4 className="text-secondary mb-0">{stats.total}</h4>
                       <small className="text-muted">Total Days</small>
@@ -408,6 +462,7 @@ const MyAttendance = () => {
                       <th>Date</th>
                       <th>Clock In</th>
                       <th>Clock Out</th>
+                      <th className="hide-mobile">Break Time</th>
                       <th>Work Hours</th>
                       <th className="hide-mobile">Overtime</th>
                       <th>Status</th>
@@ -424,6 +479,37 @@ const MyAttendance = () => {
                               ? formatTime(attendance.clockOut)
                               : <Badge bg="warning">In Progress</Badge>}
                           </td>
+                          <td className="hide-mobile">
+                            {attendance.totalBreakTime > 0 ? (
+                              <div 
+                                className="d-flex align-items-center gap-1"
+                                onClick={() => {
+                                  setSelectedBreakDetails({
+                                    date: attendance.date,
+                                    breaks: attendance.breaks || [],
+                                    totalBreakTime: attendance.totalBreakTime
+                                  });
+                                  setShowBreakDetailsModal(true);
+                                }}
+                                style={{ cursor: 'pointer' }}
+                                title="Click to view break details"
+                              >
+                                <Badge bg="info" className="d-flex align-items-center gap-1">
+                                  <span>☕</span>
+                                  <span>{Math.floor(attendance.totalBreakTime / 60)}h {attendance.totalBreakTime % 60}m</span>
+                                </Badge>
+                                {attendance.breaks && attendance.breaks.length > 0 && 
+                                 attendance.breaks[attendance.breaks.length - 1].startTime && 
+                                 !attendance.breaks[attendance.breaks.length - 1].endTime && (
+                                  <Badge bg="warning" style={{ fontSize: '0.7em' }}>
+                                    Active
+                                  </Badge>
+                                )}
+                              </div>
+                            ) : (
+                              "-"
+                            )}
+                          </td>
                           <td>{attendance.workHours || 0} hrs</td>
                           <td className="hide-mobile">{attendance.overtime || 0} hrs</td>
                           <td>
@@ -435,7 +521,7 @@ const MyAttendance = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="6" className="text-center py-4">
+                        <td colSpan="7" className="text-center py-4">
                           No attendance records found for this period
                         </td>
                       </tr>
@@ -493,10 +579,19 @@ const MyAttendance = () => {
                               </Badge>
                             )}
                           </div>
-                          {day.record && day.record.workHours && (
-                            <small className="text-muted d-block mt-1">
-                              {day.record.workHours}hrs
-                            </small>
+                          {day.record && (
+                            <>
+                              {day.record.workHours && (
+                                <small className="text-muted d-block mt-1">
+                                  {day.record.workHours}hrs
+                                </small>
+                              )}
+                              {day.record.totalBreakTime > 0 && (
+                                <small className="text-info d-block">
+                                  ☕ {Math.floor(day.record.totalBreakTime / 60)}h {day.record.totalBreakTime % 60}m
+                                </small>
+                              )}
+                            </>
                           )}
                         </Card.Body>
                       </Card>
@@ -512,6 +607,90 @@ const MyAttendance = () => {
           <MyOvertimeHistory />
         </Tab>
       </Tabs>
+
+      {/* Break Details Modal */}
+      <Modal 
+        show={showBreakDetailsModal} 
+        onHide={() => setShowBreakDetailsModal(false)}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            ☕ Break Details
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedBreakDetails && (
+            <>
+              <div className="mb-3 p-3 bg-light rounded">
+                <p className="mb-0"><strong>Date:</strong> {formatDate(selectedBreakDetails.date)}</p>
+              </div>
+
+              <div className="mb-3">
+                <h6 className="mb-3">Break Periods</h6>
+                {selectedBreakDetails.breaks && selectedBreakDetails.breaks.length > 0 ? (
+                  <div className="d-flex flex-column gap-2">
+                    {selectedBreakDetails.breaks.map((breakPeriod, index) => {
+                      const isOngoing = breakPeriod.startTime && !breakPeriod.endTime;
+                      const duration = breakPeriod.startTime && breakPeriod.endTime 
+                        ? Math.round((new Date(breakPeriod.endTime) - new Date(breakPeriod.startTime)) / (1000 * 60))
+                        : null;
+                      
+                      return (
+                        <Card key={index} className={`border-${isOngoing ? 'warning' : 'secondary'}`}>
+                          <Card.Body className="p-3">
+                            <div className="d-flex justify-content-between align-items-center">
+                              <div className="w-100">
+                                <h6 className="mb-1">
+                                  Break {index + 1}
+                                  {isOngoing && (
+                                    <Badge bg="warning" className="ms-2">
+                                      Active
+                                    </Badge>
+                                  )}
+                                </h6>
+                                <div className="text-muted small">
+                                  <div>
+                                    <strong>Start:</strong> {formatTime(breakPeriod.startTime)}
+                                  </div>
+                                  <div>
+                                    <strong>End:</strong> {breakPeriod.endTime ? formatTime(breakPeriod.endTime) : <span className="text-warning">Ongoing</span>}
+                                  </div>
+                                  {duration && (
+                                    <div className="mt-1">
+                                      <Badge bg="info">{duration} minutes</Badge>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </Card.Body>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-muted">No breaks recorded</p>
+                )}
+              </div>
+
+              <div className="p-3 bg-primary bg-opacity-10 rounded">
+                <div className="d-flex justify-content-between align-items-center">
+                  <span className="fw-semibold">Total Break Time:</span>
+                  <Badge bg="primary" className="fs-6">
+                    {Math.floor(selectedBreakDetails.totalBreakTime / 60)}h {selectedBreakDetails.totalBreakTime % 60}m
+                  </Badge>
+                </div>
+              </div>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowBreakDetailsModal(false)}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </Container>
   );
 };
