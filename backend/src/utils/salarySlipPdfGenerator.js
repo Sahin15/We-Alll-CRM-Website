@@ -64,7 +64,7 @@ export const generateSalarySlipPDF = async (salarySlip, outputPath) => {
         try {
           console.log(`✅ Loading logo from: ${logoPath}`);
           // Use fit to maintain aspect ratio within bounds
-          // This ensures logo never exceeds 100x50 regardless of original size
+          // Logo at x=50, width=100, with 20px right margin = ends at 170
           doc.image(logoPath, 50, yPosition, { fit: [100, 50], align: 'left', valign: 'top' });
           logoLoaded = true;
         } catch (error) {
@@ -81,17 +81,17 @@ export const generateSalarySlipPDF = async (salarySlip, outputPath) => {
         doc.text("We Alll", 50, yPosition + 10);
       }
 
-      // Company name and address (next to logo) - address wrapped below name
-      // Logo ends at 50 + 100 = 150, add 30px gap = 180
-      const textStartX = 180;
+      // Company name and address (next to logo) with proper margin
+      // Logo: x=50, width=100, margin=20 → text starts at x=170
+      const textStartX = 170;
       
       // Company name heading
       doc.fontSize(16).fillColor(primaryColor).font("Helvetica-Bold");
       doc.text(companyName, textStartX, yPosition + 5);
       
-      // Address below company name with narrow width for better wrapping
+      // Address below company name with proper width for wrapping
       doc.fontSize(8).fillColor(secondaryColor).font("Helvetica");
-      doc.text(companyAddress, textStartX, yPosition + 25, { width: 200, align: 'left', lineGap: 2 });
+      doc.text(companyAddress, textStartX, yPosition + 25, { width: 230, align: 'left', lineGap: 2 });
 
       // Payslip title and month (right side) - fixed text collision
       doc.fontSize(11).fillColor(secondaryColor).font("Helvetica");
