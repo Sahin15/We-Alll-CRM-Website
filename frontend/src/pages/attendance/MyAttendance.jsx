@@ -174,7 +174,7 @@ const MyAttendance = () => {
         "Clock In": formatDateTime(a.clockIn),
         "Clock Out": a.clockOut ? formatDateTime(a.clockOut) : "N/A",
         "Break Time": a.totalBreakTime > 0 
-          ? `${Math.floor(a.totalBreakTime / 60)}h ${a.totalBreakTime % 60}m`
+          ? `${Math.floor(a.totalBreakTime / 60)}h ${Math.round(a.totalBreakTime % 60)}m`
           : "No breaks",
         "Work Hours": a.workHours || 0,
         Overtime: a.overtime || 0,
@@ -279,7 +279,7 @@ const MyAttendance = () => {
                       <p className="mb-1 text-muted">Break Time</p>
                       <h6 className="text-info">
                         {todayAttendance.totalBreakTime > 0 
-                          ? `${Math.floor(todayAttendance.totalBreakTime / 60)}h ${todayAttendance.totalBreakTime % 60}m`
+                          ? `${Math.floor(todayAttendance.totalBreakTime / 60)}h ${Math.round(todayAttendance.totalBreakTime % 60)}m`
                           : "No breaks"}
                       </h6>
                     </Col>
@@ -394,7 +394,7 @@ const MyAttendance = () => {
                   <Col xs={6} md={4} className="mb-2">
                     <div className="border-end">
                       <h4 className="text-info mb-0">
-                        {Math.floor(stats.totalBreakTime / 60)}h {stats.totalBreakTime % 60}m
+                        {Math.floor(stats.totalBreakTime / 60)}h {Math.round(stats.totalBreakTime % 60)}m
                       </h4>
                       <small className="text-muted">Total Breaks</small>
                     </div>
@@ -496,7 +496,7 @@ const MyAttendance = () => {
                               >
                                 <Badge bg="info" className="d-flex align-items-center gap-1">
                                   <span>☕</span>
-                                  <span>{Math.floor(attendance.totalBreakTime / 60)}h {attendance.totalBreakTime % 60}m</span>
+                                  <span>{Math.floor(attendance.totalBreakTime / 60)}h {Math.round(attendance.totalBreakTime % 60)}m</span>
                                 </Badge>
                                 {attendance.breaks && attendance.breaks.length > 0 && 
                                  attendance.breaks[attendance.breaks.length - 1].startTime && 
@@ -588,7 +588,7 @@ const MyAttendance = () => {
                               )}
                               {day.record.totalBreakTime > 0 && (
                                 <small className="text-info d-block">
-                                  ☕ {Math.floor(day.record.totalBreakTime / 60)}h {day.record.totalBreakTime % 60}m
+                                  ☕ {Math.floor(day.record.totalBreakTime / 60)}h {Math.round(day.record.totalBreakTime % 60)}m
                                 </small>
                               )}
                             </>
@@ -678,7 +678,7 @@ const MyAttendance = () => {
                 <div className="d-flex justify-content-between align-items-center">
                   <span className="fw-semibold">Total Break Time:</span>
                   <Badge bg="primary" className="fs-6">
-                    {Math.floor(selectedBreakDetails.totalBreakTime / 60)}h {selectedBreakDetails.totalBreakTime % 60}m
+                    {Math.floor(selectedBreakDetails.totalBreakTime / 60)}h {Math.round(selectedBreakDetails.totalBreakTime % 60)}m
                   </Badge>
                 </div>
               </div>
