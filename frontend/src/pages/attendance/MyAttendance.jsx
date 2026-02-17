@@ -691,6 +691,37 @@ const MyAttendance = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Clock In Confirmation Modal */}
+      <ConfirmModal
+        show={showClockInConfirm}
+        onHide={() => setShowClockInConfirm(false)}
+        onConfirm={handleClockIn}
+        title="Clock In Confirmation"
+        message="Are you ready to start your workday?"
+        subMessage="This will record your clock-in time."
+        confirmText="Clock In"
+        confirmVariant="success"
+        icon="clock"
+        loading={clockingIn}
+      />
+
+      {/* Clock Out Confirmation Modal */}
+      <ConfirmModal
+        show={showClockOutConfirm}
+        onHide={() => setShowClockOutConfirm(false)}
+        onConfirm={handleClockOut}
+        title="Clock Out Confirmation"
+        message="Are you done for the day?"
+        subMessage="This will record your clock-out time and calculate your work hours."
+        confirmText="Clock Out"
+        confirmVariant="danger"
+        icon="clock"
+        loading={clockingIn}
+        additionalInfo={todayAttendance?.clockIn && (
+          <><strong>Clock In Time:</strong> {formatTime(todayAttendance.clockIn)}</>
+        )}
+      />
     </Container>
   );
 };
