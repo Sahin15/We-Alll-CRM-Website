@@ -101,14 +101,14 @@ code {
   min-height: 400px;
 }
 
-/* Card hover effect */
+/* Card hover effect - REDUCED movement */
 .card-hover {
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .card-hover:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 25px rgba(102, 126, 234, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 12px rgba(102, 126, 234, 0.15);
 }
 
 /* Card styles */
@@ -116,7 +116,7 @@ code {
   border: none;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
+  transition: box-shadow 0.2s ease;
 }
 
 .card:hover {
@@ -128,17 +128,17 @@ code {
   overflow-x: auto;
 }
 
-/* Button custom styles */
+/* Button custom styles - REDUCED movement */
 .btn-custom {
   padding: 10px 20px;
   border-radius: 8px;
   font-weight: 500;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: box-shadow 0.2s ease, transform 0.1s ease;
 }
 
 .btn-custom:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(102, 126, 234, 0.25);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.2);
 }
 
 /* Mobile button adjustments */
@@ -152,13 +152,13 @@ code {
 .btn-primary {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border: none;
-  transition: all 0.3s ease;
+  transition: box-shadow 0.2s ease, transform 0.1s ease;
 }
 
 .btn-primary:hover {
   background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.25);
 }
 
 .btn-primary:active {
@@ -184,14 +184,13 @@ code {
   border: 1px solid rgba(0, 0, 0, 0.08) !important;
   border-radius: 12px !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06) !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease !important;
   background: #ffffff !important;
   overflow: hidden;
 }
 
 .card:not(.greeting-banner):hover {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), 0 4px 8px rgba(0, 0, 0, 0.06) !important;
-  transform: translateY(-2px);
   border-color: rgba(79, 70, 229, 0.15) !important;
 }
 
@@ -240,8 +239,7 @@ code {
 }
 
 .stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(79, 70, 229, 0.15) !important;
+  box-shadow: 0 8px 16px rgba(79, 70, 229, 0.12) !important;
 }
 
 .stat-card .card-body {
