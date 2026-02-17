@@ -84,10 +84,14 @@ export const generateSalarySlipPDF = async (salarySlip, outputPath) => {
       }
       
       let logoLoaded = false;
+      let logoWidth = 100; // Reserve space for logo
+      
       if (fs.existsSync(logoPath)) {
         try {
           console.log(`✅ Loading logo from: ${logoPath}`);
-          doc.image(logoPath, 50, yPosition, { width: 120, height: 60, fit: [120, 60] });
+          // Use fit to maintain aspect ratio within bounds
+          // This ensures logo never exceeds 100x50 regardless of original size
+          doc.image(logoPath, 50, yPosition, { fit: [100, 50], align: 'left', valign: 'top' });
           logoLoaded = true;
         } catch (error) {
           console.error("❌ Logo load failed:", error.message);
@@ -103,12 +107,15 @@ export const generateSalarySlipPDF = async (salarySlip, outputPath) => {
         doc.text("We Alll", 50, yPosition + 10);
       }
 
-      // Company name and address (next to logo) - better alignment
+      // Company name and address (next to logo) - increased spacing to prevent overlap
+      // Logo ends at 50 + 100 = 150, add 30px gap = 180
+      const textStartX = 180;
+      
       doc.fontSize(18).fillColor(primaryColor).font("Helvetica-Bold");
-      doc.text(companyName, 160, yPosition);
+      doc.text(companyName, textStartX, yPosition);
       
       doc.fontSize(9).fillColor(secondaryColor).font("Helvetica");
-      doc.text(companyAddress, 160, yPosition + 25, { width: 280 });
+      doc.text(companyAddress, textStartX, yPosition + 25, { width: 260 });
 
       // Payslip title and month (right side) - fixed text collision
       doc.fontSize(11).fillColor(secondaryColor).font("Helvetica");
