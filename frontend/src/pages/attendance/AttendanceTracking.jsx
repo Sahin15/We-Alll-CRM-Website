@@ -932,21 +932,19 @@ const AttendanceTracking = () => {
                               {(!filters.employee || canEditAttendance()) && (
                                 <td>
                                   <div className="d-flex gap-1">
-                                    {!filters.employee && (
-                                      <Button
-                                        variant="outline-primary"
-                                        size="sm"
-                                        onClick={() => handleViewDetails(attendance.employee?._id)}
-                                        title="View Details"
-                                        style={{
-                                          padding: '0.25rem 0.5rem',
-                                          fontSize: '0.875rem',
-                                          whiteSpace: 'nowrap'
-                                        }}
-                                      >
-                                        📊 View
-                                      </Button>
-                                    )}
+                                    <Button
+                                      variant="outline-primary"
+                                      size="sm"
+                                      onClick={() => handleViewDetails(attendance.employee?._id)}
+                                      title="View Details"
+                                      style={{
+                                        padding: '0.25rem 0.5rem',
+                                        fontSize: '0.875rem',
+                                        whiteSpace: 'nowrap'
+                                      }}
+                                    >
+                                      📊 View
+                                    </Button>
                                     {canEditAttendance() && (
                                       <Button
                                         variant="outline-warning"
