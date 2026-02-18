@@ -448,6 +448,11 @@ const AttendanceTracking = () => {
     return ['hr', 'admin', 'superadmin'].includes(user?.role);
   };
 
+  // Check if user can view attendance details (HR, Admin, SuperAdmin, HOD)
+  const canViewDetails = () => {
+    return ['hr', 'admin', 'superadmin', 'hod'].includes(user?.role);
+  };
+
   return (
     <>
       <style>{dropdownStyles}</style>
@@ -849,7 +854,7 @@ const AttendanceTracking = () => {
                       <th>Work Hours</th>
                       <th>Overtime</th>
                       <th>Status</th>
-                      {(!filters.employee || canEditAttendance()) && <th>Actions</th>}
+                      {(!filters.employee || canViewDetails()) && <th>Actions</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -929,7 +934,7 @@ const AttendanceTracking = () => {
                                   {attendance.status}
                                 </Badge>
                               </td>
-                              {(!filters.employee || canEditAttendance()) && (
+                              {(!filters.employee || canViewDetails()) && (
                                 <td>
                                   <div className="d-flex gap-1">
                                     <Button
@@ -968,7 +973,7 @@ const AttendanceTracking = () => {
                         })
                     ) : (
                       <tr>
-                        <td colSpan={(!filters.employee || canEditAttendance()) ? (filters.employee ? "9" : "10") : (filters.employee ? "8" : "10")} className="text-center py-4">
+                        <td colSpan={(!filters.employee || canViewDetails()) ? (filters.employee ? "9" : "10") : (filters.employee ? "8" : "10")} className="text-center py-4">
                           No attendance records found
                         </td>
                       </tr>
