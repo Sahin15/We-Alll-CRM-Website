@@ -420,8 +420,8 @@ const Navbar = ({ toggleSidebar }) => {
 
         {/* Right Section: Quick Actions, Notifications, User Menu */}
         <Nav className="ms-auto align-items-center gap-1 gap-md-2" style={{ overflow: 'visible' }}>
-          {/* Clock In/Out for Employees, HR, HOD, and Accounts */}
-          {['employee', 'hr', 'hod', 'accounts'].includes(user?.role) && (
+          {/* Clock In/Out for Employees, HR, HOD, Accounts, and Manager */}
+          {['employee', 'hr', 'hod', 'accounts', 'manager'].includes(user?.role) && (
             <>
               {/* Desktop version with labels */}
               <div className="d-none d-lg-flex me-2" style={{ position: 'relative', zIndex: 1 }}>

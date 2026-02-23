@@ -80,7 +80,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       icon: <FaUserTie />,
       label: "Business Management",
       roles: ["admin", "superadmin", "manager", "hr", "employee", "hod"],
-      departments: ["Sales", "Accounts"],
+      departments: ["Sales", "Accounts", "HR"], // HR can see this section (for Clients)
       isGroup: true,
       children: [
         {
@@ -89,13 +89,14 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           label: "Leads",
           roles: ["admin", "superadmin", "manager"],
           departments: ["Sales", "Accounts"],
+          excludeDepartments: ["HR"], // HR department cannot see Leads
         },
         {
           path: "/clients",
           icon: <FaUsers />,
           label: "Clients",
           roles: ["admin", "superadmin", "hr", "employee", "hod", "manager"],
-          departments: ["Sales", "Accounts"],
+          departments: ["Sales", "Accounts", "HR"], // HR department can see Clients
           roleLabels: {
             employee: "My Clients",
             hod: "My Clients",
@@ -109,6 +110,8 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       icon: <FaMoneyBillWave />,
       label: "Billing & Finance",
       roles: ["admin", "superadmin", "accounts"],
+      excludeDepartments: ["Sales", "HR"], // Sales and HR department employees should not see this
+      onlyForRoles: ["admin", "superadmin", "accounts", "manager"], // Only these roles can see it, regardless of department
       isGroup: true,
       children: [
         {
@@ -182,6 +185,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       label: "Team",
       roles: ["superadmin", "admin", "hr"],
       excludeDepartments: ["Sales"], // Sales department should not see this
+      onlyForRoles: ["admin", "superadmin", "hr", "manager"], // Manager has full access
       isGroup: true,
       children: [
         {
@@ -206,19 +210,19 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       path: "/employee/leaves",
       icon: <FaCalendarAlt />,
       label: "My Leaves",
-      roles: ["employee", "hod"],
+      roles: ["employee", "hod", "manager"],
     },
     {
       path: "/employee/salary-slips",
       icon: <FaFileInvoiceDollar />,
       label: "My Salary Slips",
-      roles: ["employee", "hod"],
+      roles: ["employee", "hod", "manager"],
     },
     {
       path: "/employee/salary-preview",
       icon: <FaMoneyBillWave />,
       label: "Salary Preview",
-      roles: ["employee", "hod"],
+      roles: ["employee", "hod", "manager"],
     },
     {
       id: "leave-management",
@@ -226,6 +230,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       label: "Leave Management",
       roles: ["admin", "superadmin", "hr"],
       excludeDepartments: ["Sales"], // Sales department should not see this
+      onlyForRoles: ["admin", "superadmin", "hr", "manager"], // Manager has full access
       isGroup: true,
       children: [
         {
@@ -244,8 +249,9 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       path: "/attendance/my-attendance",
       icon: <FaClock />,
       label: "My Attendance",
-      roles: ["employee"],
-      excludeDepartments: ["Sales"], // Sales department should not see this
+      roles: ["employee", "manager"], // Manager can access their own attendance
+      excludeDepartments: ["Sales"], // Sales department employees should not see this
+      onlyForRoles: ["manager"], // Manager bypasses department restrictions
     },
     {
       id: "attendance",
@@ -253,6 +259,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       label: "Attendance",
       roles: ["admin", "superadmin", "hr", "hod"],
       excludeDepartments: ["Sales"], // Sales department should not see this
+      onlyForRoles: ["admin", "superadmin", "hr", "manager"], // Manager has full access
       isGroup: true,
       children: [
         {
@@ -273,6 +280,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       label: "Salary Management",
       roles: ["admin", "superadmin", "hr"],
       excludeDepartments: ["Sales"], // Sales department should not see this
+      onlyForRoles: ["admin", "superadmin", "hr", "manager"], // Manager has full access
     },
     {
       path: "/profile",
@@ -291,6 +299,16 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
   const filteredMenu = menuItems.filter((item) => {
     // Helper function to check if user has access
     const hasAccess = (menuItem) => {
+      // If onlyForRoles is specified, check if user has one of those roles
+      // This overrides department exclusions for privileged roles
+      if (menuItem.onlyForRoles && menuItem.onlyForRoles.length > 0) {
+        const hasPrivilegedRole = menuItem.onlyForRoles.includes(user?.role);
+        if (hasPrivilegedRole) {
+          return true; // Privileged roles bypass all restrictions
+        }
+        // If user doesn't have privileged role, continue with normal checks
+      }
+      
       // Check role-based access
       const hasRoleAccess = !menuItem.roles || menuItem.roles.includes(user?.role);
       

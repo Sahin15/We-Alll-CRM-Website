@@ -891,9 +891,9 @@ export const getTodayAttendance = async (req, res) => {
   try {
     const employee = req.user._id;
     
-    // Allow employees, HoDs, HR, and Admin to check today's attendance
-    // HR and Admin can check their own attendance too
-    const allowedRoles = ['employee', 'hod', 'hr', 'admin', 'superadmin'];
+    // Allow employees, HoDs, HR, Admin, and Manager to check today's attendance
+    // HR, Admin, and Manager can check their own attendance too
+    const allowedRoles = ['employee', 'hod', 'hr', 'admin', 'superadmin', 'manager'];
     if (!allowedRoles.includes(req.user.role)) {
       return res.status(403).json({ 
         message: "Access denied"
