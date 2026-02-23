@@ -13,28 +13,49 @@ import {
   cancelFollowUp,
   getLeadFollowUps,
   deleteNote,
+  getFollowUpDashboard,
 } from "../controllers/leadController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { authorizeRolesOrDepartments } from "../middleware/departmentMiddleware.js";
 
 const router = express.Router();
 
-// Create new lead (public or admin)
-router.post("/", protect, authorizeRoles("admin", "superadmin", "hr", "employee", "hod", "accounts"), createLead);
+// Allowed roles and departments for lead management
+// Roles: admin, superadmin, manager
+// Departments: Sales only
+const leadAccess = authorizeRolesOrDepartments(
+  ["admin", "superadmin", "manager"],
+  ["Sales"]
+);
+
+// Create new lead
+router.post("/", protect, leadAccess, createLead);
 
 // Create new lead (public endpoint for forms like Growth Summit)
 router.post("/public", createLead);
 
 // Get all leads
-router.get("/", protect, authorizeRoles("admin", "superadmin", "hr", "employee", "hod", "accounts"), getAllLeads);
+router.get("/", protect, leadAccess, getAllLeads);
+
+// Get follow-up dashboard data
+router.get("/follow-ups/dashboard", protect, leadAccess, getFollowUpDashboard);
 
 // Get lead by ID
-router.get("/:id", protect, authorizeRoles("admin", "superadmin", "hr", "employee", "hod", "accounts"), getLeadById);
+router.get("/:id", protect, leadAccess, getLeadById);
 
 // Update lead
-router.put("/:id", protect, authorizeRoles("admin", "superadmin", "hr", "employee", "hod", "accounts"), updateLead);
+router.put("/:id", protect, leadAccess, updateLead);
 
-// Delete lead
+// Delete note from notes history (MUST be before /:id delete route)
+router.delete(
+  "/:id/notes/:noteId",
+  protect,
+  leadAccess,
+  deleteNote
+);
+
+// Delete lead (only admin/superadmin)
 router.delete(
   "/:id",
   protect,
@@ -46,7 +67,7 @@ router.delete(
 router.put(
   "/:id/assign",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "employee", "hod", "accounts"),
+  leadAccess,
   assignLead
 );
 
@@ -54,7 +75,7 @@ router.put(
 router.put(
   "/:id/status",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "employee", "hod", "accounts"),
+  leadAccess,
   updateLeadStatus
 );
 
@@ -62,7 +83,7 @@ router.put(
 router.put(
   "/:id/temperature",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "employee", "hod", "accounts"),
+  leadAccess,
   updateLeadTemperature
 );
 
@@ -70,34 +91,26 @@ router.put(
 router.post(
   "/:id/follow-ups",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "employee", "hod", "accounts"),
+  leadAccess,
   scheduleFollowUp
 );
 router.get(
   "/:id/follow-ups",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "employee", "hod", "accounts"),
+  leadAccess,
   getLeadFollowUps
 );
 router.put(
   "/:id/follow-ups/:followUpId/complete",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "employee", "hod", "accounts"),
+  leadAccess,
   completeFollowUp
 );
 router.put(
   "/:id/follow-ups/:followUpId/cancel",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "employee", "hod", "accounts"),
+  leadAccess,
   cancelFollowUp
-);
-
-// Delete note from notes history
-router.delete(
-  "/:id/notes/:noteIndex",
-  protect,
-  authorizeRoles("admin", "superadmin"),
-  deleteNote
 );
 
 export default router;

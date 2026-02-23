@@ -47,7 +47,10 @@ router.get("/me", protect, async (req, res) => {
     const User = (await import("../models/userModel.js")).default;
     const user = await User.findById(req.user._id)
       .select('-password')
-      .select('+governmentIds.aadhaarNumber +governmentIds.panNumber +governmentIds.uanNumber +governmentIds.esicNumber')
+      .select('+governmentIds.aadhaarNumber')
+      .select('+governmentIds.panNumber')
+      .select('+governmentIds.uanNumber')
+      .select('+governmentIds.esicNumber')
       .select('+bankDetails.accountNumber')
       .populate('department', 'name')
       .populate('reportingManager', 'name email')
@@ -65,6 +68,19 @@ router.get("/me", protect, async (req, res) => {
   }
 });
 
+// Document download routes (MUST be before other document routes and /:id routes)
+router.get("/documents/:documentId/download", protect, (req, res, next) => {
+  console.log('[DOWNLOAD ROUTE] GET /documents/:documentId/download called');
+  console.log('[DOWNLOAD ROUTE] Document ID:', req.params.documentId);
+  console.log('[DOWNLOAD ROUTE] User:', req.user?.name, req.user?.email);
+  next();
+}, downloadDocument);
+router.get("/official-documents/:documentId/download", protect, (req, res, next) => {
+  console.log('[DOWNLOAD ROUTE] GET /official-documents/:documentId/download called');
+  console.log('[DOWNLOAD ROUTE] Document ID:', req.params.documentId);
+  next();
+}, downloadDocument);
+
 // New document routes to match frontend expectations (MUST be before /:id route)
 router.get("/documents", protect, (req, res, next) => {
   console.log('[USER ROUTES] GET /documents called');
@@ -76,30 +92,40 @@ router.get("/official-documents", protect, (req, res, next) => {
 }, getOfficialDocuments);
 router.post("/documents", protect, documentUpload.single('document'), uploadUserDocument);
 router.post("/official-documents", protect, documentUpload.single('document'), uploadOfficialDocument);
-router.post("/:id/official-documents", protect, authorizeRoles("admin", "superadmin", "hr"), documentUpload.single('document'), async (req, res) => {
+router.post("/:id/official-documents", protect, authorizeRoles("admin", "superadmin", "hr"), documentUpload.single('document'), async (req, res, next) => {
   try {
     const { id: userId } = req.params;
-    const { category, description } = req.body;
+
+    console.log('[OFFICIAL UPLOAD ROUTE] ========== START ==========');
+    console.log('[OFFICIAL UPLOAD ROUTE] Target User ID:', userId);
+    console.log('[OFFICIAL UPLOAD ROUTE] Uploaded by:', req.user?.name, req.user?.email);
+    console.log('[OFFICIAL UPLOAD ROUTE] File:', req.file ? req.file.originalname : 'NO FILE');
 
     if (!req.file) {
+      console.log('[OFFICIAL UPLOAD ROUTE] ERROR: No file uploaded');
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    // Import document controller function
-    const { uploadOfficialDocument } = await import("../controllers/documentController.js");
-    
-    // Set the target user ID in the request
+    // Set the target user ID in the request for the controller
     req.targetUserId = userId;
     
-    // Call the upload function
+    console.log('[OFFICIAL UPLOAD ROUTE] Calling uploadOfficialDocument controller...');
+    
+    // Call the controller function
     await uploadOfficialDocument(req, res);
+    
+    console.log('[OFFICIAL UPLOAD ROUTE] ========== END ==========');
   } catch (error) {
-    console.error("Error uploading official document for user:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error('[OFFICIAL UPLOAD ROUTE] ========== ERROR ==========');
+    console.error('[OFFICIAL UPLOAD ROUTE] Error:', error);
+    console.error('[OFFICIAL UPLOAD ROUTE] Error stack:', error.stack);
+    
+    // Only send response if not already sent
+    if (!res.headersSent) {
+      res.status(500).json({ message: "Failed to upload official document", error: error.message });
+    }
   }
 });
-router.get("/documents/:documentId/download", protect, downloadDocument);
-router.get("/official-documents/:documentId/download", protect, downloadDocument);
 router.delete("/documents/:documentId", protect, deleteUserDocument);
 
 // Pending documents endpoint (placeholder for now)

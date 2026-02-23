@@ -111,7 +111,7 @@ const DepartmentList = () => {
         case 'name':
           return a.name.localeCompare(b.name);
         case 'employees':
-          return (b.employees?.length || 0) - (a.employees?.length || 0);
+          return (b.employeeCount || b.employees?.length || 0) - (a.employeeCount || a.employees?.length || 0);
         case 'status':
           return a.status.localeCompare(b.status);
         case 'head':
@@ -566,13 +566,26 @@ const DepartmentList = () => {
                       <div className="d-flex align-items-center">
                         <FaUsers className="text-muted me-2" />
                         <span className="small">
-                          <strong>{dept.employees?.length || 0}</strong> employees
+                          <strong>{dept.employeeCount ?? dept.employees?.length ?? 0}</strong> employees
                         </span>
                       </div>
                     </div>
 
                     <div className="mt-auto">
                       <div className="d-flex gap-2">
+                        <OverlayTrigger
+                          placement="top"
+                          overlay={<Tooltip>View Details</Tooltip>}
+                        >
+                          <Button
+                            size="sm"
+                            variant="outline-secondary"
+                            onClick={() => navigate(`/departments/${dept._id}`)}
+                            className="flex-fill"
+                          >
+                            <FaEye />
+                          </Button>
+                        </OverlayTrigger>
                         <OverlayTrigger
                           placement="top"
                           overlay={<Tooltip>View Analytics</Tooltip>}
@@ -713,7 +726,7 @@ const DepartmentList = () => {
                           <div className="d-flex align-items-center">
                             <FaUsers className="text-info me-2" />
                             <span className="fw-semibold">
-                              {dept.employees?.length || 0}
+                              {dept.employeeCount ?? dept.employees?.length ?? 0}
                             </span>
                             <span className="text-muted ms-1">employees</span>
                           </div>
@@ -742,6 +755,18 @@ const DepartmentList = () => {
                         </td>
                         <td>
                           <div className="d-flex gap-1 justify-content-center">
+                            <OverlayTrigger
+                              placement="top"
+                              overlay={<Tooltip>View Details</Tooltip>}
+                            >
+                              <Button
+                                size="sm"
+                                variant="outline-secondary"
+                                onClick={() => navigate(`/departments/${dept._id}`)}
+                              >
+                                <FaEye />
+                              </Button>
+                            </OverlayTrigger>
                             <OverlayTrigger
                               placement="top"
                               overlay={<Tooltip>View Analytics</Tooltip>}

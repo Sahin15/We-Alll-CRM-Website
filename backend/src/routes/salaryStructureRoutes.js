@@ -29,17 +29,16 @@ router.get(
   getAllSalaryStructures
 );
 
-router.get(
-  "/:id",
-  protect,
-  authorizeRoles("admin", "superadmin", "hr", "accounts"),
-  getSalaryStructureById
-);
-
+// IMPORTANT: Specific routes must come BEFORE generic /:id routes
 router.get(
   "/employee/:employeeId/active",
   protect,
   authorizeRoles("admin", "superadmin", "hr", "accounts"),
+  (req, res, next) => {
+    console.log('[SALARY ROUTE] GET /employee/:employeeId/active called');
+    console.log('[SALARY ROUTE] Employee ID:', req.params.employeeId);
+    next();
+  },
   getActiveSalaryStructure
 );
 
@@ -47,7 +46,20 @@ router.get(
   "/employee/:employeeId/history",
   protect,
   authorizeRoles("admin", "superadmin", "hr", "accounts"),
+  (req, res, next) => {
+    console.log('[SALARY ROUTE] GET /employee/:employeeId/history called');
+    console.log('[SALARY ROUTE] Employee ID:', req.params.employeeId);
+    next();
+  },
   getSalaryStructureHistory
+);
+
+// Generic /:id routes come AFTER specific routes
+router.get(
+  "/:id",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr", "accounts"),
+  getSalaryStructureById
 );
 
 router.put(

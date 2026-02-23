@@ -27,6 +27,7 @@ const MyProfile = () => {
   const [documentType, setDocumentType] = useState('');
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [documents, setDocuments] = useState([]);
   const [officialDocuments, setOfficialDocuments] = useState([]);
   const [viewingDocument, setViewingDocument] = useState(null);
@@ -77,8 +78,21 @@ const MyProfile = () => {
 
   useEffect(() => {
     if (user) {
-      fetchDocuments();
-      fetchOfficialDocuments();
+      const loadDocuments = async () => {
+        setLoading(true);
+        try {
+          await Promise.all([
+            fetchDocuments(),
+            fetchOfficialDocuments()
+          ]);
+        } catch (error) {
+          console.error('[INIT] Error loading documents:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      loadDocuments();
       // Check if employee has already updated bank details
       setBankDetailsUpdated(user?.bankDetails?.updatedByEmployee || false);
     }
@@ -94,16 +108,8 @@ const MyProfile = () => {
   const fetchDocuments = async () => {
     try {
       const response = await api.get('/users/documents');
-      const currentUserId = user?.id || user?._id;
-      
-      // Safety check: Filter out documents that don't belong to current user
-      const userDocuments = response.data.filter(doc => doc.userId === currentUserId);
-      
-      if (userDocuments.length !== response.data.length) {
-        console.warn(`Filtered out ${response.data.length - userDocuments.length} documents that didn't belong to current user`);
-      }
-      
-      setDocuments(userDocuments || []);
+      const docs = Array.isArray(response.data) ? response.data : [];
+      setDocuments(docs);
     } catch (error) {
       console.error('Error fetching documents:', error);
       toast.error('Failed to load documents');
@@ -113,7 +119,8 @@ const MyProfile = () => {
   const fetchOfficialDocuments = async () => {
     try {
       const response = await api.get('/users/official-documents');
-      setOfficialDocuments(response.data || []);
+      const docs = Array.isArray(response.data) ? response.data : [];
+      setOfficialDocuments(docs);
     } catch (error) {
       console.error('Error fetching official documents:', error);
       toast.error('Failed to load official documents');
@@ -159,15 +166,18 @@ const MyProfile = () => {
       formData.append('category', documentForm.category);
       formData.append('description', documentForm.description);
 
-      await api.post('/users/documents', formData, {
+      const response = await api.post('/users/documents', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
       toast.success('Document uploaded successfully');
       setShowDocumentModal(false);
       setDocumentForm({ file: null, description: '', category: '' });
-      fetchDocuments();
+      
+      // Refresh documents list
+      await fetchDocuments();
     } catch (error) {
+      console.error('Error uploading document:', error);
       toast.error(error.response?.data?.message || 'Failed to upload document');
     } finally {
       setUploading(false);
@@ -189,11 +199,15 @@ const MyProfile = () => {
   const handleDocumentDownload = async (documentId, filename) => {
     try {
       // Safety check: Find the document in our current documents list
-      const currentUserId = user?.id || user?._id;
-      const document = documents.find(doc => doc._id === documentId);
-      if (document && document.userId !== currentUserId) {
-        toast.error('Access denied: This document does not belong to you.');
-        return;
+      const currentUserId = (user?.id || user?._id)?.toString();
+      const doc = documents.find(d => d._id === documentId);
+      
+      if (doc) {
+        const documentUserId = doc.userId?.toString();
+        if (documentUserId !== currentUserId) {
+          toast.error('Access denied: This document does not belong to you.');
+          return;
+        }
       }
       
       const response = await api.get(`/users/documents/${documentId}/download`, {
@@ -201,10 +215,10 @@ const MyProfile = () => {
       });
       
       const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
+      const link = window.document.createElement('a');
       link.href = url;
       link.setAttribute('download', filename);
-      document.body.appendChild(link);
+      window.document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
@@ -214,34 +228,42 @@ const MyProfile = () => {
       console.error('Error downloading document:', error);
       
       let errorMessage = 'Failed to download document';
-      if (error.response?.status === 403) {
+      if (error.response?.status === 401) {
+        errorMessage = 'Authentication failed. Please log in again.';
+      } else if (error.response?.status === 403) {
         errorMessage = 'Access denied. You can only download your own documents or contact HR/Admin for assistance.';
       } else if (error.response?.status === 404) {
-        errorMessage = 'Document not found or has been removed.';
+        errorMessage = 'Document file not found on server. The file may have been lost during a system migration. Please re-upload this document or contact HR/Admin for assistance.';
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       }
       
+      toast.error(errorMessage, { duration: 6000 });
       toast.error(errorMessage);
     }
   };
 
-  const handleDocumentView = async (document) => {
+  const handleDocumentView = async (doc) => {
     try {
       // Safety check: Ensure document belongs to current user
-      const currentUserId = user?.id || user?._id;
-      if (document.userId !== currentUserId) {
+      const currentUserId = (user?.id || user?._id)?.toString();
+      const documentUserId = doc.userId?.toString();
+      
+      if (documentUserId !== currentUserId) {
         toast.error('Access denied: This document does not belong to you.');
         return;
       }
       
-      const response = await api.get(`/users/documents/${document._id}/download`, {
+      const response = await api.get(`/users/documents/${doc._id}/download`, {
         responseType: 'blob'
       });
       
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      // Create blob with proper MIME type
+      const blob = new Blob([response.data], { type: doc.mimetype || response.data.type });
+      const url = window.URL.createObjectURL(blob);
+      
       setViewingDocument({
-        ...document,
+        ...doc,
         url: url
       });
       setShowDocumentViewer(true);
@@ -249,7 +271,9 @@ const MyProfile = () => {
       console.error('Error viewing document:', error);
       
       let errorMessage = 'Failed to load document';
-      if (error.response?.status === 403) {
+      if (error.response?.status === 401) {
+        errorMessage = 'Authentication failed. Please log in again.';
+      } else if (error.response?.status === 403) {
         errorMessage = 'Access denied. You can only view your own documents or contact HR/Admin for assistance.';
       } else if (error.response?.status === 404) {
         errorMessage = 'Document not found or has been removed.';
@@ -538,12 +562,12 @@ const MyProfile = () => {
       if (error.response?.status === 403) {
         errorMessage = 'Access denied. You can only download your own documents or contact HR/Admin for assistance.';
       } else if (error.response?.status === 404) {
-        errorMessage = 'Document not found or has been removed.';
+        errorMessage = 'Document file not found on server. The file may have been lost during a system migration. Please contact HR/Admin for assistance.';
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       }
       
-      toast.error(errorMessage);
+      toast.error(errorMessage, { duration: 6000 });
     }
   };
 
@@ -553,7 +577,9 @@ const MyProfile = () => {
         responseType: 'blob'
       });
       
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      // Create blob with proper MIME type
+      const blob = new Blob([response.data], { type: document.mimetype || response.data.type });
+      const url = window.URL.createObjectURL(blob);
       setViewingDocument({
         ...document,
         url: url
@@ -566,12 +592,12 @@ const MyProfile = () => {
       if (error.response?.status === 403) {
         errorMessage = 'Access denied. You can only view your own documents or contact HR/Admin for assistance.';
       } else if (error.response?.status === 404) {
-        errorMessage = 'Document not found or has been removed.';
+        errorMessage = 'Document file not found on server. The file may have been lost during a system migration. Please contact HR/Admin for assistance.';
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       }
       
-      toast.error(errorMessage);
+      toast.error(errorMessage, { duration: 6000 });
     }
   };
 
@@ -1832,7 +1858,7 @@ const MyProfile = () => {
                         />
                       ) : (
                         <div className="form-control-plaintext border rounded p-2 bg-light">
-                          {user?.bankDetails?.accountNumber ? `****${user.bankDetails.accountNumber.slice(-4)}` : '—'}
+                          {user?.bankDetails?.accountNumber || '—'}
                         </div>
                       )}
                     </Form.Group>
@@ -1884,7 +1910,7 @@ const MyProfile = () => {
                         />
                       ) : (
                         <div className="form-control-plaintext border rounded p-2 bg-light">
-                          {user?.governmentIds?.panNumber ? `${user.governmentIds.panNumber.slice(0, 4)}****${user.governmentIds.panNumber.slice(-1)}` : '—'}
+                          {user?.governmentIds?.panNumber || '—'}
                         </div>
                       )}
                     </Form.Group>
@@ -1902,7 +1928,7 @@ const MyProfile = () => {
                         />
                       ) : (
                         <div className="form-control-plaintext border rounded p-2 bg-light">
-                          {user?.governmentIds?.aadhaarNumber ? `****-****-${user.governmentIds.aadhaarNumber.slice(-4)}` : '—'}
+                          {user?.governmentIds?.aadhaarNumber || '—'}
                         </div>
                       )}
                     </Form.Group>
@@ -1989,114 +2015,133 @@ const MyProfile = () => {
                   <Button 
                     variant="primary"
                     onClick={() => openDocumentModal()}
+                    disabled={loading}
                   >
                     <FaPlus className="me-2" />
                     Upload Document
                   </Button>
                 </div>
 
-                <Row>
-                  {getDocumentCategories().map((category) => {
-                    const categoryDocs = getDocumentsByCategory(category.value);
-                    const canUpload = canUploadDocument(category.value);
-                    
-                    return (
-                      <Col md={6} key={category.value} className="mb-4">
-                        <Card className="border-0 shadow-sm h-100">
-                          <Card.Header className="bg-light border-bottom-0">
-                            <div className="d-flex justify-content-between align-items-center">
-                              <div className="d-flex align-items-center">
-                                <span className="me-2 text-primary">{category.icon}</span>
-                                <strong>{category.label}</strong>
-                              </div>
-                              {category.oneTime && (
-                                <Badge bg="warning" text="dark" className="px-2 py-1">
-                                  One Time
-                                </Badge>
-                              )}
-                            </div>
-                          </Card.Header>
-                          <Card.Body>
-                            {categoryDocs.length > 0 ? (
-                              <div>
-                                {categoryDocs.map((doc) => (
-                                  <div key={doc._id} className="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
-                                    <div>
-                                      <small className="text-muted d-block">
-                                        {new Date(doc.uploadedAt).toLocaleDateString('en-GB')}
-                                      </small>
-                                      <span className="fw-medium">{doc.originalName}</span>
-                                      {doc.description && (
-                                        <small className="text-muted d-block">{doc.description}</small>
-                                      )}
-                                    </div>
-                                    <div className="d-flex gap-1">
-                                      <Button
-                                        variant="outline-info"
-                                        size="sm"
-                                        onClick={() => handleDocumentView(doc)}
-                                        title="View Document"
-                                      >
-                                        <FaEye />
-                                      </Button>
-                                      <Button
-                                        variant="outline-primary"
-                                        size="sm"
-                                        onClick={() => handleDocumentDownload(doc._id, doc.originalName)}
-                                        title="Download Document"
-                                      >
-                                        <FaDownload />
-                                      </Button>
-                                      {isHROrAdmin && (
-                                        <Button
-                                          variant="outline-danger"
-                                          size="sm"
-                                          onClick={() => handleDocumentDelete(doc._id)}
-                                          title="Delete Document (HR/Admin Only)"
-                                        >
-                                          <FaTrash />
-                                        </Button>
-                                      )}
-                                    </div>
+                {loading ? (
+                  <div className="text-center py-5">
+                    <div className="spinner-border text-primary mb-3" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                    <p className="text-muted">Loading documents...</p>
+                  </div>
+                ) : (
+                  <>
+                    {documents.length === 0 && (
+                      <Alert variant="info" className="mb-4">
+                        <FaFileAlt className="me-2" />
+                        <strong>No documents uploaded yet.</strong> Click "Upload Document" to add your first document.
+                      </Alert>
+                    )}
+
+                    <Row>
+                      {getDocumentCategories().map((category) => {
+                        const categoryDocs = getDocumentsByCategory(category.value);
+                        const canUpload = canUploadDocument(category.value);
+                        
+                        return (
+                          <Col md={6} key={category.value} className="mb-4">
+                            <Card className="border-0 shadow-sm h-100">
+                              <Card.Header className="bg-light border-bottom-0">
+                                <div className="d-flex justify-content-between align-items-center">
+                                  <div className="d-flex align-items-center">
+                                    <span className="me-2 text-primary">{category.icon}</span>
+                                    <strong>{category.label}</strong>
                                   </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="text-center text-muted py-3">
-                                <FaFileAlt size={24} className="mb-2 opacity-50" />
-                                <p className="mb-0">No documents uploaded</p>
-                              </div>
-                            )}
-                            
-                            {canUpload && (
-                              <Button
-                                variant="outline-primary"
-                                size="sm"
-                                className="w-100 mt-2"
-                                onClick={() => openDocumentModal(category.value)}
-                              >
-                                <FaPlus className="me-2" />
-                                Upload {category.label}
-                              </Button>
-                            )}
-                            
-                            {!canUpload && category.oneTime && categoryDocs.length > 0 && (
-                              <Alert variant={isHROrAdmin ? "warning" : "info"} className="mt-2 mb-0 py-2">
-                                <small>
-                                  <FaCheckCircle className="me-1" />
-                                  {isHROrAdmin ? 
-                                    "Document exists. HR/Admin can replace it." : 
-                                    "Document already uploaded. Contact HR for changes."
-                                  }
-                                </small>
-                              </Alert>
-                            )}
-                          </Card.Body>
-                        </Card>
-                      </Col>
-                    );
-                  })}
-                </Row>
+                                  {category.oneTime && (
+                                    <Badge bg="warning" text="dark" className="px-2 py-1">
+                                      One Time
+                                    </Badge>
+                                  )}
+                                </div>
+                              </Card.Header>
+                              <Card.Body>
+                                {categoryDocs.length > 0 ? (
+                                  <div>
+                                    {categoryDocs.map((doc) => (
+                                      <div key={doc._id} className="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                                        <div>
+                                          <small className="text-muted d-block">
+                                            {new Date(doc.uploadedAt).toLocaleDateString('en-GB')}
+                                          </small>
+                                          <span className="fw-medium">{doc.originalName}</span>
+                                          {doc.description && (
+                                            <small className="text-muted d-block">{doc.description}</small>
+                                          )}
+                                        </div>
+                                        <div className="d-flex gap-1">
+                                          <Button
+                                            variant="outline-info"
+                                            size="sm"
+                                            onClick={() => handleDocumentView(doc)}
+                                            title="View Document"
+                                          >
+                                            <FaEye />
+                                          </Button>
+                                          <Button
+                                            variant="outline-primary"
+                                            size="sm"
+                                            onClick={() => handleDocumentDownload(doc._id, doc.originalName)}
+                                            title="Download Document"
+                                          >
+                                            <FaDownload />
+                                          </Button>
+                                          {isHROrAdmin && (
+                                            <Button
+                                              variant="outline-danger"
+                                              size="sm"
+                                              onClick={() => handleDocumentDelete(doc._id)}
+                                              title="Delete Document (HR/Admin Only)"
+                                            >
+                                              <FaTrash />
+                                            </Button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="text-center text-muted py-3">
+                                    <FaFileAlt size={24} className="mb-2 opacity-50" />
+                                    <p className="mb-0">No documents uploaded</p>
+                                  </div>
+                                )}
+                                
+                                {canUpload && (
+                                  <Button
+                                    variant="outline-primary"
+                                    size="sm"
+                                    className="w-100 mt-2"
+                                    onClick={() => openDocumentModal(category.value)}
+                                  >
+                                    <FaPlus className="me-2" />
+                                    Upload {category.label}
+                                  </Button>
+                                )}
+                                
+                                {!canUpload && category.oneTime && categoryDocs.length > 0 && (
+                                  <Alert variant={isHROrAdmin ? "warning" : "info"} className="mt-2 mb-0 py-2">
+                                    <small>
+                                      <FaCheckCircle className="me-1" />
+                                      {isHROrAdmin ? 
+                                        "Document exists. HR/Admin can replace it." : 
+                                        "Document already uploaded. Contact HR for changes."
+                                      }
+                                    </small>
+                                  </Alert>
+                                )}
+                              </Card.Body>
+                            </Card>
+                          </Col>
+                        );
+                      })}
+                    </Row>
+                  </>
+                )}
               </div>
               </Tab>
             )}

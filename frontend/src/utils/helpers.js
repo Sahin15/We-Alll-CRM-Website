@@ -118,7 +118,7 @@ export const getStatusVariant = (status) => {
     suspended: "danger",
     present: "success",
     absent: "danger",
-    "half-day": "warning",
+    "half-day": "orange", // Changed from warning to orange for distinction
     late: "warning",
     "on-leave": "info",
   };

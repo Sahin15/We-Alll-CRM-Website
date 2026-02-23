@@ -10,8 +10,11 @@ import {
   Badge,
   ListGroup,
   Alert,
+  Dropdown,
+  Modal,
+  Form,
 } from "react-bootstrap";
-import { FaArrowLeft, FaEdit, FaUsers, FaChartBar } from "react-icons/fa";
+import { FaArrowLeft, FaEdit, FaUsers, FaChartBar, FaCrown, FaUserShield } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { departmentApi } from "../../api/departmentApi";
 import { useAuth } from "../../context/AuthContext";
@@ -20,12 +23,14 @@ const DepartmentDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, checkPermission } = useAuth();
-  const isAdmin = checkPermission(["admin", "superadmin"]);
+  const isAdmin = checkPermission(["admin", "superadmin", "hr"]);
   const isHOD = user?.role === "hod";
   const isEmployee = user?.role === "employee";
   const [department, setDepartment] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showAssignHoDModal, setShowAssignHoDModal] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState("");
 
   useEffect(() => {
     fetchDepartmentData();
@@ -40,6 +45,12 @@ const DepartmentDetails = () => {
         departmentApi.getDepartmentById(id),
         departmentApi.getDepartmentAnalytics(id),
       ]);
+
+      console.log('🔍 Department API Response:', deptRes);
+      console.log('🔍 Analytics API Response:', analyticsRes);
+      console.log('🔍 Analytics Data:', analyticsRes.data);
+      console.log('🔍 Employees:', analyticsRes.data?.employees);
+      console.log('🔍 Employees Length:', analyticsRes.data?.employees?.length);
 
       const dept = deptRes.data;
 
@@ -59,11 +70,48 @@ const DepartmentDetails = () => {
 
       setDepartment(dept);
       setAnalytics(analyticsRes.data);
+      
+      console.log('✅ State set - Analytics:', analyticsRes.data);
+      console.log('✅ State set - Employees count:', analyticsRes.data?.employees?.length);
     } catch (error) {
+      console.error('❌ Error fetching department data:', error);
       toast.error("Failed to fetch department details");
       navigate("/departments");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAssignHoD = async () => {
+    if (!selectedEmployee) {
+      toast.error("Please select an employee");
+      return;
+    }
+
+    try {
+      await departmentApi.assignHoD(id, selectedEmployee);
+      toast.success("Head of Department assigned successfully");
+      setShowAssignHoDModal(false);
+      setSelectedEmployee("");
+      fetchDepartmentData(); // Refresh data
+    } catch (error) {
+      console.error("Error assigning HoD:", error);
+      toast.error(error.response?.data?.message || "Failed to assign Head of Department");
+    }
+  };
+
+  const handleRemoveHoD = async () => {
+    if (!window.confirm("Are you sure you want to remove the current Head of Department?")) {
+      return;
+    }
+
+    try {
+      await departmentApi.removeHoD(id);
+      toast.success("Head of Department removed successfully");
+      fetchDepartmentData(); // Refresh data
+    } catch (error) {
+      console.error("Error removing HoD:", error);
+      toast.error(error.response?.data?.message || "Failed to remove Head of Department");
     }
   };
 
@@ -191,17 +239,57 @@ const DepartmentDetails = () => {
                   {department.status}
                 </Badge>
               </p>
-              <p>
+              <p className="mb-0">
                 <strong>Department Head:</strong>{" "}
                 {department.head ? (
-                  <div className="mt-1">
-                    <div>{department.head.name}</div>
-                    <small className="text-muted">
-                      {department.head.email}
-                    </small>
+                  <div className="mt-2">
+                    <div className="d-flex align-items-center justify-content-between">
+                      <div>
+                        <div className="d-flex align-items-center">
+                          <FaCrown className="text-warning me-2" />
+                          <span className="fw-semibold">{department.head.name}</span>
+                        </div>
+                        <small className="text-muted ms-4">
+                          {department.head.email}
+                        </small>
+                      </div>
+                      {isAdmin && (
+                        <Button
+                          size="sm"
+                          variant="outline-danger"
+                          onClick={handleRemoveHoD}
+                          title="Remove HoD"
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ) : (
-                  <span className="text-muted">Not Assigned</span>
+                  <div className="mt-2">
+                    <span className="text-muted d-block mb-2">Not Assigned</span>
+                    {console.log('🔍 HoD Button Check:', { isAdmin, employeeCount: analytics?.employees?.length })}
+                    {isAdmin && analytics?.employees?.length > 0 && (
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={() => setShowAssignHoDModal(true)}
+                      >
+                        <FaUserShield className="me-2" />
+                        Assign Head
+                      </Button>
+                    )}
+                    {!isAdmin && (
+                      <small className="text-muted d-block mt-1">
+                        (Only admins/HR can assign)
+                      </small>
+                    )}
+                    {isAdmin && (!analytics?.employees || analytics.employees.length === 0) && (
+                      <small className="text-muted d-block mt-1">
+                        (No employees to assign as head)
+                      </small>
+                    )}
+                  </div>
                 )}
               </p>
             </Card.Body>
@@ -213,19 +301,24 @@ const DepartmentDetails = () => {
               <strong>Role Distribution</strong>
             </Card.Header>
             <Card.Body>
-              <ListGroup variant="flush">
-                {Object.entries(analytics.roleDistribution).map(
-                  ([role, count]) => (
-                    <ListGroup.Item
-                      key={role}
-                      className="d-flex justify-content-between px-0"
-                    >
-                      <span className="text-capitalize">{role}</span>
-                      <Badge bg="primary">{count}</Badge>
-                    </ListGroup.Item>
-                  )
-                )}
-              </ListGroup>
+              {console.log('🔍 Role Distribution:', analytics?.roleDistribution)}
+              {analytics?.roleDistribution && Object.keys(analytics.roleDistribution).length > 0 ? (
+                <ListGroup variant="flush">
+                  {Object.entries(analytics.roleDistribution).map(
+                    ([role, count]) => (
+                      <ListGroup.Item
+                        key={role}
+                        className="d-flex justify-content-between px-0"
+                      >
+                        <span className="text-capitalize">{role}</span>
+                        <Badge bg="primary">{count}</Badge>
+                      </ListGroup.Item>
+                    )
+                  )}
+                </ListGroup>
+              ) : (
+                <p className="text-muted text-center mb-0">No role data available</p>
+              )}
             </Card.Body>
           </Card>
 
@@ -235,19 +328,24 @@ const DepartmentDetails = () => {
               <strong>Position Distribution</strong>
             </Card.Header>
             <Card.Body>
-              <ListGroup variant="flush">
-                {Object.entries(analytics.positionDistribution).map(
-                  ([position, count]) => (
-                    <ListGroup.Item
-                      key={position}
-                      className="d-flex justify-content-between px-0"
-                    >
-                      <span>{position}</span>
-                      <Badge bg="info">{count}</Badge>
-                    </ListGroup.Item>
-                  )
-                )}
-              </ListGroup>
+              {console.log('🔍 Position Distribution:', analytics?.positionDistribution)}
+              {analytics?.positionDistribution && Object.keys(analytics.positionDistribution).length > 0 ? (
+                <ListGroup variant="flush">
+                  {Object.entries(analytics.positionDistribution).map(
+                    ([position, count]) => (
+                      <ListGroup.Item
+                        key={position}
+                        className="d-flex justify-content-between px-0"
+                      >
+                        <span>{position}</span>
+                        <Badge bg="info">{count}</Badge>
+                      </ListGroup.Item>
+                    )
+                  )}
+                </ListGroup>
+              ) : (
+                <p className="text-muted text-center mb-0">No position data available</p>
+              )}
             </Card.Body>
           </Card>
         </Col>
@@ -259,7 +357,7 @@ const DepartmentDetails = () => {
               <strong>Employees ({analytics.stats.totalEmployees})</strong>
             </Card.Header>
             <Card.Body>
-              {analytics.employees.length > 0 ? (
+              {analytics?.employees && analytics.employees.length > 0 ? (
                 <Table responsive hover>
                   <thead>
                     <tr>
@@ -300,13 +398,61 @@ const DepartmentDetails = () => {
                 </Table>
               ) : (
                 <div className="text-center py-4 text-muted">
-                  No employees assigned to this department
+                  <div>No employees assigned to this department</div>
+                  <small className="text-danger">
+                    Debug: employees = {JSON.stringify(analytics?.employees)}
+                  </small>
                 </div>
               )}
             </Card.Body>
           </Card>
         </Col>
       </Row>
+
+      {/* Assign HoD Modal */}
+      <Modal show={showAssignHoDModal} onHide={() => setShowAssignHoDModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <FaCrown className="text-warning me-2" />
+            Assign Head of Department
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group>
+              <Form.Label>Select Employee from {department?.name}</Form.Label>
+              <Form.Select
+                value={selectedEmployee}
+                onChange={(e) => setSelectedEmployee(e.target.value)}
+                required
+              >
+                <option value="">-- Select an employee --</option>
+                {analytics?.employees?.map((emp) => (
+                  <option key={emp._id} value={emp._id}>
+                    {emp.name} ({emp.email}) - {emp.role}
+                  </option>
+                ))}
+              </Form.Select>
+              <Form.Text className="text-muted">
+                Only employees from this department can be assigned as Head of Department
+              </Form.Text>
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowAssignHoDModal(false)}>
+            Cancel
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={handleAssignHoD}
+            disabled={!selectedEmployee}
+          >
+            <FaUserShield className="me-2" />
+            Assign as HoD
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </Container>
   );
 };

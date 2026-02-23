@@ -70,7 +70,7 @@ const EmployeeList = () => {
       const response = await api.get("/users");
       // Filter only employees
       const employeeData = response.data.filter(
-        (u) => u.role === "employee" || u.role === "hod"
+        (u) => u.role === "employee" || u.role === "hod" || u.role === "hr"
       );
       setEmployees(employeeData);
     } catch (error) {

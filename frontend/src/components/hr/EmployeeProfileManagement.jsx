@@ -28,10 +28,13 @@ const EmployeeProfileManagement = () => {
   
   const [user, setUser] = useState(null);
   const [departments, setDepartments] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('personal');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [showDocumentViewer, setShowDocumentViewer] = useState(false);
+  const [viewingDocument, setViewingDocument] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [documents, setDocuments] = useState([]);
@@ -172,6 +175,7 @@ const EmployeeProfileManagement = () => {
     if (userId) {
       fetchUserProfile();
       fetchDepartments();
+      fetchEmployees();
     }
   }, [userId]);
 
@@ -215,6 +219,20 @@ const EmployeeProfileManagement = () => {
       setDepartments(response.data);
     } catch (error) {
       console.error('Error fetching departments:', error);
+    }
+  };
+
+  const fetchEmployees = async () => {
+    try {
+      const response = await api.get('/users');
+      // Filter to get only employees, HR, HOD, admin, superadmin (potential managers)
+      const potentialManagers = response.data.filter(emp => 
+        emp._id !== userId && // Exclude current user
+        ['employee', 'hr', 'hod', 'admin', 'superadmin'].includes(emp.role)
+      );
+      setEmployees(potentialManagers);
+    } catch (error) {
+      console.error('Error fetching employees:', error);
     }
   };
 
@@ -298,6 +316,10 @@ const EmployeeProfileManagement = () => {
           joiningDate: document.getElementById('job-joiningDate')?.value || user?.joiningDate,
           employmentType: document.getElementById('job-employmentType')?.value || user?.employmentType,
           funBadge: document.getElementById('job-funBadge')?.value || user?.funBadge,
+          reportingManager: document.getElementById('job-reportingManager')?.value || null,
+          workLocation: document.getElementById('job-workLocation')?.value || user?.workLocation,
+          salary: document.getElementById('job-salary')?.value ? Number(document.getElementById('job-salary').value) : user?.salary,
+          status: document.getElementById('job-status')?.value || user?.status,
         };
 
         // Add internship details if employment type is intern
@@ -353,7 +375,7 @@ const EmployeeProfileManagement = () => {
       });
 
       console.log('Sending update data:', updateData);
-      await api.put(`/users/${userId}/profile`, updateData);
+      await api.put(`/users/${userId}`, updateData);
       toast.success('Profile updated successfully');
       setEditMode(prev => ({ ...prev, [section]: false }));
       await fetchUserProfile();
@@ -434,6 +456,81 @@ const EmployeeProfileManagement = () => {
     }
   };
 
+  const handleDocumentView = async (doc) => {
+    try {
+      const response = await api.get(`/users/documents/${doc._id}/download`, {
+        responseType: 'blob'
+      });
+      
+      // Create blob with proper MIME type
+      const blob = new Blob([response.data], { type: doc.mimetype || response.data.type });
+      const url = window.URL.createObjectURL(blob);
+      
+      setViewingDocument({
+        ...doc,
+        url: url
+      });
+      setShowDocumentViewer(true);
+    } catch (error) {
+      console.error('Error viewing document:', error);
+      
+      let errorMessage = 'Failed to load document';
+      if (error.response?.status === 401) {
+        errorMessage = 'Authentication failed. Please log in again.';
+      } else if (error.response?.status === 403) {
+        errorMessage = 'Access denied to view this document.';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Document file not found on server. The file may have been uploaded on a different machine or deleted. Please ask the employee to re-upload this document.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      toast.error(errorMessage, { duration: 6000 });
+    }
+  };
+
+  const handleDocumentDownload = async (doc) => {
+    try {
+      const response = await api.get(`/users/documents/${doc._id}/download`, {
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = window.document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', doc.originalName);
+      window.document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Document downloaded successfully');
+    } catch (error) {
+      console.error('Error downloading document:', error);
+      
+      let errorMessage = 'Failed to download document';
+      if (error.response?.status === 401) {
+        errorMessage = 'Authentication failed. Please log in again.';
+      } else if (error.response?.status === 403) {
+        errorMessage = 'Access denied to download this document.';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Document file not found on server. The file may have been uploaded on a different machine or deleted. Please ask the employee to re-upload this document.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      toast.error(errorMessage, { duration: 6000 });
+    }
+  };
+
+  const closeDocumentViewer = () => {
+    if (viewingDocument?.url) {
+      window.URL.revokeObjectURL(viewingDocument.url);
+    }
+    setViewingDocument(null);
+    setShowDocumentViewer(false);
+  };
+
   const getRoleBadge = (role, funBadge) => {
     const badges = {
       superadmin: { bg: 'danger', icon: <FaCrown />, text: 'Super Administrator' },
@@ -507,7 +604,7 @@ const EmployeeProfileManagement = () => {
       'passport': 'Passport',
       'driving_license': 'Driving License',
       'education': 'Educational Certificate',
-      'bank_details': 'Bank Account Proof',
+      'bank': 'Bank Account Proof',
       'offer_letter': 'Offer Letter',
       'joining_letter': 'Joining Letter',
       'employment_contract': 'Employment Contract',
@@ -594,17 +691,7 @@ const EmployeeProfileManagement = () => {
                           variant="primary"
                           size="sm"
                           className="px-2 py-1"
-                          onClick={() => {
-                            const url = doc.fileUrl || doc.url || doc.documentUrl;
-                            if (url) {
-                              // Create full URL for document viewing
-                              const fullUrl = url.startsWith('http') ? url : `${window.location.origin}${url}`;
-                              window.open(fullUrl, '_blank');
-                            } else {
-                              console.error('Document data:', doc);
-                              toast.error('Document URL not found');
-                            }
-                          }}
+                          onClick={() => handleDocumentView(doc)}
                           title="View Document"
                         >
                           <FaEye />
@@ -613,7 +700,7 @@ const EmployeeProfileManagement = () => {
                           variant="outline-success"
                           size="sm"
                           className="px-2 py-1"
-                          onClick={() => downloadDocument(doc)}
+                          onClick={() => handleDocumentDownload(doc)}
                           title="Download Document"
                         >
                           <FaDownload />
@@ -1411,9 +1498,84 @@ const EmployeeProfileManagement = () => {
                       <Col md={6} className="mb-3">
                         <Form.Group>
                           <Form.Label>Reporting Manager</Form.Label>
-                          <div className="form-control-plaintext border rounded p-2 bg-light">
-                            {user?.reportingManager?.name || 'Not assigned'}
-                          </div>
+                          {editMode.job ? (
+                            <Form.Select
+                              defaultValue={user?.reportingManager?._id || ''}
+                              id="job-reportingManager"
+                            >
+                              <option value="">Select Reporting Manager</option>
+                              {employees.map(emp => (
+                                <option key={emp._id} value={emp._id}>
+                                  {emp.name} {emp.employeeId ? `(${emp.employeeId})` : ''} - {emp.designation || emp.role}
+                                </option>
+                              ))}
+                            </Form.Select>
+                          ) : (
+                            <div className="form-control-plaintext border rounded p-2 bg-light">
+                              {user?.reportingManager?.name || 'Not assigned'}
+                            </div>
+                          )}
+                        </Form.Group>
+                      </Col>
+                      <Col md={6} className="mb-3">
+                        <Form.Group>
+                          <Form.Label>Work Location</Form.Label>
+                          {editMode.job ? (
+                            <Form.Select
+                              defaultValue={user?.workLocation || 'Office'}
+                              id="job-workLocation"
+                            >
+                              <option value="Office">Office</option>
+                              <option value="Remote">Remote</option>
+                              <option value="Hybrid">Hybrid</option>
+                              <option value="Field">Field</option>
+                              <option value="Client Site">Client Site</option>
+                            </Form.Select>
+                          ) : (
+                            <div className="form-control-plaintext border rounded p-2 bg-light">
+                              {user?.workLocation || 'Office'}
+                            </div>
+                          )}
+                        </Form.Group>
+                      </Col>
+                      <Col md={6} className="mb-3">
+                        <Form.Group>
+                          <Form.Label>Salary (₹)</Form.Label>
+                          {editMode.job ? (
+                            <Form.Control
+                              type="number"
+                              defaultValue={user?.salary || ''}
+                              placeholder="Enter monthly salary"
+                              id="job-salary"
+                              min="0"
+                            />
+                          ) : (
+                            <div className="form-control-plaintext border rounded p-2 bg-light">
+                              {user?.salary ? `₹${user.salary.toLocaleString()}` : 'Not set'}
+                            </div>
+                          )}
+                        </Form.Group>
+                      </Col>
+                      <Col md={6} className="mb-3">
+                        <Form.Group>
+                          <Form.Label>Employee Status</Form.Label>
+                          {editMode.job ? (
+                            <Form.Select
+                              defaultValue={user?.status || 'active'}
+                              id="job-status"
+                            >
+                              <option value="active">Active</option>
+                              <option value="inactive">Inactive</option>
+                              <option value="on-leave">On Leave</option>
+                              <option value="terminated">Terminated</option>
+                            </Form.Select>
+                          ) : (
+                            <div className="form-control-plaintext border rounded p-2 bg-light">
+                              <Badge bg={user?.status === 'active' ? 'success' : 'secondary'} className="px-2 py-1">
+                                {user?.status ? user.status.charAt(0).toUpperCase() + user.status.slice(1).replace('-', ' ') : 'Active'}
+                              </Badge>
+                            </div>
+                          )}
                         </Form.Group>
                       </Col>
                       <Col md={6} className="mb-3">
@@ -1659,7 +1821,7 @@ const EmployeeProfileManagement = () => {
                                 />
                               ) : (
                                 <div className="form-control-plaintext border rounded p-2 bg-light">
-                                  {user?.bankDetails?.accountNumber ? '****' + user.bankDetails.accountNumber.slice(-4) : '—'}
+                                  {user?.bankDetails?.accountNumber || '—'}
                                 </div>
                               )}
                             </Form.Group>
@@ -1753,7 +1915,7 @@ const EmployeeProfileManagement = () => {
                                 />
                               ) : (
                                 <div className="form-control-plaintext border rounded p-2 bg-light">
-                                  {user?.governmentIds?.aadhaarNumber ? '****-****-' + user.governmentIds.aadhaarNumber.slice(-4) : '—'}
+                                  {user?.governmentIds?.aadhaarNumber || '—'}
                                 </div>
                               )}
                             </Form.Group>
@@ -1859,7 +2021,7 @@ const EmployeeProfileManagement = () => {
                               { key: 'passport', label: 'Passport', icon: <FaIdCard /> },
                               { key: 'driving_license', label: 'Driving License', icon: <FaIdCard /> },
                               { key: 'education', label: 'Educational Certificates', icon: <FaIdCard /> },
-                              { key: 'bank_details', label: 'Bank Account Proof', icon: <FaUniversity /> }
+                              { key: 'bank', label: 'Bank Account Proof', icon: <FaUniversity /> }
                             ])}
                           </Card.Body>
                         </Card>
@@ -1964,17 +2126,7 @@ const EmployeeProfileManagement = () => {
                                           variant="primary"
                                           size="sm"
                                           className="me-2"
-                                          onClick={() => {
-                                            const url = doc.fileUrl || doc.url || doc.documentUrl;
-                                            if (url) {
-                                              // Create full URL for document viewing
-                                              const fullUrl = url.startsWith('http') ? url : `${window.location.origin}${url}`;
-                                              window.open(fullUrl, '_blank');
-                                            } else {
-                                              console.error('Document data:', doc);
-                                              toast.error('Document URL not found');
-                                            }
-                                          }}
+                                          onClick={() => handleDocumentView(doc)}
                                           title="View Document"
                                         >
                                           <FaEye />
@@ -1983,7 +2135,7 @@ const EmployeeProfileManagement = () => {
                                           variant="outline-success"
                                           size="sm"
                                           className="me-2"
-                                          onClick={() => downloadDocument(doc)}
+                                          onClick={() => handleDocumentDownload(doc)}
                                           title="Download Document"
                                         >
                                           <FaDownload />
@@ -2037,7 +2189,7 @@ const EmployeeProfileManagement = () => {
                   <option value="passport">Passport</option>
                   <option value="driving_license">Driving License</option>
                   <option value="education">Educational Certificate</option>
-                  <option value="bank_details">Bank Account Proof</option>
+                  <option value="bank">Bank Account Proof</option>
                 </optgroup>
                 <optgroup label="HR Documents">
                   <option value="offer_letter">Offer Letter</option>
@@ -2142,6 +2294,63 @@ const EmployeeProfileManagement = () => {
           </Button>
           <Button variant="primary" onClick={handlePasswordReset}>
             Reset Password
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Document Viewer Modal */}
+      <Modal 
+        show={showDocumentViewer} 
+        onHide={closeDocumentViewer} 
+        size="lg"
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <FaEye className="me-2" />
+            {viewingDocument?.originalName}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{ maxHeight: '70vh', overflow: 'auto' }}>
+          {viewingDocument && (
+            <div className="text-center">
+              {viewingDocument.mimetype?.startsWith('image/') ? (
+                <img 
+                  src={viewingDocument.url} 
+                  alt={viewingDocument.originalName}
+                  style={{ maxWidth: '100%', height: 'auto' }}
+                />
+              ) : viewingDocument.mimetype === 'application/pdf' ? (
+                <iframe
+                  src={viewingDocument.url}
+                  style={{ width: '100%', height: '600px', border: 'none' }}
+                  title={viewingDocument.originalName}
+                />
+              ) : (
+                <Alert variant="info">
+                  <p>Preview not available for this file type.</p>
+                  <Button 
+                    variant="primary" 
+                    onClick={() => handleDocumentDownload(viewingDocument)}
+                  >
+                    <FaDownload className="me-2" />
+                    Download to View
+                  </Button>
+                </Alert>
+              )}
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={closeDocumentViewer}>
+            Close
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={() => viewingDocument && handleDocumentDownload(viewingDocument)}
+          >
+            <FaDownload className="me-2" />
+            Download
           </Button>
         </Modal.Footer>
       </Modal>

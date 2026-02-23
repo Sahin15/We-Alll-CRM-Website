@@ -12,6 +12,8 @@ import {
   Alert,
   Spinner,
   ProgressBar,
+  Tabs,
+  Tab,
 } from "react-bootstrap";
 import { FaPlus, FaEdit, FaTrash, FaEye, FaFilter, FaEnvelope, FaCheck, FaHistory } from "react-icons/fa";
 import { useNavigate, useParams } from "react-router-dom";
@@ -20,6 +22,7 @@ import { useAuth } from "../../context/AuthContext";
 import { leadApi } from "../../api/leadApi";
 import emailService from "../../services/emailService";
 import EmailHistoryModal from "../../components/leads/EmailHistoryModal";
+import FollowUpDashboard from "../../components/leads/FollowUpDashboard";
 import { formatDate } from "../../utils/helpers";
 import "./LeadList.css";
 
@@ -33,6 +36,7 @@ const LeadList = () => {
   const [currentLead, setCurrentLead] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'cards'
+  const [activeTab, setActiveTab] = useState('followup'); // 'followup' or 'leads'
   const [formData, setFormData] = useState({
     fullName: "",
     phone: "",
@@ -49,6 +53,7 @@ const LeadList = () => {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterSource, setFilterSource] = useState("");
   const [filterHasEmail, setFilterHasEmail] = useState("");
+  const [filterFollowUp, setFilterFollowUp] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLeads, setSelectedLeads] = useState([]);
   const [showBulkEmailModal, setShowBulkEmailModal] = useState(false);
@@ -494,7 +499,7 @@ const LeadList = () => {
     }
   };
 
-  // Filter leads based on status, source, has email, and search query
+  // Filter leads based on status, source, has email, follow-up status, and search query
   const filteredLeads = leads.filter(lead => {
     const statusMatch = !filterStatus || lead.status === filterStatus;
     const sourceMatch = !filterSource || lead.source === filterSource;
@@ -504,6 +509,35 @@ const LeadList = () => {
       (filterHasEmail === 'yes' && lead.email) ||
       (filterHasEmail === 'no' && !lead.email);
     
+    // Follow-up filter
+    let followUpMatch = true;
+    if (filterFollowUp) {
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const todayEnd = new Date(todayStart);
+      todayEnd.setDate(todayEnd.getDate() + 1);
+      const next7Days = new Date(todayStart);
+      next7Days.setDate(next7Days.getDate() + 7);
+
+      const pendingFollowUps = lead.followUps?.filter(f => f.status === 'Pending') || [];
+      
+      if (filterFollowUp === 'overdue') {
+        followUpMatch = pendingFollowUps.some(f => new Date(f.scheduledDate) < todayStart);
+      } else if (filterFollowUp === 'today') {
+        followUpMatch = pendingFollowUps.some(f => {
+          const date = new Date(f.scheduledDate);
+          return date >= todayStart && date < todayEnd;
+        });
+      } else if (filterFollowUp === 'week') {
+        followUpMatch = pendingFollowUps.some(f => {
+          const date = new Date(f.scheduledDate);
+          return date >= todayStart && date < next7Days;
+        });
+      } else if (filterFollowUp === 'none') {
+        followUpMatch = pendingFollowUps.length === 0;
+      }
+    }
+    
     // Search query filter (searches in name, email, phone, company)
     const searchMatch = !searchQuery || 
       lead.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -511,7 +545,7 @@ const LeadList = () => {
       lead.phone?.toString().includes(searchQuery) ||
       lead.companyName?.toLowerCase().includes(searchQuery.toLowerCase());
     
-    return statusMatch && sourceMatch && hasEmailMatch && searchMatch;
+    return statusMatch && sourceMatch && hasEmailMatch && followUpMatch && searchMatch;
   });
 
   const getStatusVariant = (status) => {
@@ -629,6 +663,33 @@ const LeadList = () => {
     };
   };
 
+  const getFollowUpStatus = (lead) => {
+    const pendingFollowUps = lead.followUps?.filter(f => f.status === 'Pending') || [];
+    if (pendingFollowUps.length === 0) {
+      return { text: 'None', variant: 'secondary', icon: '📅' };
+    }
+
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(todayStart);
+    todayEnd.setDate(todayEnd.getDate() + 1);
+
+    // Sort by date to get the earliest
+    const sortedFollowUps = [...pendingFollowUps].sort((a, b) => 
+      new Date(a.scheduledDate) - new Date(b.scheduledDate)
+    );
+    const nextFollowUp = sortedFollowUps[0];
+    const followUpDate = new Date(nextFollowUp.scheduledDate);
+
+    if (followUpDate < todayStart) {
+      return { text: 'Overdue', variant: 'danger', icon: '🔴', date: followUpDate };
+    } else if (followUpDate >= todayStart && followUpDate < todayEnd) {
+      return { text: 'Today', variant: 'warning', icon: '🟡', date: followUpDate };
+    } else {
+      return { text: 'Upcoming', variant: 'info', icon: '🔵', date: followUpDate };
+    }
+  };
+
   const formatLastEmailDate = (emailStats) => {
     if (!emailStats || !emailStats.lastEmailSentAt) {
       return 'Never';
@@ -723,15 +784,24 @@ const LeadList = () => {
           </div>
         </div>
 
-        {/* Footer with Email Status and Actions */}
+        {/* Footer with Email Status, Follow-Up Status and Actions */}
         <div className="d-flex justify-content-between align-items-center pt-1 border-top">
-          <div className="d-flex align-items-center">
-            <Badge bg={getEmailStatusVariant(lead.emailStats)} className="email-badge-sm me-2">
+          <div className="d-flex align-items-center gap-1">
+            <Badge bg={getEmailStatusVariant(lead.emailStats)} className="email-badge-sm">
               {getSimpleEmailStatus(lead.emailStats).icon}
             </Badge>
-            <small className="text-muted">
-              {formatDate(lead.createdAt).split(' ')[0]}
-            </small>
+            {(() => {
+              const followUpStatus = getFollowUpStatus(lead);
+              return (
+                <Badge 
+                  bg={followUpStatus.variant} 
+                  className="email-badge-sm"
+                  title={followUpStatus.date ? `Next: ${formatDate(followUpStatus.date)}` : 'No follow-up scheduled'}
+                >
+                  {followUpStatus.icon}
+                </Badge>
+              );
+            })()}
           </div>
           <div className="btn-group" role="group">
             <Button
@@ -791,9 +861,35 @@ const LeadList = () => {
               </div>
             </div>
             <div className="d-flex align-items-center gap-2">
-              {/* View Toggle - Desktop Only */}
-              {!isMobile && (
-                <div className="btn-group me-2" role="group">
+              <Button variant="primary" onClick={() => handleShowModal()}>
+                <FaPlus className="me-2" />
+                Add Lead
+              </Button>
+            </div>
+          </div>
+        </Col>
+      </Row>
+
+      {/* Tabs for Follow-Up Dashboard and Lead List */}
+      <Tabs
+        activeKey={activeTab}
+        onSelect={(k) => setActiveTab(k)}
+        className="mb-3"
+      >
+        <Tab eventKey="followup" title="Follow-Up Dashboard">
+          <Row className="mb-4">
+            <Col>
+              <FollowUpDashboard />
+            </Col>
+          </Row>
+        </Tab>
+
+        <Tab eventKey="leads" title="Lead List">
+          {/* View Toggle - Desktop Only */}
+          {!isMobile && (
+            <Row className="mb-3">
+              <Col>
+                <div className="btn-group" role="group">
                   <Button
                     variant={viewMode === 'table' ? 'primary' : 'outline-primary'}
                     size="sm"
@@ -813,15 +909,9 @@ const LeadList = () => {
                     Cards
                   </Button>
                 </div>
-              )}
-              <Button variant="primary" onClick={() => handleShowModal()}>
-                <FaPlus className="me-2" />
-                Add Lead
-              </Button>
-            </div>
-          </div>
-        </Col>
-      </Row>
+              </Col>
+            </Row>
+          )}
 
       {/* Filters - Compact Layout */}
       <Row className="mb-3 filters-row-compact">
@@ -875,6 +965,22 @@ const LeadList = () => {
               </Form.Select>
             </div>
 
+            {/* Follow-Up Filter */}
+            <div className="filter-item">
+              <Form.Select
+                size="sm"
+                value={filterFollowUp}
+                onChange={(e) => setFilterFollowUp(e.target.value)}
+                style={{ minWidth: '140px' }}
+              >
+                <option value="">All Follow-Ups</option>
+                <option value="overdue">🔴 Overdue</option>
+                <option value="today">🟡 Today</option>
+                <option value="week">🔵 This Week</option>
+                <option value="none">No Follow-Up</option>
+              </Form.Select>
+            </div>
+
             {/* Search */}
             <div className="filter-item flex-grow-1" style={{ minWidth: '200px', maxWidth: '300px' }}>
               <Form.Control
@@ -894,6 +1000,7 @@ const LeadList = () => {
                 setFilterStatus("");
                 setFilterSource("");
                 setFilterHasEmail("");
+                setFilterFollowUp("");
                 setSearchQuery("");
               }}
             >
@@ -984,13 +1091,13 @@ const LeadList = () => {
                         </th>
                         <th>Name</th>
                         <th>Phone</th>
-                        <th>Email</th>
                         <th className="d-none d-xl-table-cell">Company</th>
                         <th>Service</th>
                         <th className="d-none d-xl-table-cell">Budget</th>
                         <th>Source</th>
                         <th>Status</th>
                         <th className="text-center">Sent</th>
+                        <th className="text-center">Follow-Up</th>
                         <th className="text-center">Actions</th>
                       </tr>
                     </thead>
@@ -1027,14 +1134,6 @@ const LeadList = () => {
                                 title={lead.phone || "N/A"}
                               >
                                 {lead.phone || "N/A"}
-                              </div>
-                            </td>
-                            <td>
-                              <div 
-                                className="text-truncate-table" 
-                                title={lead.email || "N/A"}
-                              >
-                                {lead.email || "N/A"}
                               </div>
                             </td>
                             <td className="d-none d-xl-table-cell">
@@ -1112,6 +1211,23 @@ const LeadList = () => {
                                 );
                               })()}
                             </td>
+                            <td className="text-center">
+                              {(() => {
+                                const followUpStatus = getFollowUpStatus(lead);
+                                return (
+                                  <Badge 
+                                    bg={followUpStatus.variant}
+                                    className="email-status-compact"
+                                    title={followUpStatus.date ? 
+                                      `${followUpStatus.text}: ${formatDate(followUpStatus.date)}` : 
+                                      'No follow-up scheduled'
+                                    }
+                                  >
+                                    {followUpStatus.icon} {followUpStatus.text}
+                                  </Badge>
+                                );
+                              })()}
+                            </td>
                             <td onClick={(e) => e.stopPropagation()} className="text-center">
                               <div className="d-flex justify-content-center gap-1">
                                 {canEditLead(lead) && (
@@ -1151,7 +1267,7 @@ const LeadList = () => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="11" className="text-center py-4">
+                          <td colSpan="12" className="text-center py-4">
                             <div className="text-muted">
                               <FaFilter className="mb-2" size={24} />
                               <p className="mb-0">No leads found</p>
@@ -1168,6 +1284,8 @@ const LeadList = () => {
           </Card>
         </Col>
       </Row>
+        </Tab>
+      </Tabs>
 
       {/* Add/Edit Lead Modal */}
       <Modal show={showModal} onHide={handleCloseModal} size="xl" centered className="lead-modal">

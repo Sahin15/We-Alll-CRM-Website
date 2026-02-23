@@ -42,7 +42,7 @@ const EmployeeDirectory = () => {
     try {
       setLoading(true);
       const response = await userApi.getAllUsers();
-      const employeeList = response.data?.filter((u) => u.role === "employee") || [];
+      const employeeList = response.data?.filter((u) => u.role === "employee" || u.role === "hod" || u.role === "hr") || [];
       setEmployees(employeeList);
       setFilteredEmployees(employeeList);
     } catch (error) {

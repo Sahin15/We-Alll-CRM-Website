@@ -91,6 +91,10 @@ const AddEmployee = () => {
     dateOfBirth: "",
     gender: "",
     bloodGroup: "",
+    fatherName: "",
+    motherName: "",
+    maritalStatus: "",
+    nationality: "Indian",
     
     // Job Details
     employeeId: "",
@@ -99,6 +103,8 @@ const AddEmployee = () => {
     joiningDate: "",
     employmentType: "full-time",
     reportingManager: "",
+    workLocation: "Office",
+    salary: "",
     
     // Address
     currentAddress: {
@@ -116,6 +122,7 @@ const AddEmployee = () => {
       country: "India",
     },
     sameAsCurrentAddress: false,
+    alternatePhone: "",
     
     // Emergency Contact
     emergencyContact: {
@@ -243,6 +250,10 @@ const AddEmployee = () => {
         dateOfBirth: "",
         gender: "",
         bloodGroup: "",
+        fatherName: "",
+        motherName: "",
+        maritalStatus: "",
+        nationality: "Indian",
         
         // Job Details
         employeeId: "",
@@ -251,6 +262,8 @@ const AddEmployee = () => {
         joiningDate: "",
         employmentType: "full-time",
         reportingManager: "",
+        workLocation: "Office",
+        salary: "",
         
         // Address
         currentAddress: {
@@ -268,6 +281,7 @@ const AddEmployee = () => {
           country: "India",
         },
         sameAsCurrentAddress: false,
+        alternatePhone: "",
         
         // Emergency Contact
         emergencyContact: {
@@ -456,6 +470,58 @@ const AddEmployee = () => {
                       </Form.Select>
                     </Form.Group>
                   </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Father's Name</Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="fatherName"
+                        value={formData.fatherName}
+                        onChange={handleChange}
+                        placeholder="Enter father's name"
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Mother's Name</Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="motherName"
+                        value={formData.motherName}
+                        onChange={handleChange}
+                        placeholder="Enter mother's name"
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Marital Status</Form.Label>
+                      <Form.Select
+                        name="maritalStatus"
+                        value={formData.maritalStatus}
+                        onChange={handleChange}
+                      >
+                        <option value="">Select Status</option>
+                        <option value="single">Single</option>
+                        <option value="married">Married</option>
+                        <option value="divorced">Divorced</option>
+                        <option value="widowed">Widowed</option>
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Nationality</Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="nationality"
+                        value={formData.nationality}
+                        onChange={handleChange}
+                        placeholder="Enter nationality"
+                      />
+                    </Form.Group>
+                  </Col>
                 </Row>
               </Tab>
 
@@ -595,11 +661,58 @@ const AddEmployee = () => {
                       </Form.Select>
                     </Form.Group>
                   </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Work Location</Form.Label>
+                      <Form.Select
+                        name="workLocation"
+                        value={formData.workLocation}
+                        onChange={handleChange}
+                      >
+                        <option value="Office">Office</option>
+                        <option value="Remote">Remote</option>
+                        <option value="Hybrid">Hybrid</option>
+                        <option value="Field">Field</option>
+                        <option value="Client Site">Client Site</option>
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Salary (₹/month)</Form.Label>
+                      <Form.Control
+                        type="number"
+                        name="salary"
+                        value={formData.salary}
+                        onChange={handleChange}
+                        placeholder="Enter monthly salary"
+                        min="0"
+                      />
+                      <Form.Text className="text-muted">
+                        Optional - can be set later
+                      </Form.Text>
+                    </Form.Group>
+                  </Col>
                 </Row>
               </Tab>
 
               {/* Address Tab */}
               <Tab eventKey="address" title="Address & Contact">
+                <Row className="mb-4">
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Alternate Phone</Form.Label>
+                      <Form.Control
+                        type="tel"
+                        name="alternatePhone"
+                        value={formData.alternatePhone}
+                        onChange={handleChange}
+                        placeholder="+91 1234567890"
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                
                 <h6 className="mb-3">Current Address</h6>
                 <Row>
                   <Col md={12}>

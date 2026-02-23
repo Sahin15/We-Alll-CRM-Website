@@ -31,7 +31,7 @@ const ReportsAnalytics = () => {
         attendanceApi.getAllAttendance({}),
       ]);
 
-      const employees = usersRes.data?.filter((u) => u.role === "employee" || u.role === "hod") || [];
+      const employees = usersRes.data?.filter((u) => u.role === "employee" || u.role === "hod" || u.role === "hr") || [];
       const leaves = leavesRes.data || [];
       const attendance = attendanceRes.data || [];
 

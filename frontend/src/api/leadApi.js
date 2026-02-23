@@ -19,7 +19,8 @@ export const leadApi = {
     api.put(`/leads/${id}/follow-ups/${followUpId}/complete`),
   cancelFollowUp: (id, followUpId) =>
     api.put(`/leads/${id}/follow-ups/${followUpId}/cancel`),
-  deleteNote: (id, noteIndex) => api.delete(`/leads/${id}/notes/${noteIndex}`),
+  deleteNote: (id, noteId) => api.delete(`/leads/${id}/notes/${noteId}`),
+  getFollowUpDashboard: () => api.get("/leads/follow-ups/dashboard"),
 };
 
 export default leadApi;

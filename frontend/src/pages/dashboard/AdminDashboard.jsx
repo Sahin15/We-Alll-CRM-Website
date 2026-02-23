@@ -38,6 +38,7 @@ import AdminRecentActivity from "../../components/dashboard/AdminRecentActivity"
 import DocumentQuickAccess from "../../components/dashboard/DocumentQuickAccess";
 import PolicyUpdates from "../../components/dashboard/PolicyUpdates";
 import UpcomingEvents from "../../components/dashboard/UpcomingEvents";
+import FollowUpDashboard from "../../components/leads/FollowUpDashboard";
 // HR Management Components - Admin has full access
 import LeaveManagement from "../../components/hr/LeaveManagement";
 import TaskManagement from "../../components/hr/TaskManagement";
@@ -48,7 +49,6 @@ import AnnouncementManagement from "../../components/hr/AnnouncementManagement";
 import QuickStatsWidgets from "../../components/hr/QuickStatsWidgets";
 import NotificationCenter from "../../components/hr/NotificationCenter";
 import ReportsAnalytics from "../../components/hr/ReportsAnalytics";
-import QuickClockInOut from "../../components/attendance/QuickClockInOut";
 import { userApi } from "../../api/userApi";
 import { projectApi } from "../../api/projectApi";
 import { clientApi } from "../../api/clientApi";
@@ -1294,26 +1294,6 @@ const AdminDashboard = () => {
 
       {/* HR Management Sections - Admin has full access to all HR functions */}
       
-      {/* Quick Clock In/Out Widget */}
-      <Row className="mb-4">
-        <Col>
-          <Card className="border-0 shadow-sm">
-            <Card.Body className="d-flex justify-content-between align-items-center">
-              <div>
-                <h6 className="mb-1">
-                  <FaClock className="me-2 text-primary" />
-                  Quick Attendance
-                </h6>
-                <small className="text-muted">Clock in/out for today</small>
-              </div>
-              <QuickClockInOut variant="primary" size="md" showLabel={true} />
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* HR Management Sections - Admin has full access to all HR functions */}
-      
       {/* Quick Stats Widgets - Important Alerts */}
       <Row className="mb-4">
         <Col>
@@ -1383,6 +1363,13 @@ const AdminDashboard = () => {
       <Row className="g-4">
         <Col lg={12}>
           <QuickActions actions={quickActions} />
+        </Col>
+      </Row>
+
+      {/* Follow-Up Dashboard Widget */}
+      <Row className="g-4 mt-4">
+        <Col lg={12}>
+          <FollowUpDashboard />
         </Col>
       </Row>
 

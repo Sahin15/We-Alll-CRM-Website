@@ -33,6 +33,7 @@ import QuickAnnouncements from "../../components/dashboard/QuickAnnouncements";
 import DocumentQuickAccess from "../../components/dashboard/DocumentQuickAccess";
 import PolicyUpdates from "../../components/dashboard/PolicyUpdates";
 import UpcomingEvents from "../../components/dashboard/UpcomingEvents";
+import FollowUpDashboard from "../../components/leads/FollowUpDashboard";
 import { userApi } from "../../api/userApi";
 import { projectApi } from "../../api/projectApi";
 import { clientApi } from "../../api/clientApi";
@@ -833,6 +834,13 @@ const AdminDashboard = () => {
       <Row className="g-4">
         <Col lg={12}>
           <QuickActions actions={quickActions} />
+        </Col>
+      </Row>
+
+      {/* Follow-Up Dashboard Widget */}
+      <Row className="g-4 mt-4">
+        <Col lg={12}>
+          <FollowUpDashboard />
         </Col>
       </Row>
 

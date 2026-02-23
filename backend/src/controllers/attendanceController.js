@@ -384,8 +384,52 @@ export const getAllAttendance = async (req, res) => {
     
     console.log(`[ATTENDANCE API] Returning ${uniqueAttendance.length} unique attendance records`);
 
+    // Fetch WFH data for the same date range and employees
+    const WFHRequest = (await import('../models/wfhRequestModel.js')).default;
+    let wfhFilter = { status: 'approved' };
+    
+    // Apply same employee filter
+    if (filter.employee) {
+      wfhFilter.employee = filter.employee;
+    }
+    
+    // Apply same date filter
+    if (filter.date) {
+      wfhFilter.date = filter.date;
+    }
+    
+    const wfhRequests = await WFHRequest.find(wfhFilter)
+      .select('employee date reason')
+      .lean();
+    
+    console.log(`[ATTENDANCE API] Found ${wfhRequests.length} approved WFH requests`);
+    
+    // Create a map of WFH requests by employee and date
+    const wfhMap = new Map();
+    for (const wfh of wfhRequests) {
+      const employeeId = wfh.employee.toString();
+      const dateStr = new Date(wfh.date).toDateString();
+      const key = `${employeeId}-${dateStr}`;
+      wfhMap.set(key, wfh);
+    }
+    
+    // Attach WFH data to attendance records
+    const attendanceWithWFH = uniqueAttendance.map(record => {
+      const employeeId = (record.employee?._id || record.employee).toString();
+      const dateStr = new Date(record.date).toDateString();
+      const key = `${employeeId}-${dateStr}`;
+      
+      const wfhData = wfhMap.get(key);
+      
+      return {
+        ...record,
+        isWFH: !!wfhData,
+        wfhReason: wfhData?.reason || null
+      };
+    });
+
     // Return simple array (backward compatible)
-    res.status(200).json(uniqueAttendance);
+    res.status(200).json(attendanceWithWFH);
   } catch (error) {
     console.error('[ATTENDANCE API] Error in getAllAttendance:', error);
     console.error('[ATTENDANCE API] Error stack:', error.stack);
@@ -417,9 +461,47 @@ export const getMyAttendance = async (req, res) => {
       Object.assign(filter, dateRangeFilter);
     }
 
-    const attendance = await Attendance.find(filter).sort({ date: -1 });
+    const attendance = await Attendance.find(filter).sort({ date: -1 }).lean();
 
-    res.status(200).json(attendance);
+    // Fetch WFH data for this employee
+    const WFHRequest = (await import('../models/wfhRequestModel.js')).default;
+    let wfhFilter = { 
+      employee: employee,
+      status: 'approved' 
+    };
+    
+    // Apply same date filter if exists
+    if (startDate && endDate) {
+      const dateRangeFilter = buildDateRangeQuery(startDate, endDate, 'date');
+      Object.assign(wfhFilter, dateRangeFilter);
+    }
+    
+    const wfhRequests = await WFHRequest.find(wfhFilter)
+      .select('employee date reason')
+      .lean();
+    
+    console.log(`[MY ATTENDANCE] Found ${wfhRequests.length} approved WFH requests for employee ${employee}`);
+    
+    // Create a map of WFH requests by date
+    const wfhMap = new Map();
+    for (const wfh of wfhRequests) {
+      const dateStr = new Date(wfh.date).toDateString();
+      wfhMap.set(dateStr, wfh);
+    }
+    
+    // Attach WFH data to attendance records
+    const attendanceWithWFH = attendance.map(record => {
+      const dateStr = new Date(record.date).toDateString();
+      const wfhData = wfhMap.get(dateStr);
+      
+      return {
+        ...record,
+        isWFH: !!wfhData,
+        wfhReason: wfhData?.reason || null
+      };
+    });
+
+    res.status(200).json(attendanceWithWFH);
   } catch (error) {
     console.error("Error in getMyAttendance:", error);
     res.status(500).json({ message: "Server error" });

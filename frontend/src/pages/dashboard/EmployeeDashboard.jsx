@@ -12,11 +12,13 @@ import { useNavigate } from "react-router-dom";
 import StatCard from "../../components/dashboard/StatCard";
 import RecentActivity from "../../components/dashboard/RecentActivity";
 import QuickActions from "../../components/dashboard/QuickActions";
+import GreetingBanner from "../../components/common/GreetingBanner";
 import { useAuth } from "../../context/AuthContext";
 import { attendanceApi } from "../../api/attendanceApi";
 import { leaveApi } from "../../api/leaveApi";
 import { projectApi } from "../../api/projectApi";
 import { leadApi } from "../../api/leadApi";
+import FollowUpDashboard from "../../components/leads/FollowUpDashboard";
 import toast from "../../utils/toast";
 
 const EmployeeDashboard = () => {
@@ -31,6 +33,18 @@ const EmployeeDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showLeadsModal, setShowLeadsModal] = useState(false);
   const [leadsList, setLeadsList] = useState([]);
+  const [hasLeadAccess, setHasLeadAccess] = useState(false);
+
+  // Check if user should have lead access based on role or department
+  const shouldHaveLeadAccess = () => {
+    // Admin, SuperAdmin, Manager always have access
+    if (['admin', 'superadmin', 'manager'].includes(user?.role)) {
+      return true;
+    }
+    // Sales department employees have access
+    // Note: user.department might be an ID, so we'll verify via API call
+    return false; // Will be determined by API call success
+  };
 
   useEffect(() => {
     fetchDashboardData();
@@ -74,10 +88,26 @@ const EmployeeDashboard = () => {
 
       // Fetch leads data
       try {
+        console.log('🔍 Attempting to fetch leads for user:', user);
         const leadsRes = await leadApi.getAllLeads();
+        console.log('✅ Leads fetched successfully:', leadsRes.data?.length);
         newStats.leads = leadsRes.data?.length || 0;
+        setHasLeadAccess(true); // User has access to leads
       } catch (error) {
-        console.error("Error fetching leads:", error);
+        console.error("❌ Error fetching leads:", error);
+        console.error("   Status:", error.response?.status);
+        console.error("   Message:", error.response?.data?.message);
+        console.error("   User role:", user?.role);
+        console.error("   User department:", user?.department);
+        
+        // Even if API call fails, check if user should have access based on role
+        const hasRoleAccess = ['admin', 'superadmin', 'manager'].includes(user?.role);
+        if (hasRoleAccess) {
+          console.log('✅ User has role-based lead access, showing widget anyway');
+          setHasLeadAccess(true);
+        } else {
+          setHasLeadAccess(false);
+        }
         // Don't show error to user, just log it
       }
 
@@ -127,6 +157,16 @@ const EmployeeDashboard = () => {
     },
   ];
 
+  // Add "Manage Leads" action if user has lead access
+  if (hasLeadAccess) {
+    quickActions.push({
+      label: "Manage Leads",
+      icon: <FaChartLine />,
+      path: "/leads",
+      variant: "warning",
+    });
+  }
+
   const recentActivities = [
     {
       description: "Clocked in at 9:00 AM",
@@ -144,12 +184,7 @@ const EmployeeDashboard = () => {
 
   return (
     <Container fluid>
-      <div className="mb-4">
-        <h2>Welcome back, {user?.name}!</h2>
-        <p className="text-muted">
-          Here's what's happening with your work today.
-        </p>
-      </div>
+      <GreetingBanner subtitle="Here's what's happening with your work today" />
 
       <Row className="g-4 mb-4">
         <Col lg={3} md={6}>
@@ -177,16 +212,25 @@ const EmployeeDashboard = () => {
           />
         </Col>
         <Col lg={3} md={6}>
-          <div onClick={handleLeadsCardClick} style={{ cursor: 'pointer', height: '100%' }}>
+          <div onClick={handleLeadsCardClick} style={{ cursor: hasLeadAccess ? 'pointer' : 'default', height: '100%' }}>
             <StatCard
               title="Total Leads"
-              value={stats.leads}
+              value={hasLeadAccess ? stats.leads : 'N/A'}
               icon={<FaChartLine />}
               bgColor="info"
             />
           </div>
         </Col>
       </Row>
+
+      {/* Follow-Up Dashboard - Only for users with lead access (Managers & Sales) */}
+      {hasLeadAccess && (
+        <Row className="g-4 mb-4">
+          <Col lg={12}>
+            <FollowUpDashboard />
+          </Col>
+        </Row>
+      )}
 
       <Row className="g-4">
         <Col lg={8}>

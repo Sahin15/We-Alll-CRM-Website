@@ -56,15 +56,27 @@ export const getDepartments = async (req, res) => {
     logger.info('Fetching departments from database');
     
     const departments = await Department.find()
-      .select('name description head status employees type')
+      .select('name description head status type')
       .populate("head", "name email")
       .lean();
 
+    // Get actual employee counts by querying User model
+    const departmentsWithCounts = await Promise.all(
+      departments.map(async (dept) => {
+        const employeeCount = await User.countDocuments({ department: dept._id });
+        return {
+          ...dept,
+          employees: [], // Keep empty array for backward compatibility
+          employeeCount: employeeCount // Add actual count
+        };
+      })
+    );
+
     // Update cache
-    departmentCache = departments;
+    departmentCache = departmentsWithCounts;
     cacheTime = Date.now();
 
-    res.status(200).json(departments);
+    res.status(200).json(departmentsWithCounts);
   } catch (error) {
     logger.error("Error in getDepartments:", error);
     res.status(500).json({ message: "Server error" });
@@ -93,11 +105,19 @@ export const getDepartmentById = async (req, res) => {
   try {
     const department = await Department.findById(req.params.id)
       .populate("head", "name email")
-      .populate("employees", "name email position");
+      .lean();
 
     if (!department) {
       return res.status(404).json({ message: "Department not found" });
     }
+
+    // Query employees directly from User model for accurate data
+    const employees = await User.find({ department: req.params.id })
+      .select("name email position")
+      .lean();
+
+    // Add employees to department object
+    department.employees = employees;
 
     res.status(200).json(department);
   } catch (error) {
@@ -292,29 +312,43 @@ export const getDepartmentAnalytics = async (req, res) => {
   try {
     const { id } = req.params;
 
+    console.log('🔍 getDepartmentAnalytics called for department:', id);
+
     const department = await Department.findById(id)
-      .populate("head", "name email")
-      .populate("employees", "name email position role status");
+      .populate("head", "name email");
 
     if (!department) {
       return res.status(404).json({ message: "Department not found" });
     }
 
+    console.log('📊 Department found:', department.name);
+
+    // Query employees directly from User model instead of relying on department.employees array
+    // This ensures we always get the current state without sync issues
+    const employees = await User.find({ department: id })
+      .select("name email position role status")
+      .lean();
+
+    console.log('👥 Employees found:', employees.length);
+    if (employees.length > 0) {
+      console.log('   Employee names:', employees.map(e => e.name).join(', '));
+    }
+
     // Calculate analytics
-    const totalEmployees = department.employees.length;
-    const activeEmployees = department.employees.filter(
+    const totalEmployees = employees.length;
+    const activeEmployees = employees.filter(
       (e) => e.status === "active"
     ).length;
     const inactiveEmployees = totalEmployees - activeEmployees;
 
     // Role distribution
-    const roleDistribution = department.employees.reduce((acc, emp) => {
+    const roleDistribution = employees.reduce((acc, emp) => {
       acc[emp.role] = (acc[emp.role] || 0) + 1;
       return acc;
     }, {});
 
     // Position distribution
-    const positionDistribution = department.employees.reduce((acc, emp) => {
+    const positionDistribution = employees.reduce((acc, emp) => {
       const position = emp.position || "Not Assigned";
       acc[position] = (acc[position] || 0) + 1;
       return acc;
@@ -336,7 +370,7 @@ export const getDepartmentAnalytics = async (req, res) => {
       },
       roleDistribution,
       positionDistribution,
-      employees: department.employees,
+      employees: employees,
     };
 
     res.status(200).json(analytics);
@@ -351,27 +385,31 @@ export const getAllDepartmentsAnalytics = async (req, res) => {
   try {
     const departments = await Department.find()
       .populate("head", "name email")
-      .populate("employees", "name email position role status");
+      .lean();
 
-    const summary = departments.map((dept) => ({
-      id: dept._id,
-      name: dept.name,
-      status: dept.status,
-      totalEmployees: dept.employees.length,
-      activeEmployees: dept.employees.filter((e) => e.status === "active")
-        .length,
-      hasHead: !!dept.head,
-      headName: dept.head?.name || "Not Assigned",
-    }));
+    // Get employee counts for each department by querying User model
+    const summary = await Promise.all(
+      departments.map(async (dept) => {
+        const employees = await User.find({ department: dept._id })
+          .select("status")
+          .lean();
+
+        return {
+          id: dept._id,
+          name: dept.name,
+          status: dept.status,
+          totalEmployees: employees.length,
+          activeEmployees: employees.filter((e) => e.status === "active").length,
+          hasHead: !!dept.head,
+          headName: dept.head?.name || "Not Assigned",
+        };
+      })
+    );
 
     const overallStats = {
       totalDepartments: departments.length,
-      activeDepartments: departments.filter((d) => d.status === "active")
-        .length,
-      totalEmployees: departments.reduce(
-        (sum, d) => sum + d.employees.length,
-        0
-      ),
+      activeDepartments: departments.filter((d) => d.status === "active").length,
+      totalEmployees: summary.reduce((sum, d) => sum + d.totalEmployees, 0),
       departmentsWithHead: departments.filter((d) => d.head).length,
     };
 
@@ -580,8 +618,8 @@ export const getDepartmentMembers = async (req, res) => {
     const { departmentId } = req.params;
 
     const department = await Department.findById(departmentId)
-      .populate("employees", "name email designation employeeId status")
-      .populate("head", "name email designation");
+      .populate("head", "name email designation")
+      .lean();
 
     if (!department) {
       return res.status(404).json({
@@ -589,6 +627,11 @@ export const getDepartmentMembers = async (req, res) => {
         message: "Department not found",
       });
     }
+
+    // Query employees directly from User model
+    const members = await User.find({ department: departmentId })
+      .select("name email designation employeeId status")
+      .lean();
 
     res.status(200).json({
       success: true,
@@ -598,8 +641,8 @@ export const getDepartmentMembers = async (req, res) => {
           name: department.name,
           head: department.head,
         },
-        members: department.employees,
-        totalMembers: department.employees.length,
+        members: members,
+        totalMembers: members.length,
       },
     });
   } catch (error) {
@@ -621,8 +664,8 @@ export const getDepartmentStats = async (req, res) => {
     const { departmentId } = req.params;
 
     const department = await Department.findById(departmentId)
-      .populate("employees", "name status")
-      .populate("projects");
+      .populate("projects")
+      .lean();
 
     if (!department) {
       return res.status(404).json({
@@ -631,9 +674,14 @@ export const getDepartmentStats = async (req, res) => {
       });
     }
 
+    // Query employees directly from User model
+    const employees = await User.find({ department: departmentId })
+      .select("name status")
+      .lean();
+
     // Calculate stats
-    const totalMembers = department.employees.length;
-    const activeMembers = department.employees.filter(
+    const totalMembers = employees.length;
+    const activeMembers = employees.filter(
       (e) => e.status === "active"
     ).length;
     const totalProjects = department.projects.length;

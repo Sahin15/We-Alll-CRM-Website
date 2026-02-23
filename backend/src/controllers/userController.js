@@ -305,6 +305,11 @@ export const updateUser = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Track old department for sync
+    const oldDepartmentId = user.department ? user.department.toString() : null;
+    const newDepartmentId = updateData.department ? updateData.department.toString() : null;
+    const departmentChanged = oldDepartmentId !== newDepartmentId;
+
     // Remove password from updateData if empty
     if (!updateData.password) {
       delete updateData.password;
@@ -344,6 +349,29 @@ export const updateUser = async (req, res) => {
     });
 
     await user.save();
+
+    // Sync department employees arrays if department changed
+    if (departmentChanged) {
+      const Department = (await import('../models/departmentModel.js')).default;
+      
+      // Remove user from old department's employees array
+      if (oldDepartmentId) {
+        await Department.findByIdAndUpdate(
+          oldDepartmentId,
+          { $pull: { employees: user._id } }
+        );
+        logger.info(`Removed user from old department: ${oldDepartmentId}`);
+      }
+      
+      // Add user to new department's employees array
+      if (newDepartmentId) {
+        await Department.findByIdAndUpdate(
+          newDepartmentId,
+          { $addToSet: { employees: user._id } }
+        );
+        logger.info(`Added user to new department: ${newDepartmentId}`);
+      }
+    }
 
     logger.success("User updated successfully:", user._id);
     logger.info("Updated user internship details:", user.internshipDetails);

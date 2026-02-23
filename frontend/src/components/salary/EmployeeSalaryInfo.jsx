@@ -42,6 +42,9 @@ const EmployeeSalaryInfo = ({ employeeId, canEdit = false }) => {
         setSalaryStructure(structureResponse.data);
       } catch (error) {
         // Silently handle - employee may not have salary structure yet
+        if (error.response?.status !== 404) {
+          console.error("Error fetching salary structure:", error);
+        }
         setSalaryStructure(null);
       }
 
@@ -51,6 +54,9 @@ const EmployeeSalaryInfo = ({ employeeId, canEdit = false }) => {
         setRecentSlips(slipsResponse.data.slips || []);
       } catch (error) {
         // Silently handle - employee may not have salary slips yet
+        if (error.response?.status !== 404) {
+          console.error("Error fetching salary slips:", error);
+        }
         setRecentSlips([]);
       }
 
@@ -60,6 +66,9 @@ const EmployeeSalaryInfo = ({ employeeId, canEdit = false }) => {
         setSalaryHistory(historyResponse.data || []);
       } catch (error) {
         // Silently handle - employee may not have salary history yet
+        if (error.response?.status !== 404) {
+          console.error("Error fetching salary history:", error);
+        }
         setSalaryHistory([]);
       }
     } catch (error) {

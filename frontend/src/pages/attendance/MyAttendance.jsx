@@ -179,6 +179,8 @@ const MyAttendance = () => {
         "Work Hours": a.workHours || 0,
         Overtime: a.overtime || 0,
         Status: a.status,
+        "Work From Home": a.isWFH ? "Yes" : "No",
+        "WFH Reason": a.isWFH && a.wfhReason ? a.wfhReason : "",
         Notes: a.notes || "",
       }));
 
@@ -264,6 +266,7 @@ const MyAttendance = () => {
                       </Badge>
                     )}
                   </div>
+                  
                   <Row>
                     <Col xs={6} md={3}>
                       <p className="mb-1 text-muted">Clock In</p>
@@ -471,8 +474,20 @@ const MyAttendance = () => {
                   <tbody>
                     {attendances.length > 0 ? (
                       attendances.map((attendance) => (
-                        <tr key={attendance._id}>
-                          <td className="date-cell">{formatDate(attendance.date)}</td>
+                        <tr key={attendance._id} className={attendance.isWFH ? 'table-info' : ''}>
+                          <td className="date-cell">
+                            <div className="d-flex align-items-center gap-2">
+                              <span>{formatDate(attendance.date)}</span>
+                              {attendance.isWFH && (
+                                <span 
+                                  title={`Work From Home${attendance.wfhReason ? ': ' + attendance.wfhReason : ''}`}
+                                  style={{ fontSize: '1.1em' }}
+                                >
+                                  🏠
+                                </span>
+                              )}
+                            </div>
+                          </td>
                           <td>{formatTime(attendance.clockIn)}</td>
                           <td>
                             {attendance.clockOut
@@ -513,9 +528,14 @@ const MyAttendance = () => {
                           <td>{attendance.workHours || 0} hrs</td>
                           <td className="hide-mobile">{attendance.overtime || 0} hrs</td>
                           <td>
-                            <Badge bg={getStatusVariant(attendance.status)}>
-                              {attendance.status}
-                            </Badge>
+                            <div className="d-flex align-items-center gap-2">
+                              <Badge bg={getStatusVariant(attendance.status)}>
+                                {attendance.status}
+                              </Badge>
+                              {attendance.isWFH && (
+                                <Badge bg="info">WFH</Badge>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -581,6 +601,11 @@ const MyAttendance = () => {
                           </div>
                           {day.record && (
                             <>
+                              {day.record.isWFH && (
+                                <div style={{ fontSize: '1.5em' }} title={`Work From Home${day.record.wfhReason ? ': ' + day.record.wfhReason : ''}`}>
+                                  🏠
+                                </div>
+                              )}
                               {day.record.workHours && (
                                 <small className="text-muted d-block mt-1">
                                   {day.record.workHours}hrs

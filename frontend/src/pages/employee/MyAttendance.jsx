@@ -8,6 +8,7 @@ import { attendanceApi } from "../../api/attendanceApi";
 import ConfirmModal from "../../components/common/ConfirmModal";
 
 const MyAttendance = () => {
+  console.log('[MY-ATTENDANCE] Component loaded!');
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [todayAttendance, setTodayAttendance] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -119,19 +120,26 @@ const MyAttendance = () => {
   };
 
   const handleClockOutClick = () => {
+    console.log('[CLOCK-OUT] Button clicked');
+    console.log('[CLOCK-OUT] Current status:', getCurrentStatus());
+    console.log('[CLOCK-OUT] Today attendance:', todayAttendance);
     setShowClockOutConfirm(true);
   };
 
   const handleClockOut = async () => {
+    console.log('[CLOCK-OUT] Confirming clock out');
     setShowClockOutConfirm(false);
     
     try {
       setClockingIn(true);
+      console.log('[CLOCK-OUT] Calling API...');
       await attendanceApi.clockOut("End of day");
+      console.log('[CLOCK-OUT] API call successful');
       toast.success("Clocked out successfully!");
       await fetchTodayAttendance();
       await fetchAttendance();
     } catch (error) {
+      console.error('[CLOCK-OUT] Error:', error);
       toast.error(error.response?.data?.message || "Failed to clock out");
     } finally {
       setClockingIn(false);
@@ -386,13 +394,27 @@ const MyAttendance = () => {
                 </div>
               )}
 
-              <div className="d-grid gap-2">
+              <div className="d-grid gap-2" style={{ position: 'relative', zIndex: 1000 }}>
+                {/* Debug: Show current status */}
+                <div className="alert alert-info small">
+                  <strong>Debug Info:</strong><br/>
+                  Status: {status}<br/>
+                  Clocking In: {clockingIn ? 'Yes' : 'No'}<br/>
+                  Has Attendance: {todayAttendance ? 'Yes' : 'No'}<br/>
+                  Has Clock In: {todayAttendance?.clockIn ? 'Yes' : 'No'}<br/>
+                  Has Clock Out: {todayAttendance?.clockOut ? 'Yes' : 'No'}
+                </div>
+                
                 {status === "not-clocked-in" && (
                   <Button
                     variant="primary"
                     size="lg"
-                    onClick={handleClockInClick}
+                    onClick={(e) => {
+                      console.log('[BUTTON] Clock In clicked!', e);
+                      handleClockInClick();
+                    }}
                     disabled={clockingIn}
+                    style={{ pointerEvents: 'auto', cursor: 'pointer' }}
                   >
                     <FaSignInAlt className="me-2" />
                     {clockingIn ? "Clocking in..." : "Clock In"}
@@ -403,8 +425,13 @@ const MyAttendance = () => {
                   <Button
                     variant="danger"
                     size="lg"
-                    onClick={handleClockOutClick}
+                    onClick={(e) => {
+                      console.log('[BUTTON] Clock Out clicked!', e);
+                      alert('Clock Out button was clicked!');
+                      handleClockOutClick();
+                    }}
                     disabled={clockingIn}
+                    style={{ pointerEvents: 'auto', cursor: 'pointer' }}
                   >
                     <FaSignOutAlt className="me-2" />
                     {clockingIn ? "Clocking out..." : "Clock Out"}

@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+// Use relative URL for API calls - works better with proxy and mobile
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 // Create axios instance
 const api = axios.create({
@@ -8,6 +9,10 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  // Add timeout to prevent hanging requests on mobile
+  timeout: 30000,
+  // Ensure credentials are sent
+  withCredentials: false,
 });
 
 // Request interceptor - Add auth token
@@ -28,10 +33,40 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // List of endpoints where 404 is expected and should not be logged
+    const expectedNotFoundEndpoints = [
+      '/salary-structures/employee/',
+      '/salary-slips/employee/',
+    ];
+    
+    // List of endpoints where 403 is expected (permission-based access)
+    const expectedForbiddenEndpoints = [
+      '/subscriptions?client=',
+    ];
+    
+    // Check if this is an expected 404
+    const isExpected404 = error.response?.status === 404 && 
+      expectedNotFoundEndpoints.some(endpoint => 
+        error.config?.url?.includes(endpoint)
+      );
+    
+    // Check if this is an expected 403
+    const isExpected403 = error.response?.status === 403 && 
+      expectedForbiddenEndpoints.some(endpoint => 
+        error.config?.url?.includes(endpoint)
+      );
+    
+    // Log error for debugging (will be removed in production build)
+    // Skip logging for expected 404s and 403s
+    if (import.meta.env.DEV && !isExpected404 && !isExpected403) {
+      console.error('API Error:', error);
+    }
+    
     if (error.response?.status === 401) {
       // Unauthorized - clear token and redirect to login
       localStorage.removeItem("token");
-      window.location.href = "/login";
+      // Use window.location.replace for better mobile compatibility
+      window.location.replace("/login");
     }
     return Promise.reject(error);
   }

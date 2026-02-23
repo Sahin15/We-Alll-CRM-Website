@@ -100,9 +100,9 @@ export const createLead = async (req, res) => {
     console.log("Prepared lead data:", leadData);
 
     // Only add createdBy if user is authenticated
-    if (req.user && req.user.id) {
-      leadData.createdBy = req.user.id;
-      console.log("Added createdBy:", req.user.id);
+    if (req.user && req.user._id) {
+      leadData.createdBy = req.user._id;
+      console.log("Added createdBy:", req.user._id);
     } else {
       console.log("No authenticated user, creating public lead");
     }
@@ -225,17 +225,6 @@ export const updateLead = async (req, res) => {
       return res.status(404).json({ message: "Lead not found" });
     }
 
-    // Permission check: Only allow admin/superadmin, assigned user, or creator to edit
-    const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
-    const isAssigned = lead.assignedTo && lead.assignedTo.toString() === req.user.id;
-    const isCreator = lead.createdBy && lead.createdBy.toString() === req.user.id;
-
-    if (!isAdmin && !isAssigned && !isCreator) {
-      return res.status(403).json({ 
-        message: "Access denied. You can only edit leads assigned to you or created by you." 
-      });
-    }
-
     // Convert phone to number if provided
     if (req.body.phone) {
       req.body.phone = Number(req.body.phone);
@@ -245,7 +234,7 @@ export const updateLead = async (req, res) => {
     if (req.body.notes && req.body.notes !== lead.notes) {
       lead.notesHistory.push({
         note: req.body.notes,
-        addedBy: req.user.id,
+        addedBy: req.user._id,
         addedAt: new Date(),
       });
     }
@@ -409,7 +398,7 @@ export const scheduleFollowUp = async (req, res) => {
       scheduledDate: new Date(scheduledDate),
       notes,
       status: "Pending",
-      createdBy: req.user.id,
+      createdBy: req.user._id,
     };
 
     lead.followUps.push(followUp);
@@ -547,15 +536,20 @@ export const getLeadFollowUps = async (req, res) => {
 // Delete a note from notes history
 export const deleteNote = async (req, res) => {
   try {
-    const { noteIndex } = req.params;
+    const { noteId } = req.params;
     const lead = await Lead.findById(req.params.id);
 
     if (!lead) {
       return res.status(404).json({ message: "Lead not found" });
     }
 
-    if (noteIndex < 0 || noteIndex >= lead.notesHistory.length) {
-      return res.status(400).json({ message: "Invalid note index" });
+    // Find the note by its _id
+    const noteIndex = lead.notesHistory.findIndex(
+      note => note._id.toString() === noteId
+    );
+
+    if (noteIndex === -1) {
+      return res.status(404).json({ message: "Note not found" });
     }
 
     // Remove the note at the specified index
@@ -575,5 +569,83 @@ export const deleteNote = async (req, res) => {
   } catch (error) {
     console.error("Error in deleteNote:", error.message);
     return res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Get follow-up dashboard data
+export const getFollowUpDashboard = async (req, res) => {
+  try {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(todayStart);
+    todayEnd.setDate(todayEnd.getDate() + 1);
+
+    const next7Days = new Date(todayStart);
+    next7Days.setDate(next7Days.getDate() + 7);
+
+    // Find all leads with pending follow-ups
+    const leads = await Lead.find({
+      'followUps.status': 'Pending'
+    })
+      .populate('assignedTo', 'name email')
+      .populate('createdBy', 'name email')
+      .populate('followUps.createdBy', 'name email')
+      .sort({ 'followUps.scheduledDate': 1 });
+
+    // Categorize follow-ups
+    const overdue = [];
+    const today = [];
+    const upcoming = [];
+
+    leads.forEach(lead => {
+      lead.followUps.forEach(followUp => {
+        if (followUp.status === 'Pending') {
+          const scheduledDate = new Date(followUp.scheduledDate);
+          const followUpData = {
+            _id: followUp._id,
+            leadId: lead._id,
+            leadName: lead.fullName,
+            leadCompany: lead.companyName,
+            leadPhone: lead.phone,
+            leadEmail: lead.email,
+            leadStatus: lead.status,
+            leadTemperature: lead.temperature,
+            followUpType: followUp.followUpType,
+            scheduledDate: followUp.scheduledDate,
+            notes: followUp.notes,
+            createdBy: followUp.createdBy,
+            assignedTo: lead.assignedTo
+          };
+
+          if (scheduledDate < todayStart) {
+            overdue.push(followUpData);
+          } else if (scheduledDate >= todayStart && scheduledDate < todayEnd) {
+            today.push(followUpData);
+          } else if (scheduledDate >= todayEnd && scheduledDate < next7Days) {
+            upcoming.push(followUpData);
+          }
+        }
+      });
+    });
+
+    // Sort by scheduled date
+    overdue.sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate));
+    today.sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate));
+    upcoming.sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate));
+
+    return res.status(200).json({
+      overdue,
+      today,
+      upcoming,
+      summary: {
+        overdueCount: overdue.length,
+        todayCount: today.length,
+        upcomingCount: upcoming.length,
+        totalPending: overdue.length + today.length + upcoming.length
+      }
+    });
+  } catch (error) {
+    console.error('Error in getFollowUpDashboard:', error.message);
+    return res.status(500).json({ message: 'Server error' });
   }
 };

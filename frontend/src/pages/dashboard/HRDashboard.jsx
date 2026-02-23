@@ -28,7 +28,6 @@ import StatCard from "../../components/dashboard/StatCard";
 import RecentActivity from "../../components/dashboard/RecentActivity";
 import QuickActions from "../../components/dashboard/QuickActions";
 import GreetingBanner from "../../components/common/GreetingBanner";
-import QuickClockInOut from "../../components/attendance/QuickClockInOut";
 import LeaveManagement from "../../components/hr/LeaveManagement";
 import HolidayManagement from "../../components/hr/HolidayManagement";
 import TaskManagement from "../../components/hr/TaskManagement";
@@ -141,7 +140,7 @@ const HRDashboard = () => {
       setStats({
         // Include both employees AND HoDs in employee count (HoDs are also employees)
         employees:
-          usersRes.data?.filter((u) => u.role === "employee" || u.role === "hod").length || 0,
+          usersRes.data?.filter((u) => u.role === "employee" || u.role === "hod" || u.role === "hr").length || 0,
         pendingLeaves: leaveRes.data?.length || 0,
         presentToday: todayPresentCount,
         departments: departmentRes.data?.length || 0,
@@ -329,24 +328,6 @@ const HRDashboard = () => {
   return (
     <Container fluid className="py-2">
       <GreetingBanner subtitle="Manage your workforce efficiently" />
-
-      {/* Clock In/Out Widget */}
-      <Row className="mb-4">
-        <Col>
-          <Card className="border-0 shadow-sm">
-            <Card.Body className="d-flex justify-content-between align-items-center">
-              <div>
-                <h6 className="mb-1">
-                  <FaClock className="me-2 text-primary" />
-                  Quick Attendance
-                </h6>
-                <small className="text-muted">Clock in/out for today</small>
-              </div>
-              <QuickClockInOut variant="primary" size="md" showLabel={true} />
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
 
       <Row className="g-4 mb-4">
         <Col lg={3} md={6}>
@@ -626,14 +607,31 @@ const HRDashboard = () => {
             </thead>
             <tbody>
               {attendanceToday.map(att => (
-                <tr key={att._id}>
-                  <td><strong>{att.employee?.name || 'N/A'}</strong></td>
+                <tr key={att._id} className={att.isWFH ? 'table-info' : ''}>
+                  <td>
+                    <div className="d-flex align-items-center gap-2">
+                      <strong>{att.employee?.name || 'N/A'}</strong>
+                      {att.isWFH && (
+                        <span 
+                          title={`Work From Home${att.wfhReason ? ': ' + att.wfhReason : ''}`}
+                          style={{ fontSize: '1.2em' }}
+                        >
+                          🏠
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td>{att.clockIn ? new Date(att.clockIn).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A'}</td>
                   <td>{att.clockOut ? new Date(att.clockOut).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'Not yet'}</td>
                   <td>
-                    <Badge bg={att.status === 'present' ? 'success' : att.status === 'late' ? 'danger' : 'secondary'}>
-                      {att.status}
-                    </Badge>
+                    <div className="d-flex align-items-center gap-2">
+                      <Badge bg={att.status === 'present' ? 'success' : att.status === 'late' ? 'danger' : 'secondary'}>
+                        {att.status}
+                      </Badge>
+                      {att.isWFH && (
+                        <Badge bg="info">WFH</Badge>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

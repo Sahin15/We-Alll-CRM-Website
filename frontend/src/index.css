@@ -172,6 +172,12 @@ code {
   font-weight: 500;
 }
 
+/* Orange badge for half-day status */
+.badge.bg-orange {
+  background-color: #fd7e14 !important;
+  color: white !important;
+}
+
 
 /* ========================================
    PROFESSIONAL CARD SYSTEM - LIGHT THEME

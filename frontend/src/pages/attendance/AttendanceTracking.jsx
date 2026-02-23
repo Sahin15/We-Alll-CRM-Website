@@ -7,6 +7,7 @@ import { useAuth } from "../../context/AuthContext";
 import {
   formatDate,
   formatTime,
+  formatDateTime,
   getStatusVariant,
 } from "../../utils/helpers";
 import EmployeeAttendanceDetails from "../../components/attendance/EmployeeAttendanceDetails";
@@ -71,6 +72,54 @@ const AttendanceTracking = () => {
     .table tbody tr:hover {
       background-color: #f8f9fa;
     }
+    
+    /* Orange badge for half-day status */
+    .badge.bg-orange {
+      background-color: #fd7e14 !important;
+      color: white !important;
+    }
+    
+    /* Edited record styling */
+    .edited-record {
+      background-color: #fff3cd !important;
+      border-left: 4px solid #ffc107 !important;
+    }
+    
+    .edited-record:hover {
+      background-color: #ffe69c !important;
+    }
+    
+    .edit-indicator {
+      cursor: pointer;
+      transition: transform 0.2s, opacity 0.2s;
+      font-size: 1.1em;
+      opacity: 0.8;
+    }
+    
+    .edit-indicator:hover {
+      transform: scale(1.3);
+      opacity: 1;
+    }
+    
+    /* WFH record styling */
+    .wfh-record {
+      background-color: #e7f3ff !important;
+      border-left: 4px solid #0d6efd !important;
+    }
+    
+    .wfh-record:hover {
+      background-color: #cfe2ff !important;
+    }
+    
+    .wfh-indicator {
+      font-size: 1.2em;
+      transition: transform 0.2s;
+      display: inline-block;
+    }
+    
+    .wfh-indicator:hover {
+      transform: scale(1.3);
+    }
   `;
   const [attendances, setAttendances] = useState([]);
   const [users, setUsers] = useState([]);
@@ -111,6 +160,10 @@ const AttendanceTracking = () => {
     notes: ''
   });
   
+  // Edit history modal state
+  const [showEditHistoryModal, setShowEditHistoryModal] = useState(false);
+  const [selectedEditHistory, setSelectedEditHistory] = useState(null);
+  
   // Filter users based on search term
   const filteredUsers = users.filter(user => 
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -125,7 +178,9 @@ const AttendanceTracking = () => {
   const fetchUsers = async () => {
     try {
       const response = await userApi.getAllUsers();
-      let employeeList = response.data.filter((u) => u.role === "employee" || u.role === "hod");
+      let employeeList = response.data.filter((u) => 
+        u.role === "employee" || u.role === "hod" || u.role === "hr"
+      );
       
       // If user is HoD, filter to show only their department employees
       if (user.role === 'hod' && user.headOfDepartment) {
@@ -868,10 +923,58 @@ const AttendanceTracking = () => {
                           const totalBreakMinutes = attendance.totalBreakTime || 0;
                           const isOnBreak = breaks.length > 0 && breaks[breaks.length - 1].startTime && !breaks[breaks.length - 1].endTime;
                           
+                          // Check if record was manually edited
+                          const isEdited = attendance.isManuallyModified;
+                          const latestEdit = attendance.modificationHistory && attendance.modificationHistory.length > 0 
+                            ? attendance.modificationHistory[attendance.modificationHistory.length - 1] 
+                            : null;
+                          
+                          // Check if WFH
+                          const isWFH = attendance.isWFH;
+                          const wfhReason = attendance.wfhReason;
+                          
                           return (
-                            <tr key={attendance._id}>
-                              {!filters.employee && <td>{attendance.employee?.name || "N/A"}</td>}
-                              <td>{formatDate(attendance.date)}</td>
+                            <tr key={attendance._id} className={isEdited ? 'edited-record' : (isWFH ? 'wfh-record' : '')}>
+                              {!filters.employee && (
+                                <td>
+                                  <div className="d-flex align-items-center gap-2">
+                                    <span>{attendance.employee?.name || "N/A"}</span>
+                                    {isWFH && (
+                                      <span 
+                                        className="wfh-indicator"
+                                        title={`Work From Home${wfhReason ? ': ' + wfhReason : ''}`}
+                                        style={{ cursor: 'pointer' }}
+                                      >
+                                        🏠
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                              )}
+                              <td>
+                                <div className="d-flex align-items-center gap-2">
+                                  <span>{formatDate(attendance.date)}</span>
+                                  {isEdited && (
+                                    <span 
+                                      className="edit-indicator"
+                                      onClick={() => {
+                                        setSelectedEditHistory({
+                                          employeeName: attendance.employee?.name || "Unknown",
+                                          date: attendance.date,
+                                          originalStatus: attendance.originalStatus,
+                                          currentStatus: attendance.status,
+                                          modificationHistory: attendance.modificationHistory || []
+                                        });
+                                        setShowEditHistoryModal(true);
+                                      }}
+                                      title="This record was manually edited. Click to view history."
+                                      style={{ cursor: 'pointer' }}
+                                    >
+                                      ✏️
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
                               <td>{formatTime(attendance.clockIn)}</td>
                               <td>
                                 {attendance.clockOut
@@ -1237,6 +1340,150 @@ const AttendanceTracking = () => {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowBreakDetailsModal(false)}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Edit History Modal */}
+      <Modal 
+        show={showEditHistoryModal} 
+        onHide={() => setShowEditHistoryModal(false)}
+        size="lg"
+        centered
+      >
+        <Modal.Header closeButton className="bg-warning bg-opacity-10">
+          <Modal.Title>
+            ✏️ Edit History
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedEditHistory && (
+            <>
+              <div className="mb-3 p-3 bg-light rounded">
+                <h6 className="mb-2">Attendance Record Information</h6>
+                <p className="mb-1"><strong>Employee:</strong> {selectedEditHistory.employeeName}</p>
+                <p className="mb-1"><strong>Date:</strong> {formatDate(selectedEditHistory.date)}</p>
+                <div className="d-flex align-items-center gap-2 mt-2">
+                  <span><strong>Status Change:</strong></span>
+                  {selectedEditHistory.originalStatus && (
+                    <>
+                      <Badge bg={getStatusVariant(selectedEditHistory.originalStatus)}>
+                        {selectedEditHistory.originalStatus}
+                      </Badge>
+                      <span>→</span>
+                    </>
+                  )}
+                  <Badge bg={getStatusVariant(selectedEditHistory.currentStatus)}>
+                    {selectedEditHistory.currentStatus}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <h6 className="mb-3">Modification History</h6>
+                {selectedEditHistory.modificationHistory && selectedEditHistory.modificationHistory.length > 0 ? (
+                  <div className="d-flex flex-column gap-3">
+                    {selectedEditHistory.modificationHistory.map((modification, index) => {
+                      // For the first edit, show original status to new status
+                      // For subsequent edits, show previous edit's new status to current edit's new status
+                      let displayOldStatus = modification.changes?.oldStatus;
+                      let displayNewStatus = modification.changes?.newStatus;
+                      
+                      // If this is the first modification and we have originalStatus, use it
+                      if (index === 0 && selectedEditHistory.originalStatus) {
+                        displayOldStatus = selectedEditHistory.originalStatus;
+                      }
+                      
+                      return (
+                        <Card key={index} className="border-warning">
+                          <Card.Body className="p-3">
+                            <div className="d-flex justify-content-between align-items-start mb-2">
+                              <h6 className="mb-0">
+                                Edit #{index + 1}
+                              </h6>
+                              <Badge bg="secondary">
+                                {formatDateTime(modification.modifiedAt)}
+                              </Badge>
+                            </div>
+                            
+                            <div className="mb-2">
+                              <small className="text-muted">
+                                <strong>Modified by:</strong> {modification.modifiedBy?.name || modification.modifiedBy || 'Unknown'}
+                              </small>
+                            </div>
+
+                            <div className="mb-2 p-2 bg-warning bg-opacity-10 rounded">
+                              <strong>Reason:</strong>
+                              <p className="mb-0 mt-1">{modification.reason}</p>
+                            </div>
+
+                            {modification.changes && (
+                              <div className="mt-2">
+                                <small className="text-muted"><strong>Changes Made:</strong></small>
+                                <div className="mt-1 small">
+                                  {displayOldStatus && displayNewStatus && displayOldStatus !== displayNewStatus && (
+                                    <div className="d-flex align-items-center gap-2 mb-1">
+                                      <span>Status:</span>
+                                      <Badge bg={getStatusVariant(displayOldStatus)} className="small">
+                                        {displayOldStatus}
+                                      </Badge>
+                                      <span>→</span>
+                                      <Badge bg={getStatusVariant(displayNewStatus)} className="small">
+                                        {displayNewStatus}
+                                      </Badge>
+                                    </div>
+                                  )}
+                                  {modification.changes.oldClockIn && modification.changes.newClockIn && 
+                                   new Date(modification.changes.oldClockIn).getTime() !== new Date(modification.changes.newClockIn).getTime() && (
+                                    <div className="mb-1">
+                                      <span>Clock In: </span>
+                                      <span className="text-decoration-line-through text-muted">
+                                        {formatTime(modification.changes.oldClockIn)}
+                                      </span>
+                                      <span> → </span>
+                                      <span className="fw-semibold">
+                                        {formatTime(modification.changes.newClockIn)}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {modification.changes.oldClockOut && modification.changes.newClockOut && 
+                                   new Date(modification.changes.oldClockOut).getTime() !== new Date(modification.changes.newClockOut).getTime() && (
+                                    <div className="mb-1">
+                                      <span>Clock Out: </span>
+                                      <span className="text-decoration-line-through text-muted">
+                                        {formatTime(modification.changes.oldClockOut)}
+                                      </span>
+                                      <span> → </span>
+                                      <span className="fw-semibold">
+                                        {formatTime(modification.changes.newClockOut)}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </Card.Body>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-muted">No modification history available</p>
+                )}
+              </div>
+
+              <div className="alert alert-info mb-0">
+                <small>
+                  <strong>Note:</strong> All modifications are tracked for audit purposes. 
+                  This record has been manually edited {selectedEditHistory.modificationHistory?.length || 0} time(s).
+                </small>
+              </div>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowEditHistoryModal(false)}>
             Close
           </Button>
         </Modal.Footer>

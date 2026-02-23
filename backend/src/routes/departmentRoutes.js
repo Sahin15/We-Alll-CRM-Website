@@ -34,7 +34,7 @@ router.get(
 router.get(
   "/:id/analytics",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager", "hod", "employee"),
   getDepartmentAnalytics
 );
 

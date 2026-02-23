@@ -176,7 +176,9 @@ const LeadDetails = () => {
       setNotes(""); 
       fetchLeadDetails();
     } catch (error) {
-      toast.error("Failed to save notes");
+      console.error("Error saving notes:", error);
+      const errorMessage = error.response?.data?.message || "Failed to save notes";
+      toast.error(errorMessage);
     }
   };
 
@@ -272,16 +274,19 @@ const LeadDetails = () => {
     }
   };
 
-  const handleDeleteNote = async (noteIndex) => {
+  const handleDeleteNote = async (noteItem) => {
     if (!window.confirm("Are you sure you want to delete this note?")) {
       return;
     }
     try {
-      await leadApi.deleteNote(id, noteIndex);
+      // Use the note's _id directly
+      await leadApi.deleteNote(id, noteItem._id);
       toast.success("Note deleted successfully");
       fetchLeadDetails();
     } catch (error) {
-      toast.error("Failed to delete note");
+      console.error("Error deleting note:", error);
+      const errorMessage = error.response?.data?.message || "Failed to delete note";
+      toast.error(errorMessage);
     }
   };
 
@@ -543,7 +548,7 @@ const LeadDetails = () => {
                     Mark Contacted
                   </Button>
 
-                  <Dropdown>
+                  <Dropdown drop="down">
                     <Dropdown.Toggle
                       size="sm"
                       variant="outline-warning"
@@ -551,7 +556,19 @@ const LeadDetails = () => {
                     >
                       Mark Qualified
                     </Dropdown.Toggle>
-                    <Dropdown.Menu>
+                    <Dropdown.Menu
+                      popperConfig={{
+                        strategy: 'fixed',
+                        modifiers: [
+                          {
+                            name: 'offset',
+                            options: {
+                              offset: [0, 8],
+                            },
+                          },
+                        ],
+                      }}
+                    >
                       <Dropdown.Item
                         onClick={() => handleTemperatureChange("Hot")}
                       >
@@ -773,7 +790,7 @@ const LeadDetails = () => {
                             <Button
                               size="sm"
                               variant="outline-danger"
-                              onClick={() => handleDeleteNote(index)}
+                              onClick={() => handleDeleteNote(noteItem)}
                               style={{ minWidth: "30px" }}
                             >
                               <FaTimes />

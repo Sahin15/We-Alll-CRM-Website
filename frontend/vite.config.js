@@ -24,6 +24,8 @@ export default defineConfig({
     assetsDir: 'assets',
     sourcemap: false,
     minify: 'esbuild',
+    // Target modern browsers including mobile Safari
+    target: ['es2015', 'safari11'],
     rollupOptions: {
       output: {
         manualChunks: {
@@ -40,9 +42,19 @@ export default defineConfig({
       }
     },
     chunkSizeWarningLimit: 1000,
+    // Ensure compatibility with older mobile browsers
+    cssCodeSplit: true,
+    // Improve mobile performance
+    reportCompressedSize: false,
   },
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom'],
+    // Force optimization of these packages for mobile
+    esbuildOptions: {
+      target: 'es2015',
+    },
   },
   base: '/',
+  // Ensure proper MIME types for mobile
+  assetsInclude: ['**/*.woff', '**/*.woff2', '**/*.ttf', '**/*.eot'],
 });

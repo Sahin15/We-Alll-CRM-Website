@@ -8,36 +8,54 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Get the backend root directory (where package.json is)
+const backendRoot = path.resolve(__dirname, '../..');
+const uploadsDir = path.join(backendRoot, 'uploads', 'documents');
+
+// Ensure uploads directory exists
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log('[DOCUMENT CONTROLLER] Created uploads directory:', uploadsDir);
+}
+
+console.log('[DOCUMENT CONTROLLER] Uploads directory:', uploadsDir);
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadPath = path.join(__dirname, '../../uploads/documents');
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-    cb(null, uploadPath);
+    console.log('[MULTER] Upload destination:', uploadsDir);
+    cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    const filename = file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname);
+    console.log('[MULTER] Generated filename:', filename);
+    cb(null, filename);
   }
 });
 
 const fileFilter = (req, file, cb) => {
+  console.log('[MULTER] File filter check:', {
+    originalname: file.originalname,
+    mimetype: file.mimetype
+  });
+  
   const allowedTypes = /jpeg|jpg|png|pdf|doc|docx/;
   const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
   const mimetype = allowedTypes.test(file.mimetype);
 
   if (mimetype && extname) {
+    console.log('[MULTER] File accepted');
     return cb(null, true);
   } else {
-    cb(new Error('Only images, PDFs, and documents are allowed'));
+    console.log('[MULTER] File rejected - invalid type');
+    cb(new Error('Only images (JPEG, JPG, PNG), PDFs, and documents (DOC, DOCX) are allowed'));
   }
 };
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit (increased from 5MB)
   fileFilter: fileFilter
 });
 
@@ -46,8 +64,6 @@ const uploadDocument = async (req, res) => {
   try {
     const { category, description } = req.body;
     const userId = req.user._id;
-
-    console.log('Upload request - User:', userId, 'Category:', category, 'File:', req.file?.originalname);
 
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
@@ -91,16 +107,26 @@ const uploadDocument = async (req, res) => {
 
     await document.save();
 
-    res.status(201).json({
+    const responseData = {
       message: 'Document uploaded successfully',
       document: {
         _id: document._id,
+        userId: document.userId.toString(),
         category: document.category,
         originalName: document.originalName,
+        filename: document.filename,
+        size: document.size,
+        mimetype: document.mimetype,
         description: document.description,
-        uploadedAt: document.createdAt
+        uploadedAt: document.createdAt,
+        createdAt: document.createdAt,
+        url: `/api/users/documents/${document._id}/download`,
+        fileUrl: `/api/users/documents/${document._id}/download`,
+        documentUrl: `/api/users/documents/${document._id}/download`
       }
-    });
+    };
+
+    res.status(201).json(responseData);
   } catch (error) {
     console.error('Error uploading document:', error);
     if (req.file) {
@@ -115,6 +141,7 @@ const uploadOfficialDocument = async (req, res) => {
   try {
     const { category, description, targetUserId, title } = req.body;
     const uploadedBy = req.user._id;
+    const userId = req.targetUserId || targetUserId || req.user._id;
 
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
@@ -127,7 +154,7 @@ const uploadOfficialDocument = async (req, res) => {
     }
 
     const document = new Document({
-      userId: req.targetUserId || targetUserId || req.user._id,
+      userId: userId,
       category,
       originalName: req.file.originalname,
       filename: req.file.filename,
@@ -142,22 +169,34 @@ const uploadOfficialDocument = async (req, res) => {
 
     await document.save();
 
-    res.status(201).json({
+    const responseData = {
       message: 'Official document uploaded successfully',
       document: {
         _id: document._id,
+        userId: document.userId.toString(),
         category: document.category,
         originalName: document.originalName,
         title: document.title,
         description: document.description,
-        uploadedAt: document.createdAt
+        uploadedAt: document.createdAt,
+        url: `/api/users/documents/${document._id}/download`,
+        fileUrl: `/api/users/documents/${document._id}/download`,
+        documentUrl: `/api/users/documents/${document._id}/download`
       }
-    });
+    };
+
+    res.status(201).json(responseData);
   } catch (error) {
     console.error('Error uploading official document:', error);
+    
     if (req.file) {
-      fs.unlinkSync(req.file.path);
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (cleanupError) {
+        console.error('Error cleaning up file:', cleanupError);
+      }
     }
+    
     res.status(500).json({ message: 'Failed to upload official document', error: error.message });
   }
 };
@@ -170,19 +209,20 @@ const getUserDocuments = async (req, res) => {
     const documents = await Document.find({ userId, isOfficial: false })
       .populate('uploadedBy', 'name email')
       .sort({ createdAt: -1 });
-
-    // Double-check: Filter out any documents that don't belong to the user (safety measure)
-    const safeDocuments = documents.filter(doc => doc.userId.toString() === userId.toString());
     
-    if (safeDocuments.length !== documents.length) {
-      console.error(`SECURITY: Filtered out ${documents.length - safeDocuments.length} documents that didn't belong to user`);
-    }
-    
-    // Transform documents to include uploadedAt field for frontend compatibility
-    const transformedDocuments = safeDocuments.map(doc => ({
-      ...doc.toObject(),
-      uploadedAt: doc.createdAt
-    }));
+    // Transform documents to include uploadedAt field and proper URL for frontend compatibility
+    const transformedDocuments = documents.map(doc => {
+      const docObj = doc.toObject();
+      return {
+        ...docObj,
+        userId: docObj.userId.toString(), // Ensure userId is string for frontend comparison
+        uploadedAt: docObj.createdAt,
+        // Add URL for viewing/downloading
+        url: `/api/users/documents/${docObj._id}/download`,
+        fileUrl: `/api/users/documents/${docObj._id}/download`,
+        documentUrl: `/api/users/documents/${docObj._id}/download`
+      };
+    });
     
     res.json(transformedDocuments);
   } catch (error) {
@@ -195,15 +235,23 @@ const getUserDocuments = async (req, res) => {
 const getOfficialDocuments = async (req, res) => {
   try {
     const userId = req.user._id;
+    
     const documents = await Document.find({ userId, isOfficial: true })
       .populate('uploadedBy', 'name email')
       .sort({ createdAt: -1 });
 
-    // Transform documents to include uploadedAt field for frontend compatibility
-    const transformedDocuments = documents.map(doc => ({
-      ...doc.toObject(),
-      uploadedAt: doc.createdAt
-    }));
+    // Transform documents to include uploadedAt field and proper URL for frontend compatibility
+    const transformedDocuments = documents.map(doc => {
+      const docObj = doc.toObject();
+      return {
+        ...docObj,
+        userId: docObj.userId.toString(),
+        uploadedAt: docObj.createdAt,
+        url: `/api/users/documents/${docObj._id}/download`,
+        fileUrl: `/api/users/documents/${docObj._id}/download`,
+        documentUrl: `/api/users/documents/${docObj._id}/download`
+      };
+    });
 
     res.json(transformedDocuments);
   } catch (error) {
@@ -213,37 +261,60 @@ const getOfficialDocuments = async (req, res) => {
 };
 
 // Download document
+// Download document
 const downloadDocument = async (req, res) => {
   try {
+    console.log('[DOWNLOAD CONTROLLER] ========== START ==========');
     const { documentId } = req.params;
     const userId = req.user._id;
+    console.log('[DOWNLOAD CONTROLLER] Document ID:', documentId);
+    console.log('[DOWNLOAD CONTROLLER] User ID:', userId);
+    console.log('[DOWNLOAD CONTROLLER] User role:', req.user.role);
 
     const document = await Document.findById(documentId);
+    console.log('[DOWNLOAD CONTROLLER] Document found:', document ? 'YES' : 'NO');
+    
     if (!document) {
+      console.log('[DOWNLOAD CONTROLLER] ERROR: Document not found in database');
       return res.status(404).json({ message: 'Document not found' });
     }
+
+    console.log('[DOWNLOAD CONTROLLER] Document details:', {
+      _id: document._id,
+      userId: document.userId,
+      originalName: document.originalName,
+      path: document.path
+    });
 
     // Check if user has permission to download
     const isOwner = document.userId.toString() === userId.toString();
     const isAuthorized = ['hr', 'admin', 'superadmin'].includes(req.user.role);
     const canDownload = isOwner || isAuthorized;
     
+    console.log('[DOWNLOAD CONTROLLER] Permission check:', { isOwner, isAuthorized, canDownload });
+    
     if (!canDownload) {
-      console.log('Access denied for user:', userId, 'to document:', documentId);
+      console.log('[DOWNLOAD CONTROLLER] ERROR: Access denied');
       return res.status(403).json({ message: 'Access denied. You can only download your own documents.' });
     }
 
+    console.log('[DOWNLOAD CONTROLLER] Checking if file exists:', document.path);
     if (!fs.existsSync(document.path)) {
+      console.log('[DOWNLOAD CONTROLLER] ERROR: File not found on filesystem');
       return res.status(404).json({ message: 'File not found on server' });
     }
 
+    console.log('[DOWNLOAD CONTROLLER] File exists, streaming...');
     res.setHeader('Content-Disposition', `attachment; filename="${document.originalName}"`);
     res.setHeader('Content-Type', document.mimetype);
     
     const fileStream = fs.createReadStream(document.path);
     fileStream.pipe(res);
+    console.log('[DOWNLOAD CONTROLLER] ========== SUCCESS ==========');
   } catch (error) {
-    console.error('Error downloading document:', error);
+    console.error('[DOWNLOAD CONTROLLER] ========== ERROR ==========');
+    console.error('[DOWNLOAD CONTROLLER] Error:', error);
+    console.error('[DOWNLOAD CONTROLLER] Error stack:', error.stack);
     res.status(500).json({ message: 'Failed to download document' });
   }
 };

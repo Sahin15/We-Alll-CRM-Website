@@ -104,7 +104,7 @@ const TaskManagement = () => {
   const fetchEmployees = async () => {
     try {
       const response = await api.get("/users");
-      setEmployees(response.data.filter(u => u.role === "employee" || u.role === "manager"));
+      setEmployees(response.data.filter(u => u.role === "employee" || u.role === "hod" || u.role === "hr"));
     } catch (error) {
       console.error("Error fetching employees:", error);
     }

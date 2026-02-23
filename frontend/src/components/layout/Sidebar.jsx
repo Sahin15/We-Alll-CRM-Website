@@ -79,18 +79,23 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       id: "business-management",
       icon: <FaUserTie />,
       label: "Business Management",
-      roles: ["admin", "superadmin", "accounts", "hr", "employee", "hod"],
+      roles: ["admin", "superadmin", "manager", "hr", "employee", "hod"],
+      departments: ["Sales", "Accounts"],
       isGroup: true,
       children: [
         {
           path: "/leads",
           icon: <FaUserTie />,
           label: "Leads",
+          roles: ["admin", "superadmin", "manager"],
+          departments: ["Sales", "Accounts"],
         },
         {
           path: "/clients",
           icon: <FaUsers />,
           label: "Clients",
+          roles: ["admin", "superadmin", "hr", "employee", "hod", "manager"],
+          departments: ["Sales", "Accounts"],
           roleLabels: {
             employee: "My Clients",
             hod: "My Clients",
@@ -176,6 +181,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       icon: <FaUsers />,
       label: "Team",
       roles: ["superadmin", "admin", "hr"],
+      excludeDepartments: ["Sales"], // Sales department should not see this
       isGroup: true,
       children: [
         {
@@ -219,6 +225,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       icon: <FaCalendarAlt />,
       label: "Leave Management",
       roles: ["admin", "superadmin", "hr"],
+      excludeDepartments: ["Sales"], // Sales department should not see this
       isGroup: true,
       children: [
         {
@@ -238,12 +245,14 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       icon: <FaClock />,
       label: "My Attendance",
       roles: ["employee"],
+      excludeDepartments: ["Sales"], // Sales department should not see this
     },
     {
       id: "attendance",
       icon: <FaClock />,
       label: "Attendance",
       roles: ["admin", "superadmin", "hr", "hod"],
+      excludeDepartments: ["Sales"], // Sales department should not see this
       isGroup: true,
       children: [
         {
@@ -263,6 +272,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       icon: <FaMoneyBillWave />,
       label: "Salary Management",
       roles: ["admin", "superadmin", "hr"],
+      excludeDepartments: ["Sales"], // Sales department should not see this
     },
     {
       path: "/profile",
@@ -279,14 +289,39 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
   ];
 
   const filteredMenu = menuItems.filter((item) => {
+    // Helper function to check if user has access
+    const hasAccess = (menuItem) => {
+      // Check role-based access
+      const hasRoleAccess = !menuItem.roles || menuItem.roles.includes(user?.role);
+      
+      // Check department-based access (for items that specify allowed departments)
+      let hasDepartmentAccess = true;
+      if (menuItem.departments && user?.department?.name) {
+        hasDepartmentAccess = menuItem.departments.some(
+          dept => dept.toLowerCase() === user.department.name.toLowerCase()
+        );
+      }
+      
+      // Check if user's department is excluded
+      if (menuItem.excludeDepartments && user?.department?.name) {
+        const isExcluded = menuItem.excludeDepartments.some(
+          dept => dept.toLowerCase() === user.department.name.toLowerCase()
+        );
+        if (isExcluded) {
+          return false; // Explicitly exclude this department
+        }
+      }
+      
+      // User needs either role access OR department access (or both)
+      return hasRoleAccess || hasDepartmentAccess;
+    };
+
     if (item.isGroup) {
-      // Filter children based on roles
-      item.children = item.children.filter(child => 
-        !child.roles || child.roles.includes(user?.role)
-      );
-      return item.roles.includes(user?.role) && item.children.length > 0;
+      // Filter children based on roles and departments
+      item.children = item.children.filter(child => hasAccess(child));
+      return hasAccess(item) && item.children.length > 0;
     }
-    return item.roles.includes(user?.role);
+    return hasAccess(item);
   });
 
   return (

@@ -1,7 +1,8 @@
-import { Card } from "react-bootstrap";
+import { Card, Row, Col } from "react-bootstrap";
 import { useAuth } from "../../context/AuthContext";
 import { FaSun, FaMoon, FaCloudSun, FaLightbulb, FaRocket, FaStar } from "react-icons/fa";
 import { useState, useEffect } from "react";
+import BreakTimer from "../dashboard/BreakTimer";
 
 const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
   const { user } = useAuth();
@@ -246,37 +247,44 @@ const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
   const greeting = getGreeting();
 
   return (
-    <Card className="greeting-banner shadow-lg mb-2">
+    <Card className="greeting-banner shadow-lg mb-2" style={{ position: 'relative' }}>
       <Card.Body className="text-white position-relative">
-        <div className="greeting-content">
-          <div className="d-flex align-items-center mb-2">
-            <span className="greeting-icon me-3">{greeting.icon}</span>
-            <h2 className="mb-0 greeting-text">
-              {greeting.text}! 👋
-            </h2>
-          </div>
-          <p className="mb-1 greeting-subtitle">
-            {subtitle}, <strong className="user-name">{user?.name || "User"}</strong>
-          </p>
-          <small className="opacity-75 d-flex align-items-center">
-            <span className="date-badge">{getFormattedDate()}</span>
-          </small>
-          
-          {/* Fun Message Section */}
-          {funMessage && (
-            <div className="fun-message-box mt-2" data-type={funMessage.type}>
-              <span className="sparkle"></span>
-              <span className="sparkle"></span>
-              <span className="sparkle"></span>
-              <div className="d-flex align-items-center justify-content-center">
-                <span className="fun-icon me-2">{funMessage.icon}</span>
-                <div className="fun-message-text">
-                  {funMessage.text}
-                </div>
+        {/* Timer Component - Floating in top right */}
+        <BreakTimer />
+        
+        <Row className="align-items-start" style={{ position: 'relative', zIndex: 10 }}>
+          <Col xs={12}>
+            <div className="greeting-content">
+              <div className="d-flex align-items-center mb-2">
+                <span className="greeting-icon me-3">{greeting.icon}</span>
+                <h2 className="mb-0 greeting-text">
+                  {greeting.text}! 👋
+                </h2>
+              </div>
+              <p className="mb-1 greeting-subtitle">
+                {subtitle}, <strong className="user-name">{user?.name || "User"}</strong>
+              </p>
+              <small className="opacity-75 d-flex align-items-center">
+                <span className="date-badge">{getFormattedDate()}</span>
+              </small>
+            </div>
+          </Col>
+        </Row>
+        
+        {/* Fun Message Section - Below greeting */}
+        {funMessage && (
+          <div className="fun-message-box mt-3" data-type={funMessage.type} style={{ position: 'relative', zIndex: 10 }}>
+            <span className="sparkle"></span>
+            <span className="sparkle"></span>
+            <span className="sparkle"></span>
+            <div className="d-flex align-items-center justify-content-center">
+              <span className="fun-icon me-2">{funMessage.icon}</span>
+              <div className="fun-message-text">
+                {funMessage.text}
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
         
         {/* Animated background elements */}
         <div className="greeting-bg-shapes">
