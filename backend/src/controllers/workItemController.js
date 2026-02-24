@@ -226,7 +226,7 @@ const getWorkItemById = async (req, res) => {
       });
     }
     
-    // Check if user has access to this work item
+    // SIMPLIFIED ACCESS CHECK - Allow project members to view
     const isAssigned = workItem.assignedTo._id.toString() === req.user._id.toString();
     const isCreator = workItem.createdBy._id.toString() === req.user._id.toString();
     const isProjectMember = await Project.findOne({
@@ -236,7 +236,7 @@ const getWorkItemById = async (req, res) => {
         { assignedUsers: req.user._id },
       ],
     });
-    const isAdmin = ["admin", "superadmin", "hod"].includes(req.user.role);
+    const isAdmin = ["admin", "superadmin", "hod", "manager"].includes(req.user.role);
     
     if (!isAssigned && !isCreator && !isProjectMember && !isAdmin) {
       // Log security event
@@ -252,7 +252,7 @@ const getWorkItemById = async (req, res) => {
         success: false,
         error: {
           code: "FORBIDDEN",
-          message: "You don't have access to this work item",
+          message: "You don't have access to this work item. You must be assigned, creator, or project member.",
         },
       });
     }
@@ -520,14 +520,16 @@ const updateWorkItem = async (req, res) => {
       });
     }
     
-    // Check if user has permission to update
+    // SIMPLIFIED PERMISSION CHECK - Anyone with project access can update
+    const project = await Project.findById(workItem.project);
     const isAssigned = workItem.assignedTo.toString() === req.user._id.toString();
     const isCreator = workItem.createdBy.toString() === req.user._id.toString();
-    const project = await Project.findById(workItem.project);
     const isProjectHead = project?.projectHead?.toString() === req.user._id.toString();
-    const isAdmin = ["admin", "superadmin", "hod"].includes(req.user.role);
+    const isProjectMember = project?.assignedUsers?.some(userId => userId.toString() === req.user._id.toString());
+    const isAdmin = ["admin", "superadmin", "hod", "manager"].includes(req.user.role);
     
-    if (!isAssigned && !isCreator && !isProjectHead && !isAdmin) {
+    // Allow if user is assigned, creator, project member, project head, or admin
+    if (!isAssigned && !isCreator && !isProjectHead && !isProjectMember && !isAdmin) {
       return res.status(403).json({
         success: false,
         error: {
@@ -551,12 +553,8 @@ const updateWorkItem = async (req, res) => {
       "tags",
       "estimatedHours",
       "actualHours",
+      "assignedTo", // Anyone with access can reassign
     ];
-    
-    // Only project head or admin can reassign
-    if (isProjectHead || isAdmin) {
-      allowedUpdates.push("assignedTo");
-    }
     
     Object.keys(req.body).forEach((key) => {
       if (allowedUpdates.includes(key)) {
@@ -1778,17 +1776,6 @@ const reassignWorkItem = async (req, res) => {
     const { newAssigneeId } = req.body;
     const workItemId = req.params.id;
 
-    // Check admin access
-    if (!["admin", "superadmin", "hod", "manager"].includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        error: {
-          code: "FORBIDDEN",
-          message: "Access denied. Admin or Manager privileges required.",
-        },
-      });
-    }
-
     // Validate input
     if (!newAssigneeId) {
       return res.status(400).json({
@@ -1811,6 +1798,23 @@ const reassignWorkItem = async (req, res) => {
         error: {
           code: "NOT_FOUND",
           message: "Work item not found",
+        },
+      });
+    }
+
+    // SIMPLIFIED PERMISSION CHECK - Anyone with project access can reassign
+    const project = await Project.findById(workItem.project);
+    const isProjectHead = project?.projectHead?.toString() === req.user._id.toString();
+    const isProjectMember = project?.assignedUsers?.some(userId => userId.toString() === req.user._id.toString());
+    const isAdmin = ["admin", "superadmin", "hod", "manager"].includes(req.user.role);
+    
+    // Allow if user is project member, project head, or admin
+    if (!isProjectHead && !isProjectMember && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: "FORBIDDEN",
+          message: "You don't have permission to reassign this work item. You must be a project member.",
         },
       });
     }

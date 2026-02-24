@@ -24,8 +24,8 @@ import { authorizeRoles } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
-// Admin, superadmin, hr can manage clients; hod and manager can view
-router.post("/", protect, authorizeRoles("admin", "superadmin", "hr"), createClient);
+// Admin, superadmin, hr, manager can manage clients; hod can view
+router.post("/", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), createClient);
 router.get("/", protect, authorizeRoles("admin", "superadmin", "hr", "hod", "manager"), getClients);
 
 // Employee route - get clients from their assigned projects
@@ -40,13 +40,13 @@ router.get(
 router.put(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   updateClient
 );
 router.delete(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   deleteClient
 );
 
@@ -57,47 +57,47 @@ router.get(
   getClientOverview
 );
 
-// Client onboarding routes (admin/superadmin/accounts)
+// Client onboarding routes (admin/superadmin/accounts/manager)
 router.post(
   "/:id/onboard",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager"),
   initiateOnboarding
 );
 router.put(
   "/:id/onboarding-status",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager"),
   updateOnboardingStatus
 );
 router.put(
   "/:id/complete-onboarding",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager"),
   completeOnboarding
 );
 router.get(
   "/:id/onboarding",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "client"),
+  authorizeRoles("admin", "superadmin", "accounts", "client", "manager"),
   getOnboardingDetails
 );
 router.put(
   "/:id/account-manager",
   protect,
-  authorizeRoles("admin", "superadmin"),
+  authorizeRoles("admin", "superadmin", "manager"),
   assignAccountManager
 );
 router.put(
   "/:id/plan",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager"),
   updateClientPlan
 );
 router.put(
   "/:id/renew",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager"),
   renewClientPlan
 );
 
