@@ -8,7 +8,7 @@ import { formatDate, getStatusVariant } from '../../utils/helpers';
 import CreateLeaveModal from '../../components/leaves/CreateLeaveModal';
 import LeaveRequestCard from '../../components/leaves/LeaveRequestCard';
 import LeaveApprovalModal from '../../components/leaves/LeaveApprovalModal';
-import WFHApprovalPanel from '../../components/wfh/WFHApprovalPanel';
+import WFHManagementPanel from '../../components/wfh/WFHManagementPanel';
 import { toast } from 'react-toastify';
 import './LeaveManagement.css';
 
@@ -27,7 +27,7 @@ const LeaveManagement = () => {
   const [leaves, setLeaves] = useState([]);
   const [displayedLeaves, setDisplayedLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState(isAdmin ? 'all-leaves' : 'my-leaves');
+  const [activeTab, setActiveTab] = useState('all-leaves');
   const [filters, setFilters] = useState({
     status: 'all',
     leaveType: 'all',
@@ -91,13 +91,9 @@ const LeaveManagement = () => {
         year: filters.year
       };
       
-      if (activeTab === 'my-leaves') {
-        response = await leaveApi.getMyLeaves();
-      } else {
-        if (filters.status !== 'all') params.status = filters.status;
-        if (filters.leaveType !== 'all') params.leaveType = filters.leaveType;
-        response = await leaveApi.getAllLeaves(params);
-      }
+      if (filters.status !== 'all') params.status = filters.status;
+      if (filters.leaveType !== 'all') params.leaveType = filters.leaveType;
+      response = await leaveApi.getAllLeaves(params);
       
       setLeaves(response.data);
       
@@ -274,13 +270,6 @@ const LeaveManagement = () => {
               </p>
             </div>
             <div className="d-flex gap-2">
-              <Button 
-                variant="success" 
-                onClick={handleCreateLeave}
-                className="d-flex align-items-center gap-2"
-              >
-                <FaPlus /> Request Leave
-              </Button>
               {isAdmin && (
                 <Button variant="outline-primary" className="d-flex align-items-center gap-2">
                   <FaDownload /> Export
@@ -365,32 +354,20 @@ const LeaveManagement = () => {
                   <Nav variant="pills">
                     <Nav.Item>
                       <Nav.Link 
-                        active={activeTab === 'my-leaves'}
-                        onClick={() => setActiveTab('my-leaves')}
+                        active={activeTab === 'all-leaves'}
+                        onClick={() => setActiveTab('all-leaves')}
                       >
-                        My Leave Requests
+                        All Leave Requests
                       </Nav.Link>
                     </Nav.Item>
-                    {isAdmin && (
-                      <>
-                        <Nav.Item>
-                          <Nav.Link 
-                            active={activeTab === 'all-leaves'}
-                            onClick={() => setActiveTab('all-leaves')}
-                          >
-                            All Leave Requests
-                          </Nav.Link>
-                        </Nav.Item>
-                        <Nav.Item>
-                          <Nav.Link 
-                            active={activeTab === 'wfh-requests'}
-                            onClick={() => setActiveTab('wfh-requests')}
-                          >
-                            WFH Requests
-                          </Nav.Link>
-                        </Nav.Item>
-                      </>
-                    )}
+                    <Nav.Item>
+                      <Nav.Link 
+                        active={activeTab === 'wfh-requests'}
+                        onClick={() => setActiveTab('wfh-requests')}
+                      >
+                        WFH Requests
+                      </Nav.Link>
+                    </Nav.Item>
                   </Nav>
                 </Col>
                 
@@ -445,7 +422,7 @@ const LeaveManagement = () => {
       <Row>
         <Col>
           {activeTab === 'wfh-requests' ? (
-            <WFHApprovalPanel />
+            <WFHManagementPanel />
           ) : loading ? (
             <Card className="border-0 shadow-sm">
               <Card.Body className="loading-container">

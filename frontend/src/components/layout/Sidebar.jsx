@@ -258,26 +258,26 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       path: "/employee/leaves",
       icon: <FaCalendarAlt />,
       label: "My Leaves",
-      roles: ["employee", "hod", "manager"],
+      roles: ["employee", "hod", "manager", "hr"],
     },
     {
       id: "my-compensation",
       icon: <FaMoneyBillWave />,
       label: "My Compensation",
-      roles: ["employee", "hod", "manager"],
+      roles: ["employee", "hod", "manager", "hr"],
       isGroup: true,
       children: [
         {
           path: "/employee/salary-slips",
           icon: <FaFileInvoiceDollar />,
           label: "Salary Slips",
-          roles: ["employee", "hod", "manager"],
+          roles: ["employee", "hod", "manager", "hr"],
         },
         {
           path: "/employee/salary-preview",
           icon: <FaMoneyBillWave />,
           label: "Salary Breakdown",
-          roles: ["employee", "hod", "manager"],
+          roles: ["employee", "hod", "manager", "hr"],
         },
       ],
     },
@@ -307,7 +307,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       path: "/attendance/my-attendance",
       icon: <FaClock />,
       label: "My Attendance",
-      roles: ["employee", "manager"], // Manager can access their own attendance
+      roles: ["employee", "manager", "hr", "hod"], // Manager, HR, HoD can access their own attendance
     },
     {
       id: "attendance",
