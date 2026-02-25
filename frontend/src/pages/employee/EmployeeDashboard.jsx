@@ -1346,158 +1346,166 @@ const EmployeeDashboard = () => {
       
       {/* Dashboard Card Styling */}
       <style>{`
-        /* Base Dashboard Card Styles - Clean white cards */
+        /* Base Dashboard Card Styles - Clean white cards with proper spacing */
         .dashboard-card {
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
           border: 1px solid rgba(0, 0, 0, 0.08);
           background: #ffffff;
           position: relative;
           overflow: hidden;
+          margin-bottom: 1.5rem; /* Add bottom margin to prevent touching */
         }
         
-        /* Subtle top accent line on hover */
+        /* Subtle gradient overlay on hover */
         .dashboard-card::before {
           content: '';
           position: absolute;
           top: 0;
           left: 0;
           right: 0;
-          height: 3px;
-          background: linear-gradient(90deg, #667eea, #764ba2);
-          transform: scaleX(0);
-          transition: transform 0.3s ease;
+          bottom: 0;
+          background: linear-gradient(135deg, rgba(102, 126, 234, 0.03), rgba(118, 75, 162, 0.03));
+          opacity: 0;
+          transition: opacity 0.35s ease;
+          pointer-events: none;
         }
         
         .dashboard-card:hover::before {
-          transform: scaleX(1);
+          opacity: 1;
         }
         
-        /* Hover effect - lift and shadow */
+        /* Premium hover effect - enhanced shadow and border glow, NO transform */
         .dashboard-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1) !important;
-          border-color: rgba(102, 126, 234, 0.3);
+          box-shadow: 
+            0 0 0 1px rgba(102, 126, 234, 0.1),
+            0 8px 24px -4px rgba(102, 126, 234, 0.15),
+            0 16px 48px -8px rgba(0, 0, 0, 0.08) !important;
+          border-color: rgba(102, 126, 234, 0.4);
         }
         
-        /* Icon hover effects */
+        /* Stat card specific styles */
+        .stat-card {
+          margin-bottom: 1.5rem;
+        }
+        
+        /* Icon hover effects - subtle scale and glow */
         .stat-card .bg-success,
         .stat-card .bg-info,
         .stat-card .bg-warning,
         .stat-card .bg-primary {
-          transition: all 0.3s ease;
+          transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
         .stat-card:hover .bg-success {
-          transform: scale(1.1);
-          box-shadow: 0 4px 12px rgba(25, 135, 84, 0.2);
+          transform: scale(1.05);
+          box-shadow: 0 4px 16px rgba(25, 135, 84, 0.25);
         }
         
         .stat-card:hover .bg-info {
-          transform: scale(1.1);
-          box-shadow: 0 4px 12px rgba(13, 202, 240, 0.2);
+          transform: scale(1.05);
+          box-shadow: 0 4px 16px rgba(13, 202, 240, 0.25);
         }
         
         .stat-card:hover .bg-warning {
-          transform: scale(1.1);
-          box-shadow: 0 4px 12px rgba(255, 193, 7, 0.2);
+          transform: scale(1.05);
+          box-shadow: 0 4px 16px rgba(255, 193, 7, 0.25);
         }
         
         .stat-card:hover .bg-primary {
-          transform: scale(1.1);
-          box-shadow: 0 4px 12px rgba(13, 110, 253, 0.2);
+          transform: scale(1.05);
+          box-shadow: 0 4px 16px rgba(13, 110, 253, 0.25);
         }
         
-        /* List items hover effect */
+        /* List items hover effect - smooth slide */
         .content-card .list-group-item {
-          transition: all 0.2s ease;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
           border-radius: 6px;
           margin-bottom: 2px;
         }
         
         .content-card .list-group-item:hover {
-          background-color: rgba(102, 126, 234, 0.04);
-          transform: translateX(4px);
+          background: linear-gradient(90deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.03));
+          padding-left: 1.25rem;
         }
         
-        /* Button hover effects */
+        /* Button hover effects - subtle lift */
         .dashboard-card .btn {
-          transition: all 0.2s ease;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
         .dashboard-card .btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        }
+        
+        .dashboard-card .btn:active {
+          transform: translateY(0);
         }
         
         /* Badge hover effects */
         .dashboard-card .badge {
-          transition: all 0.2s ease;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
         .dashboard-card .badge:hover {
-          transform: scale(1.05);
+          transform: scale(1.03);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
         
-        /* Icon scale on card hover */
+        /* Icon subtle scale on card hover */
         .dashboard-card .fs-4 {
-          transition: all 0.3s ease;
+          transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
         .dashboard-card:hover .fs-4 {
-          transform: scale(1.08);
+          transform: scale(1.05);
         }
         
         /* Progress bar smooth animation */
         .dashboard-card .progress-bar {
-          transition: width 0.6s ease;
+          transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
-        /* Card title underline effect */
+        /* Card title shimmer effect on hover */
         .dashboard-card h5 {
           position: relative;
           padding-bottom: 8px;
+          transition: color 0.3s ease;
         }
         
-        .dashboard-card h5::after {
-          content: '';
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          width: 0;
-          height: 2px;
-          background: linear-gradient(90deg, #667eea, #764ba2);
-          transition: width 0.3s ease;
+        .dashboard-card:hover h5 {
+          color: #667eea;
         }
         
-        .dashboard-card:hover h5::after {
-          width: 60px;
-        }
-        
-        /* Clickable card effect */
+        /* Clickable card effect - enhanced shadow, NO vertical movement */
         .cursor-pointer {
           cursor: pointer !important;
-          transition: all 0.3s ease;
+          transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+          margin-bottom: 1.5rem;
         }
         
         .cursor-pointer:hover {
-          transform: translateY(-6px) !important;
-          box-shadow: 0 12px 24px rgba(13, 202, 240, 0.25) !important;
+          box-shadow: 
+            0 0 0 1px rgba(13, 202, 240, 0.15),
+            0 12px 32px -4px rgba(13, 202, 240, 0.2),
+            0 20px 56px -8px rgba(0, 0, 0, 0.1) !important;
+          border-color: rgba(13, 202, 240, 0.5);
         }
         
         .cursor-pointer:active {
-          transform: translateY(-2px) !important;
+          transform: scale(0.98);
         }
 
         /* Leave Type Card Styles */
         .leave-type-card {
-          transition: all 0.2s ease;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
           cursor: pointer;
           border-radius: 8px;
         }
 
         .leave-type-card:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+          border-color: rgba(13, 110, 253, 0.3) !important;
         }
 
         .leave-type-card.selected {
