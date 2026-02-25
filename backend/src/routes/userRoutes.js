@@ -27,7 +27,7 @@ import {
 const router = express.Router();
 
 // Registration endpoint - used by admins to add users (not public)
-router.post("/register", protect, authorizeRoles("admin", "superadmin", "hr"), registerUser);
+router.post("/register", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), registerUser);
 router.post("/login", loginUser);
 router.get("/", protect, getUsers);
 router.get("/employees", protect, async (req, res) => {
@@ -92,7 +92,7 @@ router.get("/official-documents", protect, (req, res, next) => {
 }, getOfficialDocuments);
 router.post("/documents", protect, documentUpload.single('document'), uploadUserDocument);
 router.post("/official-documents", protect, documentUpload.single('document'), uploadOfficialDocument);
-router.post("/:id/official-documents", protect, authorizeRoles("admin", "superadmin", "hr"), documentUpload.single('document'), async (req, res, next) => {
+router.post("/:id/official-documents", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), documentUpload.single('document'), async (req, res, next) => {
   try {
     const { id: userId } = req.params;
 
@@ -129,7 +129,7 @@ router.post("/:id/official-documents", protect, authorizeRoles("admin", "superad
 router.delete("/documents/:documentId", protect, deleteUserDocument);
 
 // Pending documents endpoint (placeholder for now)
-router.get("/documents/pending", protect, authorizeRoles("admin", "superadmin", "hr"), (req, res) => {
+router.get("/documents/pending", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), (req, res) => {
   // TODO: Implement pending document approvals functionality
   res.status(200).json([]);
 });
@@ -153,7 +153,7 @@ router.patch("/clear-broken-profile-picture", protect, async (req, res) => {
 });
 
 // Get documents for a specific user (for HR/Admin)
-router.get("/:id/documents", protect, authorizeRoles("admin", "superadmin", "hr"), async (req, res) => {
+router.get("/:id/documents", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), async (req, res) => {
   try {
     const { id: userId } = req.params;
     const Document = (await import("../models/documentModel.js")).default;
@@ -180,12 +180,12 @@ router.get("/:id/documents", protect, authorizeRoles("admin", "superadmin", "hr"
 
 router.get("/:id", protect, getUserById);
 router.put("/profile", protect, updateUserProfile);
-router.put("/:id/profile", protect, authorizeRoles("admin", "superadmin", "hr"), updateUser);
-router.put("/:id", protect, authorizeRoles("admin", "superadmin", "hr"), updateUser);
+router.put("/:id/profile", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), updateUser);
+router.put("/:id", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), updateUser);
 router.put(
   "/:id/status",
   protect,
-  authorizeRoles("admin", "superadmin"),
+  authorizeRoles("admin", "superadmin", "manager"),
   updateUserStatus
 );
 router.delete(
@@ -211,7 +211,7 @@ router.delete(
 );
 
 // Reset password route (for admin/hr to reset other users' passwords)
-router.put("/:id/reset-password", protect, authorizeRoles("admin", "superadmin", "hr"), async (req, res) => {
+router.put("/:id/reset-password", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), async (req, res) => {
   try {
     const { id } = req.params;
     const { newPassword } = req.body;

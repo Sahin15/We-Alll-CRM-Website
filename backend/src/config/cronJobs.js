@@ -382,6 +382,7 @@ const autoClockOutForgottenEmployees = async () => {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     // Find all attendance records for today that are clocked in but not clocked out
+    // Exclude employees who are absent or on leave
     const forgottenClockOuts = await Attendance.find({
       date: {
         $gte: today,
@@ -389,6 +390,7 @@ const autoClockOutForgottenEmployees = async () => {
       },
       clockIn: { $exists: true },
       clockOut: { $exists: false },
+      status: { $nin: ['absent', 'on-leave'] } // Don't auto clock-out employees who are absent or on leave
     }).populate("employee", "name email");
 
     if (forgottenClockOuts.length === 0) {

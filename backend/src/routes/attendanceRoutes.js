@@ -65,7 +65,7 @@ router.get("/test-protected", protect, (req, res) => {
 });
 
 // Debug endpoint to check database contents
-router.get("/debug-db", protect, authorizeRoles("admin", "superadmin", "hr"), async (req, res) => {
+router.get("/debug-db", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), async (req, res) => {
   try {
     const totalCount = await Attendance.countDocuments();
     const recentRecords = await Attendance.find()
@@ -112,13 +112,13 @@ router.post("/end-break", protect, endBreak);
 router.get("/my-attendance", protect, getMyAttendance);
 router.get("/today", protect, getTodayAttendance);
 router.post("/recalculate-today", protect, recalculateTodayStatus);
-router.post("/fix-hr-attendance", protect, authorizeRoles("admin", "superadmin", "hr"), fixAllHRAttendance);
+router.post("/fix-hr-attendance", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), fixAllHRAttendance);
 
 // Reports
 router.get(
   "/report",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod"),
+  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
   getAttendanceReport
 );
 
@@ -126,7 +126,7 @@ router.get(
 router.get(
   "/download-pdf",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod"),
+  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
   downloadAttendancePDF
 );
 
@@ -134,44 +134,44 @@ router.get(
 router.get(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod"),
+  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
   getAllAttendance
 );
 router.post(
   "/manual",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   createManualAttendance
 );
 router.get("/:id", protect, getAttendanceById);
 router.put(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   updateManualAttendance
 );
 router.put(
   "/:id/status",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod"),
+  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
   updateAttendanceStatus
 );
 router.delete(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   deleteAttendance
 );
 router.post(
   "/mark-absence",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod"),
+  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
   markAbsence
 );
 router.get(
   "/summary/:employeeId",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod"),
+  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
   getAttendanceSummary
 );
 
@@ -179,7 +179,7 @@ router.get(
 router.post(
   "/fix-today",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   fixTodayAttendance
 );
 
@@ -187,7 +187,7 @@ router.post(
 router.post(
   "/remove-duplicates",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   removeDuplicateAttendance
 );
 
@@ -195,7 +195,7 @@ router.post(
 router.post(
   "/recalculate-work-hours",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   recalculateWorkHours
 );
 
@@ -203,7 +203,7 @@ router.post(
 router.post(
   "/initialize-breaks",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   initializeBreaksField
 );
 
@@ -211,7 +211,7 @@ router.post(
 router.post(
   "/manual-auto-clockout",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   manualAutoClockOut
 );
 
@@ -230,29 +230,30 @@ router.get("/overtime/my-entries", protect, getMyOvertimeEntries);
 router.get(
   "/overtime/pending",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod"),
+  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
   getPendingOvertimeEntries
 );
 
 router.post(
   "/overtime/:attendanceId/:entryId/approve",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod"),
+  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
   approveOvertimeEntry
 );
 
 router.post(
   "/overtime/:attendanceId/:entryId/reject",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod"),
+  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
   rejectOvertimeEntry
 );
 
 router.get(
   "/overtime/statistics",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   getOvertimeStatistics
 );
 
 export default router;
+

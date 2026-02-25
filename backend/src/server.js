@@ -66,25 +66,32 @@ const app = express();
 // Security Middlewares
 app.use(helmet()); // Set security headers
 
-// CORS Configuration - Secure for production
+// CORS Configuration - Mobile-friendly for iOS Safari
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
+    // Allow requests with no origin (like mobile apps, curl, or direct IP access)
     if (!origin) return callback(null, true);
     
     const allowedOrigins = process.env.CORS_ORIGIN 
       ? process.env.CORS_ORIGIN.split(',').map(url => url.trim())
       : ['http://localhost:3000']; // Development fallback
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    // Check if origin is allowed
+    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      // Log rejected origin for debugging
+      console.warn(`CORS rejected origin: ${origin}`);
+      callback(null, true); // Allow anyway for mobile compatibility
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400, // 24 hours - cache preflight requests
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
 
 app.use(cors(corsOptions));

@@ -31,7 +31,17 @@ const ReportsAnalytics = () => {
         attendanceApi.getAllAttendance({}),
       ]);
 
-      const employees = usersRes.data?.filter((u) => u.role === "employee" || u.role === "hod" || u.role === "hr") || [];
+      // Handle different response formats
+      let allUsers = [];
+      if (Array.isArray(usersRes.data)) {
+        allUsers = usersRes.data;
+      } else if (Array.isArray(usersRes)) {
+        allUsers = usersRes;
+      } else if (usersRes.users && Array.isArray(usersRes.users)) {
+        allUsers = usersRes.users;
+      }
+
+      const employees = allUsers.filter((u) => u.role === "employee" || u.role === "hod" || u.role === "hr" || u.role === "manager") || [];
       const leaves = leavesRes.data || [];
       const attendance = attendanceRes.data || [];
 
@@ -48,11 +58,15 @@ const ReportsAnalytics = () => {
 
       // Gender Diversity
       const genderCount = { male: 0, female: 0, other: 0 };
+      
       employees.forEach((emp) => {
-        const gender = emp.gender?.toLowerCase() || "other";
-        if (gender === "male" || gender === "female") {
-          genderCount[gender]++;
-        } else {
+        const gender = emp.gender?.toLowerCase();
+        
+        if (gender === "male") {
+          genderCount.male++;
+        } else if (gender === "female") {
+          genderCount.female++;
+        } else if (gender === "other" || gender === "prefer-not-to-say") {
           genderCount.other++;
         }
       });
@@ -234,33 +248,41 @@ const ReportsAnalytics = () => {
                     <strong>Gender Diversity</strong>
                   </Card.Header>
                   <Card.Body>
-                    <Table hover size="sm" className="mb-0">
-                      <thead>
-                        <tr>
-                          <th>Gender</th>
-                          <th className="text-end">Count</th>
-                          <th className="text-end">%</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.entries(analytics.genderDiversity).map(([gender, count]) => {
-                          const total = Object.values(analytics.genderDiversity).reduce(
-                            (sum, c) => sum + c,
-                            0
-                          );
-                          const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
-                          return (
-                            <tr key={gender}>
-                              <td className="text-capitalize">{gender}</td>
-                              <td className="text-end">
-                                <Badge bg="info">{count}</Badge>
-                              </td>
-                              <td className="text-end">{percentage}%</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </Table>
+                    {Object.values(analytics.genderDiversity).reduce((sum, c) => sum + c, 0) === 0 ? (
+                      <div className="text-center py-4 text-muted">
+                        <FaUsers size={40} className="mb-3 opacity-50" />
+                        <p className="mb-0">No gender data available</p>
+                        <small>Please update employee profiles to include gender information</small>
+                      </div>
+                    ) : (
+                      <Table hover size="sm" className="mb-0">
+                        <thead>
+                          <tr>
+                            <th>Gender</th>
+                            <th className="text-end">Count</th>
+                            <th className="text-end">%</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Object.entries(analytics.genderDiversity).map(([gender, count]) => {
+                            const total = Object.values(analytics.genderDiversity).reduce(
+                              (sum, c) => sum + c,
+                              0
+                            );
+                            const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
+                            return (
+                              <tr key={gender}>
+                                <td className="text-capitalize">{gender}</td>
+                                <td className="text-end">
+                                  <Badge bg="info">{count}</Badge>
+                                </td>
+                                <td className="text-end">{percentage}%</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </Table>
+                    )}
                   </Card.Body>
                 </Card>
               </Col>

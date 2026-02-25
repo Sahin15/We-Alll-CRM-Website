@@ -21,6 +21,30 @@ export const leadApi = {
     api.put(`/leads/${id}/follow-ups/${followUpId}/cancel`),
   deleteNote: (id, noteId) => api.delete(`/leads/${id}/notes/${noteId}`),
   getFollowUpDashboard: () => api.get("/leads/follow-ups/dashboard"),
+  
+  // Enhanced Follow-ups
+  createFollowUp: (id, data) => api.post(`/leads/${id}/followups`, data),
+  updateFollowUp: (id, followupId, data) => api.put(`/leads/${id}/followups/${followupId}`, data),
+  deleteFollowUp: (id, followupId) => api.delete(`/leads/${id}/followups/${followupId}`),
+  
+  // Meetings
+  getLeadMeetings: (id) => api.get(`/leads/${id}/meetings`),
+  createMeeting: (id, data) => api.post(`/leads/${id}/meetings`, data),
+  updateMeeting: (id, meetingId, data) => api.put(`/leads/${id}/meetings/${meetingId}`, data),
+  completeMeeting: (id, meetingId) => api.patch(`/leads/${id}/meetings/${meetingId}/complete`),
+  cancelMeeting: (id, meetingId) => api.patch(`/leads/${id}/meetings/${meetingId}/cancel`),
+  getMyMeetings: () => api.get("/leads/meetings/my-meetings"),
+  getTeamMeetings: () => api.get("/leads/meetings/team-meetings"),
+  getAllMeetings: () => api.get("/leads/meetings/all-meetings"),
+  
+  // Contacts
+  addContact: (id, data) => api.post(`/leads/${id}/contacts`, data),
+  updateContact: (id, contactId, data) => api.put(`/leads/${id}/contacts/${contactId}`, data),
+  deleteContact: (id, contactId) => api.delete(`/leads/${id}/contacts/${contactId}`),
+  setPrimaryContact: (id, contactId) => api.patch(`/leads/${id}/contacts/${contactId}/primary`),
+  
+  // History
+  getLeadHistory: (id) => api.get(`/leads/${id}/history`),
 };
 
 export default leadApi;

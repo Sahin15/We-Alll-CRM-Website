@@ -9,7 +9,7 @@ const previewService = new SalaryPreviewService();
 // Generate salary preview for employee
 router.post("/generate", 
   protect, 
-  authorizeRoles("hr", "admin", "superadmin"),
+  authorizeRoles("hr", "admin", "superadmin", "manager"),
   async (req, res) => {
     try {
       const { employeeId, month, year, additionalData } = req.body;
@@ -44,7 +44,7 @@ router.post("/generate",
 // Bulk generate previews
 router.post("/bulk-generate",
   protect,
-  authorizeRoles("hr", "admin", "superadmin"),
+  authorizeRoles("hr", "admin", "superadmin", "manager"),
   async (req, res) => {
     try {
       const { employeeIds, month, year, additionalData } = req.body;
@@ -136,7 +136,7 @@ router.post("/:previewId/query",
 // HR respond to employee query
 router.post("/:previewId/query/:queryIndex/respond",
   protect,
-  authorizeRoles("hr", "admin", "superadmin"),
+  authorizeRoles("hr", "admin", "superadmin", "manager"),
   async (req, res) => {
     try {
       const { previewId, queryIndex } = req.params;
@@ -197,7 +197,7 @@ router.post("/:previewId/acknowledge",
 // HR finalize preview
 router.post("/:previewId/finalize",
   protect,
-  authorizeRoles("hr", "admin", "superadmin"),
+  authorizeRoles("hr", "admin", "superadmin", "manager"),
   async (req, res) => {
     try {
       const { previewId } = req.params;
@@ -222,7 +222,7 @@ router.post("/:previewId/finalize",
 // Get all previews for a month (HR view)
 router.get("/month/:month/:year",
   protect,
-  authorizeRoles("hr", "admin", "superadmin"),
+  authorizeRoles("hr", "admin", "superadmin", "manager"),
   async (req, res) => {
     try {
       const { month, year } = req.params;
@@ -252,7 +252,7 @@ router.get("/month/:month/:year",
 // Get previews requiring HR attention
 router.get("/attention/:month/:year",
   protect,
-  authorizeRoles("hr", "admin", "superadmin"),
+  authorizeRoles("hr", "admin", "superadmin", "manager"),
   async (req, res) => {
     try {
       const { month, year } = req.params;
@@ -276,7 +276,7 @@ router.get("/attention/:month/:year",
 // Get preview statistics
 router.get("/statistics/:month/:year",
   protect,
-  authorizeRoles("hr", "admin", "superadmin"),
+  authorizeRoles("hr", "admin", "superadmin", "manager"),
   async (req, res) => {
     try {
       const { month, year } = req.params;
@@ -300,7 +300,7 @@ router.get("/statistics/:month/:year",
 // Update preview with corrections
 router.put("/:previewId/corrections",
   protect,
-  authorizeRoles("hr", "admin", "superadmin"),
+  authorizeRoles("hr", "admin", "superadmin", "manager"),
   async (req, res) => {
     try {
       const { previewId } = req.params;
@@ -336,7 +336,7 @@ router.put("/:previewId/corrections",
 // Convert finalized preview to salary slip
 router.post("/:previewId/convert-to-slip",
   protect,
-  authorizeRoles("hr", "admin", "superadmin"),
+  authorizeRoles("hr", "admin", "superadmin", "manager"),
   async (req, res) => {
     try {
       const { previewId } = req.params;
@@ -361,7 +361,7 @@ router.post("/:previewId/convert-to-slip",
 // Delete preview
 router.delete("/:previewId",
   protect,
-  authorizeRoles("hr", "admin", "superadmin"),
+  authorizeRoles("hr", "admin", "superadmin", "manager"),
   async (req, res) => {
     try {
       const { previewId } = req.params;

@@ -18,14 +18,14 @@ const router = express.Router();
 router.post(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "accounts"),
+  authorizeRoles("admin", "superadmin", "hr", "accounts", "manager"),
   createSalaryStructure
 );
 
 router.get(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "accounts"),
+  authorizeRoles("admin", "superadmin", "hr", "accounts", "manager"),
   getAllSalaryStructures
 );
 
@@ -33,7 +33,7 @@ router.get(
 router.get(
   "/employee/:employeeId/active",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "accounts"),
+  authorizeRoles("admin", "superadmin", "hr", "accounts", "manager"),
   (req, res, next) => {
     console.log('[SALARY ROUTE] GET /employee/:employeeId/active called');
     console.log('[SALARY ROUTE] Employee ID:', req.params.employeeId);
@@ -45,7 +45,7 @@ router.get(
 router.get(
   "/employee/:employeeId/history",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "accounts"),
+  authorizeRoles("admin", "superadmin", "hr", "accounts", "manager"),
   (req, res, next) => {
     console.log('[SALARY ROUTE] GET /employee/:employeeId/history called');
     console.log('[SALARY ROUTE] Employee ID:', req.params.employeeId);
@@ -58,28 +58,28 @@ router.get(
 router.get(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "accounts"),
+  authorizeRoles("admin", "superadmin", "hr", "accounts", "manager"),
   getSalaryStructureById
 );
 
 router.put(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "accounts"),
+  authorizeRoles("admin", "superadmin", "hr", "accounts", "manager"),
   updateSalaryStructure
 );
 
 router.put(
   "/:id/activate",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "accounts"),
+  authorizeRoles("admin", "superadmin", "hr", "accounts", "manager"),
   activateSalaryStructure
 );
 
 router.delete(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "accounts"),
+  authorizeRoles("admin", "superadmin", "hr", "accounts", "manager"),
   deleteSalaryStructure
 );
 

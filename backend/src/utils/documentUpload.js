@@ -8,12 +8,14 @@ const DOCUMENT_MIME_TYPES = [
   "image/jpeg",
   "image/jpg",
   "image/png",
+  "image/pjpeg", // Progressive JPEG
+  "image/x-png", // Alternative PNG
   "image/webp",
   "application/msword", // .doc
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
 ];
 
-const MAX_DOCUMENT_SIZE = 10 * 1024 * 1024; // 10MB for documents
+const MAX_DOCUMENT_SIZE = 15 * 1024 * 1024; // 15MB for documents (increased for high-res photos)
 
 /**
  * Upload document to AWS S3
@@ -138,7 +140,9 @@ export const getFileExtension = (mimeType) => {
     "application/pdf": "pdf",
     "image/jpeg": "jpg",
     "image/jpg": "jpg",
+    "image/pjpeg": "jpg",
     "image/png": "png",
+    "image/x-png": "png",
     "image/webp": "webp",
     "application/msword": "doc",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",

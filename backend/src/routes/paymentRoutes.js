@@ -25,25 +25,25 @@ const router = express.Router();
 router.post(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager"),
   createPayment
 );
 router.put(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager"),
   updatePayment
 );
 router.delete(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager"),
   deletePayment
 );
 router.post(
   "/:id/partial",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager"),
   recordPartialPayment
 );
 
@@ -51,7 +51,7 @@ router.post(
 router.get(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager"),
   getAllPayments
 );
 
@@ -59,7 +59,7 @@ router.get(
 router.get(
   "/pending-verification",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager"),
   getPendingPayments
 );
 router.post(
@@ -81,13 +81,13 @@ router.get(
 router.get(
   "/overdue",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager"),
   getOverduePayments
 );
 router.get(
   "/stats",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager"),
   getPaymentStats
 );
 router.get(
@@ -113,14 +113,15 @@ router.get(
 router.put(
   "/:id/verify",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager"),
   verifyPayment
 );
 router.put(
   "/:id/reject",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager"),
   rejectPayment
 );
 
 export default router;
+

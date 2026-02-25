@@ -1,103 +1,93 @@
-/* Lead Management Table - No Horizontal Scroll */
+/* Lead Management Table - Premium Design */
 .lead-management-table {
   table-layout: fixed;
   width: 100%;
   margin-bottom: 0;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .lead-management-table th,
 .lead-management-table td {
   vertical-align: middle;
-  padding: 0.5rem 0.25rem;
+  padding: 0.75rem 1rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
+  border-bottom: 1px solid #e9ecef;
 }
 
-/* Optimized Column Widths - No Horizontal Scroll */
+.lead-management-table thead th {
+  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+  color: #495057;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+  border: none;
+  border-bottom: 2px solid #dee2e6;
+  padding: 1rem;
+}
+
+/* Optimized Column Widths for 8 Columns */
 .lead-management-table th:nth-child(1),  /* Checkbox */
 .lead-management-table td:nth-child(1) {
-  width: 40px !important;
-  min-width: 40px !important;
-  max-width: 40px !important;
+  width: 50px !important;
+  min-width: 50px !important;
+  max-width: 50px !important;
   text-align: center !important;
-  padding: 0.25rem !important;
+  padding: 0.75rem 0.5rem !important;
 }
 
 .lead-management-table th:nth-child(2),  /* Name */
 .lead-management-table td:nth-child(2) {
-  width: 15%;
+  width: 18%;
+  min-width: 150px;
+  font-weight: 600;
+}
+
+.lead-management-table th:nth-child(3),  /* Company */
+.lead-management-table td:nth-child(3) {
+  width: 18%;
+  min-width: 150px;
+}
+
+.lead-management-table th:nth-child(4),  /* Phone */
+.lead-management-table td:nth-child(4) {
+  width: 14%;
   min-width: 120px;
 }
 
-.lead-management-table th:nth-child(3),  /* Phone */
-.lead-management-table td:nth-child(3) {
-  width: 12%;
-  min-width: 100px;
-}
-
-.lead-management-table th:nth-child(4),  /* Email */
-.lead-management-table td:nth-child(4) {
-  width: 18%;
-  min-width: 140px;
-}
-
-.lead-management-table th:nth-child(5),  /* Company */
+.lead-management-table th:nth-child(5),  /* Source */
 .lead-management-table td:nth-child(5) {
   width: 12%;
   min-width: 100px;
+  text-align: center;
 }
 
-.lead-management-table th:nth-child(6),  /* Service */
+.lead-management-table th:nth-child(6),  /* Status */
 .lead-management-table td:nth-child(6) {
-  width: 10%;
-  min-width: 80px;
+  width: 12%;
+  min-width: 100px;
+  text-align: center;
 }
 
-.lead-management-table th:nth-child(7),  /* Budget */
+.lead-management-table th:nth-child(7), /* Email Sent */
 .lead-management-table td:nth-child(7) {
   width: 8%;
   min-width: 70px;
-  font-size: 0.75rem;
+  text-align: center;
 }
 
-.lead-management-table th:nth-child(8),  /* Source */
+.lead-management-table th:nth-child(8), /* Actions */
 .lead-management-table td:nth-child(8) {
-  width: 8%;
-  min-width: 70px;
-}
-
-.lead-management-table th:nth-child(9),  /* Status */
-.lead-management-table td:nth-child(9) {
-  width: 7%;
-  min-width: 60px;
-}
-
-.lead-management-table th:nth-child(10), /* Email Sent */
-.lead-management-table td:nth-child(10) {
-  width: 5%;
-  min-width: 50px;
+  width: 10%;
+  min-width: 100px;
   text-align: center;
 }
 
-.lead-management-table th:nth-child(11), /* Actions */
-.lead-management-table td:nth-child(11) {
-  width: 5%;
-  min-width: 60px;
-  text-align: center;
-}
-
-/* Remove Created column on smaller screens to save space */
-@media (max-width: 1200px) {
-  .lead-management-table th:nth-child(11), /* Actions becomes 9th after hiding columns */
-  .lead-management-table td:nth-child(11) {
-    width: 10%;
-    min-width: 80px;
-  }
-}
-
-/* Checkbox styling */
+/* Checkbox styling - Premium */
 .lead-management-table .form-check {
   margin: 0 !important;
   padding: 0 !important;
@@ -109,45 +99,75 @@
 .lead-management-table .form-check-input {
   margin: 0 !important;
   position: static !important;
-  transform: scale(0.9);
+  transform: scale(1.1);
+  cursor: pointer;
+  border: 2px solid #dee2e6;
+  transition: all 0.2s ease;
 }
 
-/* Compact badges for better space utilization */
+.lead-management-table .form-check-input:checked {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+}
+
+.lead-management-table .form-check-input:hover {
+  border-color: #0d6efd;
+}
+
+/* Premium badges with better spacing */
 .lead-management-table .badge {
-  font-size: 0.65rem !important;
-  padding: 0.2rem 0.4rem !important;
-  border-radius: 8px !important;
-  font-weight: 500 !important;
+  font-size: 0.75rem !important;
+  padding: 0.35rem 0.75rem !important;
+  border-radius: 12px !important;
+  font-weight: 600 !important;
   white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: all 0.2s ease;
 }
 
-/* Email status badge - very compact */
+.lead-management-table .badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+}
+
+/* Email status badge - premium design */
 .email-status-compact {
-  font-size: 0.6rem !important;
-  padding: 0.15rem 0.3rem !important;
-  border-radius: 6px !important;
-  min-width: 35px;
+  font-size: 0.75rem !important;
+  padding: 0.3rem 0.6rem !important;
+  border-radius: 10px !important;
+  min-width: 45px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-/* Action buttons - more compact */
+/* Action buttons - premium design */
 .lead-management-table .btn {
-  padding: 0.1rem 0.2rem !important;
-  font-size: 0.7rem !important;
-  border-radius: 4px !important;
-  margin: 0 1px;
+  padding: 0.35rem 0.5rem !important;
+  font-size: 0.75rem !important;
+  border-radius: 6px !important;
+  margin: 0 2px;
+  transition: all 0.2s ease;
+  border-width: 1.5px;
 }
 
-/* Clickable row styling */
+.lead-management-table .btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+}
+
+/* Clickable row styling - premium */
 .lead-table-row {
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
   cursor: pointer;
+  background: white;
 }
 
 .lead-table-row:hover {
-  background-color: #f8f9fa !important;
+  background: linear-gradient(to right, #f8f9fa, #ffffff) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  transform: translateX(2px);
 }
 
 /* Text truncation for long content */
@@ -158,74 +178,36 @@
   max-width: 100%;
 }
 
-/* Responsive adjustments */
+/* Responsive adjustments - Premium */
 @media (max-width: 1400px) {
   .lead-management-table th,
   .lead-management-table td {
-    padding: 0.4rem 0.2rem;
-    font-size: 0.8rem;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.85rem;
   }
   
   .lead-management-table .badge {
-    font-size: 0.6rem !important;
-    padding: 0.15rem 0.3rem !important;
+    font-size: 0.7rem !important;
+    padding: 0.3rem 0.6rem !important;
   }
 }
 
 @media (max-width: 1200px) {
   .lead-management-table th,
   .lead-management-table td {
-    padding: 0.3rem 0.15rem;
-    font-size: 0.75rem;
+    padding: 0.5rem 0.6rem;
+    font-size: 0.8rem;
   }
   
-  /* Hide less important columns on smaller screens */
-  .lead-management-table th:nth-child(5),  /* Company */
-  .lead-management-table td:nth-child(5),
-  .lead-management-table th:nth-child(7),  /* Budget */
-  .lead-management-table td:nth-child(7) {
-    display: none;
-  }
-  
-  /* Adjust remaining column widths */
+  /* Adjust column widths for smaller screens */
   .lead-management-table th:nth-child(2),  /* Name */
   .lead-management-table td:nth-child(2) {
-    width: 18%;
+    width: 20%;
   }
   
-  .lead-management-table th:nth-child(3),  /* Phone */
+  .lead-management-table th:nth-child(3),  /* Company */
   .lead-management-table td:nth-child(3) {
-    width: 15%;
-  }
-  
-  .lead-management-table th:nth-child(4),  /* Email */
-  .lead-management-table td:nth-child(4) {
-    width: 22%;
-  }
-  
-  .lead-management-table th:nth-child(6),  /* Service */
-  .lead-management-table td:nth-child(6) {
-    width: 12%;
-  }
-  
-  .lead-management-table th:nth-child(8),  /* Source */
-  .lead-management-table td:nth-child(8) {
-    width: 10%;
-  }
-  
-  .lead-management-table th:nth-child(9),  /* Status */
-  .lead-management-table td:nth-child(9) {
-    width: 10%;
-  }
-  
-  .lead-management-table th:nth-child(10), /* Email Sent */
-  .lead-management-table td:nth-child(10) {
-    width: 6%;
-  }
-  
-  .lead-management-table th:nth-child(11), /* Actions */
-  .lead-management-table td:nth-child(11) {
-    width: 7%;
+    width: 18%;
   }
 }
 
@@ -395,41 +377,48 @@
   max-width: 100%;
 }
 
-/* Compact action buttons */
+/* Compact action buttons - Premium */
 .action-btn-compact {
-  padding: 0.1rem 0.25rem !important;
-  font-size: 0.65rem !important;
-  border-radius: 4px !important;
-  margin: 0 1px !important;
-  min-width: 24px;
-  height: 24px;
+  padding: 0.35rem 0.5rem !important;
+  font-size: 0.75rem !important;
+  border-radius: 6px !important;
+  margin: 0 2px !important;
+  min-width: 32px;
+  height: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-width: 1px;
-}
-
-.action-btn-compact:hover {
-  transform: scale(1.05);
-  transition: transform 0.1s ease;
-}
-
-/* Improved table hover effects */
-.lead-table-row:hover {
-  background-color: #f8f9fa !important;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  transform: translateY(-1px);
+  border-width: 1.5px;
   transition: all 0.2s ease;
 }
 
-/* Better badge styling */
+.action-btn-compact:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+}
+
+/* Improved table hover effects - Premium */
+.lead-table-row:hover {
+  background: linear-gradient(to right, #f8f9fa, #ffffff) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  transform: translateX(2px);
+  transition: all 0.2s ease;
+}
+
+/* Better badge styling - Premium */
 .lead-management-table .badge {
-  font-size: 0.65rem !important;
-  padding: 0.2rem 0.4rem !important;
-  border-radius: 8px !important;
-  font-weight: 500 !important;
+  font-size: 0.75rem !important;
+  padding: 0.35rem 0.75rem !important;
+  border-radius: 12px !important;
+  font-weight: 600 !important;
   white-space: nowrap;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: all 0.2s ease;
+}
+
+.lead-management-table .badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0,0,0,0.15);
 }
 /* Desktop card view improvements - Optimized Grid Layout */
 @media (min-width: 769px) {

@@ -21,35 +21,35 @@ router.get("/my-requests", protect, getMyWFHRequests);
 router.delete("/:id", protect, cancelWFHRequest);
 router.get("/check/:date", protect, checkWFHStatus);
 
-// HR/Admin routes
+// HR/Admin/Manager routes
 router.get(
   "/all",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   getAllWFHRequests
 );
 router.get(
   "/pending",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   getPendingWFHRequests
 );
 router.put(
   "/:id/approve",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   approveWFHRequest
 );
 router.put(
   "/:id/reject",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   rejectWFHRequest
 );
 router.get(
   "/statistics",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   getWFHStatistics
 );
 

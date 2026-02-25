@@ -356,14 +356,10 @@ export const approveLeaveRequest = async (req, res) => {
         
         if (!existingRecord) {
           // Create new attendance record with "on-leave" status
-          // Set clockIn to 9:00 AM for the date (just for record keeping)
-          const clockInTime = new Date(dateOnly);
-          clockInTime.setHours(9, 0, 0, 0);
-          
+          // Don't set clockIn/clockOut for leave records - they shouldn't show work hours
           await Attendance.create({
             employee: leaveRequest.employee,
             date: dateOnly,
-            clockIn: clockInTime,
             status: 'on-leave',
             workHours: 0,
             overtime: 0,

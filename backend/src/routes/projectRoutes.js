@@ -66,17 +66,17 @@ router.put(
   removeUserFromProject
 );
 
-// Assign and remove project head (SIMPLIFIED - HR/Admin can assign directly)
+// Assign and remove project head (SIMPLIFIED - HR/Admin/Manager can assign directly)
 router.put(
   "/:projectId/project-head",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   assignProjectHead
 );
 router.delete(
   "/:projectId/project-head",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   removeProjectHead
 );
 
@@ -84,13 +84,13 @@ router.delete(
 router.post(
   "/:projectId/assign-department",
   protect,
-  authorizeRoles("admin", "superadmin"),
+  authorizeRoles("admin", "superadmin", "manager"),
   assignProjectToDepartment
 );
 router.post(
   "/:projectId/assign-hop",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   assignHoP
 );
 
@@ -193,7 +193,7 @@ router.put(
 router.delete(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   deleteProject
 );
 

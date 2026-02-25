@@ -1,6 +1,22 @@
-// API Base URL
-export const API_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+// API Base URL - Production-first approach
+// In production, VITE_API_URL is set to https://wealll.cloud/api
+// For mobile compatibility, we use relative URLs when possible
+const getApiBaseUrl = () => {
+  // If VITE_API_URL is explicitly set (production), use it
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // In production build without explicit URL, use relative path
+  if (import.meta.env.PROD) {
+    return '/api';
+  }
+  
+  // Development fallback
+  return 'http://localhost:5000/api';
+};
+
+export const API_URL = getApiBaseUrl();
 
 // User Roles
 export const ROLES = {

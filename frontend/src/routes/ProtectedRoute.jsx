@@ -1,5 +1,6 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { Spinner } from "react-bootstrap";
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -7,11 +8,39 @@ const ProtectedRoute = ({ children }) => {
   if (loading) {
     return (
       <div
-        className="d-flex justify-content-center align-items-center"
-        style={{ minHeight: "100vh" }}
+        className="d-flex flex-column justify-content-center align-items-center"
+        style={{ 
+          minHeight: "100vh",
+          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+        }}
       >
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading...</span>
+        <div className="text-center">
+          {/* Logo */}
+          <img 
+            src="/We Alll Office Logo.png" 
+            alt="We Alll Office" 
+            style={{ 
+              width: "200px", 
+              marginBottom: "2rem",
+              filter: "brightness(0) invert(1)" // Make logo white
+            }}
+          />
+          
+          {/* Spinner */}
+          <Spinner 
+            animation="border" 
+            variant="light"
+            style={{ 
+              width: "3rem", 
+              height: "3rem",
+              borderWidth: "0.3rem"
+            }}
+          />
+          
+          {/* Loading text */}
+          <p className="text-white mt-3 mb-0" style={{ fontSize: "1.1rem" }}>
+            Loading your workspace...
+          </p>
         </div>
       </div>
     );

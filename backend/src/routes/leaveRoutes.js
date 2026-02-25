@@ -22,13 +22,13 @@ const router = express.Router();
 router.get("/my-leaves", protect, getMyLeaveRequests);
 router.get("/balance", protect, getLeaveBalance);
 router.get("/balance/:employeeId", protect, getLeaveBalance);
-router.get("/usage-summary/:employeeId", protect, authorizeRoles("admin", "superadmin", "hr", "hod"), getLeaveUsageSummary);
+router.get("/usage-summary/:employeeId", protect, authorizeRoles("admin", "superadmin", "hr", "hod", "manager"), getLeaveUsageSummary);
 
 // HR/Manager/Admin routes
 router.get(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod"),
+  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
   getAllLeaveRequests
 );
 
@@ -42,13 +42,13 @@ router.put("/:id/cancel", protect, cancelLeaveRequest);
 router.put(
   "/:id/approve",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod"),
+  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
   approveLeaveRequest
 );
 router.put(
   "/:id/reject",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod"),
+  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
   rejectLeaveRequest
 );
 

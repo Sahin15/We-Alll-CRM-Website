@@ -4,13 +4,14 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     
-    <!-- Mobile viewport configuration -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
+    <!-- Mobile viewport configuration - iOS optimized -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover, minimal-ui" />
     
     <!-- iOS specific meta tags -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="We Alll Office" />
+    <meta name="format-detection" content="telephone=no" />
     
     <!-- Android specific meta tags -->
     <meta name="mobile-web-app-capable" content="yes" />
@@ -30,6 +31,19 @@
     <!-- DNS prefetch for better performance -->
     <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
     <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+    
+    <!-- iOS Safari fix for localStorage -->
+    <script>
+      // Test localStorage availability (iOS Safari private mode blocks it)
+      try {
+        localStorage.setItem('test', 'test');
+        localStorage.removeItem('test');
+      } catch (e) {
+        console.warn('localStorage not available, using fallback');
+        // Fallback to sessionStorage or memory storage
+        window.localStorage = window.sessionStorage;
+      }
+    </script>
     
     <title>We Alll Office</title>
   </head>
@@ -61,6 +75,15 @@
       <style>
         @keyframes spin {
           to { transform: rotate(360deg); }
+        }
+        /* iOS Safari fixes */
+        * {
+          -webkit-tap-highlight-color: transparent;
+          -webkit-touch-callout: none;
+        }
+        body {
+          -webkit-user-select: none;
+          -webkit-overflow-scrolling: touch;
         }
       </style>
     </div>

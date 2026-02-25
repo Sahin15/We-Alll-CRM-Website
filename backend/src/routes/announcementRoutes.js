@@ -24,14 +24,14 @@ router.get('/', getAllAnnouncements);
 // Get single announcement
 router.get('/:id', getAnnouncementById);
 
-// Create announcement (Admin/HR only)
-router.post('/', authorize('admin', 'superadmin', 'hr'), createAnnouncement);
+// Create announcement (Admin/HR/Manager only)
+router.post('/', authorize('admin', 'superadmin', 'hr', 'manager'), createAnnouncement);
 
-// Update announcement (Admin/HR only)
-router.put('/:id', authorize('admin', 'superadmin', 'hr'), updateAnnouncement);
+// Update announcement (Admin/HR/Manager only)
+router.put('/:id', authorize('admin', 'superadmin', 'hr', 'manager'), updateAnnouncement);
 
-// Delete announcement (Admin/HR only)
-router.delete('/:id', authorize('admin', 'superadmin', 'hr'), deleteAnnouncement);
+// Delete announcement (Admin/HR/Manager only)
+router.delete('/:id', authorize('admin', 'superadmin', 'hr', 'manager'), deleteAnnouncement);
 
 // Mark announcement as read
 router.post('/:id/read', markAnnouncementAsRead);

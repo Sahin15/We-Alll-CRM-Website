@@ -23,6 +23,7 @@ import { leadApi } from "../../api/leadApi";
 import emailService from "../../services/emailService";
 import EmailHistoryModal from "../../components/leads/EmailHistoryModal";
 import FollowUpDashboard from "../../components/leads/FollowUpDashboard";
+import LeadMeetingsDashboard from "../../components/leads/LeadMeetingsDashboard";
 import { formatDate } from "../../utils/helpers";
 import "./LeadList.css";
 
@@ -870,7 +871,7 @@ const LeadList = () => {
         </Col>
       </Row>
 
-      {/* Tabs for Follow-Up Dashboard and Lead List */}
+      {/* Tabs for Follow-Up Dashboard, Lead List, and Meetings */}
       <Tabs
         activeKey={activeTab}
         onSelect={(k) => setActiveTab(k)}
@@ -880,6 +881,14 @@ const LeadList = () => {
           <Row className="mb-4">
             <Col>
               <FollowUpDashboard />
+            </Col>
+          </Row>
+        </Tab>
+
+        <Tab eventKey="meetings" title="Lead Meetings">
+          <Row className="mb-4">
+            <Col>
+              <LeadMeetingsDashboard />
             </Col>
           </Row>
         </Tab>
@@ -1090,14 +1099,11 @@ const LeadList = () => {
                           />
                         </th>
                         <th>Name</th>
+                        <th>Company</th>
                         <th>Phone</th>
-                        <th className="d-none d-xl-table-cell">Company</th>
-                        <th>Service</th>
-                        <th className="d-none d-xl-table-cell">Budget</th>
                         <th>Source</th>
                         <th>Status</th>
                         <th className="text-center">Sent</th>
-                        <th className="text-center">Follow-Up</th>
                         <th className="text-center">Actions</th>
                       </tr>
                     </thead>
@@ -1130,14 +1136,6 @@ const LeadList = () => {
                             </td>
                             <td>
                               <div 
-                                className="text-truncate-table" 
-                                title={lead.phone || "N/A"}
-                              >
-                                {lead.phone || "N/A"}
-                              </div>
-                            </td>
-                            <td className="d-none d-xl-table-cell">
-                              <div 
                                 className="company-highlight"
                                 style={{
                                   ...getCompanyStyle(lead.companyName),
@@ -1158,22 +1156,9 @@ const LeadList = () => {
                             <td>
                               <div 
                                 className="text-truncate-table" 
-                                title={Array.isArray(lead.service) && lead.service.length > 0 
-                                  ? lead.service.join(", ") 
-                                  : lead.service || "N/A"}
+                                title={lead.phone || "N/A"}
                               >
-                                {Array.isArray(lead.service) && lead.service.length > 0 
-                                  ? lead.service.slice(0, 1).join(", ") + (lead.service.length > 1 ? "+" : "")
-                                  : lead.service || "N/A"}
-                              </div>
-                            </td>
-                            <td className="d-none d-xl-table-cell">
-                              <div 
-                                className="text-truncate-table" 
-                                title={formatBudgetForDisplay(lead.budget)}
-                                style={{ fontSize: '0.75rem' }}
-                              >
-                                {formatBudgetForDisplay(lead.budget).replace(' /Month', '')}
+                                {lead.phone || "N/A"}
                               </div>
                             </td>
                             <td>
@@ -1211,25 +1196,17 @@ const LeadList = () => {
                                 );
                               })()}
                             </td>
-                            <td className="text-center">
-                              {(() => {
-                                const followUpStatus = getFollowUpStatus(lead);
-                                return (
-                                  <Badge 
-                                    bg={followUpStatus.variant}
-                                    className="email-status-compact"
-                                    title={followUpStatus.date ? 
-                                      `${followUpStatus.text}: ${formatDate(followUpStatus.date)}` : 
-                                      'No follow-up scheduled'
-                                    }
-                                  >
-                                    {followUpStatus.icon} {followUpStatus.text}
-                                  </Badge>
-                                );
-                              })()}
-                            </td>
                             <td onClick={(e) => e.stopPropagation()} className="text-center">
                               <div className="d-flex justify-content-center gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="outline-primary"
+                                  onClick={() => navigate(`/leads/${lead._id}`)}
+                                  title="View Lead"
+                                  className="action-btn-compact"
+                                >
+                                  <FaEye size={10} />
+                                </Button>
                                 {canEditLead(lead) && (
                                   <Button
                                     size="sm"
@@ -1241,15 +1218,6 @@ const LeadList = () => {
                                     <FaEdit size={10} />
                                   </Button>
                                 )}
-                                <Button
-                                  size="sm"
-                                  variant="outline-info"
-                                  onClick={() => handleShowEmailHistory(lead)}
-                                  title="Email History"
-                                  className="action-btn-compact"
-                                >
-                                  <FaHistory size={10} />
-                                </Button>
                                 {(user?.role === 'admin' || user?.role === 'superadmin') && (
                                   <Button
                                     size="sm"
@@ -1267,7 +1235,7 @@ const LeadList = () => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="12" className="text-center py-4">
+                          <td colSpan="8" className="text-center py-4">
                             <div className="text-muted">
                               <FaFilter className="mb-2" size={24} />
                               <p className="mb-0">No leads found</p>

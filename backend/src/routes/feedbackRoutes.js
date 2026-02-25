@@ -34,14 +34,14 @@ router.get("/", protect, getAllFeedback);
 router.get(
   "/statistics",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   getFeedbackStatistics
 );
 
 router.get(
   "/trending",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   getTrendingFeedback
 );
 
@@ -51,7 +51,7 @@ router.get("/:id", protect, getFeedbackById);
 router.put(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   updateFeedback
 );
 

@@ -37,6 +37,8 @@ import { useAuth } from "../../context/AuthContext";
 import { leadApi } from "../../api/leadApi";
 import emailService from "../../services/emailService";
 import { formatDate } from "../../utils/helpers";
+import ContactsTab from "../../components/leads/ContactsTab";
+import HistoryTab from "../../components/leads/HistoryTab";
 
 const LeadDetails = () => {
   const { id } = useParams();
@@ -59,6 +61,7 @@ const LeadDetails = () => {
   const [tempDate, setTempDate] = useState("");
   const [tempTime, setTempTime] = useState("");
   const [showDateTimePicker, setShowDateTimePicker] = useState(false);
+  const [remarks, setRemarks] = useState("");
 
   useEffect(() => {
     fetchLeadDetails();
@@ -95,8 +98,13 @@ const LeadDetails = () => {
   const canEditLead = () => {
     if (!user || !lead) return false;
     
-    // Admin and superadmin can edit any lead
-    if (user.role === 'admin' || user.role === 'superadmin') {
+    // Admin, superadmin, and manager can edit any lead
+    if (user.role === 'admin' || user.role === 'superadmin' || user.role === 'manager') {
+      return true;
+    }
+    
+    // Sales department employees can edit any lead
+    if (user.department && user.department.name === 'Sales') {
       return true;
     }
     
@@ -287,6 +295,33 @@ const LeadDetails = () => {
       console.error("Error deleting note:", error);
       const errorMessage = error.response?.data?.message || "Failed to delete note";
       toast.error(errorMessage);
+    }
+  };
+
+  const handleAddRemark = async () => {
+    try {
+      if (!remarks.trim()) {
+        toast.error("Please enter a remark");
+        return;
+      }
+      
+      console.log('📝 Adding remark:', remarks);
+      
+      // Add remark to lead history (not notes)
+      // This will be handled by the backend addHistory method
+      const response = await leadApi.updateLead(id, { 
+        addRemark: remarks // Special flag to add to history instead of notes
+      });
+      
+      console.log('✅ Response received:', response.data);
+      console.log('📊 History count in response:', response.data.lead?.history?.length);
+      
+      toast.success("Remark added to lead history");
+      setRemarks("");
+      fetchLeadDetails();
+    } catch (error) {
+      console.error('❌ Error adding remark:', error);
+      toast.error("Failed to add remark");
     }
   };
 
@@ -821,6 +856,7 @@ const LeadDetails = () => {
             </Col>
           </Row>
 
+          {/* Add Notes - Moved above Lead History */}
           <Card className="shadow-sm mt-3">
             <Card.Header className="bg-white">
               <h5 className="mb-0">Add Notes</h5>
@@ -840,6 +876,55 @@ const LeadDetails = () => {
                   </Button>
                 </div>
               </Form.Group>
+            </Card.Body>
+          </Card>
+
+          {/* Manage Contacts */}
+          <Card className="shadow-sm mt-3">
+            <Card.Header className="bg-white">
+              <h5 className="mb-0">Manage Contacts</h5>
+            </Card.Header>
+            <Card.Body className="py-2">
+              <ContactsTab 
+                leadId={id} 
+                contacts={lead.contacts || []} 
+                onUpdate={fetchLeadDetails} 
+              />
+            </Card.Body>
+          </Card>
+
+          {/* Lead History & Remarks */}
+          <Card className="shadow-sm mt-3">
+            <Card.Header className="bg-white py-2">
+              <h6 className="mb-0">Lead History & Remarks</h6>
+              <small className="text-muted">Complete activity log including meetings, follow-ups, status changes, and remarks</small>
+            </Card.Header>
+            <Card.Body className="py-2">
+              <HistoryTab history={lead.history || []} />
+              
+              {/* Add to Lead History Section */}
+              <Card className="mt-2 border">
+                <Card.Header className="bg-light py-2">
+                  <h6 className="mb-0">Add to Lead History</h6>
+                  <small className="text-muted">Add remarks, meeting notes, or important updates</small>
+                </Card.Header>
+                <Card.Body className="py-2">
+                  <Form.Group className="mb-2">
+                    <Form.Control
+                      as="textarea"
+                      rows={3}
+                      placeholder="E.g., 'Had a meeting with client, discussed pricing. Client interested in premium package. Follow up next week.'"
+                      value={remarks}
+                      onChange={(e) => setRemarks(e.target.value)}
+                    />
+                    <div className="mt-2">
+                      <Button size="sm" variant="primary" onClick={handleAddRemark}>
+                        Add to History
+                      </Button>
+                    </div>
+                  </Form.Group>
+                </Card.Body>
+              </Card>
             </Card.Body>
           </Card>
 

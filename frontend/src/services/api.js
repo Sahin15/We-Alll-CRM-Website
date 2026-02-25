@@ -1,7 +1,38 @@
 import axios from "axios";
 
 // Use relative URL for API calls - works better with proxy and mobile
-const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
+const getApiBaseUrl = () => {
+  // If VITE_API_URL is explicitly set (production), use it
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // In production build without explicit URL, use relative path
+  if (import.meta.env.PROD) {
+    return '/api';
+  }
+  
+  // Development fallback
+  return '/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
+
+// Safe localStorage wrapper for iOS Safari compatibility
+const safeLocalStorage = {
+  getItem: (key) => {
+    try {
+      return localStorage.getItem(key);
+    } catch (e) {
+      console.warn('localStorage.getItem failed:', e);
+      return null;
+    }
+  }
+};
+
+console.log('[API Service] Base URL:', API_BASE_URL);
+console.log('[API Service] Environment:', import.meta.env.MODE);
+console.log('[API Service] VITE_API_URL:', import.meta.env.VITE_API_URL);
 
 // Create axios instance
 const api = axios.create({
@@ -18,13 +49,15 @@ const api = axios.create({
 // Request interceptor - Add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    const token = safeLocalStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    console.log('[API Request]', config.method.toUpperCase(), config.url);
     return config;
   },
   (error) => {
+    console.error('[API Request Error]', error);
     return Promise.reject(error);
   }
 );

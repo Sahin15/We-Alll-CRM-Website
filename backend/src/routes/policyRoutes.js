@@ -34,7 +34,7 @@ router.put(
 
 router.delete(
   "/:id",
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   deletePolicy
 );
 

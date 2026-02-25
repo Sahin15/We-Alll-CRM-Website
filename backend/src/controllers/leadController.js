@@ -204,7 +204,8 @@ export const getLeadById = async (req, res) => {
       .populate("assignedTo", "name email")
       .populate("createdBy", "name email")
       .populate("notesHistory.addedBy", "name email")
-      .populate("followUps.createdBy", "name email");
+      .populate("followUps.createdBy", "name email")
+      .populate("history.performedBy", "name email profilePicture");
 
     if (!lead) {
       return res.status(404).json({ message: "Lead not found" });
@@ -230,7 +231,25 @@ export const updateLead = async (req, res) => {
       req.body.phone = Number(req.body.phone);
     }
 
-    // If notes are being updated, add to notes history
+    // Handle adding remark to history (comprehensive activity log)
+    if (req.body.addRemark) {
+      console.log('📝 Adding remark to history:', req.body.addRemark);
+      console.log('👤 User ID:', req.user._id);
+      
+      lead.addHistory(
+        "Note Added",
+        req.body.addRemark,
+        req.user._id
+      );
+      
+      console.log('✅ History after adding:', lead.history.length, 'entries');
+      console.log('Latest entry:', lead.history[lead.history.length - 1]);
+      
+      // Don't add addRemark to the lead object itself
+      delete req.body.addRemark;
+    }
+
+    // If notes are being updated, add to notes history (quick internal notes)
     if (req.body.notes && req.body.notes !== lead.notes) {
       lead.notesHistory.push({
         note: req.body.notes,
@@ -244,13 +263,18 @@ export const updateLead = async (req, res) => {
     });
 
     await lead.save();
+    
+    console.log('💾 Lead saved. History count:', lead.history.length);
 
     // Populate assigned user and creator details
     const populatedLead = await Lead.findById(lead._id)
       .populate("assignedTo", "name email")
       .populate("createdBy", "name email")
-      .populate("notesHistory.addedBy", "name email");
+      .populate("notesHistory.addedBy", "name email")
+      .populate("history.performedBy", "name email");
 
+    console.log('📤 Returning lead with history count:', populatedLead.history.length);
+    
     return res.status(200).json({
       message: "Lead updated successfully",
       lead: populatedLead,
@@ -429,50 +453,6 @@ export const scheduleFollowUp = async (req, res) => {
   }
 };
 
-// Complete a follow-up
-export const completeFollowUp = async (req, res) => {
-  try {
-    const { followUpId } = req.params;
-    const lead = await Lead.findById(req.params.id);
-
-    if (!lead) {
-      return res.status(404).json({ message: "Lead not found" });
-    }
-
-    const followUp = lead.followUps.id(followUpId);
-    if (!followUp) {
-      return res.status(404).json({ message: "Follow-up not found" });
-    }
-
-    followUp.status = "Completed";
-    followUp.completedAt = new Date();
-    lead.lastFollowUpDate = new Date();
-
-    // Update next follow-up date
-    const pendingFollowUps = lead.followUps
-      .filter((f) => f.status === "Pending")
-      .sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate));
-
-    lead.nextFollowUpDate =
-      pendingFollowUps.length > 0 ? pendingFollowUps[0].scheduledDate : null;
-
-    await lead.save();
-
-    const populatedLead = await Lead.findById(lead._id)
-      .populate("assignedTo", "name email")
-      .populate("createdBy", "name email")
-      .populate("followUps.createdBy", "name email");
-
-    return res.status(200).json({
-      message: "Follow-up marked as completed",
-      lead: populatedLead,
-    });
-  } catch (error) {
-    console.error("Error in completeFollowUp:", error.message);
-    return res.status(500).json({ message: "Server error" });
-  }
-};
-
 // Cancel a follow-up
 export const cancelFollowUp = async (req, res) => {
   try {
@@ -511,24 +491,6 @@ export const cancelFollowUp = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in cancelFollowUp:", error.message);
-    return res.status(500).json({ message: "Server error" });
-  }
-};
-
-// Get all follow-ups for a lead
-export const getLeadFollowUps = async (req, res) => {
-  try {
-    const lead = await Lead.findById(req.params.id)
-      .populate("followUps.createdBy", "name email")
-      .select("followUps");
-
-    if (!lead) {
-      return res.status(404).json({ message: "Lead not found" });
-    }
-
-    return res.status(200).json(lead.followUps);
-  } catch (error) {
-    console.error("Error in getLeadFollowUps:", error.message);
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -647,5 +609,639 @@ export const getFollowUpDashboard = async (req, res) => {
   } catch (error) {
     console.error('Error in getFollowUpDashboard:', error.message);
     return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+
+// ==================== FOLLOW-UPS ====================
+
+// Get all follow-ups for a lead
+export const getLeadFollowUps = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const lead = await Lead.findById(id)
+      .populate('followUps.assignedTo', 'name email')
+      .populate('followUps.createdBy', 'name email');
+
+    if (!lead) {
+      return res.status(404).json({ message: "Lead not found" });
+    }
+
+    // Sort by scheduled date (nearest first)
+    const sortedFollowUps = lead.followUps.sort((a, b) => 
+      new Date(a.scheduledDate) - new Date(b.scheduledDate)
+    );
+
+    res.status(200).json({ followUps: sortedFollowUps });
+  } catch (error) {
+    console.error("Error fetching follow-ups:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Create new follow-up
+export const createFollowUp = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { followUpType, scheduledDate, scheduledTime, notes, assignedTo } = req.body;
+
+    const lead = await Lead.findById(id);
+    if (!lead) {
+      return res.status(404).json({ message: "Lead not found" });
+    }
+
+    const newFollowUp = {
+      followUpType,
+      scheduledDate,
+      scheduledTime,
+      notes,
+      assignedTo: assignedTo || req.user._id,
+      createdBy: req.user._id,
+      status: "Pending",
+    };
+
+    lead.followUps.push(newFollowUp);
+    
+    // Add to history
+    lead.addHistory(
+      "Follow-up Created",
+      `${followUpType} follow-up scheduled for ${new Date(scheduledDate).toLocaleDateString()}`,
+      req.user._id
+    );
+
+    await lead.save();
+    await lead.populate('followUps.assignedTo', 'name email');
+    await lead.populate('followUps.createdBy', 'name email');
+
+    const createdFollowUp = lead.followUps[lead.followUps.length - 1];
+    res.status(201).json({ message: "Follow-up created", followUp: createdFollowUp });
+  } catch (error) {
+    console.error("Error creating follow-up:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Update follow-up
+export const updateFollowUp = async (req, res) => {
+  try {
+    const { id, followupId } = req.params;
+    const updates = req.body;
+
+    const lead = await Lead.findById(id);
+    if (!lead) {
+      return res.status(404).json({ message: "Lead not found" });
+    }
+
+    const followUp = lead.followUps.id(followupId);
+    if (!followUp) {
+      return res.status(404).json({ message: "Follow-up not found" });
+    }
+
+    Object.assign(followUp, updates);
+    
+    lead.addHistory(
+      "Follow-up Updated",
+      `${followUp.followUpType} follow-up updated`,
+      req.user._id
+    );
+
+    await lead.save();
+    await lead.populate('followUps.assignedTo', 'name email');
+
+    res.status(200).json({ message: "Follow-up updated", followUp });
+  } catch (error) {
+    console.error("Error updating follow-up:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Mark follow-up as completed (handles both old and new routes)
+export const completeFollowUp = async (req, res) => {
+  try {
+    const { id, followupId, followUpId } = req.params;
+    const actualFollowUpId = followupId || followUpId; // Support both parameter names
+
+    const lead = await Lead.findById(id || req.params.id);
+    if (!lead) {
+      return res.status(404).json({ message: "Lead not found" });
+    }
+
+    const followUp = lead.followUps.id(actualFollowUpId);
+    if (!followUp) {
+      return res.status(404).json({ message: "Follow-up not found" });
+    }
+
+    followUp.status = "Completed";
+    followUp.completedAt = new Date();
+    lead.lastFollowUpDate = new Date();
+
+    // Update next follow-up date
+    const pendingFollowUps = lead.followUps
+      .filter((f) => f.status === "Pending")
+      .sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate));
+
+    lead.nextFollowUpDate =
+      pendingFollowUps.length > 0 ? pendingFollowUps[0].scheduledDate : null;
+
+    // Add to history if method exists
+    if (lead.addHistory) {
+      lead.addHistory(
+        "Follow-up Completed",
+        `${followUp.followUpType} follow-up completed`,
+        req.user._id
+      );
+    }
+
+    await lead.save();
+    
+    // Return format based on route (old vs new)
+    if (id) {
+      res.status(200).json({ message: "Follow-up marked as completed", followUp });
+    } else {
+      const populatedLead = await Lead.findById(lead._id)
+        .populate("assignedTo", "name email")
+        .populate("createdBy", "name email")
+        .populate("followUps.createdBy", "name email");
+      res.status(200).json({
+        message: "Follow-up marked as completed",
+        lead: populatedLead,
+      });
+    }
+  } catch (error) {
+    console.error("Error completing follow-up:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Delete follow-up
+export const deleteFollowUp = async (req, res) => {
+  try {
+    const { id, followupId } = req.params;
+
+    const lead = await Lead.findById(id);
+    if (!lead) {
+      return res.status(404).json({ message: "Lead not found" });
+    }
+
+    lead.followUps.pull(followupId);
+    
+    lead.addHistory(
+      "Follow-up Deleted",
+      "A follow-up was deleted",
+      req.user._id
+    );
+
+    await lead.save();
+    res.status(200).json({ message: "Follow-up deleted" });
+  } catch (error) {
+    console.error("Error deleting follow-up:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// ==================== MEETINGS ====================
+
+// Get all meetings for a lead
+export const getLeadMeetings = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const lead = await Lead.findById(id)
+      .populate('meetings.assignedTo', 'name email')
+      .populate('meetings.createdBy', 'name email');
+
+    if (!lead) {
+      return res.status(404).json({ message: "Lead not found" });
+    }
+
+    const sortedMeetings = lead.meetings.sort((a, b) => 
+      new Date(a.scheduledDate) - new Date(b.scheduledDate)
+    );
+
+    res.status(200).json({ meetings: sortedMeetings });
+  } catch (error) {
+    console.error("Error fetching meetings:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Create new meeting
+export const createMeeting = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      title,
+      scheduledDate,
+      scheduledTime,
+      duration,
+      meetingType,
+      meetingLink,
+      location,
+      notes,
+      assignedTo,
+    } = req.body;
+
+    const lead = await Lead.findById(id);
+    if (!lead) {
+      return res.status(404).json({ message: "Lead not found" });
+    }
+
+    const newMeeting = {
+      title,
+      scheduledDate,
+      scheduledTime,
+      duration: duration || 30,
+      meetingType,
+      meetingLink: meetingType === "Online" ? meetingLink : undefined,
+      location: meetingType === "Offline" ? location : undefined,
+      notes,
+      assignedTo: assignedTo || req.user._id,
+      createdBy: req.user._id,
+      status: "Scheduled",
+    };
+
+    lead.meetings.push(newMeeting);
+    
+    lead.addHistory(
+      "Meeting Scheduled",
+      `Meeting "${title}" scheduled for ${new Date(scheduledDate).toLocaleDateString()} at ${scheduledTime}`,
+      req.user._id
+    );
+
+    await lead.save();
+    await lead.populate('meetings.assignedTo', 'name email');
+    await lead.populate('meetings.createdBy', 'name email');
+
+    const createdMeeting = lead.meetings[lead.meetings.length - 1];
+    res.status(201).json({ message: "Meeting scheduled", meeting: createdMeeting });
+  } catch (error) {
+    console.error("Error creating meeting:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Update meeting
+export const updateMeeting = async (req, res) => {
+  try {
+    const { id, meetingId } = req.params;
+    const updates = req.body;
+
+    const lead = await Lead.findById(id);
+    if (!lead) {
+      return res.status(404).json({ message: "Lead not found" });
+    }
+
+    const meeting = lead.meetings.id(meetingId);
+    if (!meeting) {
+      return res.status(404).json({ message: "Meeting not found" });
+    }
+
+    Object.assign(meeting, updates);
+    
+    lead.addHistory(
+      "Meeting Updated",
+      `Meeting "${meeting.title}" updated`,
+      req.user._id
+    );
+
+    await lead.save();
+    await lead.populate('meetings.assignedTo', 'name email');
+
+    res.status(200).json({ message: "Meeting updated", meeting });
+  } catch (error) {
+    console.error("Error updating meeting:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Complete meeting
+export const completeMeeting = async (req, res) => {
+  try {
+    const { id, meetingId } = req.params;
+
+    const lead = await Lead.findById(id);
+    if (!lead) {
+      return res.status(404).json({ message: "Lead not found" });
+    }
+
+    const meeting = lead.meetings.id(meetingId);
+    if (!meeting) {
+      return res.status(404).json({ message: "Meeting not found" });
+    }
+
+    meeting.status = "Completed";
+    meeting.completedAt = new Date();
+
+    lead.addHistory(
+      "Meeting Completed",
+      `Meeting "${meeting.title}" completed`,
+      req.user._id
+    );
+
+    await lead.save();
+    res.status(200).json({ message: "Meeting marked as completed", meeting });
+  } catch (error) {
+    console.error("Error completing meeting:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Cancel meeting
+export const cancelMeeting = async (req, res) => {
+  try {
+    const { id, meetingId } = req.params;
+
+    const lead = await Lead.findById(id);
+    if (!lead) {
+      return res.status(404).json({ message: "Lead not found" });
+    }
+
+    const meeting = lead.meetings.id(meetingId);
+    if (!meeting) {
+      return res.status(404).json({ message: "Meeting not found" });
+    }
+
+    meeting.status = "Cancelled";
+
+    lead.addHistory(
+      "Meeting Cancelled",
+      `Meeting "${meeting.title}" cancelled`,
+      req.user._id
+    );
+
+    await lead.save();
+    res.status(200).json({ message: "Meeting cancelled", meeting });
+  } catch (error) {
+    console.error("Error cancelling meeting:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Get my meetings (for sales dashboard)
+export const getMyMeetings = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    
+    const leads = await Lead.find({
+      'meetings.assignedTo': userId
+    })
+    .populate('meetings.assignedTo', 'name email')
+    .populate('assignedTo', 'name email');
+
+    const myMeetings = [];
+    leads.forEach(lead => {
+      lead.meetings.forEach(meeting => {
+        if (meeting.assignedTo._id.toString() === userId.toString()) {
+          myMeetings.push({
+            ...meeting.toObject(),
+            leadId: lead._id,
+            leadName: lead.fullName,
+            leadCompany: lead.companyName,
+          });
+        }
+      });
+    });
+
+    // Sort by date
+    myMeetings.sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate));
+
+    res.status(200).json({ meetings: myMeetings });
+  } catch (error) {
+    console.error("Error fetching my meetings:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Get team meetings (for manager dashboard)
+export const getTeamMeetings = async (req, res) => {
+  try {
+    // Get all users in the same department
+    const manager = await User.findById(req.user._id).populate('department');
+    const teamMembers = await User.find({ department: manager.department._id });
+    const teamMemberIds = teamMembers.map(member => member._id);
+
+    const leads = await Lead.find({
+      'meetings.assignedTo': { $in: teamMemberIds }
+    })
+    .populate('meetings.assignedTo', 'name email')
+    .populate('assignedTo', 'name email');
+
+    const teamMeetings = [];
+    leads.forEach(lead => {
+      lead.meetings.forEach(meeting => {
+        if (teamMemberIds.some(id => id.toString() === meeting.assignedTo._id.toString())) {
+          teamMeetings.push({
+            ...meeting.toObject(),
+            leadId: lead._id,
+            leadName: lead.fullName,
+            leadCompany: lead.companyName,
+          });
+        }
+      });
+    });
+
+    teamMeetings.sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate));
+
+    res.status(200).json({ meetings: teamMeetings });
+  } catch (error) {
+    console.error("Error fetching team meetings:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Get all meetings (for admin dashboard)
+export const getAllMeetings = async (req, res) => {
+  try {
+    const leads = await Lead.find({ 'meetings.0': { $exists: true } })
+      .populate('meetings.assignedTo', 'name email')
+      .populate('assignedTo', 'name email');
+
+    const allMeetings = [];
+    leads.forEach(lead => {
+      lead.meetings.forEach(meeting => {
+        allMeetings.push({
+          ...meeting.toObject(),
+          leadId: lead._id,
+          leadName: lead.fullName,
+          leadCompany: lead.companyName,
+        });
+      });
+    });
+
+    allMeetings.sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate));
+
+    res.status(200).json({ meetings: allMeetings });
+  } catch (error) {
+    console.error("Error fetching all meetings:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// ==================== CONTACTS ====================
+
+// Add contact to lead
+export const addContact = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { type, value, label, isPrimary } = req.body;
+
+    const lead = await Lead.findById(id);
+    if (!lead) {
+      return res.status(404).json({ message: "Lead not found" });
+    }
+
+    // If setting as primary, unset other primary contacts of same type
+    if (isPrimary) {
+      lead.contacts.forEach(contact => {
+        if (contact.type === type && contact.isPrimary) {
+          contact.isPrimary = false;
+        }
+      });
+    }
+
+    const newContact = { type, value, label, isPrimary: isPrimary || false };
+    lead.contacts.push(newContact);
+
+    lead.addHistory(
+      "Contact Added",
+      `${type} contact added: ${value}`,
+      req.user._id
+    );
+
+    await lead.save();
+    const addedContact = lead.contacts[lead.contacts.length - 1];
+    res.status(201).json({ message: "Contact added", contact: addedContact });
+  } catch (error) {
+    console.error("Error adding contact:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Update contact
+export const updateContact = async (req, res) => {
+  try {
+    const { id, contactId } = req.params;
+    const updates = req.body;
+
+    const lead = await Lead.findById(id);
+    if (!lead) {
+      return res.status(404).json({ message: "Lead not found" });
+    }
+
+    const contact = lead.contacts.id(contactId);
+    if (!contact) {
+      return res.status(404).json({ message: "Contact not found" });
+    }
+
+    // If setting as primary, unset other primary contacts of same type
+    if (updates.isPrimary) {
+      lead.contacts.forEach(c => {
+        if (c.type === contact.type && c._id.toString() !== contactId && c.isPrimary) {
+          c.isPrimary = false;
+        }
+      });
+    }
+
+    Object.assign(contact, updates);
+    
+    // Add history entry if user is authenticated
+    if (req.user && req.user._id) {
+      lead.addHistory(
+        "Contact Updated",
+        `${contact.type} contact updated`,
+        req.user._id
+      );
+    }
+
+    await lead.save();
+    res.status(200).json({ message: "Contact updated", contact });
+  } catch (error) {
+    console.error("Error updating contact:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Delete contact
+export const deleteContact = async (req, res) => {
+  try {
+    const { id, contactId } = req.params;
+
+    const lead = await Lead.findById(id);
+    if (!lead) {
+      return res.status(404).json({ message: "Lead not found" });
+    }
+
+    lead.contacts.pull(contactId);
+    
+    // Add history entry if user is authenticated
+    if (req.user && req.user._id) {
+      lead.addHistory(
+        "Contact Deleted",
+        "A contact was deleted",
+        req.user._id
+      );
+    }
+
+    await lead.save();
+    res.status(200).json({ message: "Contact deleted" });
+  } catch (error) {
+    console.error("Error deleting contact:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Set contact as primary
+export const setPrimaryContact = async (req, res) => {
+  try {
+    const { id, contactId } = req.params;
+
+    const lead = await Lead.findById(id);
+    if (!lead) {
+      return res.status(404).json({ message: "Lead not found" });
+    }
+
+    const contact = lead.contacts.id(contactId);
+    if (!contact) {
+      return res.status(404).json({ message: "Contact not found" });
+    }
+
+    // Unset other primary contacts of same type
+    lead.contacts.forEach(c => {
+      if (c.type === contact.type && c._id.toString() !== contactId) {
+        c.isPrimary = false;
+      }
+    });
+
+    contact.isPrimary = true;
+    await lead.save();
+
+    res.status(200).json({ message: "Contact set as primary", contact });
+  } catch (error) {
+    console.error("Error setting primary contact:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// ==================== HISTORY ====================
+
+// Get lead history
+export const getLeadHistory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const lead = await Lead.findById(id)
+      .populate('history.performedBy', 'name email profilePicture');
+
+    if (!lead) {
+      return res.status(404).json({ message: "Lead not found" });
+    }
+
+    // Sort by timestamp (newest first)
+    const sortedHistory = lead.history.sort((a, b) => 
+      new Date(b.timestamp) - new Date(a.timestamp)
+    );
+
+    res.status(200).json({ history: sortedHistory });
+  } catch (error) {
+    console.error("Error fetching lead history:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };

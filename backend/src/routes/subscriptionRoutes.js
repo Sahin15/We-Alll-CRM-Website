@@ -27,7 +27,7 @@ router.post(
 router.get(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager"),
   getAllSubscriptions
 );
 
@@ -59,7 +59,7 @@ router.get(
 router.put(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager"),
   updateSubscription
 );
 
@@ -67,7 +67,7 @@ router.put(
 router.patch(
   "/:id/activate",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager"),
   activateSubscription
 );
 
@@ -83,8 +83,9 @@ router.patch(
 router.delete(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin"),
+  authorizeRoles("admin", "superadmin", "manager"),
   deleteSubscription
 );
 
 export default router;
+

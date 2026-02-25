@@ -28,7 +28,7 @@ const router = express.Router();
 router.get(
   "/analytics/summary",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   getAllDepartmentsAnalytics
 );
 router.get(
@@ -54,13 +54,13 @@ router.get("/operational", protect, getOperationalDepartments);
 router.post(
   "/:departmentId/assign-hod",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   assignHoD
 );
 router.delete(
   "/:departmentId/remove-hod",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
   removeHoD
 );
 

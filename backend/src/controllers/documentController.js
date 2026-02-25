@@ -40,22 +40,45 @@ const fileFilter = (req, file, cb) => {
     mimetype: file.mimetype
   });
   
-  const allowedTypes = /jpeg|jpg|png|pdf|doc|docx/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedTypes.test(file.mimetype);
+  // Check file extension
+  const ext = path.extname(file.originalname).toLowerCase();
+  const allowedExtensions = ['.jpeg', '.jpg', '.png', '.pdf', '.doc', '.docx'];
+  
+  // Check mimetype - be more permissive with image types
+  const allowedMimetypes = [
+    'image/jpeg',
+    'image/jpg', 
+    'image/png',
+    'image/pjpeg', // Progressive JPEG
+    'image/x-png', // Alternative PNG mimetype
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ];
 
-  if (mimetype && extname) {
-    console.log('[MULTER] File accepted');
+  const isValidExtension = allowedExtensions.includes(ext);
+  const isValidMimetype = allowedMimetypes.includes(file.mimetype);
+
+  if (isValidExtension && isValidMimetype) {
+    console.log('[MULTER] File accepted:', { ext, mimetype: file.mimetype });
     return cb(null, true);
   } else {
-    console.log('[MULTER] File rejected - invalid type');
-    cb(new Error('Only images (JPEG, JPG, PNG), PDFs, and documents (DOC, DOCX) are allowed'));
+    console.log('[MULTER] File rejected:', { 
+      ext, 
+      mimetype: file.mimetype,
+      isValidExtension,
+      isValidMimetype
+    });
+    cb(new Error(`Invalid file type. Allowed: JPEG, JPG, PNG, PDF, DOC, DOCX. Got: ${ext} (${file.mimetype})`));
   }
 };
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit (increased from 5MB)
+  limits: { 
+    fileSize: 15 * 1024 * 1024, // 15MB limit (increased for high-res photos)
+    files: 1 // Only one file at a time
+  },
   fileFilter: fileFilter
 });
 

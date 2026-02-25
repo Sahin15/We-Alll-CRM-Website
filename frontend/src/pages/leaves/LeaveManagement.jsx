@@ -13,7 +13,7 @@ import './LeaveManagement.css';
 
 const LeaveManagement = () => {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'hr' || user?.role === 'hod';
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'hr' || user?.role === 'hod' || user?.role === 'manager';
   
   // Redirect employees to their proper leave page
   useEffect(() => {

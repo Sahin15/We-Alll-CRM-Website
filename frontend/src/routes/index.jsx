@@ -27,6 +27,7 @@ import HoDDashboard from "../pages/hod/HoDDashboard";
 // Employee Pages
 import MyProjects from "../pages/employee/MyProjects";
 import MyWorkPage from "../pages/employee/MyWorkPage";
+import MyMeetings from "../pages/employee/MyMeetings";
 import TeamDirectory from "../pages/employee/TeamDirectory";
 import MySalarySlips from "../pages/employee/MySalarySlips";
 import MySalaryPreview from "../pages/employee/MySalaryPreview";
@@ -122,6 +123,12 @@ import NotificationSettings from "../components/notifications/NotificationSettin
 // Holiday Management
 import HolidayManagement from "../components/hr/HolidayManagement";
 
+// Company Management Pages
+import MeetingManagement from "../pages/meetings/MeetingManagement";
+import PolicyManagement from "../pages/policies/PolicyManagement";
+import AnnouncementManagement from "../pages/announcements/AnnouncementManagement";
+import ReportsAnalytics from "../pages/reports/ReportsAnalytics";
+
 // Error Pages
 import NotFound from "../pages/errors/NotFound";
 import Unauthorized from "../pages/errors/Unauthorized";
@@ -181,7 +188,7 @@ const AppRoutes = () => {
         <Route
           path="/users"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
               <UserList />
             </RoleBasedRoute>
           }
@@ -189,7 +196,7 @@ const AppRoutes = () => {
         <Route
           path="/users/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
               <UserDetails />
             </RoleBasedRoute>
           }
@@ -199,7 +206,7 @@ const AppRoutes = () => {
         <Route
           path="/employees"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
               <EmployeeList />
             </RoleBasedRoute>
           }
@@ -207,7 +214,7 @@ const AppRoutes = () => {
         <Route
           path="/employees/add"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
               <AddEmployee />
             </RoleBasedRoute>
           }
@@ -216,7 +223,7 @@ const AppRoutes = () => {
         <Route
           path="/employees/:userId/profile"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
               <EmployeeProfileManagement />
             </RoleBasedRoute>
           }
@@ -224,7 +231,7 @@ const AppRoutes = () => {
         <Route
           path="/employees/:userId/work"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
               <EnhancedEmployeeWorkView />
             </RoleBasedRoute>
           }
@@ -232,7 +239,7 @@ const AppRoutes = () => {
         <Route
           path="/employees/:userId"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
               <EmployeeProfileManagement />
             </RoleBasedRoute>
           }
@@ -248,7 +255,7 @@ const AppRoutes = () => {
         <Route
           path="/leaves/requests"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
               <LeaveRequests />
             </RoleBasedRoute>
           }
@@ -258,7 +265,7 @@ const AppRoutes = () => {
         <Route
           path="/salary-management"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "accounts"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "accounts", "manager"]}>
               <SalaryManagement />
             </RoleBasedRoute>
           }
@@ -266,7 +273,7 @@ const AppRoutes = () => {
         <Route
           path="/salary-preview-management"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "accounts"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "accounts", "manager"]}>
               <HRSalaryPreviewManagement />
             </RoleBasedRoute>
           }
@@ -274,7 +281,7 @@ const AppRoutes = () => {
         <Route
           path="/salary-templates"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "accounts"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "accounts", "manager"]}>
               <TemplateManagement />
             </RoleBasedRoute>
           }
@@ -285,7 +292,7 @@ const AppRoutes = () => {
         <Route
           path="/attendance/tracking"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "hod"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "hod", "manager"]}>
               <AttendanceTracking />
             </RoleBasedRoute>
           }
@@ -293,7 +300,7 @@ const AppRoutes = () => {
         <Route
           path="/attendance/overtime-statistics"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
               <OvertimeStatistics />
             </RoleBasedRoute>
           }
@@ -302,6 +309,7 @@ const AppRoutes = () => {
         {/* Employee Portal Routes */}
         <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
         <Route path="/employee/my-work" element={<MyWorkPage />} />
+        <Route path="/employee/meetings" element={<MyMeetings />} />
         <Route path="/employee/attendance" element={<EmployeeMyAttendance />} />
         <Route path="/employee/attendance-report/:employeeId" element={<EmployeeAttendanceReport />} />
         <Route path="/employee/leaves" element={<EmployeeMyLeaves />} />
@@ -330,7 +338,7 @@ const AppRoutes = () => {
         <Route
           path="/admin/settings"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager"]}>
               <AdminSettings />
             </RoleBasedRoute>
           }
@@ -348,7 +356,7 @@ const AppRoutes = () => {
         <Route
           path="/admin/holidays"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager"]}>
               <HolidayManagement />
             </RoleBasedRoute>
           }
@@ -375,7 +383,7 @@ const AppRoutes = () => {
         <Route
           path="/clients"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "manager"]}>
               <ClientList />
             </RoleBasedRoute>
           }
@@ -383,7 +391,7 @@ const AppRoutes = () => {
         <Route
           path="/clients/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "manager"]}>
               <ClientDetails />
             </RoleBasedRoute>
           }
@@ -393,7 +401,7 @@ const AppRoutes = () => {
         <Route
           path="/leads"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "accounts"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "accounts", "manager"]}>
               <LeadList />
             </RoleBasedRoute>
           }
@@ -401,7 +409,7 @@ const AppRoutes = () => {
         <Route
           path="/leads/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "accounts"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "accounts", "manager"]}>
               <LeadDetails />
             </RoleBasedRoute>
           }
@@ -409,7 +417,7 @@ const AppRoutes = () => {
         <Route
           path="/leads/:id/edit"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "accounts"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "accounts", "manager"]}>
               <LeadList />
             </RoleBasedRoute>
           }
@@ -437,7 +445,7 @@ const AppRoutes = () => {
         <Route
           path="/work-calendar/my-calendar"
           element={
-            <RoleBasedRoute allowedRoles={["employee", "admin", "superadmin", "hr", "hod"]}>
+            <RoleBasedRoute allowedRoles={["employee", "admin", "superadmin", "hr", "hod", "manager"]}>
               <MyWorkCalendar />
             </RoleBasedRoute>
           }
@@ -445,7 +453,7 @@ const AppRoutes = () => {
         <Route
           path="/work-calendar/admin-overview"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
               <AdminWorkCalendarOverview />
             </RoleBasedRoute>
           }
@@ -468,7 +476,7 @@ const AppRoutes = () => {
         <Route
           path="/admin/billing"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager"]}>
               <AdminBillingDashboard />
             </RoleBasedRoute>
           }
@@ -476,7 +484,7 @@ const AppRoutes = () => {
         <Route
           path="/admin/services"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager"]}>
               <ServiceManagement />
             </RoleBasedRoute>
           }
@@ -484,7 +492,7 @@ const AppRoutes = () => {
         <Route
           path="/admin/plans"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager"]}>
               <PlanManagement />
             </RoleBasedRoute>
           }
@@ -492,7 +500,7 @@ const AppRoutes = () => {
         <Route
           path="/admin/subscriptions"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager"]}>
               <SubscriptionManagement />
             </RoleBasedRoute>
           }
@@ -500,7 +508,7 @@ const AppRoutes = () => {
         <Route
           path="/admin/invoices"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager"]}>
               <InvoiceManagement />
             </RoleBasedRoute>
           }
@@ -508,7 +516,7 @@ const AppRoutes = () => {
         <Route
           path="/admin/payments"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager"]}>
               <PaymentVerification />
             </RoleBasedRoute>
           }
@@ -548,11 +556,47 @@ const AppRoutes = () => {
           }
         />
 
+        {/* Company Management Routes */}
+        <Route
+          path="/meetings"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <MeetingManagement />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/policies"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <PolicyManagement />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/announcements"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <AnnouncementManagement />
+            </RoleBasedRoute>
+          }
+        />
+        
+        {/* Reports & Analytics */}
+        <Route
+          path="/reports"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <ReportsAnalytics />
+            </RoleBasedRoute>
+          }
+        />
+
         {/* Notification Management Routes */}
         <Route
           path="/admin/notifications/manage"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager"]}>
               <NotificationManagement />
             </RoleBasedRoute>
           }
@@ -560,7 +604,7 @@ const AppRoutes = () => {
         <Route
           path="/admin/notifications/create"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager"]}>
               <NotificationManagement />
             </RoleBasedRoute>
           }
@@ -568,7 +612,7 @@ const AppRoutes = () => {
         <Route
           path="/admin/notifications/dashboard"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager"]}>
               <NotificationDashboard />
             </RoleBasedRoute>
           }
@@ -576,7 +620,7 @@ const AppRoutes = () => {
         <Route
           path="/admin/notifications/settings"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager"]}>
               <NotificationSettings />
             </RoleBasedRoute>
           }
@@ -597,3 +641,5 @@ const AppRoutes = () => {
 };
 
 export default AppRoutes;
+
+

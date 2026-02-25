@@ -13,50 +13,92 @@ export const useAuth = () => {
   return context;
 };
 
+// Safe localStorage wrapper for iOS Safari compatibility
+const safeLocalStorage = {
+  getItem: (key) => {
+    try {
+      return localStorage.getItem(key);
+    } catch (e) {
+      console.warn('localStorage.getItem failed:', e);
+      return null;
+    }
+  },
+  setItem: (key, value) => {
+    try {
+      localStorage.setItem(key, value);
+      return true;
+    } catch (e) {
+      console.warn('localStorage.setItem failed:', e);
+      return false;
+    }
+  },
+  removeItem: (key) => {
+    try {
+      localStorage.removeItem(key);
+      return true;
+    } catch (e) {
+      console.warn('localStorage.removeItem failed:', e);
+      return false;
+    }
+  }
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem("token"));
+  const [token, setToken] = useState(safeLocalStorage.getItem("token"));
   const [loading, setLoading] = useState(true);
   const healthMonitorCleanup = useRef(null);
 
   useEffect(() => {
-    let isMounted = true; // Prevent state updates if unmounted
-    
-    const initAuth = async () => {
-      const storedToken = localStorage.getItem("token");
-      const storedUser = localStorage.getItem("user");
+    const initAuth = () => {
+      try {
+        console.log('[AuthContext] Initializing auth...');
+        const storedToken = safeLocalStorage.getItem("token");
+        const storedUser = safeLocalStorage.getItem("user");
 
-      if (storedToken && storedUser) {
-        if (!isMounted) return;
-        setToken(storedToken);
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-        
-        // Skip refresh on init to avoid rate limiting - user data is already in localStorage
-        // User data will be refreshed on next login or manual profile update
-      }
-      if (isMounted) {
+        console.log('[AuthContext] Token exists:', !!storedToken);
+        console.log('[AuthContext] User exists:', !!storedUser);
+
+        if (storedToken && storedUser) {
+          setToken(storedToken);
+          try {
+            const parsedUser = JSON.parse(storedUser);
+            setUser(parsedUser);
+            console.log('[AuthContext] User loaded:', parsedUser.email);
+          } catch (parseError) {
+            console.error('[AuthContext] Failed to parse user:', parseError);
+            // Clear corrupted data
+            safeLocalStorage.removeItem("token");
+            safeLocalStorage.removeItem("user");
+          }
+        } else {
+          console.log('[AuthContext] No stored credentials found');
+        }
+      } catch (error) {
+        console.error('[AuthContext] Error initializing auth:', error);
+        // Clear potentially corrupted data
+        safeLocalStorage.removeItem("token");
+        safeLocalStorage.removeItem("user");
+      } finally {
+        // Set loading to false immediately - no async operations needed
         setLoading(false);
+        console.log('[AuthContext] Auth initialization complete');
       }
     };
 
     initAuth();
-    
-    return () => {
-      isMounted = false;
-    };
   }, []);
 
   const login = async (credentials) => {
     try {
       // Clear any existing data before login
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      safeLocalStorage.removeItem("token");
+      safeLocalStorage.removeItem("user");
 
       const response = await authApi.login(credentials);
       const { token, user } = response.data;
 
-      localStorage.setItem("token", token);
+      safeLocalStorage.setItem("token", token);
       
       setToken(token);
       
@@ -65,14 +107,14 @@ export const AuthProvider = ({ children }) => {
         const freshUserData = await authApi.getCurrentUser();
         const completeUser = freshUserData.data.user;
         
-        localStorage.setItem("user", JSON.stringify(completeUser));
+        safeLocalStorage.setItem("user", JSON.stringify(completeUser));
         setUser(completeUser);
         
         return { success: true, data: { token, user: completeUser } };
       } catch (refreshError) {
         console.error("Failed to refresh user data after login:", refreshError);
         // Fallback to login response data
-        localStorage.setItem("user", JSON.stringify(user));
+        safeLocalStorage.setItem("user", JSON.stringify(user));
         setUser(user);
         return { success: true, data: response.data };
       }
@@ -102,8 +144,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    safeLocalStorage.removeItem("token");
+    safeLocalStorage.removeItem("user");
     setToken(null);
     setUser(null);
     // No toast notification - clean logout experience
@@ -111,7 +153,7 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = (updatedUser) => {
     setUser(updatedUser);
-    localStorage.setItem("user", JSON.stringify(updatedUser));
+    safeLocalStorage.setItem("user", JSON.stringify(updatedUser));
   };
 
   const refreshUser = async () => {
@@ -119,7 +161,7 @@ export const AuthProvider = ({ children }) => {
       const response = await authApi.getCurrentUser();
       const updatedUser = response.data.user;
       setUser(updatedUser);
-      localStorage.setItem("user", JSON.stringify(updatedUser));
+      safeLocalStorage.setItem("user", JSON.stringify(updatedUser));
       return updatedUser;
     } catch (error) {
       console.error("Error refreshing user:", error);
