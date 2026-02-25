@@ -38,6 +38,13 @@ const MyProfile = () => {
     bank: false
   });
   const [sameAsCurrentAddress, setSameAsCurrentAddress] = useState(false);
+  
+  // Project statistics
+  const [projectStats, setProjectStats] = useState({
+    totalProjects: 0,
+    leadingProjects: 0,
+    assignedProjects: 0
+  });
 
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -83,7 +90,8 @@ const MyProfile = () => {
         try {
           await Promise.all([
             fetchDocuments(),
-            fetchOfficialDocuments()
+            fetchOfficialDocuments(),
+            fetchProjectStats()
           ]);
         } catch (error) {
           console.error('[INIT] Error loading documents:', error);
@@ -124,6 +132,32 @@ const MyProfile = () => {
     } catch (error) {
       console.error('Error fetching official documents:', error);
       toast.error('Failed to load official documents');
+    }
+  };
+
+  const fetchProjectStats = async () => {
+    try {
+      const response = await api.get('/projects');
+      const projects = response.data || [];
+      
+      // Count projects where user is project head
+      const leadingProjects = projects.filter(p => 
+        p.projectHead?._id === user?._id || p.projectHead === user?._id
+      ).length;
+      
+      // Count projects where user is assigned (team member)
+      const assignedProjects = projects.filter(p => 
+        p.assignedUsers?.some(u => (u._id || u) === user?._id)
+      ).length;
+      
+      setProjectStats({
+        totalProjects: projects.length,
+        leadingProjects,
+        assignedProjects
+      });
+    } catch (error) {
+      console.error('Error fetching project stats:', error);
+      // Don't show error toast, just keep default values
     }
   };
 
@@ -657,14 +691,21 @@ const MyProfile = () => {
                         <FaProjectDiagram className="me-2" />
                         Total Projects
                       </span>
-                      <Badge bg="success" pill>12</Badge>
+                      <Badge bg="success" pill>{projectStats.totalProjects}</Badge>
                     </ListGroup.Item>
                     <ListGroup.Item className="d-flex justify-content-between align-items-center px-0 py-2">
                       <span className="text-info">
                         <FaCheckCircle className="me-2" />
-                        Active Projects
+                        Leading Projects
                       </span>
-                      <Badge bg="info" pill>8</Badge>
+                      <Badge bg="info" pill>{projectStats.leadingProjects}</Badge>
+                    </ListGroup.Item>
+                    <ListGroup.Item className="d-flex justify-content-between align-items-center px-0 py-2">
+                      <span className="text-primary">
+                        <FaUsers className="me-2" />
+                        Assigned Projects
+                      </span>
+                      <Badge bg="primary" pill>{projectStats.assignedProjects}</Badge>
                     </ListGroup.Item>
                     <ListGroup.Item className="d-flex justify-content-between align-items-center px-0 py-2">
                       <span className="text-warning">
@@ -1042,21 +1083,21 @@ const MyProfile = () => {
                             <FaProjectDiagram className="me-2" />
                             Total Projects
                           </span>
-                          <Badge bg="success" pill>12</Badge>
+                          <Badge bg="success" pill>{projectStats.totalProjects}</Badge>
                         </ListGroup.Item>
                         <ListGroup.Item className="d-flex justify-content-between align-items-center px-0 py-2">
                           <span className="text-info">
                             <FaCheckCircle className="me-2" />
-                            Active Projects
+                            Leading Projects
                           </span>
-                          <Badge bg="info" pill>8</Badge>
+                          <Badge bg="info" pill>{projectStats.leadingProjects}</Badge>
                         </ListGroup.Item>
                         <ListGroup.Item className="d-flex justify-content-between align-items-center px-0 py-2">
                           <span className="text-warning">
                             <FaClock className="me-2" />
-                            System Uptime
+                            Assigned Projects
                           </span>
-                          <Badge bg="warning" text="dark" pill>99.9%</Badge>
+                          <Badge bg="warning" text="dark" pill>{projectStats.assignedProjects}</Badge>
                         </ListGroup.Item>
                       </ListGroup>
                     </div>

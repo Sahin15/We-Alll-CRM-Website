@@ -914,18 +914,31 @@ const ProjectDetails = () => {
               </Card>
 
               <Card className="shadow-sm mt-4">
-                <Card.Header className="bg-white">
+                <Card.Header className="bg-white d-flex justify-content-between align-items-center">
                   <h5 className="mb-0">
                     <FaUser className="me-2" />
-                    Team Members
+                    Team Members ({project.assignedUsers?.length || 0})
                   </h5>
+                  {isProjectHead && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => {
+                        fetchAvailableMembers();
+                        setShowAddMemberModal(true);
+                      }}
+                    >
+                      <FaUser className="me-2" />
+                      Add Member
+                    </Button>
+                  )}
                 </Card.Header>
                 <Card.Body>
                   {project.assignedUsers && project.assignedUsers.length > 0 ? (
                     <ListGroup variant="flush">
                       {project.assignedUsers.map((user) => (
                         <ListGroup.Item key={user._id}>
-                          <div className="d-flex align-items-center">
+                          <div className="d-flex align-items-center justify-content-between">
                             <div className="flex-grow-1">
                               <h6 className="mb-0">{user.name}</h6>
                               <small className="text-muted">{user.email}</small>
@@ -934,12 +947,36 @@ const ProjectDetails = () => {
                                 {user.role}
                               </Badge>
                             </div>
+                            {isProjectHead && (
+                              <Button
+                                variant="outline-danger"
+                                size="sm"
+                                onClick={() => handleRemoveMember(user._id)}
+                              >
+                                Remove
+                              </Button>
+                            )}
                           </div>
                         </ListGroup.Item>
                       ))}
                     </ListGroup>
                   ) : (
-                    <p className="text-muted text-center mb-0">No team members assigned</p>
+                    <div className="text-center py-3">
+                      <p className="text-muted mb-3">No team members assigned yet</p>
+                      {isProjectHead && (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => {
+                            fetchAvailableMembers();
+                            setShowAddMemberModal(true);
+                          }}
+                        >
+                          <FaUser className="me-2" />
+                          Add First Team Member
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </Card.Body>
               </Card>
