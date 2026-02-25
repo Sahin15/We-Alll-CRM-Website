@@ -251,10 +251,12 @@ const TeamTab = ({ project, onRefresh }) => {
     }
   };
 
-  // Check if user can manage team (Admin, SuperAdmin, HoD, or Project Head)
+  // Check if user can manage team (Admin, SuperAdmin, HR, Manager, HoD, or Project Head)
   const canManageTeam = 
     user?.role === 'admin' || 
     user?.role === 'superadmin' || 
+    user?.role === 'hr' ||
+    user?.role === 'manager' ||
     user?.role === 'hod' ||
     user?._id === project.projectHead?._id;
 
