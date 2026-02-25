@@ -395,22 +395,11 @@ const MyAttendance = () => {
               )}
 
               <div className="d-grid gap-2" style={{ position: 'relative', zIndex: 1000 }}>
-                {/* Debug: Show current status */}
-                <div className="alert alert-info small">
-                  <strong>Debug Info:</strong><br/>
-                  Status: {status}<br/>
-                  Clocking In: {clockingIn ? 'Yes' : 'No'}<br/>
-                  Has Attendance: {todayAttendance ? 'Yes' : 'No'}<br/>
-                  Has Clock In: {todayAttendance?.clockIn ? 'Yes' : 'No'}<br/>
-                  Has Clock Out: {todayAttendance?.clockOut ? 'Yes' : 'No'}
-                </div>
-                
                 {status === "not-clocked-in" && (
                   <Button
                     variant="primary"
                     size="lg"
                     onClick={(e) => {
-                      console.log('[BUTTON] Clock In clicked!', e);
                       handleClockInClick();
                     }}
                     disabled={clockingIn}

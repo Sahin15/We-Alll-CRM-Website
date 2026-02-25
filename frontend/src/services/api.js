@@ -30,10 +30,6 @@ const safeLocalStorage = {
   }
 };
 
-console.log('[API Service] Base URL:', API_BASE_URL);
-console.log('[API Service] Environment:', import.meta.env.MODE);
-console.log('[API Service] VITE_API_URL:', import.meta.env.VITE_API_URL);
-
 // Create axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -53,11 +49,9 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    console.log('[API Request]', config.method.toUpperCase(), config.url);
     return config;
   },
   (error) => {
-    console.error('[API Request Error]', error);
     return Promise.reject(error);
   }
 );

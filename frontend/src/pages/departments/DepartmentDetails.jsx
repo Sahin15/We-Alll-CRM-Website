@@ -399,9 +399,6 @@ const DepartmentDetails = () => {
               ) : (
                 <div className="text-center py-4 text-muted">
                   <div>No employees assigned to this department</div>
-                  <small className="text-danger">
-                    Debug: employees = {JSON.stringify(analytics?.employees)}
-                  </small>
                 </div>
               )}
             </Card.Body>
