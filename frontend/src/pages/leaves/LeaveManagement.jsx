@@ -8,6 +8,7 @@ import { formatDate, getStatusVariant } from '../../utils/helpers';
 import CreateLeaveModal from '../../components/leaves/CreateLeaveModal';
 import LeaveRequestCard from '../../components/leaves/LeaveRequestCard';
 import LeaveApprovalModal from '../../components/leaves/LeaveApprovalModal';
+import WFHApprovalPanel from '../../components/wfh/WFHApprovalPanel';
 import { toast } from 'react-toastify';
 import './LeaveManagement.css';
 
@@ -371,14 +372,24 @@ const LeaveManagement = () => {
                       </Nav.Link>
                     </Nav.Item>
                     {isAdmin && (
-                      <Nav.Item>
-                        <Nav.Link 
-                          active={activeTab === 'all-leaves'}
-                          onClick={() => setActiveTab('all-leaves')}
-                        >
-                          All Leave Requests
-                        </Nav.Link>
-                      </Nav.Item>
+                      <>
+                        <Nav.Item>
+                          <Nav.Link 
+                            active={activeTab === 'all-leaves'}
+                            onClick={() => setActiveTab('all-leaves')}
+                          >
+                            All Leave Requests
+                          </Nav.Link>
+                        </Nav.Item>
+                        <Nav.Item>
+                          <Nav.Link 
+                            active={activeTab === 'wfh-requests'}
+                            onClick={() => setActiveTab('wfh-requests')}
+                          >
+                            WFH Requests
+                          </Nav.Link>
+                        </Nav.Item>
+                      </>
                     )}
                   </Nav>
                 </Col>
@@ -433,7 +444,9 @@ const LeaveManagement = () => {
       {/* Leave Requests */}
       <Row>
         <Col>
-          {loading ? (
+          {activeTab === 'wfh-requests' ? (
+            <WFHApprovalPanel />
+          ) : loading ? (
             <Card className="border-0 shadow-sm">
               <Card.Body className="loading-container">
                 <div className="text-center">

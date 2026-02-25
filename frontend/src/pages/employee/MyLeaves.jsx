@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Container, Row, Col, Card, Button, Table, Badge, Modal, Form, ProgressBar, Alert } from "react-bootstrap";
+import { Container, Row, Col, Card, Button, Table, Badge, Modal, Form, ProgressBar, Alert, Nav } from "react-bootstrap";
 import { FaPlus, FaCalendarAlt, FaUmbrellaBeach, FaHospital, FaPlane, FaExclamationTriangle, FaInfoCircle, FaHome } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { leaveApi } from "../../api/leaveApi";
+import { getMyWFHRequests, cancelWFHRequest } from "../../api/wfhApi";
 import { LEAVE_TYPE_DETAILS } from "../../utils/constants";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
 import ApplyWFHModal from "../../components/wfh/ApplyWFHModal";
@@ -10,7 +11,9 @@ import "../../styles/table-mobile.css";
 import "../../styles/modal-mobile.css";
 
 const MyLeaves = () => {
+  const [activeTab, setActiveTab] = useState('leaves');
   const [leaves, setLeaves] = useState([]);
+  const [wfhRequests, setWfhRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showWFHModal, setShowWFHModal] = useState(false);
@@ -26,7 +29,10 @@ const MyLeaves = () => {
   useEffect(() => {
     fetchLeaves();
     fetchLeaveBalance();
-  }, []);
+    if (activeTab === 'wfh') {
+      fetchWFHRequests();
+    }
+  }, [activeTab]);
 
   const fetchLeaves = async () => {
     try {
@@ -51,6 +57,30 @@ const MyLeaves = () => {
     } catch (error) {
       console.error("Error fetching leave balance:", error);
       toast.error("Failed to load leave balance");
+    }
+  };
+
+  const fetchWFHRequests = async () => {
+    try {
+      const response = await getMyWFHRequests();
+      setWfhRequests(response.data || []);
+    } catch (error) {
+      console.error("Error fetching WFH requests:", error);
+      toast.error("Failed to load WFH requests");
+    }
+  };
+
+  const handleCancelWFH = async (id) => {
+    if (!window.confirm("Are you sure you want to cancel this WFH request?")) {
+      return;
+    }
+    try {
+      await cancelWFHRequest(id);
+      toast.success("WFH request cancelled successfully");
+      fetchWFHRequests();
+    } catch (error) {
+      console.error("Error cancelling WFH request:", error);
+      toast.error(error.response?.data?.message || "Failed to cancel WFH request");
     }
   };
 
@@ -196,18 +226,58 @@ const MyLeaves = () => {
         <Col>
           <div className="d-flex justify-content-between align-items-center">
             <div>
-              <h2>My Leaves</h2>
-              <p className="text-muted mb-0">Manage your leave applications - 24 days annual allowance</p>
+              <h2>My Leaves & WFH</h2>
+              <p className="text-muted mb-0">Manage your leave applications and work from home requests</p>
             </div>
             <div className="d-flex gap-2">
-              <Button variant="primary" onClick={handleShowModal}>
-                <FaPlus className="me-2" />
-                Apply for Leave
-              </Button>
+              {activeTab === 'leaves' ? (
+                <Button variant="primary" onClick={handleShowModal}>
+                  <FaPlus className="me-2" />
+                  Apply for Leave
+                </Button>
+              ) : (
+                <Button variant="primary" onClick={() => setShowWFHModal(true)}>
+                  <FaHome className="me-2" />
+                  Apply for WFH
+                </Button>
+              )}
             </div>
           </div>
         </Col>
       </Row>
+
+      {/* Tab Navigation */}
+      <Row className="mb-4">
+        <Col>
+          <Card className="border-0 shadow-sm">
+            <Card.Body className="py-2">
+              <Nav variant="pills">
+                <Nav.Item>
+                  <Nav.Link 
+                    active={activeTab === 'leaves'}
+                    onClick={() => setActiveTab('leaves')}
+                  >
+                    <FaCalendarAlt className="me-2" />
+                    Leave Requests
+                  </Nav.Link>
+                </Nav.Item>
+                <Nav.Item>
+                  <Nav.Link 
+                    active={activeTab === 'wfh'}
+                    onClick={() => setActiveTab('wfh')}
+                  >
+                    <FaHome className="me-2" />
+                    WFH Requests
+                  </Nav.Link>
+                </Nav.Item>
+              </Nav>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {activeTab === 'leaves' ? (
+        <>
 
       {/* Leave Balance Cards */}
       {leaveBalance && (
@@ -448,27 +518,128 @@ const MyLeaves = () => {
                 </Table>
               )}
             </Card.Body>
-            <Card.Footer className="bg-light border-top-0">
-              <div className="text-center py-2">
-                <small className="text-muted">
-                  Need to work from home?{' '}
-                  <a 
-                    href="#" 
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setShowWFHModal(true);
-                    }}
-                    className="text-decoration-none text-secondary"
-                    style={{ fontSize: '0.9rem' }}
-                  >
-                    Apply here
-                  </a>
-                </small>
-              </div>
-            </Card.Footer>
           </Card>
         </Col>
       </Row>
+      </>
+      ) : (
+        /* WFH Requests Tab */
+        <>
+          <Alert variant="info" className="mb-4">
+            <strong>Remember:</strong> When working from home, you must clock in at 10:00 AM and clock out at 7:00 PM (same as office hours).
+          </Alert>
+
+          <Row>
+            <Col>
+              <Card className="border-0 shadow-sm">
+                <Card.Body>
+                  <h5 className="mb-3">WFH Request History</h5>
+                  
+                  {loading ? (
+                    <div className="text-center py-5">
+                      <div className="spinner-border text-primary" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <Table responsive hover className="leave-table">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Reason</th>
+                          <th>Status</th>
+                          <th>Applied On</th>
+                          <th className="hide-mobile">Approved/Rejected By</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {wfhRequests.length === 0 ? (
+                          <tr>
+                            <td colSpan="6" className="text-center text-muted py-4">
+                              <FaHome size={40} className="mb-3 d-block mx-auto" />
+                              No WFH requests yet
+                              <div className="mt-3">
+                                <Button variant="primary" onClick={() => setShowWFHModal(true)}>
+                                  <FaPlus className="me-2" />
+                                  Apply for Your First WFH
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          wfhRequests.map((request) => (
+                            <tr key={request._id}>
+                              <td className="date-cell">
+                                <strong>{formatDate(request.date)}</strong>
+                                {new Date(request.date).toDateString() === new Date().toDateString() && (
+                                  <Badge bg="info" className="ms-2">TODAY</Badge>
+                                )}
+                              </td>
+                              <td className="reason-cell">{request.reason}</td>
+                              <td>
+                                <Badge bg={getStatusVariant(request.status)}>
+                                  {request.status}
+                                </Badge>
+                              </td>
+                              <td className="date-cell">{formatDate(request.createdAt)}</td>
+                              <td className="hide-mobile">
+                                {request.status === 'approved' && request.approvedBy && (
+                                  <div>
+                                    <small className="text-success">
+                                      {request.approvedBy.name}
+                                    </small>
+                                    <br />
+                                    <small className="text-muted">
+                                      {formatDate(request.approvedAt)}
+                                    </small>
+                                  </div>
+                                )}
+                                {request.status === 'rejected' && request.rejectedBy && (
+                                  <div>
+                                    <small className="text-danger">
+                                      {request.rejectedBy.name}
+                                    </small>
+                                    <br />
+                                    <small className="text-muted">
+                                      {formatDate(request.rejectedAt)}
+                                    </small>
+                                    {request.rejectionReason && (
+                                      <div className="mt-1">
+                                        <small className="text-muted">
+                                          Reason: {request.rejectionReason}
+                                        </small>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                {request.status === 'pending' && (
+                                  <small className="text-muted">-</small>
+                                )}
+                              </td>
+                              <td>
+                                {request.status === 'pending' && new Date(request.date) >= new Date() && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline-danger"
+                                    onClick={() => handleCancelWFH(request._id)}
+                                  >
+                                    Cancel
+                                  </Button>
+                                )}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </Table>
+                  )}
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+        </>
+      )}
 
       {/* Apply Leave Modal */}
       <Modal show={showModal} onHide={handleCloseModal} size="lg" centered>
@@ -728,7 +899,8 @@ const MyLeaves = () => {
         onHide={() => setShowWFHModal(false)}
         onSuccess={() => {
           setShowWFHModal(false);
-          toast.success('WFH request submitted! You can view it in the WFH section.');
+          fetchWFHRequests();
+          toast.success('WFH request submitted successfully!');
         }}
       />
     </Container>

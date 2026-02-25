@@ -67,9 +67,6 @@ import MyLeaves from "../pages/leaves/MyLeaves";
 import LeaveRequests from "../pages/leaves/LeaveRequests";
 import LeaveManagement from "../pages/leaves/LeaveManagement";
 
-// WFH Pages
-import MyWFHRequests from "../pages/wfh/MyWFHRequests";
-
 // Attendance Pages
 import MyAttendance from "../pages/attendance/MyAttendance";
 import AttendanceTracking from "../pages/attendance/AttendanceTracking";
@@ -313,7 +310,6 @@ const AppRoutes = () => {
         <Route path="/employee/attendance" element={<EmployeeMyAttendance />} />
         <Route path="/employee/attendance-report/:employeeId" element={<EmployeeAttendanceReport />} />
         <Route path="/employee/leaves" element={<EmployeeMyLeaves />} />
-        <Route path="/employee/wfh" element={<MyWFHRequests />} />
         <Route path="/employee/salary-slips" element={<MySalarySlips />} />
         <Route path="/employee/salary-preview" element={<MySalaryPreview />} />
         <Route path="/employee/projects" element={<MyProjects />} />
