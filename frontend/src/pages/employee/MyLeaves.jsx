@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Container, Row, Col, Card, Button, Table, Badge, Modal, Form, ProgressBar, Alert, Nav } from "react-bootstrap";
 import { FaPlus, FaCalendarAlt, FaUmbrellaBeach, FaHospital, FaPlane, FaExclamationTriangle, FaInfoCircle, FaHome } from "react-icons/fa";
 import { toast } from "react-toastify";
+import { useAuth } from "../../context/AuthContext";
 import { leaveApi } from "../../api/leaveApi";
 import { getMyWFHRequests, cancelWFHRequest } from "../../api/wfhApi";
 import { LEAVE_TYPE_DETAILS } from "../../utils/constants";
@@ -11,6 +12,7 @@ import "../../styles/table-mobile.css";
 import "../../styles/modal-mobile.css";
 
 const MyLeaves = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('leaves');
   const [leaves, setLeaves] = useState([]);
   const [wfhRequests, setWfhRequests] = useState([]);
@@ -271,6 +273,13 @@ const MyLeaves = () => {
 
       {activeTab === 'leaves' ? (
         <>
+      {/* Info alert for HR employees */}
+      {user?.department?.name === 'HR' && (
+        <Alert variant="info" className="mb-4">
+          <FaInfoCircle className="me-2" />
+          <strong>HR Department:</strong> Your leave and WFH requests require Admin approval. You can apply for WFH using the "Apply here" link at the bottom of the Leave History table below.
+        </Alert>
+      )}
 
       {/* Leave Balance Cards */}
       {leaveBalance && (
@@ -514,6 +523,7 @@ const MyLeaves = () => {
             <Card.Footer className="bg-light border-top-0">
               <div className="text-center py-2">
                 <small className="text-muted">
+                  <FaHome className="me-1" />
                   Need to work from home?{' '}
                   <a 
                     href="#" 
@@ -521,11 +531,14 @@ const MyLeaves = () => {
                       e.preventDefault();
                       setShowWFHModal(true);
                     }}
-                    className="text-decoration-none"
+                    className="text-decoration-none fw-bold"
                     style={{ fontSize: '0.9rem', color: '#0d6efd' }}
                   >
                     Apply here
                   </a>
+                  {user?.department?.name === 'HR' && (
+                    <span className="text-warning ms-2">(Requires Admin approval)</span>
+                  )}
                 </small>
               </div>
             </Card.Footer>
