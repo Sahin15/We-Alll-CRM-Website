@@ -543,8 +543,18 @@ const MyLeaves = () => {
           <Row>
             <Col>
               <Card className="border-0 shadow-sm">
-                <Card.Body>
-                  <h5 className="mb-3">WFH Request History</h5>
+                <Card.Header className="bg-white border-bottom">
+                  <div className="d-flex justify-content-between align-items-center">
+                    <h5 className="mb-0">
+                      <FaHome className="me-2 text-primary" />
+                      Work From Home History
+                    </h5>
+                    <Badge bg="secondary" pill>
+                      {wfhRequests.length} {wfhRequests.length === 1 ? 'Request' : 'Requests'}
+                    </Badge>
+                  </div>
+                </Card.Header>
+                <Card.Body className="p-0">
                   
                   {loading ? (
                     <div className="text-center py-5">
@@ -553,54 +563,55 @@ const MyLeaves = () => {
                       </div>
                     </div>
                   ) : (
-                    <Table responsive hover className="leave-table">
-                      <thead>
+                    <Table responsive hover className="leave-table mb-0">
+                      <thead className="bg-light">
                         <tr>
-                          <th>Date</th>
-                          <th>Reason</th>
-                          <th>Status</th>
-                          <th>Applied On</th>
-                          <th className="hide-mobile">Approved/Rejected By</th>
-                          <th>Actions</th>
+                          <th className="border-0">Date</th>
+                          <th className="border-0">Reason</th>
+                          <th className="border-0">Status</th>
+                          <th className="border-0">Applied On</th>
+                          <th className="border-0 hide-mobile">Approved/Rejected By</th>
+                          <th className="border-0">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {wfhRequests.length === 0 ? (
                           <tr>
-                            <td colSpan="6" className="text-center text-muted py-4">
-                              <FaHome size={40} className="mb-3 d-block mx-auto" />
-                              No WFH requests yet
-                              <div className="mt-3">
-                                <Button variant="primary" onClick={() => setShowWFHModal(true)}>
-                                  <FaPlus className="me-2" />
-                                  Apply for Your First WFH
-                                </Button>
-                              </div>
+                            <td colSpan="6" className="text-center py-5">
+                              <FaHome size={40} className="text-muted mb-3 d-block mx-auto" />
+                              <p className="text-muted mb-0">No WFH requests yet</p>
                             </td>
                           </tr>
                         ) : (
                           wfhRequests.map((request) => (
                             <tr key={request._id}>
                               <td className="date-cell">
-                                <strong>{formatDate(request.date)}</strong>
-                                {new Date(request.date).toDateString() === new Date().toDateString() && (
-                                  <Badge bg="info" className="ms-2">TODAY</Badge>
-                                )}
+                                <div className="d-flex align-items-center gap-2">
+                                  <strong>{formatDate(request.date)}</strong>
+                                  {new Date(request.date).toDateString() === new Date().toDateString() && (
+                                    <Badge bg="info" className="small">TODAY</Badge>
+                                  )}
+                                </div>
                               </td>
-                              <td className="reason-cell">{request.reason}</td>
+                              <td className="reason-cell">
+                                <div style={{ maxWidth: '350px' }}>
+                                  {request.reason}
+                                </div>
+                              </td>
                               <td>
-                                <Badge bg={getStatusVariant(request.status)}>
+                                <Badge bg={getStatusVariant(request.status)} className="text-capitalize">
                                   {request.status}
                                 </Badge>
                               </td>
-                              <td className="date-cell">{formatDate(request.createdAt)}</td>
+                              <td className="date-cell">
+                                <small className="text-muted">{formatDate(request.createdAt)}</small>
+                              </td>
                               <td className="hide-mobile">
                                 {request.status === 'approved' && request.approvedBy && (
                                   <div>
-                                    <small className="text-success">
+                                    <div className="text-success small fw-bold">
                                       {request.approvedBy.name}
-                                    </small>
-                                    <br />
+                                    </div>
                                     <small className="text-muted">
                                       {formatDate(request.approvedAt)}
                                     </small>
@@ -608,24 +619,23 @@ const MyLeaves = () => {
                                 )}
                                 {request.status === 'rejected' && request.rejectedBy && (
                                   <div>
-                                    <small className="text-danger">
+                                    <div className="text-danger small fw-bold">
                                       {request.rejectedBy.name}
-                                    </small>
-                                    <br />
+                                    </div>
                                     <small className="text-muted">
                                       {formatDate(request.rejectedAt)}
                                     </small>
                                     {request.rejectionReason && (
                                       <div className="mt-1">
-                                        <small className="text-muted">
-                                          Reason: {request.rejectionReason}
+                                        <small className="text-muted fst-italic">
+                                          "{request.rejectionReason}"
                                         </small>
                                       </div>
                                     )}
                                   </div>
                                 )}
                                 {request.status === 'pending' && (
-                                  <small className="text-muted">-</small>
+                                  <small className="text-muted">Awaiting approval</small>
                                 )}
                               </td>
                               <td>
