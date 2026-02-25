@@ -230,17 +230,10 @@ const MyLeaves = () => {
               <p className="text-muted mb-0">Manage your leave applications and work from home requests</p>
             </div>
             <div className="d-flex gap-2">
-              {activeTab === 'leaves' ? (
-                <Button variant="primary" onClick={handleShowModal}>
-                  <FaPlus className="me-2" />
-                  Apply for Leave
-                </Button>
-              ) : (
-                <Button variant="primary" onClick={() => setShowWFHModal(true)}>
-                  <FaHome className="me-2" />
-                  Apply for WFH
-                </Button>
-              )}
+              <Button variant="primary" onClick={handleShowModal}>
+                <FaPlus className="me-2" />
+                Apply for Leave
+              </Button>
             </div>
           </div>
         </Col>
@@ -518,6 +511,24 @@ const MyLeaves = () => {
                 </Table>
               )}
             </Card.Body>
+            <Card.Footer className="bg-light border-top-0">
+              <div className="text-center py-2">
+                <small className="text-muted">
+                  Need to work from home?{' '}
+                  <a 
+                    href="#" 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setShowWFHModal(true);
+                    }}
+                    className="text-decoration-none"
+                    style={{ fontSize: '0.9rem', color: '#0d6efd' }}
+                  >
+                    Apply here
+                  </a>
+                </small>
+              </div>
+            </Card.Footer>
           </Card>
         </Col>
       </Row>
