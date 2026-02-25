@@ -306,7 +306,7 @@ export const approveLeaveRequest = async (req, res) => {
 
     console.log("🔍 Approve request:", { id, approvalComment, approvedBy, userRole: req.user.role });
 
-    const leaveRequest = await LeaveRequest.findById(id);
+    const leaveRequest = await LeaveRequest.findById(id).populate('employee', 'name email department');
 
     if (!leaveRequest) {
       return res.status(404).json({ message: "Leave request not found" });
@@ -316,6 +316,21 @@ export const approveLeaveRequest = async (req, res) => {
       return res.status(400).json({
         message: "Only pending leave requests can be approved",
       });
+    }
+
+    // Check if employee is from HR department
+    if (leaveRequest.employee.department) {
+      const Department = (await import("../models/departmentModel.js")).default;
+      const employeeDept = await Department.findById(leaveRequest.employee.department);
+      
+      // If employee is from HR department, only admin/superadmin can approve
+      if (employeeDept && employeeDept.name === 'HR') {
+        if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+          return res.status(403).json({
+            message: "Only Admin can approve leave requests for HR department employees",
+          });
+        }
+      }
     }
 
     leaveRequest.status = "approved";
@@ -434,7 +449,7 @@ export const rejectLeaveRequest = async (req, res) => {
       return res.status(400).json({ message: "Rejection reason is required" });
     }
 
-    const leaveRequest = await LeaveRequest.findById(id);
+    const leaveRequest = await LeaveRequest.findById(id).populate('employee', 'name email department');
 
     if (!leaveRequest) {
       return res.status(404).json({ message: "Leave request not found" });
@@ -444,6 +459,21 @@ export const rejectLeaveRequest = async (req, res) => {
       return res.status(400).json({
         message: "Only pending leave requests can be rejected",
       });
+    }
+
+    // Check if employee is from HR department
+    if (leaveRequest.employee.department) {
+      const Department = (await import("../models/departmentModel.js")).default;
+      const employeeDept = await Department.findById(leaveRequest.employee.department);
+      
+      // If employee is from HR department, only admin/superadmin can reject
+      if (employeeDept && employeeDept.name === 'HR') {
+        if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+          return res.status(403).json({
+            message: "Only Admin can reject leave requests for HR department employees",
+          });
+        }
+      }
     }
 
     leaveRequest.status = "rejected";

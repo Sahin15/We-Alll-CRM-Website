@@ -174,7 +174,7 @@ export const approveWFHRequest = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const wfhRequest = await WFHRequest.findById(id);
+    const wfhRequest = await WFHRequest.findById(id).populate('employee', 'name email employeeId department');
 
     if (!wfhRequest) {
       return res.status(404).json({
@@ -188,6 +188,22 @@ export const approveWFHRequest = async (req, res) => {
         success: false,
         message: `WFH request is already ${wfhRequest.status}`,
       });
+    }
+
+    // Check if employee is from HR department
+    if (wfhRequest.employee.department) {
+      const Department = (await import("../models/departmentModel.js")).default;
+      const employeeDept = await Department.findById(wfhRequest.employee.department);
+      
+      // If employee is from HR department, only admin/superadmin can approve
+      if (employeeDept && employeeDept.name === 'HR') {
+        if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+          return res.status(403).json({
+            success: false,
+            message: "Only Admin can approve WFH requests for HR department employees",
+          });
+        }
+      }
     }
 
     wfhRequest.status = "approved";
@@ -229,7 +245,7 @@ export const rejectWFHRequest = async (req, res) => {
       });
     }
 
-    const wfhRequest = await WFHRequest.findById(id);
+    const wfhRequest = await WFHRequest.findById(id).populate('employee', 'name email employeeId department');
 
     if (!wfhRequest) {
       return res.status(404).json({
@@ -243,6 +259,22 @@ export const rejectWFHRequest = async (req, res) => {
         success: false,
         message: `WFH request is already ${wfhRequest.status}`,
       });
+    }
+
+    // Check if employee is from HR department
+    if (wfhRequest.employee.department) {
+      const Department = (await import("../models/departmentModel.js")).default;
+      const employeeDept = await Department.findById(wfhRequest.employee.department);
+      
+      // If employee is from HR department, only admin/superadmin can reject
+      if (employeeDept && employeeDept.name === 'HR') {
+        if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+          return res.status(403).json({
+            success: false,
+            message: "Only Admin can reject WFH requests for HR department employees",
+          });
+        }
+      }
     }
 
     wfhRequest.status = "rejected";
