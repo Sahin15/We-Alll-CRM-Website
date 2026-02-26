@@ -203,3 +203,66 @@ router.get("/:id/work-board", protect, getWorkBoard);
 router.get("/:id/team-workload", protect, getProjectTeamWorkload);
 
 export default router;
+
+
+// ============================================
+// SLOT-BASED PROJECT TRACKING ROUTES
+// ============================================
+
+import {
+  enableSlotsForProject,
+  getProjectSlots,
+  createProjectSlot,
+  updateProjectSlot,
+  deleteProjectSlot
+} from "../controllers/workCalendarController.js";
+
+import {
+  getWorkItemsGroupedBySlots
+} from "../controllers/workItemController.js";
+
+// Enable slot system for existing project
+router.post(
+  "/:projectId/slots/enable",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  enableSlotsForProject
+);
+
+// Get all slots for a project
+router.get(
+  "/:projectId/slots",
+  protect,
+  getProjectSlots
+);
+
+// Create a new slot for a project
+router.post(
+  "/:projectId/slots",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr", "manager", "hod", "hop"),
+  createProjectSlot
+);
+
+// Update slot details
+router.put(
+  "/:projectId/slots/:slotId",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr", "manager", "hod", "hop"),
+  updateProjectSlot
+);
+
+// Delete a slot (restricted to HR, Manager, Admin, SuperAdmin)
+router.delete(
+  "/:projectId/slots/:slotId",
+  protect,
+  authorizeRoles("hr", "manager", "admin", "superadmin"),
+  deleteProjectSlot
+);
+
+// Get work items grouped by slots
+router.get(
+  "/:projectId/workitems/grouped-by-slots",
+  protect,
+  getWorkItemsGroupedBySlots
+);

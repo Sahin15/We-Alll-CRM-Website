@@ -36,13 +36,19 @@ const slotSchema = new mongoose.Schema(
     // Universal Work Assignment Fields
     title: {
       type: String,
-      required: true,
+      required: false,
       trim: true,
+      default: function() {
+        return `Work for ${this.slotIdentifier || 'Slot'}`;
+      }
     },
     description: {
       type: String,
-      required: true,
+      required: false,
       trim: true,
+      default: function() {
+        return `Work slot ${this.slotNumber || ''}`;
+      }
     },
     workType: {
       type: String,
@@ -193,7 +199,7 @@ const slotSchema = new mongoose.Schema(
     assignedTo: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false, // Made optional - slots can be created without assignment
     },
     assignedAt: {
       type: Date,
@@ -208,10 +214,7 @@ const slotSchema = new mongoose.Schema(
     },
     dueDate: {
       type: Date,
-      required: function() {
-        // Only required when creating new slots, not when updating
-        return this.isNew;
-      },
+      required: false, // Made optional - can be set when assigning
     },
     
     // Legacy deadline fields (for backward compatibility)

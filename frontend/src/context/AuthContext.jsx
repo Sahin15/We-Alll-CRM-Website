@@ -52,37 +52,27 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const initAuth = () => {
       try {
-        console.log('[AuthContext] Initializing auth...');
         const storedToken = safeLocalStorage.getItem("token");
         const storedUser = safeLocalStorage.getItem("user");
-
-        console.log('[AuthContext] Token exists:', !!storedToken);
-        console.log('[AuthContext] User exists:', !!storedUser);
 
         if (storedToken && storedUser) {
           setToken(storedToken);
           try {
             const parsedUser = JSON.parse(storedUser);
             setUser(parsedUser);
-            console.log('[AuthContext] User loaded:', parsedUser.email);
           } catch (parseError) {
-            console.error('[AuthContext] Failed to parse user:', parseError);
             // Clear corrupted data
             safeLocalStorage.removeItem("token");
             safeLocalStorage.removeItem("user");
           }
-        } else {
-          console.log('[AuthContext] No stored credentials found');
         }
       } catch (error) {
-        console.error('[AuthContext] Error initializing auth:', error);
         // Clear potentially corrupted data
         safeLocalStorage.removeItem("token");
         safeLocalStorage.removeItem("user");
       } finally {
         // Set loading to false immediately - no async operations needed
         setLoading(false);
-        console.log('[AuthContext] Auth initialization complete');
       }
     };
 
@@ -112,14 +102,12 @@ export const AuthProvider = ({ children }) => {
         
         return { success: true, data: { token, user: completeUser } };
       } catch (refreshError) {
-        console.error("Failed to refresh user data after login:", refreshError);
         // Fallback to login response data
         safeLocalStorage.setItem("user", JSON.stringify(user));
         setUser(user);
         return { success: true, data: response.data };
       }
     } catch (error) {
-      console.error("Login error:", error);
       const message = error.response?.data?.message || "Login failed";
       toast.error(message);
       return { success: false, error: message };
@@ -129,12 +117,9 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await authApi.register(userData);
-      console.log("Registration response:", response.data);
       toast.success("Registration successful! Please login.");
       return { success: true, data: response.data };
     } catch (error) {
-      console.error("Registration error:", error);
-      console.error("Error response:", error.response);
       const message =
         error.response?.data?.message ||
         "Registration failed. Please try again.";
@@ -164,7 +149,6 @@ export const AuthProvider = ({ children }) => {
       safeLocalStorage.setItem("user", JSON.stringify(updatedUser));
       return updatedUser;
     } catch (error) {
-      console.error("Error refreshing user:", error);
       return null;
     }
   };

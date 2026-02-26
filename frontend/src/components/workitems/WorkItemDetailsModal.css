@@ -568,3 +568,164 @@
   font-size: 0.85rem;
   font-weight: 500;
 }
+
+/* Activity Timeline Styles */
+.activity-timeline {
+  max-height: 600px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.activity-timeline::-webkit-scrollbar {
+  width: 6px;
+}
+
+.activity-timeline::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.activity-timeline::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.activity-timeline::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.timeline-container {
+  position: relative;
+  padding-left: 40px;
+}
+
+.timeline-container::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, #667eea 0%, #e9ecef 100%);
+}
+
+.timeline-item {
+  position: relative;
+  margin-bottom: 24px;
+  animation: slideInTimeline 0.3s ease-out;
+}
+
+.timeline-marker {
+  position: absolute;
+  left: -40px;
+  top: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.marker-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: white;
+  border: 2px solid #e9ecef;
+}
+
+.marker-icon.status-change {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+}
+
+.marker-icon.comment {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  border-color: #28a745;
+}
+
+.marker-icon.created {
+  background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+  border-color: #ffc107;
+}
+
+.timeline-content {
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.timeline-content:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.timeline-body {
+  font-size: 0.9rem;
+  color: #495057;
+}
+
+.status-change-info {
+  padding: 8px 0;
+}
+
+.comment-text {
+  padding: 8px 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+@keyframes slideInTimeline {
+  0% {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Responsive timeline */
+@media (max-width: 768px) {
+  .timeline-container {
+    padding-left: 30px;
+  }
+  
+  .timeline-container::before {
+    left: 10px;
+  }
+  
+  .timeline-marker {
+    left: -30px;
+    width: 24px;
+    height: 24px;
+  }
+  
+  .marker-icon {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+  }
+  
+  .timeline-content {
+    padding: 12px;
+  }
+}

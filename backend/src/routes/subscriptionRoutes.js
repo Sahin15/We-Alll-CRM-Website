@@ -23,11 +23,10 @@ router.post(
   createSubscription
 );
 
-// Get all subscriptions (admin only)
+// Get all subscriptions (admin only, or employees for their assigned clients)
 router.get(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
   getAllSubscriptions
 );
 

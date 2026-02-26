@@ -444,4 +444,47 @@ router.post('/admin/bulk-slot-operations',
   workCalendarController.bulkSlotOperations
 );
 
+// ============================================
+// INDIVIDUAL SLOT CRUD ROUTES
+// ============================================
+
+/**
+ * POST /api/work-calendar/slots
+ * Create individual slot
+ */
+router.post('/slots', 
+  protect, 
+  securityService.createAuditMiddleware('create', 'slot'),
+  workCalendarController.createSlot
+);
+
+/**
+ * GET /api/work-calendar/slots/:slotId
+ * Get slot by ID
+ */
+router.get('/slots/:slotId', 
+  protect, 
+  workCalendarController.getSlotById
+);
+
+/**
+ * PUT /api/work-calendar/slots/:slotId
+ * Update slot
+ */
+router.put('/slots/:slotId', 
+  protect, 
+  securityService.createAuditMiddleware('update', 'slot'),
+  workCalendarController.updateSlot
+);
+
+/**
+ * DELETE /api/work-calendar/slots/:slotId
+ * Delete slot
+ */
+router.delete('/slots/:slotId', 
+  protect, 
+  securityService.createAuditMiddleware('delete', 'slot'),
+  workCalendarController.deleteSlot
+);
+
 export default router;

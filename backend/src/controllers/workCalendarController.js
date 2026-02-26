@@ -3446,12 +3446,36 @@ export const getAvailableSlots = async (req, res) => {
     const { projectId } = req.params;
     const { slotType, priority, workType, includeAll } = req.query;
 
-    // Permission check
-    if (!['admin', 'superadmin', 'hr', 'manager', 'hod', 'hop'].includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Insufficient permissions.'
-      });
+    // Permission check - Allow admin roles, project head, and team members
+    const isAdminRole = ['admin', 'superadmin', 'hr', 'manager', 'hod', 'hop'].includes(req.user.role);
+    
+    if (!isAdminRole) {
+      // Check if user is project head or team member
+      const Project = (await import('../models/projectModel.js')).default;
+      const project = await Project.findById(projectId).select('projectHead assignedUsers teamMembers');
+      
+      if (!project) {
+        return res.status(404).json({
+          success: false,
+          message: 'Project not found'
+        });
+      }
+      
+      const projectHeadId = project.projectHead?._id || project.projectHead;
+      const isProjectHead = projectHeadId && projectHeadId.toString() === req.user.id.toString();
+      
+      const isTeamMember = project.assignedUsers?.some(userId => 
+        (userId._id || userId).toString() === req.user.id.toString()
+      ) || project.teamMembers?.some(member => 
+        (member.user?._id || member.user).toString() === req.user.id.toString()
+      );
+      
+      if (!isProjectHead && !isTeamMember) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You must be the project head or a team member to view slots.'
+        });
+      }
     }
 
     const filters = {};
@@ -3646,12 +3670,36 @@ export const getProjectSlotStatistics = async (req, res) => {
   try {
     const { projectId } = req.params;
 
-    // Permission check
-    if (!['admin', 'superadmin', 'hr', 'manager', 'hod', 'hop'].includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Insufficient permissions.'
-      });
+    // Permission check - Allow admin roles, project head, and team members
+    const isAdminRole = ['admin', 'superadmin', 'hr', 'manager', 'hod', 'hop'].includes(req.user.role);
+    
+    if (!isAdminRole) {
+      // Check if user is project head or team member
+      const Project = (await import('../models/projectModel.js')).default;
+      const project = await Project.findById(projectId).select('projectHead assignedUsers teamMembers');
+      
+      if (!project) {
+        return res.status(404).json({
+          success: false,
+          message: 'Project not found'
+        });
+      }
+      
+      const projectHeadId = project.projectHead?._id || project.projectHead;
+      const isProjectHead = projectHeadId && projectHeadId.toString() === req.user.id.toString();
+      
+      const isTeamMember = project.assignedUsers?.some(userId => 
+        (userId._id || userId).toString() === req.user.id.toString()
+      ) || project.teamMembers?.some(member => 
+        (member.user?._id || member.user).toString() === req.user.id.toString()
+      );
+      
+      if (!isProjectHead && !isTeamMember) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You must be the project head or a team member to view slot statistics.'
+        });
+      }
     }
 
     const statistics = await slotManagementService.getProjectSlotStatistics(projectId);
@@ -4192,5 +4240,633 @@ export const getSlotAnalytics = async (req, res) => {
       message: 'Failed to fetch slot analytics',
       error: error.message
     });
+  }
+};
+
+
+// ============================================
+// INDIVIDUAL SLOT CRUD OPERATIONS
+// ============================================
+
+/**
+ * Get slot by ID
+ * GET /api/work-calendar/slots/:slotId
+ */
+export const getSlotById = async (req, res) => {
+  try {
+    const { slotId } = req.params;
+
+    const slot = await Slot.findById(slotId)
+      .populate('project', 'name client')
+      .populate('assignedTo', 'name email')
+      .populate('createdBy', 'name email');
+
+    if (!slot) {
+      return res.status(404).json({
+        success: false,
+        message: 'Slot not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: slot
+    });
+
+  } catch (error) {
+    logger.error('Error in getSlotById:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to get slot'
+    });
+  }
+};
+
+/**
+ * Update slot
+ * PUT /api/work-calendar/slots/:slotId
+ */
+export const updateSlot = async (req, res) => {
+  try {
+    const { slotId } = req.params;
+    const updateData = req.body;
+
+    // Permission check
+    if (!['admin', 'superadmin', 'hr', 'manager', 'hod', 'hop'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Insufficient permissions.'
+      });
+    }
+
+    const slot = await Slot.findById(slotId);
+    if (!slot) {
+      return res.status(404).json({
+        success: false,
+        message: 'Slot not found'
+      });
+    }
+
+    // Update slot fields
+    Object.keys(updateData).forEach(key => {
+      if (key !== '_id' && key !== 'createdAt' && key !== 'createdBy') {
+        slot[key] = updateData[key];
+      }
+    });
+
+    await slot.save();
+
+    const updatedSlot = await Slot.findById(slotId)
+      .populate('project', 'name client')
+      .populate('assignedTo', 'name email')
+      .populate('createdBy', 'name email');
+
+    res.json({
+      success: true,
+      data: updatedSlot,
+      message: 'Slot updated successfully'
+    });
+
+  } catch (error) {
+    logger.error('Error in updateSlot:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to update slot'
+    });
+  }
+};
+
+/**
+ * Delete slot
+ * DELETE /api/work-calendar/slots/:slotId
+ */
+export const deleteSlot = async (req, res) => {
+  try {
+    const { slotId } = req.params;
+
+    // Permission check
+    if (!['admin', 'superadmin', 'hr', 'manager', 'hod', 'hop'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Insufficient permissions.'
+      });
+    }
+
+    const slot = await Slot.findById(slotId);
+    if (!slot) {
+      return res.status(404).json({
+        success: false,
+        message: 'Slot not found'
+      });
+    }
+
+    // Check if slot is assigned
+    if (slot.assignmentStatus === 'assigned' || slot.assignmentStatus === 'in-progress') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete assigned slot. Please unassign it first.'
+      });
+    }
+
+    await Slot.findByIdAndDelete(slotId);
+
+    res.json({
+      success: true,
+      message: 'Slot deleted successfully'
+    });
+
+  } catch (error) {
+    logger.error('Error in deleteSlot:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to delete slot'
+    });
+  }
+};
+
+/**
+ * Create individual slot
+ * POST /api/work-calendar/slots
+ */
+export const createSlot = async (req, res) => {
+  try {
+    const slotData = req.body;
+
+    // Permission check
+    if (!['admin', 'superadmin', 'hr', 'manager', 'hod', 'hop'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Insufficient permissions.'
+      });
+    }
+
+    // Validate required fields
+    if (!slotData.project || !slotData.slotNumber) {
+      return res.status(400).json({
+        success: false,
+        message: 'Project and slot number are required'
+      });
+    }
+
+    // Check if slot number already exists for this project
+    const existingSlot = await Slot.findOne({
+      project: slotData.project,
+      slotNumber: slotData.slotNumber
+    });
+
+    if (existingSlot) {
+      return res.status(400).json({
+        success: false,
+        message: `Slot ${slotData.slotNumber} already exists for this project`
+      });
+    }
+
+    // Create slot
+    const slot = new Slot({
+      ...slotData,
+      createdBy: req.user.id,
+      assignmentStatus: 'available'
+    });
+
+    await slot.save();
+
+    const populatedSlot = await Slot.findById(slot._id)
+      .populate('project', 'name client')
+      .populate('createdBy', 'name email');
+
+    res.status(201).json({
+      success: true,
+      data: populatedSlot,
+      message: 'Slot created successfully'
+    });
+
+  } catch (error) {
+    logger.error('Error in createSlot:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to create slot'
+    });
+  }
+};
+
+
+// ============================================
+// NEW SLOT-BASED PROJECT TRACKING ENDPOINTS
+// ============================================
+
+/**
+ * Enable slot system for existing project
+ * POST /api/projects/:projectId/slots/enable
+ */
+export const enableSlotsForProject = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { totalSlots = 10, slotType = 'generic' } = req.body;
+
+    // Permission check - only admin, superadmin, hr, manager can enable slots
+    if (!['admin', 'superadmin', 'hr', 'manager'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin privileges required to enable slots.'
+      });
+    }
+
+    // Get project
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    // Check if slots already enabled
+    if (project.slotConfiguration?.enableSlotSystem) {
+      return res.status(400).json({
+        success: false,
+        message: 'Slots are already enabled for this project'
+      });
+    }
+
+    // Enable slot system
+    project.slotConfiguration = {
+      enableSlotSystem: true,
+      totalSlots: totalSlots,
+      slotType: slotType,
+      allowDynamicSlots: true,
+      autoCreateSlots: false
+    };
+
+    await project.save();
+
+    logger.info(`Slots enabled for project ${projectId} by user ${req.user.email}`);
+
+    res.status(200).json({
+      success: true,
+      data: project,
+      message: 'Slot system enabled successfully for project'
+    });
+
+  } catch (error) {
+    logger.error('Error in enableSlotsForProject:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to enable slot system',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get all slots for a project
+ * GET /api/projects/:projectId/slots
+ */
+export const getProjectSlots = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { includeAll = false, status } = req.query;
+
+    // Get project to check if slots are enabled
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    // Check if slots are enabled
+    if (!project.slotConfiguration?.enableSlotSystem) {
+      return res.status(400).json({
+        success: false,
+        message: 'Slots are not enabled for this project'
+      });
+    }
+
+    // Build query
+    const query = { project: projectId };
+    
+    // Filter by status if provided
+    if (status) {
+      query.assignmentStatus = status;
+    }
+
+    // Exclude completed slots unless includeAll is true
+    if (!includeAll || includeAll === 'false') {
+      query['completionStatus.isCompleted'] = { $ne: true };
+    }
+
+    // Get slots
+    const slots = await Slot.find(query)
+      .populate('project', 'name client status')
+      .populate('assignedWorkItem', 'title status priority')
+      .populate('assignedTo', 'name email')
+      .populate('createdBy', 'name email')
+      .sort({ slotNumber: 1 });
+
+    res.status(200).json({
+      success: true,
+      data: slots,
+      count: slots.length
+    });
+
+  } catch (error) {
+    logger.error('Error in getProjectSlots:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get project slots',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Create a new slot for a project
+ * POST /api/projects/:projectId/slots
+ */
+export const createProjectSlot = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { title, description, slotType = 'work', priority = 'Medium' } = req.body;
+
+    // Permission check
+    if (!['admin', 'superadmin', 'hr', 'manager', 'hod', 'hop'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Insufficient permissions to create slots.'
+      });
+    }
+
+    // Get project
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    // Check if slots are enabled
+    if (!project.slotConfiguration?.enableSlotSystem) {
+      return res.status(400).json({
+        success: false,
+        message: 'Slots are not enabled for this project. Please enable slots first.'
+      });
+    }
+
+    // Get next slot number (sequential)
+    const lastSlot = await Slot.findOne({ project: projectId })
+      .sort({ slotNumber: -1 })
+      .select('slotNumber');
+
+    const nextSlotNumber = lastSlot ? lastSlot.slotNumber + 1 : 1;
+
+    // Create slot identifier
+    const slotIdentifier = title ? `Slot ${nextSlotNumber}: ${title}` : `Slot ${nextSlotNumber}`;
+
+    // Create slot
+    const slot = new Slot({
+      project: projectId,
+      client: project.client,
+      slotNumber: nextSlotNumber,
+      slotIdentifier: slotIdentifier,
+      title: title || `Slot ${nextSlotNumber}`,
+      description: description || '',
+      slotType: slotType,
+      priority: priority,
+      workType: 'Other', // Default work type
+      assignmentStatus: 'available',
+      createdBy: req.user.id,
+      completionStatus: {
+        isCompleted: false
+      }
+    });
+
+    await slot.save();
+
+    const populatedSlot = await Slot.findById(slot._id)
+      .populate('project', 'name client status')
+      .populate('createdBy', 'name email');
+
+    logger.info(`Slot ${nextSlotNumber} created for project ${projectId} by user ${req.user.email}`);
+
+    res.status(201).json({
+      success: true,
+      data: populatedSlot,
+      message: 'Slot created successfully'
+    });
+
+  } catch (error) {
+    logger.error('Error in createProjectSlot:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create slot',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Update slot details (name, description, metadata)
+ * PUT /api/projects/:projectId/slots/:slotId
+ */
+export const updateProjectSlot = async (req, res) => {
+  try {
+    const { projectId, slotId } = req.params;
+    const { title, description, slotMetadata } = req.body;
+
+    // Permission check
+    if (!['admin', 'superadmin', 'hr', 'manager', 'hod', 'hop'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Insufficient permissions to update slots.'
+      });
+    }
+
+    // Get slot
+    const slot = await Slot.findOne({ _id: slotId, project: projectId });
+    if (!slot) {
+      return res.status(404).json({
+        success: false,
+        message: 'Slot not found'
+      });
+    }
+
+    // Update fields (preserve slot number)
+    if (title) {
+      slot.title = title;
+      slot.slotIdentifier = `Slot ${slot.slotNumber}: ${title}`;
+    }
+    if (description) slot.description = description;
+    if (slotMetadata) slot.slotMetadata = { ...slot.slotMetadata, ...slotMetadata };
+
+    await slot.save();
+
+    const updatedSlot = await Slot.findById(slotId)
+      .populate('project', 'name client status')
+      .populate('assignedWorkItem', 'title status')
+      .populate('createdBy', 'name email');
+
+    logger.info(`Slot ${slotId} updated for project ${projectId} by user ${req.user.email}`);
+
+    res.status(200).json({
+      success: true,
+      data: updatedSlot,
+      message: 'Slot updated successfully'
+    });
+
+  } catch (error) {
+    logger.error('Error in updateProjectSlot:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update slot',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Delete a slot (with authorization check)
+ * DELETE /api/projects/:projectId/slots/:slotId
+ */
+export const deleteProjectSlot = async (req, res) => {
+  try {
+    const { projectId, slotId } = req.params;
+
+    // CRITICAL: Authorization check - only HR, Manager, Admin, SuperAdmin can delete slots
+    const authorizedRoles = ['hr', 'manager', 'admin', 'superadmin'];
+    if (!authorizedRoles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to delete slots. Only HR, Manager, Admin, and SuperAdmin can delete slots.'
+      });
+    }
+
+    // Get slot
+    const slot = await Slot.findOne({ _id: slotId, project: projectId });
+    if (!slot) {
+      return res.status(404).json({
+        success: false,
+        message: 'Slot not found'
+      });
+    }
+
+    // Find all work items assigned to this slot
+    const affectedWorkItems = await WorkItem.find({
+      'slotAssignment.assignedSlot': slotId
+    });
+
+    // Update work items to remove slot assignment (preserve work items)
+    await WorkItem.updateMany(
+      { 'slotAssignment.assignedSlot': slotId },
+      { 
+        $set: { 
+          'slotAssignment.assignedSlot': null,
+          'slotAssignment.slotNumber': null,
+          'slotAssignment.slotIdentifier': null
+        } 
+      }
+    );
+
+    // Delete the slot
+    await Slot.findByIdAndDelete(slotId);
+
+    logger.info(`Slot ${slotId} deleted from project ${projectId} by user ${req.user.email}. ${affectedWorkItems.length} work items unassigned.`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Slot deleted successfully',
+      affectedWorkItems: affectedWorkItems.length
+    });
+
+  } catch (error) {
+    logger.error('Error in deleteProjectSlot:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete slot',
+      error: error.message
+    });
+  }
+};
+
+
+
+
+/**
+ * Calculate slot progress with work item counts
+ * Helper function used by other endpoints
+ */
+export const calculateSlotProgress = async (slotId) => {
+  try {
+    const WorkItem = (await import('../models/workItemModel.js')).default;
+    
+    // Get all work items assigned to this slot
+    const workItems = await WorkItem.find({
+      'slotAssignment.assignedSlot': slotId
+    });
+
+    const totalCount = workItems.length;
+    const completedCount = workItems.filter(item => item.status === 'Done').length;
+    const completionPercentage = totalCount > 0 
+      ? Math.round((completedCount / totalCount) * 100) 
+      : 0;
+
+    return {
+      totalCount,
+      completedCount,
+      completionPercentage,
+      inProgressCount: workItems.filter(item => item.status === 'In Progress').length,
+      todoCount: workItems.filter(item => item.status === 'To Do').length,
+      reviewCount: workItems.filter(item => item.status === 'Review').length
+    };
+  } catch (error) {
+    logger.error('Error calculating slot progress:', error);
+    return {
+      totalCount: 0,
+      completedCount: 0,
+      completionPercentage: 0,
+      inProgressCount: 0,
+      todoCount: 0,
+      reviewCount: 0
+    };
+  }
+};
+
+/**
+ * Update project progress including both slotted and unslotted work
+ * Called when work item status changes
+ */
+export const updateProjectProgress = async (projectId) => {
+  try {
+    const project = await Project.findById(projectId);
+    if (!project) {
+      logger.error(`Project ${projectId} not found for progress update`);
+      return;
+    }
+
+    // If slots are enabled, use slot-based progress calculation
+    if (project.slotConfiguration?.enableSlotSystem) {
+      await project.recalculateSlotProgress();
+    } else {
+      // Use work item-based progress calculation
+      const WorkItem = (await import('../models/workItemModel.js')).default;
+      const allWorkItems = await WorkItem.find({ project: projectId });
+      const completedWorkItems = allWorkItems.filter(item => item.status === 'Done');
+      
+      const progressPercentage = allWorkItems.length > 0
+        ? Math.round((completedWorkItems.length / allWorkItems.length) * 100)
+        : 0;
+
+      project.progress = progressPercentage;
+      project.progressTracking = project.progressTracking || {};
+      project.progressTracking.progressPercentage = progressPercentage;
+      project.progressTracking.lastProgressUpdate = new Date();
+      
+      await project.save();
+    }
+
+    logger.info(`Project ${projectId} progress updated successfully`);
+  } catch (error) {
+    logger.error('Error updating project progress:', error);
   }
 };

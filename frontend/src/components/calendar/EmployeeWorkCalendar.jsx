@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Badge, Dropdown, Spinner, Form, Modal } from 'react-bootstrap';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
+import { FaTasks } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import workCalendarApi from '../../api/workCalendarApi';
-import ProfessionalWorkCreationModal from '../work/ProfessionalWorkCreationModal';
+import AssignWorkModal from '../work/AssignWorkModal';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './EmployeeWorkCalendar.css';
 import './MultiEventCalendar.css';
@@ -24,8 +25,6 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showEventModal, setShowEventModal] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedDateForCreate, setSelectedDateForCreate] = useState(null);
   const [filters, setFilters] = useState({
     status: 'all',
     workType: 'all',
@@ -33,6 +32,7 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
     priority: 'all',
     view: 'calendar'
   });
+  const [showAssignWorkModal, setShowAssignWorkModal] = useState(false);
 
   const currentEmployeeId = employeeId || user?.id || user?._id;
 
@@ -204,16 +204,6 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
     };
   };
 
-  const handleCreateWork = (selectedDate = null) => {
-    setSelectedDateForCreate(selectedDate || new Date());
-    setShowCreateModal(true);
-  };
-
-  const handleSlotSelect = (slotInfo) => {
-    // When user clicks on a calendar slot, open create modal with that date
-    handleCreateWork(slotInfo.start);
-  };
-
   const handleSyncWorkItems = async () => {
     try {
       setLoading(true);
@@ -355,9 +345,10 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
                   <Button 
                     variant="success" 
                     size="sm"
-                    onClick={handleCreateWork}
+                    onClick={() => setShowAssignWorkModal(true)}
                   >
-                    Add Work
+                    <FaTasks className="me-1" />
+                    Assign Work
                   </Button>
                   <Button 
                     variant="outline-info" 
@@ -533,14 +524,12 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
                     endAccessor="end"
                     style={{ height: 580 }}
                     onSelectEvent={handleEventSelect}
-                    onSelectSlot={handleSlotSelect}
                     onNavigate={handleDateNavigate}
                     eventPropGetter={eventStyleGetter}
                     views={['month', 'week', 'day', 'agenda']}
                     defaultView="month"
                     date={selectedDate}
                     popup
-                    selectable
                     showMultiDayTimes
                     step={30}
                     timeslots={2}
@@ -841,14 +830,14 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
         </Modal.Footer>
       </Modal>
 
-      {/* Professional Work Creation Modal */}
-      <ProfessionalWorkCreationModal
-        show={showCreateModal}
-        onHide={() => setShowCreateModal(false)}
-        onSuccess={loadEmployeeWorkCalendar}
-        selectedDate={selectedDateForCreate}
-        mode="calendar-focused"
-      />
+      {/* Assign Work Modal */}
+      {currentEmployeeId === (user?.id || user?._id) && (
+        <AssignWorkModal
+          show={showAssignWorkModal}
+          onHide={() => setShowAssignWorkModal(false)}
+          onSuccess={loadEmployeeWorkCalendar}
+        />
+      )}
     </Container>
   );
 };

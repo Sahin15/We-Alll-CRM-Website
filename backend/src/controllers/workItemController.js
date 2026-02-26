@@ -1,6 +1,7 @@
 import WorkItem from "../models/workItemModel.js";
 import Project from "../models/projectModel.js";
 import User from "../models/userModel.js";
+import Slot from "../models/slotModel.js";
 import { validateStatusTransition, VALID_STATUSES } from "../utils/statusValidation.js";
 import { getWorkflowByDepartment, getWorkflowUIConfig, validateDepartmentFields } from "../utils/departmentWorkflows.js";
 import { syncProjectProgress } from "../services/projectProgressService.js";
@@ -236,7 +237,7 @@ const getWorkItemById = async (req, res) => {
         { assignedUsers: req.user._id },
       ],
     });
-    const isAdmin = ["admin", "superadmin", "hod", "manager"].includes(req.user.role);
+    const isAdmin = ["admin", "superadmin", "hr", "manager", "hod"].includes(req.user.role);
     
     if (!isAssigned && !isCreator && !isProjectMember && !isAdmin) {
       // Log security event
@@ -394,26 +395,16 @@ const createWorkItem = async (req, res) => {
     // SLOT ASSIGNMENT - Handle slot assignment if requested
     if (assignToSlot && selectedSlot) {
       try {
-        console.log('🎯 Assigning work item to slot:', selectedSlot);
-        
-        // Simple slot assignment without transactions for now
-        const Slot = (await import('../models/slotModel.js')).default;
-        
-        // Find the slot
         const slot = await Slot.findById(selectedSlot);
-        if (!slot) {
-          console.error('❌ Slot not found:', selectedSlot);
-        } else if (slot.assignmentStatus !== 'available') {
-          console.error('❌ Slot not available:', slot.assignmentStatus);
-        } else {
-          // Update slot
+        if (slot) {
           slot.assignmentStatus = 'assigned';
           slot.assignedWorkItem = workItem._id;
+          slot.assignedTo = assignedTo;
+          slot.dueDate = dueDate;
           slot.assignedAt = new Date();
           slot.assignedBy = req.user._id;
           await slot.save();
           
-          // Update work item
           workItem.slotAssignment = {
             assignedSlot: slot._id,
             slotNumber: slot.slotNumber,
@@ -423,13 +414,9 @@ const createWorkItem = async (req, res) => {
             assignedBy: req.user._id
           };
           await workItem.save();
-          
-          console.log('✅ Successfully assigned work item to slot');
         }
       } catch (slotError) {
-        console.error('❌ Error during slot assignment:', slotError);
-        // Don't fail work item creation if slot assignment fails
-        // Just log the error and continue
+        // Slot assignment failed, but work item is still created
       }
     }
     
@@ -465,8 +452,7 @@ const createWorkItem = async (req, res) => {
       const { createWorkCalendarEntry } = await import("../controllers/workCalendarController.js");
       await createWorkCalendarEntry(workItem);
     } catch (syncError) {
-      // Don't fail the request if calendar sync fails - just log error
-      console.error('Failed to sync to work calendar:', syncError.message);
+      // Don't fail the request if calendar sync fails
     }
     
     // Respond immediately to user
@@ -654,7 +640,7 @@ const updateWorkItemStatus = async (req, res) => {
     const isAssigned = workItem.assignedTo && workItem.assignedTo.toString() === req.user._id.toString();
     const project = await Project.findById(workItem.project);
     const isProjectHead = project?.projectHead?.toString() === req.user._id.toString();
-    const isAdmin = ["admin", "superadmin", "hod"].includes(req.user.role);
+    const isAdmin = ["admin", "superadmin", "hr", "manager", "hod"].includes(req.user.role);
     
     if (!isAssigned && !isProjectHead && !isAdmin) {
       return res.status(403).json({
@@ -690,7 +676,6 @@ const updateWorkItemStatus = async (req, res) => {
     try {
       await syncProjectProgress(workItem.project.toString());
     } catch (progressError) {
-      console.error("⚠️ Error updating project progress:", progressError);
       // Don't fail the request for this
     }
     
@@ -726,7 +711,7 @@ const updateWorkItemStatus = async (req, res) => {
         }
       }
     } catch (notificationError) {
-      console.error("⚠️ Error sending work item notification:", notificationError);
+      // Notification failed, continue
     }
     
     // Populate work item data
@@ -740,7 +725,7 @@ const updateWorkItemStatus = async (req, res) => {
         newStatus: status,
       });
     } catch (auditError) {
-      console.error("⚠️ Error logging audit event:", auditError);
+      // Audit logging failed, continue
     }
     
     res.status(200).json({
@@ -791,17 +776,15 @@ const deleteWorkItem = async (req, res) => {
       });
     }
     
-    // Check if user has permission to delete
-    const project = await Project.findById(workItem.project);
-    const isProjectHead = project?.projectHead?.toString() === req.user._id.toString();
-    const isAdmin = ["admin", "superadmin", "hod"].includes(req.user.role);
+    // Check if user has permission to delete - ONLY HR, Manager, Admin, SuperAdmin
+    const canDelete = ["admin", "superadmin", "hr", "manager"].includes(req.user.role);
     
-    if (!isProjectHead && !isAdmin) {
+    if (!canDelete) {
       return res.status(403).json({
         success: false,
         error: {
           code: "FORBIDDEN",
-          message: "You don't have permission to delete this work item",
+          message: "Only HR, Manager, Admin, or SuperAdmin can delete work items",
         },
       });
     }
@@ -810,11 +793,35 @@ const deleteWorkItem = async (req, res) => {
     const workItemId = workItem._id.toString();
     const workItemTitle = workItem.title;
     
+    // If work item has slot assignment, clear the slot
+    if (workItem.slotAssignment && workItem.slotAssignment.assignedSlot) {
+      try {
+        const slot = await Slot.findById(workItem.slotAssignment.assignedSlot);
+        
+        if (slot && slot.assignedWorkItem && slot.assignedWorkItem.toString() === workItemId) {
+          slot.assignmentStatus = 'available';
+          slot.assignedWorkItem = null;
+          slot.assignedTo = null;
+          slot.dueDate = null;
+          slot.assignedAt = null;
+          slot.assignedBy = null;
+          await slot.save();
+        }
+      } catch (slotError) {
+        // Don't fail the delete if slot cleanup fails
+      }
+    }
+    
     // Perform soft delete
     await workItem.softDelete(req.user._id, reason || 'Deleted by user');
     
-    // Update project progress after deletion
-    await syncProjectProgress(projectId);
+    // Update project progress after deletion (with error handling)
+    try {
+      await syncProjectProgress(projectId);
+    } catch (progressError) {
+      console.error('Error syncing project progress after deletion:', progressError);
+      // Don't fail the delete operation if progress sync fails
+    }
     
     // Log audit event
     logWorkItemOperation("SOFT_DELETE", workItemId, req.user._id.toString(), {
@@ -876,7 +883,7 @@ const restoreWorkItem = async (req, res) => {
     // Check if user has permission to restore
     const project = await Project.findById(workItem.project);
     const isProjectHead = project?.projectHead?.toString() === req.user._id.toString();
-    const isAdmin = ["admin", "superadmin", "hod"].includes(req.user.role);
+    const isAdmin = ["admin", "superadmin", "hr", "manager", "hod"].includes(req.user.role);
     
     if (!isProjectHead && !isAdmin) {
       return res.status(403).json({
@@ -966,7 +973,7 @@ const bulkUpdateWorkItems = async (req, res) => {
         // Check permission
         const project = await Project.findById(workItem.project);
         const isProjectHead = project?.projectHead?.toString() === req.user._id.toString();
-        const isAdmin = ["admin", "superadmin", "hod"].includes(req.user.role);
+        const isAdmin = ["admin", "superadmin", "hr", "manager", "hod"].includes(req.user.role);
         
         if (!isProjectHead && !isAdmin) {
           results.failed.push({
@@ -1090,7 +1097,7 @@ const addComment = async (req, res) => {
         );
       }
     } catch (notificationError) {
-      console.error("⚠️ Error sending comment notification:", notificationError);
+      // Notification failed, continue
     }
     
     res.status(201).json({
@@ -1145,7 +1152,7 @@ const deleteComment = async (req, res) => {
     
     // Check if user has permission to delete the comment
     const isCommentOwner = comment.user.toString() === req.user._id.toString();
-    const isAdmin = ["admin", "superadmin"].includes(req.user.role);
+    const isAdmin = ["admin", "superadmin", "hr", "manager", "hod"].includes(req.user.role);
     
     if (!isCommentOwner && !isAdmin) {
       return res.status(403).json({
@@ -1295,7 +1302,7 @@ const getWorkItemsByProject = async (req, res) => {
     const isTeamMember = project.assignedUsers?.some(
       userId => userId.toString() === req.user._id.toString()
     );
-    const isAdmin = ["admin", "superadmin", "hod"].includes(req.user.role);
+    const isAdmin = ["admin", "superadmin", "hr", "manager", "hod"].includes(req.user.role);
     
     if (!isProjectHead && !isTeamMember && !isAdmin) {
       return res.status(403).json({
@@ -1550,8 +1557,6 @@ const debugWorkItems = async (req, res) => {
       .populate("assignedTo", "name email")
       .sort({ dueDate: 1 });
 
-    console.log(`📋 Found ${allWorkItems.length} total work items in database`);
-
     // Group by due date for easier debugging
     const workItemsByDate = {};
     allWorkItems.forEach(item => {
@@ -1679,7 +1684,6 @@ const assignWorkItemToSlot = async (req, res) => {
     }
 
     // Find slot
-    const Slot = (await import('../models/slotModel.js')).default;
     const slot = await Slot.findById(slotId);
     if (!slot) {
       return res.status(404).json({
@@ -1843,7 +1847,6 @@ const reassignWorkItem = async (req, res) => {
     // If work item has slot assignment, update the slot's assigned work item
     if (workItem.slotAssignment && workItem.slotAssignment.assignedSlot) {
       try {
-        const Slot = (await import('../models/slotModel.js')).default;
         const slot = await Slot.findById(workItem.slotAssignment.assignedSlot);
         
         if (slot && slot.assignedWorkItem) {
@@ -1855,7 +1858,6 @@ const reassignWorkItem = async (req, res) => {
           }
         }
       } catch (slotError) {
-        console.error('Error updating slot assignment:', slotError);
         // Don't fail the reassignment if slot update fails
       }
     }
@@ -1890,8 +1892,6 @@ const reassignWorkItem = async (req, res) => {
       }
     ]);
 
-    console.log(`✅ Work item "${workItem.title}" reassigned from ${oldAssignee?.name} to ${newAssignee.name}`);
-
     res.status(200).json({
       success: true,
       message: `Work item successfully reassigned to ${newAssignee.name}`,
@@ -1911,6 +1911,247 @@ const reassignWorkItem = async (req, res) => {
         message: "Failed to reassign work item",
         details: error.message,
       },
+    });
+  }
+};
+
+
+/**
+ * Remove slot assignment from work item
+ * PUT /api/workitems/:workItemId/slot/remove
+ */
+export const removeSlotAssignment = async (req, res) => {
+  try {
+    const { workItemId } = req.params;
+
+    // Permission check
+    if (!['admin', 'superadmin', 'hr', 'manager', 'hod', 'hop'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Access denied. Insufficient permissions to remove slot assignment.'
+        }
+      });
+    }
+
+    // Find work item
+    const workItem = await WorkItem.findById(workItemId);
+    if (!workItem) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Work item not found'
+        }
+      });
+    }
+
+    // Check if work item has slot assignment
+    if (!workItem.slotAssignment?.assignedSlot) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'NO_SLOT_ASSIGNMENT',
+          message: 'Work item is not assigned to any slot'
+        }
+      });
+    }
+
+    const slotId = workItem.slotAssignment.assignedSlot;
+
+    // Update slot to available
+    const slot = await Slot.findById(slotId);
+    if (slot) {
+      slot.assignmentStatus = 'available';
+      slot.assignedWorkItem = null;
+      slot.assignedTo = null;
+      slot.assignedAt = null;
+      slot.assignedBy = null;
+      await slot.save();
+    }
+
+    // Remove slot assignment from work item
+    workItem.slotAssignment = {
+      assignedSlot: null,
+      slotNumber: null,
+      slotIdentifier: null,
+      slotType: null
+    };
+    await workItem.save();
+
+    // Populate and return updated work item
+    await workItem.populate([
+      {
+        path: 'project',
+        select: 'name client department departments',
+        populate: [
+          {
+            path: 'client',
+            select: 'name company'
+          },
+          {
+            path: 'department',
+            select: 'name'
+          },
+          {
+            path: 'departments',
+            select: 'name'
+          }
+        ]
+      },
+      {
+        path: 'assignedTo',
+        select: 'name email'
+      }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: 'Slot assignment removed successfully',
+      data: workItem
+    });
+
+  } catch (error) {
+    console.error('Error removing slot assignment:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SERVER_ERROR',
+        message: 'Failed to remove slot assignment',
+        details: error.message
+      }
+    });
+  }
+};
+
+/**
+ * Get work items grouped by slots for a project
+ * GET /api/projects/:projectId/workitems/grouped-by-slots
+ */
+export const getWorkItemsGroupedBySlots = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+
+    // Get project to check if slots are enabled
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Project not found'
+        }
+      });
+    }
+
+    // Check if slots are enabled
+    if (!project.slotConfiguration?.enableSlotSystem) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'SLOTS_NOT_ENABLED',
+          message: 'Slots are not enabled for this project'
+        }
+      });
+    }
+
+    // Get all work items for the project
+    const workItems = await WorkItem.find({ project: projectId })
+      .populate('assignedTo', 'name email')
+      .populate('slotAssignment.assignedSlot', 'slotNumber slotIdentifier')
+      .sort({ 'slotAssignment.slotNumber': 1, createdAt: 1 });
+
+    // Get all slots for the project
+    const slots = await Slot.find({ project: projectId })
+      .sort({ slotNumber: 1 });
+
+    // Group work items by slot
+    const groupedData = {
+      slotted: {},
+      unassigned: []
+    };
+
+    // Initialize slot groups
+    slots.forEach(slot => {
+      groupedData.slotted[slot._id.toString()] = {
+        slot: {
+          _id: slot._id,
+          slotNumber: slot.slotNumber,
+          slotIdentifier: slot.slotIdentifier,
+          assignmentStatus: slot.assignmentStatus,
+          completionStatus: slot.completionStatus
+        },
+        workItems: []
+      };
+    });
+
+    // Distribute work items into groups
+    workItems.forEach(workItem => {
+      if (workItem.slotAssignment?.assignedSlot) {
+        const slotId = workItem.slotAssignment.assignedSlot._id?.toString() || 
+                       workItem.slotAssignment.assignedSlot.toString();
+        if (groupedData.slotted[slotId]) {
+          groupedData.slotted[slotId].workItems.push(workItem);
+        } else {
+          // Slot doesn't exist anymore, treat as unassigned
+          groupedData.unassigned.push(workItem);
+        }
+      } else {
+        groupedData.unassigned.push(workItem);
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: groupedData
+    });
+
+  } catch (error) {
+    console.error('Error getting work items grouped by slots:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SERVER_ERROR',
+        message: 'Failed to get work items grouped by slots',
+        details: error.message
+      }
+    });
+  }
+};
+
+/**
+ * Get work items by slot
+ * GET /api/workitems/by-slot/:slotId
+ */
+export const getWorkItemsBySlot = async (req, res) => {
+  try {
+    const { slotId } = req.params;
+
+    // Find work items assigned to this slot
+    const workItems = await WorkItem.find({
+      'slotAssignment.assignedSlot': slotId
+    })
+      .populate('project', 'name client')
+      .populate('assignedTo', 'name email')
+      .populate('slotAssignment.assignedSlot', 'slotNumber slotIdentifier')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: workItems,
+      count: workItems.length
+    });
+
+  } catch (error) {
+    console.error('Error getting work items by slot:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SERVER_ERROR',
+        message: 'Failed to get work items by slot',
+        details: error.message
+      }
     });
   }
 };

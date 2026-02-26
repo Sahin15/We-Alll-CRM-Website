@@ -270,6 +270,95 @@ export const completeSlot = async (slotId, notes, requiresApproval = false) => {
   return response.data;
 };
 
+export const createSlot = async (projectId, slotData) => {
+  const response = await axios.post(
+    `${API_URL}/work-calendar/slots`,
+    { ...slotData, project: projectId },
+    { headers: getAuthHeader() }
+  );
+  return response.data;
+};
+
+export const updateSlot = async (slotId, slotData) => {
+  const response = await axios.put(
+    `${API_URL}/work-calendar/slots/${slotId}`,
+    slotData,
+    { headers: getAuthHeader() }
+  );
+  return response.data;
+};
+
+export const deleteSlot = async (slotId) => {
+  const response = await axios.delete(
+    `${API_URL}/work-calendar/slots/${slotId}`,
+    { headers: getAuthHeader() }
+  );
+  return response.data;
+};
+
+export const getSlotById = async (slotId) => {
+  const response = await axios.get(
+    `${API_URL}/work-calendar/slots/${slotId}`,
+    { headers: getAuthHeader() }
+  );
+  return response.data;
+};
+
+// New slot management endpoints for slot-based project tracking
+export const enableSlotsForProject = async (projectId, options = {}) => {
+  const response = await axios.post(
+    `${API_URL}/projects/${projectId}/slots/enable`,
+    options,
+    { headers: getAuthHeader() }
+  );
+  return response.data;
+};
+
+export const getProjectSlots = async (projectId, params = {}) => {
+  const response = await axios.get(
+    `${API_URL}/projects/${projectId}/slots`,
+    { 
+      headers: getAuthHeader(),
+      params
+    }
+  );
+  return response.data;
+};
+
+export const createProjectSlot = async (projectId, slotData) => {
+  const response = await axios.post(
+    `${API_URL}/projects/${projectId}/slots`,
+    slotData,
+    { headers: getAuthHeader() }
+  );
+  return response.data;
+};
+
+export const updateProjectSlot = async (projectId, slotId, slotData) => {
+  const response = await axios.put(
+    `${API_URL}/projects/${projectId}/slots/${slotId}`,
+    slotData,
+    { headers: getAuthHeader() }
+  );
+  return response.data;
+};
+
+export const deleteProjectSlot = async (projectId, slotId) => {
+  const response = await axios.delete(
+    `${API_URL}/projects/${projectId}/slots/${slotId}`,
+    { headers: getAuthHeader() }
+  );
+  return response.data;
+};
+
+export const getWorkItemsGroupedBySlots = async (projectId) => {
+  const response = await axios.get(
+    `${API_URL}/projects/${projectId}/workitems/grouped-by-slots`,
+    { headers: getAuthHeader() }
+  );
+  return response.data;
+};
+
 export const projectApi = {
   getAllProjects,
   getProjectById,
@@ -298,6 +387,17 @@ export const projectApi = {
   createSlotsForProject,
   assignWorkItemToSlot,
   completeSlot,
+  createSlot,
+  updateSlot,
+  deleteSlot,
+  getSlotById,
+  // New slot-based project tracking
+  enableSlotsForProject,
+  getProjectSlots,
+  createProjectSlot,
+  updateProjectSlot,
+  deleteProjectSlot,
+  getWorkItemsGroupedBySlots,
 };
 
 export default projectApi;

@@ -20,6 +20,9 @@ import {
   debugWorkItems,
   assignWorkItemToSlot,
   reassignWorkItem,
+  removeSlotAssignment,
+  getWorkItemsGroupedBySlots,
+  getWorkItemsBySlot,
 } from "../controllers/workItemController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { createWorkItemLimiter, validateRequest } from "../middleware/securityMiddleware.js";
@@ -108,6 +111,12 @@ router.get("/:id/workflow-progress", getWorkflowProgress);
 
 // Slot assignment (admin only)
 router.post("/:id/assign-slot", assignWorkItemToSlot);
+
+// Remove slot assignment
+router.put("/:workItemId/slot/remove", removeSlotAssignment);
+
+// Get work items by slot
+router.get("/by-slot/:slotId", getWorkItemsBySlot);
 
 // Work item reassignment (admin/manager only)
 router.put("/:id/reassign", reassignWorkItem);

@@ -38,187 +38,67 @@ const userHasProjectAccess = async (userId, userRole, project) => {
                        return uid.toString() === userId.toString();
                      });
   
-  console.log(`🔍 Access check for ${userId}:`, { isHoD, isHoP, isAssigned });
-  
   return isHoD || isHoP || isAssigned;
 };
 
 // Create new project
 export const createProject = async (req, res) => {
-  console.log('🚨 CREATE PROJECT FUNCTION CALLED!');
-  console.log('🚨 Request received at:', new Date().toISOString());
-  
   try {
-    console.log('=== CREATE PROJECT REQUEST ===');
-    console.log('Request body:', JSON.stringify(req.body, null, 2));
-    console.log('User:', req.user?.email, req.user?.role);
-    console.log('User ID:', req.user?._id);
     
-    assignProjectHead = async (req, res) => {
-      try {
-        const { projectId } = req.params;
-        const { userId } = req.body;
-
-        if (!userId) {
-          return res.status(400).json({ message: "User ID is required" });
-        }
-
-        // Find project
-        const project = await Project.findById(projectId);
-        if (!project) {
-          return res.status(404).json({ message: "Project not found" });
-        }
-
-        // Find user and verify they are an employee
-        const user = await User.findById(userId);
-        if (!user) {
-          return res.status(404).json({ message: "User not found" });
-        }
-
-        if (user.role === "client") {
-          return res.status(400).json({ message: "Clients cannot be assigned as project managers" });
-        }
-
-        // Remove from previous project manager's headOfProjects array
-        if (project.projectHead) {
-          await User.findByIdAndUpdate(project.projectHead, {
-            $pull: { headOfProjects: projectId },
-          });
-        }
-
-        // Assign project manager
-        project.projectHead = userId;
-        project.projectHeadAssignedBy = req.user._id;
-        project.projectHeadAssignedAt = new Date();
-        await project.save();
-
-        // Update user's headOfProjects array
-        await User.findByIdAndUpdate(userId, {
-          $addToSet: { headOfProjects: projectId },
-        });
-
-        await project.populate("projectHead", "name email designation");
-        await project.populate("projectHeadAssignedBy", "name email");
-
-        res.status(200).json({
-          message: "Project Manager assigned successfully",
-          project,
-        });
-      } catch (error) {
-        console.error("Error in assignProjectHead:", error);
-        res.status(500).json({ message: "Server error", error: error.message });
-      }
-    }
-
-    console.log('📋 Extracted fields:', {
+    // Extract fields from request body
+    const {
       name,
-      departments,
+      client,
+      projectHead,
+      description,
+      startDate,
+      endDate,
+      budget,
+      status,
+      priority,
+      teamMembers,
+      assignedUsers,
       enableSlotSystem,
       totalSlots,
-      slotType
-    });
+      slotType,
+      calculationMethod
+    } = req.body;
 
     if (!name) {
-      console.log('❌ Missing project name');
       return res
         .status(400)
         .json({ message: "Project name is required" });
     }
 
-    // Handle both single and multiple departments
-    let finalDepartments = [];
-    if (departments && Array.isArray(departments) && departments.length > 0) {
-      finalDepartments = departments;
-    } else if (department) {
-      finalDepartments = [department];
-    }
-
-    console.log('🏢 Department processing:', {
-      inputDepartments: departments,
-      inputDepartment: department,
-      finalDepartments
-    });
-
-    if (finalDepartments.length === 0) {
-      console.log('❌ No departments provided');
+    // SIMPLIFIED: Project Head is required
+    if (!projectHead) {
       return res
         .status(400)
-        .json({ message: "At least one service/department is required" });
+        .json({ message: "Project Head is required" });
     }
 
-    // Check HOD permissions - HOD can only create projects for their own department AND assigned clients
-    if (req.user.role === 'hod') {
-      const user = await User.findById(req.user.id).select('headOfDepartment isHeadOfDepartment');
-      
-      if (!user.isHeadOfDepartment || !user.headOfDepartment) {
-        return res.status(403).json({ 
-          message: "You are not assigned as Head of Department" 
-        });
-      }
-
-      // Check if client is assigned to HoD's department
-      if (client) {
-        const clientDoc = await Client.findById(client).select('assignedDepartments');
-        if (!clientDoc) {
-          return res.status(404).json({ message: "Client not found" });
-        }
-
-        const hodDepartmentId = user.headOfDepartment.toString();
-        const isClientAssignedToHoDDept = clientDoc.assignedDepartments?.some(
-          deptId => deptId.toString() === hodDepartmentId
-        );
-
-        if (!isClientAssignedToHoDDept) {
-          return res.status(403).json({ 
-            message: "You can only create projects for clients assigned to your department" 
-          });
-        }
-      }
-
-      // Check if all selected departments include the HOD's department
-      const hodDepartmentId = user.headOfDepartment.toString();
-      const hasOwnDepartment = finalDepartments.some(deptId => deptId === hodDepartmentId);
-      
-      if (!hasOwnDepartment) {
-        return res.status(403).json({ 
-          message: "HOD can only create projects that include their own department" 
-        });
-      }
-
-      // HOD can only select their own department (restrict to single department)
-      if (finalDepartments.length > 1 || finalDepartments[0] !== hodDepartmentId) {
-        return res.status(403).json({ 
-          message: "HOD can only create projects for their own department" 
-        });
-      }
+    // SIMPLIFIED: Only Manager, HR, Admin, SuperAdmin can create projects
+    if (!['admin', 'superadmin', 'hr', 'manager'].includes(req.user.role)) {
+      return res.status(403).json({ 
+        message: "Only Manager, HR, Admin, or SuperAdmin can create projects" 
+      });
     }
 
-    // Admin, HR, SuperAdmin can create projects for any departments
-    console.log(`User ${req.user.email} (${req.user.role}) creating project for departments:`, finalDepartments);
-
-    // Prepare assigned users array
-    let finalAssignedUsers = assignedUsers || [];
+    // SIMPLIFIED: Prepare assigned users array
+    // Project Head is automatically added to assignedUsers
+    let finalAssignedUsers = [projectHead];
     
-    // If projectHead is provided and not already in assignedUsers, add them
-    if (projectHead && !finalAssignedUsers.includes(projectHead)) {
-      finalAssignedUsers.push(projectHead);
-    }
-
-    // Process team members and add them to assignedUsers
+    // Process team members if provided (optional during creation)
     let processedTeamMembers = [];
     if (teamMembers && Array.isArray(teamMembers) && teamMembers.length > 0) {
       processedTeamMembers = teamMembers.map(member => ({
         user: member.user,
-        role: member.role || 'other',
-        departmentName: member.departmentName,
+        role: member.role || 'Team Member', // Custom role from input
         assignedBy: req.user._id,
-        assignedAt: new Date(),
-        isActive: true,
-        workCapacity: 100,
-        specialization: 'general'
+        assignedAt: new Date()
       }));
 
-      // Add team members to assignedUsers for backward compatibility
+      // Add team members to assignedUsers
       teamMembers.forEach(member => {
         if (member.user && !finalAssignedUsers.includes(member.user)) {
           finalAssignedUsers.push(member.user);
@@ -253,66 +133,29 @@ export const createProject = async (req, res) => {
       slotCompletionRequiresApproval: false,
       autoReleaseOnWorkItemDeletion: true
     };
-
-    console.log('🎰 Slot configuration:', {
-      slotConfig,
-      progressConfig,
-      slotManagementConfig
-    });
-
-    console.log('Creating project with createdBy:', req.user._id, req.user.email);
-    console.log('Team members to be assigned:', processedTeamMembers.length);
-    console.log('Slot configuration:', slotConfig);
-    
-    console.log('🚀 About to create project with data:', {
-      name,
-      client: client || null,
-      departments: finalDepartments,
-      department: finalDepartments[0],
-      description: description || '',
-      startDate: startDate || null,
-      endDate: endDate || null,
-      budget: budget || 0,
-      status: status || "Pending",
-      priority: priority || "medium",
-      projectHead: projectHead || null,
-      assignedUsers: finalAssignedUsers,
-      teamMembers: processedTeamMembers,
-      createdBy: req.user._id,
-      slotConfiguration: slotConfig,
-      progressTracking: progressConfig,
-      slotManagement: slotManagementConfig
-    });
     
     const project = await Project.create({
       name,
       client: client || null,
-      departments: finalDepartments, // New: multiple departments
-      department: finalDepartments[0], // Legacy: set first department for backward compatibility
       description: description || '',
       startDate: startDate || null,
       endDate: endDate || null,
       budget: budget || 0,
       status: status || "Pending",
       priority: priority || "medium",
-      projectHead: projectHead || null, // Optional
+      projectHead: projectHead, // Required
       assignedUsers: finalAssignedUsers,
-      teamMembers: processedTeamMembers, // Add team members with roles
-      createdBy: req.user._id, // Track who created the project
+      teamMembers: processedTeamMembers,
+      createdBy: req.user._id,
       // Slot system fields
       slotConfiguration: slotConfig,
       progressTracking: progressConfig,
       slotManagement: slotManagementConfig
     });
     
-    console.log('✅ Project created successfully with ID:', project._id);
-    
-    console.log('Project created with ID:', project._id, 'createdBy:', project.createdBy);
-
     // If slot system is enabled, create initial slots
     if (enableSlotSystem && slotConfig.autoCreateSlots) {
       try {
-        console.log('🎰 Creating slots for project...');
         const slotManagementService = (await import('../services/slotManagementService.js')).default;
         
         const slotResult = await slotManagementService.createSlotsForProject(project._id, {
@@ -320,35 +163,23 @@ export const createProject = async (req, res) => {
           slotType: slotConfig.slotType,
           createdBy: req.user._id
         });
-        
-        console.log(`✅ Created ${slotResult.created.length} slots for project ${project.name}`);
       } catch (slotError) {
-        console.error('❌ Error creating slots for project:', slotError);
-        console.error('Slot error details:', slotError.message);
         // Don't fail project creation if slot creation fails
-        // Just log the error and continue
       }
     }
 
-    // Add project to all selected departments' projects arrays
-    for (const deptId of finalDepartments) {
-      await Department.findByIdAndUpdate(deptId, {
-        $addToSet: { projects: project._id },
-      });
-    }
+    // SIMPLIFIED: No department updates needed
+    // Project Head is automatically added to their headOfProjects array via User model hooks
 
     // Populate and return
     const populatedProject = await Project.findById(project._id)
-      .populate("client", "name email serviceCompany")
-      .populate("departments", "name") // New: populate multiple departments
-      .populate("department", "name")  // Legacy: keep for backward compatibility
-      .populate("projectHead", "name email")
-      .populate("assignedUsers", "name email")
-      .populate("teamMembers.user", "name email role") // Populate team members
+      .populate("client", "name email company")
+      .populate("projectHead", "name email role")
+      .populate("assignedUsers", "name email role")
+      .populate("teamMembers.user", "name email role")
       .populate("teamMembers.assignedBy", "name email")
       .populate("createdBy", "name email");
 
-    console.log('Populated project createdBy:', populatedProject.createdBy);
     logger.info(`Project created: ${project._id} by ${req.user.email}`);
 
     res.status(201).json({
@@ -356,8 +187,7 @@ export const createProject = async (req, res) => {
       project: populatedProject,
     });
   } catch (error) {
-    console.error("❌ CRITICAL ERROR in createProject:", error);
-    console.error("❌ Error name:", error.name);
+    console.error("Error in createProject:", error);
     console.error("❌ Error message:", error.message);
     console.error("❌ Error stack:", error.stack);
     logger.error("Error in createProject:", error);
@@ -612,8 +442,6 @@ export const updateProject = async (req, res) => {
   try {
     const { id } = req.params;
 
-    console.log(`🔄 Updating project ${id} with data:`, JSON.stringify(req.body, null, 2));
-
     const project = await Project.findById(id);
     if (!project) return res.status(404).json({ message: "Project not found" });
 
@@ -648,21 +476,11 @@ export const updateProject = async (req, res) => {
         // Get current slot count in database
         const existingSlots = await Slot.countDocuments({ project: id });
         
-        console.log(`🎰 Slot configuration update for project ${id}:`, {
-          wasEnabled: wasSlotSystemEnabled,
-          nowEnabled: newSlotConfig.enableSlotSystem,
-          originalCount: originalSlotCount,
-          newCount: newSlotCount,
-          existingSlots: existingSlots
-        });
-        
         // If slot system is newly enabled or slot count increased
         if (!wasSlotSystemEnabled || newSlotCount > existingSlots) {
           const slotsToCreate = newSlotCount - existingSlots;
           
           if (slotsToCreate > 0) {
-            console.log(`🎰 Creating ${slotsToCreate} new slots for project ${project.name}`);
-            
             const slotResult = await slotManagementService.createSlotsForProject(id, {
               count: slotsToCreate,
               startingSlotNumber: existingSlots + 1,
@@ -670,28 +488,15 @@ export const updateProject = async (req, res) => {
               createdBy: req.user._id
             });
             
-            console.log(`✅ Created ${slotResult.created.length} slots for project ${project.name}`);
-            
             // Update progress tracking
             project.progressTracking.totalSlots = newSlotCount;
             project.progressTracking.calculationMethod = 'slot-based';
             await project.save();
-            
-            console.log(`✅ Updated progress tracking for project ${project.name}`);
           }
         }
         
-        // If slot count was reduced, we might want to handle this case too
-        else if (newSlotCount < existingSlots) {
-          console.log(`⚠️  Slot count reduced from ${existingSlots} to ${newSlotCount}. Existing slots preserved.`);
-          // Note: We don't automatically delete slots as they might have work assigned
-          // This should be handled manually by the admin if needed
-        }
-        
       } catch (slotError) {
-        console.error('❌ Error handling slot configuration update:', slotError);
         // Don't fail the project update if slot creation fails
-        // Just log the error and continue
       }
     }
 
@@ -704,15 +509,12 @@ export const updateProject = async (req, res) => {
       .populate("assignedUsers", "name email")
       .populate("createdBy", "name email");
 
-    console.log(`✅ Project ${project.name} updated successfully`);
-
     return res.status(200).json({ 
       message: "Project updated successfully", 
       project: updatedProject 
     });
   } catch (error) {
-    console.error("❌ Error in updateProject:", error.message);
-    console.error("❌ Error stack:", error.stack);
+    console.error("Error in updateProject:", error);
     return res.status(500).json({ message: "Server error", error: error.message });
   }
 };

@@ -34,7 +34,6 @@ router.get("/my-clients", protect, authorizeRoles("employee", "hod"), getEmploye
 router.get(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
   getClientById
 );
 router.put(

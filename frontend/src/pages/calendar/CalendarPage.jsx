@@ -2,13 +2,13 @@ import { useState, useEffect, useMemo } from 'react';
 import { Container, Row, Col, Card, Badge, Button, Modal, ListGroup } from 'react-bootstrap';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
-import { FaPlus } from 'react-icons/fa';
+import { FaClock } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import workItemApi from '../../api/workItemApi';
 import WorkItemDetailsModal from '../../components/workitems/WorkItemDetailsModal';
-import ProfessionalWorkCreationModal from '../../components/work/ProfessionalWorkCreationModal';
 import CalendarFilters from '../../components/calendar/CalendarFilters';
+import AssignWorkModal from '../../components/work/AssignWorkModal';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 const localizer = momentLocalizer(moment);
@@ -24,7 +24,6 @@ const CalendarPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDayModal, setShowDayModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [view, setView] = useState('month');
@@ -34,6 +33,7 @@ const CalendarPage = () => {
     type: 'all',
     status: 'all'
   });
+  const [showAssignWorkModal, setShowAssignWorkModal] = useState(false);
 
   useEffect(() => {
     loadWorkItems();
@@ -233,11 +233,10 @@ const CalendarPage = () => {
         <Col xs="auto">
           <Button
             variant="primary"
-            onClick={() => setShowCreateModal(true)}
-            className="d-flex align-items-center"
+            onClick={() => setShowAssignWorkModal(true)}
           >
-            <FaPlus className="me-2" />
-            Create Work Item
+            <FaClock className="me-2" />
+            Assign Work
           </Button>
         </Col>
       </Row>
@@ -437,12 +436,11 @@ const CalendarPage = () => {
         </Modal.Footer>
       </Modal>
 
-      {/* Professional Work Creation Modal */}
-      <ProfessionalWorkCreationModal
-        show={showCreateModal}
-        onHide={() => setShowCreateModal(false)}
+      {/* Assign Work Modal */}
+      <AssignWorkModal
+        show={showAssignWorkModal}
+        onHide={() => setShowAssignWorkModal(false)}
         onSuccess={loadWorkItems}
-        mode="calendar-focused"
       />
     </Container>
   );

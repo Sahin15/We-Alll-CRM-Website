@@ -70,6 +70,7 @@ import RealTimeAnalytics from './RealTimeAnalytics';
 import EnhancedExportPanel from './EnhancedExportPanel';
 import ProfessionalWorkCreationModal from '../work/ProfessionalWorkCreationModal';
 import WorkItemCommentModal from '../work/WorkItemCommentModal';
+import WorkItemDetailsModal from '../workitems/WorkItemDetailsModal';
 
 import useAdvancedSearch from '../../hooks/useAdvancedSearch';
 import './EnhancedAdminWorkOverview.css';
@@ -101,9 +102,9 @@ const EnhancedAdminWorkOverview = () => {
   const [error, setError] = useState(null);
   const [useVirtualization, setUseVirtualization] = useState(false);
   
-  // Filter and pagination state - Simplified to use only dueDate
+  // Filter and pagination state - Show TODAY's work items by default
   const [filters, setFilters] = useState({
-    dueDate: moment().format('YYYY-MM-DD'), // Today by default
+    dueDate: moment().format('YYYY-MM-DD'), // Default to today's work in proper format
     client: 'all',
     project: 'all',
     employee: 'all',
@@ -147,6 +148,7 @@ const EnhancedAdminWorkOverview = () => {
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedWorkItem, setSelectedWorkItem] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   
   // Employee and Client detail modals
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
@@ -387,6 +389,20 @@ const EnhancedAdminWorkOverview = () => {
     }
   }, []);
 
+  // Handle work item title click - open details modal
+  const handleWorkItemClick = useCallback(async (workItem) => {
+    try {
+      // Fetch full work item details including comments
+      const workItemApi = (await import('../../api/workItemApi')).default;
+      const response = await workItemApi.getWorkItemById(workItem._id);
+      setSelectedWorkItem(response.data || response);
+      setShowDetailsModal(true);
+    } catch (error) {
+      console.error('Error loading work item details:', error);
+      toast.error('Failed to load work item details');
+    }
+  }, []);
+
   // Status color mapping for better visual indicators
   const statusColors = {
     'To Do': 'secondary',
@@ -434,7 +450,27 @@ const EnhancedAdminWorkOverview = () => {
       sortable: true,
       filterable: true,
       minWidth: '250px',
-      editable: true
+      editable: true,
+      render: (value, row) => {
+        return (
+          <span
+            className="text-dark"
+            style={{ 
+              textDecoration: 'underline', 
+              cursor: 'pointer',
+              fontSize: 'inherit',
+              fontWeight: '500'
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleWorkItemClick(row);
+            }}
+            title="Click to view details, comments, and activity timeline"
+          >
+            {value || 'Untitled'}
+          </span>
+        );
+      }
     },
     {
       key: 'client.name',
@@ -476,7 +512,32 @@ const EnhancedAdminWorkOverview = () => {
       sortable: true,
       filterable: true,
       minWidth: '150px',
-      editable: false
+      editable: false,
+      render: (value, row) => {
+        if (!row.project || !row.project.name) {
+          return <span className="text-muted">No Project</span>;
+        }
+        
+        return (
+          <span
+            className="text-dark"
+            style={{ 
+              textDecoration: 'underline', 
+              cursor: 'pointer',
+              fontSize: 'inherit'
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (row.project._id) {
+                navigate(`/projects/${row.project._id}`);
+              }
+            }}
+            title={`Open project: ${row.project.name}`}
+          >
+            {row.project.name}
+          </span>
+        );
+      }
     },
     {
       key: 'slotAssignment.slotNumber',
@@ -1315,7 +1376,7 @@ const EnhancedAdminWorkOverview = () => {
   // Clear all filters - Reset to today
   const clearAllFilters = useCallback(() => {
     setFilters({
-      dueDate: moment().format('YYYY-MM-DD'), // Today
+      dueDate: '', // Empty = show all work items
       client: 'all',
       project: 'all',
       employee: 'all',
@@ -2286,6 +2347,43 @@ const EnhancedAdminWorkOverview = () => {
         defaultProject=""
         mode="work-item"
       />
+
+      {/* Work Item Details Modal */}
+      {selectedWorkItem && showDetailsModal && (
+        <WorkItemDetailsModal
+          show={showDetailsModal}
+          onHide={() => {
+            setShowDetailsModal(false);
+            setSelectedWorkItem(null);
+          }}
+          workItem={selectedWorkItem}
+          onUpdate={async (itemId, newStatus) => {
+            try {
+              const workItemApi = (await import('../../api/workItemApi')).default;
+              await workItemApi.updateStatus(itemId, newStatus);
+              toast.success('Status updated successfully!');
+              loadWorkData();
+            } catch (error) {
+              console.error('Error updating status:', error);
+              toast.error('Failed to update status');
+              throw error;
+            }
+          }}
+          onRefresh={loadWorkData}
+          onAddComment={async (workItemId, commentText) => {
+            try {
+              const workItemApi = (await import('../../api/workItemApi')).default;
+              const result = await workItemApi.addComment(workItemId, commentText);
+              loadWorkData();
+              return result.data || result;
+            } catch (error) {
+              console.error('Error adding comment:', error);
+              throw error;
+            }
+          }}
+          currentUser={user}
+        />
+      )}
     </Container>
   );
 };

@@ -45,7 +45,7 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
   if (!workItem) return null;
 
   const canEdit = workItem.assignedTo?._id === currentUser?._id || 
-                  ['admin', 'superadmin', 'hod'].includes(currentUser?.role);
+                  ['admin', 'superadmin', 'hr', 'manager', 'hod'].includes(currentUser?.role);
 
   const getStatusColor = (status) => {
     const colors = {
@@ -193,115 +193,240 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
         )}
 
         <Tabs defaultActiveKey="details" className="mb-0" style={{ borderBottom: '2px solid #e9ecef' }}>
-          <Tab eventKey="details" title="Details" style={{ padding: '1.5rem' }}>
+          <Tab eventKey="activity" title={
+            <span>
+              <FaClock className="me-2" />
+              Activity Timeline
+            </span>
+          }>
             <div style={{ padding: '1.5rem' }}>
-              {/* Status Section - Modern Interactive Status Changer */}
-              <div className="mb-4 p-3" style={{ background: '#f8f9fa', borderRadius: '12px', border: '1px solid #e9ecef' }}>
-                <div className="mb-3">
-                  <strong style={{ fontSize: '0.95rem', color: '#495057' }}>Status</strong>
-                  {canEdit && (
-                    <small className="text-muted ms-2" style={{ fontSize: '0.8rem' }}>
-                      Click any status to change instantly
-                    </small>
-                  )}
-                </div>
-                
-                {/* Interactive Status Flow */}
-                <div className="status-flow-container">
-                  {['To Do', 'In Progress', 'Review', 'Done'].map((statusOption, index) => {
-                    const isActive = workItem.status === statusOption;
-                    const isCompleted = ['To Do', 'In Progress', 'Review', 'Done'].indexOf(workItem.status) > index;
-                    const isClickable = canEdit && statusOption !== workItem.status;
-                    
+              {/* Activity Timeline - Shows status changes and comments chronologically */}
+              <div className="activity-timeline">
+                {(() => {
+                  // Combine status history and comments into a single timeline
+                  const activities = [];
+                  
+                  // Add status changes from history
+                  if (workItem.statusHistory && workItem.statusHistory.length > 0) {
+                    workItem.statusHistory.forEach(history => {
+                      activities.push({
+                        type: 'status',
+                        timestamp: history.changedAt,
+                        user: history.changedBy,
+                        fromStatus: history.fromStatus,
+                        toStatus: history.toStatus,
+                        comment: history.comment
+                      });
+                    });
+                  }
+                  
+                  // Add comments
+                  if (comments && comments.length > 0) {
+                    comments.forEach(comment => {
+                      activities.push({
+                        type: 'comment',
+                        timestamp: comment.createdAt,
+                        user: comment.user,
+                        text: comment.text,
+                        _id: comment._id
+                      });
+                    });
+                  }
+                  
+                  // Add creation event
+                  activities.push({
+                    type: 'created',
+                    timestamp: workItem.createdAt,
+                    user: workItem.createdBy
+                  });
+                  
+                  // Sort by timestamp (newest first)
+                  activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                  
+                  if (activities.length === 0) {
                     return (
-                      <div key={statusOption} className="status-step-container">
-                        <div
-                          className={`status-step ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''} ${isClickable ? 'clickable' : ''} ${loading ? 'loading' : ''}`}
-                          onClick={() => {
-                            if (isClickable && !loading) {
-                              handleStatusUpdate(statusOption);
-                            }
-                          }}
-                          style={{
-                            cursor: isClickable ? 'pointer' : 'default',
-                            transition: 'all 0.3s ease',
-                            position: 'relative'
-                          }}
-                        >
-                          <div className="status-step-circle">
-                            {isCompleted && !isActive ? (
-                              <span className="status-check">✓</span>
-                            ) : isActive ? (
-                              <span className="status-current">●</span>
-                            ) : (
-                              <span className="status-pending">○</span>
-                            )}
-                          </div>
-                          <div className="status-step-label">
-                            {statusOption}
-                          </div>
-                          {loading && status === statusOption && (
-                            <div className="status-loading-spinner"></div>
-                          )}
-                        </div>
-                        {index < 3 && (
-                          <div className={`status-connector ${isCompleted ? 'completed' : ''}`}></div>
-                        )}
+                      <div className="text-center py-5">
+                        <FaClock style={{ fontSize: '3rem', opacity: 0.3, color: '#6c757d' }} />
+                        <h6 className="text-muted mt-3">No activity yet</h6>
                       </div>
                     );
-                  })}
+                  }
+                  
+                  return (
+                    <div className="timeline-container">
+                      {activities.map((activity, index) => (
+                        <div key={index} className="timeline-item">
+                          <div className="timeline-marker">
+                            {activity.type === 'status' ? (
+                              <div className="marker-icon status-change">🔄</div>
+                            ) : activity.type === 'comment' ? (
+                              <div className="marker-icon comment">💬</div>
+                            ) : (
+                              <div className="marker-icon created">✨</div>
+                            )}
+                          </div>
+                          <div className="timeline-content">
+                            <div className="timeline-header">
+                              <div className="d-flex align-items-center gap-2">
+                                <div 
+                                  className="user-avatar-small"
+                                  style={{
+                                    width: '28px',
+                                    height: '28px',
+                                    borderRadius: '50%',
+                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'white',
+                                    fontSize: '0.75rem',
+                                    fontWeight: '600'
+                                  }}
+                                >
+                                  {(activity.user?.name || 'U').charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                  <strong style={{ fontSize: '0.9rem' }}>
+                                    {activity.user?.name || 'Unknown User'}
+                                  </strong>
+                                  <div style={{ fontSize: '0.75rem', color: '#6c757d' }}>
+                                    {formatDate(activity.timestamp)}
+                                  </div>
+                                </div>
+                              </div>
+                              {activity.type === 'comment' && 
+                               (activity.user?._id === currentUser?._id || 
+                                ['admin', 'superadmin', 'hr', 'manager'].includes(currentUser?.role)) && (
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="text-muted p-1"
+                                  onClick={() => handleDeleteComment(activity._id)}
+                                  title="Delete comment"
+                                >
+                                  <FaTrash />
+                                </Button>
+                              )}
+                            </div>
+                            <div className="timeline-body">
+                              {activity.type === 'status' && (
+                                <div className="status-change-info">
+                                  <div className="d-flex align-items-center gap-2 mb-2">
+                                    <span className="text-muted">Changed status from</span>
+                                    <Badge bg={getStatusColor(activity.fromStatus)}>
+                                      {activity.fromStatus}
+                                    </Badge>
+                                    <span className="text-muted">to</span>
+                                    <Badge bg={getStatusColor(activity.toStatus)}>
+                                      {activity.toStatus}
+                                    </Badge>
+                                  </div>
+                                  {activity.comment && (
+                                    <div className="mt-2 p-2" style={{
+                                      background: '#f8f9fa',
+                                      borderRadius: '6px',
+                                      fontSize: '0.9rem',
+                                      borderLeft: '3px solid #667eea'
+                                    }}>
+                                      {activity.comment}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              {activity.type === 'comment' && (
+                                <div className="comment-text" style={{
+                                  fontSize: '0.9rem',
+                                  lineHeight: '1.6',
+                                  whiteSpace: 'pre-wrap'
+                                }}>
+                                  {activity.text}
+                                </div>
+                              )}
+                              {activity.type === 'created' && (
+                                <div className="text-muted" style={{ fontSize: '0.9rem' }}>
+                                  Created this work item
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </Tab>
+          
+          <Tab eventKey="details" title="Details" style={{ padding: '1.5rem' }}>
+            <div style={{ padding: '1.5rem' }}>
+              {/* Status Section - Simple and Practical */}
+              <div className="mb-4 p-3" style={{ background: '#f8f9fa', borderRadius: '12px', border: '1px solid #e9ecef' }}>
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <strong style={{ fontSize: '0.95rem', color: '#495057' }}>Current Status</strong>
+                  <Badge 
+                    bg={getStatusColor(workItem.status)} 
+                    style={{ 
+                      fontSize: '0.9rem', 
+                      padding: '8px 16px',
+                      borderRadius: '20px',
+                      fontWeight: '600'
+                    }}
+                  >
+                    {workItem.status}
+                  </Badge>
                 </div>
                 
-                {/* Alternative: Quick Status Badges for faster switching */}
-                <div className="mt-3 pt-3" style={{ borderTop: '1px solid #dee2e6' }}>
-                  <small className="text-muted d-block mb-2">Quick Actions:</small>
-                  <div className="d-flex gap-2 flex-wrap">
-                    {['To Do', 'In Progress', 'Review', 'Done'].map((statusOption) => {
-                      const isActive = workItem.status === statusOption;
-                      if (isActive) return null; // Don't show current status as button
-                      
-                      return (
-                        <button
-                          key={statusOption}
-                          className={`status-quick-btn ${getStatusColor(statusOption)}`}
-                          onClick={() => {
-                            if (canEdit && !loading) {
-                              handleStatusUpdate(statusOption);
-                            }
-                          }}
-                          disabled={!canEdit || loading}
-                          style={{
-                            border: 'none',
-                            borderRadius: '20px',
-                            padding: '4px 12px',
-                            fontSize: '0.75rem',
-                            fontWeight: '500',
-                            cursor: canEdit ? 'pointer' : 'not-allowed',
-                            opacity: canEdit ? 1 : 0.6,
-                            transition: 'all 0.2s ease',
-                            background: getStatusColor(statusOption) === 'secondary' ? '#6c757d' :
-                                       getStatusColor(statusOption) === 'primary' ? '#0d6efd' :
-                                       getStatusColor(statusOption) === 'warning' ? '#ffc107' :
-                                       getStatusColor(statusOption) === 'success' ? '#198754' : '#6c757d',
-                            color: getStatusColor(statusOption) === 'warning' ? '#000' : '#fff'
-                          }}
-                          onMouseEnter={(e) => {
-                            if (canEdit) {
-                              e.target.style.transform = 'translateY(-1px)';
-                              e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            e.target.style.transform = 'translateY(0)';
-                            e.target.style.boxShadow = 'none';
-                          }}
-                        >
-                          {statusOption}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                {canEdit && (
+                  <>
+                    <div className="mb-2">
+                      <small className="text-muted">Change status to:</small>
+                    </div>
+                    <div className="d-flex gap-2 flex-wrap">
+                      {['To Do', 'In Progress', 'Review', 'Done'].map((statusOption) => {
+                        const isActive = workItem.status === statusOption;
+                        if (isActive) return null;
+                        
+                        return (
+                          <Button
+                            key={statusOption}
+                            variant={getStatusColor(statusOption)}
+                            size="sm"
+                            onClick={() => {
+                              if (!loading) {
+                                handleStatusUpdate(statusOption);
+                              }
+                            }}
+                            disabled={loading}
+                            style={{
+                              borderRadius: '20px',
+                              padding: '6px 16px',
+                              fontSize: '0.85rem',
+                              fontWeight: '500',
+                              minWidth: '100px',
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            {loading && status === statusOption ? (
+                              <>
+                                <span className="spinner-border spinner-border-sm me-2" style={{ width: '12px', height: '12px' }} />
+                                Updating...
+                              </>
+                            ) : (
+                              statusOption
+                            )}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+                
+                {!canEdit && (
+                  <small className="text-muted d-block mt-2">
+                    You don't have permission to change the status
+                  </small>
+                )}
               </div>
 
               {/* Description */}
@@ -549,7 +674,7 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                               </div>
                               
                               {/* Comment Actions (for comment owner or admin) */}
-                              {(comment.user?._id === currentUser?._id || ['admin', 'superadmin'].includes(currentUser?.role)) && (
+                              {(comment.user?._id === currentUser?._id || ['admin', 'superadmin', 'hr', 'manager'].includes(currentUser?.role)) && (
                                 <div className="comment-actions">
                                   <Button
                                     variant="link"

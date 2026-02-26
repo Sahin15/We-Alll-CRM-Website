@@ -32,7 +32,7 @@ const TeamTab = ({ project, onRefresh }) => {
     title: '',
     description: '',
     type: 'task',
-    priority: 'medium',
+    priority: '',
     dueDate: '',
     platform: '',
     postType: '',
@@ -196,7 +196,7 @@ const TeamTab = ({ project, onRefresh }) => {
       title: '',
       description: '',
       type: 'task',
-      priority: 'medium',
+      priority: '',
       dueDate: '',
       platform: '',
       postType: '',
@@ -208,7 +208,7 @@ const TeamTab = ({ project, onRefresh }) => {
   const handleAssignWork = async (e) => {
     e.preventDefault();
     
-    if (!workFormData.title || !workFormData.dueDate) {
+    if (!workFormData.title || !workFormData.dueDate || !workFormData.priority) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -236,7 +236,7 @@ const TeamTab = ({ project, onRefresh }) => {
 
       await workItemApi.createWorkItem(workItemData);
       
-      toast.success(`Work assigned to ${selectedMemberForWork.user.name} successfully!`);
+      toast.success(`✅ Work assigned to ${selectedMemberForWork.user.name}! Go to Work tab to see it.`);
       setShowAssignWorkModal(false);
       setSelectedMemberForWork(null);
       loadTeamWorkload();
@@ -420,29 +420,34 @@ const TeamTab = ({ project, onRefresh }) => {
                           </div>
                         </Col>
                         <Col md={2} className="text-end">
-                          <div className="d-flex gap-2 justify-content-end">
-                            {canManageTeam && (
+                          {canManageTeam && (
+                            <div className="d-flex flex-column gap-2">
                               <Button
                                 variant="primary"
                                 size="sm"
                                 onClick={() => handleOpenAssignWork(member)}
                                 title="Assign work to this member"
+                                className="d-flex align-items-center justify-content-center"
+                                style={{ minWidth: '120px' }}
                               >
                                 <FaPlusCircle className="me-1" />
                                 Assign Work
                               </Button>
-                            )}
-                            {canManageTeam && member.user?._id !== project.projectHead?._id && (
-                              <Button
-                                variant="outline-danger"
-                                size="sm"
-                                onClick={() => handleRemoveMember(member.user?._id)}
-                                title="Remove from team"
-                              >
-                                <FaTrash />
-                              </Button>
-                            )}
-                          </div>
+                              {member.user?._id !== project.projectHead?._id && (
+                                <Button
+                                  variant="outline-danger"
+                                  size="sm"
+                                  onClick={() => handleRemoveMember(member.user?._id)}
+                                  title="Remove from team"
+                                  className="d-flex align-items-center justify-content-center"
+                                  style={{ minWidth: '120px' }}
+                                >
+                                  <FaTrash className="me-1" />
+                                  Remove
+                                </Button>
+                              )}
+                            </div>
+                          )}
                         </Col>
                       </Row>
                     </ListGroup.Item>
@@ -489,7 +494,7 @@ const TeamTab = ({ project, onRefresh }) => {
               <option value="">Choose a user...</option>
               {availableUsers.map((u) => (
                 <option key={u._id} value={u._id}>
-                  {u.name} ({u.email})
+                  {u.name}
                 </option>
               ))}
             </Form.Select>
@@ -648,6 +653,7 @@ const TeamTab = ({ project, onRefresh }) => {
                     onChange={(e) => setWorkFormData({ ...workFormData, priority: e.target.value })}
                     required
                   >
+                    <option value="">Select priority...</option>
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
                     <option value="high">High</option>

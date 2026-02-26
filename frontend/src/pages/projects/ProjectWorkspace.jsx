@@ -1,18 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Container, Row, Col, Button, Tabs, Tab, Spinner } from 'react-bootstrap';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FaArrowLeft, FaPlus, FaCheckCircle } from 'react-icons/fa';
+import { FaArrowLeft } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import projectApi from '../../api/projectApi';
-import { workItemApi } from '../../api/workItemApi';
-import { userApi } from '../../api/userApi';
 import OverviewTab from '../../components/projects/workspace/OverviewTab';
-import WorkBoardTab from '../../components/projects/workspace/WorkBoardTab';
-import CalendarTab from '../../components/projects/workspace/CalendarTab';
-import TeamTab from '../../components/projects/workspace/TeamTab';
-import SlotProgressDisplay from '../../components/projects/SlotProgressDisplay';
-import SlotStatisticsCards from '../../components/projects/SlotStatisticsCards';
-import ProfessionalWorkCreationModal from '../../components/work/ProfessionalWorkCreationModal';
+import SimplifiedTeamTab from '../../components/projects/workspace/SimplifiedTeamTab';
+import UnifiedWorkTab from '../../components/projects/workspace/UnifiedWorkTab';
+import KanbanTab from '../../components/projects/workspace/KanbanTab';
 
 /**
  * ProjectWorkspace Component
@@ -25,25 +20,10 @@ const ProjectWorkspace = () => {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
-  const [showCreateModal, setShowCreateModal] = useState(false);
-
-  // Slot system states
-  const [slots, setSlots] = useState([]);
-  const [slotStatistics, setSlotStatistics] = useState(null);
-  const [loadingSlots, setLoadingSlots] = useState(false);
-  const [availableUsers, setAvailableUsers] = useState([]);
 
   useEffect(() => {
     loadProject();
   }, [id]);
-
-  useEffect(() => {
-    // Fetch slot data when project is loaded and uses slot system
-    if (project && project.slotConfiguration?.enableSlotSystem) {
-      fetchSlotData();
-      fetchAvailableUsersForReassignment();
-    }
-  }, [project]);
 
   const loadProject = async () => {
     try {
@@ -56,83 +36,6 @@ const ProjectWorkspace = () => {
       toast.error('Failed to load project');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchSlotData = async () => {
-    if (!project?._id) return;
-    
-    setLoadingSlots(true);
-    try {
-      // Fetch slot statistics
-      const statsResponse = await projectApi.getProjectSlotStatistics(project._id);
-      if (statsResponse.success) {
-        setSlotStatistics(statsResponse.data);
-      }
-
-      // Fetch all slots (both available and assigned) for proper display
-      const slotsResponse = await projectApi.getAvailableSlots(project._id, { includeAll: true });
-      if (slotsResponse.success) {
-        setSlots(slotsResponse.data?.slots || []);
-      }
-    } catch (error) {
-      console.error("Error fetching slot data:", error);
-      // Don't show error toast as slot system is optional
-    } finally {
-      setLoadingSlots(false);
-    }
-  };
-
-  const handleRefreshSlotData = async () => {
-    await fetchSlotData();
-  };
-
-  // Fetch available users for slot reassignment
-  const fetchAvailableUsersForReassignment = async () => {
-    try {
-      const response = await userApi.getAllUsers();
-      const allUsers = response.data || [];
-      
-      const projectDeptId = project?.department?._id || project?.department;
-      
-      // Filter users from the same department (employees and HoDs only)
-      const available = allUsers.filter(u => {
-        // Only include employees and HoDs
-        if (u.role !== 'employee' && u.role !== 'hod') {
-          return false;
-        }
-        
-        // Include only if from same department
-        if (projectDeptId) {
-          const userDeptId = u.department?._id || u.department;
-          return userDeptId === projectDeptId;
-        }
-        
-        return true;
-      });
-      
-      setAvailableUsers(available);
-    } catch (error) {
-      console.error("Failed to fetch available users:", error);
-      toast.error("Failed to load available users");
-    }
-  };
-
-  // Handle slot reassignment
-  const handleSlotReassign = async (slot, newAssigneeId) => {
-    if (!slot?.assignedWorkItem?._id) {
-      throw new Error("No work item found for this slot");
-    }
-
-    try {
-      await workItemApi.reassignWorkItem(slot.assignedWorkItem._id, newAssigneeId);
-      toast.success("Work item reassigned successfully!");
-      
-      // Refresh slot data to show updated assignment
-      await fetchSlotData();
-    } catch (error) {
-      console.error("Failed to reassign work item:", error);
-      throw new Error(error.response?.data?.message || "Failed to reassign work item");
     }
   };
 
@@ -236,27 +139,11 @@ const ProjectWorkspace = () => {
                 </div>
               )}
             </Col>
-            <Col xs="auto">
-              <Button
-                variant="primary"
-                onClick={() => setShowCreateModal(true)}
-                className="d-flex align-items-center shadow-sm"
-                style={{
-                  borderRadius: '8px',
-                  padding: '10px 20px',
-                  fontWeight: '500',
-                  fontSize: '0.95rem'
-                }}
-              >
-                <FaPlus className="me-2" />
-                Create Work Item
-              </Button>
-            </Col>
           </Row>
         </div>
       </div>
 
-      {/* Enhanced Tabs */}
+      {/* Simplified Tabs - Only 3 tabs: Team, Work, Kanban */}
       <Tabs
         activeKey={activeTab}
         onSelect={(k) => setActiveTab(k)}
@@ -275,26 +162,7 @@ const ProjectWorkspace = () => {
         >
           <OverviewTab project={project} onRefresh={loadProject} />
         </Tab>
-        <Tab 
-          eventKey="workboard" 
-          title={
-            <span style={{ fontWeight: activeTab === 'workboard' ? '600' : '500' }}>
-              📋 Work Board
-            </span>
-          }
-        >
-          <WorkBoardTab project={project} onRefresh={loadProject} />
-        </Tab>
-        <Tab 
-          eventKey="calendar" 
-          title={
-            <span style={{ fontWeight: activeTab === 'calendar' ? '600' : '500' }}>
-              📅 Calendar
-            </span>
-          }
-        >
-          <CalendarTab project={project} onRefresh={loadProject} />
-        </Tab>
+        
         <Tab 
           eventKey="team" 
           title={
@@ -303,59 +171,31 @@ const ProjectWorkspace = () => {
             </span>
           }
         >
-          <TeamTab project={project} onRefresh={loadProject} />
+          <SimplifiedTeamTab project={project} onRefresh={loadProject} />
         </Tab>
 
-        {/* Slots Tab - Only show if slot system is enabled */}
-        {project?.slotConfiguration?.enableSlotSystem && (
-          <Tab 
-            eventKey="slots" 
-            title={
-              <span style={{ fontWeight: activeTab === 'slots' ? '600' : '500' }}>
-                <FaCheckCircle className="me-2" />
-                Slots ({slotStatistics?.totalSlots || 0})
-              </span>
-            }
-          >
-            <Row className="g-4">
-              <Col lg={12}>
-                {/* Slot Statistics Cards */}
-                <SlotStatisticsCards
-                  project={project}
-                  slots={slots}
-                  realTimeUpdates={true}
-                  onRefresh={handleRefreshSlotData}
-                />
-              </Col>
-              
-              <Col lg={12}>
-                {/* Slot Progress Display */}
-                <SlotProgressDisplay
-                  project={project}
-                  slots={slots}
-                  showDetailed={true}
-                  onSlotClick={(slot) => {
-                    // Handle slot click - could navigate to slot details
-                    // console.log('Slot clicked:', slot);
-                  }}
-                  onSlotReassign={handleSlotReassign}
-                  availableUsers={availableUsers}
-                  realTimeUpdates={true}
-                />
-              </Col>
-            </Row>
-          </Tab>
-        )}
-      </Tabs>
+        <Tab 
+          eventKey="work" 
+          title={
+            <span style={{ fontWeight: activeTab === 'work' ? '600' : '500' }}>
+              📋 Work
+            </span>
+          }
+        >
+          <UnifiedWorkTab project={project} onRefresh={loadProject} />
+        </Tab>
 
-      {/* Professional Work Creation Modal */}
-      <ProfessionalWorkCreationModal
-        show={showCreateModal}
-        onHide={() => setShowCreateModal(false)}
-        onSuccess={loadProject}
-        defaultProject={project._id}
-        mode="work-item"
-      />
+        <Tab 
+          eventKey="kanban" 
+          title={
+            <span style={{ fontWeight: activeTab === 'kanban' ? '600' : '500' }}>
+              🎯 Kanban
+            </span>
+          }
+        >
+          <KanbanTab project={project} onRefresh={loadProject} />
+        </Tab>
+      </Tabs>
     </Container>
   );
 };

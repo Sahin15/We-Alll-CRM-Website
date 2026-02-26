@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Container, Row, Col, Card, Alert, Button, ButtonGroup } from 'react-bootstrap';
-import { FaExclamationTriangle, FaClock, FaPlus, FaCheckSquare } from 'react-icons/fa';
+import { FaExclamationTriangle, FaClock, FaCheckSquare } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import workItemApi from '../../api/workItemApi';
@@ -10,7 +10,7 @@ import WorkItemDetailsModal from '../../components/workitems/WorkItemDetailsModa
 import WorkItemFilters from '../../components/workitems/WorkItemFilters';
 import WorkItemSearch from '../../components/workitems/WorkItemSearch';
 import StatisticsCards from '../../components/workitems/StatisticsCards';
-import ProfessionalWorkCreationModal from '../../components/work/ProfessionalWorkCreationModal';
+import AssignWorkModal from '../../components/work/AssignWorkModal';
 
 /**
  * MyWorkPage Component
@@ -22,7 +22,6 @@ const MyWorkPage = () => {
   const [workItems, setWorkItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
@@ -33,6 +32,7 @@ const MyWorkPage = () => {
   });
   const [activeFilter, setActiveFilter] = useState(null);
   const [bulkMode, setBulkMode] = useState(false);
+  const [showAssignWorkModal, setShowAssignWorkModal] = useState(false);
 
   useEffect(() => {
     loadWorkItems();
@@ -302,15 +302,16 @@ const MyWorkPage = () => {
           <p className="text-muted">
             View and manage all your assigned work items
           </p>
-          <div className="alert alert-info py-2 mb-0">
-            <small>
-              <strong>💡 Unified Work System:</strong> Work items created here automatically sync to your calendar. 
-              You can also create calendar entries that optionally create work items. 
-              <a href="/calendar" className="ms-2 text-decoration-none">View Calendar →</a>
-            </small>
-          </div>
         </Col>
         <Col xs="auto" className="d-flex gap-2 align-items-center">
+          <Button
+            variant="primary"
+            onClick={() => setShowAssignWorkModal(true)}
+            size="sm"
+          >
+            <FaClock className="me-2" />
+            Assign Work
+          </Button>
           <Button
             variant={bulkMode ? 'secondary' : 'outline-secondary'}
             onClick={() => setBulkMode(!bulkMode)}
@@ -318,15 +319,6 @@ const MyWorkPage = () => {
           >
             <FaCheckSquare className="me-2" />
             {bulkMode ? 'Exit Bulk Mode' : 'Bulk Actions'}
-          </Button>
-          <Button
-            variant="primary"
-            onClick={() => setShowCreateModal(true)}
-            size="sm"
-            title="Create work items that automatically sync to your calendar"
-          >
-            <FaPlus className="me-2" />
-            Create Work Item
           </Button>
         </Col>
       </Row>
@@ -455,12 +447,11 @@ const MyWorkPage = () => {
         />
       )}
 
-      {/* Professional Work Creation Modal */}
-      <ProfessionalWorkCreationModal
-        show={showCreateModal}
-        onHide={() => setShowCreateModal(false)}
+      {/* Assign Work Modal */}
+      <AssignWorkModal
+        show={showAssignWorkModal}
+        onHide={() => setShowAssignWorkModal(false)}
         onSuccess={loadWorkItems}
-        mode="my-work-focused"
       />
     </Container>
   );

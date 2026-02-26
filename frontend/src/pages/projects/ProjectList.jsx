@@ -5,8 +5,6 @@ import {
   Col,
   Card,
   Button,
-  Modal,
-  Form,
   Badge,
   InputGroup,
   ProgressBar,
@@ -30,9 +28,9 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
 import { projectApi } from "../../api/projectApi";
-import { departmentApi } from "../../api/departmentApi";
 import { clientApi } from "../../api/clientApi";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
+import SimplifiedProjectModal from "../../components/projects/SimplifiedProjectModal";
 
 const ProjectList = () => {
   const { user } = useAuth();
@@ -41,7 +39,6 @@ const ProjectList = () => {
   // Data states
   const [projects, setProjects] = useState([]);
   const [clients, setClients] = useState([]);
-  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   
   // UI states
@@ -53,26 +50,11 @@ const ProjectList = () => {
   
   // Modal states
   const [showModal, setShowModal] = useState(false);
-  const [editMode, setEditMode] = useState(false);
   const [currentProject, setCurrentProject] = useState(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    client: "",
-    department: "",
-    description: "",
-    startDate: "",
-    endDate: "",
-    status: "Pending",
-    priority: "medium",
-    budget: "",
-    services: "",
-    notes: "",
-  });
 
   useEffect(() => {
     fetchProjects();
     fetchClients();
-    fetchDepartments();
   }, []);
 
   const fetchProjects = async () => {
@@ -151,126 +133,14 @@ const ProjectList = () => {
     }
   };
 
-  const fetchDepartments = async () => {
-    try {
-      const response = await departmentApi.getAllDepartments();
-      // Backend returns array directly, not wrapped in data
-      const depts = Array.isArray(response) ? response : (response.data || []);
-      // console.log('Fetched departments:', depts);
-      setDepartments(depts);
-    } catch (error) {
-      console.error("Failed to fetch departments:", error);
-      setDepartments([]);
-    }
-  };
-
-
-
   const handleShowModal = (project = null) => {
-    if (project) {
-      setEditMode(true);
-      setCurrentProject(project);
-      setFormData({
-        name: project.name,
-        client: project.client?._id || project.client || "",
-        department: project.department?._id || project.department || "",
-        description: project.description || "",
-        startDate: project.startDate
-          ? new Date(project.startDate).toISOString().split("T")[0]
-          : "",
-        endDate: project.endDate
-          ? new Date(project.endDate).toISOString().split("T")[0]
-          : "",
-        status: project.status || "Pending",
-        priority: project.priority || "medium",
-        budget: project.budget || "",
-        services: Array.isArray(project.services) ? project.services.join(", ") : "",
-        notes: project.notes || "",
-      });
-    } else {
-      setEditMode(false);
-      setCurrentProject(null);
-      setFormData({
-        name: "",
-        client: "",
-        department: "",
-        description: "",
-        startDate: "",
-        endDate: "",
-        status: "Pending",
-        priority: "medium",
-        budget: "",
-        services: "",
-        notes: "",
-      });
-    }
+    setCurrentProject(project);
     setShowModal(true);
   };
 
   const handleCloseModal = () => {
     setShowModal(false);
-    setEditMode(false);
     setCurrentProject(null);
-    setFormData({
-      name: "",
-      client: "",
-      department: "",
-      description: "",
-      startDate: "",
-      endDate: "",
-      status: "Pending",
-      priority: "medium",
-      budget: "",
-      services: "",
-      notes: "",
-    });
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
-
-  const handleUserSelect = (e) => {
-    const selectedOptions = Array.from(
-      e.target.selectedOptions,
-      (option) => option.value
-    );
-    setFormData({ ...formData, assignedUsers: selectedOptions });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    // Only Admin/SuperAdmin/HR/Manager can create projects
-    if (!editMode && !['admin', 'superadmin', 'hr', 'manager'].includes(user?.role)) {
-      toast.error("You don't have permission to create projects");
-      return;
-    }
-    
-    try {
-      // Prepare the data for submission
-      const submitData = {
-        ...formData,
-        budget: formData.budget ? parseFloat(formData.budget) : 0,
-        services: formData.services ? formData.services.split(',').map(s => s.trim()).filter(s => s) : [],
-      };
-
-      if (editMode) {
-        await projectApi.updateProject(currentProject._id, submitData);
-        toast.success("Project updated successfully");
-      } else {
-        await projectApi.createProject(submitData);
-        toast.success("Project created successfully");
-      }
-      handleCloseModal();
-      fetchProjects();
-    } catch (error) {
-      toast.error(
-        error.response?.data?.message ||
-          `Failed to ${editMode ? "update" : "create"} project`
-      );
-    }
   };
 
   const handleDelete = async (id) => {
@@ -768,7 +638,7 @@ const ProjectList = () => {
                     )}
 
                     <div className="d-flex gap-2">
-                      {user?.role !== 'employee' && (
+                      {['admin', 'superadmin', 'hr', 'manager'].includes(user?.role) && (
                         <Button
                           variant="outline-primary"
                           size="sm"
@@ -896,10 +766,11 @@ const ProjectList = () => {
                               size="sm"
                               variant="outline-primary"
                               onClick={() => navigate(`/projects/${project._id}`)}
+                              title="View Details"
                             >
                               <FaEye />
                             </Button>
-                            {user?.role !== 'employee' && (
+                            {['admin', 'superadmin', 'hr', 'manager'].includes(user?.role) && (
                               <Button
                                 size="sm"
                                 variant="outline-secondary"
@@ -907,6 +778,16 @@ const ProjectList = () => {
                                 title="Edit Project"
                               >
                                 <FaEdit />
+                              </Button>
+                            )}
+                            {(user?.role === 'admin' || user?.role === 'superadmin') && (
+                              <Button
+                                size="sm"
+                                variant="outline-danger"
+                                onClick={() => handleDelete(project._id)}
+                                title="Delete Project"
+                              >
+                                <FaTrash />
                               </Button>
                             )}
                           </div>
@@ -921,206 +802,13 @@ const ProjectList = () => {
         </Card>
       )}
 
-      {/* Add/Edit Project Modal */}
-      <Modal show={showModal} onHide={handleCloseModal} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>
-            {editMode ? "Edit Project" : "Add New Project"}
-          </Modal.Title>
-        </Modal.Header>
-        <Form onSubmit={handleSubmit}>
-          <Modal.Body>
-            <Form.Group className="mb-3">
-              <Form.Label>Project Name *</Form.Label>
-              <Form.Control
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                required
-                placeholder="Enter project name"
-              />
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Client (Optional)</Form.Label>
-              <Form.Select
-                name="client"
-                value={formData.client}
-                onChange={handleChange}
-              >
-                <option value="">
-                  {clients.length === 0
-                    ? "No clients available"
-                    : "Select a client (optional)"}
-                </option>
-                {clients.map((client) => (
-                  <option key={client._id} value={client._id}>
-                    {client.name} {client.company && `(${client.company})`}
-                  </option>
-                ))}
-              </Form.Select>
-              <Form.Text className="text-muted">
-                You can assign a client later if needed
-              </Form.Text>
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Description</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                placeholder="Enter project description"
-              />
-            </Form.Group>
-
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Status</Form.Label>
-                  <Form.Select
-                    name="status"
-                    value={formData.status}
-                    onChange={handleChange}
-                  >
-                    <option value="Pending">Pending</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Completed">Completed</option>
-                    <option value="On Hold">On Hold</option>
-                    <option value="Cancelled">Cancelled</option>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Priority</Form.Label>
-                  <Form.Select
-                    name="priority"
-                    value={formData.priority}
-                    onChange={handleChange}
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="urgent">Urgent</option>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Budget</Form.Label>
-                  <Form.Control
-                    type="number"
-                    name="budget"
-                    value={formData.budget}
-                    onChange={handleChange}
-                    placeholder="Enter project budget"
-                    min="0"
-                    step="0.01"
-                  />
-                  <Form.Text className="text-muted">
-                    Enter amount in your local currency
-                  </Form.Text>
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Services</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="services"
-                    value={formData.services}
-                    onChange={handleChange}
-                    placeholder="e.g., Web Development, SEO, Social Media"
-                  />
-                  <Form.Text className="text-muted">
-                    Separate multiple services with commas
-                  </Form.Text>
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Start Date *</Form.Label>
-                  <Form.Control
-                    type="date"
-                    name="startDate"
-                    value={formData.startDate}
-                    onChange={handleChange}
-                    required
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>End Date</Form.Label>
-                  <Form.Control
-                    type="date"
-                    name="endDate"
-                    value={formData.endDate}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Department *</Form.Label>
-              <Form.Select
-                name="department"
-                value={formData.department}
-                onChange={handleChange}
-                required
-              >
-                <option value="">Select Department</option>
-                {departments.map((dept) => (
-                  <option key={dept._id} value={dept._id}>
-                    {dept.name}
-                  </option>
-                ))}
-              </Form.Select>
-              {departments.length === 0 && (
-                <Form.Text className="text-danger">
-                  No departments found. Please create departments first.
-                </Form.Text>
-              )}
-              {departments.length > 0 && (
-                <Form.Text className="text-muted">
-                  The HoD of this department will manage the project
-                </Form.Text>
-              )}
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Additional Notes</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                name="notes"
-                value={formData.notes}
-                onChange={handleChange}
-                placeholder="Any additional notes or requirements for this project"
-              />
-            </Form.Group>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={handleCloseModal}>
-              Cancel
-            </Button>
-            <Button variant="primary" type="submit">
-              {editMode ? "Update Project" : "Create Project"}
-            </Button>
-          </Modal.Footer>
-        </Form>
-      </Modal>
+      {/* Simplified Project Modal */}
+      <SimplifiedProjectModal
+        show={showModal}
+        onHide={handleCloseModal}
+        onSuccess={fetchProjects}
+        project={currentProject}
+      />
     </Container>
   );
 };

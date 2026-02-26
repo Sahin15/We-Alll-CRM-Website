@@ -170,12 +170,52 @@ export const createSubscription = async (req, res) => {
 // Get all subscriptions
 export const getAllSubscriptions = async (req, res) => {
   try {
+    console.log(`🔍 getAllSubscriptions called by user ${req.user.id} (${req.user.role})`);
+    console.log(`📋 Query params:`, req.query);
+    
     const { client, status, company } = req.query;
     const filter = {};
 
     if (client) filter.client = client;
     if (status) filter.status = status;
     if (company) filter.company = company;
+
+    // Permission check
+    const isAdminRole = ['admin', 'superadmin', 'hr', 'manager', 'hod'].includes(req.user.role);
+    console.log(`👤 Is admin role:`, isAdminRole);
+    
+    if (!isAdminRole && client) {
+      // For employees, check if they're assigned to any project for this client
+      const Project = (await import('../models/projectModel.js')).default;
+      
+      console.log(`🔍 Checking if user ${req.user.id} is assigned to any project for client ${client}`);
+      
+      const assignedProject = await Project.findOne({
+        client: client,
+        $or: [
+          { projectHead: req.user.id },
+          { assignedUsers: req.user.id },
+          { 'teamMembers.user': req.user.id }
+        ]
+      });
+
+      console.log(`📊 Found assigned project:`, assignedProject ? assignedProject._id : 'None');
+
+      if (!assignedProject) {
+        console.log(`❌ Access denied - no project found`);
+        return res.status(403).json({ 
+          message: "Access denied. You must be assigned to a project for this client to view their subscriptions." 
+        });
+      }
+      
+      console.log(`✅ Access granted`);
+    } else if (!isAdminRole && !client) {
+      // If no client filter and not admin, deny access
+      console.log(`❌ Access denied - no client specified and not admin`);
+      return res.status(403).json({ 
+        message: "Access denied. Employees can only view subscriptions for clients they're assigned to." 
+      });
+    }
 
     const subscriptions = await Subscription.find(filter)
       .populate("client", "name email phone company")
@@ -184,6 +224,7 @@ export const getAllSubscriptions = async (req, res) => {
       .populate("createdBy", "name email")
       .sort({ createdAt: -1 });
 
+    console.log(`📦 Returning ${subscriptions.length} subscriptions`);
     return res.status(200).json(subscriptions);
   } catch (error) {
     console.error("Error fetching subscriptions:", error.message);

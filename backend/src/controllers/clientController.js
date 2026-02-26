@@ -242,7 +242,41 @@ export const getClientById = async (req, res) => {
     const client = await Client.findById(req.params.id)
       .populate("createdBy", "name email")
       .populate("assignedDepartments", "name");
-    if (!client) return res.status(404).json({ message: "Client not found" });
+    
+    if (!client) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    // Permission check
+    const isAdminRole = ['admin', 'superadmin', 'hr', 'manager', 'hod'].includes(req.user.role);
+    
+    if (!isAdminRole) {
+      // For employees, check if they're assigned to any project for this client
+      const Project = (await import('../models/projectModel.js')).default;
+      
+      console.log(`🔍 Checking client access for user ${req.user.id} (${req.user.role}) on client ${req.params.id}`);
+      
+      const assignedProject = await Project.findOne({
+        client: req.params.id,
+        $or: [
+          { projectHead: req.user.id },
+          { assignedUsers: req.user.id },
+          { 'teamMembers.user': req.user.id }
+        ]
+      });
+
+      console.log(`📊 Found assigned project:`, assignedProject ? assignedProject._id : 'None');
+
+      if (!assignedProject) {
+        console.log(`❌ Access denied for user ${req.user.id} to client ${req.params.id}`);
+        return res.status(403).json({ 
+          message: "Access denied. You must be assigned to a project for this client to view their details." 
+        });
+      }
+      
+      console.log(`✅ Access granted for user ${req.user.id} to client ${req.params.id}`);
+    }
+
     res.status(200).json(client);
   } catch (error) {
     logger.error("Error fetching client:", error);

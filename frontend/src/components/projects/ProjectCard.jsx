@@ -1,13 +1,15 @@
 import { Card, Badge, ProgressBar, Button } from 'react-bootstrap';
-import { FaUsers, FaTasks, FaCheckCircle, FaEye } from 'react-icons/fa';
+import { FaUsers, FaTasks, FaCheckCircle, FaEye, FaEdit } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 /**
  * ProjectCard Component
  * Displays project information in card format with statistics
  */
-const ProjectCard = ({ project }) => {
+const ProjectCard = ({ project, onEdit }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const getStatusColor = (status) => {
     const colors = {
@@ -141,6 +143,19 @@ const ProjectCard = ({ project }) => {
             {project.projectHead?.name || 'No project head'}
           </small>
           <div className="d-flex gap-2">
+            {['admin', 'superadmin', 'hr', 'manager'].includes(user?.role) && (
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onEdit) onEdit(project);
+                }}
+                title="Edit Project"
+              >
+                <FaEdit />
+              </Button>
+            )}
             <Button
               variant="outline-primary"
               size="sm"
@@ -148,9 +163,9 @@ const ProjectCard = ({ project }) => {
                 e.stopPropagation();
                 handleViewProject();
               }}
+              title="View Details"
             >
-              <FaEye className="me-1" />
-              View
+              <FaEye />
             </Button>
           </div>
         </div>

@@ -1,14 +1,14 @@
 import { Table, Badge, Button, Dropdown } from 'react-bootstrap';
-import { FaEye, FaClock, FaExclamationTriangle, FaCalendarAlt } from 'react-icons/fa';
+import { FaEye, FaClock, FaExclamationTriangle, FaCalendarAlt, FaCheckCircle } from 'react-icons/fa';
 import { formatDate } from '../../utils/helpers';
 import './WorkItemList.css';
 
 const WorkItemList = ({ workItems, onViewItem, onStatusChange, currentUser, emptyMessage }) => {
-  const onView = onViewItem; // Support both prop names for compatibility
+  const onView = onViewItem;
   
   const canEdit = (workItem) => {
     return workItem.assignedTo?._id === currentUser?._id || 
-           ['admin', 'superadmin', 'hod'].includes(currentUser?.role);
+           ['admin', 'superadmin', 'hr', 'manager', 'hod'].includes(currentUser?.role);
   };
   
   const getStatusColor = (status) => {
@@ -58,196 +58,176 @@ const WorkItemList = ({ workItems, onViewItem, onStatusChange, currentUser, empt
     return diffDays;
   };
 
+  if (workItems.length === 0) {
+    return (
+      <div className="empty-state-modern">
+        <FaCalendarAlt className="empty-icon" />
+        <h5 className="empty-title">{emptyMessage || 'No work items found'}</h5>
+        <p className="empty-subtitle">Create your first work item to get started!</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="table-responsive">
-      <Table hover className="mb-0 work-items-table">
-        <thead className="table-light">
+    <div className="modern-table-container">
+      <Table hover className="modern-work-table">
+        <thead>
           <tr>
-            <th style={{ width: '45%' }}>Work Item</th>
-            <th style={{ width: '20%' }}>Due Date</th>
-            <th style={{ width: '15%' }}>Status</th>
-            <th style={{ width: '12%' }}>Priority</th>
-            <th style={{ width: '8%' }}>Actions</th>
+            <th style={{ width: '40%' }}>WORK ITEM</th>
+            <th style={{ width: '20%' }}>DUE DATE</th>
+            <th style={{ width: '15%' }}>STATUS</th>
+            <th style={{ width: '15%' }}>PRIORITY</th>
+            <th style={{ width: '10%' }}>ACTIONS</th>
           </tr>
         </thead>
         <tbody>
-          {workItems.length === 0 ? (
-            <tr>
-              <td colSpan="5" className="empty-state">
-                <div className="d-flex flex-column align-items-center">
-                  <FaCalendarAlt className="empty-state-icon" />
-                  <h5 className="empty-state-title">{emptyMessage || 'No work items found'}</h5>
-                  <p className="empty-state-subtitle">Create your first work item to get started!</p>
-                </div>
-              </td>
-            </tr>
-          ) : (
-            workItems.map((item) => {
-              const daysUntilDue = getDaysUntilDue(item.dueDate);
-              
-              return (
-                <tr 
-                  key={item._id}
-                  className={`work-item-row ${isOverdue(item) ? 'table-danger' : isDueToday(item) ? 'table-warning' : ''}`}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => onView(item)}
-                >
-                  {/* Work Item Column - Combined Type, Title, and Project */}
-                  <td className="py-3">
-                    <div className="work-item-content">
-                      <div className="work-item-badge-container">
-                        <Badge 
-                          bg={item.type === 'content' ? 'success' : 'primary'} 
-                          className="work-item-type-badge"
-                        >
-                          {item.type === 'content' ? '📱 Content' : '📋 Task'}
-                        </Badge>
-                      </div>
-                      <div className="work-item-info-container">
-                        <div className="work-item-title">
-                          {item.title}
-                        </div>
-                        <div className="work-item-details">
-                          {item.project?.name && (
-                            <span className="work-item-detail">
-                              📁 {item.project.name}
-                            </span>
-                          )}
-                          {item.type === 'content' && item.platform && (
-                            <span className="work-item-detail">
-                              📱 {item.platform} • {item.postType}
-                            </span>
-                          )}
-                          {item.assignedTo?.name && (
-                            <span className="work-item-detail">
-                              👤 {item.assignedTo.name}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* Due Date Column - Enhanced with urgency indicators */}
-                  <td className="py-3">
-                    <div className="due-date-container">
-                      <FaClock 
-                        className={`${isOverdue(item) ? 'text-danger' : isDueToday(item) ? 'text-warning' : 'text-muted'}`}
-                        style={{ fontSize: '0.85rem' }}
-                      />
-                      <div>
-                        <div className={`due-date-text ${isOverdue(item) ? 'text-danger' : isDueToday(item) ? 'text-warning' : ''}`}>
-                          {formatDate(item.dueDate)}
-                        </div>
-                        <p className={`due-date-subtitle ${isOverdue(item) ? 'text-danger' : isDueToday(item) ? 'text-warning' : 'text-muted'}`}>
-                          {isOverdue(item) ? (
-                            <>
-                              <FaExclamationTriangle className="me-1" />
-                              {Math.abs(daysUntilDue)} day{Math.abs(daysUntilDue) !== 1 ? 's' : ''} overdue
-                            </>
-                          ) : isDueToday(item) ? (
-                            'Due today!'
-                          ) : daysUntilDue === 1 ? (
-                            'Due tomorrow'
-                          ) : daysUntilDue > 0 ? (
-                            `${daysUntilDue} days left`
-                          ) : (
-                            'Past due'
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* Status Column - Interactive status change */}
-                  <td className="py-3">
-                    {canEdit(item) && onStatusChange ? (
-                      <Dropdown align="end">
-                        <Dropdown.Toggle
-                          as={Badge}
-                          bg={getStatusColor(item.status)}
-                          className="status-table-dropdown"
-                          style={{
-                            cursor: 'pointer',
-                            border: 'none',
-                            fontSize: '0.75rem',
-                            padding: '6px 10px',
-                            minWidth: '80px',
-                            textAlign: 'center'
-                          }}
-                        >
-                          {item.status} ▼
-                        </Dropdown.Toggle>
-
-                        <Dropdown.Menu className="status-table-dropdown-menu">
-                          {['To Do', 'In Progress', 'Review', 'Done'].map((status) => (
-                            <Dropdown.Item
-                              key={status}
-                              onClick={() => onStatusChange(item._id, status, item.type)}
-                              disabled={status === item.status}
-                              className={`status-table-dropdown-item ${status === item.status ? 'active' : ''}`}
-                            >
-                              <Badge 
-                                bg={getStatusColor(status)} 
-                                className="me-2"
-                                style={{ fontSize: '0.7rem', minWidth: '60px', textAlign: 'center' }}
-                              >
-                                {status}
-                              </Badge>
-                              {status === item.status && <span className="text-success">✓</span>}
-                            </Dropdown.Item>
-                          ))}
-                        </Dropdown.Menu>
-                      </Dropdown>
-                    ) : (
-                      <Badge 
-                        bg={getStatusColor(item.status)} 
-                        className="work-item-status-badge"
-                      >
-                        {item.status}
-                      </Badge>
-                    )}
-                  </td>
-
-                  {/* Priority Column - Visual priority indicators */}
-                  <td className="py-3">
-                    <div className="d-flex align-items-center">
-                      <span className="priority-icon">
-                        {getPriorityIcon(item.priority)}
-                      </span>
-                      <Badge 
-                        bg={getPriorityColor(item.priority)}
-                        className="work-item-priority-badge text-capitalize"
-                      >
-                        {item.priority}
-                      </Badge>
-                    </div>
-                  </td>
-
-                  {/* Actions Column - Larger, more accessible button */}
-                  <td className="py-3">
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      className="work-item-action-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onView(item);
-                      }}
-                      title="View details"
+          {workItems.map((item) => {
+            const daysUntilDue = getDaysUntilDue(item.dueDate);
+            const overdueStatus = isOverdue(item);
+            const dueTodayStatus = isDueToday(item);
+            
+            return (
+              <tr 
+                key={item._id}
+                className={`modern-row ${overdueStatus ? 'row-overdue' : dueTodayStatus ? 'row-due-today' : ''}`}
+                onClick={() => onView(item)}
+              >
+                {/* Work Item Column */}
+                <td>
+                  <div className="work-item-cell">
+                    <Badge 
+                      bg={item.type === 'content' ? 'success' : 'primary'} 
+                      className="type-badge"
                     >
-                      <FaEye className="me-1" />
-                      View
-                    </Button>
-                  </td>
-                </tr>
-              );
-            })
-          )}
+                      {item.type === 'content' ? '📱' : '📋'}
+                    </Badge>
+                    <div className="work-info">
+                      <div className="work-title">{item.title}</div>
+                      <div className="work-meta">
+                        {item.project?.name && (
+                          <span className="meta-tag">
+                            <span className="meta-dot">•</span>
+                            {item.project.name}
+                          </span>
+                        )}
+                        {item.assignedTo?.name && (
+                          <span className="meta-tag">
+                            <span className="meta-dot">•</span>
+                            {item.assignedTo.name}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </td>
+
+                {/* Due Date Column */}
+                <td>
+                  <div className="due-date-cell">
+                    <div className={`date-value ${overdueStatus ? 'text-danger' : dueTodayStatus ? 'text-warning' : ''}`}>
+                      <FaClock className="date-icon" />
+                      {formatDate(item.dueDate)}
+                    </div>
+                    <div className={`date-status ${overdueStatus ? 'text-danger' : dueTodayStatus ? 'text-warning' : 'text-muted'}`}>
+                      {overdueStatus ? (
+                        <>
+                          <FaExclamationTriangle className="me-1" />
+                          {Math.abs(daysUntilDue)}d overdue
+                        </>
+                      ) : dueTodayStatus ? (
+                        'Due today!'
+                      ) : daysUntilDue === 1 ? (
+                        'Tomorrow'
+                      ) : daysUntilDue > 0 ? (
+                        `${daysUntilDue}d left`
+                      ) : (
+                        'Past due'
+                      )}
+                    </div>
+                  </div>
+                </td>
+
+                {/* Status Column */}
+                <td onClick={(e) => e.stopPropagation()}>
+                  {canEdit(item) && onStatusChange ? (
+                    <Dropdown align="end">
+                      <Dropdown.Toggle
+                        as={Badge}
+                        bg={getStatusColor(item.status)}
+                        className="status-badge-dropdown"
+                        style={{ userSelect: 'none' }}
+                      >
+                        {item.status} ▼
+                      </Dropdown.Toggle>
+
+                      <Dropdown.Menu className="status-dropdown-modern">
+                        {['To Do', 'In Progress', 'Review', 'Done'].map((status) => (
+                          <Dropdown.Item
+                            key={status}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (status !== item.status) {
+                                onStatusChange(item._id, status, item.type);
+                              }
+                            }}
+                            disabled={status === item.status}
+                            className={status === item.status ? 'active' : ''}
+                          >
+                            <Badge 
+                              bg={getStatusColor(status)} 
+                              className="me-2"
+                              style={{ minWidth: '90px' }}
+                            >
+                              {status}
+                            </Badge>
+                            {status === item.status && <FaCheckCircle className="text-success" />}
+                          </Dropdown.Item>
+                        ))}
+                      </Dropdown.Menu>
+                    </Dropdown>
+                  ) : (
+                    <Badge 
+                      bg={getStatusColor(item.status)} 
+                      className="status-badge"
+                    >
+                      {item.status}
+                    </Badge>
+                  )}
+                </td>
+
+                {/* Priority Column */}
+                <td>
+                  <div className="priority-cell">
+                    <span className="priority-icon">{getPriorityIcon(item.priority)}</span>
+                    <Badge 
+                      bg={getPriorityColor(item.priority)}
+                      className="priority-badge text-capitalize"
+                    >
+                      {item.priority}
+                    </Badge>
+                  </div>
+                </td>
+
+                {/* Actions Column */}
+                <td>
+                  <Button
+                    variant="outline-primary"
+                    size="sm"
+                    className="action-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onView(item);
+                    }}
+                  >
+                    <FaEye className="me-1" />
+                    View
+                  </Button>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </Table>
-      
-
     </div>
   );
 };

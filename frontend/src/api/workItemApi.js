@@ -16,6 +16,17 @@ export const workItemApi = {
   },
 
   /**
+   * Get work items by project ID
+   * @param {string} projectId - Project ID
+   * @param {Object} params - Query parameters for filtering
+   * @returns {Promise} Work items data
+   */
+  getWorkItemsByProject: async (projectId, params = {}) => {
+    const response = await api.get(`/work-items/project/${projectId}`, { params });
+    return response.data;
+  },
+
+  /**
    * Get all work items (admin function)
    * @param {Object} params - Query parameters for filtering
    * @returns {Promise} Work items data

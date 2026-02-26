@@ -5,11 +5,10 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import projectApi from '../../api/projectApi';
 import clientApi from '../../api/clientApi';
-import departmentApi from '../../api/departmentApi';
 import ProjectCard from '../../components/projects/ProjectCard';
 import ProjectFilters from '../../components/projects/ProjectFilters';
 import ProjectSearch from '../../components/projects/ProjectSearch';
-import CreateProjectModal from '../../components/projects/CreateProjectModal';
+import SimplifiedProjectModal from '../../components/projects/SimplifiedProjectModal';
 
 /**
  * ProjectListPage Component
@@ -334,7 +333,7 @@ const ProjectListPage = () => {
                       <Row className="g-3">
                         {incompleteAutoProjects.map((project) => (
                           <Col key={project._id} lg={4} md={6} sm={12}>
-                            <ProjectCard project={project} />
+                            <ProjectCard project={project} onEdit={handleEdit} />
                           </Col>
                         ))}
                       </Row>
@@ -474,7 +473,7 @@ const ProjectListPage = () => {
                 <Row className="g-3">
                   {regularProjects.map((project) => (
                     <Col key={project._id} lg={4} md={6} sm={12}>
-                      <ProjectCard project={project} />
+                      <ProjectCard project={project} onEdit={handleEdit} />
                     </Col>
                   ))}
                 </Row>
@@ -600,22 +599,22 @@ const ProjectListPage = () => {
         </>
       )}
 
-      {/* Create Project Modal */}
-      <CreateProjectModal
+      {/* Simplified Project Modal - Create */}
+      <SimplifiedProjectModal
         show={showCreateModal}
         onHide={() => setShowCreateModal(false)}
         onSuccess={loadData}
       />
 
-      {/* Edit Project Modal */}
-      <CreateProjectModal
+      {/* Simplified Project Modal - Edit */}
+      <SimplifiedProjectModal
         show={showEditModal}
         onHide={() => {
           setShowEditModal(false);
           setEditingProject(null);
         }}
         onSuccess={handleEditSuccess}
-        editProject={editingProject}
+        project={editingProject}
       />
     </Container>
   );

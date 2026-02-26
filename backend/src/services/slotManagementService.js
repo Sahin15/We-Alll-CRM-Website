@@ -64,14 +64,14 @@ class SlotManagementService {
           slotNumber: i,
           slotIdentifier: slotIdentifier,
           slotType: slotType,
-          title: `${slotIdentifier} - Work Assignment`,
-          description: `Auto-generated slot for project work assignment`,
+          title: '',
+          description: '',
           workType: 'Other',
           priority: 'Medium',
           assignmentStatus: 'available',
           createdBy: fallbackUserId,
-          assignedTo: fallbackUserId,
-          dueDate: project.endDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now instead of 30
+          assignedTo: null,
+          dueDate: null,
           slotConfiguration: {
             isRequired: true,
             canBeSkipped: false,
