@@ -892,7 +892,7 @@
 .enhanced-table {
   border-collapse: separate !important;
   border-spacing: 0 !important;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
   font-size: 13px !important;
   line-height: 1.4 !important;
 }
