@@ -380,9 +380,17 @@ export const getProjectsForUser = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const projects = await Project.find({ assignedUsers: userId })
+    // Find projects where user is assigned OR is the project head
+    const projects = await Project.find({
+      $or: [
+        { assignedUsers: userId },
+        { projectHead: userId }
+      ]
+    })
       .populate("client", "name email serviceCompany")
-      .populate("assignedUsers", "name email");
+      .populate("assignedUsers", "name email")
+      .populate("projectHead", "name email")
+      .sort({ createdAt: -1 });
 
     res.status(200).json(projects);
   } catch (error) {
