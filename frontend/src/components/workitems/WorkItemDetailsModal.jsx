@@ -15,6 +15,40 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
   const [showCompletionDatePicker, setShowCompletionDatePicker] = useState(false);
   const [completionDate, setCompletionDate] = useState('');
 
+  // Helper function to convert URLs in text to clickable links
+  const linkifyText = (text) => {
+    if (!text) return null;
+    
+    // Regular expression to match URLs
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    
+    // Split text by URLs
+    const parts = text.split(urlRegex);
+    
+    return parts.map((part, index) => {
+      // Check if this part is a URL
+      if (part.match(urlRegex)) {
+        return (
+          <a 
+            key={index} 
+            href={part} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{ 
+              color: '#667eea', 
+              textDecoration: 'underline',
+              wordBreak: 'break-all'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {part}
+          </a>
+        );
+      }
+      return part;
+    });
+  };
+
   // Reset comments when modal opens/closes
   React.useEffect(() => {
     if (show && workItem?.comments) {
@@ -541,7 +575,9 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
               {workItem.description && (
                 <div className="mb-4">
                   <strong className="d-block mb-2" style={{ fontSize: '0.95rem', color: '#495057' }}>Description</strong>
-                  <p className="text-muted mb-0" style={{ lineHeight: '1.6' }}>{workItem.description}</p>
+                  <p className="text-muted mb-0" style={{ lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                    {linkifyText(workItem.description)}
+                  </p>
                 </div>
               )}
 
@@ -815,7 +851,7 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                                 color: '#495057',
                                 whiteSpace: 'pre-wrap'
                               }}>
-                                {comment.text.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')}
+                                {linkifyText(comment.text.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>'))}
                               </p>
                             </div>
                             
