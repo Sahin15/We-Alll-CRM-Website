@@ -1,9 +1,10 @@
+import React from 'react';
 import { Table, Badge, Button, Dropdown } from 'react-bootstrap';
 import { FaEye, FaClock, FaExclamationTriangle, FaCalendarAlt, FaCheckCircle } from 'react-icons/fa';
 import { formatDate } from '../../utils/helpers';
 import './WorkItemList.css';
 
-const WorkItemList = ({ workItems, onViewItem, onStatusChange, currentUser, emptyMessage }) => {
+const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, currentUser, emptyMessage }) => {
   const onView = onViewItem;
   
   const canEdit = (workItem) => {
@@ -230,6 +231,8 @@ const WorkItemList = ({ workItems, onViewItem, onStatusChange, currentUser, empt
       </Table>
     </div>
   );
-};
+});
+
+WorkItemList.displayName = 'WorkItemList';
 
 export default WorkItemList;

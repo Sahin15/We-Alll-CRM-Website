@@ -332,29 +332,51 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
                       <th className="py-2 px-3 fw-semibold small">Clock In</th>
                       <th className="py-2 px-3 fw-semibold small">Clock Out</th>
                       <th className="py-2 px-3 fw-semibold small">Work Hours</th>
+                      <th className="py-2 px-3 fw-semibold small">Breaks</th>
                       <th className="py-2 px-3 fw-semibold small">Overtime</th>
                       <th className="py-2 px-3 fw-semibold small">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {attendances.length > 0 ? (
-                      attendances.map((attendance) => (
-                        <tr key={attendance._id}>
-                          <td className="py-2 px-3">{formatDate(attendance.date)}</td>
-                          <td className="py-2 px-3">{formatTime(attendance.clockIn)}</td>
-                          <td className="py-2 px-3">{attendance.clockOut ? formatTime(attendance.clockOut) : <span className="text-muted">-</span>}</td>
-                          <td className="py-2 px-3">{attendance.workHours || 0} hrs</td>
-                          <td className="py-2 px-3">{attendance.overtime || 0} hrs</td>
-                          <td className="py-2 px-3">
-                            <Badge bg={getStatusVariant(attendance.status)} className="px-2">
-                              {attendance.status}
-                            </Badge>
-                          </td>
-                        </tr>
-                      ))
+                      attendances.map((attendance) => {
+                        const breaks = attendance.breaks || [];
+                        const totalBreakMinutes = breaks.reduce((sum, b) => {
+                          if (b.startTime && b.endTime) {
+                            const start = new Date(b.startTime);
+                            const end = new Date(b.endTime);
+                            return sum + Math.round((end - start) / (1000 * 60));
+                          }
+                          return sum;
+                        }, 0);
+                        
+                        return (
+                          <tr key={attendance._id}>
+                            <td className="py-2 px-3">{formatDate(attendance.date)}</td>
+                            <td className="py-2 px-3">{formatTime(attendance.clockIn)}</td>
+                            <td className="py-2 px-3">{attendance.clockOut ? formatTime(attendance.clockOut) : <span className="text-muted">-</span>}</td>
+                            <td className="py-2 px-3">{attendance.workHours || 0} hrs</td>
+                            <td className="py-2 px-3">
+                              {breaks.length > 0 ? (
+                                <span className="text-info" title={`${breaks.length} break(s), Total: ${totalBreakMinutes} min`}>
+                                  {breaks.length} ({totalBreakMinutes} min)
+                                </span>
+                              ) : (
+                                <span className="text-muted">-</span>
+                              )}
+                            </td>
+                            <td className="py-2 px-3">{attendance.overtime || 0} hrs</td>
+                            <td className="py-2 px-3">
+                              <Badge bg={getStatusVariant(attendance.status)} className="px-2">
+                                {attendance.status}
+                              </Badge>
+                            </td>
+                          </tr>
+                        );
+                      })
                     ) : (
                       <tr>
-                        <td colSpan="6" className="text-center py-5">
+                        <td colSpan="7" className="text-center py-5">
                           <div className="text-muted">
                             <div className="mb-2" style={{ fontSize: '2rem' }}>📭</div>
                             <div>No attendance records found for this period</div>

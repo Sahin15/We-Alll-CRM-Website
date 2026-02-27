@@ -1,14 +1,21 @@
 /* Modern Work Item Table Styles */
 
+/* Override parent card overflow to allow dropdown to show */
 .modern-table-container {
   background: #ffffff;
   border-radius: 8px;
-  overflow: hidden;
+  overflow: visible !important;
+}
+
+/* Ensure parent card also has visible overflow */
+.modern-table-container:has(.modern-work-table) {
+  overflow: visible !important;
 }
 
 .modern-work-table {
   margin-bottom: 0;
   font-size: 14px;
+  overflow: visible;
 }
 
 .modern-work-table thead {
@@ -32,6 +39,7 @@
   transition: background-color 0.2s ease;
   cursor: pointer;
   position: relative;
+  will-change: auto;
 }
 
 .modern-work-table tbody tr:hover {
@@ -40,8 +48,9 @@
 
 .modern-work-table tbody tr:has(.dropdown.show) {
   position: relative;
-  z-index: 1050;
+  z-index: 9998;
   background-color: #f8f9ff;
+  will-change: z-index;
 }
 
 .modern-work-table tbody tr:last-child {
@@ -167,9 +176,10 @@
   letter-spacing: 0.3px;
   cursor: pointer;
   border: none;
-  transition: all 0.2s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
   position: relative;
   z-index: 1;
+  will-change: transform, box-shadow;
 }
 
 .status-badge-dropdown:hover {
@@ -185,12 +195,12 @@
 
 .dropdown.show {
   position: relative;
-  z-index: 1051;
+  z-index: 9999;
 }
 
 .status-dropdown-modern {
   position: absolute !important;
-  z-index: 1052 !important;
+  z-index: 10000 !important;
   border: 1px solid #e0e0e0;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
   border-radius: 8px;
@@ -198,6 +208,9 @@
   margin-top: 4px;
   min-width: 140px;
   animation: dropdownFadeIn 0.15s ease-out;
+  will-change: opacity, transform;
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
 @keyframes dropdownFadeIn {
@@ -216,8 +229,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.1s ease;
   cursor: pointer;
+  will-change: background-color;
 }
 
 .status-dropdown-modern .dropdown-item:hover {

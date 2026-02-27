@@ -310,26 +310,10 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       roles: ["employee", "manager", "hr", "hod"], // Manager, HR, HoD can access their own attendance
     },
     {
-      id: "attendance",
+      path: "/attendance/tracking",
       icon: <FaClock />,
       label: "Attendance",
       roles: ["admin", "superadmin", "hr", "hod", "manager"],
-      onlyForRoles: ["admin", "superadmin", "hr", "hod", "manager"], // HoD and Manager have full access
-      isGroup: true,
-      children: [
-        {
-          path: "/attendance/my-attendance",
-          icon: <FaClock />,
-          label: "My Attendance",
-          roles: ["admin", "superadmin", "hr", "hod", "manager"],
-        },
-        {
-          path: "/attendance/tracking",
-          icon: <FaClock />,
-          label: "Tracking",
-          roles: ["admin", "superadmin", "hr", "hod", "manager"],
-        },
-      ],
     },
     {
       path: "/salary-management",

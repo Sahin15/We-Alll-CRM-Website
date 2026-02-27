@@ -507,7 +507,7 @@ const CreateProjectModal = ({ show, onHide, onSuccess, editProject = null }) => 
                   </option>
                   {availableProjectHeads.map((user) => (
                     <option key={user._id} value={user._id}>
-                      {user.name} ({user.email})
+                      {user.name}
                     </option>
                   ))}
                 </Form.Select>

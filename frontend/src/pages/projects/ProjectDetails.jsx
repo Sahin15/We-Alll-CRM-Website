@@ -1207,7 +1207,7 @@ const ProjectDetails = () => {
               <option value="">Choose a project head...</option>
               {availableMembers.map((member) => (
                 <option key={member._id} value={member._id}>
-                  {member.name} - {member.designation || member.role} ({member.email})
+                  {member.name}
                 </option>
               ))}
             </Form.Select>

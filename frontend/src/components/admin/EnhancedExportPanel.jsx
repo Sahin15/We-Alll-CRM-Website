@@ -79,33 +79,18 @@ const EnhancedExportPanel = ({
   const [showJobMonitor, setShowJobMonitor] = useState(false);
   const [selectedColumns, setSelectedColumns] = useState(new Set());
 
-  // Available columns for export
+  // Available columns for export - ONLY columns visible in the table
   const availableColumns = [
     { key: 'title', label: 'Work Title', default: true },
+    { key: 'client.name', label: 'Client', default: true },
+    { key: 'project.name', label: 'Project', default: true },
+    { key: 'slotAssignment.slotNumber', label: 'Slot #', default: true, category: 'slot' },
     { key: 'assignedTo.name', label: 'Assigned To', default: true },
-    { key: 'client.name', label: 'Client Name', default: true },
-    { key: 'project.name', label: 'Project Name', default: true },
-    { key: 'department.name', label: 'Department', default: true },
+    { key: 'createdBy.name', label: 'Assigned By', default: true },
+    { key: 'departmentName', label: 'Department', default: true },
     { key: 'status', label: 'Status', default: true },
     { key: 'priority', label: 'Priority', default: true },
-    { key: 'workType', label: 'Work Type', default: true },
-    { key: 'startDate', label: 'Start Date', default: true },
-    { key: 'dueDate', label: 'Due Date', default: true },
-    { key: 'endDate', label: 'End Date', default: false },
-    { key: 'timeTracking.estimatedHours', label: 'Estimated Hours', default: true },
-    { key: 'timeTracking.actualHours', label: 'Actual Hours', default: true },
-    { key: 'progress', label: 'Progress (%)', default: true },
-    { key: 'isOverdue', label: 'Is Overdue', default: false },
-    { key: 'daysUntilDue', label: 'Days Until Due', default: false },
-    // Slot-related columns
-    { key: 'slot.slotNumber', label: 'Slot Number', default: false, category: 'slot' },
-    { key: 'slot.assignedDate', label: 'Slot Assigned Date', default: false, category: 'slot' },
-    { key: 'slot.completedDate', label: 'Slot Completed Date', default: false, category: 'slot' },
-    { key: 'slot.estimatedHours', label: 'Slot Estimated Hours', default: false, category: 'slot' },
-    { key: 'slot.actualHours', label: 'Slot Actual Hours', default: false, category: 'slot' },
-    { key: 'project.totalSlots', label: 'Project Total Slots', default: false, category: 'slot' },
-    { key: 'project.completedSlots', label: 'Project Completed Slots', default: false, category: 'slot' },
-    { key: 'project.slotCompletionRate', label: 'Project Slot Completion Rate', default: false, category: 'slot' }
+    { key: 'dueDate', label: 'Due Date', default: true }
   ];
 
   // Initialize selected columns
@@ -353,10 +338,18 @@ const EnhancedExportPanel = ({
             .stat-value { font-size: 1.5rem; font-weight: 700; color: #2c3e50; }
             .work-title { font-weight: 500; max-width: 200px; word-wrap: break-word; }
             .no-print { margin: 20px 0; text-align: center; }
+            table { font-size: 0.85rem; }
+            th { background-color: #f8f9fa !important; font-weight: 600; white-space: nowrap; }
+            td { vertical-align: middle; }
+            .badge { padding: 4px 8px; font-size: 0.75rem; }
             @media print {
               .no-print { display: none !important; }
-              @page { margin: 1in; }
-              body { -webkit-print-color-adjust: exact; }
+              @page { margin: 0.5in; size: landscape; }
+              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              table { page-break-inside: auto; }
+              tr { page-break-inside: avoid; page-break-after: auto; }
+              thead { display: table-header-group; }
+              tfoot { display: table-footer-group; }
             }
           </style>
         </head>
@@ -469,13 +462,14 @@ const EnhancedExportPanel = ({
                       <th>#</th>
                       <th>Title</th>
                       <th>Client</th>
+                      <th>Project</th>
+                      <th>Slot #</th>
                       <th>Assigned To</th>
+                      <th>Assigned By</th>
+                      <th>Department</th>
                       <th>Status</th>
                       <th>Priority</th>
-                      <th>Start Date</th>
                       <th>Due Date</th>
-                      <th>Progress</th>
-                      ${selectedColumns.has('slot.slotNumber') ? '<th>Slot #</th>' : ''}
                     </tr>
                   </thead>
                   <tbody>
@@ -484,17 +478,18 @@ const EnhancedExportPanel = ({
                         <td>${index + 1}</td>
                         <td class="work-title">${work.title || 'N/A'}</td>
                         <td>${work.client?.name || 'Internal'}</td>
+                        <td>${work.project?.name || 'N/A'}</td>
+                        <td>${work.slotAssignment?.slotNumber || work.slot?.slotNumber || 'N/A'}</td>
                         <td>${work.assignedTo?.name || 'Unassigned'}</td>
+                        <td>${work.createdBy?.name || 'Unknown'}</td>
+                        <td>${work.departmentName || work.department?.name || 'N/A'}</td>
                         <td><span class="badge bg-${getStatusBadgeClass(work.status)}">${work.status || 'Unknown'}</span></td>
                         <td><span class="badge bg-${getPriorityBadgeClass(work.priority)}">${work.priority || 'Medium'}</span></td>
-                        <td>${work.startDate ? moment(work.startDate).format('MM/DD/YYYY') : 'N/A'}</td>
                         <td>${work.dueDate ? moment(work.dueDate).format('MM/DD/YYYY') : 'N/A'}</td>
-                        <td>${work.completionPercentage || 0}%</td>
-                        ${selectedColumns.has('slot.slotNumber') ? `<td>${work.slot?.slotNumber || 'N/A'}</td>` : ''}
                       </tr>
                     `).join('') : `
                       <tr>
-                        <td colspan="${9 + (selectedColumns.has('slot.slotNumber') ? 1 : 0)}" class="text-center text-muted">No work entries found</td>
+                        <td colspan="11" class="text-center text-muted">No work entries found</td>
                       </tr>
                     `}
                   </tbody>
@@ -800,9 +795,9 @@ const EnhancedExportPanel = ({
                   
                   {/* Standard Columns */}
                   <div className="mb-3">
-                    <h6 className="text-muted small mb-2">Standard Columns</h6>
+                    <h6 className="text-muted small mb-2">Columns to Export</h6>
                     <div className="column-selection-grid">
-                      {availableColumns.filter(col => !col.category).map(column => (
+                      {availableColumns.map(column => (
                         <Form.Check
                           key={column.key}
                           type="checkbox"
@@ -814,49 +809,9 @@ const EnhancedExportPanel = ({
                       ))}
                     </div>
                   </div>
-
-                  {/* Slot Columns - Show only if slot analytics are available */}
-                  {showSlotColumns && (
-                    <div className="mb-3">
-                      <div className="d-flex justify-content-between align-items-center mb-2">
-                        <h6 className="text-muted small mb-0">Slot Columns</h6>
-                        <div>
-                          <Button
-                            variant="link"
-                            size="sm"
-                            onClick={() => {
-                              const slotColumns = availableColumns.filter(col => col.category === 'slot');
-                              slotColumns.forEach(col => {
-                                setSelectedColumns(prev => new Set([...prev, col.key]));
-                              });
-                            }}
-                          >
-                            Select All Slots
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="column-selection-grid">
-                        {availableColumns.filter(col => col.category === 'slot').map(column => (
-                          <Form.Check
-                            key={column.key}
-                            type="checkbox"
-                            label={column.label}
-                            checked={selectedColumns.has(column.key)}
-                            onChange={() => toggleColumn(column.key)}
-                            className="mb-1"
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
                   
                   <small className="text-muted">
                     {selectedColumns.size} of {availableColumns.length} columns selected
-                    {showSlotColumns && (
-                      <span className="ms-2">
-                        ({availableColumns.filter(col => col.category === 'slot' && selectedColumns.has(col.key)).length} slot columns)
-                      </span>
-                    )}
                   </small>
                 </Form.Group>
 

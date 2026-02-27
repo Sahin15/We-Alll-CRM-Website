@@ -182,7 +182,7 @@ const SimplifiedProjectModal = ({ show, onHide, onSuccess, project = null }) => 
               <option value="">Select Project Head...</option>
               {employees.map(emp => (
                 <option key={emp._id} value={emp._id}>
-                  {emp.name} ({emp.email}) - {emp.role}
+                  {emp.name}
                 </option>
               ))}
             </Form.Select>

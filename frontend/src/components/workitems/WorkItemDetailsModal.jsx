@@ -15,23 +15,35 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
   const [showCompletionDatePicker, setShowCompletionDatePicker] = useState(false);
   const [completionDate, setCompletionDate] = useState('');
 
+  // Helper function to decode HTML entities
+  const decodeHtmlEntities = (text) => {
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = text;
+    return textarea.value;
+  };
+
   // Helper function to convert URLs in text to clickable links
   const linkifyText = (text) => {
     if (!text) return null;
     
-    // Regular expression to match URLs
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    // First decode HTML entities
+    const decodedText = decodeHtmlEntities(text);
+    
+    // Regular expression to match URLs (including those with special chars)
+    const urlRegex = /(https?:\/\/[^\s,]+)/g;
     
     // Split text by URLs
-    const parts = text.split(urlRegex);
+    const parts = decodedText.split(urlRegex);
     
     return parts.map((part, index) => {
       // Check if this part is a URL
       if (part.match(urlRegex)) {
+        // Clean up any trailing punctuation that's not part of the URL
+        const cleanUrl = part.replace(/[,;.!?]+$/, '');
         return (
           <a 
             key={index} 
-            href={part} 
+            href={cleanUrl} 
             target="_blank" 
             rel="noopener noreferrer"
             style={{ 
@@ -41,7 +53,7 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {part}
+            {cleanUrl}
           </a>
         );
       }

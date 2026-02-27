@@ -399,7 +399,7 @@ const Settings = () => {
                     <tbody>
                       <tr>
                         <td><strong>Version:</strong></td>
-                        <td>4.2.1</td>
+                        <td>4.2.2</td>
                       </tr>
                       <tr>
                         <td><strong>Last Updated:</strong></td>
