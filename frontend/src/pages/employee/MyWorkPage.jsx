@@ -217,9 +217,9 @@ const MyWorkPage = () => {
     setShowModal(true);
   };
 
-  const handleUpdateStatus = async (itemId, newStatus, itemType) => {
+  const handleUpdateStatus = async (itemId, newStatus, itemType, completedAt = null) => {
     try {
-      await workItemApi.updateStatus(itemId, newStatus);
+      await workItemApi.updateStatus(itemId, newStatus, completedAt);
       toast.success('Status updated successfully!');
       loadWorkItems();
 

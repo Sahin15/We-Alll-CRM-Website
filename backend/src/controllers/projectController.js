@@ -106,19 +106,20 @@ export const createProject = async (req, res) => {
       });
     }
 
-    // Initialize slot configuration
+    // Initialize slot configuration - ALWAYS ENABLED
+    const DEFAULT_SLOT_COUNT = 5;
     const slotConfig = {
-      totalSlots: totalSlots || 10,
+      totalSlots: totalSlots || DEFAULT_SLOT_COUNT,
       slotType: slotType || 'generic',
       allowDynamicSlots: true,
       slotNamingPattern: 'Slot {number}',
-      autoCreateSlots: enableSlotSystem || false,
-      enableSlotSystem: enableSlotSystem || false
+      autoCreateSlots: true, // Always true
+      enableSlotSystem: true // Always true
     };
 
-    // Initialize progress tracking
+    // Initialize progress tracking - ALWAYS slot-based
     const progressConfig = {
-      calculationMethod: calculationMethod || (enableSlotSystem ? 'slot-based' : 'manual'),
+      calculationMethod: 'slot-based', // Always slot-based
       completedSlots: 0,
       totalSlots: slotConfig.totalSlots,
       progressPercentage: 0,
@@ -153,19 +154,20 @@ export const createProject = async (req, res) => {
       slotManagement: slotManagementConfig
     });
     
-    // If slot system is enabled, create initial slots
-    if (enableSlotSystem && slotConfig.autoCreateSlots) {
-      try {
-        const slotManagementService = (await import('../services/slotManagementService.js')).default;
-        
-        const slotResult = await slotManagementService.createSlotsForProject(project._id, {
-          count: slotConfig.totalSlots,
-          slotType: slotConfig.slotType,
-          createdBy: req.user._id
-        });
-      } catch (slotError) {
-        // Don't fail project creation if slot creation fails
-      }
+    // ALWAYS create slots for new projects
+    try {
+      const slotManagementService = (await import('../services/slotManagementService.js')).default;
+      
+      await slotManagementService.createSlotsForProject(project._id, {
+        count: slotConfig.totalSlots,
+        slotType: slotConfig.slotType,
+        createdBy: req.user._id
+      });
+      
+      logger.info(`Created ${slotConfig.totalSlots} slots for project ${project._id}`);
+    } catch (slotError) {
+      logger.error('Error creating slots:', slotError);
+      // Don't fail project creation if slot creation fails
     }
 
     // SIMPLIFIED: No department updates needed

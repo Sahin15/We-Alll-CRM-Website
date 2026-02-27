@@ -12,6 +12,8 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
   const [newComment, setNewComment] = useState('');
   const [commentLoading, setCommentLoading] = useState(false);
   const [comments, setComments] = useState(workItem?.comments || []);
+  const [showCompletionDatePicker, setShowCompletionDatePicker] = useState(false);
+  const [completionDate, setCompletionDate] = useState('');
 
   // Reset comments when modal opens/closes
   React.useEffect(() => {
@@ -57,7 +59,7 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
     return colors[status] || 'secondary';
   };
 
-  const handleStatusUpdate = async (newStatus = status) => {
+  const handleStatusUpdate = async (newStatus = status, backDate = null) => {
     if (newStatus === workItem.status) {
       return;
     }
@@ -66,16 +68,27 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
     setStatus(newStatus); // Update local state immediately for better UX
     
     try {
-      await onUpdate(workItem._id, newStatus, workItem.type);
+      await onUpdate(workItem._id, newStatus, workItem.type, backDate);
       if (onRefresh) {
         onRefresh();
       }
+      // Reset completion date picker
+      setShowCompletionDatePicker(false);
+      setCompletionDate('');
     } catch (error) {
       console.error('Error updating status:', error);
       setStatus(workItem.status); // Revert on error
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDoneWithDate = () => {
+    if (!completionDate) {
+      toast.error('Please select a completion date');
+      return;
+    }
+    handleStatusUpdate('Done', completionDate);
   };
 
   const handleAddComment = async () => {
@@ -387,6 +400,56 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                         const isActive = workItem.status === statusOption;
                         if (isActive) return null;
                         
+                        // Special handling for "Done" status - show date picker option
+                        if (statusOption === 'Done') {
+                          return (
+                            <div key={statusOption} className="d-flex gap-2 align-items-center">
+                              <Button
+                                variant={getStatusColor(statusOption)}
+                                size="sm"
+                                onClick={() => {
+                                  if (!loading) {
+                                    handleStatusUpdate(statusOption);
+                                  }
+                                }}
+                                disabled={loading}
+                                style={{
+                                  borderRadius: '20px',
+                                  padding: '6px 16px',
+                                  fontSize: '0.85rem',
+                                  fontWeight: '500',
+                                  minWidth: '100px',
+                                  transition: 'all 0.2s ease'
+                                }}
+                              >
+                                {loading && status === statusOption ? (
+                                  <>
+                                    <span className="spinner-border spinner-border-sm me-2" style={{ width: '12px', height: '12px' }} />
+                                    Updating...
+                                  </>
+                                ) : (
+                                  statusOption
+                                )}
+                              </Button>
+                              <Button
+                                variant="outline-success"
+                                size="sm"
+                                onClick={() => setShowCompletionDatePicker(!showCompletionDatePicker)}
+                                disabled={loading}
+                                style={{
+                                  borderRadius: '20px',
+                                  padding: '6px 12px',
+                                  fontSize: '0.85rem',
+                                  fontWeight: '500'
+                                }}
+                                title="Mark as done with back date"
+                              >
+                                <FaCalendar />
+                              </Button>
+                            </div>
+                          );
+                        }
+                        
                         return (
                           <Button
                             key={statusOption}
@@ -419,6 +482,51 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                         );
                       })}
                     </div>
+                    
+                    {/* Back Date Completion Picker */}
+                    {showCompletionDatePicker && (
+                      <div className="mt-3 p-3" style={{ background: '#e8f5e9', borderRadius: '8px', border: '1px solid #4caf50' }}>
+                        <div className="mb-2">
+                          <small className="text-success fw-bold">
+                            <FaCalendar className="me-1" />
+                            Mark as completed with back date
+                          </small>
+                        </div>
+                        <div className="d-flex gap-2 align-items-center">
+                          <Form.Control
+                            type="date"
+                            size="sm"
+                            value={completionDate}
+                            onChange={(e) => setCompletionDate(e.target.value)}
+                            max={new Date().toISOString().split('T')[0]}
+                            style={{ maxWidth: '200px' }}
+                          />
+                          <Button
+                            variant="success"
+                            size="sm"
+                            onClick={handleDoneWithDate}
+                            disabled={!completionDate || loading}
+                            style={{ borderRadius: '20px', padding: '6px 16px' }}
+                          >
+                            {loading ? 'Updating...' : 'Confirm'}
+                          </Button>
+                          <Button
+                            variant="outline-secondary"
+                            size="sm"
+                            onClick={() => {
+                              setShowCompletionDatePicker(false);
+                              setCompletionDate('');
+                            }}
+                            style={{ borderRadius: '20px', padding: '6px 16px' }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                        <small className="text-muted d-block mt-2">
+                          💡 Use this to record work that was completed on a previous date
+                        </small>
+                      </div>
+                    )}
                   </>
                 )}
                 

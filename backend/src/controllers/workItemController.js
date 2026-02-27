@@ -599,7 +599,7 @@ const updateWorkItem = async (req, res) => {
 // @access  Private
 const updateWorkItemStatus = async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, completedAt } = req.body;
     
     if (!status) {
       return res.status(400).json({
@@ -658,6 +658,26 @@ const updateWorkItemStatus = async (req, res) => {
     // Update status using the model method
     workItem.status = status;
     workItem.modifiedBy = req.user._id;
+    
+    // Handle back date for completion
+    if (status === "Done" && completedAt) {
+      const completionDate = new Date(completedAt);
+      
+      // Validate date is not in the future
+      if (completionDate > new Date()) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "Completion date cannot be in the future",
+            field: "completedAt",
+          },
+        });
+      }
+      
+      // Set the back date
+      workItem.completedAt = completionDate;
+    }
     
     // Add automatic status change comment
     workItem.comments.push({
