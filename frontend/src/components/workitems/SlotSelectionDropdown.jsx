@@ -269,7 +269,7 @@ const SlotSelectionDropdown = ({
               value={slot._id}
               disabled={!isSlotSelectable(slot)}
             >
-              {slot.slotIdentifier} - {slot.title}
+              {slot.title || slot.slotIdentifier}
               {slot.estimatedEffort && ` (${slot.estimatedEffort}h)`}
               {!isSlotSelectable(slot) && ' [Not Available]'}
             </option>

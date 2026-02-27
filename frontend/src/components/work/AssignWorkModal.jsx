@@ -300,7 +300,7 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                       .sort((a, b) => a.slotNumber - b.slotNumber)
                       .map((slot) => (
                         <option key={slot._id} value={slot._id}>
-                          Slot {slot.slotNumber}{slot.title ? ` - ${slot.title}` : ''}
+                          {slot.title || `Slot ${slot.slotNumber}`}
                         </option>
                       ))}
                   </Form.Select>

@@ -53,13 +53,8 @@ const SlotGroupHeader = ({ slot, workItems = [], isExpanded, onToggle }) => {
         </div>
         <div className="d-flex align-items-center gap-2">
           <strong style={{ fontSize: '1.1rem', fontWeight: '600' }}>
-            Slot {slot.slotNumber}
+            {slot.title || `Slot ${slot.slotNumber}`}
           </strong>
-          {slot.title && (
-            <span style={{ opacity: 0.9, fontSize: '0.95rem' }}>
-              • {slot.title}
-            </span>
-          )}
         </div>
         <Badge 
           bg="light" 

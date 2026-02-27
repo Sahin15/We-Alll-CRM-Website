@@ -522,7 +522,7 @@ const BulkOperationsPanel = ({
                 <option value="">Select Target Slot</option>
                 {filteredSlots.filter(slot => slot.assignmentStatus === 'available').map(slot => (
                   <option key={slot._id} value={slot._id}>
-                    {slot.slotIdentifier} - {slot.title} 
+                    {slot.title || slot.slotIdentifier}
                     {slot.estimatedEffort && ` (${slot.estimatedEffort}h)`}
                   </option>
                 ))}
@@ -583,7 +583,7 @@ const BulkOperationsPanel = ({
                     value={slot._id}
                     disabled={slot.assignmentStatus === 'completed'}
                   >
-                    {slot.slotIdentifier} - {slot.title}
+                    {slot.title || slot.slotIdentifier}
                     {slot.assignmentStatus !== 'available' && ` [${slot.assignmentStatus}]`}
                   </option>
                 ))}
