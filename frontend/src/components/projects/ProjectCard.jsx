@@ -33,13 +33,11 @@ const ProjectCard = ({ project, onEdit }) => {
     const hasMinimalDescription = !project.description || 
       project.description === `Project for ${project.client?.name}` ||
       project.description === `Project for ${project.client?.name} (${project.client?.company})` ||
-      project.description.length < 50;
+      project.description.length < 20;
     
-    const isIncomplete = hasMinimalDescription ||
-      !project.budget || project.budget === 0 ||
-      !project.services || project.services.length === 0 ||
-      project.status === 'Pending' ||
-      !project.teamMembers || project.teamMembers.length === 0;
+    // Only mark as incomplete if it has minimal description AND no services
+    const isIncomplete = hasMinimalDescription && 
+      (!project.services || project.services.length === 0);
     
     return isIncomplete;
   };

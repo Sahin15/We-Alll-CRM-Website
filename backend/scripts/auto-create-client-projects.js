@@ -3,8 +3,11 @@ import dotenv from "dotenv";
 import Client from "../src/models/clientModel.js";
 import Project from "../src/models/projectModel.js";
 import User from "../src/models/userModel.js";
+import Slot from "../src/models/slotModel.js";
 
 dotenv.config();
+
+const DEFAULT_SLOT_COUNT = 5;
 
 /**
  * Auto-create projects for clients who don't have any
@@ -47,7 +50,7 @@ const autoCreateClientProjects = async () => {
       process.exit(1);
     }
 
-    console.log(`\n🚀 Creating ${clientsWithoutProjects.length} missing projects...\n`);
+    console.log(`\n🚀 Creating ${clientsWithoutProjects.length} missing projects with slot system...\n`);
 
     let successCount = 0;
     let errorCount = 0;
@@ -63,6 +66,7 @@ const autoCreateClientProjects = async () => {
           priority: 'medium',
           startDate: new Date(),
           createdBy: client.createdBy || defaultUser._id,
+          projectHead: client.createdBy || defaultUser._id,
           progress: 0,
           budget: 0,
           assignedUsers: [],
@@ -72,11 +76,49 @@ const autoCreateClientProjects = async () => {
           tasks: [],
           teamMembers: [],
           deliverables: [],
-          departments: []
+          departments: [],
+          // Enable slot system
+          slotConfiguration: {
+            enableSlotSystem: true,
+            totalSlots: DEFAULT_SLOT_COUNT,
+            slotType: 'generic',
+            autoCreateSlots: false
+          },
+          progressTracking: {
+            calculationMethod: 'slot-based',
+            totalSlots: DEFAULT_SLOT_COUNT,
+            completedSlots: 0
+          }
         };
 
         const project = await Project.create(projectData);
-        console.log(`✅ ${client.name} → "${project.name}"`);
+        
+        // Create slots for the project
+        for (let i = 1; i <= DEFAULT_SLOT_COUNT; i++) {
+          await Slot.create({
+            project: project._id,
+            client: client._id,
+            slotNumber: i,
+            slotIdentifier: `Slot ${i}`,
+            title: `Slot ${i} - ${project.name}`,
+            description: `Work slot ${i} for ${project.name}`,
+            slotType: 'work',
+            workType: 'Other',
+            priority: 'Medium',
+            assignmentStatus: 'available',
+            status: 'Pending',
+            createdBy: project.createdBy,
+            slotConfiguration: {
+              isRequired: false,
+              canBeSkipped: true,
+              requiresApproval: false,
+              estimatedEffort: 8,
+              weight: 1
+            }
+          });
+        }
+        
+        console.log(`✅ ${client.name} → "${project.name}" (with ${DEFAULT_SLOT_COUNT} slots)`);
         successCount++;
         
       } catch (error) {
@@ -87,6 +129,7 @@ const autoCreateClientProjects = async () => {
 
     console.log("\n" + "=".repeat(50));
     console.log(`✅ Successfully created: ${successCount} projects`);
+    console.log(`✅ Total slots created: ${successCount * DEFAULT_SLOT_COUNT}`);
     console.log(`❌ Failed: ${errorCount} projects`);
     console.log("=".repeat(50));
 
@@ -94,6 +137,7 @@ const autoCreateClientProjects = async () => {
       console.log("\n💡 New auto-generated projects will appear in the");
       console.log("   'Newly Created Projects - Needs Details' section");
       console.log("   on the projects page for easy completion.");
+      console.log(`\n✨ Each project has ${DEFAULT_SLOT_COUNT} slots ready for work assignment`);
     }
 
     process.exit(0);
