@@ -3729,11 +3729,20 @@ export const createSlotsForProject = async (req, res) => {
     const { projectId } = req.params;
     const { count, startingSlotNumber, slotType = 'work' } = req.body;
 
-    // Permission check
-    if (!['admin', 'superadmin', 'hr', 'manager', 'hod', 'hop'].includes(req.user.role)) {
+    // Permission check - Allow admin roles and project head
+    const isAdmin = ['admin', 'superadmin', 'hr', 'manager', 'hod', 'hop'].includes(req.user.role);
+    
+    // Check if user is project head
+    let isProjectHead = false;
+    if (!isAdmin) {
+      const project = await Project.findById(projectId).select('projectHead');
+      isProjectHead = project && project.projectHead && project.projectHead.toString() === req.user.id.toString();
+    }
+    
+    if (!isAdmin && !isProjectHead) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied. Insufficient permissions.'
+        message: 'Access denied. Only HR, Manager, Admin, SuperAdmin, or Project Head can create slots.'
       });
     }
 
@@ -4344,19 +4353,23 @@ export const deleteSlot = async (req, res) => {
   try {
     const { slotId } = req.params;
 
-    // Permission check
-    if (!['admin', 'superadmin', 'hr', 'manager', 'hod', 'hop'].includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Insufficient permissions.'
-      });
-    }
-
-    const slot = await Slot.findById(slotId);
+    const slot = await Slot.findById(slotId).populate('project', 'projectHead');
     if (!slot) {
       return res.status(404).json({
         success: false,
         message: 'Slot not found'
+      });
+    }
+
+    // Permission check - Allow admin roles and project head
+    const isAdmin = ['admin', 'superadmin', 'hr', 'manager', 'hod', 'hop'].includes(req.user.role);
+    const isProjectHead = slot.project && slot.project.projectHead && 
+                          slot.project.projectHead.toString() === req.user.id.toString();
+    
+    if (!isAdmin && !isProjectHead) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Only HR, Manager, Admin, SuperAdmin, or Project Head can delete slots.'
       });
     }
 
@@ -4392,19 +4405,28 @@ export const createSlot = async (req, res) => {
   try {
     const slotData = req.body;
 
-    // Permission check
-    if (!['admin', 'superadmin', 'hr', 'manager', 'hod', 'hop'].includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Insufficient permissions.'
-      });
-    }
-
     // Validate required fields
     if (!slotData.project || !slotData.slotNumber) {
       return res.status(400).json({
         success: false,
         message: 'Project and slot number are required'
+      });
+    }
+
+    // Permission check - Allow admin roles and project head
+    const isAdmin = ['admin', 'superadmin', 'hr', 'manager', 'hod', 'hop'].includes(req.user.role);
+    
+    // Check if user is project head
+    let isProjectHead = false;
+    if (!isAdmin) {
+      const project = await Project.findById(slotData.project).select('projectHead');
+      isProjectHead = project && project.projectHead && project.projectHead.toString() === req.user.id.toString();
+    }
+    
+    if (!isAdmin && !isProjectHead) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Only HR, Manager, Admin, SuperAdmin, or Project Head can create slots.'
       });
     }
 

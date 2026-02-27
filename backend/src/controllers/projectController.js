@@ -107,7 +107,7 @@ export const createProject = async (req, res) => {
     }
 
     // Initialize slot configuration - ALWAYS ENABLED
-    const DEFAULT_SLOT_COUNT = 5;
+    const DEFAULT_SLOT_COUNT = 20;
     const slotConfig = {
       totalSlots: totalSlots || DEFAULT_SLOT_COUNT,
       slotType: slotType || 'generic',

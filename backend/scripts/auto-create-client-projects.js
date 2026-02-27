@@ -7,7 +7,7 @@ import Slot from "../src/models/slotModel.js";
 
 dotenv.config();
 
-const DEFAULT_SLOT_COUNT = 5;
+const DEFAULT_SLOT_COUNT = 20;
 
 /**
  * Auto-create projects for clients who don't have any
