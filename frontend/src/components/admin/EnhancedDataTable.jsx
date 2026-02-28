@@ -1016,7 +1016,15 @@ const EnhancedDataTable = ({
                       else if (column.key.includes('assignedTo') || column.key.includes('employee')) cellClass = 'employee-name';
                       else if (column.key.includes('department')) cellClass = 'department-name';
                       else if (column.key === 'status') cellClass = 'status-cell text-center';
-                      else if (column.key === 'priority') cellClass = 'priority-cell text-center';
+                      else if (column.key === 'priority') {
+                        const priorityValue = getNestedValue(row, column.key);
+                        // Add priority class for text color styling
+                        if (priorityValue) {
+                          cellClass = `text-center priority-${priorityValue}`;
+                        } else {
+                          cellClass = 'text-center';
+                        }
+                      }
                       else if (column.type === 'date' || column.type === 'datetime') cellClass = 'date-cell text-center';
                       else if (column.type === 'number') cellClass = 'number-cell text-right';
                       else if (column.type === 'percentage') cellClass = 'percentage-cell text-center';

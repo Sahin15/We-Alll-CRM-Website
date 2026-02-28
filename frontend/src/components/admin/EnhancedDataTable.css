@@ -582,23 +582,51 @@
   background: #dc3545;
 }
 
-/* Priority Indicators */
-.priority-urgent {
-  color: #dc3545;
+/* Priority Indicators - Text color only (no background) */
+.enhanced-table tbody tr td.priority-urgent,
+.enhanced-table tbody tr:nth-child(odd) td.priority-urgent,
+.enhanced-table tbody tr:nth-child(even) td.priority-urgent,
+.enhanced-table tbody tr:hover td.priority-urgent,
+.enhanced-table tbody tr:nth-child(even):hover td.priority-urgent,
+.enhanced-table tbody tr.table-active td.priority-urgent {
+  color: #dc3545 !important;
   font-weight: 600;
 }
 
-.priority-high {
-  color: #fd7e14;
+.enhanced-table tbody tr td.priority-high,
+.enhanced-table tbody tr:nth-child(odd) td.priority-high,
+.enhanced-table tbody tr:nth-child(even) td.priority-high,
+.enhanced-table tbody tr:hover td.priority-high,
+.enhanced-table tbody tr:nth-child(even):hover td.priority-high,
+.enhanced-table tbody tr.table-active td.priority-high {
+  color: #fd7e14 !important;
   font-weight: 500;
 }
 
-.priority-medium {
-  color: #17a2b8;
+.enhanced-table tbody tr td.priority-medium,
+.enhanced-table tbody tr:nth-child(odd) td.priority-medium,
+.enhanced-table tbody tr:nth-child(even) td.priority-medium,
+.enhanced-table tbody tr:hover td.priority-medium,
+.enhanced-table tbody tr:nth-child(even):hover td.priority-medium,
+.enhanced-table tbody tr.table-active td.priority-medium {
+  color: #17a2b8 !important;
 }
 
-.priority-low {
-  color: #6c757d;
+.enhanced-table tbody tr td.priority-low,
+.enhanced-table tbody tr:nth-child(odd) td.priority-low,
+.enhanced-table tbody tr:nth-child(even) td.priority-low,
+.enhanced-table tbody tr:hover td.priority-low,
+.enhanced-table tbody tr:nth-child(even):hover td.priority-low,
+.enhanced-table tbody tr.table-active td.priority-low {
+  color: #6c757d !important;
+}
+
+/* Ensure priority text color applies to all children */
+.enhanced-table tbody tr td.priority-urgent *,
+.enhanced-table tbody tr td.priority-high *,
+.enhanced-table tbody tr td.priority-medium *,
+.enhanced-table tbody tr td.priority-low * {
+  color: inherit !important;
 }
 
 /* Workload Impact */

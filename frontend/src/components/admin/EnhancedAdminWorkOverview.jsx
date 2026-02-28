@@ -697,6 +697,7 @@ const EnhancedAdminWorkOverview = () => {
         
         const dueDate = moment(row.dueDate);
         const now = moment();
+        const isCompleted = row.status === 'completed' || row.status === 'Done';
         const isOverdue = dueDate.isBefore(now, 'day');
         const isDueToday = dueDate.isSame(now, 'day');
         const isDueTomorrow = dueDate.isSame(moment().add(1, 'day'), 'day');
@@ -704,13 +705,23 @@ const EnhancedAdminWorkOverview = () => {
         let className = '';
         let prefix = '';
         
-        if (isOverdue) {
+        // If completed, show green
+        if (isCompleted) {
+          className = 'text-success fw-bold';
+          prefix = '✓ ';
+        }
+        // If not completed and overdue, show red
+        else if (isOverdue) {
           className = 'text-danger fw-bold';
           prefix = '⚠️ ';
-        } else if (isDueToday) {
+        } 
+        // If not completed and due today, show orange
+        else if (isDueToday) {
           className = 'text-warning fw-bold';
           prefix = '🔥 ';
-        } else if (isDueTomorrow) {
+        } 
+        // If not completed and due tomorrow, show blue
+        else if (isDueTomorrow) {
           className = 'text-info fw-bold';
           prefix = '📅 ';
         }
@@ -986,17 +997,12 @@ const EnhancedAdminWorkOverview = () => {
   // Enhance work entries with slot data
   const enhanceWorkEntriesWithSlotData = useCallback((workEntries) => {
     return workEntries.map(entry => {
-      // Add slot assignment data if available
-      const slotAssignment = {
-        slotNumber: entry.slotAssignment?.slotNumber || null,
-        assignedSlot: entry.slotAssignment?.assignedSlot || null
-      };
-
+      // Preserve the original slotAssignment structure
+      // Don't create a new object that might lose data
       return {
         ...entry,
-        slotAssignment,
         // Add computed slot-related fields for filtering and display
-        hasSlotAssignment: slotAssignment.slotNumber ? 'assigned' : 'unassigned'
+        hasSlotAssignment: entry.slotAssignment?.slotNumber ? 'assigned' : 'unassigned'
       };
     });
   }, []);

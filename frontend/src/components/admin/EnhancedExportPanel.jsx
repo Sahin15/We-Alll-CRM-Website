@@ -216,6 +216,12 @@ const EnhancedExportPanel = ({
         entryCount: workData.length
       };
 
+      console.log('Export request:', {
+        format: exportConfig.format,
+        userRole: user?.role,
+        hasAuth: !!localStorage.getItem('token')
+      });
+
       const response = await workCalendarApi.exportWorkData(exportData);
 
       if (exportData.backgroundProcessing && workData.length > 100) {
