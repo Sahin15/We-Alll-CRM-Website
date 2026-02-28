@@ -21,21 +21,24 @@ const VAPID_KEY = "BMs-lW78BILD1_zH8LnF3Ka3RQyQZr-89U8HphMqdBGPcLBekJ66LQvPYQMRR
 let app, messaging;
 let firebaseInitialized = false;
 
-try {
-  // Check if Firebase is supported (iOS Safari has limited support)
-  if (typeof window !== 'undefined' && 'indexedDB' in window) {
-    app = initializeApp(firebaseConfig);
-    messaging = getMessaging(app);
-    firebaseInitialized = true;
-    console.log('✅ Firebase initialized successfully');
-  } else {
-    console.warn('⚠️ Firebase not supported in this browser');
+// Delay Firebase initialization to not block app startup
+setTimeout(() => {
+  try {
+    // Check if Firebase is supported (iOS Safari has limited support)
+    if (typeof window !== 'undefined' && 'indexedDB' in window) {
+      app = initializeApp(firebaseConfig);
+      messaging = getMessaging(app);
+      firebaseInitialized = true;
+      console.log('✅ Firebase initialized successfully');
+    } else {
+      console.warn('⚠️ Firebase not supported in this browser');
+    }
+  } catch (error) {
+    console.error('❌ Firebase initialization failed:', error);
+    // Don't throw - allow app to continue without Firebase
+    firebaseInitialized = false;
   }
-} catch (error) {
-  console.error('❌ Firebase initialization failed:', error);
-  // Don't throw - allow app to continue without Firebase
-  firebaseInitialized = false;
-}
+}, 100); // Delay 100ms to let app initialize first
 
 class NotificationService {
   constructor() {

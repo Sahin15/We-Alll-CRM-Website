@@ -6,9 +6,19 @@ const NotificationInitializer = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    if (user && notificationService.isNotificationSupported()) {
-      initializeNotifications();
-    }
+    // Add delay and safety checks for iOS
+    const timer = setTimeout(() => {
+      try {
+        if (user && notificationService && notificationService.isNotificationSupported()) {
+          initializeNotifications();
+        }
+      } catch (error) {
+        console.error('Error in notification initializer:', error);
+        // Silently fail - don't block app
+      }
+    }, 2000); // Wait 2 seconds after user is loaded
+
+    return () => clearTimeout(timer);
   }, [user]);
 
   const initializeNotifications = async () => {
@@ -18,7 +28,11 @@ const NotificationInitializer = () => {
       if (permission === 'default') {
         // Show custom permission prompt after 3 seconds
         setTimeout(() => {
-          notificationService.showPermissionPrompt();
+          try {
+            notificationService.showPermissionPrompt();
+          } catch (error) {
+            console.error('Error showing permission prompt:', error);
+          }
         }, 3000);
       } else if (permission === 'granted' && !notificationService.isServiceInitialized()) {
         // Initialize messaging if already granted and not initialized
@@ -26,6 +40,7 @@ const NotificationInitializer = () => {
       }
     } catch (error) {
       console.error('Error initializing notifications:', error);
+      // Silently fail - don't block app
     }
   };
 
