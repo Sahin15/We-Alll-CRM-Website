@@ -17,19 +17,30 @@ const firebaseConfig = {
 // VAPID Key for push notifications
 const VAPID_KEY = "BMs-lW78BILD1_zH8LnF3Ka3RQyQZr-89U8HphMqdBGPcLBekJ66LQvPYQMRRvQnQSrisJ2P2KfCydvWfB7a9Ps";
 
-// Initialize Firebase
+// Initialize Firebase - wrapped to prevent blocking on iOS
 let app, messaging;
+let firebaseInitialized = false;
+
 try {
-  app = initializeApp(firebaseConfig);
-  messaging = getMessaging(app);
+  // Check if Firebase is supported (iOS Safari has limited support)
+  if (typeof window !== 'undefined' && 'indexedDB' in window) {
+    app = initializeApp(firebaseConfig);
+    messaging = getMessaging(app);
+    firebaseInitialized = true;
+    console.log('✅ Firebase initialized successfully');
+  } else {
+    console.warn('⚠️ Firebase not supported in this browser');
+  }
 } catch (error) {
   console.error('❌ Firebase initialization failed:', error);
+  // Don't throw - allow app to continue without Firebase
+  firebaseInitialized = false;
 }
 
 class NotificationService {
   constructor() {
-    this.isSupported = 'serviceWorker' in navigator && 'Notification' in window && messaging;
-    this.permission = Notification.permission;
+    this.isSupported = firebaseInitialized && 'serviceWorker' in navigator && 'Notification' in window && messaging;
+    this.permission = typeof Notification !== 'undefined' ? Notification.permission : 'denied';
     this.fcmToken = null;
     this.isInitialized = false;
   }
@@ -62,8 +73,15 @@ class NotificationService {
   // Initialize Firebase messaging
   async initializeMessaging() {
     try {
-      if (!messaging) {
-        throw new Error('Firebase messaging not initialized');
+      if (!firebaseInitialized || !messaging) {
+        console.warn('Firebase not initialized, skipping messaging setup');
+        return false;
+      }
+
+      // Check if service worker is supported (iOS Safari has limited support)
+      if (!('serviceWorker' in navigator)) {
+        console.warn('Service Worker not supported');
+        return false;
       }
 
       // Prevent multiple initializations
