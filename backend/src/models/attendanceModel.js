@@ -14,7 +14,21 @@ const attendanceSchema = new mongoose.Schema(
     },
     clockIn: {
       type: Date,
-      required: [true, "Clock-in time is required"],
+      required: function() {
+        // clockIn is only required if status is not 'on-leave'
+        return this.status !== 'on-leave';
+      },
+      validate: {
+        validator: function(value) {
+          // If status is 'on-leave', clockIn can be null/undefined
+          if (this.status === 'on-leave') {
+            return true;
+          }
+          // Otherwise, clockIn must be present
+          return value != null;
+        },
+        message: 'Clock-in time is required for non-leave attendance records'
+      }
     },
     clockOut: {
       type: Date,
@@ -437,6 +451,17 @@ attendanceSchema.pre("save", function (next) {
   try {
     console.log(`[ATTENDANCE] PRE-SAVE: Processing attendance record...`);
     console.log(`[ATTENDANCE] PRE-SAVE: Current status: ${this.status}, clockIn: ${this.clockIn}, isManuallyModified: ${this.isManuallyModified}`);
+    
+    // Special handling for on-leave status
+    if (this.status === 'on-leave') {
+      console.log(`[ATTENDANCE] PRE-SAVE: On-leave record - skipping clockIn validation and calculations`);
+      // Ensure work hours are 0 for leave records
+      this.workHours = 0;
+      this.overtime = 0;
+      this.totalBreakTime = 0;
+      next();
+      return;
+    }
     
     // 1. ALWAYS calculate status based on clockIn time (unless manually set to absent/on-leave)
     if (this.clockIn) {
