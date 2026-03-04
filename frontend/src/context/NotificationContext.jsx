@@ -140,15 +140,27 @@ export const NotificationProvider = ({ children }) => {
     
     // Check if notifications are already enabled
     const initRealTime = async () => {
+      // iOS Safari detection - skip Firebase initialization
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      const isStandalone = window.navigator.standalone === true;
+      
+      if (isIOS && isSafari && !isStandalone) {
+        console.log('📱 iOS Safari detected - Push notifications disabled for compatibility');
+        return; // Skip Firebase initialization on iOS Safari
+      }
+      
       const permission = notificationService.getPermissionStatus();
       if (permission === 'granted') {
         setRealTimeEnabled(true);
         // Only initialize if not already initialized
         if (!notificationService.isServiceInitialized()) {
           try {
+            // Silent initialization - errors are handled internally
             await notificationService.initializeMessaging();
           } catch (error) {
-            console.error("Error initializing messaging:", error);
+            // Silently fail - Firebase is optional
+            console.debug("Firebase messaging not available");
           }
         }
       }

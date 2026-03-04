@@ -180,6 +180,27 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       ],
     },
     {
+      id: "daily-work-log",
+      icon: <FaClipboardList />,
+      label: "Daily Work Log",
+      roles: ["employee", "admin", "superadmin", "hr", "hod", "manager"],
+      isGroup: true,
+      children: [
+        {
+          path: "/worklog/today",
+          icon: <FaClock />,
+          label: "Today's Log",
+          roles: ["employee", "admin", "superadmin", "hr", "hod", "manager"],
+        },
+        {
+          path: "/worklog/history",
+          icon: <FaCalendarAlt />,
+          label: "Log History",
+          roles: ["employee", "admin", "superadmin", "hr", "hod", "manager"],
+        },
+      ],
+    },
+    {
       path: "/projects",
       icon: <FaProjectDiagram />,
       label: "Projects",
@@ -250,6 +271,12 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           path: "/departments",
           icon: <FaBuilding />,
           label: "Departments",
+          roles: ["admin", "superadmin", "hr", "manager"],
+        },
+        {
+          path: "/admin/worklog-management",
+          icon: <FaClipboardList />,
+          label: "Work Log Management",
           roles: ["admin", "superadmin", "hr", "manager"],
         },
       ],

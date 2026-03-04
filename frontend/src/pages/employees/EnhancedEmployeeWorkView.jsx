@@ -23,7 +23,8 @@ import {
   FaExclamationTriangle,
   FaCheckCircle,
   FaFileExport,
-  FaCog
+  FaCog,
+  FaClipboardList
 } from 'react-icons/fa';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -32,6 +33,7 @@ import workCalendarApi from '../../api/workCalendarApi';
 import workItemApi from '../../api/workItemApi';
 import projectApi from '../../api/projectApi';
 import EmployeeWorkCalendar from '../../components/calendar/EmployeeWorkCalendar';
+import EmployeeWorkLogsTab from '../../components/worklog/EmployeeWorkLogsTab';
 import moment from 'moment';
 import './EnhancedEmployeeWorkView.css';
 
@@ -219,6 +221,12 @@ const EnhancedEmployeeWorkView = () => {
                 <Nav.Link eventKey="projects" className="d-flex align-items-center">
                   <FaProjectDiagram className="me-2" />
                   Project Details
+                </Nav.Link>
+              </Nav.Item>
+              <Nav.Item>
+                <Nav.Link eventKey="worklogs" className="d-flex align-items-center">
+                  <FaClipboardList className="me-2" />
+                  Work Logs
                 </Nav.Link>
               </Nav.Item>
             </Nav>
@@ -1223,6 +1231,14 @@ const EnhancedEmployeeWorkView = () => {
                     </Card>
                   </Col>
                 </Row>
+              </Tab.Pane>
+
+              {/* Work Logs Tab */}
+              <Tab.Pane eventKey="worklogs">
+                <EmployeeWorkLogsTab 
+                  employeeId={currentEmployeeId}
+                  employeeName={employeeData?.name || 'Employee'}
+                />
               </Tab.Pane>
             </Tab.Content>
           </Card.Body>

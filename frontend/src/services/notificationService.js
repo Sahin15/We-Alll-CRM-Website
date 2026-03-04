@@ -17,28 +17,67 @@ const firebaseConfig = {
 // VAPID Key for push notifications
 const VAPID_KEY = "BMs-lW78BILD1_zH8LnF3Ka3RQyQZr-89U8HphMqdBGPcLBekJ66LQvPYQMRRvQnQSrisJ2P2KfCydvWfB7a9Ps";
 
-// Initialize Firebase - wrapped to prevent blocking on iOS
+// Initialize Firebase - LAZY LOADED, iOS-safe
 let app, messaging;
 let firebaseInitialized = false;
+let firebaseInitPromise = null;
 
-// Delay Firebase initialization to not block app startup
-setTimeout(() => {
-  try {
-    // Check if Firebase is supported (iOS Safari has limited support)
-    if (typeof window !== 'undefined' && 'indexedDB' in window) {
-      app = initializeApp(firebaseConfig);
-      messaging = getMessaging(app);
-      firebaseInitialized = true;
-      console.log('✅ Firebase initialized successfully');
+// Initialize Firebase with promise for proper async handling
+// IMPORTANT: This is NOT called automatically - only when needed
+const initializeFirebase = () => {
+  if (firebaseInitPromise) return firebaseInitPromise;
+  
+  firebaseInitPromise = new Promise((resolve) => {
+    // Use requestIdleCallback for better iOS compatibility
+    const initFn = () => {
+      try {
+        // iOS Safari compatibility checks
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const isStandalone = window.navigator.standalone === true;
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        
+        // Skip Firebase on iOS Safari (limited support)
+        if (isIOS && isSafari && !isStandalone) {
+          console.log('📱 iOS Safari detected - Firebase disabled for compatibility');
+          resolve(false);
+          return;
+        }
+        
+        // Check if Firebase is supported
+        if (typeof window === 'undefined' || !('indexedDB' in window)) {
+          console.log('⚠️ Firebase not supported in this browser');
+          resolve(false);
+          return;
+        }
+        
+        // Initialize Firebase
+        app = initializeApp(firebaseConfig);
+        messaging = getMessaging(app);
+        firebaseInitialized = true;
+        console.log('✅ Firebase initialized successfully');
+        resolve(true);
+      } catch (error) {
+        console.log('ℹ️ Firebase initialization skipped:', error.message);
+        // Don't throw - allow app to continue without Firebase
+        firebaseInitialized = false;
+        resolve(false);
+      }
+    };
+    
+    // Use requestIdleCallback if available (better for iOS)
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(initFn, { timeout: 2000 });
     } else {
-      console.warn('⚠️ Firebase not supported in this browser');
+      // Fallback to setTimeout with longer delay for iOS
+      setTimeout(initFn, 500);
     }
-  } catch (error) {
-    console.error('❌ Firebase initialization failed:', error);
-    // Don't throw - allow app to continue without Firebase
-    firebaseInitialized = false;
-  }
-}, 100); // Delay 100ms to let app initialize first
+  });
+  
+  return firebaseInitPromise;
+};
+
+// DO NOT initialize automatically - let it be lazy loaded
+// initializeFirebase(); // ❌ REMOVED - This was blocking iOS
 
 class NotificationService {
   constructor() {
@@ -76,8 +115,11 @@ class NotificationService {
   // Initialize Firebase messaging
   async initializeMessaging() {
     try {
+      // Wait for Firebase to be initialized
+      await initializeFirebase();
+      
       if (!firebaseInitialized || !messaging) {
-        console.warn('Firebase not initialized, skipping messaging setup');
+        // Silent return - no warning needed as this is expected behavior
         return false;
       }
 

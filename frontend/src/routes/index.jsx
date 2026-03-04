@@ -72,6 +72,11 @@ import MyAttendance from "../pages/attendance/MyAttendance";
 import AttendanceTracking from "../pages/attendance/AttendanceTracking";
 import OvertimeStatistics from "../pages/attendance/OvertimeStatistics";
 
+// Work Log Pages
+import MyWorkLog from "../pages/worklog/MyWorkLog";
+import WorkLogHistory from "../pages/worklog/WorkLogHistory";
+import WorkLogManagement from "../pages/worklog/WorkLogManagement";
+
 // Client Pages
 import ClientList from "../pages/clients/ClientList";
 import ClientDetails from "../pages/clients/ClientDetails";
@@ -299,6 +304,18 @@ const AppRoutes = () => {
           element={
             <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
               <OvertimeStatistics />
+            </RoleBasedRoute>
+          }
+        />
+
+        {/* Work Log Management */}
+        <Route path="/worklog/today" element={<MyWorkLog />} />
+        <Route path="/worklog/history" element={<WorkLogHistory />} />
+        <Route
+          path="/admin/worklog-management"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <WorkLogManagement />
             </RoleBasedRoute>
           }
         />

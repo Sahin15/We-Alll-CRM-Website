@@ -11,6 +11,7 @@ import ConfirmModal from "../../components/common/ConfirmModal";
 import HoDSection from "../../components/dashboard/HoDSection";
 import HoPSection from "../../components/dashboard/HoPSection";
 import QuickAnnouncements from "../../components/dashboard/QuickAnnouncements";
+import WorkLogSubmissionModal from "../../components/worklog/WorkLogSubmissionModal";
 import "../../styles/dashboard-mobile.css";
 import "../../styles/modal-mobile.css";
 
@@ -93,6 +94,7 @@ const EmployeeDashboard = () => {
   const [showWorkHoursModal, setShowWorkHoursModal] = useState(false);
   const [showClockInConfirm, setShowClockInConfirm] = useState(false);
   const [showClockOutConfirm, setShowClockOutConfirm] = useState(false);
+  const [showWorkLogModal, setShowWorkLogModal] = useState(false);
   const [clockActionLoading, setClockActionLoading] = useState(false);
   
   const [leaveFormData, setLeaveFormData] = useState({
@@ -491,8 +493,12 @@ const EmployeeDashboard = () => {
       console.error("Error clocking out:", error);
       const errorType = error.response?.data?.type;
       const clockOutTime = error.response?.data?.clockOutTime;
+      const workLogRequired = error.response?.data?.workLogRequired;
       
-      if (errorType === 'already_clocked_out') {
+      if (workLogRequired) {
+        // Show work log modal
+        setShowWorkLogModal(true);
+      } else if (errorType === 'already_clocked_out') {
         const time = clockOutTime ? new Date(clockOutTime).toLocaleTimeString('en-US', {
           hour: '2-digit',
           minute: '2-digit'
@@ -506,6 +512,60 @@ const EmployeeDashboard = () => {
         const errorMessage = error.response?.data?.message || "Failed to clock out. Please try again.";
         toast.error(errorMessage);
       }
+    } finally {
+      setClockActionLoading(false);
+    }
+  };
+
+  const handleWorkLogSubmit = async (workLog) => {
+    // After work log is submitted, proceed with clock-out
+    try {
+      setClockActionLoading(true);
+      const response = await api.post("/attendance/clock-out");
+      const attendance = response.data.attendance || response.data;
+      
+      updateClockedIn(false);
+      updateClockInTime(null);
+      toast.clockOut();
+      
+      // Trigger event for other components
+      window.dispatchEvent(new CustomEvent('attendanceUpdate', { 
+        detail: { type: 'clockOut', data: attendance } 
+      }));
+      
+      // Refresh dashboard data
+      fetchDashboardData();
+      setShowWorkLogModal(false);
+    } catch (error) {
+      console.error("Error clocking out after work log:", error);
+      toast.error("Failed to clock out. Please try again.");
+    } finally {
+      setClockActionLoading(false);
+    }
+  };
+
+  const handleWorkLogSkip = async () => {
+    // Manager skip - proceed with clock-out without work log
+    try {
+      setClockActionLoading(true);
+      const response = await api.post("/attendance/clock-out");
+      const attendance = response.data.attendance || response.data;
+      
+      updateClockedIn(false);
+      updateClockInTime(null);
+      toast.clockOut();
+      
+      // Trigger event for other components
+      window.dispatchEvent(new CustomEvent('attendanceUpdate', { 
+        detail: { type: 'clockOut', data: attendance } 
+      }));
+      
+      // Refresh dashboard data
+      fetchDashboardData();
+      setShowWorkLogModal(false);
+    } catch (error) {
+      console.error("Error clocking out (skip):", error);
+      toast.error("Failed to clock out. Please try again.");
     } finally {
       setClockActionLoading(false);
     }
@@ -2223,6 +2283,14 @@ const EmployeeDashboard = () => {
         additionalInfo={clockInTime && (
           <><strong>Clock In Time:</strong> {formatTime(clockInTime)}</>
         )}
+      />
+
+      {/* Work Log Submission Modal */}
+      <WorkLogSubmissionModal
+        show={showWorkLogModal}
+        onHide={() => setShowWorkLogModal(false)}
+        onSubmit={handleWorkLogSubmit}
+        onSkip={handleWorkLogSkip}
       />
     </Container>
   );

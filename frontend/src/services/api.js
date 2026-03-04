@@ -64,6 +64,7 @@ api.interceptors.response.use(
     const expectedNotFoundEndpoints = [
       '/salary-structures/employee/',
       '/salary-slips/employee/',
+      '/worklogs/today', // Work log for today may not exist yet
     ];
     
     // List of endpoints where 403 is expected (permission-based access)

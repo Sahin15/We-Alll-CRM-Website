@@ -24,7 +24,9 @@ import { toast } from "react-toastify";
 import { attendanceApi } from "../../api/attendanceApi";
 import { formatDate, formatDateTime, formatTime, getStatusVariant } from "../../utils/helpers";
 import ConfirmModal from "../../components/common/ConfirmModal";
+import WorkLogSubmissionModal from "../../components/worklog/WorkLogSubmissionModal";
 import MyOvertimeHistory from "../../components/attendance/MyOvertimeHistory";
+import { workLogApi } from "../../api/workLogApi";
 import * as XLSX from "xlsx";
 import "../../styles/table-mobile.css";
 import "../../styles/modal-mobile.css";
@@ -46,6 +48,9 @@ const MyAttendance = () => {
   // Break details modal state
   const [showBreakDetailsModal, setShowBreakDetailsModal] = useState(false);
   const [selectedBreakDetails, setSelectedBreakDetails] = useState(null);
+  
+  // Work log modal state
+  const [showWorkLogModal, setShowWorkLogModal] = useState(false);
 
   useEffect(() => {
     fetchTodayAttendance();
@@ -160,6 +165,44 @@ const MyAttendance = () => {
       toast.success("Clocked out successfully!");
       await fetchTodayAttendance();
       await fetchAttendance();
+    } catch (error) {
+      // Check if work log is required
+      if (error.response?.data?.workLogRequired) {
+        setShowWorkLogModal(true);
+        // Modal will guide user - no need for toast
+      } else {
+        toast.error(error.response?.data?.message || "Failed to clock out");
+      }
+    } finally {
+      setClockingIn(false);
+    }
+  };
+
+  const handleWorkLogSubmit = async (workLog) => {
+    // After work log is submitted, proceed with clock-out
+    try {
+      setClockingIn(true);
+      await attendanceApi.clockOut("End of day");
+      toast.success("Clocked out successfully!");
+      await fetchTodayAttendance();
+      await fetchAttendance();
+      setShowWorkLogModal(false);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to clock out");
+    } finally {
+      setClockingIn(false);
+    }
+  };
+
+  const handleWorkLogSkip = async () => {
+    // Manager skip - proceed with clock-out without work log
+    try {
+      setClockingIn(true);
+      await attendanceApi.clockOut("End of day");
+      toast.success("Clocked out successfully!");
+      await fetchTodayAttendance();
+      await fetchAttendance();
+      setShowWorkLogModal(false);
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to clock out");
     } finally {
@@ -746,6 +789,14 @@ const MyAttendance = () => {
         additionalInfo={todayAttendance?.clockIn && (
           <><strong>Clock In Time:</strong> {formatTime(todayAttendance.clockIn)}</>
         )}
+      />
+
+      {/* Work Log Submission Modal */}
+      <WorkLogSubmissionModal
+        show={showWorkLogModal}
+        onHide={() => setShowWorkLogModal(false)}
+        onSubmit={handleWorkLogSubmit}
+        onSkip={handleWorkLogSkip}
       />
     </Container>
   );

@@ -4,6 +4,7 @@ import { FaClock, FaSignInAlt, FaSignOutAlt, FaPause, FaPlay } from "react-icons
 import toast from "../../utils/toast";
 import api from "../../services/api";
 import OvertimeTimer from "./OvertimeTimer";
+import WorkLogSubmissionModal from "../worklog/WorkLogSubmissionModal";
 
 const QuickClockInOut = ({ variant = "light", size = "sm", showLabel = true }) => {
   const [loading, setLoading] = useState(false);
@@ -11,6 +12,7 @@ const QuickClockInOut = ({ variant = "light", size = "sm", showLabel = true }) =
   const [showConfirm, setShowConfirm] = useState(false);
   const [action, setAction] = useState(null);
   const [isOnBreak, setIsOnBreak] = useState(false);
+  const [showWorkLogModal, setShowWorkLogModal] = useState(false);
 
   useEffect(() => {
     fetchTodayAttendance();
@@ -121,8 +123,13 @@ const QuickClockInOut = ({ variant = "light", size = "sm", showLabel = true }) =
       console.error("Clock out error:", error);
       const errorType = error.response?.data?.type;
       const clockOutTime = error.response?.data?.clockOutTime;
+      const workLogRequired = error.response?.data?.workLogRequired;
       
-      if (errorType === 'already_clocked_out') {
+      if (workLogRequired) {
+        // Show work log modal instead of error
+        setShowConfirm(false);
+        setShowWorkLogModal(true);
+      } else if (errorType === 'already_clocked_out') {
         const time = clockOutTime ? new Date(clockOutTime).toLocaleTimeString('en-GB', {
           hour: '2-digit',
           minute: '2-digit',
@@ -131,13 +138,15 @@ const QuickClockInOut = ({ variant = "light", size = "sm", showLabel = true }) =
         toast.alreadyClockedOut(time);
         // Refresh attendance data
         fetchTodayAttendance();
+        setShowConfirm(false);
       } else if (errorType === 'not_clocked_in') {
         toast.notClockedIn();
+        setShowConfirm(false);
       } else {
         const errorMessage = error.response?.data?.message || "Failed to clock out. Please try again.";
         toast.error(errorMessage);
+        setShowConfirm(false);
       }
-      setShowConfirm(false);
     } finally {
       setLoading(false);
     }
@@ -186,6 +195,54 @@ const QuickClockInOut = ({ variant = "light", size = "sm", showLabel = true }) =
       const errorMessage = error.response?.data?.message || "Failed to end break. Please try again.";
       toast.error(errorMessage);
       setShowConfirm(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleWorkLogSubmit = async (workLog) => {
+    // After work log is submitted, proceed with clock-out
+    try {
+      setLoading(true);
+      const response = await api.post("/attendance/clock-out");
+      toast.clockOut();
+      const attendanceData = response.data.attendance || response.data;
+      setTodayAttendance(attendanceData);
+      setIsOnBreak(false);
+      
+      // Trigger event for other components to update
+      window.dispatchEvent(new CustomEvent('attendanceUpdate', { 
+        detail: { type: 'clockOut', data: attendanceData } 
+      }));
+      
+      setShowWorkLogModal(false);
+    } catch (error) {
+      console.error("Error clocking out after work log:", error);
+      toast.error("Failed to clock out. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleWorkLogSkip = async () => {
+    // Manager skip - proceed with clock-out without work log
+    try {
+      setLoading(true);
+      const response = await api.post("/attendance/clock-out");
+      toast.clockOut();
+      const attendanceData = response.data.attendance || response.data;
+      setTodayAttendance(attendanceData);
+      setIsOnBreak(false);
+      
+      // Trigger event for other components to update
+      window.dispatchEvent(new CustomEvent('attendanceUpdate', { 
+        detail: { type: 'clockOut', data: attendanceData } 
+      }));
+      
+      setShowWorkLogModal(false);
+    } catch (error) {
+      console.error("Error clocking out (skip):", error);
+      toast.error("Failed to clock out. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -581,6 +638,14 @@ const QuickClockInOut = ({ variant = "light", size = "sm", showLabel = true }) =
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Work Log Submission Modal */}
+      <WorkLogSubmissionModal
+        show={showWorkLogModal}
+        onHide={() => setShowWorkLogModal(false)}
+        onSubmit={handleWorkLogSubmit}
+        onSkip={handleWorkLogSkip}
+      />
     </>
   );
 };

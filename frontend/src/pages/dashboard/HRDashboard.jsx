@@ -100,8 +100,15 @@ const HRDashboard = () => {
       const attendanceRes = await attendanceApi.getAllAttendance({ date: today });
       // Fetch department data
       const departmentRes = await departmentApi.getAllDepartments();
-      // Fetch leads data
-      const leadsRes = await leadApi.getAllLeads().catch(() => ({ data: [] }));
+      // Fetch leads data (only for roles with access: admin, superadmin, manager, or Sales department)
+      let leadsRes = { data: [] };
+      if (['admin', 'superadmin', 'manager'].includes(user?.role) || user?.department === 'Sales') {
+        try {
+          leadsRes = await leadApi.getAllLeads();
+        } catch (error) {
+          console.log('Could not fetch leads data');
+        }
+      }
 
       // Count all who clocked in today (present, late, half-day) as "present today"
       const todayPresentCount = attendanceRes.data?.filter((a) => 

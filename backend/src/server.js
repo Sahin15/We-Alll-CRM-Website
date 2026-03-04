@@ -45,6 +45,7 @@ import salaryPreviewRoutes from "./routes/salaryPreviewRoutes.js";
 import salaryTemplateRoutes from "./routes/salaryTemplateRoutes.js";
 import emailRoutes from "./routes/emailRoutes.js";
 import wfhRoutes from "./routes/wfhRoutes.js";
+import workLogRoutes from "./routes/workLogRoutes.js";
 // Legacy routes removed - use workItemRoutes instead
 // Old: taskRoutes, slotRoutes, workRoutes → New: workItemRoutes
 import { initializeCronJobs } from "./config/cronJobs.js";
@@ -246,6 +247,7 @@ app.use("/api/salary-preview", apiLimiter, salaryPreviewRoutes);
 app.use("/api/salary-templates", apiLimiter, salaryTemplateRoutes);
 app.use("/api/emails", apiLimiter, emailRoutes);
 app.use("/api/wfh", apiLimiter, wfhRoutes);
+app.use("/api/worklogs", apiLimiter, workLogRoutes);
 
 // Diagnostic endpoint to check server status and timezone
 app.get("/api/diagnostic", (req, res) => {

@@ -20,18 +20,18 @@ export function getCurrentISTTime() {
 
 /**
  * Get today's date at midnight in IST
- * @returns {Date} Today at 00:00:00 IST
+ * @param {Date} [date] - Optional date to get midnight for (defaults to today)
+ * @returns {Date} Midnight IST for the given date
  */
-export function getTodayMidnightIST() {
-  const now = new Date();
+export function getTodayMidnightIST(date) {
+  const targetDate = date || new Date();
   
-  // Get today's date in IST timezone as YYYY-MM-DD
-  const istDateString = now.toLocaleDateString('en-CA', { 
+  // Get the date in IST timezone as YYYY-MM-DD
+  const istDateString = targetDate.toLocaleDateString('en-CA', { 
     timeZone: 'Asia/Kolkata' 
   }); // Returns YYYY-MM-DD format
   
   // Create midnight IST by parsing the date string
-  // This creates a Date object that represents midnight IST
   const year = parseInt(istDateString.substring(0, 4));
   const month = parseInt(istDateString.substring(5, 7)) - 1; // Month is 0-indexed
   const day = parseInt(istDateString.substring(8, 10));

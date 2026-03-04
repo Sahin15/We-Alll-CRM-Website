@@ -1,5 +1,6 @@
 import Attendance from "../models/attendanceModel.js";
 import User from "../models/userModel.js";
+import WorkLog from "../models/workLogModel.js";
 import logger from '../utils/logger.js';
 import { buildDateRangeQuery } from '../utils/queryOptimizer.js';
 import { 
@@ -186,6 +187,31 @@ export const clockOut = async (req, res) => {
         type: 'already_clocked_out',
         clockOutTime: attendance.clockOut
       });
+    }
+
+    // WORK LOG VALIDATION: Check if work log is submitted (except for managers)
+    const isManager = req.user.role === 'manager';
+    
+    if (!isManager) {
+      // Check if today's work log exists and is submitted
+      const todayWorkLog = await WorkLog.findOne({
+        employee,
+        date: { $gte: todayStart, $lt: todayEnd },
+        status: 'submitted'
+      });
+
+      if (!todayWorkLog) {
+        console.log(`[CLOCK-OUT] ❌ Work log not submitted by ${req.user.name}`);
+        return res.status(400).json({
+          message: 'Please submit your daily work log before clocking out',
+          type: 'work_log_required',
+          workLogRequired: true
+        });
+      }
+
+      console.log(`[CLOCK-OUT] ✅ Work log verified for ${req.user.name}`);
+    } else {
+      console.log(`[CLOCK-OUT] ⏭️  Manager ${req.user.name} - work log check skipped`);
     }
 
     attendance.clockOut = clockOutTime; // Use IST time
