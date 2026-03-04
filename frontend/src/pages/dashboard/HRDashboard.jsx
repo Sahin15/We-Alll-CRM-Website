@@ -145,9 +145,9 @@ const HRDashboard = () => {
       }
 
       setStats({
-        // Include both employees AND HoDs in employee count (HoDs are also employees)
+        // Include all employee-level roles in employee count
         employees:
-          usersRes.data?.filter((u) => u.role === "employee" || u.role === "hod" || u.role === "hr").length || 0,
+          usersRes.data?.filter((u) => u.role === "employee" || u.role === "hod" || u.role === "hr" || u.role === "manager").length || 0,
         pendingLeaves: leaveRes.data?.length || 0,
         presentToday: todayPresentCount,
         departments: departmentRes.data?.length || 0,
@@ -217,9 +217,48 @@ const HRDashboard = () => {
   const handleEmployeesCardClick = async () => {
     try {
       const response = await userApi.getAllUsers();
-      // Include both employees AND HoDs
-      const employees = response.data.filter(u => u.role === 'employee' || u.role === 'hod');
-      setEmployeesList(employees);
+      // Include all employee-level roles
+      const employees = response.data.filter(u => u.role === 'employee' || u.role === 'hod' || u.role === 'hr' || u.role === 'manager');
+      
+      // Fetch today's attendance to show status
+      const today = new Date().toISOString().split('T')[0];
+      let todayAttendance = [];
+      try {
+        const attResponse = await attendanceApi.getAllAttendance({ date: today });
+        todayAttendance = attResponse.data || [];
+      } catch (err) {
+        console.log('Could not fetch attendance:', err);
+      }
+      
+      // Fetch approved leaves for today to show who's on leave
+      let todayLeaves = [];
+      try {
+        const leaveResponse = await leaveApi.getAllLeaves();
+        const allLeaves = leaveResponse.data || [];
+        const todayDate = new Date(today);
+        todayLeaves = allLeaves.filter(leave => {
+          if (leave.status !== 'approved') return false;
+          const startDate = new Date(leave.startDate);
+          const endDate = new Date(leave.endDate);
+          return todayDate >= startDate && todayDate <= endDate;
+        });
+      } catch (err) {
+        console.log('Could not fetch leaves:', err);
+      }
+      
+      // Enhance employees with attendance status
+      const enhancedEmployees = employees.map(emp => {
+        const attendance = todayAttendance.find(a => a.employee?._id === emp._id || a.employee === emp._id);
+        const onLeave = todayLeaves.find(l => l.employee?._id === emp._id || l.employee === emp._id);
+        
+        return {
+          ...emp,
+          attendanceStatus: onLeave ? 'on-leave' : (attendance ? 'present' : 'absent'),
+          leaveType: onLeave?.leaveType
+        };
+      });
+      
+      setEmployeesList(enhancedEmployees);
       setShowEmployeesModal(true);
     } catch (error) {
       console.error('Error fetching employees:', error);
@@ -235,7 +274,58 @@ const HRDashboard = () => {
     try {
       const today = new Date().toISOString().split('T')[0];
       const response = await attendanceApi.getAllAttendance({ date: today });
-      setAttendanceToday(response.data);
+      
+      // Fetch approved leaves for today
+      let todayLeaves = [];
+      try {
+        const leaveResponse = await leaveApi.getAllLeaves();
+        const allLeaves = leaveResponse.data || [];
+        const todayDate = new Date(today);
+        todayLeaves = allLeaves.filter(leave => {
+          if (leave.status !== 'approved') return false;
+          const startDate = new Date(leave.startDate);
+          const endDate = new Date(leave.endDate);
+          return todayDate >= startDate && todayDate <= endDate;
+        });
+      } catch (err) {
+        console.log('Could not fetch leaves:', err);
+      }
+      
+      // Enhance attendance with leave info
+      const enhancedAttendance = response.data.map(att => {
+        const onLeave = todayLeaves.find(l => 
+          (l.employee?._id === att.employee?._id) || (l.employee === att.employee?._id)
+        );
+        return {
+          ...att,
+          onLeave: !!onLeave,
+          leaveType: onLeave?.leaveType
+        };
+      });
+      
+      // Add employees who are on leave but didn't clock in
+      const attendanceEmployeeIds = new Set(
+        response.data.map(att => att.employee?._id?.toString() || att.employee?.toString())
+      );
+      
+      for (const leave of todayLeaves) {
+        const leaveEmployeeId = leave.employee?._id?.toString() || leave.employee?.toString();
+        if (!attendanceEmployeeIds.has(leaveEmployeeId)) {
+          enhancedAttendance.push({
+            _id: `leave-${leave._id}`,
+            employee: leave.employee,
+            date: today,
+            clockIn: null,
+            clockOut: null,
+            status: 'on-leave',
+            onLeave: true,
+            leaveType: leave.leaveType,
+            isLeaveOnly: true
+          });
+        }
+      }
+      
+      setAttendanceToday(enhancedAttendance);
       setShowAttendanceModal(true);
     } catch (error) {
       console.error('Error fetching attendance:', error);
@@ -535,6 +625,7 @@ const HRDashboard = () => {
           <Table responsive hover>
             <thead>
               <tr>
+                <th>Status</th>
                 <th>Name</th>
                 <th>Email</th>
                 <th>Department</th>
@@ -544,7 +635,30 @@ const HRDashboard = () => {
             <tbody>
               {employeesList.map(emp => (
                 <tr key={emp._id}>
-                  <td><strong>{emp.name}</strong></td>
+                  <td>
+                    {emp.attendanceStatus === 'present' && (
+                      <span className="d-flex align-items-center">
+                        <span className="badge bg-success rounded-circle" style={{ width: '12px', height: '12px' }} title="Present"></span>
+                        <small className="ms-2 text-success">Present</small>
+                      </span>
+                    )}
+                    {emp.attendanceStatus === 'absent' && (
+                      <span className="d-flex align-items-center">
+                        <span className="badge bg-danger rounded-circle" style={{ width: '12px', height: '12px' }} title="Absent"></span>
+                        <small className="ms-2 text-danger">Absent</small>
+                      </span>
+                    )}
+                    {emp.attendanceStatus === 'on-leave' && (
+                      <span className="d-flex align-items-center">
+                        <span className="badge bg-warning rounded-circle" style={{ width: '12px', height: '12px' }} title="On Leave"></span>
+                        <small className="ms-2 text-warning">On Leave</small>
+                      </span>
+                    )}
+                  </td>
+                  <td>
+                    <strong>{emp.name}</strong>
+                    {emp.leaveType && <div><Badge bg="warning" className="mt-1">{emp.leaveType}</Badge></div>}
+                  </td>
                   <td>{emp.email}</td>
                   <td>{emp.department?.name || 'N/A'}</td>
                   <td>
@@ -614,7 +728,7 @@ const HRDashboard = () => {
             </thead>
             <tbody>
               {attendanceToday.map(att => (
-                <tr key={att._id} className={att.isWFH ? 'table-info' : ''}>
+                <tr key={att._id} className={att.isWFH ? 'table-info' : att.onLeave ? 'table-warning' : ''}>
                   <td>
                     <div className="d-flex align-items-center gap-2">
                       <strong>{att.employee?.name || 'N/A'}</strong>
@@ -628,15 +742,24 @@ const HRDashboard = () => {
                       )}
                     </div>
                   </td>
-                  <td>{att.clockIn ? new Date(att.clockIn).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A'}</td>
-                  <td>{att.clockOut ? new Date(att.clockOut).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'Not yet'}</td>
+                  <td>{att.clockIn ? new Date(att.clockIn).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : (att.onLeave ? 'On Leave' : 'N/A')}</td>
+                  <td>{att.clockOut ? new Date(att.clockOut).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : (att.onLeave ? 'On Leave' : 'Not yet')}</td>
                   <td>
                     <div className="d-flex align-items-center gap-2">
-                      <Badge bg={att.status === 'present' ? 'success' : att.status === 'late' ? 'danger' : 'secondary'}>
-                        {att.status}
-                      </Badge>
-                      {att.isWFH && (
-                        <Badge bg="info">WFH</Badge>
+                      {att.onLeave ? (
+                        <>
+                          <Badge bg="warning">On Leave</Badge>
+                          {att.leaveType && <Badge bg="secondary">{att.leaveType}</Badge>}
+                        </>
+                      ) : (
+                        <>
+                          <Badge bg={att.status === 'present' ? 'success' : att.status === 'late' ? 'danger' : 'secondary'}>
+                            {att.status}
+                          </Badge>
+                          {att.isWFH && (
+                            <Badge bg="info">WFH</Badge>
+                          )}
+                        </>
                       )}
                     </div>
                   </td>
