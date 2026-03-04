@@ -68,9 +68,9 @@ const EmployeeList = () => {
     try {
       setLoading(true);
       const response = await api.get("/users");
-      // Filter only employees
+      // Filter only employees (including all employee-level roles)
       const employeeData = response.data.filter(
-        (u) => u.role === "employee" || u.role === "hod" || u.role === "hr"
+        (u) => u.role === "employee" || u.role === "hod" || u.role === "hr" || u.role === "manager"
       );
       setEmployees(employeeData);
     } catch (error) {
