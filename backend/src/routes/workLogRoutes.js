@@ -1,6 +1,7 @@
 import express from "express";
 import {
   submitWorkLog,
+  saveDraft,
   getTodayWorkLog,
   checkWorkLogStatus,
   getMyWorkLogs,
@@ -19,6 +20,7 @@ const router = express.Router();
 
 // Employee routes (protected)
 router.post("/submit", protect, submitWorkLog);
+router.post("/save-draft", protect, saveDraft);
 router.get("/today", protect, getTodayWorkLog);
 router.get("/check-status", protect, checkWorkLogStatus);
 router.get("/my-logs", protect, getMyWorkLogs);

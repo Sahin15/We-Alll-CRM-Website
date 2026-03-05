@@ -16,9 +16,20 @@ const workLogSchema = new mongoose.Schema(
     },
     workLog: {
       type: String,
-      required: [true, "Work log is required"],
+      required: function() {
+        return this.status === 'submitted' || this.status === 'reviewed';
+      },
       trim: true,
-      minlength: [50, "Work log must be at least 50 characters"],
+      validate: {
+        validator: function(value) {
+          if (this.status === 'draft') return true;
+          if (this.status === 'submitted' || this.status === 'reviewed') {
+            return value && value.length >= 50;
+          }
+          return true;
+        },
+        message: 'Work log must be at least 50 characters for submitted logs'
+      },
       maxlength: [2000, "Work log cannot exceed 2000 characters"],
     },
     status: {

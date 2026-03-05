@@ -13,8 +13,10 @@ const WorkLogSubmissionModal = ({ show, onHide, onSubmit, onSkip }) => {
   const { user } = useAuth();
   const [workLog, setWorkLog] = useState("");
   const [loading, setLoading] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [error, setError] = useState("");
   const [charCount, setCharCount] = useState(0);
+  const [lastSaved, setLastSaved] = useState(null);
   const textareaRef = useRef(null);
 
   const isManager = user?.role === "manager";
@@ -77,6 +79,23 @@ const WorkLogSubmissionModal = ({ show, onHide, onSubmit, onSkip }) => {
     }
   };
 
+  const handleSaveDraft = async () => {
+    setError("");
+    setSavingDraft(true);
+    try {
+      const response = await workLogApi.saveDraft(workLog.trim());
+      toast.success(response.message || "Draft saved successfully!");
+      setLastSaved(new Date());
+    } catch (error) {
+      const errorMsg =
+        error.response?.data?.message || "Failed to save draft";
+      setError(errorMsg);
+      toast.error(errorMsg);
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
   const handleSkipClick = () => {
     if (onSkip) {
       onSkip();
@@ -88,6 +107,7 @@ const WorkLogSubmissionModal = ({ show, onHide, onSubmit, onSkip }) => {
     setWorkLog("");
     setError("");
     setCharCount(0);
+    setLastSaved(null);
     onHide();
   };
 
@@ -150,27 +170,46 @@ const WorkLogSubmissionModal = ({ show, onHide, onSubmit, onSkip }) => {
       </Modal.Body>
 
       <Modal.Footer>
-        <Button variant="secondary" onClick={handleClose} disabled={loading}>
-          Cancel
-        </Button>
-        
-        {isManager && (
-          <Button
-            variant="warning"
-            onClick={handleSkipClick}
-            disabled={loading}
-          >
-            Skip & Clock Out
-          </Button>
-        )}
-        
-        <Button
-          variant="primary"
-          onClick={handleSubmit}
-          disabled={loading || charCount < 50}
-        >
-          {loading ? "Submitting..." : "Submit & Clock Out"}
-        </Button>
+        <div className="d-flex justify-content-between align-items-center w-100">
+          <div>
+            {lastSaved && (
+              <small className="text-muted">
+                Last saved: {lastSaved.toLocaleTimeString()}
+              </small>
+            )}
+          </div>
+          <div className="d-flex gap-2">
+            <Button variant="secondary" onClick={handleClose} disabled={loading || savingDraft}>
+              Cancel
+            </Button>
+            
+            <Button
+              variant="outline-secondary"
+              onClick={handleSaveDraft}
+              disabled={loading || savingDraft || charCount === 0}
+            >
+              {savingDraft ? "Saving..." : "Save Draft"}
+            </Button>
+            
+            {isManager && (
+              <Button
+                variant="warning"
+                onClick={handleSkipClick}
+                disabled={loading || savingDraft}
+              >
+                Skip & Clock Out
+              </Button>
+            )}
+            
+            <Button
+              variant="primary"
+              onClick={handleSubmit}
+              disabled={loading || savingDraft || charCount < 50}
+            >
+              {loading ? "Submitting..." : "Submit & Clock Out"}
+            </Button>
+          </div>
+        </div>
       </Modal.Footer>
     </Modal>
   );

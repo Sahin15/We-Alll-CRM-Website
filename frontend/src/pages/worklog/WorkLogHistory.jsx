@@ -10,8 +10,9 @@ import {
   Badge,
   Spinner,
   Pagination,
+  Modal,
 } from "react-bootstrap";
-import { FaEye, FaEdit, FaDownload, FaFilter } from "react-icons/fa";
+import { FaEye, FaEdit, FaDownload, FaSave } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { workLogApi } from "../../api/workLogApi";
 import {
@@ -19,6 +20,9 @@ import {
   formatWorkLogDate,
   formatWorkLogDateTime,
   getWorkLogStatusBadge,
+  validateWorkLog,
+  getCharCountColor,
+  getCharCountMessage,
 } from "../../utils/workLogHelpers";
 import WorkLogViewModal from "../../components/worklog/WorkLogViewModal";
 import "../../styles/worklog.css";
@@ -27,6 +31,7 @@ const WorkLogHistory = () => {
   const [workLogs, setWorkLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -40,6 +45,9 @@ const WorkLogHistory = () => {
   });
   const [selectedLog, setSelectedLog] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editWorkLog, setEditWorkLog] = useState("");
+  const [charCount, setCharCount] = useState(0);
 
   useEffect(() => {
     fetchWorkLogs();
@@ -83,6 +91,37 @@ const WorkLogHistory = () => {
     setSelectedLog(log);
     setShowViewModal(true);
   };
+
+  const handleEdit = (log) => {
+    setSelectedLog(log);
+    setEditWorkLog(log.workLog);
+    setCharCount(log.workLog.length);
+    setShowEditModal(true);
+  };
+
+  const handleUpdateWorkLog = async () => {
+    const validation = validateWorkLog(editWorkLog);
+    if (!validation.valid) {
+      toast.error(validation.message);
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      await workLogApi.submitWorkLog(editWorkLog.trim());
+      toast.success("Work log updated successfully!");
+      setShowEditModal(false);
+      fetchWorkLogs();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to update work log");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  useEffect(() => {
+    setCharCount(editWorkLog.trim().length);
+  }, [editWorkLog]);
 
   const handleExport = async () => {
     try {
@@ -255,6 +294,11 @@ const WorkLogHistory = () => {
                                   Late
                                 </Badge>
                               )}
+                              {log.editHistory && log.editHistory.length > 0 && (
+                                <Badge bg="info" className="ms-1">
+                                  Edited
+                                </Badge>
+                              )}
                             </td>
                             <td>{log.reviewedBy?.name || "-"}</td>
                             <td>
@@ -267,9 +311,19 @@ const WorkLogHistory = () => {
                                 variant="outline-primary"
                                 size="sm"
                                 onClick={() => handleView(log)}
+                                className="me-1"
                               >
                                 <FaEye />
                               </Button>
+                              {log.status !== "reviewed" && (
+                                <Button
+                                  variant="outline-secondary"
+                                  size="sm"
+                                  onClick={() => handleEdit(log)}
+                                >
+                                  <FaEdit />
+                                </Button>
+                              )}
                             </td>
                           </tr>
                         ))}
@@ -297,6 +351,51 @@ const WorkLogHistory = () => {
         onHide={() => setShowViewModal(false)}
         workLog={selectedLog}
       />
+
+      {/* Edit Modal */}
+      <Modal show={showEditModal} onHide={() => setShowEditModal(false)} size="lg" centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Edit Work Log</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>
+                Work Log <span className="text-danger">*</span>
+              </Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={10}
+                value={editWorkLog}
+                onChange={(e) => setEditWorkLog(e.target.value)}
+                placeholder="Describe your work activities, tasks completed, meetings attended, issues resolved, etc. (Minimum 50 characters)"
+                disabled={updating}
+              />
+              <div className="d-flex justify-content-between align-items-center mt-2">
+                <small className={`text-${getCharCountColor(charCount)}`}>
+                  {getCharCountMessage(charCount)}
+                </small>
+                {charCount >= 50 && (
+                  <small className="text-success">✓ Ready to update</small>
+                )}
+              </div>
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowEditModal(false)} disabled={updating}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleUpdateWorkLog}
+            disabled={updating || charCount < 50}
+          >
+            <FaSave className="me-1" />
+            {updating ? "Updating..." : "Update Work Log"}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </Container>
   );
 };

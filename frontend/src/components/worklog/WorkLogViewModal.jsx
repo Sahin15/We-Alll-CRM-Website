@@ -32,7 +32,7 @@ const WorkLogViewModal = ({ show, onHide, workLog }) => {
             )}
             {workLog.employee.department && (
               <p className="mb-1">
-                <strong>Department:</strong> {workLog.employee.department}
+                <strong>Department:</strong> {typeof workLog.employee.department === 'object' ? workLog.employee.department.name : workLog.employee.department}
               </p>
             )}
             <hr />

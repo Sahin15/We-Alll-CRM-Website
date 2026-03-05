@@ -44,7 +44,7 @@ const WorkLogManagement = () => {
     pages: 0,
   });
   const [filters, setFilters] = useState({
-    startDate: new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split("T")[0], // Last 7 days
+    startDate: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split("T")[0], // Yesterday
     endDate: new Date().toISOString().split("T")[0], // Today
     status: "all",
     search: "",

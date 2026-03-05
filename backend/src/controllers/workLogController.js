@@ -99,6 +99,96 @@ export const submitWorkLog = async (req, res) => {
     });
   }
 };
+// Save work log as draft (can be saved multiple times)
+export const saveDraft = async (req, res) => {
+  try {
+    const { workLog } = req.body;
+    const employee = req.user._id;
+
+    // For drafts, we allow any length (even empty)
+    if (workLog && workLog.trim().length > 2000) {
+      return res.status(400).json({
+        message: "Work log cannot exceed 2000 characters",
+      });
+    }
+
+    const { start: todayStart, end: todayEnd } = getTodayRangeIST();
+    const now = getCurrentISTTime();
+
+    // Check if work log already exists for today
+    let existingLog = await WorkLog.findOne({
+      employee,
+      date: { $gte: todayStart, $lt: todayEnd },
+    });
+
+    if (existingLog) {
+      // Check if already reviewed
+      if (existingLog.status === "reviewed") {
+        return res.status(400).json({
+          message: "Cannot edit work log after it has been reviewed",
+        });
+      }
+
+      // Update existing draft
+      const oldWorkLog = existingLog.workLog;
+      existingLog.workLog = workLog ? workLog.trim() : '';
+      existingLog.status = "draft";
+      // Don't update submittedAt for drafts
+
+      // Add to edit history
+      existingLog.editHistory.push({
+        editedBy: employee,
+        editedAt: now,
+        changes: {
+          oldWorkLog,
+          newWorkLog: workLog ? workLog.trim() : '',
+        },
+        reason: "Employee saved draft",
+      });
+
+      await existingLog.save();
+
+      logger.info(`Work log draft saved by ${req.user.name} for ${todayStart.toDateString()}`);
+
+      return res.status(200).json({
+        message: "Draft saved successfully",
+        workLog: existingLog,
+      });
+    }
+
+    // Create new draft
+    const newWorkLog = await WorkLog.create({
+      employee,
+      date: todayStart,
+      workLog: workLog ? workLog.trim() : '',
+      status: "draft",
+      // No submittedAt for drafts
+    });
+
+    logger.info(`Work log draft created by ${req.user.name} for ${todayStart.toDateString()}`);
+
+    res.status(201).json({
+      message: "Draft saved successfully",
+      workLog: newWorkLog,
+    });
+  } catch (error) {
+    console.error("Error in saveDraft:", error);
+    console.error("Error stack:", error.stack);
+
+    // Handle duplicate key error
+    if (error.code === 11000) {
+      return res.status(400).json({
+        message: "Work log for today already exists. Please refresh and try again.",
+      });
+    }
+
+    res.status(500).json({
+      message: "Server error",
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+};
 
 // Get today's work log for current user
 export const getTodayWorkLog = async (req, res) => {
@@ -279,7 +369,14 @@ export const getAllWorkLogs = async (req, res) => {
 
     const [workLogs, total] = await Promise.all([
       WorkLog.find(query)
-        .populate("employee", "name email designation department")
+        .populate({
+          path: "employee",
+          select: "name email designation department",
+          populate: {
+            path: "department",
+            select: "name"
+          }
+        })
         .populate("reviewedBy", "name email")
         .sort({ date: -1 })
         .skip(skip)

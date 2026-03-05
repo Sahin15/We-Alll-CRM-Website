@@ -29,9 +29,11 @@ const MyWorkLog = () => {
   const [todayLog, setTodayLog] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [editing, setEditing] = useState(false);
   const [charCount, setCharCount] = useState(0);
   const [stats, setStats] = useState(null);
+  const [lastSaved, setLastSaved] = useState(null);
 
   useEffect(() => {
     fetchTodayLog();
@@ -104,12 +106,29 @@ const MyWorkLog = () => {
       await fetchTodayLog();
       await fetchStats();
       setEditing(false);
+      setLastSaved(new Date());
     } catch (error) {
       toast.error(
         error.response?.data?.message || "Failed to submit work log"
       );
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    setSavingDraft(true);
+    try {
+      const response = await workLogApi.saveDraft(workLog.trim());
+      toast.success(response.message || "Draft saved successfully!");
+      await fetchTodayLog();
+      setLastSaved(new Date());
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Failed to save draft"
+      );
+    } finally {
+      setSavingDraft(false);
     }
   };
 
@@ -141,6 +160,7 @@ const MyWorkLog = () => {
   const canEdit = todayLog && todayLog.status !== "reviewed";
   const isSubmitted = todayLog && todayLog.status === "submitted";
   const isReviewed = todayLog && todayLog.status === "reviewed";
+  const isDraft = todayLog && todayLog.status === "draft";
 
   return (
     <Container className="mt-4">
@@ -199,6 +219,21 @@ const MyWorkLog = () => {
                 <Alert variant="warning">
                   <FaClock className="me-2" />
                   You haven't submitted your work log for today yet.
+                </Alert>
+              )}
+
+              {isDraft && (
+                <Alert variant="info">
+                  <FaEdit className="me-2" />
+                  You have a draft saved. Continue editing and submit when ready.
+                  {todayLog.updatedAt && (
+                    <>
+                      <br />
+                      <small className="text-muted">
+                        Last saved: {formatWorkLogDateTime(todayLog.updatedAt)}
+                      </small>
+                    </>
+                  )}
                 </Alert>
               )}
 
@@ -275,23 +310,37 @@ const MyWorkLog = () => {
                     </div>
                   </Form.Group>
 
-                  <div className="d-flex gap-2">
+                  <div className="d-flex gap-2 align-items-center">
                     <Button
                       type="submit"
                       variant="primary"
-                      disabled={submitting || charCount < 50}
+                      disabled={submitting || savingDraft || charCount < 50}
                     >
                       <FaSave className="me-1" />
                       {submitting ? "Submitting..." : "Submit Work Log"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline-secondary"
+                      onClick={handleSaveDraft}
+                      disabled={submitting || savingDraft || charCount === 0}
+                    >
+                      <FaSave className="me-1" />
+                      {savingDraft ? "Saving..." : "Save Draft"}
                     </Button>
                     {editing && (
                       <Button
                         variant="secondary"
                         onClick={handleCancelEdit}
-                        disabled={submitting}
+                        disabled={submitting || savingDraft}
                       >
                         Cancel
                       </Button>
+                    )}
+                    {lastSaved && (
+                      <small className="text-muted ms-2">
+                        Last saved: {lastSaved.toLocaleTimeString()}
+                      </small>
                     )}
                   </div>
                 </Form>

@@ -6,6 +6,12 @@ export const submitWorkLog = async (workLog) => {
   return response.data;
 };
 
+// Save work log as draft
+export const saveDraft = async (workLog) => {
+  const response = await api.post("/worklogs/save-draft", { workLog });
+  return response.data;
+};
+
 // Get today's work log
 export const getTodayWorkLog = async () => {
   try {
@@ -80,6 +86,7 @@ export const exportWorkLogs = async (params) => {
 
 export const workLogApi = {
   submitWorkLog,
+  saveDraft,
   getTodayWorkLog,
   checkWorkLogStatus,
   getMyWorkLogs,

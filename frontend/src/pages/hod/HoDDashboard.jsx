@@ -24,9 +24,13 @@ const HoDDashboard = () => {
   const [selectedUserId, setSelectedUserId] = useState('');
 
   useEffect(() => {
-    loadDashboardData();
-    loadTodayAttendance();
-  }, []);
+    if (user) {
+      loadDashboardData();
+      loadTodayAttendance();
+    } else {
+      setLoading(false);
+    }
+  }, [user]);
 
   const loadTodayAttendance = async () => {
     try {
@@ -98,9 +102,17 @@ const HoDDashboard = () => {
     try {
       setLoading(true);
       
+      // Check if user is authenticated
+      if (!user) {
+        console.error('User not authenticated');
+        setLoading(false);
+        return;
+      }
+
       // Get user's department
       if (!user.headOfDepartment) {
         toast.error('You are not assigned as Head of any Department');
+        setLoading(false);
         return;
       }
 
@@ -238,6 +250,19 @@ const HoDDashboard = () => {
     );
   }
 
+  if (!user) {
+    return (
+      <Container fluid className="py-4">
+        <Card>
+          <Card.Body className="text-center py-5">
+            <h4>Authentication Required</h4>
+            <p className="text-muted">Please log in to access the dashboard.</p>
+          </Card.Body>
+        </Card>
+      </Container>
+    );
+  }
+
   if (!department) {
     return (
       <Container fluid className="py-4">
@@ -258,7 +283,7 @@ const HoDDashboard = () => {
         <Col>
           <h2 className="mb-1">
             <FaUserTie className="me-2 text-primary" />
-            {department.name} Department
+            {department?.name || 'Department'} Department
           </h2>
           <p className="text-muted mb-0">Head of Department Dashboard</p>
         </Col>
