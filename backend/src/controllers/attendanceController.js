@@ -1,6 +1,8 @@
 import Attendance from "../models/attendanceModel.js";
 import User from "../models/userModel.js";
 import WorkLog from "../models/workLogModel.js";
+import LeaveRequest from "../models/leaveRequestModel.js";
+import WorkOnLeaveDayRequest from "../models/workOnLeaveDayRequestModel.js";
 import logger from '../utils/logger.js';
 import { buildDateRangeQuery } from '../utils/queryOptimizer.js';
 import { 
@@ -32,6 +34,53 @@ export const clockIn = async (req, res) => {
     console.log(`[CLOCK-IN] Timezone Info:`);
     logTimezoneInfo();
     console.log(`[CLOCK-IN] Clock-in time (IST): ${clockInTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
+
+    // CHECK FOR APPROVED LEAVE: Check if employee is on approved leave today
+    const approvedLeave = await LeaveRequest.findOne({
+      employee,
+      status: "approved",
+      startDate: { $lte: todayEnd },
+      endDate: { $gte: todayStart },
+    });
+
+    if (approvedLeave) {
+      console.log(`[CLOCK-IN] ⚠️  Employee ${req.user.name} is on approved leave today`);
+      
+      // Check if there's already a pending or approved work on leave day request
+      const existingWorkOnLeaveRequest = await WorkOnLeaveDayRequest.findOne({
+        employee,
+        date: {
+          $gte: todayStart,
+          $lt: todayEnd,
+        },
+      });
+
+      if (existingWorkOnLeaveRequest) {
+        if (existingWorkOnLeaveRequest.status === "pending") {
+          return res.status(400).json({
+            message: "You have a pending request to work on this leave day. Please wait for HR approval.",
+            type: "work_on_leave_pending",
+            request: existingWorkOnLeaveRequest,
+          });
+        } else if (existingWorkOnLeaveRequest.status === "approved") {
+          // Approved - allow clock in
+          console.log(`[CLOCK-IN] ✅ Work on leave day request approved - allowing clock in`);
+        } else if (existingWorkOnLeaveRequest.status === "rejected") {
+          return res.status(403).json({
+            message: "Your request to work on this leave day was rejected. You cannot clock in today.",
+            type: "work_on_leave_rejected",
+            request: existingWorkOnLeaveRequest,
+          });
+        }
+      } else {
+        // No request exists - inform employee they need HR approval
+        return res.status(403).json({
+          message: "You are on approved leave today. To work on this day, you need HR approval. Please submit a 'Work on Leave Day' request.",
+          type: "on_leave_need_approval",
+          leaveRequest: approvedLeave,
+        });
+      }
+    }
 
     // Check if already clocked in today (with retry for race condition)
     // Use findOne with sort to get the earliest record if duplicates exist

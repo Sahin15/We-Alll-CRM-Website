@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card, Table, Badge, Button, Modal, Form, Row, Col, Spinner, Alert } from "react-bootstrap";
-import { FaPlus, FaEdit, FaCheck, FaTimes, FaVideo, FaMapMarkerAlt, FaCalendar, FaClock, FaUser } from "react-icons/fa";
+import { FaPlus, FaEdit, FaCheck, FaTimes, FaVideo, FaMapMarkerAlt, FaCalendar, FaClock, FaUser, FaEye, FaExternalLinkAlt } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { leadApi } from "../../api/leadApi";
 import { formatDate } from "../../utils/helpers";
@@ -14,6 +14,8 @@ const LeadMeetingsDashboard = () => {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [viewingMeeting, setViewingMeeting] = useState(null);
   const [editingMeeting, setEditingMeeting] = useState(null);
   const [selectedLead, setSelectedLead] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -36,28 +38,21 @@ const LeadMeetingsDashboard = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      // Fetch all leads
+      
+      // Fetch all leads for the dropdown
       const leadsResponse = await leadApi.getAllLeads();
-      setLeads(leadsResponse.data);
+      const leadsData = leadsResponse.data || leadsResponse;
+      setLeads(leadsData);
 
-      // Fetch all meetings from all leads
-      const allMeetings = [];
-      for (const lead of leadsResponse.data) {
-        if (lead.meetings && lead.meetings.length > 0) {
-          lead.meetings.forEach(meeting => {
-            allMeetings.push({
-              ...meeting,
-              leadId: lead._id,
-              leadName: lead.fullName,
-              leadCompany: lead.companyName,
-              leadPhone: lead.phone,
-            });
-          });
-        }
-      }
-      setMeetings(allMeetings);
+      // Fetch all meetings using the dedicated endpoint
+      const meetingsResponse = await leadApi.getAllMeetings();
+      
+      // The API returns { meetings: [...] }
+      const meetingsData = meetingsResponse.data?.meetings || meetingsResponse.meetings || [];
+      
+      setMeetings(meetingsData);
     } catch (error) {
-      console.error("Failed to fetch meetings:", error);
+      console.error("Failed to fetch data:", error);
       toast.error("Failed to load meetings");
     } finally {
       setLoading(false);
@@ -95,6 +90,15 @@ const LeadMeetingsDashboard = () => {
     setShowModal(true);
   };
 
+  const handleViewDetails = (meeting) => {
+    setViewingMeeting(meeting);
+    setShowViewModal(true);
+  };
+
+  const getGoogleMapsUrl = (location) => {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+  };
+
   const handleSubmit = async () => {
     try {
       if (!selectedLead) {
@@ -128,7 +132,9 @@ const LeadMeetingsDashboard = () => {
       setShowModal(false);
       fetchData();
     } catch (error) {
-      toast.error("Failed to save meeting");
+      console.error('Save meeting error:', error);
+      console.error('Error response:', error.response?.data);
+      toast.error(error.response?.data?.message || "Failed to save meeting");
     }
   };
 
@@ -149,7 +155,9 @@ const LeadMeetingsDashboard = () => {
       toast.success("Meeting cancelled");
       fetchData();
     } catch (error) {
-      toast.error("Failed to cancel meeting");
+      console.error('Cancel meeting error:', error);
+      console.error('Error response:', error.response?.data);
+      toast.error(error.response?.data?.message || "Failed to cancel meeting");
     }
   };
 
@@ -184,19 +192,34 @@ const LeadMeetingsDashboard = () => {
 
   // Sort meetings by date (upcoming first)
   const sortedMeetings = [...filteredMeetings].sort((a, b) => {
-    const dateA = new Date(a.scheduledDate + " " + a.scheduledTime);
-    const dateB = new Date(b.scheduledDate + " " + b.scheduledTime);
+    // Parse ISO date string properly
+    const dateA = new Date(a.scheduledDate);
+    const timeA = a.scheduledTime.split(':');
+    dateA.setHours(parseInt(timeA[0]), parseInt(timeA[1]), 0, 0);
+    
+    const dateB = new Date(b.scheduledDate);
+    const timeB = b.scheduledTime.split(':');
+    dateB.setHours(parseInt(timeB[0]), parseInt(timeB[1]), 0, 0);
+    
     return dateA - dateB;
   });
 
   // Separate upcoming and past meetings
   const now = new Date();
+  
   const upcomingMeetings = sortedMeetings.filter(m => {
-    const meetingDate = new Date(m.scheduledDate + " " + m.scheduledTime);
+    const meetingDate = new Date(m.scheduledDate);
+    const time = m.scheduledTime.split(':');
+    meetingDate.setHours(parseInt(time[0]), parseInt(time[1]), 0, 0);
+    
     return meetingDate >= now && m.status === "Scheduled";
   });
+  
   const pastMeetings = sortedMeetings.filter(m => {
-    const meetingDate = new Date(m.scheduledDate + " " + m.scheduledTime);
+    const meetingDate = new Date(m.scheduledDate);
+    const time = m.scheduledTime.split(':');
+    meetingDate.setHours(parseInt(time[0]), parseInt(time[1]), 0, 0);
+    
     return meetingDate < now || m.status !== "Scheduled";
   });
 
@@ -315,6 +338,14 @@ const LeadMeetingsDashboard = () => {
                           <div className="d-flex gap-1">
                             <Button 
                               size="sm" 
+                              variant="outline-info" 
+                              onClick={() => handleViewDetails(meeting)}
+                              title="View Details"
+                            >
+                              <FaEye size={10} />
+                            </Button>
+                            <Button 
+                              size="sm" 
                               variant="outline-primary" 
                               onClick={() => handleOpenModal(meeting)}
                               title="Edit"
@@ -363,6 +394,7 @@ const LeadMeetingsDashboard = () => {
                       <th>Date & Time</th>
                       <th>Type</th>
                       <th>Status</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -399,6 +431,16 @@ const LeadMeetingsDashboard = () => {
                         </td>
                         <td>{getTypeBadge(meeting.meetingType)}</td>
                         <td>{getStatusBadge(meeting.status)}</td>
+                        <td>
+                          <Button 
+                            size="sm" 
+                            variant="outline-info" 
+                            onClick={() => handleViewDetails(meeting)}
+                            title="View Details"
+                          >
+                            <FaEye size={10} />
+                          </Button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -539,6 +581,191 @@ const LeadMeetingsDashboard = () => {
           <Button variant="primary" onClick={handleSubmit}>
             {editingMeeting ? "Update" : "Schedule"} Meeting
           </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* View Meeting Details Modal */}
+      <Modal show={showViewModal} onHide={() => setShowViewModal(false)} centered size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <FaCalendar className="me-2" />
+            Meeting Details
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {viewingMeeting && (
+            <div>
+              {/* Meeting Title & Status */}
+              <div className="mb-4">
+                <h5 className="mb-2">{viewingMeeting.title}</h5>
+                <div className="d-flex gap-2 align-items-center">
+                  {getTypeBadge(viewingMeeting.meetingType)}
+                  {getStatusBadge(viewingMeeting.status)}
+                </div>
+              </div>
+
+              {/* Lead Information */}
+              <Card className="mb-3 border-0 bg-light">
+                <Card.Body>
+                  <h6 className="mb-2">
+                    <FaUser className="me-2" />
+                    Lead Information
+                  </h6>
+                  <div>
+                    <strong 
+                      className="text-primary" 
+                      style={{ cursor: "pointer" }}
+                      onClick={() => {
+                        setShowViewModal(false);
+                        navigate(`/leads/${viewingMeeting.leadId}`);
+                      }}
+                    >
+                      {viewingMeeting.leadName}
+                    </strong>
+                    {viewingMeeting.leadCompany && (
+                      <div className="text-muted">{viewingMeeting.leadCompany}</div>
+                    )}
+                  </div>
+                </Card.Body>
+              </Card>
+
+              {/* Date & Time */}
+              <Row className="mb-3">
+                <Col md={6}>
+                  <div className="d-flex align-items-center mb-2">
+                    <FaCalendar className="me-2 text-primary" />
+                    <div>
+                      <small className="text-muted d-block">Date</small>
+                      <strong>{formatDate(viewingMeeting.scheduledDate)}</strong>
+                    </div>
+                  </div>
+                </Col>
+                <Col md={6}>
+                  <div className="d-flex align-items-center mb-2">
+                    <FaClock className="me-2 text-primary" />
+                    <div>
+                      <small className="text-muted d-block">Time & Duration</small>
+                      <strong>{viewingMeeting.scheduledTime} ({viewingMeeting.duration} min)</strong>
+                    </div>
+                  </div>
+                </Col>
+              </Row>
+
+              {/* Online Meeting Link */}
+              {viewingMeeting.meetingType === "Online" && viewingMeeting.meetingLink && (
+                <Card className="mb-3 border-primary">
+                  <Card.Body>
+                    <h6 className="mb-3">
+                      <FaVideo className="me-2 text-primary" />
+                      Online Meeting Link
+                    </h6>
+                    <div className="d-flex align-items-center gap-2">
+                      <Form.Control 
+                        type="text" 
+                        value={viewingMeeting.meetingLink} 
+                        readOnly 
+                        className="bg-light"
+                      />
+                      <Button 
+                        variant="primary" 
+                        href={viewingMeeting.meetingLink} 
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <FaExternalLinkAlt className="me-1" /> Join
+                      </Button>
+                    </div>
+                    <small className="text-muted d-block mt-2">
+                      Click the Join button to open the meeting in a new tab
+                    </small>
+                  </Card.Body>
+                </Card>
+              )}
+
+              {/* Offline Meeting Location */}
+              {viewingMeeting.meetingType === "Offline" && viewingMeeting.location && (
+                <Card className="mb-3 border-success">
+                  <Card.Body>
+                    <h6 className="mb-3">
+                      <FaMapMarkerAlt className="me-2 text-success" />
+                      Meeting Location
+                    </h6>
+                    <div className="mb-3">
+                      <Form.Control 
+                        as="textarea" 
+                        rows={2} 
+                        value={viewingMeeting.location} 
+                        readOnly 
+                        className="bg-light"
+                      />
+                    </div>
+                    <Button 
+                      variant="success" 
+                      href={getGoogleMapsUrl(viewingMeeting.location)} 
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-100"
+                    >
+                      <FaMapMarkerAlt className="me-2" />
+                      Open in Google Maps
+                    </Button>
+                    <small className="text-muted d-block mt-2">
+                      View the location on Google Maps for directions
+                    </small>
+                  </Card.Body>
+                </Card>
+              )}
+
+              {/* Assigned To */}
+              {viewingMeeting.assignedTo && (
+                <div className="mb-3">
+                  <small className="text-muted d-block mb-1">Assigned To</small>
+                  <div>
+                    <FaUser className="me-2" />
+                    <strong>{viewingMeeting.assignedTo.name}</strong>
+                    <small className="text-muted ms-2">{viewingMeeting.assignedTo.email}</small>
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              {viewingMeeting.notes && (
+                <div className="mb-3">
+                  <small className="text-muted d-block mb-1">Notes</small>
+                  <Card className="border-0 bg-light">
+                    <Card.Body>
+                      <p className="mb-0" style={{ whiteSpace: "pre-wrap" }}>
+                        {viewingMeeting.notes}
+                      </p>
+                    </Card.Body>
+                  </Card>
+                </div>
+              )}
+
+              {/* Created At */}
+              {viewingMeeting.createdAt && (
+                <div className="text-muted small">
+                  Created on {formatDate(viewingMeeting.createdAt)}
+                </div>
+              )}
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowViewModal(false)}>
+            Close
+          </Button>
+          {viewingMeeting && viewingMeeting.status === "Scheduled" && (
+            <Button 
+              variant="primary" 
+              onClick={() => {
+                setShowViewModal(false);
+                handleOpenModal(viewingMeeting);
+              }}
+            >
+              <FaEdit className="me-1" /> Edit Meeting
+            </Button>
+          )}
         </Modal.Footer>
       </Modal>
     </>

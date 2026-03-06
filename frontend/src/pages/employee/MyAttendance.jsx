@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
-import { Container, Row, Col, Card, Button, Table, Badge, Tab, Tabs, Alert, Spinner, Modal } from "react-bootstrap";
+import { Container, Row, Col, Card, Button, Table, Badge, Tab, Tabs, Alert, Spinner, Modal, Form } from "react-bootstrap";
 import { FaClock, FaCalendarAlt, FaDownload, FaChartBar, FaSignInAlt, FaSignOutAlt } from "react-icons/fa";
 import { formatDate, formatTimeShort, formatTime } from "../../utils/helpers";
+import { formatWorkHours } from "../../utils/attendanceHelpers";
 import toast from "../../utils/toast";
 import api from "../../services/api";
 import { attendanceApi } from "../../api/attendanceApi";
+import { workOnLeaveDayApi } from "../../api/workOnLeaveDayApi";
 import ConfirmModal from "../../components/common/ConfirmModal";
 
 const MyAttendance = () => {
@@ -28,6 +30,11 @@ const MyAttendance = () => {
   // Break details modal state
   const [showBreakDetailsModal, setShowBreakDetailsModal] = useState(false);
   const [selectedBreakDetails, setSelectedBreakDetails] = useState(null);
+
+  // Work on leave day modal state
+  const [showWorkOnLeaveModal, setShowWorkOnLeaveModal] = useState(false);
+  const [leaveRequestInfo, setLeaveRequestInfo] = useState(null);
+  const [workOnLeaveReason, setWorkOnLeaveReason] = useState("");
 
   useEffect(() => {
     fetchTodayAttendance();
@@ -113,9 +120,46 @@ const MyAttendance = () => {
       await fetchTodayAttendance();
       await fetchAttendance();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to clock in");
+      console.error('[CLOCK-IN] Error:', error);
+      const errorType = error.response?.data?.type;
+      
+      if (errorType === "on_leave_need_approval") {
+        // Employee is on leave and needs to request approval
+        setLeaveRequestInfo(error.response.data.leaveRequest);
+        setShowWorkOnLeaveModal(true);
+        toast.info("You are on approved leave today. Please submit a request to work on this day.");
+      } else if (errorType === "work_on_leave_pending") {
+        toast.warning("Your request to work on this leave day is pending HR approval.");
+      } else if (errorType === "work_on_leave_rejected") {
+        toast.error("Your request to work on this leave day was rejected.");
+      } else {
+        toast.error(error.response?.data?.message || "Failed to clock in");
+      }
     } finally {
       setClockingIn(false);
+    }
+  };
+
+  const handleSubmitWorkOnLeaveRequest = async () => {
+    if (!workOnLeaveReason.trim()) {
+      toast.error("Please provide a reason for working on your leave day");
+      return;
+    }
+
+    try {
+      await workOnLeaveDayApi.createRequest({
+        date: new Date().toISOString(),
+        leaveRequestId: leaveRequestInfo._id,
+        reason: workOnLeaveReason,
+      });
+      
+      toast.success("Request submitted successfully! Waiting for HR approval.");
+      setShowWorkOnLeaveModal(false);
+      setWorkOnLeaveReason("");
+      setLeaveRequestInfo(null);
+    } catch (error) {
+      console.error('[WORK ON LEAVE] Error:', error);
+      toast.error(error.response?.data?.message || "Failed to submit request");
     }
   };
 
@@ -365,7 +409,7 @@ const MyAttendance = () => {
                       <Col xs={6} md={3}>
                         <p className="mb-1 text-muted">Hours Worked</p>
                         <h6 className="text-success">
-                          {todayAttendance.workHours} hrs
+                          {formatWorkHours(todayAttendance.workHours)}
                         </h6>
                       </Col>
                     )}
@@ -736,6 +780,52 @@ const MyAttendance = () => {
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowBreakDetailsModal(false)}>
             Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Work on Leave Day Request Modal */}
+      <Modal show={showWorkOnLeaveModal} onHide={() => setShowWorkOnLeaveModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Request to Work on Leave Day</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Alert variant="info">
+            You are currently on approved leave today. To work on this day, you need HR approval.
+          </Alert>
+          
+          {leaveRequestInfo && (
+            <div className="mb-3">
+              <p className="mb-1"><strong>Leave Type:</strong> {leaveRequestInfo.leaveType}</p>
+              <p className="mb-1"><strong>Leave Period:</strong> {formatDate(leaveRequestInfo.startDate)} to {formatDate(leaveRequestInfo.endDate)}</p>
+            </div>
+          )}
+
+          <Form.Group>
+            <Form.Label>Reason for Working on Leave Day *</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={4}
+              placeholder="Please explain why you need to work on this leave day..."
+              value={workOnLeaveReason}
+              onChange={(e) => setWorkOnLeaveReason(e.target.value)}
+              required
+            />
+            <Form.Text className="text-muted">
+              Your request will be reviewed by HR. You can clock in once approved.
+            </Form.Text>
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowWorkOnLeaveModal(false)}>
+            Cancel
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={handleSubmitWorkOnLeaveRequest}
+            disabled={!workOnLeaveReason.trim()}
+          >
+            Submit Request
           </Button>
         </Modal.Footer>
       </Modal>

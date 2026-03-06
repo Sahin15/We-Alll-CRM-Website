@@ -67,7 +67,7 @@ const WorkLogReviewModal = ({ show, onHide, workLog, onSuccess }) => {
           )}
           {workLog.employee?.department && (
             <p className="mb-1">
-              <strong>Department:</strong> {workLog.employee.department}
+              <strong>Department:</strong> {typeof workLog.employee.department === 'object' ? workLog.employee.department.name : workLog.employee.department}
             </p>
           )}
           <hr />
@@ -125,14 +125,14 @@ const WorkLogReviewModal = ({ show, onHide, workLog, onSuccess }) => {
             <Form.Label>Review Notes (Optional)</Form.Label>
             <Form.Control
               as="textarea"
-              rows={4}
+              rows={3}
               value={reviewNotes}
               onChange={(e) => setReviewNotes(e.target.value)}
-              placeholder="Add any feedback or comments for the employee..."
+              placeholder="Add any feedback or comments for the employee (optional)..."
               disabled={loading}
             />
             <Form.Text className="text-muted">
-              These notes will be visible to the employee.
+              Optional: Add feedback that will be visible to the employee.
             </Form.Text>
           </Form.Group>
         </Form>

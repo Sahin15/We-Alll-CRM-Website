@@ -218,6 +218,8 @@ const leadSchema = new mongoose.Schema(
             "Follow-up Created",
             "Follow-up Completed",
             "Meeting Scheduled",
+            "Meeting Updated",
+            "Meeting Cancelled",
             "Meeting Completed",
             "Note Added",
             "Contact Added",

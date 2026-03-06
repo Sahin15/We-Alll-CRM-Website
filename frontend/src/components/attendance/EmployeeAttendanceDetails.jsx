@@ -3,6 +3,7 @@ import { Modal, Card, Row, Col, Badge, Table, Button, Form } from 'react-bootstr
 import { toast } from 'react-toastify';
 import { attendanceApi } from '../../api/attendanceApi';
 import { formatDate, formatTime, getStatusVariant } from '../../utils/helpers';
+import { formatWorkHours } from '../../utils/attendanceHelpers';
 
 const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
   const [attendances, setAttendances] = useState([]);
@@ -355,7 +356,7 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
                             <td className="py-2 px-3">{formatDate(attendance.date)}</td>
                             <td className="py-2 px-3">{formatTime(attendance.clockIn)}</td>
                             <td className="py-2 px-3">{attendance.clockOut ? formatTime(attendance.clockOut) : <span className="text-muted">-</span>}</td>
-                            <td className="py-2 px-3">{attendance.workHours || 0} hrs</td>
+                            <td className="py-2 px-3">{formatWorkHours(attendance.workHours || 0)}</td>
                             <td className="py-2 px-3">
                               {breaks.length > 0 ? (
                                 <span className="text-info" title={`${breaks.length} break(s), Total: ${totalBreakMinutes} min`}>

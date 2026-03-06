@@ -23,6 +23,7 @@ import {
 import { toast } from "react-toastify";
 import { attendanceApi } from "../../api/attendanceApi";
 import { formatDate, formatDateTime, formatTime, getStatusVariant } from "../../utils/helpers";
+import { formatWorkHours } from "../../utils/attendanceHelpers";
 import ConfirmModal from "../../components/common/ConfirmModal";
 import WorkLogSubmissionModal from "../../components/worklog/WorkLogSubmissionModal";
 import MyOvertimeHistory from "../../components/attendance/MyOvertimeHistory";
@@ -333,7 +334,7 @@ const MyAttendance = () => {
                       <Col xs={6} md={3}>
                         <p className="mb-1 text-muted">Hours Worked</p>
                         <h6 className="text-success">
-                          {todayAttendance.workHours} hrs
+                          {formatWorkHours(todayAttendance.workHours)}
                         </h6>
                       </Col>
                     )}
@@ -568,8 +569,8 @@ const MyAttendance = () => {
                               "-"
                             )}
                           </td>
-                          <td>{attendance.workHours || 0} hrs</td>
-                          <td className="hide-mobile">{attendance.overtime || 0} hrs</td>
+                          <td>{formatWorkHours(attendance.workHours || 0)}</td>
+                          <td className="hide-mobile">{formatWorkHours(attendance.overtime || 0)}</td>
                           <td>
                             <div className="d-flex align-items-center gap-2">
                               <Badge bg={getStatusVariant(attendance.status)}>
@@ -651,7 +652,7 @@ const MyAttendance = () => {
                               )}
                               {day.record.workHours && (
                                 <small className="text-muted d-block mt-1">
-                                  {day.record.workHours}hrs
+                                  {formatWorkHours(day.record.workHours)}
                                 </small>
                               )}
                               {day.record.totalBreakTime > 0 && (

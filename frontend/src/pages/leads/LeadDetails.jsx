@@ -305,16 +305,11 @@ const LeadDetails = () => {
         return;
       }
       
-      console.log('📝 Adding remark:', remarks);
-      
       // Add remark to lead history (not notes)
       // This will be handled by the backend addHistory method
       const response = await leadApi.updateLead(id, { 
         addRemark: remarks // Special flag to add to history instead of notes
       });
-      
-      console.log('✅ Response received:', response.data);
-      console.log('📊 History count in response:', response.data.lead?.history?.length);
       
       toast.success("Remark added to lead history");
       setRemarks("");

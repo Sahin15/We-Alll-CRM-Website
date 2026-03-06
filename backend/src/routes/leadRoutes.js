@@ -73,7 +73,7 @@ router.get(
 router.get(
   "/meetings/all-meetings",
   protect,
-  authorizeRoles("admin", "superadmin"),
+  leadAccess,
   getAllMeetings
 );
 

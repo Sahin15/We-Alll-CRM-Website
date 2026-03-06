@@ -317,15 +317,19 @@ export const getAllWorkLogs = async (req, res) => {
     if (startDate || endDate) {
       query.date = {};
       if (startDate) {
-        // Set to start of day in UTC
-        const start = new Date(startDate);
-        start.setUTCHours(0, 0, 0, 0);
+        // Parse the date string and create IST midnight
+        const [year, month, day] = startDate.split('-').map(Number);
+        const startUTC = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+        const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
+        const start = new Date(startUTC.getTime() - istOffset);
         query.date.$gte = start;
       }
       if (endDate) {
-        // Set to end of day in UTC
-        const end = new Date(endDate);
-        end.setUTCHours(23, 59, 59, 999);
+        // Parse the date string and create IST end of day
+        const [year, month, day] = endDate.split('-').map(Number);
+        const endUTC = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+        const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
+        const end = new Date(endUTC.getTime() - istOffset);
         query.date.$lte = end;
       }
       console.log('Date filter:', { startDate, endDate, query: query.date });
@@ -730,29 +734,43 @@ export const getWorkLogStats = async (req, res) => {
 // Export work logs to Excel
 export const exportWorkLogs = async (req, res) => {
   try {
-    const { startDate, endDate, employeeId, department, status } = req.query;
+    const { startDate, endDate, employeeId, department, status, search } = req.query;
+
+    console.log('Export request params:', { startDate, endDate, employeeId, department, status, search });
 
     const query = {};
 
-    // Date range filter
+    // Date range filter (same as getAllWorkLogs - with IST handling)
     if (startDate || endDate) {
       query.date = {};
       if (startDate) {
-        query.date.$gte = new Date(startDate);
+        // Parse the date string and create IST midnight
+        const [year, month, day] = startDate.split('-').map(Number);
+        const startUTC = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+        const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
+        const start = new Date(startUTC.getTime() - istOffset);
+        query.date.$gte = start;
       }
       if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
+        // Parse the date string and create IST end of day
+        const [year, month, day] = endDate.split('-').map(Number);
+        const endUTC = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+        const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
+        const end = new Date(endUTC.getTime() - istOffset);
         query.date.$lte = end;
       }
+      console.log('Export date filter:', { startDate, endDate, queryDate: query.date });
     }
+
+    // Exclude draft status - only export submitted and reviewed logs
+    query.status = { $in: ['submitted', 'reviewed'] };
 
     // Employee filter
     if (employeeId) {
       query.employee = employeeId;
     }
 
-    // Status filter
+    // Status filter (override the default if specified)
     if (status && status !== "all") {
       query.status = status;
     }
@@ -764,11 +782,56 @@ export const exportWorkLogs = async (req, res) => {
       query.employee = { $in: employeeIds };
     }
 
+    // Search filter
+    if (search) {
+      const searchEmployees = await User.find({
+        $or: [
+          { name: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+        ],
+      }).select("_id");
+      
+      const searchEmployeeIds = searchEmployees.map((emp) => emp._id);
+      
+      if (query.employee && query.employee.$in) {
+        // Intersect with existing employee filter
+        query.employee.$in = query.employee.$in.filter((id) =>
+          searchEmployeeIds.some((searchId) => searchId.equals(id))
+        );
+      } else {
+        query.employee = { $in: searchEmployeeIds };
+      }
+    }
+
+    console.log('Export final query:', JSON.stringify(query, null, 2));
+
+    console.log('Export final query:', JSON.stringify(query, null, 2));
+
     const workLogs = await WorkLog.find(query)
-      .populate("employee", "name email designation department")
+      .populate({
+        path: "employee",
+        select: "name email designation department",
+        populate: {
+          path: "department",
+          select: "name"
+        }
+      })
       .populate("reviewedBy", "name email")
       .sort({ date: -1 })
       .lean();
+
+    console.log('Export query result:', { 
+      total: workLogs.length, 
+      firstLog: workLogs[0] ? { 
+        date: workLogs[0].date, 
+        employee: workLogs[0].employee?.name,
+        status: workLogs[0].status 
+      } : 'none'
+    });
+
+    if (workLogs.length === 0) {
+      console.log('No work logs found for export with query:', query);
+    }
 
     // Format data for Excel
     const excelData = workLogs.map((log) => ({
@@ -776,14 +839,12 @@ export const exportWorkLogs = async (req, res) => {
       "Employee Name": log.employee?.name || "N/A",
       Email: log.employee?.email || "N/A",
       Designation: log.employee?.designation || "N/A",
-      Department: log.employee?.department || "N/A",
+      Department: (typeof log.employee?.department === 'object' ? log.employee?.department?.name : log.employee?.department) || "N/A",
       "Work Log": log.workLog,
       Status: log.status,
       "Submitted At": log.submittedAt
         ? new Date(log.submittedAt).toLocaleString("en-IN")
         : "N/A",
-      "Late Submission": log.isLateSubmission ? "Yes" : "No",
-      "Late Submission Remark": log.lateSubmissionRemark || "N/A",
       "Reviewed By": log.reviewedBy?.name || "N/A",
       "Reviewed At": log.reviewedAt
         ? new Date(log.reviewedAt).toLocaleString("en-IN")
@@ -805,8 +866,6 @@ export const exportWorkLogs = async (req, res) => {
       { wch: 50 }, // Work Log
       { wch: 12 }, // Status
       { wch: 20 }, // Submitted At
-      { wch: 15 }, // Late Submission
-      { wch: 30 }, // Late Submission Remark
       { wch: 20 }, // Reviewed By
       { wch: 20 }, // Reviewed At
       { wch: 30 }, // Review Notes

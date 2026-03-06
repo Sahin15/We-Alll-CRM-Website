@@ -265,14 +265,11 @@ const LeadList = () => {
       const response = await emailService.getEmailTemplates();
       if (response && response.success && response.data && response.data.length > 0) {
         setAvailableTemplates(response.data);
-        console.log('✅ Email templates loaded from API:', response.data.length, 'templates');
       } else {
-        console.log('⚠️ API response invalid, using fallback templates');
         setAvailableTemplates(fallbackTemplates);
       }
     } catch (error) {
       console.error("❌ Failed to fetch email templates from API:", error.response?.status, error.response?.data?.message || error.message);
-      console.log('🔄 Using fallback templates');
       setAvailableTemplates(fallbackTemplates);
     }
   };
@@ -360,8 +357,6 @@ const LeadList = () => {
 
       // Remove customSource from submit data as it's not needed in backend
       delete submitData.customSource;
-
-      console.log("Submitting lead data:", submitData);
 
       if (editMode) {
         await leadApi.updateLead(currentLead._id, submitData);

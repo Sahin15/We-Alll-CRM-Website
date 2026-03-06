@@ -10,6 +10,7 @@ import {
   formatDateTime,
   getStatusVariant,
 } from "../../utils/helpers";
+import { formatWorkHours } from "../../utils/attendanceHelpers";
 import EmployeeAttendanceDetails from "../../components/attendance/EmployeeAttendanceDetails";
 import "../../styles/pages-mobile.css";
 import "../../styles/table-mobile.css";
@@ -1023,7 +1024,7 @@ const AttendanceTracking = () => {
                                 )}
                               </td>
                               <td>
-                                <strong>{attendance.workHours || 0}</strong> hrs
+                                <strong>{formatWorkHours(attendance.workHours || 0)}</strong>
                               </td>
                               <td>
                                 {attendance.overtime > 0 ? (

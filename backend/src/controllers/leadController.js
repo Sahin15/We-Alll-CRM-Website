@@ -18,13 +18,9 @@ export const createLead = async (req, res) => {
       reference,
     } = req.body;
 
-    console.log("Creating lead with data:", req.body);
-    console.log("Validation check - fullName:", fullName, "phone:", phone);
 
     // Validate required fields
     if (!fullName || !phone) {
-      console.log("❌ Validation failed: Missing required fields");
-      console.log("fullName provided:", !!fullName, "phone provided:", !!phone);
       return res.status(400).json({
         message: "Full name and phone number are required",
         details: {
@@ -36,9 +32,7 @@ export const createLead = async (req, res) => {
 
     // Validate phone number
     const phoneNumber = Number(phone);
-    console.log("Phone validation - original:", phone, "converted:", phoneNumber, "isNaN:", isNaN(phoneNumber));
     if (isNaN(phoneNumber) || phoneNumber <= 0) {
-      console.log("❌ Validation failed: Invalid phone number");
       return res.status(400).json({
         message: "Please provide a valid phone number",
         details: {
@@ -60,12 +54,9 @@ export const createLead = async (req, res) => {
       existingLeadQuery = { phone: phoneNumber };
     }
 
-    console.log("Checking for existing lead with query:", existingLeadQuery);
     const existingLead = await Lead.findOne(existingLeadQuery);
 
     if (existingLead) {
-      console.log("❌ Validation failed: Duplicate lead found");
-      console.log("Existing lead:", { 
         id: existingLead._id, 
         phone: existingLead.phone, 
         email: existingLead.email,
@@ -97,27 +88,21 @@ export const createLead = async (req, res) => {
       notes: notes || reference, // Use reference as notes if provided
     };
 
-    console.log("Prepared lead data:", leadData);
 
     // Only add createdBy if user is authenticated
     if (req.user && req.user._id) {
       leadData.createdBy = req.user._id;
-      console.log("Added createdBy:", req.user._id);
     } else {
-      console.log("No authenticated user, creating public lead");
     }
 
     // Only add email if provided (since it's not required for public forms)
     if (email) {
       leadData.email = email;
-      console.log("Added email:", email);
     }
 
     const lead = new Lead(leadData);
-    console.log("About to save lead...");
     await lead.save();
 
-    console.log("✅ Lead created successfully:", lead._id);
 
     // Populate assigned user and creator details if they exist
     const populatedLead = await Lead.findById(lead._id)
@@ -137,7 +122,6 @@ export const createLead = async (req, res) => {
     
     // Handle mongoose validation errors
     if (error.name === 'ValidationError') {
-      console.log("Mongoose validation error details:", error.errors);
       const validationErrors = Object.keys(error.errors).map(key => ({
         field: key,
         message: error.errors[key].message
@@ -152,7 +136,6 @@ export const createLead = async (req, res) => {
     
     // Handle duplicate key errors (unique constraint violations)
     if (error.code === 11000) {
-      console.log("Duplicate key error:", error.keyPattern, error.keyValue);
       const duplicateField = Object.keys(error.keyPattern)[0];
       return res.status(400).json({
         message: `A lead with this ${duplicateField} already exists`,
@@ -233,8 +216,6 @@ export const updateLead = async (req, res) => {
 
     // Handle adding remark to history (comprehensive activity log)
     if (req.body.addRemark) {
-      console.log('📝 Adding remark to history:', req.body.addRemark);
-      console.log('👤 User ID:', req.user._id);
       
       lead.addHistory(
         "Note Added",
@@ -242,8 +223,6 @@ export const updateLead = async (req, res) => {
         req.user._id
       );
       
-      console.log('✅ History after adding:', lead.history.length, 'entries');
-      console.log('Latest entry:', lead.history[lead.history.length - 1]);
       
       // Don't add addRemark to the lead object itself
       delete req.body.addRemark;
@@ -264,7 +243,6 @@ export const updateLead = async (req, res) => {
 
     await lead.save();
     
-    console.log('💾 Lead saved. History count:', lead.history.length);
 
     // Populate assigned user and creator details
     const populatedLead = await Lead.findById(lead._id)
@@ -273,7 +251,6 @@ export const updateLead = async (req, res) => {
       .populate("notesHistory.addedBy", "name email")
       .populate("history.performedBy", "name email");
 
-    console.log('📤 Returning lead with history count:', populatedLead.history.length);
     
     return res.status(200).json({
       message: "Lead updated successfully",
@@ -364,24 +341,20 @@ export const updateLeadStatus = async (req, res) => {
 export const updateLeadTemperature = async (req, res) => {
   try {
     const { temperature } = req.body;
-    console.log("Updating temperature for lead:", req.params.id, "to:", temperature);
     
     const lead = await Lead.findById(req.params.id);
 
     if (!lead) {
-      console.log("Lead not found:", req.params.id);
       return res.status(404).json({ message: "Lead not found" });
     }
 
     if (!["Cold", "Warm", "Hot"].includes(temperature)) {
-      console.log("Invalid temperature value:", temperature);
       return res.status(400).json({ message: "Invalid temperature value" });
     }
 
     lead.temperature = temperature;
     lead.status = "Qualified"; // Auto-set status to Qualified
     await lead.save();
-    console.log("Lead temperature updated successfully");
 
     const populatedLead = await Lead.findById(lead._id)
       .populate("assignedTo", "name email")
@@ -840,10 +813,12 @@ export const createMeeting = async (req, res) => {
       assignedTo,
     } = req.body;
 
+
     const lead = await Lead.findById(id);
     if (!lead) {
       return res.status(404).json({ message: "Lead not found" });
     }
+
 
     const newMeeting = {
       title,
@@ -859,6 +834,7 @@ export const createMeeting = async (req, res) => {
       status: "Scheduled",
     };
 
+
     lead.meetings.push(newMeeting);
     
     lead.addHistory(
@@ -868,13 +844,15 @@ export const createMeeting = async (req, res) => {
     );
 
     await lead.save();
+    
     await lead.populate('meetings.assignedTo', 'name email');
     await lead.populate('meetings.createdBy', 'name email');
 
     const createdMeeting = lead.meetings[lead.meetings.length - 1];
+    
     res.status(201).json({ message: "Meeting scheduled", meeting: createdMeeting });
   } catch (error) {
-    console.error("Error creating meeting:", error);
+    console.error("[CREATE MEETING] Error:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -884,11 +862,13 @@ export const updateMeeting = async (req, res) => {
   try {
     const { id, meetingId } = req.params;
     const updates = req.body;
+    
 
     const lead = await Lead.findById(id);
     if (!lead) {
       return res.status(404).json({ message: "Lead not found" });
     }
+
 
     const meeting = lead.meetings.id(meetingId);
     if (!meeting) {
@@ -908,7 +888,7 @@ export const updateMeeting = async (req, res) => {
 
     res.status(200).json({ message: "Meeting updated", meeting });
   } catch (error) {
-    console.error("Error updating meeting:", error);
+    console.error("[UPDATE MEETING] Error:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -949,11 +929,13 @@ export const completeMeeting = async (req, res) => {
 export const cancelMeeting = async (req, res) => {
   try {
     const { id, meetingId } = req.params;
+    
 
     const lead = await Lead.findById(id);
     if (!lead) {
       return res.status(404).json({ message: "Lead not found" });
     }
+
 
     const meeting = lead.meetings.id(meetingId);
     if (!meeting) {
@@ -969,9 +951,10 @@ export const cancelMeeting = async (req, res) => {
     );
 
     await lead.save();
+    
     res.status(200).json({ message: "Meeting cancelled", meeting });
   } catch (error) {
-    console.error("Error cancelling meeting:", error);
+    console.error("[CANCEL MEETING] Error:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -1051,9 +1034,11 @@ export const getTeamMeetings = async (req, res) => {
 // Get all meetings (for admin dashboard)
 export const getAllMeetings = async (req, res) => {
   try {
+    
     const leads = await Lead.find({ 'meetings.0': { $exists: true } })
       .populate('meetings.assignedTo', 'name email')
       .populate('assignedTo', 'name email');
+
 
     const allMeetings = [];
     leads.forEach(lead => {
@@ -1069,9 +1054,10 @@ export const getAllMeetings = async (req, res) => {
 
     allMeetings.sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate));
 
+
     res.status(200).json({ meetings: allMeetings });
   } catch (error) {
-    console.error("Error fetching all meetings:", error);
+    console.error("[GET ALL MEETINGS] Error:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };

@@ -43,15 +43,57 @@ const WorkLogManagement = () => {
     total: 0,
     pages: 0,
   });
+  const [quickFilter, setQuickFilter] = useState("yesterday"); // New state for quick filter
   const [filters, setFilters] = useState({
     startDate: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split("T")[0], // Yesterday
-    endDate: new Date().toISOString().split("T")[0], // Today
+    endDate: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split("T")[0], // Yesterday
     status: "all",
     search: "",
   });
   const [selectedLog, setSelectedLog] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
+
+  // Handle quick filter change
+  const handleQuickFilterChange = (e) => {
+    const value = e.target.value;
+    setQuickFilter(value);
+    
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const last7Days = new Date(today);
+    last7Days.setDate(last7Days.getDate() - 7);
+
+    let newStartDate, newEndDate;
+
+    switch (value) {
+      case "yesterday":
+        newStartDate = yesterday.toISOString().split("T")[0];
+        newEndDate = yesterday.toISOString().split("T")[0];
+        break;
+      case "today":
+        newStartDate = today.toISOString().split("T")[0];
+        newEndDate = today.toISOString().split("T")[0];
+        break;
+      case "last7days":
+        newStartDate = last7Days.toISOString().split("T")[0];
+        newEndDate = today.toISOString().split("T")[0];
+        break;
+      case "custom":
+        // Keep current dates for custom
+        return;
+      default:
+        return;
+    }
+
+    setFilters((prev) => ({
+      ...prev,
+      startDate: newStartDate,
+      endDate: newEndDate,
+    }));
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
 
   useEffect(() => {
     fetchWorkLogs();
@@ -99,6 +141,11 @@ const WorkLogManagement = () => {
     const { name, value } = e.target;
     setFilters((prev) => ({ ...prev, [name]: value }));
     setPagination((prev) => ({ ...prev, page: 1 }));
+    
+    // If user manually changes dates, switch to custom
+    if (name === "startDate" || name === "endDate") {
+      setQuickFilter("custom");
+    }
   };
 
   const handlePageChange = (page) => {
@@ -253,12 +300,27 @@ const WorkLogManagement = () => {
               <Row className="align-items-end">
                 <Col md={2}>
                   <Form.Group>
+                    <Form.Label>Quick Filter</Form.Label>
+                    <Form.Select
+                      value={quickFilter}
+                      onChange={handleQuickFilterChange}
+                    >
+                      <option value="yesterday">Yesterday</option>
+                      <option value="today">Today</option>
+                      <option value="last7days">Last 7 Days</option>
+                      <option value="custom">Custom Range</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={2}>
+                  <Form.Group>
                     <Form.Label>Start Date</Form.Label>
                     <Form.Control
                       type="date"
                       name="startDate"
                       value={filters.startDate}
                       onChange={handleFilterChange}
+                      disabled={quickFilter !== "custom"}
                     />
                   </Form.Group>
                 </Col>
@@ -270,6 +332,7 @@ const WorkLogManagement = () => {
                       name="endDate"
                       value={filters.endDate}
                       onChange={handleFilterChange}
+                      disabled={quickFilter !== "custom"}
                     />
                   </Form.Group>
                 </Col>
@@ -287,7 +350,7 @@ const WorkLogManagement = () => {
                     </Form.Select>
                   </Form.Group>
                 </Col>
-                <Col md={3}>
+                <Col md={2}>
                   <Form.Group>
                     <Form.Label>Search Employee</Form.Label>
                     <Form.Control
@@ -299,7 +362,7 @@ const WorkLogManagement = () => {
                     />
                   </Form.Group>
                 </Col>
-                <Col md={3}>
+                <Col md={2}>
                   <Button
                     variant="success"
                     onClick={handleExport}
