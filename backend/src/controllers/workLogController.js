@@ -317,13 +317,18 @@ export const getAllWorkLogs = async (req, res) => {
     if (startDate || endDate) {
       query.date = {};
       if (startDate) {
-        query.date.$gte = new Date(startDate);
+        // Set to start of day in UTC
+        const start = new Date(startDate);
+        start.setUTCHours(0, 0, 0, 0);
+        query.date.$gte = start;
       }
       if (endDate) {
+        // Set to end of day in UTC
         const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
+        end.setUTCHours(23, 59, 59, 999);
         query.date.$lte = end;
       }
+      console.log('Date filter:', { startDate, endDate, query: query.date });
     }
 
     // Employee filter
@@ -383,6 +388,8 @@ export const getAllWorkLogs = async (req, res) => {
         .limit(parseInt(limit)),
       WorkLog.countDocuments(query),
     ]);
+
+    console.log('Query result:', { total, workLogsCount: workLogs.length, query });
 
     res.status(200).json({
       workLogs,
