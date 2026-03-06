@@ -57,11 +57,6 @@ export const createLead = async (req, res) => {
     const existingLead = await Lead.findOne(existingLeadQuery);
 
     if (existingLead) {
-        id: existingLead._id, 
-        phone: existingLead.phone, 
-        email: existingLead.email,
-        fullName: existingLead.fullName 
-      });
       return res.status(400).json({
         message: "Lead with this email or phone number already exists",
         details: {
@@ -73,6 +68,8 @@ export const createLead = async (req, res) => {
             email: existingLead.email
           }
         }
+      });
+    }
       });
     }
 
