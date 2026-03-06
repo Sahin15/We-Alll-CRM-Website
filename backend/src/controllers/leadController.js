@@ -70,8 +70,6 @@ export const createLead = async (req, res) => {
         }
       });
     }
-      });
-    }
 
     const leadData = {
       fullName,
