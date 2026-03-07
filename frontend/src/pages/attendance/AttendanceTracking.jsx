@@ -681,11 +681,10 @@ const AttendanceTracking = () => {
                     />
                   </Form.Group>
                 </Col>
-              </Row>
-              <Row className="g-3 mt-2">
-                <Col md={12} className="d-flex justify-content-end gap-2">
+
+                <Col md={3} className="d-flex align-items-end gap-2">
                   <button
-                    className="btn btn-secondary"
+                    className="btn btn-secondary flex-fill"
                     onClick={async () => {
                       setSearchTerm("");
                       const clearedFilters = {
@@ -703,7 +702,6 @@ const AttendanceTracking = () => {
                         const params = {};
                         if (clearedFilters.startDate) params.startDate = clearedFilters.startDate;
                         if (clearedFilters.endDate) params.endDate = clearedFilters.endDate;
-                        // Note: no employee parameter since we're clearing filters
                         
                         const response = await attendanceApi.getAllAttendance(params);
                         setAttendances(response.data);
@@ -717,7 +715,7 @@ const AttendanceTracking = () => {
                     Clear Filters
                   </button>
                   <button
-                    className="btn btn-primary"
+                    className="btn btn-primary flex-fill"
                     onClick={handleApplyFilters}
                   >
                     Apply Filters
@@ -854,7 +852,7 @@ const AttendanceTracking = () => {
                   </Col>
                   <Col xs={6} md={2}>
                     <div className="p-2">
-                      <h5 className="text-warning mb-0">{stats.totalOvertime}</h5>
+                      <h5 className="text-warning mb-0">{formatWorkHours(parseFloat(stats.totalOvertime))}</h5>
                       <small className="text-muted">Total Overtime</small>
                     </div>
                   </Col>
@@ -1028,7 +1026,7 @@ const AttendanceTracking = () => {
                               </td>
                               <td>
                                 {attendance.overtime > 0 ? (
-                                  <Badge bg="warning">{attendance.overtime} hrs</Badge>
+                                  <Badge bg="warning">{formatWorkHours(attendance.overtime)}</Badge>
                                 ) : (
                                   <span className="text-muted">-</span>
                                 )}

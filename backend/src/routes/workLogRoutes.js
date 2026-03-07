@@ -24,6 +24,7 @@ router.post("/save-draft", protect, saveDraft);
 router.get("/today", protect, getTodayWorkLog);
 router.get("/check-status", protect, checkWorkLogStatus);
 router.get("/my-logs", protect, getMyWorkLogs);
+router.get("/my-logs/export", protect, exportWorkLogs); // Employee can export their own logs
 router.post("/late-submission", protect, lateSubmission);
 
 // Admin/HR/Manager routes

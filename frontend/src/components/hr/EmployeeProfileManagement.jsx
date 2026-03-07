@@ -225,10 +225,10 @@ const EmployeeProfileManagement = () => {
   const fetchEmployees = async () => {
     try {
       const response = await api.get('/users');
-      // Filter to get only employees, HR, HOD, admin, superadmin (potential managers)
+      // Filter to get only employees, HR, HOD, admin, superadmin, manager (potential managers)
       const potentialManagers = response.data.filter(emp => 
         emp._id !== userId && // Exclude current user
-        ['employee', 'hr', 'hod', 'admin', 'superadmin'].includes(emp.role)
+        ['employee', 'hr', 'hod', 'admin', 'superadmin', 'manager'].includes(emp.role)
       );
       setEmployees(potentialManagers);
     } catch (error) {
@@ -1506,7 +1506,7 @@ const EmployeeProfileManagement = () => {
                               <option value="">Select Reporting Manager</option>
                               {employees.map(emp => (
                                 <option key={emp._id} value={emp._id}>
-                                  {emp.name} {emp.employeeId ? `(${emp.employeeId})` : ''} - {emp.designation || emp.role}
+                                  {emp.name}
                                 </option>
                               ))}
                             </Form.Select>

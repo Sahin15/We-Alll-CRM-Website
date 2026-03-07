@@ -84,6 +84,15 @@ export const exportWorkLogs = async (params) => {
   return response.data;
 };
 
+// Export my work logs (for employees)
+export const exportMyWorkLogs = async (params) => {
+  const response = await api.get("/worklogs/my-logs/export", {
+    params,
+    responseType: "blob",
+  });
+  return response.data;
+};
+
 export const workLogApi = {
   submitWorkLog,
   saveDraft,
@@ -97,4 +106,5 @@ export const workLogApi = {
   lateSubmission,
   getWorkLogStats,
   exportWorkLogs,
+  exportMyWorkLogs,
 };

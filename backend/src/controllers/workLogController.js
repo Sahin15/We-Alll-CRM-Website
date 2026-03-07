@@ -737,8 +737,21 @@ export const exportWorkLogs = async (req, res) => {
     const { startDate, endDate, employeeId, department, status, search } = req.query;
 
     console.log('Export request params:', { startDate, endDate, employeeId, department, status, search });
+    console.log('User role:', req.user?.role);
 
     const query = {};
+
+    // If user is employee/hod (not admin/hr/manager), restrict to their own logs
+    const isRestrictedUser = !['admin', 'superadmin', 'hr', 'manager'].includes(req.user?.role);
+    if (isRestrictedUser) {
+      query.employee = req.user._id;
+      console.log('Restricting export to user own logs:', req.user._id);
+    } else {
+      // Admin/HR/Manager can filter by employee
+      if (employeeId) {
+        query.employee = employeeId;
+      }
+    }
 
     // Date range filter (same as getAllWorkLogs - with IST handling)
     if (startDate || endDate) {
@@ -765,25 +778,20 @@ export const exportWorkLogs = async (req, res) => {
     // Exclude draft status - only export submitted and reviewed logs
     query.status = { $in: ['submitted', 'reviewed'] };
 
-    // Employee filter
-    if (employeeId) {
-      query.employee = employeeId;
-    }
-
     // Status filter (override the default if specified)
     if (status && status !== "all") {
       query.status = status;
     }
 
-    // Department filter
-    if (department) {
+    // Department filter (only for admin/hr/manager)
+    if (!isRestrictedUser && department) {
       const employees = await User.find({ department }).select("_id");
       const employeeIds = employees.map((emp) => emp._id);
       query.employee = { $in: employeeIds };
     }
 
-    // Search filter
-    if (search) {
+    // Search filter (only for admin/hr/manager)
+    if (!isRestrictedUser && search) {
       const searchEmployees = await User.find({
         $or: [
           { name: { $regex: search, $options: "i" } },

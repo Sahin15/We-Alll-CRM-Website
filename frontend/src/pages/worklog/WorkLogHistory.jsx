@@ -131,7 +131,16 @@ const WorkLogHistory = () => {
         delete params.status;
       }
 
-      const blob = await workLogApi.exportWorkLogs(params);
+      // Use employee-specific export endpoint
+      const blob = await workLogApi.exportMyWorkLogs(params);
+      
+      // Check if the blob is actually an error response (JSON)
+      if (blob.type === 'application/json') {
+        const text = await blob.text();
+        const error = JSON.parse(text);
+        throw new Error(error.message || 'Failed to export work logs');
+      }
+      
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -142,8 +151,8 @@ const WorkLogHistory = () => {
       window.URL.revokeObjectURL(url);
       toast.success("Work logs exported successfully!");
     } catch (error) {
-      toast.error("Failed to export work logs");
-      console.error(error);
+      console.error('Export error:', error);
+      toast.error(error.message || "Failed to export work logs");
     } finally {
       setExporting(false);
     }
