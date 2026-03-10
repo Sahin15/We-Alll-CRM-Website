@@ -370,6 +370,7 @@ export const getWorkItemsGroupedBySlots = async (projectId) => {
 
 export const projectApi = {
   getAllProjects,
+  getProjectsForEmployee,
   getProjectById,
   createProject,
   updateProject,
