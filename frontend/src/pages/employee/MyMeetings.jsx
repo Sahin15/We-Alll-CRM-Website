@@ -144,8 +144,7 @@ const MyMeetings = () => {
         toast.success("Meeting scheduled successfully");
       }
       
-      setShowCreateModal(false);
-      setSelectedMeeting(null);
+      handleCloseMeetingModal();
       fetchMyMeetings();
     } catch (error) {
       console.error("Error saving meeting:", error);
@@ -172,19 +171,56 @@ const MyMeetings = () => {
   };
 
   const handleEditMeeting = (meeting) => {
+    // Format date for HTML date input (YYYY-MM-DD)
+    const formatDateForInput = (dateString) => {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      return date.toISOString().split('T')[0];
+    };
+
+    // Extract attendee IDs (handle both object and ID formats)
+    const getAttendeeIds = (attendees) => {
+      if (!attendees || !Array.isArray(attendees)) return [];
+      return attendees.map(attendee => {
+        // If attendee is an object with _id, extract the _id
+        if (typeof attendee === 'object' && attendee._id) {
+          return attendee._id;
+        }
+        // If attendee is just an ID string, return it
+        return attendee;
+      });
+    };
+
     setFormData({
-      title: meeting.title,
+      title: meeting.title || "",
       description: meeting.description || "",
-      date: meeting.date,
-      startTime: meeting.startTime,
-      endTime: meeting.endTime,
+      date: formatDateForInput(meeting.date),
+      startTime: meeting.startTime || "",
+      endTime: meeting.endTime || "",
       location: meeting.location || "",
       meetingLink: meeting.meetingLink || "",
-      attendees: meeting.attendees?.map(a => a._id) || [],
-      type: meeting.type
+      attendees: getAttendeeIds(meeting.attendees),
+      type: meeting.type || "team"
     });
     setSelectedMeeting(meeting);
     setShowCreateModal(true);
+  };
+
+  const handleCloseMeetingModal = () => {
+    setShowCreateModal(false);
+    setSelectedMeeting(null);
+    // Reset form data to initial state
+    setFormData({
+      title: "",
+      description: "",
+      date: "",
+      startTime: "",
+      endTime: "",
+      location: "",
+      meetingLink: "",
+      attendees: [],
+      type: "team"
+    });
   };
 
   const getStatusBadge = (status) => {
@@ -396,9 +432,9 @@ const MyMeetings = () => {
       </Card>
 
       {/* Create Meeting Modal */}
-      <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} size="lg">
+      <Modal show={showCreateModal} onHide={handleCloseMeetingModal} size="lg">
         <Modal.Header closeButton>
-          <Modal.Title>Schedule New Meeting</Modal.Title>
+          <Modal.Title>{selectedMeeting ? "Edit Meeting" : "Schedule New Meeting"}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form onSubmit={handleSubmit}>
@@ -524,19 +560,19 @@ const MyMeetings = () => {
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowCreateModal(false)} disabled={processing}>
+          <Button variant="secondary" onClick={handleCloseMeetingModal} disabled={processing}>
             Cancel
           </Button>
           <Button variant="primary" onClick={handleSubmit} disabled={processing}>
             {processing ? (
               <>
                 <Spinner animation="border" size="sm" className="me-2" />
-                Scheduling...
+                {selectedMeeting ? "Updating..." : "Scheduling..."}
               </>
             ) : (
               <>
-                <FaPlus className="me-2" />
-                Schedule Meeting
+                {selectedMeeting ? <FaEdit className="me-2" /> : <FaPlus className="me-2" />}
+                {selectedMeeting ? "Update Meeting" : "Schedule Meeting"}
               </>
             )}
           </Button>

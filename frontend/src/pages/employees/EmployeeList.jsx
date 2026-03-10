@@ -131,57 +131,7 @@ const EmployeeList = () => {
     }
   };
 
-  const handleSendNotification = (employee) => {
-    // Navigate to notification creation with pre-filled employee data
-    navigate('/admin/notifications/create', {
-      state: {
-        prefilledData: {
-          title: `Message for ${employee.name}`,
-          message: `Important update for ${employee.name} (${employee.designation || employee.role})`,
-          type: 'employee_update',
-          recipients: [employee._id]
-        }
-      }
-    });
-  };
 
-
-
-  // Smart dropdown positioning component
-  const SmartDropdown = ({ children }) => {
-    const dropdownRef = useRef(null);
-    const [dropDirection, setDropDirection] = useState('down');
-
-    const handleToggle = (isOpen) => {
-      if (isOpen && dropdownRef.current) {
-        const rect = dropdownRef.current.getBoundingClientRect();
-        const viewportHeight = window.innerHeight;
-        const spaceBelow = viewportHeight - rect.bottom;
-        const spaceAbove = rect.top;
-        
-        // Need at least 250px for dropdown menu (accounting for menu height + padding)
-        const requiredSpace = 250;
-        
-        // If there's not enough space below, check if there's more space above
-        if (spaceBelow < requiredSpace && spaceAbove > spaceBelow && spaceAbove > requiredSpace) {
-          setDropDirection('up');
-        } else {
-          setDropDirection('down');
-        }
-      }
-    };
-
-    return (
-      <Dropdown 
-        ref={dropdownRef}
-        align="end" 
-        drop={dropDirection}
-        onToggle={handleToggle}
-      >
-        {children}
-      </Dropdown>
-    );
-  };
 
   const formatDate = (date) => {
     if (!date) return "N/A";
@@ -673,48 +623,26 @@ const EmployeeList = () => {
                               <FaUserShield className="me-1" />
                               Manage Profile
                             </Button>
-                            <SmartDropdown>
-                              <Dropdown.Toggle
-                                variant="outline-secondary"
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              className="action-btn flex-fill"
+                              onClick={() => navigate(`/employees/${employee._id}/work`)}
+                            >
+                              <FaClock className="me-1" />
+                              Work Details
+                            </Button>
+                            {(currentUser?.role === "admin" || currentUser?.role === "superadmin") && employee.role !== "superadmin" && (
+                              <Button
+                                variant="outline-danger"
                                 size="sm"
-                                className="action-btn smart-dropdown-toggle"
-                                style={{ minWidth: '40px' }}
+                                className="action-btn"
+                                onClick={() => handleDelete(employee._id)}
+                                title="Delete Employee"
                               >
-                                <FaEye />
-                              </Dropdown.Toggle>
-                              <Dropdown.Menu 
-                                className="shadow-lg border-0 smart-dropdown-menu" 
-                                style={{ borderRadius: '10px' }}
-                              >
-                                <Dropdown.Item
-                                  onClick={() => navigate(`/employees/${employee._id}/work`)}
-                                  className="py-2"
-                                >
-                                  <FaClock className="me-2 text-success" />
-                                  Work Details
-                                </Dropdown.Item>
-                                <Dropdown.Item
-                                  onClick={() => handleSendNotification(employee)}
-                                  className="py-2"
-                                >
-                                  <FaBell className="me-2 text-info" />
-                                  Send Notification
-                                </Dropdown.Item>
-                                {/* Only admin and superadmin can delete employees */}
-                                {(currentUser?.role === "admin" || currentUser?.role === "superadmin") && employee.role !== "superadmin" && (
-                                  <>
-                                    <Dropdown.Divider />
-                                    <Dropdown.Item
-                                      className="py-2 text-danger"
-                                      onClick={() => handleDelete(employee._id)}
-                                    >
-                                      <FaTrash className="me-2" />
-                                      Delete Employee
-                                    </Dropdown.Item>
-                                  </>
-                                )}
-                              </Dropdown.Menu>
-                            </SmartDropdown>
+                                <FaTrash size={12} />
+                              </Button>
+                            )}
                           </div>
                         </Card.Body>
                       </Card>
@@ -802,47 +730,26 @@ const EmployeeList = () => {
                               >
                                 <FaUserShield size={12} />
                               </Button>
-                              <SmartDropdown>
-                                <Dropdown.Toggle
-                                  variant="outline-secondary"
+                              <Button
+                                variant="outline-primary"
+                                size="sm"
+                                onClick={() => navigate(`/employees/${employee._id}/work`)}
+                                title="Work Details"
+                                style={{ padding: '0.25rem 0.5rem' }}
+                              >
+                                <FaClock size={12} />
+                              </Button>
+                              {(currentUser?.role === "admin" || currentUser?.role === "superadmin") && employee.role !== "superadmin" && (
+                                <Button
+                                  variant="outline-danger"
                                   size="sm"
-                                  className="smart-dropdown-toggle"
+                                  onClick={() => handleDelete(employee._id)}
+                                  title="Delete Employee"
                                   style={{ padding: '0.25rem 0.5rem' }}
                                 >
-                                  <FaEye size={12} />
-                                </Dropdown.Toggle>
-                                <Dropdown.Menu 
-                                  className="shadow-lg border-0 smart-dropdown-menu" 
-                                  style={{ borderRadius: '10px' }}
-                                >
-                                  <Dropdown.Item
-                                    onClick={() => navigate(`/employees/${employee._id}/work`)}
-                                    className="py-2"
-                                  >
-                                    <FaClock className="me-2 text-success" />
-                                    Work Details
-                                  </Dropdown.Item>
-                                  <Dropdown.Item
-                                    onClick={() => handleSendNotification(employee)}
-                                    className="py-2"
-                                  >
-                                    <FaBell className="me-2 text-info" />
-                                    Send Notification
-                                  </Dropdown.Item>
-                                  {(currentUser?.role === "admin" || currentUser?.role === "superadmin") && employee.role !== "superadmin" && (
-                                    <>
-                                      <Dropdown.Divider />
-                                      <Dropdown.Item
-                                        className="py-2 text-danger"
-                                        onClick={() => handleDelete(employee._id)}
-                                      >
-                                        <FaTrash className="me-2" />
-                                        Delete Employee
-                                      </Dropdown.Item>
-                                    </>
-                                  )}
-                                </Dropdown.Menu>
-                              </SmartDropdown>
+                                  <FaTrash size={12} />
+                                </Button>
+                              )}
                             </div>
                           </td>
                         </tr>
