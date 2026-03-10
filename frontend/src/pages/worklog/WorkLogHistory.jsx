@@ -108,7 +108,12 @@ const WorkLogHistory = () => {
 
     setUpdating(true);
     try {
-      await workLogApi.submitWorkLog(editWorkLog.trim());
+      // Use the employee-specific update endpoint
+      await workLogApi.updateMyWorkLog(
+        selectedLog._id, 
+        editWorkLog.trim(), 
+        "Employee updated their work log"
+      );
       toast.success("Work log updated successfully!");
       setShowEditModal(false);
       fetchWorkLogs();

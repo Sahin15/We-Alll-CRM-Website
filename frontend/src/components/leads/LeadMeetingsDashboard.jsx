@@ -432,14 +432,26 @@ const LeadMeetingsDashboard = () => {
                         <td>{getTypeBadge(meeting.meetingType)}</td>
                         <td>{getStatusBadge(meeting.status)}</td>
                         <td>
-                          <Button 
-                            size="sm" 
-                            variant="outline-info" 
-                            onClick={() => handleViewDetails(meeting)}
-                            title="View Details"
-                          >
-                            <FaEye size={10} />
-                          </Button>
+                          <div className="d-flex gap-1">
+                            <Button 
+                              size="sm" 
+                              variant="outline-info" 
+                              onClick={() => handleViewDetails(meeting)}
+                              title="View Details"
+                            >
+                              <FaEye size={10} />
+                            </Button>
+                            {meeting.status === "Scheduled" && (
+                              <Button 
+                                size="sm" 
+                                variant="outline-success" 
+                                onClick={() => handleComplete(meeting.leadId, meeting._id)}
+                                title="Mark Complete"
+                              >
+                                <FaCheck size={10} />
+                              </Button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}

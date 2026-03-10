@@ -47,6 +47,7 @@ import emailRoutes from "./routes/emailRoutes.js";
 import wfhRoutes from "./routes/wfhRoutes.js";
 import workLogRoutes from "./routes/workLogRoutes.js";
 import workOnLeaveDayRoutes from "./routes/workOnLeaveDayRoutes.js";
+import todoRoutes from "./routes/todoRoutes.js";
 // Legacy routes removed - use workItemRoutes instead
 // Old: taskRoutes, slotRoutes, workRoutes → New: workItemRoutes
 import { initializeCronJobs } from "./config/cronJobs.js";
@@ -250,6 +251,7 @@ app.use("/api/emails", apiLimiter, emailRoutes);
 app.use("/api/wfh", apiLimiter, wfhRoutes);
 app.use("/api/worklogs", apiLimiter, workLogRoutes);
 app.use("/api/work-on-leave-day", apiLimiter, workOnLeaveDayRoutes);
+app.use("/api/todos", apiLimiter, todoRoutes);
 
 // Diagnostic endpoint to check server status and timezone
 app.get("/api/diagnostic", (req, res) => {

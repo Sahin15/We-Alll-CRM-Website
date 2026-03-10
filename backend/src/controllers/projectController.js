@@ -391,6 +391,8 @@ export const getProjectsForUser = async (req, res) => {
     })
       .populate("client", "name email serviceCompany")
       .populate("assignedUsers", "name email")
+      .populate("teamMembers.user", "name email role")
+      .populate("teamMembers.assignedBy", "name email")
       .populate("projectHead", "name email")
       .sort({ createdAt: -1 });
 
@@ -413,6 +415,8 @@ export const getProjectById = async (req, res) => {
       .populate("department", "name")
       .populate("projectHead", "name email designation")
       .populate("assignedUsers", "name email role")
+      .populate("teamMembers.user", "name email role designation")
+      .populate("teamMembers.assignedBy", "name email")
       .populate("createdBy", "name email")
       .populate("tasks.assignedTo", "name email")
       .lean();
@@ -517,6 +521,8 @@ export const updateProject = async (req, res) => {
       .populate("department", "name")
       .populate("projectHead", "name email")
       .populate("assignedUsers", "name email")
+      .populate("teamMembers.user", "name email role")
+      .populate("teamMembers.assignedBy", "name email")
       .populate("createdBy", "name email");
 
     return res.status(200).json({ 

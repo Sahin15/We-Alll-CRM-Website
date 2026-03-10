@@ -20,6 +20,8 @@ export const getProjectWorkspace = async (req, res) => {
       .populate("department", "name")
       .populate("projectHead", "name email designation")
       .populate("assignedUsers", "name email designation")
+      .populate("teamMembers.user", "name email role designation")
+      .populate("teamMembers.assignedBy", "name email")
       .populate("createdBy", "name email");
     
     if (!project) {
@@ -158,7 +160,9 @@ export const getProjectTeam = async (req, res) => {
     
     const project = await Project.findById(id)
       .populate("projectHead", "name email designation")
-      .populate("assignedUsers", "name email designation");
+      .populate("assignedUsers", "name email designation")
+      .populate("teamMembers.user", "name email role designation")
+      .populate("teamMembers.assignedBy", "name email");
     
     if (!project) {
       return res.status(404).json({

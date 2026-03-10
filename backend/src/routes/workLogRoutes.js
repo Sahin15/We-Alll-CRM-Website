@@ -9,6 +9,7 @@ import {
   getEmployeeWorkLogs,
   reviewWorkLog,
   updateWorkLog,
+  updateMyWorkLog,
   lateSubmission,
   getWorkLogStats,
   exportWorkLogs,
@@ -23,8 +24,9 @@ router.post("/submit", protect, submitWorkLog);
 router.post("/save-draft", protect, saveDraft);
 router.get("/today", protect, getTodayWorkLog);
 router.get("/check-status", protect, checkWorkLogStatus);
+router.get("/my-logs/export", protect, exportWorkLogs); // Employee can export their own logs (must be before /my-logs)
+router.put("/my-logs/:id", protect, updateMyWorkLog); // Employee can update their own logs (must be before /my-logs)
 router.get("/my-logs", protect, getMyWorkLogs);
-router.get("/my-logs/export", protect, exportWorkLogs); // Employee can export their own logs
 router.post("/late-submission", protect, lateSubmission);
 
 // Admin/HR/Manager routes

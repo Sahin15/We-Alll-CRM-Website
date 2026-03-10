@@ -6,6 +6,7 @@ import {
   createMeeting,
   updateMeeting,
   deleteMeeting,
+  completeMeeting,
 } from "../controllers/meetingController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
@@ -32,6 +33,9 @@ router.post("/", createMeeting);
 
 // Update meeting
 router.put("/:id", updateMeeting);
+
+// Complete meeting
+router.patch("/:id/complete", completeMeeting);
 
 // Delete meeting
 router.delete("/:id", deleteMeeting);

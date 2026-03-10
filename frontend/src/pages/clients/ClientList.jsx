@@ -144,7 +144,7 @@ const ClientList = () => {
           client.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           client.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          client.phone?.includes(searchTerm)
+          client.phone?.toString().includes(searchTerm)
       );
     }
 

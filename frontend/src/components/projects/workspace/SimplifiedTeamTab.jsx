@@ -13,6 +13,7 @@ import AssignWorkModal from '../../work/AssignWorkModal';
  */
 const SimplifiedTeamTab = ({ project, onRefresh }) => {
   const { user } = useAuth();
+  const [currentProject, setCurrentProject] = useState(project);
   const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -22,25 +23,77 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
   const [selectedUser, setSelectedUser] = useState('');
   const [addingMember, setAddingMember] = useState(false);
 
-  // Check if user can manage team
+  // Check if user can manage team - updated to match backend logic
   const canManageTeam = 
-    ['admin', 'superadmin', 'hr', 'manager'].includes(user?.role) ||
-    user?._id === project.projectHead?._id ||
-    project.assignedUsers?.some(u => (u._id || u) === user?._id);
+    ['admin', 'superadmin', 'hr'].includes(user?.role) ||
+    user?._id === currentProject.projectHead?._id ||
+    (currentProject.department?.head && user?._id === currentProject.department.head._id) ||
+    currentProject.assignedUsers?.some(u => (u._id || u) === user?._id);
+
+  // Update currentProject when project prop changes
+  useEffect(() => {
+    setCurrentProject(project);
+  }, [project]);
+
+  // Function to refresh project data
+  const refreshProjectData = async () => {
+    try {
+      // Use getProjectWorkspace instead of getProjectById for better populated data
+      const response = await projectApi.getProjectWorkspace(project._id);
+      const updatedProject = response.data?.project || response.project || response;
+      setCurrentProject(updatedProject);
+      return updatedProject;
+    } catch (error) {
+      console.error('Error refreshing project data:', error);
+      // Fallback to getProjectById
+      try {
+        const response = await projectApi.getProjectById(project._id);
+        const updatedProject = response.data || response;
+        setCurrentProject(updatedProject);
+        return updatedProject;
+      } catch (fallbackError) {
+        console.error('Fallback error:', fallbackError);
+        return currentProject;
+      }
+    }
+  };
 
   useEffect(() => {
     loadTeamMembers();
     loadAvailableUsers();
-  }, [project._id]);
+  }, [currentProject._id, currentProject.teamMembers, currentProject.assignedUsers, currentProject.projectHead]);
 
   const loadTeamMembers = () => {
     try {
       setLoading(true);
-      const members = project.assignedUsers || [];
+      let members = [];
+      
+      // First, get members from teamMembers array (newer structure with populated user data)
+      if (currentProject.teamMembers && currentProject.teamMembers.length > 0) {
+        members = currentProject.teamMembers.map(member => {
+          // If member.user is populated (object), use it; otherwise it's just the ID
+          if (typeof member.user === 'object' && member.user !== null) {
+            return member.user; // This is the populated user object
+          } else {
+            return member.user || member; // Fallback to ID
+          }
+        });
+      } else {
+        // Fallback to assignedUsers (older structure)
+        members = currentProject.assignedUsers || [];
+      }
       
       // Add project head if not in the list
-      if (project.projectHead && !members.find(m => (m._id || m) === (project.projectHead._id || project.projectHead))) {
-        members.unshift(project.projectHead);
+      if (currentProject.projectHead) {
+        const headId = currentProject.projectHead._id || currentProject.projectHead;
+        const headExists = members.some(m => {
+          const memberId = m._id || m;
+          return memberId === headId;
+        });
+        
+        if (!headExists) {
+          members.unshift(currentProject.projectHead);
+        }
       }
       
       setTeamMembers(members);
@@ -57,9 +110,33 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
       const response = await userApi.getAllUsers();
       const allUsers = response.data || response || [];
       
+      // Get all current team member IDs from both teamMembers and assignedUsers
+      const currentTeamIds = new Set();
+      
+      // Add from teamMembers (objects with user property)
+      if (currentProject.teamMembers) {
+        currentProject.teamMembers.forEach(member => {
+          const userId = member.user?._id || member.user;
+          if (userId) currentTeamIds.add(userId);
+        });
+      }
+      
+      // Add from assignedUsers (direct user IDs or objects)
+      if (currentProject.assignedUsers) {
+        currentProject.assignedUsers.forEach(user => {
+          const userId = user._id || user;
+          if (userId) currentTeamIds.add(userId);
+        });
+      }
+      
+      // Add project head
+      if (currentProject.projectHead) {
+        const headId = currentProject.projectHead._id || currentProject.projectHead;
+        if (headId) currentTeamIds.add(headId);
+      }
+      
       // Filter out users already in the team
-      const currentTeamIds = teamMembers.map(m => m._id || m);
-      const available = allUsers.filter(u => !currentTeamIds.includes(u._id));
+      const available = allUsers.filter(u => !currentTeamIds.has(u._id));
       
       setAvailableUsers(available);
     } catch (error) {
@@ -73,21 +150,56 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
       return;
     }
 
+    // Double-check if user is already a team member before making the API call
+    const currentTeamIds = new Set();
+    
+    // Check teamMembers array
+    if (currentProject.teamMembers) {
+      currentProject.teamMembers.forEach(member => {
+        const userId = member.user?._id || member.user;
+        if (userId) currentTeamIds.add(userId);
+      });
+    }
+    
+    // Check assignedUsers array
+    if (currentProject.assignedUsers) {
+      currentProject.assignedUsers.forEach(user => {
+        const userId = user._id || user;
+        if (userId) currentTeamIds.add(userId);
+      });
+    }
+    
+    // Check project head
+    if (currentProject.projectHead) {
+      const headId = currentProject.projectHead._id || currentProject.projectHead;
+      if (headId) currentTeamIds.add(headId);
+    }
+    
+    if (currentTeamIds.has(selectedUser)) {
+      toast.error('This user is already a team member');
+      return;
+    }
+
     try {
       setAddingMember(true);
-      await projectApi.addTeamMember(project._id, selectedUser);
+      const response = await projectApi.addTeamMember(currentProject._id, selectedUser);
       toast.success('Team member added successfully!');
       setShowAddModal(false);
       setSelectedUser('');
       
+      // Refresh project data to get the updated team with populated user data
+      await refreshProjectData();
+      
+      // Also call parent refresh if available
       if (onRefresh) {
         await onRefresh();
       }
-      loadTeamMembers();
+      
       loadAvailableUsers();
     } catch (error) {
       console.error('Error adding team member:', error);
-      toast.error(error.response?.data?.message || 'Failed to add team member');
+      const errorMessage = error.response?.data?.message || 'Failed to add team member';
+      toast.error(errorMessage);
     } finally {
       setAddingMember(false);
     }
@@ -95,7 +207,7 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
 
   const handleRemoveMember = async (memberId) => {
     // Don't allow removing project head
-    if (memberId === (project.projectHead?._id || project.projectHead)) {
+    if (memberId === (currentProject.projectHead?._id || currentProject.projectHead)) {
       toast.error('Cannot remove project head');
       return;
     }
@@ -105,13 +217,16 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
     }
 
     try {
-      await projectApi.removeTeamMember(project._id, memberId);
+      await projectApi.removeTeamMember(currentProject._id, memberId);
       toast.success('Team member removed successfully!');
+      
+      // Refresh project data
+      await refreshProjectData();
       
       if (onRefresh) {
         await onRefresh();
       }
-      loadTeamMembers();
+      
       loadAvailableUsers();
     } catch (error) {
       console.error('Error removing team member:', error);
@@ -191,7 +306,7 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
         ) : (
           teamMembers.map((member) => {
             const memberId = member._id || member;
-            const isProjectHead = memberId === (project.projectHead?._id || project.projectHead);
+            const isProjectHead = memberId === (currentProject.projectHead?._id || currentProject.projectHead);
             
             return (
               <Col md={6} lg={4} key={memberId} className="mb-3">
@@ -315,7 +430,7 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
           setSelectedMemberForWork(null);
         }}
         onSuccess={handleWorkAssignSuccess}
-        defaultProject={project._id}
+        defaultProject={currentProject._id}
         defaultAssignee={selectedMemberForWork?._id}
       />
     </div>

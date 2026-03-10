@@ -528,7 +528,7 @@ export const updateWorkLog = async (req, res) => {
     const { workLog: newWorkLog, reason } = req.body;
     const editor = req.user;
 
-    if (!newWorkLog || newworkLog.trim().length < 50) {
+    if (!newWorkLog || newWorkLog.trim().length < 50) {
       return res.status(400).json({
         message: "Work log must be at least 50 characters",
       });
@@ -572,6 +572,78 @@ export const updateWorkLog = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in updateWorkLog:", error);
+    res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+// Update my work log (Employee)
+export const updateMyWorkLog = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { workLog: newWorkLog, reason } = req.body;
+    const employee = req.user;
+
+    if (!newWorkLog || newWorkLog.trim().length < 50) {
+      return res.status(400).json({
+        message: "Work log must be at least 50 characters",
+      });
+    }
+
+    if (newWorkLog.trim().length > 2000) {
+      return res.status(400).json({
+        message: "Work log cannot exceed 2000 characters",
+      });
+    }
+
+    const workLogDoc = await WorkLog.findById(id);
+
+    if (!workLogDoc) {
+      return res.status(404).json({
+        message: "Work log not found",
+      });
+    }
+
+    // Check if this work log belongs to the employee
+    if (workLogDoc.employee.toString() !== employee._id.toString()) {
+      return res.status(403).json({
+        message: "You can only update your own work logs",
+      });
+    }
+
+    // Check if already reviewed
+    if (workLogDoc.status === "reviewed") {
+      return res.status(400).json({
+        message: "Cannot edit work log after it has been reviewed",
+      });
+    }
+
+    const oldWorkLog = workLogDoc.workLog;
+    workLogDoc.workLog = newWorkLog.trim();
+
+    // Add to edit history
+    workLogDoc.editHistory.push({
+      editedBy: employee._id,
+      editedAt: getCurrentISTTime(),
+      changes: {
+        oldWorkLog,
+        newWorkLog: newWorkLog.trim(),
+      },
+      reason: reason || "Employee updated their work log",
+    });
+
+    await workLogDoc.save();
+
+    logger.info(`Work log updated by ${employee.name} for ${workLogDoc.date.toDateString()}`);
+
+    res.status(200).json({
+      message: "Work log updated successfully",
+      workLog: workLogDoc,
+    });
+  } catch (error) {
+    console.error("Error in updateMyWorkLog:", error);
     res.status(500).json({
       message: "Server error",
       error: error.message,

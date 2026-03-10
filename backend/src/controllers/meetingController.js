@@ -205,3 +205,44 @@ export const deleteMeeting = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+// Complete meeting
+export const completeMeeting = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const meeting = await Meeting.findById(id);
+
+    if (!meeting) {
+      return res.status(404).json({ message: "Meeting not found" });
+    }
+
+    // Only organizer can complete
+    if (meeting.organizer.toString() !== req.user.id) {
+      return res
+        .status(403)
+        .json({ message: "Only organizer can complete the meeting" });
+    }
+
+    // Only scheduled meetings can be completed
+    if (meeting.status !== "scheduled") {
+      return res.status(400).json({ 
+        message: `Only scheduled meetings can be marked as completed. Current status: ${meeting.status}` 
+      });
+    }
+
+    meeting.status = "completed";
+    await meeting.save();
+
+    const populatedMeeting = await Meeting.findById(meeting._id)
+      .populate("organizer", "name email")
+      .populate("attendees", "name email");
+
+    res.json({
+      message: "Meeting marked as completed",
+      meeting: populatedMeeting,
+    });
+  } catch (error) {
+    console.error("Error completing meeting:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};

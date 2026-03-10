@@ -1,27 +1,27 @@
 import { Card, Row, Col } from "react-bootstrap";
 import { useAuth } from "../../context/AuthContext";
 import { FaSun, FaMoon, FaCloudSun, FaLightbulb, FaRocket, FaStar } from "react-icons/fa";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import BreakTimer from "../dashboard/BreakTimer";
 
 const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
   const { user } = useAuth();
   const [funMessage, setFunMessage] = useState(null);
   
-  const getGreeting = () => {
+  const getGreeting = useMemo(() => {
     const hour = new Date().getHours();
     if (hour < 12) return { text: "Good Morning", icon: <FaSun /> };
     if (hour < 18) return { text: "Good Afternoon", icon: <FaCloudSun /> };
     return { text: "Good Evening", icon: <FaMoon /> };
-  };
+  }, []);
 
-  const getFormattedDate = () => {
+  const getFormattedDate = useMemo(() => {
     const now = new Date();
     const day = String(now.getDate()).padStart(2, '0');
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const year = now.getFullYear();
     return `${day}/${month}/${year}`;
-  };
+  }, []);
 
   // Get contextual messages based on time
   const getContextualMessages = () => {
@@ -236,15 +236,15 @@ const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
     return allMessages;
   };
   
-  const funContent = getContextualMessages();
-
   useEffect(() => {
-    // Select a random fun message
+    // Select a random fun message only once on mount
+    const funContent = getContextualMessages();
     const randomIndex = Math.floor(Math.random() * funContent.length);
     setFunMessage(funContent[randomIndex]);
-  }, []);
+  }, []); // Empty dependency array - run only once on mount
 
-  const greeting = getGreeting();
+  const greeting = useMemo(() => getGreeting, [getGreeting]);
+  const formattedDate = useMemo(() => getFormattedDate, [getFormattedDate]);
 
   return (
     <Card className="greeting-banner shadow-lg mb-2" style={{ position: 'relative' }}>
@@ -265,7 +265,7 @@ const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
                 {subtitle}, <strong className="user-name">{user?.name || "User"}</strong>
               </p>
               <small className="opacity-75 d-flex align-items-center">
-                <span className="date-badge">{getFormattedDate()}</span>
+                <span className="date-badge">{formattedDate}</span>
               </small>
             </div>
           </Col>

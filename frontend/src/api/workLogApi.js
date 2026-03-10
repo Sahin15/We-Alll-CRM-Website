@@ -63,6 +63,12 @@ export const updateWorkLog = async (id, workLog, reason) => {
   return response.data;
 };
 
+// Update my work log (Employee)
+export const updateMyWorkLog = async (id, workLog, reason) => {
+  const response = await api.put(`/worklogs/my-logs/${id}`, { workLog, reason });
+  return response.data;
+};
+
 // Late submission
 export const lateSubmission = async (data) => {
   const response = await api.post("/worklogs/late-submission", data);
@@ -103,6 +109,7 @@ export const workLogApi = {
   getEmployeeWorkLogs,
   reviewWorkLog,
   updateWorkLog,
+  updateMyWorkLog,
   lateSubmission,
   getWorkLogStats,
   exportWorkLogs,

@@ -1,12 +1,28 @@
 import { useState, useEffect, useRef } from "react";
-import { Container, Row, Col, Card, Button, Badge, Modal, Form, Alert } from "react-bootstrap";
-import { FaClock, FaCalendarAlt, FaTasks, FaChartLine, FaFileAlt, FaShieldAlt, FaBullhorn, FaInfoCircle, FaExclamationTriangle, FaHome } from "react-icons/fa";
+import { Container, Row, Col, Card, Button, Badge, Modal, Form, Alert, Spinner } from "react-bootstrap";
+import { 
+  FaClock, 
+  FaCalendarAlt, 
+  FaTasks, 
+  FaChartLine, 
+  FaFileAlt, 
+  FaShieldAlt, 
+  FaBullhorn, 
+  FaInfoCircle, 
+  FaExclamationTriangle, 
+  FaHome, 
+  FaEye, 
+  FaEdit, 
+  FaCheckCircle, 
+  FaPlus 
+} from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import toast from "../../utils/toast";
 import api from "../../services/api";
 import workItemApi from "../../api/workItemApi";
 import { LEAVE_TYPE_DETAILS } from "../../utils/constants";
 import GreetingBanner from "../../components/common/GreetingBanner";
+import TodoWidget from "../../components/common/TodoWidget";
 import ConfirmModal from "../../components/common/ConfirmModal";
 import HoDSection from "../../components/dashboard/HoDSection";
 import HoPSection from "../../components/dashboard/HoPSection";
@@ -96,6 +112,21 @@ const EmployeeDashboard = () => {
   const [showClockOutConfirm, setShowClockOutConfirm] = useState(false);
   const [showWorkLogModal, setShowWorkLogModal] = useState(false);
   const [clockActionLoading, setClockActionLoading] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedMeeting, setSelectedMeeting] = useState(null);
+  const [processing, setProcessing] = useState(false);
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    date: "",
+    startTime: "",
+    endTime: "",
+    location: "",
+    meetingLink: "",
+    attendees: [],
+    type: "team"
+  });
+  const [employees, setEmployees] = useState([]);
   
   const [leaveFormData, setLeaveFormData] = useState({
     leaveType: 'personal',
@@ -134,6 +165,7 @@ const EmployeeDashboard = () => {
     const loadData = async () => {
       if (isMounted) {
         await fetchDashboardData();
+        await fetchEmployees();
       }
     };
     
@@ -220,198 +252,165 @@ const EmployeeDashboard = () => {
     }
   };
 
+  const fetchEmployees = async () => {
+    try {
+      const response = await api.get("/users");
+      setEmployees(response.data);
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+    }
+  };
+
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
       
-      // Fetch today's attendance status from backend
-      try {
-        const response = await api.get("/attendance/today");
-        
-        if (response.data && response.data.clockIn) {
-          // Already clocked in today
-          updateClockedIn(!response.data.clockOut); // True if not clocked out yet
-          updateClockInTime(new Date(response.data.clockIn));
-        } else {
-          // No attendance record for today
-          updateClockedIn(false);
-          updateClockInTime(null);
-        }
-        
-        // Fetch task stats and attendance stats
-        try {
-          const tasksResponse = await workItemApi.getMyWork({ type: 'task' });
-          const allTasks = tasksResponse.data || [];
-          const pendingTasks = allTasks.filter(t => t.status !== 'Done').length;
-          
-          // Get top 3 pending tasks sorted by due date
-          const topTasks = allTasks
-            .filter(t => t.status !== 'Done')
-            .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
-            .slice(0, 3);
-          setRecentTasks(topTasks);
-          
-          // Fetch today's meetings
-          try {
-            const meetingsResponse = await api.get('/meetings/today');
-            setTodaysMeetings(meetingsResponse.data);
-          } catch (meetError) {
-            // console.log('No meetings or error fetching meetings');
-          }
-          
-          // Fetch recent activities
-          try {
-            const activitiesResponse = await api.get('/activities/my-activities?limit=5');
-            let activities = activitiesResponse.data || [];
-            
-            // Also fetch recent announcements and add to activities
-            try {
-              const announcementsResponse = await api.get('/announcements');
-              if (announcementsResponse.data && announcementsResponse.data.length > 0) {
-                const recentAnnouncements = announcementsResponse.data.slice(0, 2).map(announcement => ({
-                  _id: `announcement-${announcement._id}`,
-                  type: 'announcement',
-                  title: 'New Announcement',
-                  description: announcement.title,
-                  color: announcement.type === 'important' ? 'danger' : announcement.type === 'urgent' ? 'warning' : 'info',
-                  createdAt: announcement.createdAt
-                }));
-                activities = [...recentAnnouncements, ...activities];
-              }
-            } catch (announcementError) {
-              // console.log('No announcements or error fetching announcements');
-            }
-            
-            // Also fetch recent projects assigned to user's department
-            try {
-              const projectsResponse = await api.get('/projects');
-              if (projectsResponse.data && projectsResponse.data.length > 0) {
-                const userDepartment = user?.department;
-                const recentProjects = projectsResponse.data
-                  .filter(project => project.department === userDepartment)
-                  .slice(0, 1)
-                  .map(project => ({
-                    _id: `project-${project._id}`,
-                    type: 'project',
-                    title: 'New Project',
-                    description: `${project.name} assigned to ${project.department}`,
-                    color: 'primary',
-                    createdAt: project.createdAt
-                  }));
-                activities = [...recentProjects, ...activities];
-              }
-            } catch (projectError) {
-              // console.log('No projects or error fetching projects');
-            }
-            
-            // Sort by date and limit to 5
-            activities.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-            setRecentActivities(activities.slice(0, 5));
-          } catch (actError) {
-            // console.log('No activities or error fetching activities');
-          }
+      // Fetch all data in parallel for better performance
+      const [
+        attendanceRes,
+        tasksRes,
+        meetingsRes,
+        activitiesRes,
+        policiesRes,
+        attendanceRecordsRes,
+        leaveBalanceRes,
+        announcementsRes,
+        projectsRes
+      ] = await Promise.allSettled([
+        api.get("/attendance/today"),
+        workItemApi.getMyWork({ type: 'task' }),
+        api.get('/meetings/today'),
+        api.get('/activities/my-activities?limit=5'),
+        api.get('/policies/recent?limit=3'),
+        api.get('/attendance/my-attendance'),
+        api.get('/leaves/balance'),
+        api.get('/announcements'),
+        api.get('/projects')
+      ]);
 
-          // Fetch recent policies
-          try {
-            const policiesResponse = await api.get('/policies/recent?limit=3');
-            setPolicies(policiesResponse.data);
-          } catch (policyError) {
-            // console.log('No policies or error fetching policies');
-          }
-          
-          // Fetch attendance records for this month
-          const attendanceResponse = await api.get('/attendance/my-attendance');
-          const attendanceRecords = attendanceResponse.data;
-          
-          // Calculate this month's attendance
-          const now = new Date();
-          const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-          const thisMonthRecords = attendanceRecords.filter(record => 
-            new Date(record.date) >= firstDayOfMonth
-          );
-          const presentDays = thisMonthRecords.filter(r => r.status === 'present' || r.clockIn).length;
-          const workingDaysInMonth = 25; // Approximate working days
-          
-          // Calculate this week's hours
-          const startOfWeek = new Date(now);
-          startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
-          startOfWeek.setHours(0, 0, 0, 0);
-          
-          const thisWeekRecords = attendanceRecords.filter(record => 
-            new Date(record.date) >= startOfWeek
-          );
-          const hoursThisWeek = thisWeekRecords.reduce((sum, record) => 
-            sum + (record.workHours || 0), 0
-          );
-          const daysWorkedThisWeek = thisWeekRecords.filter(r => r.clockIn).length;
-          
-          // Fetch leave balance using new earned leave system
-          const leaveBalanceResponse = await api.get('/leaves/balance');
-          const leaveBalance = leaveBalanceResponse.data.balance;
-          const remainingLeaves = leaveBalance.earned.remaining;
-          
-          setStats({
-            attendanceToday: response.data && response.data.clockIn ? 
-              (response.data.clockOut ? "Completed" : "Present") : "Not Clocked In",
-            leaveBalance: remainingLeaves,
-            pendingTasks: pendingTasks,
-            hoursThisWeek: Math.round(hoursThisWeek * 10) / 10,
-            daysWorkedThisWeek: daysWorkedThisWeek,
-            attendanceThisMonth: `${presentDays}/${workingDaysInMonth}`,
-          });
-        } catch (taskError) {
-          setStats({
-            attendanceToday: response.data && response.data.clockIn ? 
-              (response.data.clockOut ? "Completed" : "Present") : "Not Clocked In",
-            leaveBalance: 2, // Default to 2 earned leaves in January
-            pendingTasks: 0,
-            hoursThisWeek: 0,
-            attendanceThisMonth: "0/25",
-          });
-        }
-      } catch (attendanceError) {
-        // No attendance record or error
+      // Process attendance status
+      if (attendanceRes.status === 'fulfilled' && attendanceRes.value.data && attendanceRes.value.data.clockIn) {
+        updateClockedIn(!attendanceRes.value.data.clockOut);
+        updateClockInTime(new Date(attendanceRes.value.data.clockIn));
+      } else {
         updateClockedIn(false);
         updateClockInTime(null);
-        
-        // Try to fetch other stats even if attendance fails
-        try {
-          const tasksResponse = await workItemApi.getMyWork({ type: 'task' });
-          const allTasks = tasksResponse.data || [];
-          const pendingTasks = allTasks.filter(t => t.status !== 'Done').length;
-          
-          // Get top 3 pending tasks sorted by due date
-          const topTasks = allTasks
-            .filter(t => t.status !== 'Done')
-            .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
-            .slice(0, 3);
-          setRecentTasks(topTasks);
-          
-          // Fetch leave balance using new earned leave system
-          const leaveBalanceResponse = await api.get('/leaves/balance');
-          const leaveBalance = leaveBalanceResponse.data.balance;
-          const remainingLeaves = leaveBalance.earned.remaining;
-          
-          setStats({
-            attendanceToday: "Not Clocked In",
-            leaveBalance: remainingLeaves,
-            pendingTasks: pendingTasks,
-            hoursThisWeek: 0,
-            daysWorkedThisWeek: 0,
-            attendanceThisMonth: "0/25",
-          });
-        } catch (statsError) {
-          // If all API calls fail, set empty values
-          setStats({
-            attendanceToday: "Not Clocked In",
-            leaveBalance: 0,
-            pendingTasks: 0,
-            hoursThisWeek: 0,
-            daysWorkedThisWeek: 0,
-            attendanceThisMonth: "0/25",
-          });
-        }
       }
+
+      // Process tasks
+      let pendingTasks = 0;
+      if (tasksRes.status === 'fulfilled') {
+        const allTasks = tasksRes.value.data || [];
+        pendingTasks = allTasks.filter(t => t.status !== 'Done').length;
+        const topTasks = allTasks
+          .filter(t => t.status !== 'Done')
+          .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+          .slice(0, 3);
+        setRecentTasks(topTasks);
+      }
+
+      // Process meetings
+      if (meetingsRes.status === 'fulfilled') {
+        setTodaysMeetings(meetingsRes.value.data || []);
+      }
+
+      // Process activities with announcements and projects
+      let activities = [];
+      if (activitiesRes.status === 'fulfilled') {
+        activities = activitiesRes.value.data || [];
+      }
+
+      // Add announcements to activities
+      if (announcementsRes.status === 'fulfilled' && announcementsRes.value.data?.length > 0) {
+        const recentAnnouncements = announcementsRes.value.data.slice(0, 2).map(announcement => ({
+          _id: `announcement-${announcement._id}`,
+          type: 'announcement',
+          title: 'New Announcement',
+          description: announcement.title,
+          color: announcement.type === 'important' ? 'danger' : announcement.type === 'urgent' ? 'warning' : 'info',
+          createdAt: announcement.createdAt
+        }));
+        activities = [...recentAnnouncements, ...activities];
+      }
+
+      // Add projects to activities
+      if (projectsRes.status === 'fulfilled' && projectsRes.value.data?.length > 0) {
+        const userDepartment = user?.department;
+        const recentProjects = projectsRes.value.data
+          .filter(project => project.department === userDepartment)
+          .slice(0, 1)
+          .map(project => ({
+            _id: `project-${project._id}`,
+            type: 'project',
+            title: 'New Project',
+            description: `${project.name} assigned to ${project.department}`,
+            color: 'primary',
+            createdAt: project.createdAt
+          }));
+        activities = [...recentProjects, ...activities];
+      }
+
+      // Sort and limit activities
+      activities.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setRecentActivities(activities.slice(0, 5));
+
+      // Process policies
+      if (policiesRes.status === 'fulfilled') {
+        setPolicies(policiesRes.value.data || []);
+      }
+
+      // Calculate attendance stats
+      let presentDays = 0;
+      let hoursThisWeek = 0;
+      let daysWorkedThisWeek = 0;
+
+      if (attendanceRecordsRes.status === 'fulfilled') {
+        const attendanceRecords = attendanceRecordsRes.value.data;
+        const now = new Date();
+        
+        // This month's attendance
+        const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const thisMonthRecords = attendanceRecords.filter(record => 
+          new Date(record.date) >= firstDayOfMonth
+        );
+        presentDays = thisMonthRecords.filter(r => r.status === 'present' || r.clockIn).length;
+        
+        // This week's hours
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - now.getDay());
+        startOfWeek.setHours(0, 0, 0, 0);
+        
+        const thisWeekRecords = attendanceRecords.filter(record => 
+          new Date(record.date) >= startOfWeek
+        );
+        hoursThisWeek = thisWeekRecords.reduce((sum, record) => 
+          sum + (record.workHours || 0), 0
+        );
+        daysWorkedThisWeek = thisWeekRecords.filter(r => r.clockIn).length;
+      }
+
+      // Get leave balance
+      let remainingLeaves = 0;
+      if (leaveBalanceRes.status === 'fulfilled') {
+        const leaveBalance = leaveBalanceRes.value.data.balance;
+        remainingLeaves = leaveBalance.earned.remaining;
+      }
+
+      // Get attendance status text
+      let attendanceToday = "Not Clocked In";
+      if (attendanceRes.status === 'fulfilled' && attendanceRes.value.data && attendanceRes.value.data.clockIn) {
+        attendanceToday = attendanceRes.value.data.clockOut ? "Completed" : "Present";
+      }
+
+      // Update stats
+      setStats({
+        attendanceToday,
+        leaveBalance: remainingLeaves,
+        pendingTasks,
+        hoursThisWeek: Math.round(hoursThisWeek * 10) / 10,
+        daysWorkedThisWeek,
+        attendanceThisMonth: `${presentDays}/25`,
+      });
       
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -423,6 +422,34 @@ const EmployeeDashboard = () => {
 
   const handleClockInClick = () => {
     setShowClockInConfirm(true);
+  };
+
+  const handleEditMeeting = (meeting) => {
+    // Set form data and open modal
+    setFormData({
+      title: meeting.title,
+      description: meeting.description || "",
+      date: meeting.date,
+      startTime: meeting.startTime,
+      endTime: meeting.endTime,
+      location: meeting.location || "",
+      meetingLink: meeting.meetingLink || "",
+      attendees: meeting.attendees?.map(a => a._id) || [],
+      type: meeting.type
+    });
+    setSelectedMeeting(meeting);
+    setShowCreateModal(true);
+  };
+
+  const handleCompleteMeeting = async (meetingId) => {
+    try {
+      await api.patch(`/meetings/${meetingId}/complete`);
+      toast.success("Meeting marked as completed");
+      fetchDashboardData();
+    } catch (error) {
+      console.error("Error completing meeting:", error);
+      toast.error(error.response?.data?.message || "Failed to complete meeting");
+    }
   };
 
   const handleClockIn = async () => {
@@ -463,6 +490,43 @@ const EmployeeDashboard = () => {
       }
     } finally {
       setClockActionLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!formData.title || !formData.date || !formData.startTime || !formData.endTime) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    if (formData.attendees.length === 0) {
+      toast.error("Please select at least one attendee");
+      return;
+    }
+
+    try {
+      setProcessing(true);
+      
+      if (selectedMeeting) {
+        // Update existing meeting
+        await api.put(`/meetings/${selectedMeeting._id}`, formData);
+        toast.success("Meeting updated successfully");
+      } else {
+        // Create new meeting
+        await api.post("/meetings", formData);
+        toast.success("Meeting scheduled successfully");
+      }
+      
+      setShowCreateModal(false);
+      setSelectedMeeting(null);
+      fetchDashboardData();
+    } catch (error) {
+      console.error("Error saving meeting:", error);
+      toast.error(error.response?.data?.message || "Failed to save meeting");
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -1099,6 +1163,7 @@ const EmployeeDashboard = () => {
                     const statusColor = meeting.status === 'completed' ? 'success' : 
                                        meeting.status === 'ongoing' ? 'warning' : 
                                        meeting.status === 'cancelled' ? 'danger' : 'primary';
+                    const isOrganizer = meeting.organizer?._id === user?._id;
                     
                     return (
                       <div key={meeting._id} className="list-group-item px-0">
@@ -1122,9 +1187,33 @@ const EmployeeDashboard = () => {
                               </div>
                             )}
                           </div>
-                          <Badge bg={statusColor} className="ms-2">
-                            {meeting.status}
-                          </Badge>
+                          <div className="d-flex gap-1 align-items-center">
+                            <Badge bg={statusColor} className="ms-2">
+                              {meeting.status}
+                            </Badge>
+                            {isOrganizer && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline-secondary"
+                                  onClick={() => handleEditMeeting(meeting._id)}
+                                  title="Edit"
+                                >
+                                  <FaEdit size={12} />
+                                </Button>
+                                {meeting.status === 'scheduled' && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline-success"
+                                    onClick={() => handleCompleteMeeting(meeting._id)}
+                                    title="Mark Complete"
+                                  >
+                                    <FaCheckCircle size={12} />
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
@@ -1142,58 +1231,7 @@ const EmployeeDashboard = () => {
         </Col>
 
         <Col xs={12} md={6} className="mb-3">
-          <Card className="dashboard-card content-card border-0 shadow-sm h-100">
-            <Card.Body className="d-flex flex-column">
-              <h5 className="mb-3">My Tasks</h5>
-              
-              {recentTasks.length > 0 ? (
-                <div className="flex-grow-1">
-                  <div className="list-group list-group-flush" style={{ maxHeight: '350px', overflowY: 'auto' }}>
-                    {recentTasks.map((task) => {
-                      const dueDate = new Date(task.dueDate);
-                      const today = new Date();
-                      const isOverdue = dueDate < today && task.status !== 'done';
-                      const isToday = dueDate.toDateString() === today.toDateString();
-                      
-                      const day = dueDate.getDate().toString().padStart(2, '0');
-                      const month = (dueDate.getMonth() + 1).toString().padStart(2, '0');
-                      const year = dueDate.getFullYear();
-                      let dueDateText = `${day}/${month}/${year}`;
-                      if (isToday) dueDateText = 'Today';
-                      else if (isOverdue) dueDateText = 'Overdue';
-                      
-                      const priorityColor = task.priority === 'high' ? 'danger' : 
-                                          task.priority === 'medium' ? 'warning' : 'info';
-                      
-                      return (
-                        <div key={task._id} className="list-group-item px-0">
-                          <div className="d-flex justify-content-between align-items-center">
-                            <div>
-                              <h6 className="mb-1">{task.title}</h6>
-                              <small className={isOverdue ? 'text-danger' : 'text-muted'}>
-                                Due: {dueDateText}
-                              </small>
-                            </div>
-                            <Badge bg={priorityColor}>{task.priority}</Badge>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <Button variant="link" className="mt-3 p-0" href="/employee/my-work">
-                    View All Tasks →
-                  </Button>
-                </div>
-              ) : (
-                <div className="text-center py-5 text-muted flex-grow-1 d-flex flex-column justify-content-center">
-                  <FaTasks className="fs-1 mb-3 opacity-25" />
-                  <p className="mb-0">No pending tasks</p>
-                  <small>You're all caught up!</small>
-                </div>
-              )}
-            </Card.Body>
-          </Card>
+          <TodoWidget />
         </Col>
       </Row>
 
@@ -2292,6 +2330,154 @@ const EmployeeDashboard = () => {
         onSubmit={handleWorkLogSubmit}
         onSkip={handleWorkLogSkip}
       />
+
+      {/* Create/Edit Meeting Modal */}
+      <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>{selectedMeeting ? "Edit" : "Schedule"} Meeting</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form onSubmit={handleSubmit}>
+            <Form.Group className="mb-3">
+              <Form.Label>Meeting Title *</Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="Enter meeting title"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                required
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Description</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                placeholder="Enter meeting description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              />
+            </Form.Group>
+
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Date *</Form.Label>
+                  <Form.Control
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    required
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Start Time *</Form.Label>
+                  <Form.Control
+                    type="time"
+                    value={formData.startTime}
+                    onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                    required
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group className="mb-3">
+                  <Form.Label>End Time *</Form.Label>
+                  <Form.Control
+                    type="time"
+                    value={formData.endTime}
+                    onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                    required
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Location</Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="e.g., Conference Room A"
+                    value={formData.location}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Meeting Link</Form.Label>
+                  <Form.Control
+                    type="url"
+                    placeholder="e.g., https://zoom.us/j/..."
+                    value={formData.meetingLink}
+                    onChange={(e) => setFormData({ ...formData, meetingLink: e.target.value })}
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Meeting Type</Form.Label>
+              <Form.Select
+                value={formData.type}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+              >
+                <option value="team">Team Meeting</option>
+                <option value="one-on-one">1-on-1</option>
+                <option value="client">Client Meeting</option>
+                <option value="training">Training</option>
+                <option value="other">Other</option>
+              </Form.Select>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Attendees * (Hold Ctrl/Cmd to select multiple)</Form.Label>
+              <Form.Select
+                multiple
+                value={formData.attendees}
+                onChange={(e) => {
+                  const selected = Array.from(e.target.selectedOptions, option => option.value);
+                  setFormData({ ...formData, attendees: selected });
+                }}
+                style={{ minHeight: "150px" }}
+                required
+              >
+                {employees.map(emp => (
+                  <option key={emp._id} value={emp._id}>
+                    {emp.name} ({emp.email})
+                  </option>
+                ))}
+              </Form.Select>
+              <Form.Text className="text-muted">
+                Selected: {formData.attendees.length} attendee(s)
+              </Form.Text>
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowCreateModal(false)} disabled={processing}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleSubmit} disabled={processing}>
+            {processing ? (
+              <>
+                <Spinner animation="border" size="sm" className="me-2" />
+                {selectedMeeting ? "Updating..." : "Scheduling..."}
+              </>
+            ) : (
+              <>
+                {selectedMeeting ? <FaEdit className="me-2" /> : <FaPlus className="me-2" />}
+                {selectedMeeting ? "Update" : "Schedule"} Meeting
+              </>
+            )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </Container>
   );
 };

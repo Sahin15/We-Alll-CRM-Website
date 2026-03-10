@@ -21,12 +21,16 @@ import {
   FaMapMarkerAlt,
   FaUser,
   FaSearch,
-  FaPlus
+  FaPlus,
+  FaCheckCircle,
+  FaEdit
 } from "react-icons/fa";
 import toast from "../../utils/toast";
 import api from "../../services/api";
+import { useAuth } from "../../context/AuthContext";
 
 const MyMeetings = () => {
+  const { user } = useAuth();
   const [meetings, setMeetings] = useState([]);
   const [filteredMeetings, setFilteredMeetings] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -130,14 +134,22 @@ const MyMeetings = () => {
     try {
       setProcessing(true);
       
-      await api.post("/meetings", formData);
-      toast.success("Meeting scheduled successfully");
+      if (selectedMeeting) {
+        // Update existing meeting
+        await api.put(`/meetings/${selectedMeeting._id}`, formData);
+        toast.success("Meeting updated successfully");
+      } else {
+        // Create new meeting
+        await api.post("/meetings", formData);
+        toast.success("Meeting scheduled successfully");
+      }
       
       setShowCreateModal(false);
+      setSelectedMeeting(null);
       fetchMyMeetings();
     } catch (error) {
-      console.error("Error creating meeting:", error);
-      toast.error(error.response?.data?.message || "Failed to schedule meeting");
+      console.error("Error saving meeting:", error);
+      toast.error(error.response?.data?.message || "Failed to save meeting");
     } finally {
       setProcessing(false);
     }
@@ -146,6 +158,33 @@ const MyMeetings = () => {
   const handleViewMeeting = (meeting) => {
     setSelectedMeeting(meeting);
     setShowModal(true);
+  };
+
+  const handleCompleteMeeting = async (meetingId) => {
+    try {
+      await api.patch(`/meetings/${meetingId}/complete`);
+      toast.success("Meeting marked as completed");
+      fetchMyMeetings();
+    } catch (error) {
+      console.error("Error completing meeting:", error);
+      toast.error(error.response?.data?.message || "Failed to complete meeting");
+    }
+  };
+
+  const handleEditMeeting = (meeting) => {
+    setFormData({
+      title: meeting.title,
+      description: meeting.description || "",
+      date: meeting.date,
+      startTime: meeting.startTime,
+      endTime: meeting.endTime,
+      location: meeting.location || "",
+      meetingLink: meeting.meetingLink || "",
+      attendees: meeting.attendees?.map(a => a._id) || [],
+      type: meeting.type
+    });
+    setSelectedMeeting(meeting);
+    setShowCreateModal(true);
   };
 
   const getStatusBadge = (status) => {
@@ -310,13 +349,36 @@ const MyMeetings = () => {
                       <td>{getTypeBadge(meeting.type)}</td>
                       <td>{getStatusBadge(meeting.status)}</td>
                       <td>
-                        <Button
-                          size="sm"
-                          variant="outline-primary"
-                          onClick={() => handleViewMeeting(meeting)}
-                        >
-                          <FaEye />
-                        </Button>
+                        <div className="d-flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline-primary"
+                            onClick={() => handleViewMeeting(meeting)}
+                            title="View Details"
+                          >
+                            <FaEye />
+                          </Button>
+                          {meeting.organizer?._id === user?.id && (
+                            <Button
+                              size="sm"
+                              variant="outline-secondary"
+                              onClick={() => handleEditMeeting(meeting)}
+                              title="Edit Meeting"
+                            >
+                              <FaEdit />
+                            </Button>
+                          )}
+                          {meeting.status === 'scheduled' && (
+                            <Button
+                              size="sm"
+                              variant="outline-success"
+                              onClick={() => handleCompleteMeeting(meeting._id)}
+                              title="Mark as Complete"
+                            >
+                              <FaCheckCircle />
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
