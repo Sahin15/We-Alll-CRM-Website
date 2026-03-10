@@ -71,10 +71,10 @@ const EnhancedEmployeeWorkView = () => {
         endDate: moment().add(30, 'days').toISOString()
       });
 
-      // Load recent work items
+      // Load ALL work items (no limit) to ensure we capture all projects
       const workItemsResponse = isOwnProfile 
-        ? await workItemApi.getMyWork({ limit: 10 })
-        : await workItemApi.getAllWorkItems({ assignedTo: currentEmployeeId, limit: 10 });
+        ? await workItemApi.getMyWork()
+        : await workItemApi.getAllWorkItems({ assignedTo: currentEmployeeId });
 
       // Load projects where employee is involved
       const projectsResponse = await projectApi.getAllProjects();
@@ -86,14 +86,22 @@ const EnhancedEmployeeWorkView = () => {
       // Filter projects where the employee is involved
       const employeeProjectsFiltered = Array.isArray(projectsData) 
         ? projectsData.filter(project => {
-            // Check if employee is assigned to the project or has work items in the project
+            // Check if employee is assigned to the project (assignedUsers)
             const isAssignedToProject = project.assignedUsers?.some(userId => 
               userId === currentEmployeeId || userId._id === currentEmployeeId
             );
+            
+            // Check if employee is a team member (teamMembers.user)
+            const isTeamMember = project.teamMembers?.some(member => 
+              member.user === currentEmployeeId || member.user?._id === currentEmployeeId
+            );
+            
+            // Check if employee has work items in the project
             const hasWorkInProject = Array.isArray(workItemsData) && workItemsData.some(workItem => 
               workItem.project?._id === project._id || workItem.project === project._id
             );
-            return isAssignedToProject || hasWorkInProject;
+            
+            return isAssignedToProject || isTeamMember || hasWorkInProject;
           })
         : [];
 
