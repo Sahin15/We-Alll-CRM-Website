@@ -426,6 +426,7 @@ export const getProjectsForEmployee = async (req, res) => {
       .populate("teamMembers.user", "name email role")
       .populate("teamMembers.assignedBy", "name email")
       .populate("projectHead", "name email")
+      .populate("departments", "name")
       .sort({ createdAt: -1 });
 
     res.status(200).json(projects);

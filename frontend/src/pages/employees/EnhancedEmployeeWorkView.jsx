@@ -858,7 +858,7 @@ const EnhancedEmployeeWorkView = () => {
                     </div>
                     
                     {employeeProjects.length > 0 ? (
-                      <Row className="g-4">
+                      <Row className="g-3">
                         {employeeProjects.map(project => {
                           // Calculate employee's work in this project
                           const projectWorkItems = recentWork.filter(work => 
@@ -869,130 +869,145 @@ const EnhancedEmployeeWorkView = () => {
                           const progressPercentage = totalWork > 0 ? Math.round((completedWork / totalWork) * 100) : 0;
 
                           return (
-                            <Col lg={12} key={project._id}>
-                              <Card className="border-0 shadow-sm h-100 project-card">
-                                <Card.Header className="bg-light d-flex justify-content-between align-items-center">
-                                  <div>
-                                    <h6 className="mb-0">{project.name}</h6>
-                                    <small className="text-muted">
-                                      {project.client?.name || 'Internal Project'}
-                                    </small>
+                            <Col lg={6} key={project._id}>
+                              <Card className="border-0 shadow-sm h-100 project-card" style={{ 
+                                borderRadius: '12px',
+                                transition: 'all 0.3s ease',
+                                overflow: 'hidden'
+                              }}>
+                                {/* Color-coded top border based on status */}
+                                <div style={{
+                                  height: '4px',
+                                  background: project.status === 'completed' ? '#28a745' : 
+                                             project.status === 'in-progress' ? '#007bff' : 
+                                             project.status === 'on-hold' ? '#ffc107' : '#6c757d'
+                                }}></div>
+
+                                <Card.Body className="p-4">
+                                  {/* Project Header */}
+                                  <div className="d-flex justify-content-between align-items-start mb-3">
+                                    <div className="flex-grow-1">
+                                      <h6 className="mb-1 fw-bold text-dark">{project.name}</h6>
+                                      <small className="text-muted d-block mb-2">
+                                        {project.client?.name || 'Internal Project'}
+                                      </small>
+                                    </div>
+                                    <Badge 
+                                      bg={project.status === 'completed' ? 'success' : 
+                                          project.status === 'in-progress' ? 'primary' : 
+                                          project.status === 'on-hold' ? 'warning' : 'secondary'}
+                                      className="ms-2"
+                                      style={{ borderRadius: '20px', padding: '0.4rem 0.8rem' }}
+                                    >
+                                      {project.status || 'Active'}
+                                    </Badge>
                                   </div>
-                                  <Badge 
-                                    bg={project.status === 'completed' ? 'success' : 
-                                        project.status === 'in-progress' ? 'primary' : 
-                                        project.status === 'on-hold' ? 'warning' : 'secondary'}
-                                  >
-                                    {project.status || 'Active'}
-                                  </Badge>
-                                </Card.Header>
-                                <Card.Body>
+
+                                  {/* Description */}
+                                  {/* Description */}
                                   {project.description && (
-                                    <p className="text-muted small mb-3">
-                                      {project.description.length > 100 
-                                        ? `${project.description.substring(0, 100)}...`
+                                    <p className="text-muted small mb-3" style={{ lineHeight: '1.4' }}>
+                                      {project.description.length > 80 
+                                        ? `${project.description.substring(0, 80)}...`
                                         : project.description
                                       }
                                     </p>
                                   )}
 
-                                  {/* Employee's Work Progress in Project */}
-                                  <div className="mb-3">
-                                    <div className="d-flex justify-content-between mb-1">
-                                      <small className="text-muted">Your Work Progress</small>
-                                      <small className="text-muted">{completedWork}/{totalWork} tasks</small>
+                                  {/* Work Progress */}
+                                  <div className="mb-3 p-2 bg-light rounded" style={{ borderRadius: '8px' }}>
+                                    <div className="d-flex justify-content-between mb-2">
+                                      <small className="text-muted fw-semibold">Work Progress</small>
+                                      <small className="fw-bold text-primary">{completedWork}/{totalWork} tasks</small>
                                     </div>
                                     <ProgressBar 
                                       now={progressPercentage} 
                                       variant={progressPercentage === 100 ? 'success' : 'primary'}
-                                      style={{ height: '6px' }}
+                                      style={{ height: '8px', borderRadius: '4px' }}
                                     />
+                                    <small className="text-muted d-block mt-1">{progressPercentage}% complete</small>
                                   </div>
 
-                                  {/* Project Details */}
-                                  <div className="row g-2 mb-3">
-                                    {project.startDate && (
-                                      <div className="col-6">
-                                        <small className="text-muted d-block">Start Date</small>
-                                        <small className="fw-bold">
-                                          {moment(project.startDate).format('MMM DD, YYYY')}
-                                        </small>
-                                      </div>
-                                    )}
-                                    {project.endDate && (
-                                      <div className="col-6">
-                                        <small className="text-muted d-block">End Date</small>
-                                        <small className="fw-bold">
-                                          {moment(project.endDate).format('MMM DD, YYYY')}
-                                        </small>
-                                      </div>
-                                    )}
-                                    {project.departments && project.departments.length > 0 && (
-                                      <div className="col-12">
-                                        <small className="text-muted d-block">Departments</small>
-                                        <div className="d-flex gap-1 flex-wrap">
-                                          {project.departments.map((dept, index) => (
-                                            <Badge key={index} bg="light" text="dark" className="small">
-                                              {typeof dept === 'object' ? dept.name : dept}
-                                            </Badge>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    )}
+                                  {/* Project Meta Info */}
+                                  <div className="mb-3">
+                                    <Row className="g-2">
+                                      {project.startDate && (
+                                        <Col xs={6}>
+                                          <small className="text-muted d-block">Start</small>
+                                          <small className="fw-semibold">
+                                            {moment(project.startDate).format('MMM DD')}
+                                          </small>
+                                        </Col>
+                                      )}
+                                      {project.endDate && (
+                                        <Col xs={6}>
+                                          <small className="text-muted d-block">End</small>
+                                          <small className="fw-semibold">
+                                            {moment(project.endDate).format('MMM DD')}
+                                          </small>
+                                        </Col>
+                                      )}
+                                    </Row>
                                   </div>
 
-                                  {/* Recent Work Items in Project */}
+                                  {/* Departments */}
+                                  {project.departments && project.departments.length > 0 && (
+                                    <div className="mb-3">
+                                      <small className="text-muted d-block mb-1">Departments</small>
+                                      <div className="d-flex gap-1 flex-wrap">
+                                        {project.departments.map((dept, index) => (
+                                          <Badge key={index} bg="info" className="small" style={{ borderRadius: '12px' }}>
+                                            {typeof dept === 'object' ? dept.name : dept}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Recent Work Items */}
                                   {projectWorkItems.length > 0 && (
-                                    <div>
-                                      <small className="text-muted fw-bold d-block mb-2">Recent Work Items</small>
-                                      <div className="list-group list-group-flush">
-                                        {projectWorkItems.slice(0, 3).map(work => (
-                                          <div key={work._id} className="list-group-item border-0 px-0 py-2">
-                                            <div className="d-flex justify-content-between align-items-center">
-                                              <div className="flex-grow-1">
-                                                <div className="fw-semibold small">{work.title}</div>
-                                                <div className="d-flex gap-1 mt-1">
-                                                  <Badge bg={getStatusColor(work.status)} className="small">
-                                                    {work.status}
-                                                  </Badge>
-                                                  <Badge bg={getPriorityColor(work.priority)} className="small">
-                                                    {work.priority}
-                                                  </Badge>
-                                                </div>
+                                    <div className="mb-3 pt-3 border-top">
+                                      <small className="text-muted fw-bold d-block mb-2">Recent Tasks</small>
+                                      <div style={{ maxHeight: '120px', overflowY: 'auto' }}>
+                                        {projectWorkItems.slice(0, 2).map(work => (
+                                          <div key={work._id} className="d-flex justify-content-between align-items-start mb-2 p-2 bg-light rounded" style={{ fontSize: '0.85rem' }}>
+                                            <div className="flex-grow-1 min-width-0">
+                                              <div className="fw-semibold text-truncate">{work.title}</div>
+                                              <div className="d-flex gap-1 mt-1">
+                                                <Badge bg={getStatusColor(work.status)} className="small" style={{ fontSize: '0.7rem' }}>
+                                                  {work.status}
+                                                </Badge>
                                               </div>
-                                              <small className="text-muted">
-                                                {moment(work.dueDate).format('MMM DD')}
-                                              </small>
                                             </div>
                                           </div>
                                         ))}
-                                        {projectWorkItems.length > 3 && (
-                                          <div className="text-center py-2">
-                                            <small className="text-muted">
-                                              +{projectWorkItems.length - 3} more items
-                                            </small>
-                                          </div>
+                                        {projectWorkItems.length > 2 && (
+                                          <small className="text-muted d-block text-center py-1">
+                                            +{projectWorkItems.length - 2} more
+                                          </small>
                                         )}
                                       </div>
                                     </div>
                                   )}
 
-                                  {/* Project Actions */}
-                                  <div className="d-flex gap-2 mt-3">
+                                  {/* Action Buttons */}
+                                  <div className="d-flex gap-2 mt-3 pt-2 border-top">
                                     <Button 
-                                      variant="outline-primary" 
+                                      variant="primary" 
                                       size="sm"
                                       onClick={() => window.open(`/projects/${project._id}`, '_blank')}
+                                      style={{ borderRadius: '8px', flex: 1 }}
                                     >
                                       View Project
                                     </Button>
                                     {projectWorkItems.length > 0 && (
                                       <Button 
-                                        variant="outline-success" 
+                                        variant="outline-primary" 
                                         size="sm"
                                         onClick={() => setActiveTab('assignments')}
+                                        style={{ borderRadius: '8px' }}
                                       >
-                                        View Work Items
+                                        Tasks
                                       </Button>
                                     )}
                                   </div>
