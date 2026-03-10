@@ -403,6 +403,38 @@ export const getProjectsForUser = async (req, res) => {
   }
 };
 
+// Get all projects for a specific employee (for HR/Admin viewing)
+export const getProjectsForEmployee = async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    
+    // Only HR, Admin, SuperAdmin, and Manager can view other employees' projects
+    if (!['admin', 'superadmin', 'hr', 'manager'].includes(req.user.role)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    // Find projects where employee is assigned, is a team member, or is the project head
+    const projects = await Project.find({
+      $or: [
+        { assignedUsers: employeeId },
+        { 'teamMembers.user': employeeId },
+        { projectHead: employeeId }
+      ]
+    })
+      .populate("client", "name email serviceCompany")
+      .populate("assignedUsers", "name email")
+      .populate("teamMembers.user", "name email role")
+      .populate("teamMembers.assignedBy", "name email")
+      .populate("projectHead", "name email")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(projects);
+  } catch (error) {
+    console.error("Error in getProjectsForEmployee:", error.message);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 // Get single project by ID (clients can only see their own)
 export const getProjectById = async (req, res) => {
   try {

@@ -9,6 +9,7 @@ import {
   assignUserToProject,
   removeUserFromProject,
   getProjectsForUser,
+  getProjectsForEmployee,
   addMilestone,
   updateMilestone,
   addTask,
@@ -116,6 +117,9 @@ router.get(
 
 // Get logged-in user's projects
 router.get("/my-projects", protect, getProjectsForUser);
+
+// Get projects for a specific employee (HR/Admin viewing)
+router.get("/employee/:employeeId", protect, getProjectsForEmployee);
 
 // HoP Routes - Get projects where I'm the head
 router.get("/my-leading", protect, getMyLeadingProjects);

@@ -77,38 +77,40 @@ const EnhancedEmployeeWorkView = () => {
         : await workItemApi.getAllWorkItems({ assignedTo: currentEmployeeId });
 
       // Load projects where employee is involved
-      const projectsResponse = await projectApi.getAllProjects();
+      let projectsData;
+      if (isOwnProfile) {
+        // Own profile - use getAllProjects and filter
+        const projectsResponse = await projectApi.getAllProjects();
+        const allProjects = projectsResponse.data?.data || projectsResponse.data;
+        const workItemsData = workItemsResponse.data?.data || workItemsResponse.data;
+        
+        // Filter projects where the employee is involved
+        projectsData = Array.isArray(allProjects) 
+          ? allProjects.filter(project => {
+              const isAssignedToProject = project.assignedUsers?.some(userId => 
+                userId === currentEmployeeId || userId._id === currentEmployeeId
+              );
+              const isTeamMember = project.teamMembers?.some(member => 
+                member.user === currentEmployeeId || member.user?._id === currentEmployeeId
+              );
+              const hasWorkInProject = Array.isArray(workItemsData) && workItemsData.some(workItem => 
+                workItem.project?._id === project._id || workItem.project === project._id
+              );
+              return isAssignedToProject || isTeamMember || hasWorkInProject;
+            })
+          : [];
+      } else {
+        // HR/Admin viewing employee's projects - use dedicated endpoint (already filtered)
+        projectsData = await projectApi.getProjectsForEmployee(currentEmployeeId);
+      }
 
       const calendarData = calendarResponse.data?.data || calendarResponse.data;
       const workItemsData = workItemsResponse.data?.data || workItemsResponse.data;
-      const projectsData = projectsResponse.data?.data || projectsResponse.data;
-
-      // Filter projects where the employee is involved
-      const employeeProjectsFiltered = Array.isArray(projectsData) 
-        ? projectsData.filter(project => {
-            // Check if employee is assigned to the project (assignedUsers)
-            const isAssignedToProject = project.assignedUsers?.some(userId => 
-              userId === currentEmployeeId || userId._id === currentEmployeeId
-            );
-            
-            // Check if employee is a team member (teamMembers.user)
-            const isTeamMember = project.teamMembers?.some(member => 
-              member.user === currentEmployeeId || member.user?._id === currentEmployeeId
-            );
-            
-            // Check if employee has work items in the project
-            const hasWorkInProject = Array.isArray(workItemsData) && workItemsData.some(workItem => 
-              workItem.project?._id === project._id || workItem.project === project._id
-            );
-            
-            return isAssignedToProject || isTeamMember || hasWorkInProject;
-          })
-        : [];
 
       setEmployeeData(calendarData.employee);
       setWorkSummary(calendarData.analytics);
       setRecentWork(Array.isArray(workItemsData) ? workItemsData : []);
-      setEmployeeProjects(employeeProjectsFiltered);
+      setEmployeeProjects(Array.isArray(projectsData) ? projectsData : []);
 
     } catch (error) {
       console.error('Error loading employee work data:', error);

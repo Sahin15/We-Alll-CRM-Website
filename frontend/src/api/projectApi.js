@@ -40,6 +40,15 @@ export const getAllProjects = async (params = {}) => {
   }
 };
 
+export const getProjectsForEmployee = async (employeeId) => {
+  const response = await axios.get(`${API_URL}/projects/employee/${employeeId}`, {
+    headers: getAuthHeader()
+  });
+  
+  // Return as array for consistency
+  return Array.isArray(response.data) ? response.data : [];
+};
+
 export const getProjectById = async (id) => {
   const response = await axios.get(`${API_URL}/projects/${id}`, {
     headers: getAuthHeader(),
