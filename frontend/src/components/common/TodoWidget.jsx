@@ -25,7 +25,7 @@ import {
   FaCircle,
   FaTasks,
 } from "react-icons/fa";
-import { toast } from "react-toastify";
+import toast from "../../utils/toast";
 import { todoApi } from "../../api/todoApi";
 import { formatDate } from "../../utils/helpers";
 
