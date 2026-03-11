@@ -806,14 +806,14 @@ const AdminDashboard = () => {
         </Col>
       </Row>
 
-      <AnalyticsCharts stats={stats} onChartClick={handleChartClick} />
-
       {/* Todo List Widget */}
       <Row className="mb-4">
         <Col xs={12}>
           <TodoWidget />
         </Col>
       </Row>
+
+      <AnalyticsCharts stats={stats} onChartClick={handleChartClick} />
 
       <Row className="g-4 mb-4">
         <Col lg={6}>
