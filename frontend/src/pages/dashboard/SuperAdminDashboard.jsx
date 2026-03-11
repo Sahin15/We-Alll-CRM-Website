@@ -34,6 +34,7 @@ import DocumentQuickAccess from "../../components/dashboard/DocumentQuickAccess"
 import PolicyUpdates from "../../components/dashboard/PolicyUpdates";
 import UpcomingEvents from "../../components/dashboard/UpcomingEvents";
 import FollowUpDashboard from "../../components/leads/FollowUpDashboard";
+import TodoWidget from "../../components/common/TodoWidget";
 import { userApi } from "../../api/userApi";
 import { projectApi } from "../../api/projectApi";
 import { clientApi } from "../../api/clientApi";
@@ -806,6 +807,13 @@ const AdminDashboard = () => {
       </Row>
 
       <AnalyticsCharts stats={stats} onChartClick={handleChartClick} />
+
+      {/* Todo List Widget */}
+      <Row className="mb-4">
+        <Col xs={12}>
+          <TodoWidget />
+        </Col>
+      </Row>
 
       <Row className="g-4 mb-4">
         <Col lg={6}>

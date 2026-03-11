@@ -32,6 +32,7 @@ import { formatDate } from "../../utils/helpers";
 const TodoWidget = ({ isCollapsed = false }) => {
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [filter, setFilter] = useState("all");
   const [showModal, setShowModal] = useState(false);
   const [editingTodo, setEditingTodo] = useState(null);
@@ -51,12 +52,14 @@ const TodoWidget = ({ isCollapsed = false }) => {
   const fetchTodos = async () => {
     try {
       setLoading(true);
+      setError(null);
       const params = filter !== "all" ? { status: filter } : {};
       const response = await todoApi.getMyTodos(params);
       setTodos(response.todos || []);
     } catch (error) {
       console.error("Failed to fetch todos:", error);
-      toast.error("Failed to load todos");
+      setError("Failed to load todos");
+      setTodos([]);
     } finally {
       setLoading(false);
     }
@@ -68,6 +71,7 @@ const TodoWidget = ({ isCollapsed = false }) => {
       setStats(response.stats || { total: 0, completed: 0, pending: 0, overdue: 0 });
     } catch (error) {
       console.error("Failed to fetch stats:", error);
+      setStats({ total: 0, completed: 0, pending: 0, overdue: 0 });
     }
   };
 
@@ -255,6 +259,11 @@ const TodoWidget = ({ isCollapsed = false }) => {
 
           {/* Todo List */}
           <div className="todo-list" style={{ maxHeight: "400px", overflowY: "auto" }}>
+            {error && (
+              <div className="alert alert-warning m-3 mb-0">
+                <small>{error}</small>
+              </div>
+            )}
             {loading ? (
               <div className="text-center py-4">
                 <Spinner animation="border" size="sm" variant="primary" />

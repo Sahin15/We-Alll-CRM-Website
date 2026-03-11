@@ -1191,6 +1191,13 @@ const AdminDashboard = () => {
 
       <AnalyticsCharts stats={stats} onChartClick={handleChartClick} />
 
+      {/* Todo List Widget */}
+      <Row className="mb-4">
+        <Col xs={12}>
+          <TodoWidget />
+        </Col>
+      </Row>
+
       <Row className="g-4 mb-4">
         <Col lg={4}>
           <AdminRecentActivity activities={recentActivities} />
@@ -1358,13 +1365,6 @@ const AdminDashboard = () => {
       <Row className="mb-4">
         <Col lg={12}>
           <ReportsAnalytics />
-        </Col>
-      </Row>
-
-      {/* Todo List Widget */}
-      <Row className="mb-4">
-        <Col lg={12}>
-          <TodoWidget />
         </Col>
       </Row>
 
