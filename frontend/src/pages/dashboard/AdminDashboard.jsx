@@ -39,6 +39,7 @@ import DocumentQuickAccess from "../../components/dashboard/DocumentQuickAccess"
 import PolicyUpdates from "../../components/dashboard/PolicyUpdates";
 import UpcomingEvents from "../../components/dashboard/UpcomingEvents";
 import FollowUpDashboard from "../../components/leads/FollowUpDashboard";
+import TodoWidget from "../../components/common/TodoWidget";
 // HR Management Components - Admin has full access
 import LeaveManagement from "../../components/hr/LeaveManagement";
 import TaskManagement from "../../components/hr/TaskManagement";
@@ -1357,6 +1358,13 @@ const AdminDashboard = () => {
       <Row className="mb-4">
         <Col lg={12}>
           <ReportsAnalytics />
+        </Col>
+      </Row>
+
+      {/* Todo List Widget */}
+      <Row className="mb-4">
+        <Col lg={12}>
+          <TodoWidget />
         </Col>
       </Row>
 
