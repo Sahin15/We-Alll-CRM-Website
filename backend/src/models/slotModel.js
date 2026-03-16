@@ -15,17 +15,41 @@ const slotSchema = new mongoose.Schema(
       index: true,
     },
 
+    // Monthly Period Tracking
+    period: {
+      year: {
+        type: Number,
+        required: true,
+        index: true
+      },
+      month: {
+        type: Number,
+        required: true,
+        min: 1,
+        max: 12,
+        index: true
+      },
+      periodIdentifier: {
+        type: String,
+        required: true,
+        index: true
+        // Format: "2024-03" for March 2024
+      }
+    },
+
     // Enhanced Slot Identity
     slotNumber: { 
       type: Number, 
       required: true, 
       min: 1,
+      // Removed max limit to allow additional slots beyond 20
       index: true
     },
     slotIdentifier: { 
       type: String, 
       required: true,
       index: true
+      // Format: "2024-03-Slot-01" for March 2024, Slot 1
     },
     slotType: { 
       type: String, 
@@ -47,7 +71,7 @@ const slotSchema = new mongoose.Schema(
       required: false,
       trim: true,
       default: function() {
-        return `Work slot ${this.slotNumber || ''}`;
+        return `Work slot ${this.slotNumber || ''} for ${this.period?.periodIdentifier || 'current period'}`;
       }
     },
     workType: {
@@ -380,14 +404,17 @@ const slotSchema = new mongoose.Schema(
   }
 );
 
-// Enhanced indexes for optimal query performance
-slotSchema.index({ project: 1, slotNumber: 1 }, { unique: true }); // Ensure unique slot numbers per project
-slotSchema.index({ project: 1, assignmentStatus: 1 });
+// Enhanced indexes for optimal query performance with monthly periods
+slotSchema.index({ project: 1, 'period.year': 1, 'period.month': 1, slotNumber: 1 }, { unique: true }); // Ensure unique slot numbers per project per month
+slotSchema.index({ project: 1, 'period.periodIdentifier': 1 }); // Query slots by period
+slotSchema.index({ project: 1, assignmentStatus: 1, 'period.periodIdentifier': 1 }); // Current month slots by status
 slotSchema.index({ assignedWorkItem: 1 });
 slotSchema.index({ assignmentStatus: 1, dueDate: 1 });
-slotSchema.index({ 'completionStatus.isCompleted': 1 });
+slotSchema.index({ 'completionStatus.isCompleted': 1, 'period.periodIdentifier': 1 }); // Completed slots by period
 slotSchema.index({ slotType: 1, assignmentStatus: 1 });
-slotSchema.index({ project: 1, 'completionStatus.isCompleted': 1 });
+slotSchema.index({ project: 1, 'completionStatus.isCompleted': 1, 'period.periodIdentifier': 1 }); // Project completion by period
+slotSchema.index({ 'period.year': 1, 'period.month': 1 }); // Global period queries
+slotSchema.index({ project: 1, 'period.year': 1, 'period.month': 1 }); // Project-specific period queries
 
 // Legacy indexes (maintained for backward compatibility)
 slotSchema.index({ project: 1, postingDate: 1 });
@@ -398,6 +425,27 @@ slotSchema.index({ designDeadline: 1 });
 // Virtual for checking if slot is available for assignment
 slotSchema.virtual("isAvailable").get(function () {
   return this.assignmentStatus === 'available' && !this.completionStatus?.isCompleted;
+});
+
+// Virtual for checking if slot is current month
+slotSchema.virtual("isCurrentMonth").get(function () {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1; // JavaScript months are 0-indexed
+  
+  return this.period?.year === currentYear && this.period?.month === currentMonth;
+});
+
+// Virtual for period display
+slotSchema.virtual("periodDisplay").get(function () {
+  if (!this.period) return 'Unknown Period';
+  
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  
+  return `${monthNames[this.period.month - 1]} ${this.period.year}`;
 });
 
 // Virtual for checking if slot is overdue
@@ -493,10 +541,29 @@ slotSchema.pre('save', function(next) {
   next();
 });
 
-// Static method to get available slots for a project
+// Static method to get current month period identifier
+slotSchema.statics.getCurrentPeriodIdentifier = function() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1; // JavaScript months are 0-indexed
+  return `${year}-${String(month).padStart(2, '0')}`;
+};
+
+// Static method to get period identifier for a specific date
+slotSchema.statics.getPeriodIdentifier = function(date) {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = d.getMonth() + 1;
+  return `${year}-${String(month).padStart(2, '0')}`;
+};
+
+// Static method to get available slots for a project in current month
 slotSchema.statics.getAvailableSlots = function(projectId, filters = {}) {
+  const currentPeriod = this.getCurrentPeriodIdentifier();
+  
   const query = {
     project: projectId,
+    'period.periodIdentifier': currentPeriod,
     assignmentStatus: 'available',
     'completionStatus.isCompleted': { $ne: true },
     ...filters
@@ -508,13 +575,74 @@ slotSchema.statics.getAvailableSlots = function(projectId, filters = {}) {
     .lean();
 };
 
-// Static method to get slot statistics for a project
-slotSchema.statics.getProjectSlotStats = function(projectId) {
+// Static method to get slots for a specific month
+slotSchema.statics.getSlotsByMonth = function(projectId, year, month) {
+  const periodIdentifier = `${year}-${String(month).padStart(2, '0')}`;
+  
+  return this.find({
+    project: projectId,
+    'period.periodIdentifier': periodIdentifier
+  })
+    .sort({ slotNumber: 1 })
+    .populate('project', 'name client')
+    .populate('assignedWorkItem', 'title status')
+    .populate('assignedTo', 'name email')
+    .lean();
+};
+
+// Static method to get slot history (previous months)
+slotSchema.statics.getSlotHistory = function(projectId, options = {}) {
+  const { limit = 12, skip = 0 } = options;
+  const currentPeriod = this.getCurrentPeriodIdentifier();
+  
   return this.aggregate([
-    { $match: { project: new mongoose.Types.ObjectId(projectId) } },
+    {
+      $match: {
+        project: new mongoose.Types.ObjectId(projectId),
+        'period.periodIdentifier': { $lt: currentPeriod }
+      }
+    },
+    {
+      $group: {
+        _id: '$period.periodIdentifier',
+        year: { $first: '$period.year' },
+        month: { $first: '$period.month' },
+        totalSlots: { $sum: 1 },
+        completedSlots: {
+          $sum: { $cond: [{ $eq: ['$assignmentStatus', 'completed'] }, 1, 0] }
+        },
+        availableSlots: {
+          $sum: { $cond: [{ $eq: ['$assignmentStatus', 'available'] }, 1, 0] }
+        },
+        assignedSlots: {
+          $sum: { $cond: [{ $eq: ['$assignmentStatus', 'assigned'] }, 1, 0] }
+        },
+        inProgressSlots: {
+          $sum: { $cond: [{ $eq: ['$assignmentStatus', 'in-progress'] }, 1, 0] }
+        }
+      }
+    },
+    { $sort: { _id: -1 } },
+    { $skip: skip },
+    { $limit: limit }
+  ]);
+};
+
+// Static method to get slot statistics for a project (current month)
+slotSchema.statics.getProjectSlotStats = function(projectId, periodIdentifier = null) {
+  const period = periodIdentifier || this.getCurrentPeriodIdentifier();
+  
+  return this.aggregate([
+    { 
+      $match: { 
+        project: new mongoose.Types.ObjectId(projectId),
+        'period.periodIdentifier': period
+      } 
+    },
     {
       $group: {
         _id: '$project',
+        period: { $first: '$period.periodIdentifier' },
         totalSlots: { $sum: 1 },
         availableSlots: {
           $sum: {
@@ -544,6 +672,70 @@ slotSchema.statics.getProjectSlotStats = function(projectId) {
       }
     }
   ]);
+};
+
+// Static method to create monthly slots for a project
+slotSchema.statics.createMonthlySlots = async function(projectId, year, month, options = {}) {
+  const { count = 20, createdBy } = options;
+  const periodIdentifier = `${year}-${String(month).padStart(2, '0')}`;
+  
+  // Check if slots already exist for this period
+  const existingSlots = await this.find({
+    project: projectId,
+    'period.periodIdentifier': periodIdentifier
+  });
+  
+  if (existingSlots.length > 0) {
+    throw new Error(`Slots already exist for period ${periodIdentifier}`);
+  }
+
+  // Get project name for slot titles
+  const Project = mongoose.model('Project');
+  const project = await Project.findById(projectId).select('name');
+  const projectName = project?.name || 'Project';
+
+  // Drop old index if it exists (for backward compatibility)
+  try {
+    await this.collection.dropIndex('project_1_slotNumber_1');
+  } catch (err) {
+    // Index doesn't exist, that's fine
+  }
+  
+  const slotsToCreate = [];
+  for (let i = 1; i <= count; i++) {
+    const slotIdentifier = `${periodIdentifier}-Slot-${String(i).padStart(2, '0')}`;
+    
+    slotsToCreate.push({
+      project: projectId,
+      period: {
+        year,
+        month,
+        periodIdentifier
+      },
+      slotNumber: i,
+      slotIdentifier,
+      slotType: 'work',
+      title: `${projectName} - Slot ${i}`,
+      description: `Work slot ${i} for ${projectName} (${periodIdentifier})`,
+      workType: 'Other',
+      priority: 'Medium',
+      assignmentStatus: 'available',
+      createdBy,
+      slotConfiguration: {
+        isRequired: true,
+        canBeSkipped: false,
+        requiresApproval: false,
+        estimatedEffort: 8,
+        weight: 1.0
+      },
+      slotMetadata: {
+        category: 'other',
+        tags: ['monthly-slot']
+      }
+    });
+  }
+  
+  return this.insertMany(slotsToCreate);
 };
 
 // Instance method to assign slot to work item

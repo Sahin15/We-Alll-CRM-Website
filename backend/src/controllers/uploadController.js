@@ -1,6 +1,53 @@
 import { uploadImageToS3, uploadRawImageToS3, deleteImageFromS3 } from "../utils/imageUpload.js";
 
 /**
+ * Upload expense receipt
+ * POST /api/upload/expense-receipt
+ */
+export const uploadExpenseReceipt = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    // For PDFs, upload without processing; for images, use the standard upload
+    let imageUrl;
+    if (req.file.mimetype === 'application/pdf') {
+      // Upload PDF without processing
+      const { uploadRawImageToS3 } = await import("../utils/imageUpload.js");
+      imageUrl = await uploadRawImageToS3(
+        req.file.buffer,
+        req.file.originalname,
+        req.file.mimetype,
+        "expense-receipts"
+      );
+    } else {
+      // Upload image with optimization
+      const { uploadImageToS3 } = await import("../utils/imageUpload.js");
+      imageUrl = await uploadImageToS3(
+        req.file.buffer,
+        req.file.originalname,
+        req.file.mimetype,
+        "expense-receipts"
+      );
+    }
+
+    return res.status(200).json({
+      message: "Receipt uploaded successfully",
+      imageUrl,
+      fileName: req.file.originalname,
+      fileSize: req.file.size,
+    });
+  } catch (error) {
+    console.error("Error uploading expense receipt:", error);
+    return res.status(500).json({
+      message: "Failed to upload receipt",
+      error: error.message,
+    });
+  }
+};
+
+/**
  * Upload payment proof image
  * POST /api/upload/payment-proof
  */

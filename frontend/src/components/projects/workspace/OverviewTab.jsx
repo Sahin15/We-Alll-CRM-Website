@@ -8,16 +8,18 @@ import {
   FaCheckCircle,
   FaClock,
   FaExclamationTriangle,
-  FaBuilding
+  FaBuilding,
+  FaChartLine,
+  FaFire,
+  FaClipboardList
 } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import projectApi from '../../../api/projectApi';
 import { formatDate } from '../../../utils/helpers';
 
 /**
- * OverviewTab Component
- * Displays project information, statistics, timeline, and recent activity
- * Requirements: 4.1, 4.5
+ * OverviewTab Component - Modern & Professional
+ * Displays comprehensive project information, statistics, and insights
  */
 const OverviewTab = ({ project, onRefresh }) => {
   const [workspaceData, setWorkspaceData] = useState(null);
@@ -33,7 +35,6 @@ const OverviewTab = ({ project, onRefresh }) => {
       const response = await projectApi.getProjectWorkspace(project._id);
       setWorkspaceData(response.data || response);
     } catch (error) {
-      // Set empty data to prevent crashes
       setWorkspaceData({
         project: project,
         statistics: {
@@ -47,7 +48,6 @@ const OverviewTab = ({ project, onRefresh }) => {
         },
         teamWorkload: []
       });
-      
       toast.error('Failed to load project statistics');
     } finally {
       setLoading(false);
@@ -62,6 +62,16 @@ const OverviewTab = ({ project, onRefresh }) => {
       Cancelled: 'danger'
     };
     return colors[status] || 'secondary';
+  };
+
+  const getStatusBgColor = (status) => {
+    const colors = {
+      Active: '#d1f4e0',
+      'On Hold': '#fff3cd',
+      Completed: '#cfe2ff',
+      Cancelled: '#ffe5e5'
+    };
+    return colors[status] || '#f8f9fa';
   };
 
   if (loading) {
@@ -84,7 +94,6 @@ const OverviewTab = ({ project, onRefresh }) => {
     completionRate: 0
   };
 
-  // Map stats to byStatus format for compatibility
   const byStatus = {
     'To Do': stats.toDo || 0,
     'In Progress': stats.inProgress || 0,
@@ -92,329 +101,298 @@ const OverviewTab = ({ project, onRefresh }) => {
     'Done': stats.done || 0
   };
 
+  const progressPercentage = project.slotConfiguration?.enableSlotSystem && project.progressTracking?.calculationMethod === 'slot-based' 
+    ? (project.progressTracking?.progressPercentage || 0)
+    : (project.progress || 0);
+
+  const totalSlots = project.slotConfiguration?.enableSlotSystem 
+    ? (project.progressTracking?.totalSlots || project.slotConfiguration?.totalSlots || 0)
+    : stats.total;
+
+  const completedItems = project.slotConfiguration?.enableSlotSystem 
+    ? (project.progressTracking?.completedSlots || 0)
+    : stats.done;
+
   return (
-    <div>
-      {/* Project Information Card */}
-      <Card className="mb-4 border-0 shadow-sm" style={{ borderRadius: '12px' }}>
-        <Card.Body style={{ padding: '1.5rem' }}>
-          <Row>
+    <div style={{ background: '#f8f9fa', minHeight: '100vh', padding: '1.5rem 0' }}>
+      {/* Hero Section - Project Overview */}
+      <Card className="mb-4 border-0 shadow-sm" style={{ borderRadius: '16px', overflow: 'hidden' }}>
+        <div 
+          style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            padding: '2rem',
+            color: 'white'
+          }}
+        >
+          <Row className="align-items-center">
             <Col md={8}>
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <h5 className="mb-0" style={{ fontWeight: '600', color: '#2c3e50' }}>
-                  📋 Project Information
-                </h5>
+              <div className="mb-3">
+                <h2 style={{ fontWeight: '700', marginBottom: '0.5rem' }}>
+                  {project.name}
+                </h2>
+                {project.description && (
+                  <p style={{ fontSize: '0.95rem', opacity: 0.95, marginBottom: 0 }}>
+                    {project.description}
+                  </p>
+                )}
+              </div>
+              <div className="d-flex gap-3 flex-wrap">
                 <Badge 
-                  bg={getStatusColor(project.status)} 
-                  style={{ fontSize: '0.85rem', padding: '0.5rem 1rem' }}
+                  bg="light" 
+                  text="dark"
+                  style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: '600' }}
                 >
                   {project.status}
                 </Badge>
-              </div>
-              
-              {/* Description */}
-              {project.description && (
-                <div className="mb-3">
-                  <strong className="d-block mb-1">Description</strong>
-                  <p className="text-muted mb-0">{project.description}</p>
-                </div>
-              )}
-
-              {/* Details Grid */}
-              <Row className="g-3">
-                <Col md={6}>
-                  <div className="d-flex align-items-center mb-2">
-                    <FaUser className="me-2 text-muted" />
-                    <div>
-                      <small className="text-muted d-block">Project Head</small>
-                      <strong>{project.projectHead?.name || 'Not assigned'}</strong>
-                    </div>
-                  </div>
-                </Col>
-                <Col md={6}>
-                  <div className="d-flex align-items-center mb-2">
-                    <FaBuilding className="me-2 text-muted" />
-                    <div>
-                      <small className="text-muted d-block">Department</small>
-                      <strong>{project.department?.name || 'Not assigned'}</strong>
-                    </div>
-                  </div>
-                </Col>
-                <Col md={6}>
-                  <div className="d-flex align-items-center mb-2">
-                    <FaUsers className="me-2 text-muted" />
-                    <div>
-                      <small className="text-muted d-block">Team Size</small>
-                      <strong>{project.assignedUsers?.length || 0} members</strong>
-                    </div>
-                  </div>
-                </Col>
-                
-                {/* Show slot system information if enabled */}
-                {project.slotConfiguration?.enableSlotSystem && (
-                  <Col md={6}>
-                    <div className="d-flex align-items-center mb-2">
-                      <FaCheckCircle className="me-2 text-success" />
-                      <div>
-                        <small className="text-muted d-block">Slot System</small>
-                        <strong>
-                          <Badge bg="success" className="me-2">Enabled</Badge>
-                          {project.slotConfiguration.totalSlots || 0} slots
-                        </strong>
-                      </div>
-                    </div>
-                  </Col>
-                )}
-                <Col md={6}>
-                  <div className="d-flex align-items-center mb-2">
-                    <FaUser className="me-2 text-muted" />
-                    <div>
-                      <small className="text-muted d-block">Created By</small>
-                      <strong>{project.createdBy?.name || 'System'}</strong>
-                      {project.createdAt && (
-                        <small className="d-block text-muted">{formatDate(project.createdAt)}</small>
-                      )}
-                    </div>
-                  </div>
-                </Col>
-                <Col md={6}>
-                  <div className="d-flex align-items-center mb-2">
-                    <FaCalendar className="me-2 text-muted" />
-                    <div>
-                      <small className="text-muted d-block">Start Date</small>
-                      <strong>{formatDate(project.startDate)}</strong>
-                    </div>
-                  </div>
-                </Col>
-                <Col md={6}>
-                  <div className="d-flex align-items-center mb-2">
-                    <FaCalendar className="me-2 text-muted" />
-                    <div>
-                      <small className="text-muted d-block">End Date</small>
-                      <strong>{project.endDate ? formatDate(project.endDate) : 'Not set'}</strong>
-                    </div>
-                  </div>
-                </Col>
-              </Row>
-            </Col>
-
-            <Col md={4}>
-              <div 
-                className="text-center p-4 rounded-3"
-                style={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  color: 'white'
-                }}
-              >
-                <div className="mb-3">
-                  <h2 className="mb-0" style={{ fontWeight: '700', fontSize: '3rem' }}>
-                    {project.slotConfiguration?.enableSlotSystem && project.progressTracking?.calculationMethod === 'slot-based' 
-                      ? (project.progressTracking?.progressPercentage || 0)
-                      : (project.progress || 0)
-                    }%
-                  </h2>
-                  <small style={{ fontSize: '0.9rem', opacity: 0.9 }}>
-                    {project.slotConfiguration?.enableSlotSystem ? 'Slot-Based Progress' : 'Overall Progress'}
-                  </small>
-                </div>
-                
-                <ProgressBar
-                  now={project.slotConfiguration?.enableSlotSystem && project.progressTracking?.calculationMethod === 'slot-based' 
-                    ? (project.progressTracking?.progressPercentage || 0)
-                    : (project.progress || 0)
-                  }
-                  variant="light"
-                  style={{ height: '8px', backgroundColor: 'rgba(255,255,255,0.3)' }}
-                  className="mb-3"
-                />
-
-                <div className="d-flex justify-content-around text-center">
-                  {project.slotConfiguration?.enableSlotSystem ? (
-                    <>
-                      <div>
-                        <h5 className="mb-0" style={{ fontWeight: '600' }}>
-                          {project.progressTracking?.totalSlots || project.slotConfiguration?.totalSlots || 0}
-                        </h5>
-                        <small style={{ fontSize: '0.75rem', opacity: 0.9 }}>Total Slots</small>
-                      </div>
-                      <div>
-                        <h5 className="mb-0" style={{ fontWeight: '600' }}>
-                          {project.progressTracking?.completedSlots || 0}
-                        </h5>
-                        <small style={{ fontSize: '0.75rem', opacity: 0.9 }}>Completed</small>
-                      </div>
-                      <div>
-                        <h5 className="mb-0" style={{ fontWeight: '600' }}>
-                          {(project.progressTracking?.totalSlots || project.slotConfiguration?.totalSlots || 0) - (project.progressTracking?.completedSlots || 0)}
-                        </h5>
-                        <small style={{ fontSize: '0.75rem', opacity: 0.9 }}>Remaining</small>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div>
-                        <h5 className="mb-0" style={{ fontWeight: '600' }}>{stats.total}</h5>
-                        <small style={{ fontSize: '0.75rem', opacity: 0.9 }}>Total Items</small>
-                      </div>
-                      <div>
-                        <h5 className="mb-0" style={{ fontWeight: '600' }}>{stats.done}</h5>
-                        <small style={{ fontSize: '0.75rem', opacity: 0.9 }}>Completed</small>
-                      </div>
-                      <div>
-                        <h5 className="mb-0" style={{ fontWeight: '600' }}>{stats.overdue || 0}</h5>
-                        <small style={{ fontSize: '0.75rem', opacity: 0.9 }}>Overdue</small>
-                      </div>
-                    </>
-                  )}
-                </div>
-
                 {project.client && (
-                  <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.2)' }}>
-                    <small style={{ fontSize: '0.75rem', opacity: 0.8 }}>CLIENT</small>
-                    <div style={{ fontWeight: '600', fontSize: '0.95rem' }}>{project.client.name}</div>
-                  </div>
+                  <Badge 
+                    bg="light" 
+                    text="dark"
+                    style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: '600' }}
+                  >
+                    📋 {project.client.name}
+                  </Badge>
+                )}
+                {project.slotConfiguration?.enableSlotSystem && (
+                  <Badge 
+                    bg="light" 
+                    text="dark"
+                    style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: '600' }}
+                  >
+                    🎯 Slot-Based
+                  </Badge>
                 )}
               </div>
+            </Col>
+            <Col md={4} className="text-center">
+              <div style={{ fontSize: '3.5rem', fontWeight: '700', marginBottom: '0.5rem' }}>
+                {progressPercentage}%
+              </div>
+              <ProgressBar
+                now={progressPercentage}
+                variant="light"
+                style={{ height: '8px', backgroundColor: 'rgba(255,255,255,0.3)' }}
+                className="mb-3"
+              />
+              <small style={{ opacity: 0.9 }}>
+                {project.slotConfiguration?.enableSlotSystem ? 'Slot Progress' : 'Overall Progress'}
+              </small>
             </Col>
           </Row>
-        </Card.Body>
+        </div>
       </Card>
 
-      {/* Enhanced Statistics Cards */}
-      <Row className="g-4 mb-4">
+      {/* Key Metrics - 4 Column Grid */}
+      <Row className="g-3 mb-4">
+        {/* Total Items */}
         <Col lg={3} md={6}>
-          <Card 
-            className="h-100 border-0 shadow-sm"
-            style={{
-              borderRadius: '12px',
-              transition: 'transform 0.2s',
-              cursor: 'pointer'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-          >
-            <Card.Body className="text-center p-4">
-              <div 
-                className="rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
-                style={{
-                  width: '60px',
-                  height: '60px',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                }}
-              >
-                <FaTasks style={{ fontSize: '1.5rem', color: 'white' }} />
+          <Card className="h-100 border-0 shadow-sm" style={{ borderRadius: '12px', transition: 'all 0.3s' }}>
+            <Card.Body className="p-4">
+              <div className="d-flex justify-content-between align-items-start">
+                <div>
+                  <small className="text-muted d-block mb-2" style={{ fontWeight: '500' }}>
+                    Total Items
+                  </small>
+                  <h3 style={{ fontWeight: '700', color: '#2c3e50', marginBottom: 0 }}>
+                    {totalSlots}
+                  </h3>
+                </div>
+                <div 
+                  className="rounded-circle d-flex align-items-center justify-content-center"
+                  style={{
+                    width: '50px',
+                    height: '50px',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white'
+                  }}
+                >
+                  <FaTasks style={{ fontSize: '1.25rem' }} />
+                </div>
               </div>
-              <h3 className="mb-1" style={{ fontWeight: '700', color: '#2c3e50' }}>{stats.total}</h3>
-              <small className="text-muted" style={{ fontSize: '0.85rem', fontWeight: '500' }}>Total Work Items</small>
             </Card.Body>
           </Card>
         </Col>
+
+        {/* In Progress */}
         <Col lg={3} md={6}>
-          <Card 
-            className="h-100 border-0 shadow-sm" 
-            style={{
-              borderRadius: '12px',
-              borderLeft: '4px solid #0d6efd',
-              transition: 'transform 0.2s',
-              cursor: 'pointer'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-          >
-            <Card.Body className="text-center p-4">
-              <div 
-                className="rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
-                style={{
-                  width: '60px',
-                  height: '60px',
-                  backgroundColor: '#e7f1ff'
-                }}
-              >
-                <FaClock style={{ fontSize: '1.5rem', color: '#0d6efd' }} />
+          <Card className="h-100 border-0 shadow-sm" style={{ borderRadius: '12px', transition: 'all 0.3s' }}>
+            <Card.Body className="p-4">
+              <div className="d-flex justify-content-between align-items-start">
+                <div>
+                  <small className="text-muted d-block mb-2" style={{ fontWeight: '500' }}>
+                    In Progress
+                  </small>
+                  <h3 style={{ fontWeight: '700', color: '#0d6efd', marginBottom: 0 }}>
+                    {byStatus['In Progress']}
+                  </h3>
+                </div>
+                <div 
+                  className="rounded-circle d-flex align-items-center justify-content-center"
+                  style={{
+                    width: '50px',
+                    height: '50px',
+                    background: '#e7f1ff',
+                    color: '#0d6efd'
+                  }}
+                >
+                  <FaClock style={{ fontSize: '1.25rem' }} />
+                </div>
               </div>
-              <h3 className="mb-1 text-primary" style={{ fontWeight: '700' }}>{byStatus['In Progress']}</h3>
-              <small className="text-muted" style={{ fontSize: '0.85rem', fontWeight: '500' }}>In Progress</small>
             </Card.Body>
           </Card>
         </Col>
+
+        {/* Completed */}
         <Col lg={3} md={6}>
-          <Card 
-            className="h-100 border-0 shadow-sm" 
-            style={{
-              borderRadius: '12px',
-              borderLeft: '4px solid #198754',
-              transition: 'transform 0.2s',
-              cursor: 'pointer'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-          >
-            <Card.Body className="text-center p-4">
-              <div 
-                className="rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
-                style={{
-                  width: '60px',
-                  height: '60px',
-                  backgroundColor: '#d1f4e0'
-                }}
-              >
-                <FaCheckCircle style={{ fontSize: '1.5rem', color: '#198754' }} />
+          <Card className="h-100 border-0 shadow-sm" style={{ borderRadius: '12px', transition: 'all 0.3s' }}>
+            <Card.Body className="p-4">
+              <div className="d-flex justify-content-between align-items-start">
+                <div>
+                  <small className="text-muted d-block mb-2" style={{ fontWeight: '500' }}>
+                    Completed
+                  </small>
+                  <h3 style={{ fontWeight: '700', color: '#198754', marginBottom: 0 }}>
+                    {completedItems}/{totalSlots}
+                  </h3>
+                  <small className="text-muted" style={{ fontSize: '0.8rem' }}>
+                    {progressPercentage}% done
+                  </small>
+                </div>
+                <div 
+                  className="rounded-circle d-flex align-items-center justify-content-center"
+                  style={{
+                    width: '50px',
+                    height: '50px',
+                    background: '#d1f4e0',
+                    color: '#198754'
+                  }}
+                >
+                  <FaCheckCircle style={{ fontSize: '1.25rem' }} />
+                </div>
               </div>
-              <h3 className="mb-1 text-success" style={{ fontWeight: '700' }}>{byStatus.Done}</h3>
-              <small className="text-muted" style={{ fontSize: '0.85rem', fontWeight: '500' }}>Completed</small>
             </Card.Body>
           </Card>
         </Col>
+
+        {/* Overdue */}
         <Col lg={3} md={6}>
-          <Card 
-            className="h-100 border-0 shadow-sm" 
-            style={{
-              borderRadius: '12px',
-              borderLeft: '4px solid #dc3545',
-              transition: 'transform 0.2s',
-              cursor: 'pointer'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-          >
-            <Card.Body className="text-center p-4">
-              <div 
-                className="rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
-                style={{
-                  width: '60px',
-                  height: '60px',
-                  backgroundColor: '#ffe5e5'
-                }}
-              >
-                <FaExclamationTriangle style={{ fontSize: '1.5rem', color: '#dc3545' }} />
+          <Card className="h-100 border-0 shadow-sm" style={{ borderRadius: '12px', transition: 'all 0.3s' }}>
+            <Card.Body className="p-4">
+              <div className="d-flex justify-content-between align-items-start">
+                <div>
+                  <small className="text-muted d-block mb-2" style={{ fontWeight: '500' }}>
+                    Overdue
+                  </small>
+                  <h3 style={{ fontWeight: '700', color: '#dc3545', marginBottom: 0 }}>
+                    {stats.overdue || 0}
+                  </h3>
+                </div>
+                <div 
+                  className="rounded-circle d-flex align-items-center justify-content-center"
+                  style={{
+                    width: '50px',
+                    height: '50px',
+                    background: '#ffe5e5',
+                    color: '#dc3545'
+                  }}
+                >
+                  <FaFire style={{ fontSize: '1.25rem' }} />
+                </div>
               </div>
-              <h3 className="mb-1 text-danger" style={{ fontWeight: '700' }}>{stats.overdue || 0}</h3>
-              <small className="text-muted" style={{ fontSize: '0.85rem', fontWeight: '500' }}>Overdue</small>
             </Card.Body>
           </Card>
         </Col>
       </Row>
 
-      {/* Alerts */}
+      {/* Alert for Overdue Items */}
       {stats.overdue > 0 && (
-        <Alert variant="danger" className="mb-3">
-          <FaExclamationTriangle className="me-2" />
-          <strong>Attention!</strong> This project has {stats.overdue} overdue work item{stats.overdue > 1 ? 's' : ''}.
+        <Alert variant="danger" className="mb-4 border-0" style={{ borderRadius: '12px' }}>
+          <div className="d-flex align-items-center">
+            <FaExclamationTriangle className="me-3" style={{ fontSize: '1.25rem' }} />
+            <div>
+              <strong>Attention Required!</strong>
+              <p className="mb-0 mt-1">
+                This project has {stats.overdue} overdue item{stats.overdue > 1 ? 's' : ''} that need immediate attention.
+              </p>
+            </div>
+          </div>
         </Alert>
       )}
 
-      <Row>
-        {/* Timeline */}
-        <Col md={6}>
-          <Card className="mb-4 border-0 shadow-sm" style={{ borderRadius: '12px' }}>
-            <Card.Header className="bg-white border-0" style={{ padding: '1.25rem' }}>
-              <h6 className="mb-0" style={{ fontWeight: '600', color: '#2c3e50' }}>
+      {/* Main Content Grid */}
+      <Row className="g-4 mb-4">
+        {/* Project Information */}
+        <Col lg={6}>
+          <Card className="h-100 border-0 shadow-sm" style={{ borderRadius: '12px' }}>
+            <Card.Header className="bg-white border-0 p-4" style={{ borderBottom: '1px solid #e9ecef' }}>
+              <h6 style={{ fontWeight: '700', color: '#2c3e50', marginBottom: 0 }}>
+                📋 Project Information
+              </h6>
+            </Card.Header>
+            <Card.Body className="p-4">
+              <div className="mb-4">
+                <small className="text-muted d-block mb-2" style={{ fontWeight: '500' }}>Project Head</small>
+                <div className="d-flex align-items-center">
+                  <div 
+                    className="rounded-circle d-flex align-items-center justify-content-center me-3"
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      background: '#e7f1ff',
+                      color: '#0d6efd',
+                      fontWeight: '600'
+                    }}
+                  >
+                    {project.projectHead?.name?.charAt(0).toUpperCase()}
+                  </div>
+                  <strong>{project.projectHead?.name || 'Not assigned'}</strong>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <small className="text-muted d-block mb-2" style={{ fontWeight: '500' }}>Department</small>
+                <div className="d-flex align-items-center">
+                  <FaBuilding className="me-2 text-muted" />
+                  <strong>{project.department?.name || 'Not assigned'}</strong>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <small className="text-muted d-block mb-2" style={{ fontWeight: '500' }}>Team Size</small>
+                <div className="d-flex align-items-center">
+                  <FaUsers className="me-2 text-muted" />
+                  <strong>{project.assignedUsers?.length || 0} members</strong>
+                </div>
+              </div>
+
+              <div>
+                <small className="text-muted d-block mb-2" style={{ fontWeight: '500' }}>Created By</small>
+                <div className="d-flex align-items-center justify-content-between">
+                  <div className="d-flex align-items-center">
+                    <FaUser className="me-2 text-muted" />
+                    <strong>{project.createdBy?.name || 'System'}</strong>
+                  </div>
+                  {project.createdAt && (
+                    <small className="text-muted">{formatDate(project.createdAt)}</small>
+                  )}
+                </div>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+
+        {/* Timeline & Dates */}
+        <Col lg={6}>
+          <Card className="h-100 border-0 shadow-sm" style={{ borderRadius: '12px' }}>
+            <Card.Header className="bg-white border-0 p-4" style={{ borderBottom: '1px solid #e9ecef' }}>
+              <h6 style={{ fontWeight: '700', color: '#2c3e50', marginBottom: 0 }}>
                 📅 Timeline
               </h6>
             </Card.Header>
-            <Card.Body>
-              <div className="mb-3">
-                <div className="d-flex justify-content-between mb-1">
-                  <small className="text-muted">Project Duration</small>
+            <Card.Body className="p-4">
+              <div className="mb-4">
+                <div className="d-flex justify-content-between mb-2">
+                  <small className="text-muted" style={{ fontWeight: '500' }}>Project Duration</small>
                   <small className="fw-bold">
                     {project.startDate && project.endDate
                       ? `${Math.ceil((new Date(project.endDate) - new Date(project.startDate)) / (1000 * 60 * 60 * 24))} days`
@@ -423,11 +401,12 @@ const OverviewTab = ({ project, onRefresh }) => {
                 </div>
                 {project.startDate && project.endDate && (
                   <ProgressBar
-                    now={
+                    now={Math.min(
                       ((new Date() - new Date(project.startDate)) /
                         (new Date(project.endDate) - new Date(project.startDate))) *
+                      100,
                       100
-                    }
+                    )}
                     variant="info"
                     style={{ height: '6px' }}
                   />
@@ -435,21 +414,21 @@ const OverviewTab = ({ project, onRefresh }) => {
               </div>
 
               <ListGroup variant="flush">
-                <ListGroup.Item className="px-0">
+                <ListGroup.Item className="px-0 py-3 border-0">
                   <div className="d-flex justify-content-between">
-                    <span>Start Date</span>
+                    <span className="text-muted">Start Date</span>
                     <strong>{formatDate(project.startDate)}</strong>
                   </div>
                 </ListGroup.Item>
-                <ListGroup.Item className="px-0">
+                <ListGroup.Item className="px-0 py-3 border-0">
                   <div className="d-flex justify-content-between">
-                    <span>End Date</span>
+                    <span className="text-muted">End Date</span>
                     <strong>{project.endDate ? formatDate(project.endDate) : 'Not set'}</strong>
                   </div>
                 </ListGroup.Item>
-                <ListGroup.Item className="px-0">
+                <ListGroup.Item className="px-0 py-3 border-0">
                   <div className="d-flex justify-content-between">
-                    <span>Created</span>
+                    <span className="text-muted">Created</span>
                     <strong>{formatDate(project.createdAt)}</strong>
                   </div>
                 </ListGroup.Item>
@@ -457,115 +436,94 @@ const OverviewTab = ({ project, onRefresh }) => {
             </Card.Body>
           </Card>
         </Col>
-
-        {/* Project Statistics Summary */}
-        <Col md={6}>
-          <Card className="mb-4 border-0 shadow-sm" style={{ borderRadius: '12px' }}>
-            <Card.Header className="bg-white border-0" style={{ padding: '1.25rem' }}>
-              <h6 className="mb-0" style={{ fontWeight: '600', color: '#2c3e50' }}>
-                📊 Project Statistics
-              </h6>
-            </Card.Header>
-            <Card.Body>
-              <ListGroup variant="flush">
-                <ListGroup.Item className="px-0">
-                  <div className="d-flex justify-content-between">
-                    <span>Total Work Items</span>
-                    <strong>{stats.total}</strong>
-                  </div>
-                </ListGroup.Item>
-                <ListGroup.Item className="px-0">
-                  <div className="d-flex justify-content-between">
-                    <span>Completion Rate</span>
-                    <strong>{stats.completionRate}%</strong>
-                  </div>
-                </ListGroup.Item>
-                <ListGroup.Item className="px-0">
-                  <div className="d-flex justify-content-between">
-                    <span>Tasks</span>
-                    <strong>{stats.tasks || 0}</strong>
-                  </div>
-                </ListGroup.Item>
-                <ListGroup.Item className="px-0">
-                  <div className="d-flex justify-content-between">
-                    <span>Content Items</span>
-                    <strong>{stats.content || 0}</strong>
-                  </div>
-                </ListGroup.Item>
-                {stats.averageCompletionTime > 0 && (
-                  <ListGroup.Item className="px-0">
-                    <div className="d-flex justify-content-between">
-                      <span>Avg. Completion Time</span>
-                      <strong>{stats.averageCompletionTime} days</strong>
-                    </div>
-                  </ListGroup.Item>
-                )}
-              </ListGroup>
-            </Card.Body>
-          </Card>
-        </Col>
       </Row>
 
-      {/* Work Items Breakdown */}
-      <Card className="border-0 shadow-sm" style={{ borderRadius: '12px' }}>
-        <Card.Header className="bg-white border-0" style={{ padding: '1.25rem' }}>
-          <h6 className="mb-0" style={{ fontWeight: '600', color: '#2c3e50' }}>
-            📈 Work Items by Status
+      {/* Work Items Status Breakdown */}
+      <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: '12px' }}>
+        <Card.Header className="bg-white border-0 p-4" style={{ borderBottom: '1px solid #e9ecef' }}>
+          <h6 style={{ fontWeight: '700', color: '#2c3e50', marginBottom: 0 }}>
+            📊 Work Items by Status
           </h6>
         </Card.Header>
-        <Card.Body style={{ padding: '1.5rem' }}>
-          <Row className="g-4">
-            <Col md={3}>
-              <div 
-                className="text-center p-4 rounded-3"
-                style={{
-                  background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
-                  border: '2px solid #e9ecef'
-                }}
-              >
-                <h4 className="mb-1" style={{ fontWeight: '700', color: '#6c757d' }}>{byStatus['To Do']}</h4>
-                <small style={{ fontWeight: '500', color: '#495057' }}>To Do</small>
-              </div>
-            </Col>
-            <Col md={3}>
-              <div 
-                className="text-center p-4 rounded-3"
-                style={{
-                  background: 'linear-gradient(135deg, #e7f1ff 0%, #b3d9ff 100%)',
-                  border: '2px solid #0d6efd'
-                }}
-              >
-                <h4 className="mb-1 text-primary" style={{ fontWeight: '700' }}>{byStatus['In Progress']}</h4>
-                <small style={{ fontWeight: '500', color: '#0d6efd' }}>In Progress</small>
-              </div>
-            </Col>
-            <Col md={3}>
-              <div 
-                className="text-center p-4 rounded-3"
-                style={{
-                  background: 'linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%)',
-                  border: '2px solid #ffc107'
-                }}
-              >
-                <h4 className="mb-1 text-warning" style={{ fontWeight: '700' }}>{byStatus.Review}</h4>
-                <small style={{ fontWeight: '500', color: '#997404' }}>Review</small>
-              </div>
-            </Col>
-            <Col md={3}>
-              <div 
-                className="text-center p-4 rounded-3"
-                style={{
-                  background: 'linear-gradient(135deg, #d1f4e0 0%, #a8e6cf 100%)',
-                  border: '2px solid #198754'
-                }}
-              >
-                <h4 className="mb-1 text-success" style={{ fontWeight: '700' }}>{byStatus.Done}</h4>
-                <small style={{ fontWeight: '500', color: '#198754' }}>Done</small>
-              </div>
-            </Col>
+        <Card.Body className="p-4">
+          <Row className="g-3">
+            {[
+              { label: 'To Do', value: byStatus['To Do'], icon: FaClipboardList, color: '#6c757d', bg: '#f8f9fa' },
+              { label: 'In Progress', value: byStatus['In Progress'], icon: FaClock, color: '#0d6efd', bg: '#e7f1ff' },
+              { label: 'Review', value: byStatus.Review, icon: FaChartLine, color: '#ffc107', bg: '#fff3cd' },
+              { label: 'Done', value: byStatus.Done, icon: FaCheckCircle, color: '#198754', bg: '#d1f4e0' }
+            ].map((status, idx) => {
+              const Icon = status.icon;
+              return (
+                <Col md={3} key={idx}>
+                  <div 
+                    className="p-4 rounded-3 text-center"
+                    style={{
+                      background: status.bg,
+                      border: `2px solid ${status.color}`,
+                      transition: 'all 0.3s'
+                    }}
+                  >
+                    <Icon style={{ fontSize: '1.5rem', color: status.color, marginBottom: '0.5rem' }} />
+                    <h4 style={{ fontWeight: '700', color: status.color, marginBottom: '0.25rem' }}>
+                      {status.value}
+                    </h4>
+                    <small style={{ fontWeight: '600', color: status.color }}>
+                      {status.label}
+                    </small>
+                  </div>
+                </Col>
+              );
+            })}
           </Row>
         </Card.Body>
       </Card>
+
+      {/* Slot System Info (if enabled) */}
+      {project.slotConfiguration?.enableSlotSystem && (
+        <Card className="border-0 shadow-sm" style={{ borderRadius: '12px' }}>
+          <Card.Header className="bg-white border-0 p-4" style={{ borderBottom: '1px solid #e9ecef' }}>
+            <h6 style={{ fontWeight: '700', color: '#2c3e50', marginBottom: 0 }}>
+              🎯 Slot System Status
+            </h6>
+          </Card.Header>
+          <Card.Body className="p-4">
+            <Row className="g-4 mb-4">
+              <Col md={4}>
+                <div className="text-center">
+                  <div style={{ fontSize: '2.5rem', fontWeight: '700', color: '#667eea', marginBottom: '0.5rem' }}>
+                    {project.progressTracking?.totalSlots || project.slotConfiguration?.totalSlots || 0}
+                  </div>
+                  <small className="text-muted" style={{ fontWeight: '500' }}>Total Slots</small>
+                </div>
+              </Col>
+              <Col md={4}>
+                <div className="text-center">
+                  <div style={{ fontSize: '2.5rem', fontWeight: '700', color: '#198754', marginBottom: '0.5rem' }}>
+                    {project.progressTracking?.completedSlots || 0}
+                  </div>
+                  <small className="text-muted" style={{ fontWeight: '500' }}>Completed Slots</small>
+                </div>
+              </Col>
+              <Col md={4}>
+                <div className="text-center">
+                  <div style={{ fontSize: '2.5rem', fontWeight: '700', color: '#0d6efd', marginBottom: '0.5rem' }}>
+                    {(project.progressTracking?.totalSlots || project.slotConfiguration?.totalSlots || 0) - (project.progressTracking?.completedSlots || 0)}
+                  </div>
+                  <small className="text-muted" style={{ fontWeight: '500' }}>Remaining Slots</small>
+                </div>
+              </Col>
+            </Row>
+            
+            <Alert variant="info" className="mb-0 border-0" style={{ borderRadius: '8px' }}>
+              <small>
+                <strong>💡 How to mark slots as completed:</strong> Go to the <strong>Work</strong> tab, expand a slot, and mark the assigned work items as "Done". 
+                When all work items in a slot are completed, the slot will be automatically marked as completed and the progress will update.
+              </small>
+            </Alert>
+          </Card.Body>
+        </Card>
+      )}
     </div>
   );
 };

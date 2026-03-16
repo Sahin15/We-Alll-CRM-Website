@@ -76,6 +76,7 @@ import OvertimeStatistics from "../pages/attendance/OvertimeStatistics";
 import MyWorkLog from "../pages/worklog/MyWorkLog";
 import WorkLogHistory from "../pages/worklog/WorkLogHistory";
 import WorkLogManagement from "../pages/worklog/WorkLogManagement";
+import HoDWorkLogReview from "../pages/worklog/HoDWorkLogReview";
 
 // Client Pages
 import ClientList from "../pages/clients/ClientList";
@@ -124,6 +125,14 @@ import NotificationSettings from "../components/notifications/NotificationSettin
 
 // Holiday Management
 import HolidayManagement from "../components/hr/HolidayManagement";
+
+// Expense Pages
+import MyExpenses from "../pages/expenses/MyExpenses";
+import CreateExpense from "../pages/expenses/CreateExpense";
+import ExpenseDetails from "../pages/expenses/ExpenseDetails";
+import EditExpense from "../pages/expenses/EditExpense";
+import ExpenseManagementConsolidated from "../pages/expenses/ExpenseManagementConsolidated";
+import BudgetManagement from "../pages/expenses/BudgetManagement";
 
 // Company Management Pages
 import MeetingManagement from "../pages/meetings/MeetingManagement";
@@ -316,6 +325,14 @@ const AppRoutes = () => {
           element={
             <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
               <WorkLogManagement />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/hod/worklog-review"
+          element={
+            <RoleBasedRoute allowedRoles={["hod"]}>
+              <HoDWorkLogReview />
             </RoleBasedRoute>
           }
         />
@@ -641,6 +658,104 @@ const AppRoutes = () => {
         <Route
           path="/notifications/preferences"
           element={<NotificationSettings />}
+        />
+
+        {/* Expense Management Routes */}
+        <Route
+          path="/expenses/my-expenses"
+          element={
+            <RoleBasedRoute allowedRoles={["employee", "hod", "manager", "hr", "admin", "superadmin"]}>
+              <MyExpenses />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/expenses/create"
+          element={
+            <RoleBasedRoute allowedRoles={["employee", "hod", "manager", "hr", "admin", "superadmin"]}>
+              <CreateExpense />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/expenses/:id"
+          element={
+            <RoleBasedRoute allowedRoles={["employee", "hod", "manager", "hr", "admin", "superadmin"]}>
+              <ExpenseDetails />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/expenses/:id/edit"
+          element={
+            <RoleBasedRoute allowedRoles={["employee", "hod", "manager", "hr", "admin", "superadmin"]}>
+              <EditExpense />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/expenses/approvals"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <ExpenseManagementConsolidated />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/expenses/management"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <ExpenseManagementConsolidated />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/expenses/reimbursement"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <ExpenseManagementConsolidated />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/expenses/search"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <ExpenseManagementConsolidated />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/expenses/analytics"
+          element={
+            <RoleBasedRoute allowedRoles={["employee", "hod", "manager", "hr", "admin", "superadmin"]}>
+              <ExpenseManagementConsolidated />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/expenses/budget"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <ExpenseManagementConsolidated />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/expenses/reports"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <ExpenseManagementConsolidated />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/expenses/budget-management"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
+              <BudgetManagement />
+            </RoleBasedRoute>
+          }
         />
 
         {/* Error Pages */}

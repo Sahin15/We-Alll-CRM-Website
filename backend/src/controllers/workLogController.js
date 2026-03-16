@@ -1,6 +1,7 @@
 ﻿import WorkLog from "../models/workLogModel.js";
 import User from "../models/userModel.js";
 import Attendance from "../models/attendanceModel.js";
+import Department from "../models/departmentModel.js";
 import logger from "../utils/logger.js";
 import { getCurrentISTTime, getTodayMidnightIST, getTodayRangeIST } from "../utils/timezone.js";
 import * as XLSX from "xlsx";
@@ -55,7 +56,7 @@ export const submitWorkLog = async (req, res) => {
           oldWorkLog,
           newWorkLog: workLog.trim(),
         },
-        reason: "Employee updated their work log",
+        reason: "Updated work log",
       });
 
       await existingLog.save();
@@ -143,7 +144,7 @@ export const saveDraft = async (req, res) => {
           oldWorkLog,
           newWorkLog: workLog ? workLog.trim() : '',
         },
-        reason: "Employee saved draft",
+        reason: "Saved draft",
       });
 
       await existingLog.save();
@@ -272,7 +273,16 @@ export const getMyWorkLogs = async (req, res) => {
 
     const [workLogs, total] = await Promise.all([
       WorkLog.find(query)
+        .populate({
+          path: "employee",
+          select: "name email designation department",
+          populate: {
+            path: "department",
+            select: "name"
+          }
+        })
         .populate("reviewedBy", "name email")
+        .populate("editHistory.editedBy", "name email")
         .sort({ date: -1 })
         .skip(skip)
         .limit(parseInt(limit)),
@@ -387,6 +397,7 @@ export const getAllWorkLogs = async (req, res) => {
           }
         })
         .populate("reviewedBy", "name email")
+        .populate("editHistory.editedBy", "name email")
         .sort({ date: -1 })
         .skip(skip)
         .limit(parseInt(limit)),
@@ -443,12 +454,23 @@ export const getEmployeeWorkLogs = async (req, res) => {
 
     const [workLogs, total, employee] = await Promise.all([
       WorkLog.find(query)
+        .populate({
+          path: "employee",
+          select: "name email designation department",
+          populate: {
+            path: "department",
+            select: "name"
+          }
+        })
         .populate("reviewedBy", "name email")
+        .populate("editHistory.editedBy", "name email")
         .sort({ date: -1 })
         .skip(skip)
         .limit(parseInt(limit)),
       WorkLog.countDocuments(query),
-      User.findById(employeeId).select("name email designation department"),
+      User.findById(employeeId)
+        .select("name email designation department")
+        .populate("department", "name"),
     ]);
 
     res.status(200).json({
@@ -631,7 +653,7 @@ export const updateMyWorkLog = async (req, res) => {
         oldWorkLog,
         newWorkLog: newWorkLog.trim(),
       },
-      reason: reason || "Employee updated their work log",
+      reason: reason || "Updated work log",
     });
 
     await workLogDoc.save();
@@ -976,3 +998,180 @@ export const exportWorkLogs = async (req, res) => {
   }
 };
 
+
+
+// Get department work logs (HOD access)
+export const getDepartmentWorkLogs = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, status, startDate, endDate, search } = req.query;
+    const hodUserId = req.user._id;
+
+    // Get the department where user is HOD
+    const department = await Department.findOne({ head: hodUserId, status: "active" });
+
+    if (!department) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. You are not a Head of Department.",
+      });
+    }
+
+    // Get all employees in this department
+    const employees = await User.find({ department: department._id }).select("_id");
+    const employeeIds = employees.map((emp) => emp._id);
+
+    if (employeeIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        pagination: {
+          total: 0,
+          pages: 0,
+          currentPage: parseInt(page),
+          limit: parseInt(limit),
+        },
+      });
+    }
+
+    // Build query
+    const query = { employee: { $in: employeeIds } };
+
+    // Status filter
+    if (status && status !== "all") {
+      query.status = status;
+    }
+
+    // Date range filter
+    if (startDate || endDate) {
+      query.date = {};
+      if (startDate) {
+        const [year, month, day] = startDate.split("-").map(Number);
+        const startUTC = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+        const istOffset = 5.5 * 60 * 60 * 1000;
+        const start = new Date(startUTC.getTime() - istOffset);
+        query.date.$gte = start;
+      }
+      if (endDate) {
+        const [year, month, day] = endDate.split("-").map(Number);
+        const endUTC = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+        const istOffset = 5.5 * 60 * 60 * 1000;
+        const end = new Date(endUTC.getTime() - istOffset);
+        query.date.$lte = end;
+      }
+    }
+
+    // Search filter (by employee name or email)
+    if (search) {
+      const searchEmployees = await User.find({
+        $or: [
+          { name: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+        ],
+        department: department._id,
+      }).select("_id");
+
+      const searchEmployeeIds = searchEmployees.map((emp) => emp._id);
+      query.employee = { $in: searchEmployeeIds };
+    }
+
+    // Get total count
+    const total = await WorkLog.countDocuments(query);
+    const pages = Math.ceil(total / limit);
+
+    // Get paginated work logs
+    const workLogs = await WorkLog.find(query)
+      .populate({
+        path: "employee",
+        select: "name email designation",
+      })
+      .populate("reviewedBy", "name email")
+      .sort({ date: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      data: workLogs,
+      department: {
+        id: department._id,
+        name: department.name,
+      },
+      pagination: {
+        total,
+        pages,
+        currentPage: parseInt(page),
+        limit: parseInt(limit),
+      },
+    });
+  } catch (error) {
+    console.error("Error in getDepartmentWorkLogs:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+// Review department work log (HOD access)
+export const reviewDepartmentWorkLog = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reviewNotes, status } = req.body;
+    const hodUserId = req.user._id;
+
+    // Get the work log
+    const workLog = await WorkLog.findById(id).populate("employee");
+
+    if (!workLog) {
+      return res.status(404).json({
+        success: false,
+        message: "Work log not found",
+      });
+    }
+
+    // Verify HOD has access to this employee's work log
+    const department = await Department.findOne({
+      head: hodUserId,
+      status: "active",
+    });
+
+    if (!department) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. You are not a Head of Department.",
+      });
+    }
+
+    // Check if employee belongs to HOD's department
+    const employee = await User.findById(workLog.employee._id);
+    if (!employee || employee.department.toString() !== department._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Employee is not in your department.",
+      });
+    }
+
+    // Update work log
+    workLog.status = status || "reviewed";
+    workLog.reviewNotes = reviewNotes;
+    workLog.reviewedBy = hodUserId;
+    workLog.reviewedAt = new Date();
+
+    await workLog.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Work log reviewed successfully",
+      data: workLog,
+    });
+  } catch (error) {
+    console.error("Error in reviewDepartmentWorkLog:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};

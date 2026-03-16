@@ -354,16 +354,6 @@ const workCalendarApi = {
   },
 
   /**
-   * Complete a slot
-   */
-  completeSlot: async (slotId, completedBy, options = {}) => {
-    return api.post(`/slots/${slotId}/complete`, {
-      completedBy,
-      ...options
-    });
-  },
-
-  /**
    * Get project slot statistics
    */
   getProjectSlotStatistics: async (projectId) => {
@@ -420,7 +410,73 @@ const workCalendarApi = {
    */
   updateProjectSlotConfiguration: async (projectId, slotConfig) => {
     return api.put(`/projects/${projectId}/slot-configuration`, slotConfig);
+  },
+
+  // ============================================
+  // MONTHLY SLOT SYSTEM
+  // ============================================
+
+  /**
+   * Get current month slots for a project
+   */
+  getCurrentMonthSlots: async (projectId) => {
+    return api.get(`/work-calendar/projects/${projectId}/slots/current-month`);
+  },
+
+  /**
+   * Get slot history for a project (previous months)
+   */
+  getSlotHistory: async (projectId, options = {}) => {
+    const params = new URLSearchParams();
+    
+    if (options.limit) params.append('limit', options.limit);
+    if (options.skip) params.append('skip', options.skip);
+
+    return api.get(`/work-calendar/projects/${projectId}/slots/history?${params.toString()}`);
+  },
+
+  /**
+   * Get all months with slots for a project (including current and future months)
+   */
+  getAllMonthsWithSlots: async (projectId) => {
+    return api.get(`/work-calendar/projects/${projectId}/slots/all-months`);
+  },
+
+  /**
+   * Get slots for a specific month
+   */
+  getSlotsByMonth: async (projectId, year, month) => {
+    return api.get(`/work-calendar/projects/${projectId}/slots/month/${year}/${month}`);
+  },
+
+  /**
+   * Create monthly slots for a project (20 slots per month)
+   */
+  createMonthlySlots: async (projectId, year, month, count = 20) => {
+    return api.post(`/work-calendar/projects/${projectId}/slots/create-monthly`, {
+      year,
+      month,
+      count
+    });
+  },
+
+  /**
+   * Add a single slot to an existing month
+   */
+  addSlotToMonth: async (projectId, year, month) => {
+    return api.post(`/work-calendar/projects/${projectId}/slots/add-single`, {
+      year,
+      month
+    });
+  },
+
+  /**
+   * Complete a slot
+   */
+  completeSlot: async (slotId) => {
+    return api.post(`/slots/${slotId}/complete`, {});
   }
 };
+
 
 export default workCalendarApi;

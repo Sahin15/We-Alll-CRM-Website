@@ -3771,6 +3771,356 @@ export const createSlotsForProject = async (req, res) => {
 };
 
 /**
+ * Get current month slots for a project
+ * GET /api/work-calendar/projects/:projectId/slots/current-month
+ */
+export const getCurrentMonthSlots = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+
+    // Permission check - Allow admin roles, project head, and team members
+    const isAdminRole = ['admin', 'superadmin', 'hr', 'manager', 'hod', 'hop'].includes(req.user.role);
+    
+    if (!isAdminRole) {
+      const project = await Project.findById(projectId).select('projectHead assignedUsers teamMembers');
+      
+      if (!project) {
+        return res.status(404).json({
+          success: false,
+          message: 'Project not found'
+        });
+      }
+      
+      const projectHeadId = project.projectHead?._id || project.projectHead;
+      const isProjectHead = projectHeadId && projectHeadId.toString() === req.user.id.toString();
+      
+      const isTeamMember = project.assignedUsers?.some(userId => 
+        (userId._id || userId).toString() === req.user.id.toString()
+      ) || project.teamMembers?.some(member => 
+        (member.user?._id || member.user).toString() === req.user.id.toString()
+      );
+      
+      if (!isProjectHead && !isTeamMember) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You must be the project head or a team member to view slots.'
+        });
+      }
+    }
+
+    const result = await slotManagementService.getCurrentMonthSlots(projectId);
+
+    res.json({
+      success: true,
+      data: result,
+      message: `Found ${result.count} slots for ${result.period.periodIdentifier}`
+    });
+
+  } catch (error) {
+    logger.error('Error in getCurrentMonthSlots:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get current month slots',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get slot history for a project (previous months)
+ * GET /api/work-calendar/projects/:projectId/slots/history
+ */
+export const getSlotHistory = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { limit = 12, skip = 0 } = req.query;
+
+    // Permission check - Allow admin roles, project head, and team members
+    const isAdminRole = ['admin', 'superadmin', 'hr', 'manager', 'hod', 'hop'].includes(req.user.role);
+    
+    if (!isAdminRole) {
+      const project = await Project.findById(projectId).select('projectHead assignedUsers teamMembers');
+      
+      if (!project) {
+        return res.status(404).json({
+          success: false,
+          message: 'Project not found'
+        });
+      }
+      
+      const projectHeadId = project.projectHead?._id || project.projectHead;
+      const isProjectHead = projectHeadId && projectHeadId.toString() === req.user.id.toString();
+      
+      const isTeamMember = project.assignedUsers?.some(userId => 
+        (userId._id || userId).toString() === req.user.id.toString()
+      ) || project.teamMembers?.some(member => 
+        (member.user?._id || member.user).toString() === req.user.id.toString()
+      );
+      
+      if (!isProjectHead && !isTeamMember) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You must be the project head or a team member to view slot history.'
+        });
+      }
+    }
+
+    const result = await slotManagementService.getSlotHistory(projectId, {
+      limit: parseInt(limit),
+      skip: parseInt(skip)
+    });
+
+    res.json({
+      success: true,
+      data: result,
+      message: `Found ${result.count} historical periods`
+    });
+
+  } catch (error) {
+    logger.error('Error in getSlotHistory:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get slot history',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get all months with slots for a project (including current and future months)
+ * GET /api/work-calendar/projects/:projectId/slots/all-months
+ */
+export const getAllMonthsWithSlots = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+
+    // Permission check - Allow admin roles, project head, and team members
+    const isAdminRole = ['admin', 'superadmin', 'hr', 'manager', 'hod', 'hop'].includes(req.user.role);
+    
+    if (!isAdminRole) {
+      const project = await Project.findById(projectId).select('projectHead assignedUsers teamMembers');
+      
+      if (!project) {
+        return res.status(404).json({
+          success: false,
+          message: 'Project not found'
+        });
+      }
+      
+      const projectHeadId = project.projectHead?._id || project.projectHead;
+      const isProjectHead = projectHeadId && projectHeadId.toString() === req.user.id.toString();
+      
+      const isTeamMember = project.assignedUsers?.some(userId => 
+        (userId._id || userId).toString() === req.user.id.toString()
+      ) || project.teamMembers?.some(member => 
+        (member.user?._id || member.user).toString() === req.user.id.toString()
+      );
+      
+      if (!isProjectHead && !isTeamMember) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You must be the project head or a team member to view slot months.'
+        });
+      }
+    }
+
+    const result = await slotManagementService.getAllMonthsWithSlots(projectId);
+
+    res.json({
+      success: true,
+      data: result,
+      message: `Found ${result.count} months with slots`
+    });
+
+  } catch (error) {
+    logger.error('Error in getAllMonthsWithSlots:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get months with slots',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get slots for a specific month
+ * GET /api/work-calendar/projects/:projectId/slots/month/:year/:month
+ */
+export const getSlotsByMonth = async (req, res) => {
+  try {
+    const { projectId, year, month } = req.params;
+
+    // Validate year and month
+    const yearNum = parseInt(year);
+    const monthNum = parseInt(month);
+    
+    if (isNaN(yearNum) || isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid year or month parameter'
+      });
+    }
+
+    // Permission check - Allow admin roles, project head, and team members
+    const isAdminRole = ['admin', 'superadmin', 'hr', 'manager', 'hod', 'hop'].includes(req.user.role);
+    
+    if (!isAdminRole) {
+      const project = await Project.findById(projectId).select('projectHead assignedUsers teamMembers');
+      
+      if (!project) {
+        return res.status(404).json({
+          success: false,
+          message: 'Project not found'
+        });
+      }
+      
+      const projectHeadId = project.projectHead?._id || project.projectHead;
+      const isProjectHead = projectHeadId && projectHeadId.toString() === req.user.id.toString();
+      
+      const isTeamMember = project.assignedUsers?.some(userId => 
+        (userId._id || userId).toString() === req.user.id.toString()
+      ) || project.teamMembers?.some(member => 
+        (member.user?._id || member.user).toString() === req.user.id.toString()
+      );
+      
+      if (!isProjectHead && !isTeamMember) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You must be the project head or a team member to view slots.'
+        });
+      }
+    }
+
+    const result = await slotManagementService.getSlotsByMonth(projectId, yearNum, monthNum);
+
+    res.json({
+      success: true,
+      data: result,
+      message: `Found ${result.count} slots for ${result.period.periodIdentifier}`
+    });
+
+  } catch (error) {
+    logger.error('Error in getSlotsByMonth:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get slots by month',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Create monthly slots for a project
+ * POST /api/work-calendar/projects/:projectId/slots/create-monthly
+ */
+export const createMonthlySlots = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { year, month, count = 20 } = req.body;
+
+    // Validate year and month
+    const yearNum = parseInt(year);
+    const monthNum = parseInt(month);
+    
+    if (isNaN(yearNum) || isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid year or month parameter'
+      });
+    }
+
+    // Permission check - Allow admin roles and project head
+    const isAdmin = ['admin', 'superadmin', 'hr', 'manager', 'hod', 'hop'].includes(req.user.role);
+    
+    let isProjectHead = false;
+    if (!isAdmin) {
+      const project = await Project.findById(projectId).select('projectHead');
+      isProjectHead = project && project.projectHead && project.projectHead.toString() === req.user.id.toString();
+    }
+    
+    if (!isAdmin && !isProjectHead) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Only HR, Manager, Admin, SuperAdmin, or Project Head can create monthly slots.'
+      });
+    }
+
+    const result = await slotManagementService.createMonthlySlotsForProject(projectId, yearNum, monthNum, {
+      count: parseInt(count),
+      createdBy: req.user.id
+    });
+
+    res.json({
+      success: true,
+      data: result,
+      message: result.message
+    });
+
+  } catch (error) {
+    logger.error('Error in createMonthlySlots:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to create monthly slots'
+    });
+  }
+};
+
+/**
+ * Add a single slot to an existing month
+ * POST /api/work-calendar/projects/:projectId/slots/add-single
+ */
+export const addSlotToMonth = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { year, month } = req.body;
+
+    // Validate year and month
+    const yearNum = parseInt(year);
+    const monthNum = parseInt(month);
+    
+    if (isNaN(yearNum) || isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid year or month parameter'
+      });
+    }
+
+    // Permission check - Allow admin roles and project head
+    const isAdmin = ['admin', 'superadmin', 'hr', 'manager', 'hod', 'hop'].includes(req.user.role);
+    
+    let isProjectHead = false;
+    if (!isAdmin) {
+      const project = await Project.findById(projectId).select('projectHead');
+      isProjectHead = project && project.projectHead && project.projectHead.toString() === req.user.id.toString();
+    }
+    
+    if (!isAdmin && !isProjectHead) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Only HR, Manager, Admin, SuperAdmin, or Project Head can add slots.'
+      });
+    }
+
+    const result = await slotManagementService.addSingleSlotToMonth(projectId, yearNum, monthNum, {
+      createdBy: req.user.id
+    });
+
+    res.json({
+      success: true,
+      data: result,
+      message: 'Slot added successfully'
+    });
+
+  } catch (error) {
+    logger.error('Error in addSlotToMonth:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to add slot'
+    });
+  }
+};
+
+/**
  * Detect slot conflicts for a project
  * GET /api/work-calendar/projects/:projectId/slots/conflicts
  */

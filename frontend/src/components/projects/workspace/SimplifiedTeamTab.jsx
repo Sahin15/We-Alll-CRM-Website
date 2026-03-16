@@ -21,6 +21,7 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
   const [selectedMemberForWork, setSelectedMemberForWork] = useState(null);
   const [availableUsers, setAvailableUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState('');
+  const [memberRole, setMemberRole] = useState('');
   const [addingMember, setAddingMember] = useState(false);
 
   // Check if user can manage team - updated to match backend logic
@@ -150,6 +151,11 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
       return;
     }
 
+    if (!memberRole.trim()) {
+      toast.error('Please enter a role for the team member');
+      return;
+    }
+
     // Double-check if user is already a team member before making the API call
     const currentTeamIds = new Set();
     
@@ -182,10 +188,11 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
 
     try {
       setAddingMember(true);
-      const response = await projectApi.addTeamMember(currentProject._id, selectedUser);
+      const response = await projectApi.addTeamMember(currentProject._id, selectedUser, memberRole.trim());
       toast.success('Team member added successfully!');
       setShowAddModal(false);
       setSelectedUser('');
+      setMemberRole('');
       
       // Refresh project data to get the updated team with populated user data
       await refreshProjectData();
@@ -334,9 +341,24 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
                     </div>
 
                     <div className="mb-2">
-                      <small className="text-muted">Role:</small>
+                      <small className="text-muted">Project Role:</small>
                       <div>
-                        <Badge bg="info">{member.role || 'employee'}</Badge>
+                        <Badge bg="info">
+                          {(() => {
+                            // Find the team member entry for this user to get project-specific role
+                            const teamMember = currentProject.teamMembers?.find(tm => 
+                              (tm.user?._id || tm.user) === memberId
+                            );
+                            
+                            // If this is the project head, show "Project Head"
+                            if (isProjectHead) {
+                              return 'Project Head';
+                            }
+                            
+                            // Use project-specific role from teamMembers, or default to "Team Member"
+                            return teamMember?.role || 'Team Member';
+                          })()}
+                        </Badge>
                       </div>
                     </div>
 
@@ -388,7 +410,7 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
           <Modal.Title>Add Team Member</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <Form.Group>
+          <Form.Group className="mb-3">
             <Form.Label>Select User</Form.Label>
             <Form.Select
               value={selectedUser}
@@ -403,11 +425,29 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
               ))}
             </Form.Select>
           </Form.Group>
+          
+          <Form.Group>
+            <Form.Label>Role in Project</Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="e.g., Frontend Developer, Designer, QA Tester"
+              value={memberRole}
+              onChange={(e) => setMemberRole(e.target.value)}
+              disabled={addingMember}
+            />
+            <Form.Text className="text-muted">
+              Specify the role or responsibility of this member in the project
+            </Form.Text>
+          </Form.Group>
         </Modal.Body>
         <Modal.Footer>
           <Button 
             variant="secondary" 
-            onClick={() => setShowAddModal(false)}
+            onClick={() => {
+              setShowAddModal(false);
+              setSelectedUser('');
+              setMemberRole('');
+            }}
             disabled={addingMember}
           >
             Cancel
@@ -415,7 +455,7 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
           <Button 
             variant="primary" 
             onClick={handleAddMember}
-            disabled={addingMember || !selectedUser}
+            disabled={addingMember || !selectedUser || !memberRole.trim()}
           >
             {addingMember ? 'Adding...' : 'Add Member'}
           </Button>

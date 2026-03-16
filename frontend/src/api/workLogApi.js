@@ -99,6 +99,21 @@ export const exportMyWorkLogs = async (params) => {
   return response.data;
 };
 
+// Get department work logs (HOD)
+export const getDepartmentWorkLogs = async (params) => {
+  const response = await api.get("/worklogs/department/logs", { params });
+  return response.data;
+};
+
+// Review department work log (HOD)
+export const reviewDepartmentWorkLog = async (id, reviewNotes, status) => {
+  const response = await api.put(`/worklogs/department/${id}/review`, {
+    reviewNotes,
+    status,
+  });
+  return response.data;
+};
+
 export const workLogApi = {
   submitWorkLog,
   saveDraft,
@@ -114,4 +129,6 @@ export const workLogApi = {
   getWorkLogStats,
   exportWorkLogs,
   exportMyWorkLogs,
+  getDepartmentWorkLogs,
+  reviewDepartmentWorkLog,
 };

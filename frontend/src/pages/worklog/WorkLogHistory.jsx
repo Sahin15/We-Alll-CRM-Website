@@ -112,7 +112,7 @@ const WorkLogHistory = () => {
       await workLogApi.updateMyWorkLog(
         selectedLog._id, 
         editWorkLog.trim(), 
-        "Employee updated their work log"
+        "Updated work log"
       );
       toast.success("Work log updated successfully!");
       setShowEditModal(false);

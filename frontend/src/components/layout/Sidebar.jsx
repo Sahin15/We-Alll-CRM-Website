@@ -24,6 +24,7 @@ import {
   FaChartBar,
   FaShieldAlt,
   FaHandshake,
+  FaPlus,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import "./Sidebar.css";
@@ -198,6 +199,12 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           label: "Log History",
           roles: ["employee", "admin", "superadmin", "hr", "hod", "manager"],
         },
+        {
+          path: "/hod/worklog-review",
+          icon: <FaClipboardList />,
+          label: "Department Review",
+          roles: ["hod"],
+        },
       ],
     },
     {
@@ -306,6 +313,12 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           label: "Salary Breakdown",
           roles: ["employee", "hod", "manager", "hr"],
         },
+        {
+          path: "/expenses/my-expenses",
+          icon: <FaReceipt />,
+          label: "Expenses",
+          roles: ["employee", "hod", "manager", "hr"],
+        },
       ],
     },
     {
@@ -343,11 +356,32 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       roles: ["admin", "superadmin", "hr", "hod", "manager"],
     },
     {
-      path: "/salary-management",
+      id: "finance-management",
       icon: <FaMoneyBillWave />,
-      label: "Salary Management",
+      label: "Finance Management",
       roles: ["admin", "superadmin", "hr", "manager"],
-      onlyForRoles: ["admin", "superadmin", "hr", "manager"], // Manager has full access
+      onlyForRoles: ["admin", "superadmin", "hr", "manager"],
+      isGroup: true,
+      children: [
+        {
+          path: "/expenses/management",
+          icon: <FaReceipt />,
+          label: "Expense Management",
+          roles: ["admin", "superadmin", "hr", "manager"],
+        },
+        {
+          path: "/expenses/budget-management",
+          icon: <FaMoneyBillWave />,
+          label: "Budget Management",
+          roles: ["admin", "superadmin"],
+        },
+        {
+          path: "/salary-management",
+          icon: <FaMoneyBillWave />,
+          label: "Salary Management",
+          roles: ["admin", "superadmin", "hr", "manager"],
+        },
+      ],
     },
     {
       path: "/reports",
@@ -496,6 +530,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
                 className={`sidebar-link ${
                   location.pathname === item.path ? "active" : ""
                 }`}
+                data-sidebar-item={item.dataAttr}
                 onClick={handleLinkClick}
               >
                 <span className="sidebar-icon">{item.icon}</span>

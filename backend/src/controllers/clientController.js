@@ -1,5 +1,6 @@
 import Client from "../models/clientModel.js";
 import Project from "../models/projectModel.js";
+import WorkItem from "../models/workItemModel.js";
 import Department from "../models/departmentModel.js";
 import Bill from "../models/billModel.js";
 import Payment from "../models/paymentModel.js";
@@ -414,10 +415,43 @@ export const updateClient = async (req, res) => {
       sanitizedData.yearlyTurnover = Number(sanitizedData.yearlyTurnover);
     }
 
+    // Get the current client to check if status is changing to "Lost"
+    const currentClient = await Client.findById(req.params.id);
+    if (!currentClient) return res.status(404).json({ message: "Client not found" });
+
+    const isStatusChangingToLost = sanitizedData.status === "Lost" && currentClient.status !== "Lost";
+
     const client = await Client.findByIdAndUpdate(req.params.id, sanitizedData, {
       new: true,
     });
     if (!client) return res.status(404).json({ message: "Client not found" });
+
+    // If status changed to "Lost", put all projects and work items on hold
+    if (isStatusChangingToLost) {
+      try {
+        // Update all projects for this client to "On Hold"
+        await Project.updateMany(
+          { client: client._id },
+          { status: 'On Hold' }
+        );
+
+        // Get all projects for this client to update their work items
+        const projects = await Project.find({ client: client._id });
+        const projectIds = projects.map(p => p._id);
+
+        // Update all work items for these projects to "On Hold"
+        await WorkItem.updateMany(
+          { project: { $in: projectIds } },
+          { status: 'On Hold' }
+        );
+
+        logger.info(`Client ${client._id} status changed to Lost. Updated ${projects.length} projects and their work items to On Hold.`);
+      } catch (error) {
+        logger.error('Error updating projects and work items when client status changed to Lost:', error);
+        // Don't fail the client update if this fails, just log it
+      }
+    }
+
     res.status(200).json({ message: "Client updated", client });
   } catch (error) {
     console.error("Error updating client:", error.message);

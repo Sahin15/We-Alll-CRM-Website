@@ -8,6 +8,7 @@ import OverviewTab from '../../components/projects/workspace/OverviewTab';
 import SimplifiedTeamTab from '../../components/projects/workspace/SimplifiedTeamTab';
 import UnifiedWorkTab from '../../components/projects/workspace/UnifiedWorkTab';
 import KanbanTab from '../../components/projects/workspace/KanbanTab';
+import SlotHistory from '../../components/projects/workspace/SlotHistory';
 
 /**
  * ProjectWorkspace Component
@@ -20,6 +21,7 @@ const ProjectWorkspace = () => {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [refreshKey, setRefreshKey] = useState(0); // Add refresh key to force component updates
 
   useEffect(() => {
     loadProject();
@@ -31,6 +33,8 @@ const ProjectWorkspace = () => {
       const response = await projectApi.getProjectById(id);
       const projectData = response.data || response.project || response;
       setProject(projectData);
+      // Increment refresh key to force component updates
+      setRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error('Error loading project:', error);
       toast.error('Failed to load project');
@@ -175,17 +179,6 @@ const ProjectWorkspace = () => {
         </Tab>
 
         <Tab 
-          eventKey="work" 
-          title={
-            <span style={{ fontWeight: activeTab === 'work' ? '600' : '500' }}>
-              📋 Work
-            </span>
-          }
-        >
-          <UnifiedWorkTab project={project} onRefresh={loadProject} />
-        </Tab>
-
-        <Tab 
           eventKey="kanban" 
           title={
             <span style={{ fontWeight: activeTab === 'kanban' ? '600' : '500' }}>
@@ -194,6 +187,28 @@ const ProjectWorkspace = () => {
           }
         >
           <KanbanTab project={project} onRefresh={loadProject} />
+        </Tab>
+
+        <Tab 
+          eventKey="work" 
+          title={
+            <span style={{ fontWeight: activeTab === 'work' ? '600' : '500' }}>
+              📋 Work
+            </span>
+          }
+        >
+          <UnifiedWorkTab project={project} onRefresh={loadProject} refreshKey={refreshKey} />
+        </Tab>
+
+        <Tab 
+          eventKey="slots" 
+          title={
+            <span style={{ fontWeight: activeTab === 'slots' ? '600' : '500' }}>
+              📊 Slot History
+            </span>
+          }
+        >
+          <SlotHistory project={project} onRefresh={loadProject} refreshKey={refreshKey} />
         </Tab>
       </Tabs>
     </Container>

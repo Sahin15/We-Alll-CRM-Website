@@ -15,8 +15,13 @@ const getMyWorkItems = async (req, res) => {
   try {
     const { status, type, project, priority, dueDate, search } = req.query;
     
-    // Build query
-    const query = { assignedTo: req.user._id };
+    // Build query - support both single and multiple assignee fields
+    const query = {
+      $or: [
+        { assignedTo: req.user._id },
+        { assignedToMultiple: req.user._id }
+      ]
+    };
     
     // Apply filters
     if (status && status !== "all") {
@@ -54,6 +59,7 @@ const getMyWorkItems = async (req, res) => {
         },
       })
       .populate("assignedTo", "name email")
+      .populate("assignedToMultiple", "name email")
       .populate("createdBy", "name email")
       .populate("comments.user", "name email")
       .populate({
@@ -115,7 +121,11 @@ const getAllWorkItems = async (req, res) => {
       query.priority = priority;
     }
     if (assignedTo && assignedTo !== "all") {
-      query.assignedTo = assignedTo;
+      // Support filtering by assignee in both single and multiple assignee fields
+      query.$or = [
+        { assignedTo: assignedTo },
+        { assignedToMultiple: assignedTo }
+      ];
     }
     
     // SIMPLIFIED: Date filtering using only dueDate (work items are due on specific dates)
@@ -170,6 +180,7 @@ const getAllWorkItems = async (req, res) => {
         ],
       })
       .populate("assignedTo", "name email")
+      .populate("assignedToMultiple", "name email")
       .populate("createdBy", "name email")
       .populate("comments.user", "name email")
       .populate({
@@ -286,6 +297,7 @@ const createWorkItem = async (req, res) => {
       description,
       project,
       assignedTo,
+      assignedToMultiple, // New field for multiple assignees
       priority,
       dueDate,
       platform,
@@ -301,13 +313,16 @@ const createWorkItem = async (req, res) => {
     } = req.body;
     
     // ENHANCED VALIDATION - Check required fields based on type
-    if (!type || !title || !project || !assignedTo || !dueDate) {
+    // Either assignedTo or assignedToMultiple must be provided
+    const hasAssignee = assignedTo || (assignedToMultiple && assignedToMultiple.length > 0);
+    
+    if (!type || !title || !project || !hasAssignee || !dueDate) {
       return res.status(400).json({
         success: false,
         error: {
           code: "VALIDATION_ERROR",
           message: "Missing required fields",
-          details: "type, title, project, assignedTo, and dueDate are required",
+          details: "type, title, project, assignee(s), and dueDate are required",
         },
       });
     }
@@ -366,7 +381,6 @@ const createWorkItem = async (req, res) => {
       title,
       description: description || '',
       project,
-      assignedTo,
       createdBy: req.user._id,
       priority: priority || "medium",
       dueDate,
@@ -374,6 +388,17 @@ const createWorkItem = async (req, res) => {
       estimatedHours: estimatedHours || 0,
       tags: Array.isArray(tags) ? tags : (tags ? [tags] : [])
     };
+
+    // Handle assignee(s) - support both single and multiple assignment
+    if (assignedToMultiple && assignedToMultiple.length > 0) {
+      // Multiple assignees mode
+      workItemData.assignedToMultiple = assignedToMultiple;
+      // Also set the first assignee as primary for backward compatibility
+      workItemData.assignedTo = assignedToMultiple[0];
+    } else if (assignedTo) {
+      // Single assignee mode
+      workItemData.assignedTo = assignedTo;
+    }
 
     // Add content-specific fields only if type is content
     if (type === "content") {

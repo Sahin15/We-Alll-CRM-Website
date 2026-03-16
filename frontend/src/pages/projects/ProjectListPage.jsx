@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import projectApi from '../../api/projectApi';
 import clientApi from '../../api/clientApi';
+import { departmentApi } from '../../api/departmentApi';
 import ProjectCard from '../../components/projects/ProjectCard';
 import ProjectFilters from '../../components/projects/ProjectFilters';
 import ProjectSearch from '../../components/projects/ProjectSearch';

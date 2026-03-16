@@ -414,6 +414,62 @@ router.post('/projects/:projectId/slots/create',
 );
 
 /**
+ * GET /api/work-calendar/projects/:projectId/slots/current-month
+ * Get current month slots for a project
+ */
+router.get('/projects/:projectId/slots/current-month', 
+  protect, 
+  workCalendarController.getCurrentMonthSlots
+);
+
+/**
+ * GET /api/work-calendar/projects/:projectId/slots/history
+ * Get slot history for a project (previous months)
+ */
+router.get('/projects/:projectId/slots/history', 
+  protect, 
+  workCalendarController.getSlotHistory
+);
+
+/**
+ * GET /api/work-calendar/projects/:projectId/slots/all-months
+ * Get all months with slots for a project (including current and future months)
+ */
+router.get('/projects/:projectId/slots/all-months', 
+  protect, 
+  workCalendarController.getAllMonthsWithSlots
+);
+
+/**
+ * GET /api/work-calendar/projects/:projectId/slots/month/:year/:month
+ * Get slots for a specific month
+ */
+router.get('/projects/:projectId/slots/month/:year/:month', 
+  protect, 
+  workCalendarController.getSlotsByMonth
+);
+
+/**
+ * POST /api/work-calendar/projects/:projectId/slots/create-monthly
+ * Create monthly slots for a project (20 slots per month)
+ */
+router.post('/projects/:projectId/slots/create-monthly', 
+  protect, 
+  securityService.createAuditMiddleware('create', 'monthly-slots'),
+  workCalendarController.createMonthlySlots
+);
+
+/**
+ * POST /api/work-calendar/projects/:projectId/slots/add-single
+ * Add a single slot to an existing month
+ */
+router.post('/projects/:projectId/slots/add-single', 
+  protect, 
+  securityService.createAuditMiddleware('create', 'single-slot'),
+  workCalendarController.addSlotToMonth
+);
+
+/**
  * GET /api/work-calendar/projects/:projectId/slots/conflicts
  * Detect slot conflicts for a project
  */

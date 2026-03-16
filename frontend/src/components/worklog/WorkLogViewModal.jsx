@@ -118,6 +118,9 @@ const WorkLogViewModal = ({ show, onHide, workLog }) => {
                     <strong>
                       {formatWorkLogDateTime(edit.editedAt)}
                     </strong>
+                    {edit.editedBy && (
+                      <span> by <strong>{edit.editedBy.name}</strong></span>
+                    )}
                     {edit.reason && ` - ${edit.reason}`}
                   </small>
                 </div>

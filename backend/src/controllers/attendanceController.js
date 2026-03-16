@@ -848,22 +848,43 @@ export const updateManualAttendance = async (req, res) => {
       return res.status(404).json({ message: "Attendance record not found" });
     }
 
+    // TIMEZONE FIX: Convert IST datetime-local input to proper UTC Date
+    const convertISTToUTC = (istDateTimeString) => {
+      if (!istDateTimeString) return null;
+      
+      // Parse the datetime-local string (format: "YYYY-MM-DDTHH:MM")
+      const [datePart, timePart] = istDateTimeString.split('T');
+      const [year, month, day] = datePart.split('-').map(Number);
+      const [hours, minutes] = timePart.split(':').map(Number);
+      
+      // Create a UTC date representing IST time
+      // IST is UTC+5:30, so to convert IST to UTC, we subtract 5:30
+      const utcDate = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0, 0));
+      const istOffset = 5.5 * 60 * 60 * 1000; // 5:30 in milliseconds
+      const properUTCDate = new Date(utcDate.getTime() - istOffset);
+      
+      return properUTCDate;
+    };
+
     // Track the changes
+    const newClockIn = clockIn ? convertISTToUTC(clockIn) : attendance.clockIn;
+    const newClockOut = clockOut ? convertISTToUTC(clockOut) : attendance.clockOut;
+
     const changes = {
       oldStatus: attendance.status,
       newStatus: status || attendance.status,
       oldClockIn: attendance.clockIn,
-      newClockIn: clockIn ? new Date(clockIn) : attendance.clockIn,
+      newClockIn: newClockIn,
       oldClockOut: attendance.clockOut,
-      newClockOut: clockOut ? new Date(clockOut) : attendance.clockOut,
+      newClockOut: newClockOut,
     };
 
     // Track manual modification
     attendance.trackManualModification(approvedBy, reason, changes);
 
-    // Update fields
-    if (clockIn) attendance.clockIn = new Date(clockIn);
-    if (clockOut) attendance.clockOut = new Date(clockOut);
+    // Update fields with converted times
+    if (clockIn) attendance.clockIn = newClockIn;
+    if (clockOut) attendance.clockOut = newClockOut;
     if (status) attendance.status = status;
     if (notes) attendance.notes = notes;
     attendance.approvedBy = approvedBy;

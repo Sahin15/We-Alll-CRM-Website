@@ -114,10 +114,14 @@ const MyAttendance = () => {
     const calendar = [];
 
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const dateStr = d.toISOString().split("T")[0];
-      const record = data.find(
-        (a) => new Date(a.date).toISOString().split("T")[0] === dateStr
-      );
+      // Create consistent date strings for comparison (YYYY-MM-DD format)
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      
+      const record = data.find((a) => {
+        const recordDate = new Date(a.date);
+        const recordDateStr = `${recordDate.getFullYear()}-${String(recordDate.getMonth() + 1).padStart(2, '0')}-${String(recordDate.getDate()).padStart(2, '0')}`;
+        return recordDateStr === dateStr;
+      });
 
       calendar.push({
         date: new Date(d),

@@ -28,12 +28,20 @@ const workItemSchema = new mongoose.Schema(
       required: [true, "Project is required"],
       index: true,
     },
+    // Support both single and multiple assignees
     assignedTo: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: [true, "Work item must be assigned to someone"],
+      required: function() {
+        // Either assignedTo or assignedToMultiple must be present
+        return !this.assignedToMultiple || this.assignedToMultiple.length === 0;
+      },
       index: true,
     },
+    assignedToMultiple: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    }],
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -412,6 +420,28 @@ workItemSchema.virtual("hasAssignedSlot").get(function () {
   return this.slotAssignment?.assignedSlot != null;
 });
 
+// Virtual to get all assignees (both single and multiple)
+workItemSchema.virtual("allAssignees").get(function () {
+  const assignees = [];
+  
+  // Add single assignee if present
+  if (this.assignedTo) {
+    assignees.push(this.assignedTo);
+  }
+  
+  // Add multiple assignees if present
+  if (this.assignedToMultiple && this.assignedToMultiple.length > 0) {
+    assignees.push(...this.assignedToMultiple);
+  }
+  
+  return assignees;
+});
+
+// Virtual to check if work item has multiple assignees
+workItemSchema.virtual("hasMultipleAssignees").get(function () {
+  return this.assignedToMultiple && this.assignedToMultiple.length > 0;
+});
+
 // Virtual for slot display information
 workItemSchema.virtual("slotDisplayInfo").get(function () {
   if (!this.hasAssignedSlot) {
@@ -523,9 +553,14 @@ workItemSchema.pre("validate", function (next) {
   next();
 });
 
-// Static method to get work items by user
+// Static method to get work items by user (supports both single and multiple assignees)
 workItemSchema.statics.getByUser = function (userId, filters = {}) {
-  const query = { assignedTo: userId };
+  const query = {
+    $or: [
+      { assignedTo: userId },
+      { assignedToMultiple: userId }
+    ]
+  };
   
   if (filters.status) {
     query.status = filters.status;
@@ -553,6 +588,7 @@ workItemSchema.statics.getByUser = function (userId, filters = {}) {
   return this.find(query)
     .populate("project", "name client")
     .populate("assignedTo", "name email")
+    .populate("assignedToMultiple", "name email")
     .populate("createdBy", "name email")
     .populate("slotAssignment.assignedSlot", "slotNumber slotIdentifier slotType assignmentStatus")
     .sort({ dueDate: 1, createdAt: -1 });
@@ -569,7 +605,11 @@ workItemSchema.statics.getByProject = function (projectId, filters = {}) {
     query.type = filters.type;
   }
   if (filters.assignedTo) {
-    query.assignedTo = filters.assignedTo;
+    // Support filtering by assignee in both single and multiple assignee fields
+    query.$or = [
+      { assignedTo: filters.assignedTo },
+      { assignedToMultiple: filters.assignedTo }
+    ];
   }
   if (filters.slotNumber) {
     query['slotAssignment.slotNumber'] = filters.slotNumber;
@@ -584,6 +624,7 @@ workItemSchema.statics.getByProject = function (projectId, filters = {}) {
   
   return this.find(query)
     .populate("assignedTo", "name email")
+    .populate("assignedToMultiple", "name email")
     .populate("createdBy", "name email")
     .populate("slotAssignment.assignedSlot", "slotNumber slotIdentifier slotType assignmentStatus")
     .sort({ 'slotAssignment.slotNumber': 1, status: 1, dueDate: 1 });
@@ -629,12 +670,21 @@ workItemSchema.statics.getWithSlotInfo = function (filters = {}) {
 // Static method to search work items
 workItemSchema.statics.search = function (userId, searchTerm, filters = {}) {
   const query = {
-    assignedTo: userId,
-    $or: [
-      { title: { $regex: searchTerm, $options: "i" } },
-      { description: { $regex: searchTerm, $options: "i" } },
-      { tags: { $regex: searchTerm, $options: "i" } },
-    ],
+    $and: [
+      {
+        $or: [
+          { assignedTo: userId },
+          { assignedToMultiple: userId }
+        ]
+      },
+      {
+        $or: [
+          { title: { $regex: searchTerm, $options: "i" } },
+          { description: { $regex: searchTerm, $options: "i" } },
+          { tags: { $regex: searchTerm, $options: "i" } },
+        ]
+      }
+    ]
   };
   
   if (filters.status) {
@@ -650,6 +700,7 @@ workItemSchema.statics.search = function (userId, searchTerm, filters = {}) {
   return this.find(query)
     .populate("project", "name")
     .populate("assignedTo", "name email")
+    .populate("assignedToMultiple", "name email")
     .sort({ dueDate: 1 });
 };
 

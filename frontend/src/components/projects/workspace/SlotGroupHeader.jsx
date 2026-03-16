@@ -6,7 +6,7 @@ import { FaChevronDown, FaChevronRight } from 'react-icons/fa';
  */
 const SlotGroupHeader = ({ slot, workItems = [], isExpanded, onToggle }) => {
   const totalCount = workItems.length;
-  const completedCount = workItems.filter(item => item.status === 'Done').count;
+  const completedCount = workItems.filter(item => item.status === 'Done').length;
   const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   // Generate color based on slot number for visual differentiation
@@ -53,7 +53,7 @@ const SlotGroupHeader = ({ slot, workItems = [], isExpanded, onToggle }) => {
         </div>
         <div className="d-flex align-items-center gap-2">
           <strong style={{ fontSize: '1.1rem', fontWeight: '600' }}>
-            {slot.title || `Slot ${slot.slotNumber}`}
+            {slot.title}
           </strong>
         </div>
         <Badge 
@@ -72,7 +72,7 @@ const SlotGroupHeader = ({ slot, workItems = [], isExpanded, onToggle }) => {
           {totalCount} {totalCount === 1 ? 'item' : 'items'}
         </Badge>
       </div>
-      <div className="d-flex align-items-center gap-3" style={{ minWidth: '280px' }}>
+      <div className="d-flex align-items-center gap-3" style={{ minWidth: '400px' }}>
         <div className="flex-grow-1">
           <ProgressBar 
             now={percentage} 
@@ -89,11 +89,7 @@ const SlotGroupHeader = ({ slot, workItems = [], isExpanded, onToggle }) => {
               now={percentage}
               label={`${percentage}%`}
               style={{
-                background: percentage === 100 
-                  ? 'linear-gradient(90deg, #28a745 0%, #20c997 100%)'
-                  : percentage > 0 
-                  ? 'linear-gradient(90deg, #ffffff 0%, rgba(255,255,255,0.8) 100%)'
-                  : 'transparent',
+                background: 'linear-gradient(90deg, #28a745 0%, #20c997 100%)',
                 fontWeight: '600',
                 fontSize: '0.85rem'
               }}

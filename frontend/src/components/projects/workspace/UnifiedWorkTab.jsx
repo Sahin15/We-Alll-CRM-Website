@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Card, Button, Table, Badge, Modal, Form, Row, Col, Collapse } from 'react-bootstrap';
-import { FaEdit, FaTrash, FaEye } from 'react-icons/fa';
+import { Card, Button, Table, Badge, Modal, Form, Row, Col, Collapse, Alert } from 'react-bootstrap';
+import { FaEdit, FaTrash, FaEye, FaPlus } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../../context/AuthContext';
 import projectApi from '../../../api/projectApi';
 import workItemApi from '../../../api/workItemApi';
+import workCalendarApi from '../../../api/workCalendarApi';
 import ViewToggle from './ViewToggle';
 import SlotGroupHeader from './SlotGroupHeader';
 import WorkItemDetailsModal from '../../workitems/WorkItemDetailsModal';
@@ -13,7 +14,7 @@ import WorkItemDetailsModal from '../../workitems/WorkItemDetailsModal';
  * UnifiedWorkTab - Table view for all work assignment
  * Handles both slot-based and regular work items
  */
-const UnifiedWorkTab = ({ project, onRefresh }) => {
+const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [workItems, setWorkItems] = useState([]);
@@ -26,6 +27,7 @@ const UnifiedWorkTab = ({ project, onRefresh }) => {
   const [teamMembers, setTeamMembers] = useState([]);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedWorkItem, setSelectedWorkItem] = useState(null);
+  const [showAddSlotModal, setShowAddSlotModal] = useState(false);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -40,7 +42,7 @@ const UnifiedWorkTab = ({ project, onRefresh }) => {
 
   useEffect(() => {
     loadData();
-  }, [project._id]);
+  }, [project._id, refreshKey]); // Also refresh when refreshKey changes
 
   const loadData = async () => {
     try {
@@ -53,18 +55,40 @@ const UnifiedWorkTab = ({ project, onRefresh }) => {
       setTeamMembers(members);
 
       if (isSlotBased) {
-        const slotsResponse = await projectApi.getProjectSlots(project._id);
-        const loadedSlots = slotsResponse.data || [];
-        setSlots(loadedSlots);
+        // Use monthly slot system - get current month slots
+        const slotsResponse = await workCalendarApi.getCurrentMonthSlots(project._id);
+        const slotsData = slotsResponse.data?.data?.slots || [];
+        setSlots(slotsData);
 
         // Initialize expanded state: expand slots with work, collapse empty slots
         const groupedResponse = await projectApi.getWorkItemsGroupedBySlots(project._id);
         const grouped = groupedResponse.data || { slotted: {}, unassigned: [] };
-        setGroupedWorkItems(grouped);
+        
+        // Filter unassigned work items by current month based on due date
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentMonth = currentDate.getMonth() + 1;
+        
+        const filteredUnassigned = grouped.unassigned.filter(item => {
+          if (!item.dueDate) return false;
+          
+          const itemDate = new Date(item.dueDate);
+          const itemYear = itemDate.getFullYear();
+          const itemMonth = itemDate.getMonth() + 1;
+          
+          return itemYear === currentYear && itemMonth === currentMonth;
+        });
+        
+        const filteredGrouped = {
+          slotted: grouped.slotted,
+          unassigned: filteredUnassigned
+        };
+        
+        setGroupedWorkItems(filteredGrouped);
         
         const initialExpanded = {};
-        loadedSlots.forEach(slot => {
-          const slotWorkItems = grouped.slotted?.[slot._id]?.workItems || [];
+        slotsData.forEach(slot => {
+          const slotWorkItems = filteredGrouped.slotted?.[slot._id]?.workItems || [];
           initialExpanded[slot._id] = slotWorkItems.length > 0; // Expand only if has work items
         });
         setExpandedSlots(initialExpanded);
@@ -176,6 +200,26 @@ const UnifiedWorkTab = ({ project, onRefresh }) => {
     }
   };
 
+  const handleAddSingleSlot = async () => {
+    try {
+      setLoading(true);
+      // Add one additional slot to the current month
+      const currentYear = new Date().getFullYear();
+      const currentMonth = new Date().getMonth() + 1;
+      await workCalendarApi.addSlotToMonth(project._id, currentYear, currentMonth);
+      toast.success('Additional slot added successfully!');
+      setShowAddSlotModal(false);
+      loadData();
+      // Also refresh parent component to update other tabs
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error('Error adding slot:', error);
+      toast.error('Failed to add additional slot');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const toggleSlotExpansion = (slotId) => {
     setExpandedSlots(prev => ({
       ...prev,
@@ -250,11 +294,17 @@ const UnifiedWorkTab = ({ project, onRefresh }) => {
           <div className="d-flex justify-content-between align-items-center">
             <div>
               <h5 className="mb-1">
-                {isSlotBased ? `Work Slots (${slots.length})` : `Work Items (${workItems.length})`}
+                {isSlotBased ? (
+                  <>
+                    Work Slots ({slots.length}) - {new Date().toLocaleString('default', { month: 'long' })} {new Date().getFullYear()}
+                  </>
+                ) : (
+                  `Work Items (${workItems.length})`
+                )}
               </h5>
               <small className="text-muted">
                 {isSlotBased 
-                  ? 'Assign team members to numbered work slots'
+                  ? 'Current month slots - assign team members to numbered work slots'
                   : 'View and manage work items assigned to team members'}
               </small>
             </div>
@@ -294,8 +344,9 @@ const UnifiedWorkTab = ({ project, onRefresh }) => {
                         isExpanded={expandedSlots[slot._id]}
                         onToggle={() => toggleSlotExpansion(slot._id)}
                       />
-                      <Collapse in={expandedSlots[slot._id]}>
-                        <Card.Body className="p-0">
+                      <Collapse in={expandedSlots[slot._id]} timeout={300}>
+                        <div>
+                          <Card.Body className="p-0">
                           {slotWorkItems.length === 0 ? (
                             <div className="text-center py-4 text-muted">
                               No work items assigned to this slot
@@ -406,10 +457,38 @@ const UnifiedWorkTab = ({ project, onRefresh }) => {
                             </Table>
                           )}
                         </Card.Body>
+                        </div>
                       </Collapse>
                     </Card>
                   );
                 })}
+
+              {/* Add Another Slot Button - Show after slot 20 if user can manage slots */}
+              {canManageWork && slots.length >= 20 && (
+                <Card className="border-0 shadow-sm">
+                  <Card.Body className="text-center py-3">
+                    <Button
+                      variant="outline-primary"
+                      size="sm"
+                      onClick={() => setShowAddSlotModal(true)}
+                      className="d-flex align-items-center justify-content-center mx-auto"
+                      style={{ 
+                        borderStyle: 'dashed',
+                        borderWidth: '1px',
+                        padding: '0.5rem 1rem',
+                        fontSize: '0.9rem',
+                        fontWeight: '500'
+                      }}
+                    >
+                      <FaPlus className="me-2" />
+                      Add Another Slot
+                    </Button>
+                    <small className="text-muted mt-2 d-block" style={{ fontSize: '0.8rem' }}>
+                      Expand project capacity
+                    </small>
+                  </Card.Body>
+                </Card>
+              )}
 
               {/* Unassigned Work Section */}
               {groupedWorkItems.unassigned && groupedWorkItems.unassigned.length > 0 && (
@@ -850,6 +929,45 @@ const UnifiedWorkTab = ({ project, onRefresh }) => {
             </Button>
           </Modal.Footer>
         </Form>
+      </Modal>
+
+      {/* Add Single Slot Modal */}
+      <Modal show={showAddSlotModal} onHide={() => setShowAddSlotModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Add Additional Slot</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Alert variant="info">
+            <small>This will add one additional slot to the current month.</small>
+          </Alert>
+          <div className="text-center">
+            <h5>Confirm Slot Addition</h5>
+            <p className="text-muted">
+              You are about to add <strong>1 additional work slot</strong> to the current month.
+            </p>
+            <p className="text-muted">
+              Current slots: <strong>{slots.length}</strong> → New total: <strong>{slots.length + 1}</strong>
+            </p>
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowAddSlotModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleAddSingleSlot} disabled={loading}>
+            {loading ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" />
+                Adding Slot...
+              </>
+            ) : (
+              <>
+                <FaPlus className="me-2" />
+                Add Slot
+              </>
+            )}
+          </Button>
+        </Modal.Footer>
       </Modal>
 
       {/* Work Item Details Modal */}

@@ -1,12 +1,13 @@
 import { Card, Row, Col } from "react-bootstrap";
 import { useAuth } from "../../context/AuthContext";
 import { FaSun, FaMoon, FaCloudSun, FaLightbulb, FaRocket, FaStar } from "react-icons/fa";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import BreakTimer from "../dashboard/BreakTimer";
 
 const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
   const { user } = useAuth();
   const [funMessage, setFunMessage] = useState(null);
+  const [isInitialized, setIsInitialized] = useState(false);
   
   const getGreeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -23,11 +24,8 @@ const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
     return `${day}/${month}/${year}`;
   }, []);
 
-  // Get contextual messages based on time
-  const getContextualMessages = () => {
-    const hour = new Date().getHours();
-    const allMessages = [];
-    
+  // Memoize all message arrays to prevent recreation on every render
+  const messageArrays = useMemo(() => {
     // Morning Messages (5 AM - 11 AM)
     const morningMessages = [
       { type: 'morning', icon: <FaSun />, text: "Good morning! Coffee first, adulting second ☕" },
@@ -218,30 +216,59 @@ const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
       { type: 'hindi', icon: <FaRocket />, text: "Aaj ki mehnat, kal ki safalta! Keep going! 🚀" },
       { type: 'hindi', icon: <FaStar />, text: "Zindagi ek safar hai suhana! Enjoy the journey! 🛤️" },
     ];
+
+    return {
+      morningMessages,
+      lunchMessages,
+      teaMessages,
+      eveningMessages,
+      quotes,
+      facts,
+      encouragement,
+      jokes,
+      hindiMessages
+    };
+  }, []); // Empty dependency array since these are static
+
+  // Get contextual messages based on time - now memoized and stable
+  const getContextualMessages = useCallback(() => {
+    const hour = new Date().getHours();
+    const allMessages = [];
     
     // Add contextual messages based on time
     if (hour >= 5 && hour < 12) {
-      allMessages.push(...morningMessages);
+      allMessages.push(...messageArrays.morningMessages);
     } else if (hour >= 12 && hour < 14) {
-      allMessages.push(...lunchMessages);
+      allMessages.push(...messageArrays.lunchMessages);
     } else if (hour >= 16 && hour < 17) {
-      allMessages.push(...teaMessages);
+      allMessages.push(...messageArrays.teaMessages);
     } else if (hour >= 18 && hour < 21) {
-      allMessages.push(...eveningMessages);
+      allMessages.push(...messageArrays.eveningMessages);
     }
     
     // Always add these to the pool
-    allMessages.push(...quotes, ...facts, ...encouragement, ...jokes, ...hindiMessages);
+    allMessages.push(
+      ...messageArrays.quotes, 
+      ...messageArrays.facts, 
+      ...messageArrays.encouragement, 
+      ...messageArrays.jokes, 
+      ...messageArrays.hindiMessages
+    );
     
     return allMessages;
-  };
+  }, [messageArrays]);
   
   useEffect(() => {
-    // Select a random fun message only once on mount
-    const funContent = getContextualMessages();
-    const randomIndex = Math.floor(Math.random() * funContent.length);
-    setFunMessage(funContent[randomIndex]);
-  }, []); // Empty dependency array - run only once on mount
+    // Select a random fun message only once on mount to prevent flickering
+    if (!isInitialized) {
+      const funContent = getContextualMessages();
+      if (funContent.length > 0) {
+        const randomIndex = Math.floor(Math.random() * funContent.length);
+        setFunMessage(funContent[randomIndex]);
+        setIsInitialized(true);
+      }
+    }
+  }, [getContextualMessages, isInitialized]); // Only run once when not initialized
 
   const greeting = useMemo(() => getGreeting, [getGreeting]);
   const formattedDate = useMemo(() => getFormattedDate, [getFormattedDate]);
@@ -272,7 +299,7 @@ const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
         </Row>
         
         {/* Fun Message Section - Below greeting */}
-        {funMessage && (
+        {funMessage && isInitialized && (
           <div className="fun-message-box mt-3" data-type={funMessage.type} style={{ position: 'relative', zIndex: 10 }}>
             <span className="sparkle"></span>
             <span className="sparkle"></span>

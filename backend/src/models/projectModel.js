@@ -227,43 +227,8 @@ const projectSchema = new mongoose.Schema(
         },
         role: {
           type: String,
-          enum: [
-            // Development roles
-            "developer",
-            "frontend-developer",
-            "backend-developer",
-            "fullstack-developer",
-            "qa-tester",
-            
-            // Design roles
-            "designer",
-            "ui-designer",
-            "ux-designer",
-            "graphic-designer",
-            "video-editor",
-            
-            // Social Media Marketing roles
-            "social-media-manager",
-            "content-creator",
-            "copywriter",
-            "ads-specialist",
-            "caption-writer",
-            "photo-editor",
-            "video-creator",
-            "posting-manager",
-            "community-manager",
-            
-            // Content roles
-            "content-writer",
-            "seo-specialist",
-            "blog-writer",
-            
-            // Other roles
-            "project-coordinator",
-            "client-liaison",
-            "other",
-          ],
           default: "other",
+          trim: true,
         },
         // Department-specific specialization
         specialization: {

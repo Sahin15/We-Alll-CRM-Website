@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Modal, Form, Button, Row, Col } from 'react-bootstrap';
+import { Modal, Form, Button, Row, Col, Badge } from 'react-bootstrap';
 import { FaTasks, FaPlusCircle } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import workItemApi from '../../api/workItemApi';
@@ -24,6 +24,8 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
     description: '',
     project: '',
     assignedTo: '',
+    assignedToMultiple: [], // New field for multiple assignees
+    assignmentMode: 'single', // 'single' or 'multiple'
     dueDate: '',
     priority: '',
     selectedSlot: '' // Add slot selection
@@ -38,6 +40,8 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
         description: '',
         project: defaultProject || '',
         assignedTo: defaultAssignee || '',
+        assignedToMultiple: defaultAssignee ? [defaultAssignee] : [],
+        assignmentMode: defaultAssignee ? 'single' : 'single',
         dueDate: '',
         priority: '',
         selectedSlot: ''
@@ -77,7 +81,13 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
 
   // Filter users when project is selected
   const handleProjectChange = async (projectId) => {
-    setFormData({ ...formData, project: projectId, assignedTo: '', selectedSlot: '' }); // Reset assignedTo and slot when project changes
+    setFormData({ 
+      ...formData, 
+      project: projectId, 
+      assignedTo: '', 
+      assignedToMultiple: [],
+      selectedSlot: '' 
+    }); // Reset assignees and slot when project changes
     
     if (projectId) {
       // Find the selected project
@@ -119,7 +129,12 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.title || !formData.project || !formData.assignedTo || !formData.dueDate || !formData.priority) {
+    // Validate based on assignment mode
+    const hasAssignee = formData.assignmentMode === 'single' 
+      ? formData.assignedTo 
+      : formData.assignedToMultiple.length > 0;
+    
+    if (!formData.title || !formData.project || !hasAssignee || !formData.dueDate || !formData.priority) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -132,11 +147,19 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
         description: formData.description,
         type: 'task', // Always task type for simplified workflow
         project: formData.project,
-        assignedTo: formData.assignedTo,
         dueDate: formData.dueDate,
         priority: formData.priority,
         status: 'To Do',
       };
+
+      // Handle assignee(s) based on mode
+      if (formData.assignmentMode === 'multiple' && formData.assignedToMultiple.length > 0) {
+        workItemData.assignedToMultiple = formData.assignedToMultiple;
+        // Set first assignee as primary for backward compatibility
+        workItemData.assignedTo = formData.assignedToMultiple[0];
+      } else {
+        workItemData.assignedTo = formData.assignedTo;
+      }
 
       // Add slot assignment if provided via slotInfo prop (from calendar/other components)
       if (slotInfo) {
@@ -152,7 +175,11 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
       await workItemApi.createWorkItem(workItemData);
       
       // Show professional success message
-      toast.success('Work item assigned successfully', {
+      const assigneeCount = formData.assignmentMode === 'multiple' 
+        ? formData.assignedToMultiple.length 
+        : 1;
+      
+      toast.success(`Work item assigned successfully to ${assigneeCount} team member${assigneeCount > 1 ? 's' : ''}`, {
         autoClose: 2000,
         position: 'top-right'
       });
@@ -163,6 +190,8 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
         description: '',
         project: '',
         assignedTo: '',
+        assignedToMultiple: [],
+        assignmentMode: 'single',
         dueDate: '',
         priority: '',
         selectedSlot: ''
@@ -251,26 +280,124 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
 
             <Col md={6} className="mb-3">
               <Form.Group>
-                <Form.Label>Assign To *</Form.Label>
-                <Form.Select
-                  value={formData.assignedTo}
-                  onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
-                  required
-                  disabled={assigning || loadingData || !formData.project}
-                >
-                  <option value="">
-                    {!formData.project 
-                      ? 'Select project first...' 
-                      : users.length === 0 
-                        ? 'No team members in this project'
-                        : 'Select team member...'}
-                  </option>
-                  {users.map((user) => (
-                    <option key={user._id} value={user._id}>
-                      {user.name}
+                <Form.Label>Assignment Mode</Form.Label>
+                <div className="d-flex gap-3">
+                  <Form.Check
+                    type="radio"
+                    id="single-assignee"
+                    name="assignmentMode"
+                    label="Single Assignee"
+                    checked={formData.assignmentMode === 'single'}
+                    onChange={() => setFormData({ 
+                      ...formData, 
+                      assignmentMode: 'single',
+                      assignedToMultiple: []
+                    })}
+                    disabled={assigning}
+                  />
+                  <Form.Check
+                    type="radio"
+                    id="multiple-assignees"
+                    name="assignmentMode"
+                    label="Multiple Assignees"
+                    checked={formData.assignmentMode === 'multiple'}
+                    onChange={() => setFormData({ 
+                      ...formData, 
+                      assignmentMode: 'multiple',
+                      assignedTo: ''
+                    })}
+                    disabled={assigning}
+                  />
+                </div>
+              </Form.Group>
+            </Col>
+
+            <Col md={6} className="mb-3">
+              <Form.Group>
+                <Form.Label>
+                  {formData.assignmentMode === 'single' ? 'Assign To *' : 'Assign To (Multiple) *'}
+                </Form.Label>
+                
+                {formData.assignmentMode === 'single' ? (
+                  <Form.Select
+                    value={formData.assignedTo}
+                    onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
+                    required
+                    disabled={assigning || loadingData || !formData.project}
+                  >
+                    <option value="">
+                      {!formData.project 
+                        ? 'Select project first...' 
+                        : users.length === 0 
+                          ? 'No team members in this project'
+                          : 'Select team member...'}
                     </option>
-                  ))}
-                </Form.Select>
+                    {users.map((user) => (
+                      <option key={user._id} value={user._id}>
+                        {user.name}
+                      </option>
+                    ))}
+                  </Form.Select>
+                ) : (
+                  <div>
+                    <div className="border rounded p-2 mb-2" style={{ minHeight: '38px', maxHeight: '120px', overflowY: 'auto' }}>
+                      {formData.assignedToMultiple.length === 0 ? (
+                        <small className="text-muted">No team members selected</small>
+                      ) : (
+                        <div className="d-flex flex-wrap gap-1">
+                          {formData.assignedToMultiple.map(userId => {
+                            const user = users.find(u => u._id === userId);
+                            return user ? (
+                              <span key={userId} className="badge bg-primary d-flex align-items-center">
+                                {user.name}
+                                <button
+                                  type="button"
+                                  className="btn-close btn-close-white ms-1"
+                                  style={{ fontSize: '0.7em' }}
+                                  onClick={() => {
+                                    setFormData({
+                                      ...formData,
+                                      assignedToMultiple: formData.assignedToMultiple.filter(id => id !== userId)
+                                    });
+                                  }}
+                                  disabled={assigning}
+                                />
+                              </span>
+                            ) : null;
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    <Form.Select
+                      value=""
+                      onChange={(e) => {
+                        if (e.target.value && !formData.assignedToMultiple.includes(e.target.value)) {
+                          setFormData({
+                            ...formData,
+                            assignedToMultiple: [...formData.assignedToMultiple, e.target.value]
+                          });
+                        }
+                      }}
+                      disabled={assigning || loadingData || !formData.project}
+                    >
+                      <option value="">
+                        {!formData.project 
+                          ? 'Select project first...' 
+                          : users.length === 0 
+                            ? 'No team members in this project'
+                            : 'Add team member...'}
+                      </option>
+                      {users
+                        .filter(user => !formData.assignedToMultiple.includes(user._id))
+                        .map((user) => (
+                          <option key={user._id} value={user._id}>
+                            {user.name}
+                          </option>
+                        ))}
+                    </Form.Select>
+                  </div>
+                )}
+                
                 {loadingData && <Form.Text className="text-muted">Loading users...</Form.Text>}
                 {formData.project && users.length === 0 && !loadingData && (
                   <Form.Text className="text-danger">

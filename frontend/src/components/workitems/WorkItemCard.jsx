@@ -26,8 +26,40 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
     workItem.status !== 'Done'
   );
 
-  const canEdit = workItem.assignedTo?._id === currentUser?._id || 
-                  ['admin', 'superadmin', 'hod'].includes(currentUser?.role);
+  // Helper function to check if current user can edit (supports multiple assignees)
+  const canEdit = () => {
+    // Admin roles can always edit
+    if (['admin', 'superadmin', 'hod'].includes(currentUser?.role)) {
+      return true;
+    }
+    
+    // Check if current user is assigned (single or multiple)
+    if (workItem.assignedTo?._id === currentUser?._id) {
+      return true;
+    }
+    
+    if (workItem.assignedToMultiple && workItem.assignedToMultiple.length > 0) {
+      return workItem.assignedToMultiple.some(assignee => assignee._id === currentUser?._id);
+    }
+    
+    return false;
+  };
+
+  // Helper function to get assignee names (supports both single and multiple assignees)
+  const getAssigneeNames = (workItem) => {
+    if (workItem.assignedToMultiple && workItem.assignedToMultiple.length > 0) {
+      // Multiple assignees
+      const names = workItem.assignedToMultiple.map(assignee => assignee.name).filter(Boolean);
+      if (names.length === 0) return 'Unassigned';
+      if (names.length === 1) return names[0];
+      if (names.length === 2) return `${names[0]} & ${names[1]}`;
+      return `${names[0]} & ${names.length - 1} others`;
+    } else if (workItem.assignedTo?.name) {
+      // Single assignee
+      return workItem.assignedTo.name;
+    }
+    return 'Unassigned';
+  };
 
   const getStatusColor = (status) => {
     const colors = {
@@ -93,7 +125,7 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
           
           <div className="d-flex align-items-center gap-2">
             {/* Interactive Status Badge */}
-            {canEdit && isHovered && !isUpdating ? (
+            {canEdit() && isHovered && !isUpdating ? (
               <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
                 <Dropdown.Toggle
                   as={Badge}
@@ -184,8 +216,8 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
         <div className="d-flex justify-content-between align-items-center mt-3">
           <div className="d-flex align-items-center text-muted small">
             <FaUser className="me-1" aria-hidden="true" />
-            <span aria-label={`Assigned to: ${workItem.assignedTo?.name || 'Unassigned'}`}>
-              {workItem.assignedTo?.name || 'Unassigned'}
+            <span aria-label={`Assigned to: ${getAssigneeNames(workItem)}`}>
+              {getAssigneeNames(workItem)}
             </span>
           </div>
           <div 

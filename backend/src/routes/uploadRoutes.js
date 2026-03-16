@@ -7,6 +7,7 @@ import {
   deleteProfilePicture,
   uploadDocument,
   deleteDocument,
+  uploadExpenseReceipt,
 } from "../controllers/uploadController.js";
 import { upload, handleMulterError } from "../middleware/uploadMiddleware.js";
 import { uploadDocument as uploadDocMiddleware, handleDocumentUploadError } from "../middleware/documentMiddleware.js";
@@ -14,6 +15,15 @@ import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
+
+// Upload expense receipt
+router.post(
+  "/expense-receipt",
+  protect,
+  upload.single("receipt"),
+  handleMulterError,
+  uploadExpenseReceipt
+);
 
 // Upload single payment proof image
 router.post(

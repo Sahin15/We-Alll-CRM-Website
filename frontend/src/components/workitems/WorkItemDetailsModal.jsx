@@ -92,8 +92,49 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
 
   if (!workItem) return null;
 
-  const canEdit = workItem.assignedTo?._id === currentUser?._id || 
-                  ['admin', 'superadmin', 'hr', 'manager', 'hod'].includes(currentUser?.role);
+  // Helper function to check if current user can edit (supports multiple assignees)
+  const canEdit = () => {
+    // Admin roles can always edit
+    if (['admin', 'superadmin', 'hr', 'manager', 'hod'].includes(currentUser?.role)) {
+      return true;
+    }
+    
+    // Check if current user is assigned (single or multiple)
+    if (workItem.assignedTo?._id === currentUser?._id) {
+      return true;
+    }
+    
+    if (workItem.assignedToMultiple && workItem.assignedToMultiple.length > 0) {
+      return workItem.assignedToMultiple.some(assignee => assignee._id === currentUser?._id);
+    }
+    
+    return false;
+  };
+
+  // Helper function to display assignees (supports both single and multiple assignees)
+  const getAssigneeDisplay = (workItem) => {
+    if (workItem.assignedToMultiple && workItem.assignedToMultiple.length > 0) {
+      // Multiple assignees - show all names
+      const names = workItem.assignedToMultiple.map(assignee => assignee.name).filter(Boolean);
+      if (names.length === 0) return 'Unassigned';
+      return (
+        <div>
+          {names.map((name, index) => (
+            <div key={index} className="d-flex align-items-center mb-1">
+              <span className="badge bg-primary me-2" style={{ fontSize: '0.75em' }}>
+                {index + 1}
+              </span>
+              {name}
+            </div>
+          ))}
+        </div>
+      );
+    } else if (workItem.assignedTo?.name) {
+      // Single assignee
+      return workItem.assignedTo.name;
+    }
+    return 'Unassigned';
+  };
 
   const getStatusColor = (status) => {
     const colors = {
@@ -436,7 +477,7 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                   </Badge>
                 </div>
                 
-                {canEdit && (
+                {canEdit() && (
                   <>
                     <div className="mb-2">
                       <small className="text-muted">Change status to:</small>
@@ -576,7 +617,7 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                   </>
                 )}
                 
-                {!canEdit && (
+                {!canEdit() && (
                   <small className="text-muted d-block mt-2">
                     You don't have permission to change the status
                   </small>
@@ -601,7 +642,9 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                       <FaUser className="me-2 text-primary" />
                       <strong style={{ fontSize: '0.85rem', color: '#6c757d' }}>ASSIGNED TO</strong>
                     </div>
-                    <div style={{ fontSize: '0.95rem', fontWeight: '500' }}>{workItem.assignedTo?.name || 'Unassigned'}</div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: '500' }}>
+                      {getAssigneeDisplay(workItem)}
+                    </div>
                   </div>
                 </div>
                 <div className="col-md-6">

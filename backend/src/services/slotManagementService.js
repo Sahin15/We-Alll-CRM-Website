@@ -18,7 +18,202 @@ import realTimeUpdateService from './realTimeUpdateService.js';
 class SlotManagementService {
   
   /**
-   * Create slots for a project based on slot configuration
+   * Create monthly slots for a project (20 slots per month)
+   */
+  async createMonthlySlotsForProject(projectId, year, month, options = {}) {
+    try {
+      const project = await Project.findById(projectId);
+      if (!project) {
+        throw new Error('Project not found');
+      }
+
+      // Auto-enable slot system if not already enabled
+      if (!project.slotConfiguration?.enableSlotSystem) {
+        project.slotConfiguration = project.slotConfiguration || {};
+        project.slotConfiguration.enableSlotSystem = true;
+        await project.save();
+        logger.info(`Auto-enabled slot system for project ${projectId}`);
+      }
+
+      const {
+        count = 20, // Fixed 20 slots per month
+        createdBy
+      } = options;
+
+      // Ensure we have valid user IDs for required fields
+      const fallbackUserId = createdBy || project.createdBy || project.projectHead;
+      if (!fallbackUserId) {
+        throw new Error('Cannot create slots: No valid user ID available for createdBy field');
+      }
+
+      // Create monthly slots using the model static method
+      const createdSlots = await Slot.createMonthlySlots(projectId, year, month, {
+        count,
+        createdBy: fallbackUserId
+      });
+
+      // Add client to slots if project has one
+      if (project.client) {
+        await Slot.updateMany(
+          { _id: { $in: createdSlots.map(s => s._id) } },
+          { $set: { client: project.client } }
+        );
+      }
+
+      // Broadcast real-time update
+      await realTimeUpdateService.broadcastSlotUpdate(projectId, 'monthly-slots-created', {
+        projectId,
+        year,
+        month,
+        slotsCreated: createdSlots.length,
+        periodIdentifier: `${year}-${String(month).padStart(2, '0')}`
+      });
+
+      logger.info(`Created ${createdSlots.length} monthly slots for project ${projectId} (${year}-${month})`);
+      
+      return {
+        created: createdSlots,
+        message: `Successfully created ${createdSlots.length} slots for ${year}-${month}`,
+        period: {
+          year,
+          month,
+          periodIdentifier: `${year}-${String(month).padStart(2, '0')}`
+        }
+      };
+    } catch (error) {
+      logger.error('Error creating monthly slots for project:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add a single slot to an existing month
+   */
+  async addSingleSlotToMonth(projectId, year, month, options = {}) {
+    try {
+      const project = await Project.findById(projectId);
+      if (!project) {
+        throw new Error('Project not found');
+      }
+
+      if (!project.slotConfiguration?.enableSlotSystem) {
+        throw new Error('Slot system is not enabled for this project');
+      }
+
+      const { createdBy } = options;
+      const periodIdentifier = `${year}-${String(month).padStart(2, '0')}`;
+
+      // Find existing slots for this period to determine the next slot number
+      const existingSlots = await Slot.find({
+        project: projectId,
+        'period.periodIdentifier': periodIdentifier
+      }).sort({ slotNumber: 1 });
+
+      if (existingSlots.length === 0) {
+        throw new Error(`No existing slots found for period ${periodIdentifier}. Use create-monthly instead.`);
+      }
+
+      // Determine the next slot number
+      const nextSlotNumber = existingSlots.length + 1;
+      const slotIdentifier = `${periodIdentifier}-Slot-${String(nextSlotNumber).padStart(2, '0')}`;
+
+      // Create the new slot with project name in title
+      const newSlot = new Slot({
+        project: projectId,
+        period: {
+          year,
+          month,
+          periodIdentifier
+        },
+        slotNumber: nextSlotNumber,
+        slotIdentifier,
+        slotType: 'work',
+        title: `${project.name} - Slot ${nextSlotNumber}`,
+        description: `Work slot ${nextSlotNumber} for ${project.name} (${periodIdentifier})`,
+        workType: 'Other',
+        priority: 'Medium',
+        assignmentStatus: 'available',
+        createdBy,
+        slotConfiguration: {
+          isRequired: true,
+          canBeSkipped: false,
+          requiresApproval: false,
+          estimatedEffort: 8,
+          weight: 1.0
+        },
+        slotMetadata: {
+          category: 'other',
+          tags: ['monthly-slot', 'additional-slot']
+        }
+      });
+
+      // Add client to slot if project has one
+      if (project.client) {
+        newSlot.client = project.client;
+      }
+
+      const savedSlot = await newSlot.save();
+
+      // Broadcast real-time update
+      await realTimeUpdateService.broadcastSlotUpdate(projectId, 'slot-added', {
+        projectId,
+        year,
+        month,
+        slotNumber: nextSlotNumber,
+        periodIdentifier
+      });
+
+      logger.info(`Added slot ${nextSlotNumber} to project ${projectId} (${year}-${month})`);
+      
+      return {
+        created: savedSlot,
+        message: `Successfully added slot ${nextSlotNumber} to ${year}-${month}`,
+        period: {
+          year,
+          month,
+          periodIdentifier
+        }
+      };
+    } catch (error) {
+      logger.error('Error adding single slot to month:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create slots for current month if they don't exist
+   */
+  async ensureCurrentMonthSlots(projectId, createdBy) {
+    try {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      const periodIdentifier = Slot.getCurrentPeriodIdentifier();
+
+      // Check if slots exist for current month
+      const existingSlots = await Slot.find({
+        project: projectId,
+        'period.periodIdentifier': periodIdentifier
+      });
+
+      if (existingSlots.length > 0) {
+        return {
+          created: [],
+          message: `Slots already exist for current month (${periodIdentifier})`,
+          existing: existingSlots.length
+        };
+      }
+
+      // Create slots for current month
+      return await this.createMonthlySlotsForProject(projectId, year, month, { createdBy });
+    } catch (error) {
+      logger.error('Error ensuring current month slots:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create slots for a project based on slot configuration (legacy method for backward compatibility)
    */
   async createSlotsForProject(projectId, options = {}) {
     try {
@@ -31,90 +226,10 @@ class SlotManagementService {
         throw new Error('Slot system is not enabled for this project');
       }
 
-      const {
-        startingSlotNumber = 1,
-        count = project.slotConfiguration.totalSlots,
-        slotType = 'work',
-        createdBy
-      } = options;
+      const { createdBy } = options;
 
-      // Ensure we have valid user IDs for required fields
-      const fallbackUserId = createdBy || project.createdBy || project.projectHead;
-      if (!fallbackUserId) {
-        throw new Error('Cannot create slots: No valid user ID available for createdBy/assignedTo fields');
-      }
-
-      // Check if slots already exist
-      const existingSlots = await Slot.find({ project: projectId });
-      const existingSlotNumbers = existingSlots.map(slot => slot.slotNumber);
-
-      const slotsToCreate = [];
-      const slotNamingPattern = project.slotConfiguration.slotNamingPattern || 'Slot {number}';
-
-      for (let i = startingSlotNumber; i < startingSlotNumber + count; i++) {
-        // Skip if slot number already exists
-        if (existingSlotNumbers.includes(i)) {
-          continue;
-        }
-
-        const slotIdentifier = slotNamingPattern.replace('{number}', i);
-        
-        const slotData = {
-          project: projectId,
-          slotNumber: i,
-          slotIdentifier: slotIdentifier,
-          slotType: slotType,
-          title: '',
-          description: '',
-          workType: 'Other',
-          priority: 'Medium',
-          assignmentStatus: 'available',
-          createdBy: fallbackUserId,
-          assignedTo: null,
-          dueDate: null,
-          slotConfiguration: {
-            isRequired: true,
-            canBeSkipped: false,
-            requiresApproval: false,
-            estimatedEffort: 8,
-            weight: 1.0
-          },
-          slotMetadata: {
-            category: 'other',
-            tags: ['auto-generated']
-          }
-        };
-
-        // Only add client if project has one
-        if (project.client) {
-          slotData.client = project.client;
-        }
-        
-        slotsToCreate.push(slotData);
-      }
-
-      if (slotsToCreate.length === 0) {
-        return { created: [], message: 'No new slots needed' };
-      }
-
-      const createdSlots = await Slot.insertMany(slotsToCreate);
-      
-      // Update project slot tracking
-      await this.updateProjectSlotTracking(projectId);
-
-      // Broadcast real-time update
-      await realTimeUpdateService.broadcastSlotUpdate(projectId, 'slots-created', {
-        projectId,
-        slotsCreated: createdSlots.length,
-        totalSlots: existingSlots.length + createdSlots.length
-      });
-
-      logger.info(`Created ${createdSlots.length} slots for project ${projectId}`);
-      
-      return {
-        created: createdSlots,
-        message: `Successfully created ${createdSlots.length} slots`
-      };
+      // For monthly slot system, create slots for current month
+      return await this.ensureCurrentMonthSlots(projectId, createdBy);
     } catch (error) {
       logger.error('Error creating slots for project:', error);
       throw error;
@@ -126,12 +241,28 @@ class SlotManagementService {
    */
   async getAvailableSlots(projectId, filters = {}) {
     try {
-      const query = {
+      const { includeAllMonths = false } = filters;
+      
+      // First, ensure current month slots exist by migrating existing slots
+      await this.ensureCurrentMonthSlotsFromExisting(projectId);
+      
+      let query = {
         project: projectId,
         assignmentStatus: 'available',
-        'completionStatus.isCompleted': { $ne: true },
-        ...filters
+        'completionStatus.isCompleted': { $ne: true }
       };
+
+      // By default, only show current month slots
+      if (!includeAllMonths) {
+        const currentPeriod = Slot.getCurrentPeriodIdentifier();
+        query['period.periodIdentifier'] = currentPeriod;
+      }
+
+      // Apply additional filters
+      const { slotType, priority, workType } = filters;
+      if (slotType) query.slotType = slotType;
+      if (priority) query.priority = priority;
+      if (workType) query.workType = workType;
 
       const availableSlots = await Slot.find(query)
         .sort({ slotNumber: 1 })
@@ -144,10 +275,233 @@ class SlotManagementService {
       return {
         slots: slotsWithRecommendations,
         count: availableSlots.length,
-        recommendations: slotsWithRecommendations.filter(slot => slot.recommendation)
+        recommendations: slotsWithRecommendations.filter(slot => slot.recommendation),
+        period: !includeAllMonths ? Slot.getCurrentPeriodIdentifier() : 'all'
       };
     } catch (error) {
       logger.error('Error getting available slots:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Ensure current month slots exist by migrating existing slots or creating new ones
+   */
+  async ensureCurrentMonthSlotsFromExisting(projectId) {
+    try {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      const periodIdentifier = Slot.getCurrentPeriodIdentifier();
+
+      // Check if current month slots already exist
+      const existingCurrentMonthSlots = await Slot.find({
+        project: projectId,
+        'period.periodIdentifier': periodIdentifier
+      });
+
+      if (existingCurrentMonthSlots.length >= 20) {
+        // Current month slots already exist
+        return {
+          message: `Current month slots already exist (${existingCurrentMonthSlots.length} slots)`,
+          existing: existingCurrentMonthSlots.length
+        };
+      }
+
+      // Check for existing slots without period data (legacy slots)
+      const legacySlots = await Slot.find({
+        project: projectId,
+        $or: [
+          { 'period.periodIdentifier': { $exists: false } },
+          { 'period.periodIdentifier': null }
+        ]
+      }).limit(20);
+
+      if (legacySlots.length > 0) {
+        // Migrate existing slots to current month
+        const updates = legacySlots.map(slot => ({
+          updateOne: {
+            filter: { _id: slot._id },
+            update: {
+              $set: {
+                'period.year': year,
+                'period.month': month,
+                'period.periodIdentifier': periodIdentifier,
+                slotIdentifier: `${periodIdentifier}-Slot-${String(slot.slotNumber).padStart(2, '0')}`
+              }
+            }
+          }
+        }));
+
+        await Slot.bulkWrite(updates);
+
+        logger.info(`Migrated ${legacySlots.length} existing slots to current month for project ${projectId}`);
+        
+        return {
+          migrated: legacySlots,
+          message: `Migrated ${legacySlots.length} existing slots to current month`
+        };
+      }
+
+      // No existing slots, create 20 new slots for current month
+      const project = await Project.findById(projectId);
+      if (!project) {
+        throw new Error('Project not found');
+      }
+
+      const fallbackUserId = project.createdBy || project.projectHead;
+      if (!fallbackUserId) {
+        throw new Error('Cannot create slots: No valid user ID available');
+      }
+
+      const createdSlots = await Slot.createMonthlySlots(projectId, year, month, {
+        count: 20,
+        createdBy: fallbackUserId
+      });
+
+      // Add client to slots if project has one
+      if (project.client) {
+        await Slot.updateMany(
+          { _id: { $in: createdSlots.map(s => s._id) } },
+          { $set: { client: project.client } }
+        );
+      }
+
+      logger.info(`Created ${createdSlots.length} new slots for current month for project ${projectId}`);
+
+      return {
+        created: createdSlots,
+        message: `Created ${createdSlots.length} new slots for current month`
+      };
+    } catch (error) {
+      logger.error('Error ensuring current month slots:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get slots for current month
+   */
+  async getCurrentMonthSlots(projectId) {
+    try {
+      // Ensure current month slots exist (migrate existing or create new)
+      await this.ensureCurrentMonthSlotsFromExisting(projectId);
+
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+
+      const slots = await Slot.getSlotsByMonth(projectId, year, month);
+
+      return {
+        slots,
+        count: slots.length,
+        period: {
+          year,
+          month,
+          periodIdentifier: Slot.getCurrentPeriodIdentifier(),
+          monthName: new Date(year, month - 1).toLocaleString('default', { month: 'long' })
+        },
+        statistics: await this.getMonthSlotStatistics(projectId, year, month)
+      };
+    } catch (error) {
+      logger.error('Error getting current month slots:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get slot history (previous months)
+   */
+  async getSlotHistory(projectId, options = {}) {
+    try {
+      const { limit = 12, skip = 0 } = options;
+
+      const history = await Slot.getSlotHistory(projectId, { limit, skip });
+
+      // Format history with month names
+      const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+
+      const formattedHistory = history.map(period => ({
+        ...period,
+        periodDisplay: `${monthNames[period.month - 1]} ${period.year}`,
+        completionRate: period.totalSlots > 0 ? 
+          Math.round((period.completedSlots / period.totalSlots) * 100) : 0,
+        utilizationRate: period.totalSlots > 0 ?
+          Math.round(((period.assignedSlots + period.inProgressSlots + period.completedSlots) / period.totalSlots) * 100) : 0
+      }));
+
+      return {
+        history: formattedHistory,
+        count: formattedHistory.length,
+        hasMore: formattedHistory.length === limit
+      };
+    } catch (error) {
+      logger.error('Error getting slot history:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get slots for a specific month
+   */
+  async getSlotsByMonth(projectId, year, month) {
+    try {
+      const slots = await Slot.getSlotsByMonth(projectId, year, month);
+
+      return {
+        slots,
+        count: slots.length,
+        period: {
+          year,
+          month,
+          periodIdentifier: `${year}-${String(month).padStart(2, '0')}`
+        },
+        statistics: await this.getMonthSlotStatistics(projectId, year, month)
+      };
+    } catch (error) {
+      logger.error('Error getting slots by month:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get slot statistics for a specific month
+   */
+  async getMonthSlotStatistics(projectId, year, month) {
+    try {
+      const periodIdentifier = `${year}-${String(month).padStart(2, '0')}`;
+      const stats = await Slot.getProjectSlotStats(projectId, periodIdentifier);
+
+      if (!stats || stats.length === 0) {
+        return {
+          totalSlots: 0,
+          availableSlots: 0,
+          assignedSlots: 0,
+          inProgressSlots: 0,
+          completedSlots: 0,
+          blockedSlots: 0,
+          utilizationRate: 0,
+          completionRate: 0
+        };
+      }
+
+      const stat = stats[0];
+      const utilizationRate = stat.totalSlots > 0 ? 
+        ((stat.assignedSlots + stat.inProgressSlots + stat.completedSlots) / stat.totalSlots) * 100 : 0;
+      const completionRate = stat.totalSlots > 0 ? 
+        (stat.completedSlots / stat.totalSlots) * 100 : 0;
+
+      return {
+        ...stat,
+        utilizationRate: Math.round(utilizationRate * 100) / 100,
+        completionRate: Math.round(completionRate * 100) / 100
+      };
+    } catch (error) {
+      logger.error('Error getting month slot statistics:', error);
       throw error;
     }
   }
@@ -676,6 +1030,42 @@ class SlotManagementService {
         recommendation
       };
     });
+  }
+
+  async getAllMonthsWithSlots(projectId) {
+    try {
+      // Get all distinct months that have slots for this project
+      const months = await Slot.aggregate([
+        {
+          $match: {
+            project: new mongoose.Types.ObjectId(projectId)
+          }
+        },
+        {
+          $group: {
+            _id: '$period.periodIdentifier',
+            year: { $first: '$period.year' },
+            month: { $first: '$period.month' },
+            totalSlots: { $sum: 1 }
+          }
+        },
+        {
+          $sort: { _id: -1 }
+        }
+      ]);
+
+      // Extract unique years
+      const years = [...new Set(months.map(m => m.year))].sort((a, b) => b - a);
+
+      return {
+        months,
+        years,
+        count: months.length
+      };
+    } catch (error) {
+      logger.error('Error getting all months with slots:', error);
+      throw error;
+    }
   }
 }
 

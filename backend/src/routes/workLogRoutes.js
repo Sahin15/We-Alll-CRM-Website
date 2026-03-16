@@ -13,9 +13,12 @@ import {
   lateSubmission,
   getWorkLogStats,
   exportWorkLogs,
+  getDepartmentWorkLogs,
+  reviewDepartmentWorkLog,
 } from "../controllers/workLogController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { isHoD } from "../middleware/hodMiddleware.js";
 
 const router = express.Router();
 
@@ -28,6 +31,21 @@ router.get("/my-logs/export", protect, exportWorkLogs); // Employee can export t
 router.put("/my-logs/:id", protect, updateMyWorkLog); // Employee can update their own logs (must be before /my-logs)
 router.get("/my-logs", protect, getMyWorkLogs);
 router.post("/late-submission", protect, lateSubmission);
+
+// HOD routes (Head of Department) - MUST come before /all to avoid conflicts
+router.get(
+  "/department/logs",
+  protect,
+  isHoD,
+  getDepartmentWorkLogs
+);
+
+router.put(
+  "/department/:id/review",
+  protect,
+  isHoD,
+  reviewDepartmentWorkLog
+);
 
 // Admin/HR/Manager routes
 router.get(

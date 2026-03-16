@@ -268,10 +268,15 @@ const MyAttendance = () => {
     // Add cells for each day of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
-      const dateStr = date.toISOString().split('T')[0];
-      const record = attendanceRecords.find(r => 
-        new Date(r.date).toISOString().split('T')[0] === dateStr
-      );
+      // Create a consistent date string for comparison (YYYY-MM-DD format)
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      
+      const record = attendanceRecords.find(r => {
+        // Convert the record date to the same format for comparison
+        const recordDate = new Date(r.date);
+        const recordDateStr = `${recordDate.getFullYear()}-${String(recordDate.getMonth() + 1).padStart(2, '0')}-${String(recordDate.getDate()).padStart(2, '0')}`;
+        return recordDateStr === dateStr;
+      });
       
       const isToday = date.toDateString() === today.toDateString();
       const isFuture = date > today;
