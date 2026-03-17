@@ -155,6 +155,30 @@ export const workItemApi = {
   deleteComment: async (workItemId, commentId) => {
     const response = await api.delete(`/work-items/${workItemId}/comments/${commentId}`);
     return response.data;
+  },
+
+  /**
+   * Get pending work count for a user on a specific due date
+   * @param {string} userId - User ID
+   * @param {string} dueDate - Due date (YYYY-MM-DD format)
+   * @returns {Promise} Pending work count
+   */
+  getPendingWorkCount: async (userId, dueDate) => {
+    const response = await api.get(`/work-items/pending-count/${userId}`, {
+      params: { dueDate }
+    });
+    return response.data;
+  },
+
+  /**
+   * Activate a draft or scheduled work item
+   * @param {string} id - Work item ID
+   * @param {string} visibility - Target visibility ('active' or 'scheduled')
+   * @returns {Promise} Activated work item
+   */
+  activateWorkItem: async (id, visibility = 'active') => {
+    const response = await api.patch(`/work-items/${id}/activate`, { visibility });
+    return response.data;
   }
 };
 

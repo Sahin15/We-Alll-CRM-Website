@@ -17,18 +17,17 @@ const CreateProjectModal = ({ show, onHide, onSuccess, editProject = null }) => 
     description: '',
     client: '',
     departments: [], // Changed to support multiple departments
-    projectHead: '', // Now optional
+    projectHead: '', // Required
     status: 'Pending',
     priority: 'medium', // Add priority field
     budget: '', // Add budget field
     startDate: '',
-    endDate: '',
     teamRoles: {}, // For role-based team assignments
-    // Slot system configuration
-    enableSlotSystem: false,
-    totalSlots: 10,
+    // Slot system configuration - ALWAYS 20 slots per month
+    enableSlotSystem: true,
+    totalSlots: 20,
     slotType: 'generic',
-    calculationMethod: 'manual'
+    calculationMethod: 'slot-based'
   });
 
   const [clients, setClients] = useState([]);
@@ -55,12 +54,11 @@ const CreateProjectModal = ({ show, onHide, onSuccess, editProject = null }) => 
           priority: editProject.priority || 'medium',
           budget: editProject.budget || '',
           startDate: editProject.startDate ? new Date(editProject.startDate).toISOString().split('T')[0] : '',
-          endDate: editProject.endDate ? new Date(editProject.endDate).toISOString().split('T')[0] : '',
           teamRoles: {},
-          enableSlotSystem: editProject.slotConfiguration?.enableSlotSystem || false,
-          totalSlots: editProject.slotConfiguration?.totalSlots || 10,
-          slotType: editProject.slotConfiguration?.slotType || 'generic',
-          calculationMethod: editProject.progressTracking?.calculationMethod || 'manual'
+          enableSlotSystem: true, // Always true
+          totalSlots: 20, // Always 20 slots per month
+          slotType: 'generic',
+          calculationMethod: 'slot-based' // Always slot-based
         });
       } else {
         // Reset form for create mode
@@ -74,12 +72,11 @@ const CreateProjectModal = ({ show, onHide, onSuccess, editProject = null }) => 
           priority: 'medium',
           budget: '',
           startDate: '',
-          endDate: '',
           teamRoles: {},
-          enableSlotSystem: false,
-          totalSlots: 10,
+          enableSlotSystem: true, // Always true
+          totalSlots: 20, // Always 20 slots per month
           slotType: 'generic',
-          calculationMethod: 'manual'
+          calculationMethod: 'slot-based' // Always slot-based
         });
       }
     }
@@ -98,6 +95,13 @@ const CreateProjectModal = ({ show, onHide, onSuccess, editProject = null }) => 
       const deptsData = Array.isArray(deptsRes) ? deptsRes : (deptsRes.data || deptsRes.departments || []);
       const usersData = Array.isArray(usersRes) ? usersRes : (usersRes.data || usersRes.users || []);
       
+      console.log('Raw responses:', { clientsRes, deptsRes, usersRes });
+      console.log('Processed data:', { 
+        clients: clientsData, 
+        departments: deptsData, 
+        users: usersData 
+      });
+      
       setClients(clientsData);
       setDepartments(deptsData);
       setUsers(usersData);
@@ -109,7 +113,8 @@ const CreateProjectModal = ({ show, onHide, onSuccess, editProject = null }) => 
       });
     } catch (error) {
       console.error('Error loading data:', error);
-      toast.error('Failed to load form data');
+      console.error('Error details:', error.response?.data || error.message);
+      toast.error('Failed to load form data: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -254,7 +259,9 @@ const CreateProjectModal = ({ show, onHide, onSuccess, editProject = null }) => 
     if (formData.departments.length === 0) {
       newErrors.departments = 'At least one service is required';
     }
-    // Project head is now optional - no validation needed
+    if (!formData.projectHead) {
+      newErrors.projectHead = 'Project Manager is required';
+    }
     if (!formData.startDate) {
       newErrors.startDate = 'Start date is required';
     }
@@ -277,6 +284,7 @@ const CreateProjectModal = ({ show, onHide, onSuccess, editProject = null }) => 
         name: formData.name.trim(),
         description: formData.description.trim(),
         departments: formData.departments, // Send multiple departments
+        projectHead: formData.projectHead, // Required
         status: formData.status,
         startDate: formData.startDate,
         // Slot system configuration - properly nested
@@ -298,12 +306,6 @@ const CreateProjectModal = ({ show, onHide, onSuccess, editProject = null }) => 
 
       if (formData.client) {
         submitData.client = formData.client;
-      }
-      if (formData.projectHead) {
-        submitData.projectHead = formData.projectHead; // Optional
-      }
-      if (formData.endDate) {
-        submitData.endDate = formData.endDate;
       }
       if (formData.priority) {
         submitData.priority = formData.priority;
@@ -351,13 +353,12 @@ const CreateProjectModal = ({ show, onHide, onSuccess, editProject = null }) => 
         priority: 'medium', // Reset priority
         budget: '', // Reset budget
         startDate: '',
-        endDate: '',
         teamRoles: {}, // Reset team roles
-        // Reset slot system fields
-        enableSlotSystem: false,
-        totalSlots: 10,
+        // Reset slot system fields - always 20 slots
+        enableSlotSystem: true,
+        totalSlots: 20,
         slotType: 'generic',
-        calculationMethod: 'manual'
+        calculationMethod: 'slot-based'
       });
       setErrors({});
 
@@ -384,13 +385,12 @@ const CreateProjectModal = ({ show, onHide, onSuccess, editProject = null }) => 
       priority: 'medium', // Reset priority
       budget: '', // Reset budget
       startDate: '',
-      endDate: '',
       teamRoles: {}, // Reset team roles
-      // Reset slot system fields
-      enableSlotSystem: false,
-      totalSlots: 10,
+      // Slot system fields - always 20 slots
+      enableSlotSystem: true,
+      totalSlots: 20,
       slotType: 'generic',
-      calculationMethod: 'manual'
+      calculationMethod: 'slot-based'
     });
     setErrors({});
     onHide();
@@ -491,19 +491,20 @@ const CreateProjectModal = ({ show, onHide, onSuccess, editProject = null }) => 
             <Col md={6}>
               <Form.Group className="mb-3">
                 <Form.Label>
-                  Project Manager <span className="text-muted">(Optional)</span>
+                  Project Manager <span className="text-danger">*</span>
                 </Form.Label>
                 <Form.Select
                   value={formData.projectHead}
                   onChange={(e) => handleChange('projectHead', e.target.value)}
                   disabled={formData.departments.length === 0}
+                  isInvalid={!!errors.projectHead}
                 >
                   <option value="">
                     {formData.departments.length === 0
                       ? 'Select services first...' 
                       : availableProjectHeads.length === 0
                       ? 'No employees in selected services'
-                      : 'Select project manager (optional)...'}
+                      : 'Select project manager...'}
                   </option>
                   {availableProjectHeads.map((user) => (
                     <option key={user._id} value={user._id}>
@@ -511,9 +512,9 @@ const CreateProjectModal = ({ show, onHide, onSuccess, editProject = null }) => 
                     </option>
                   ))}
                 </Form.Select>
-                <Form.Text className="text-muted">
-                  Project manager can be assigned later if not selected now
-                </Form.Text>
+                <Form.Control.Feedback type="invalid">
+                  {errors.projectHead}
+                </Form.Control.Feedback>
               </Form.Group>
             </Col>
           </Row>
@@ -589,79 +590,10 @@ const CreateProjectModal = ({ show, onHide, onSuccess, editProject = null }) => 
                 </Form.Control.Feedback>
               </Form.Group>
             </Col>
-
-            {/* End Date */}
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>End Date</Form.Label>
-                <Form.Control
-                  type="date"
-                  value={formData.endDate}
-                  onChange={(e) => handleChange('endDate', e.target.value)}
-                  min={formData.startDate}
-                />
-              </Form.Group>
-            </Col>
           </Row>
 
-          {/* Slot System Configuration */}
-          <div className="border rounded p-3 mb-3 bg-light">
-            <h6 className="mb-3">
-              <i className="fas fa-cogs me-2"></i>
-              Project Progress Tracking
-            </h6>
-            
-            <Form.Group className="mb-3">
-              <Form.Check
-                type="checkbox"
-                id="enableSlotSystem"
-                label="Enable Slot-Based Progress Tracking"
-                checked={formData.enableSlotSystem}
-                onChange={(e) => handleChange('enableSlotSystem', e.target.checked)}
-              />
-              <Form.Text className="text-muted">
-                Use slot-based system for more granular progress tracking and work management
-              </Form.Text>
-            </Form.Group>
-
-            {formData.enableSlotSystem && (
-              <Row>
-                <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Total Slots</Form.Label>
-                    <Form.Control
-                      type="number"
-                      min="1"
-                      max="100"
-                      value={formData.totalSlots}
-                      onChange={(e) => handleChange('totalSlots', parseInt(e.target.value) || 10)}
-                    />
-                    <Form.Text className="text-muted">
-                      Number of work slots for this project (1-100)
-                    </Form.Text>
-                  </Form.Group>
-                </Col>
-                
-                <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Slot Type</Form.Label>
-                    <Form.Select
-                      value={formData.slotType}
-                      onChange={(e) => handleChange('slotType', e.target.value)}
-                    >
-                      <option value="generic">Generic Slots</option>
-                      <option value="milestone">Milestone-Based</option>
-                      <option value="deliverable">Deliverable-Based</option>
-                      <option value="custom">Custom Slots</option>
-                    </Form.Select>
-                    <Form.Text className="text-muted">
-                      Type of slots to create for this project
-                    </Form.Text>
-                  </Form.Group>
-                </Col>
-              </Row>
-            )}
-          </div>
+          {/* Slot System Configuration - Hidden from users, always 20 slots per month */}
+          {/* Slot system is automatically enabled with 20 slots per month for all projects */}
 
           {/* Dynamic Team Role Assignment (for Multi-Service Projects) */}
           {shouldShowTeamAssignment() && (

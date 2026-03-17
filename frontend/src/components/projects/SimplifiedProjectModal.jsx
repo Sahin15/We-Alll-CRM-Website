@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { projectApi } from '../../api/projectApi';
 import { clientApi } from '../../api/clientApi';
 import { userApi } from '../../api/userApi';
+import departmentApi from '../../api/departmentApi';
 
 /**
  * Simplified Project Creation/Edit Modal
@@ -13,25 +14,27 @@ const SimplifiedProjectModal = ({ show, onHide, onSuccess, project = null }) => 
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [departments, setDepartments] = useState([]);
   
   const [formData, setFormData] = useState({
     name: '',
     client: '',
     projectHead: '',
+    departments: [],
     description: '',
     startDate: '',
-    endDate: '',
     budget: '',
     priority: 'medium',
     status: 'Pending',
-    enableSlotSystem: false,
-    totalSlots: ''
+    enableSlotSystem: true, // Always enabled
+    totalSlots: 20 // Always 20 slots per month
   });
 
   useEffect(() => {
     if (show) {
       loadClients();
       loadEmployees();
+      loadDepartments();
       
       if (project) {
         // Edit mode - populate form
@@ -39,14 +42,16 @@ const SimplifiedProjectModal = ({ show, onHide, onSuccess, project = null }) => 
           name: project.name || '',
           client: project.client?._id || '',
           projectHead: project.projectHead?._id || '',
+          departments: Array.isArray(project.departments) 
+            ? project.departments.map(d => d._id || d)
+            : project.department ? [project.department._id || project.department] : [],
           description: project.description || '',
           startDate: project.startDate ? new Date(project.startDate).toISOString().split('T')[0] : '',
-          endDate: project.endDate ? new Date(project.endDate).toISOString().split('T')[0] : '',
           budget: project.budget || '',
           priority: project.priority || 'medium',
           status: project.status || 'Pending',
-          enableSlotSystem: project.slotConfiguration?.enableSlotSystem || false,
-          totalSlots: project.slotConfiguration?.totalSlots || ''
+          enableSlotSystem: true, // Always enabled
+          totalSlots: 20 // Always 20 slots per month
         });
       } else {
         // Create mode - reset form
@@ -54,14 +59,14 @@ const SimplifiedProjectModal = ({ show, onHide, onSuccess, project = null }) => 
           name: '',
           client: '',
           projectHead: '',
+          departments: [],
           description: '',
           startDate: '',
-          endDate: '',
           budget: '',
           priority: 'medium',
           status: 'Pending',
-          enableSlotSystem: false,
-          totalSlots: ''
+          enableSlotSystem: true, // Always enabled
+          totalSlots: 20 // Always 20 slots per month
         });
       }
     }
@@ -89,6 +94,16 @@ const SimplifiedProjectModal = ({ show, onHide, onSuccess, project = null }) => 
     }
   };
 
+  const loadDepartments = async () => {
+    try {
+      const response = await departmentApi.getAllDepartments();
+      const deptList = Array.isArray(response) ? response : (response.data || response.departments || []);
+      setDepartments(deptList);
+    } catch (error) {
+      console.error('Error loading departments:', error);
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({ 
@@ -97,11 +112,24 @@ const SimplifiedProjectModal = ({ show, onHide, onSuccess, project = null }) => 
     }));
   };
 
+  const handleDepartmentChange = (departmentId, isChecked) => {
+    setFormData(prev => {
+      const newDepartments = isChecked 
+        ? [...prev.departments, departmentId]
+        : prev.departments.filter(id => id !== departmentId);
+      
+      return {
+        ...prev,
+        departments: newDepartments
+      };
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!formData.name || !formData.projectHead || !formData.startDate) {
-      toast.error('Please fill in all required fields');
+      toast.error('Please fill in all required fields (name, project head, start date)');
       return;
     }
 
@@ -112,9 +140,9 @@ const SimplifiedProjectModal = ({ show, onHide, onSuccess, project = null }) => 
         name: formData.name,
         client: formData.client || null,
         projectHead: formData.projectHead,
+        departments: formData.departments,
         description: formData.description,
         startDate: formData.startDate,
-        endDate: formData.endDate || null,
         budget: formData.budget ? parseFloat(formData.budget) : 0,
         priority: formData.priority,
         status: formData.status,
@@ -208,6 +236,31 @@ const SimplifiedProjectModal = ({ show, onHide, onSuccess, project = null }) => 
           </Form.Group>
 
           <Form.Group className="mb-3">
+            <Form.Label>
+              Services Required <span className="text-muted">(Optional)</span>
+            </Form.Label>
+            <div className="border rounded p-2" style={{ maxHeight: '120px', overflowY: 'auto' }}>
+              {departments.map((dept) => (
+                <Form.Check
+                  key={dept._id}
+                  type="checkbox"
+                  id={`dept-${dept._id}`}
+                  label={dept.name}
+                  checked={formData.departments.includes(dept._id)}
+                  onChange={(e) => handleDepartmentChange(dept._id, e.target.checked)}
+                  className="mb-1"
+                />
+              ))}
+              {departments.length === 0 && (
+                <small className="text-muted">No services available</small>
+              )}
+            </div>
+            <Form.Text className="text-muted">
+              Select services/departments involved in this project (for information only)
+            </Form.Text>
+          </Form.Group>
+
+          <Form.Group className="mb-3">
             <Form.Label>Description</Form.Label>
             <Form.Control
               as="textarea"
@@ -229,18 +282,6 @@ const SimplifiedProjectModal = ({ show, onHide, onSuccess, project = null }) => 
                   value={formData.startDate}
                   onChange={handleChange}
                   required
-                />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>End Date</Form.Label>
-                <Form.Control
-                  type="date"
-                  name="endDate"
-                  value={formData.endDate}
-                  onChange={handleChange}
-                  min={formData.startDate}
                 />
               </Form.Group>
             </Col>
@@ -295,38 +336,7 @@ const SimplifiedProjectModal = ({ show, onHide, onSuccess, project = null }) => 
 
           <hr className="my-4" />
 
-          <h6 className="mb-3">Slot System (Optional)</h6>
-          
-          <Form.Group className="mb-3">
-            <Form.Check
-              type="checkbox"
-              name="enableSlotSystem"
-              checked={formData.enableSlotSystem}
-              onChange={handleChange}
-              label="Enable Slot System for this project"
-            />
-            <Form.Text className="text-muted">
-              Slot system allows you to divide the project into numbered work slots
-            </Form.Text>
-          </Form.Group>
-
-          {formData.enableSlotSystem && (
-            <Form.Group className="mb-3">
-              <Form.Label>Number of Slots</Form.Label>
-              <Form.Control
-                type="number"
-                name="totalSlots"
-                value={formData.totalSlots}
-                onChange={handleChange}
-                placeholder="Enter number of slots (e.g., 5, 10, 20)"
-                min="1"
-                max="100"
-              />
-              <Form.Text className="text-muted">
-                How many work slots do you want to create? (1-100)
-              </Form.Text>
-            </Form.Group>
-          )}
+          {/* Slot System is automatically enabled with 20 slots per month - hidden from users */}
         </Modal.Body>
 
         <Modal.Footer>

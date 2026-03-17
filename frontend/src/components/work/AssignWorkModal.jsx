@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import workItemApi from '../../api/workItemApi';
 import projectApi from '../../api/projectApi';
 import userApi from '../../api/userApi';
+import TeamMemberWorkloadInfo from '../workload/TeamMemberWorkloadInfo';
 
 /**
  * AssignWorkModal - Reusable modal for assigning work to team members
@@ -19,6 +20,8 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
   const [slots, setSlots] = useState([]); // Store available slots
   const [loadingData, setLoadingData] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [selectedUserForWorkload, setSelectedUserForWorkload] = useState(null); // Track selected user for workload display
+  const [pendingWorkCount, setPendingWorkCount] = useState(0); // Track pending work for selected due date
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -28,7 +31,9 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
     assignmentMode: 'single', // 'single' or 'multiple'
     dueDate: '',
     priority: '',
-    selectedSlot: '' // Add slot selection
+    selectedSlot: '', // Add slot selection
+    visibility: 'active', // 'draft', 'scheduled', or 'active'
+    scheduledActivationDate: '' // When to activate if scheduled
   });
 
   // Load projects and users when modal opens
@@ -44,7 +49,9 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
         assignmentMode: defaultAssignee ? 'single' : 'single',
         dueDate: '',
         priority: '',
-        selectedSlot: ''
+        selectedSlot: '',
+        visibility: 'active',
+        scheduledActivationDate: ''
       });
       setSelectedProject(null);
       setSlots([]);
@@ -126,6 +133,23 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
     }
   };
 
+  // Fetch pending work count for selected due date and assignee
+  const fetchPendingWorkCount = async (userId, dueDate) => {
+    if (!userId || !dueDate) {
+      setPendingWorkCount(0);
+      return;
+    }
+
+    try {
+      // Count active work items for this user on the selected due date
+      const response = await workItemApi.getPendingWorkCount(userId, dueDate);
+      setPendingWorkCount(response.data?.count || 0);
+    } catch (error) {
+      console.error('Error fetching pending work count:', error);
+      setPendingWorkCount(0);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -134,9 +158,30 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
       ? formData.assignedTo 
       : formData.assignedToMultiple.length > 0;
     
-    if (!formData.title || !formData.project || !hasAssignee || !formData.dueDate || !formData.priority) {
+    if (!formData.title || !formData.project || !formData.dueDate || !formData.priority) {
       toast.error('Please fill in all required fields');
       return;
+    }
+
+    // For scheduled/active mode, assignee is required. For draft, it's optional
+    if (formData.visibility !== 'draft' && !hasAssignee) {
+      toast.error('Please assign work to at least one team member');
+      return;
+    }
+
+    // Validate scheduled activation date
+    if (formData.visibility === 'scheduled' && !formData.scheduledActivationDate) {
+      toast.error('Please select an activation date for scheduled work');
+      return;
+    }
+
+    if (formData.visibility === 'scheduled') {
+      const activationDate = new Date(formData.scheduledActivationDate);
+      const dueDate = new Date(formData.dueDate);
+      if (activationDate > dueDate) {
+        toast.error('Activation date cannot be after due date');
+        return;
+      }
     }
 
     try {
@@ -145,41 +190,59 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
       const workItemData = {
         title: formData.title,
         description: formData.description,
-        type: 'task', // Always task type for simplified workflow
+        type: 'task',
         project: formData.project,
         dueDate: formData.dueDate,
         priority: formData.priority,
         status: 'To Do',
+        visibility: formData.visibility,
       };
 
-      // Handle assignee(s) based on mode
+      // Add scheduled activation date if applicable
+      if (formData.visibility === 'scheduled') {
+        workItemData.scheduledActivationDate = formData.scheduledActivationDate;
+      }
+
+      // Handle assignee(s) - can be assigned in any mode (draft, scheduled, or active)
       if (formData.assignmentMode === 'multiple' && formData.assignedToMultiple.length > 0) {
         workItemData.assignedToMultiple = formData.assignedToMultiple;
-        // Set first assignee as primary for backward compatibility
         workItemData.assignedTo = formData.assignedToMultiple[0];
-      } else {
+      } else if (formData.assignedTo) {
         workItemData.assignedTo = formData.assignedTo;
       }
 
-      // Add slot assignment if provided via slotInfo prop (from calendar/other components)
+      // Add slot assignment if provided
       if (slotInfo) {
         workItemData.assignToSlot = true;
         workItemData.selectedSlot = slotInfo.slotId;
-      }
-      // Or if user selected a slot from the dropdown
-      else if (formData.selectedSlot) {
+      } else if (formData.selectedSlot) {
         workItemData.assignToSlot = true;
         workItemData.selectedSlot = formData.selectedSlot;
       }
 
       await workItemApi.createWorkItem(workItemData);
       
-      // Show professional success message
-      const assigneeCount = formData.assignmentMode === 'multiple' 
-        ? formData.assignedToMultiple.length 
-        : 1;
+      // Show appropriate success message
+      let successMessage = 'Work item created successfully';
+      if (formData.visibility === 'draft') {
+        if (hasAssignee) {
+          const assigneeCount = formData.assignmentMode === 'multiple' 
+            ? formData.assignedToMultiple.length 
+            : 1;
+          successMessage = `Draft saved and assigned to ${assigneeCount} team member${assigneeCount > 1 ? 's' : ''}. It will be visible when activated.`;
+        } else {
+          successMessage = 'Draft saved. You can assign team members later.';
+        }
+      } else if (formData.visibility === 'scheduled') {
+        successMessage = `Work item scheduled. It will be visible to team members on ${new Date(formData.scheduledActivationDate).toLocaleDateString('en-GB')}`;
+      } else {
+        const assigneeCount = formData.assignmentMode === 'multiple' 
+          ? formData.assignedToMultiple.length 
+          : 1;
+        successMessage = `Work item assigned to ${assigneeCount} team member${assigneeCount > 1 ? 's' : ''}`;
+      }
       
-      toast.success(`Work item assigned successfully to ${assigneeCount} team member${assigneeCount > 1 ? 's' : ''}`, {
+      toast.success(successMessage, {
         autoClose: 2000,
         position: 'top-right'
       });
@@ -194,13 +257,16 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
         assignmentMode: 'single',
         dueDate: '',
         priority: '',
-        selectedSlot: ''
+        selectedSlot: '',
+        visibility: 'active',
+        scheduledActivationDate: ''
       });
+      setPendingWorkCount(0);
       
       if (onSuccess) onSuccess();
       if (onHide) onHide();
     } catch (error) {
-      toast.error(error.response?.data?.message || error.response?.data?.error?.message || 'Failed to assign work');
+      toast.error(error.response?.data?.message || error.response?.data?.error?.message || 'Failed to create work item');
     } finally {
       setAssigning(false);
     }
@@ -315,45 +381,72 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
             <Col md={6} className="mb-3">
               <Form.Group>
                 <Form.Label>
-                  {formData.assignmentMode === 'single' ? 'Assign To *' : 'Assign To (Multiple) *'}
+                  {formData.assignmentMode === 'single' ? 'Assign To' : 'Assign To (Multiple)'} 
+                  {formData.visibility !== 'draft' && ' *'}
                 </Form.Label>
                 
                 {formData.assignmentMode === 'single' ? (
-                  <Form.Select
-                    value={formData.assignedTo}
-                    onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
-                    required
-                    disabled={assigning || loadingData || !formData.project}
-                  >
-                    <option value="">
-                      {!formData.project 
-                        ? 'Select project first...' 
-                        : users.length === 0 
-                          ? 'No team members in this project'
-                          : 'Select team member...'}
-                    </option>
-                    {users.map((user) => (
-                      <option key={user._id} value={user._id}>
-                        {user.name}
+                  <div>
+                    <Form.Select
+                      value={formData.assignedTo}
+                      onChange={(e) => {
+                        setFormData({ ...formData, assignedTo: e.target.value });
+                        setSelectedUserForWorkload(e.target.value);
+                        // Fetch pending work count for selected user and due date
+                        if (e.target.value && formData.dueDate) {
+                          fetchPendingWorkCount(e.target.value, formData.dueDate);
+                        }
+                      }}
+                      required={formData.visibility !== 'draft'}
+                      disabled={assigning || loadingData || !formData.project}
+                    >
+                      <option value="">
+                        {!formData.project 
+                          ? 'Select project first...' 
+                          : users.length === 0 
+                            ? 'No team members in this project'
+                            : 'Select team member...'}
                       </option>
-                    ))}
-                  </Form.Select>
+                      {users.map((user) => (
+                        <option key={user._id} value={user._id}>
+                          {user.name}
+                        </option>
+                      ))}
+                    </Form.Select>
+                    {selectedUserForWorkload && formData.dueDate && (
+                      <div className="mt-2 p-2 bg-light rounded">
+                        <small className="text-muted">
+                          Pending work on {new Date(formData.dueDate + 'T00:00:00').toLocaleDateString('en-GB')}: 
+                          <strong className="ms-1 text-primary">{pendingWorkCount} item(s)</strong>
+                        </small>
+                      </div>
+                    )}
+                    {selectedUserForWorkload && (
+                      <TeamMemberWorkloadInfo 
+                        userId={selectedUserForWorkload}
+                        userName={users.find(u => u._id === selectedUserForWorkload)?.name || 'Team Member'}
+                        projectId={formData.project}
+                      />
+                    )}
+                  </div>
                 ) : (
                   <div>
-                    <div className="border rounded p-2 mb-2" style={{ minHeight: '38px', maxHeight: '120px', overflowY: 'auto' }}>
+                    <div className="border rounded p-3 mb-3" style={{ minHeight: '50px', maxHeight: '250px', overflowY: 'auto', backgroundColor: '#f8f9fa' }}>
                       {formData.assignedToMultiple.length === 0 ? (
-                        <small className="text-muted">No team members selected</small>
+                        <small className="text-muted d-block text-center py-2">No team members selected</small>
                       ) : (
-                        <div className="d-flex flex-wrap gap-1">
+                        <div className="d-flex flex-column gap-2">
                           {formData.assignedToMultiple.map(userId => {
                             const user = users.find(u => u._id === userId);
                             return user ? (
-                              <span key={userId} className="badge bg-primary d-flex align-items-center">
-                                {user.name}
+                              <div key={userId} className="d-flex justify-content-between align-items-center p-2 bg-white rounded border">
+                                <div className="flex-grow-1">
+                                  <span className="badge bg-primary me-2">{formData.assignedToMultiple.indexOf(userId) + 1}</span>
+                                  <strong>{user.name}</strong>
+                                </div>
                                 <button
                                   type="button"
-                                  className="btn-close btn-close-white ms-1"
-                                  style={{ fontSize: '0.7em' }}
+                                  className="btn btn-sm btn-outline-danger"
                                   onClick={() => {
                                     setFormData({
                                       ...formData,
@@ -361,8 +454,11 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                                     });
                                   }}
                                   disabled={assigning}
-                                />
-                              </span>
+                                  title="Remove this team member from assignment"
+                                >
+                                  ✕
+                                </button>
+                              </div>
                             ) : null;
                           })}
                         </div>
@@ -399,9 +495,14 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                 )}
                 
                 {loadingData && <Form.Text className="text-muted">Loading users...</Form.Text>}
-                {formData.project && users.length === 0 && !loadingData && (
+                {formData.project && users.length === 0 && !loadingData && formData.visibility !== 'draft' && (
                   <Form.Text className="text-danger">
                     This project has no team members. Add team members first.
+                  </Form.Text>
+                )}
+                {formData.visibility === 'draft' && (
+                  <Form.Text className="text-info">
+                    Optional: You can assign team members now or later when you activate this work.
                   </Form.Text>
                 )}
               </Form.Group>
@@ -479,6 +580,75 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                 </Form.Select>
               </Form.Group>
             </Col>
+
+            {/* Visibility Options */}
+            <Col md={12} className="mb-3">
+              <Form.Group>
+                <Form.Label>Work Visibility</Form.Label>
+                <div className="d-flex gap-3">
+                  <Form.Check
+                    type="radio"
+                    id="visibility-draft"
+                    name="visibility"
+                    label="Draft (Save for later, not visible to team)"
+                    checked={formData.visibility === 'draft'}
+                    onChange={() => setFormData({ 
+                      ...formData, 
+                      visibility: 'draft',
+                      assignedTo: '',
+                      assignedToMultiple: [],
+                      scheduledActivationDate: ''
+                    })}
+                    disabled={assigning}
+                  />
+                  <Form.Check
+                    type="radio"
+                    id="visibility-scheduled"
+                    name="visibility"
+                    label="Scheduled (Activate on specific date)"
+                    checked={formData.visibility === 'scheduled'}
+                    onChange={() => setFormData({ 
+                      ...formData, 
+                      visibility: 'scheduled'
+                    })}
+                    disabled={assigning}
+                  />
+                  <Form.Check
+                    type="radio"
+                    id="visibility-active"
+                    name="visibility"
+                    label="Active (Visible immediately)"
+                    checked={formData.visibility === 'active'}
+                    onChange={() => setFormData({ 
+                      ...formData, 
+                      visibility: 'active',
+                      scheduledActivationDate: ''
+                    })}
+                    disabled={assigning}
+                  />
+                </div>
+              </Form.Group>
+            </Col>
+
+            {/* Scheduled Activation Date */}
+            {formData.visibility === 'scheduled' && (
+              <Col md={6} className="mb-3">
+                <Form.Group>
+                  <Form.Label>Activation Date *</Form.Label>
+                  <Form.Control
+                    type="date"
+                    value={formData.scheduledActivationDate}
+                    onChange={(e) => setFormData({ ...formData, scheduledActivationDate: e.target.value })}
+                    required
+                    min={new Date().toISOString().split('T')[0]}
+                    disabled={assigning}
+                  />
+                  <Form.Text className="text-muted">
+                    Work will become visible to team members on this date
+                  </Form.Text>
+                </Form.Group>
+              </Col>
+            )}
           </Row>
         </Modal.Body>
         <Modal.Footer>

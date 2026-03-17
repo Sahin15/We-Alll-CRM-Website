@@ -1,0 +1,51 @@
+.team-member-workload-info {
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 8px;
+  font-size: 0.9rem;
+}
+
+.team-member-workload-info .workload-stats {
+  background: rgba(255, 255, 255, 0.6);
+  border-left: 3px solid #667eea;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.team-member-workload-info .stat-row {
+  padding: 2px 0;
+}
+
+.team-member-workload-info .upcoming-deadlines {
+  background: rgba(255, 255, 255, 0.6);
+  border-left: 3px solid #ffc107;
+  padding: 8px;
+  border-radius: 4px;
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.team-member-workload-info .deadline-item {
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.team-member-workload-info .deadline-item:last-child {
+  border-bottom: none;
+}
+
+.team-member-workload-info .deadline-item small:first-child {
+  min-width: 50px;
+  font-weight: 600;
+  color: #667eea;
+}
+
+.team-member-workload-info .deadline-item small:last-child {
+  flex: 1;
+  margin-left: 8px;
+  color: #495057;
+}

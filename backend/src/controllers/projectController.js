@@ -52,7 +52,7 @@ export const createProject = async (req, res) => {
       projectHead,
       description,
       startDate,
-      endDate,
+      departments,
       budget,
       status,
       priority,
@@ -106,22 +106,22 @@ export const createProject = async (req, res) => {
       });
     }
 
-    // Initialize slot configuration - ALWAYS ENABLED
+    // Initialize slot configuration - ALWAYS 20 slots per month
     const DEFAULT_SLOT_COUNT = 20;
     const slotConfig = {
-      totalSlots: totalSlots || DEFAULT_SLOT_COUNT,
-      slotType: slotType || 'generic',
+      totalSlots: DEFAULT_SLOT_COUNT, // Fixed 20 slots per month
+      slotType: 'generic',
       allowDynamicSlots: true,
       slotNamingPattern: 'Slot {number}',
-      autoCreateSlots: true, // Always true
-      enableSlotSystem: true // Always true
+      autoCreateSlots: true,
+      enableSlotSystem: true // Always enabled
     };
 
     // Initialize progress tracking - ALWAYS slot-based
     const progressConfig = {
       calculationMethod: 'slot-based', // Always slot-based
       completedSlots: 0,
-      totalSlots: slotConfig.totalSlots,
+      totalSlots: DEFAULT_SLOT_COUNT, // Fixed 20 slots per month
       progressPercentage: 0,
       lastProgressUpdate: new Date(),
       progressHistory: []
@@ -140,7 +140,7 @@ export const createProject = async (req, res) => {
       client: client || null,
       description: description || '',
       startDate: startDate || null,
-      endDate: endDate || null,
+      departments: departments || [], // Add departments support
       budget: budget || 0,
       status: status || "Pending",
       priority: priority || "medium",
@@ -318,9 +318,21 @@ export const updateProjectStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
+    const userId = req.user._id;
+    const userRole = req.user.role;
 
     const project = await Project.findById(id);
     if (!project) return res.status(404).json({ message: "Project not found" });
+
+    // Authorization check for HoD: can only update status for their own projects
+    if (userRole === 'hod') {
+      const isProjectHead = project.projectHead?.toString() === userId.toString();
+      const isInDepartment = project.department?.toString() === req.user.headOfDepartment?.toString();
+      
+      if (!isProjectHead && !isInDepartment) {
+        return res.status(403).json({ message: "You can only update status for your own projects" });
+      }
+    }
 
     project.status = status;
     await project.save();
@@ -390,6 +402,8 @@ export const getProjectsForUser = async (req, res) => {
       ]
     })
       .populate("client", "name email serviceCompany")
+      .populate("department", "name")
+      .populate("departments", "name")
       .populate("assignedUsers", "name email")
       .populate("teamMembers.user", "name email role")
       .populate("teamMembers.assignedBy", "name email")
@@ -446,6 +460,7 @@ export const getProjectById = async (req, res) => {
     const project = await Project.findById(id)
       .populate("client", "name email serviceCompany")
       .populate("department", "name")
+      .populate("departments", "name")
       .populate("projectHead", "name email designation")
       .populate("assignedUsers", "name email role")
       .populate("teamMembers.user", "name email role designation")
@@ -488,64 +503,62 @@ export const getProjectById = async (req, res) => {
 export const updateProject = async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user._id;
+    const userRole = req.user.role;
 
     const project = await Project.findById(id);
     if (!project) return res.status(404).json({ message: "Project not found" });
 
-    // Store original slot configuration for comparison
-    const originalSlotConfig = project.slotConfiguration ? { ...project.slotConfiguration.toObject() } : null;
-    
-    console.log(`📋 Original slot config:`, originalSlotConfig);
-
-    // Update project fields
-    Object.keys(req.body || {}).forEach((k) => {
-      project[k] = req.body[k];
-    });
-
-    await project.save();
-    
-    console.log(`📋 New slot config:`, project.slotConfiguration?.toObject());
-
-    // Check if slot configuration was updated and handle slot creation
-    const newSlotConfig = project.slotConfiguration;
-    
-    if (newSlotConfig && newSlotConfig.enableSlotSystem) {
-      try {
-        // Import slot management service
-        const slotManagementService = (await import('../services/slotManagementService.js')).default;
-        const Slot = (await import('../models/slotModel.js')).default;
-        
-        // Check if slot system was just enabled or slot count changed
-        const wasSlotSystemEnabled = originalSlotConfig?.enableSlotSystem || false;
-        const originalSlotCount = originalSlotConfig?.totalSlots || 0;
-        const newSlotCount = newSlotConfig.totalSlots || 0;
-        
-        // Get current slot count in database
-        const existingSlots = await Slot.countDocuments({ project: id });
-        
-        // If slot system is newly enabled or slot count increased
-        if (!wasSlotSystemEnabled || newSlotCount > existingSlots) {
-          const slotsToCreate = newSlotCount - existingSlots;
-          
-          if (slotsToCreate > 0) {
-            const slotResult = await slotManagementService.createSlotsForProject(id, {
-              count: slotsToCreate,
-              startingSlotNumber: existingSlots + 1,
-              slotType: newSlotConfig.slotType || 'generic',
-              createdBy: req.user._id
-            });
-            
-            // Update progress tracking
-            project.progressTracking.totalSlots = newSlotCount;
-            project.progressTracking.calculationMethod = 'slot-based';
-            await project.save();
-          }
-        }
-        
-      } catch (slotError) {
-        // Don't fail the project update if slot creation fails
+    // Authorization check for HoD: can only edit their own projects (project head or department projects)
+    if (userRole === 'hod') {
+      const isProjectHead = project.projectHead?.toString() === userId.toString();
+      const isInDepartment = project.department?.toString() === req.user.headOfDepartment?.toString();
+      
+      if (!isProjectHead && !isInDepartment) {
+        return res.status(403).json({ message: "You can only edit your own projects" });
       }
     }
+
+    // ENFORCE: Slot system is always enabled with 20 slots per month
+    // Remove any slot configuration changes from request body
+    if (req.body.slotConfiguration) {
+      delete req.body.slotConfiguration;
+    }
+    if (req.body.progressTracking) {
+      delete req.body.progressTracking;
+    }
+    if (req.body.enableSlotSystem !== undefined) {
+      delete req.body.enableSlotSystem;
+    }
+    if (req.body.totalSlots !== undefined) {
+      delete req.body.totalSlots;
+    }
+
+    // Update only allowed project fields
+    const allowedFields = [
+      'name', 'description', 'client', 'departments', 'projectHead', 
+      'status', 'priority', 'budget', 'startDate', 'teamMembers'
+    ];
+
+    Object.keys(req.body || {}).forEach((k) => {
+      if (allowedFields.includes(k)) {
+        project[k] = req.body[k];
+      }
+    });
+
+    // Ensure slot system is always enabled with 20 slots
+    project.slotConfiguration = project.slotConfiguration || {};
+    project.slotConfiguration.enableSlotSystem = true;
+    project.slotConfiguration.totalSlots = 20; // Fixed 20 slots per month
+    project.slotConfiguration.slotType = 'generic';
+    project.slotConfiguration.autoCreateSlots = true;
+    project.slotConfiguration.allowDynamicSlots = true;
+
+    project.progressTracking = project.progressTracking || {};
+    project.progressTracking.calculationMethod = 'slot-based';
+    project.progressTracking.totalSlots = 20; // Fixed 20 slots per month
+
+    await project.save();
 
     // Populate and return updated project
     const updatedProject = await Project.findById(id)

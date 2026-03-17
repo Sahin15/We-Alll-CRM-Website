@@ -114,14 +114,33 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
     >
       <Card.Body>
         <div className="d-flex justify-content-between align-items-start mb-2">
-          <Badge 
-            bg={getTypeColor(workItem.type)} 
-            className="me-2"
-            aria-label={getTypeAriaLabel(workItem.type)}
-          >
-            {getTypeIcon(workItem.type)} 
-            <span aria-hidden="true">{workItem.type === 'content' ? 'Content' : 'Task'}</span>
-          </Badge>
+          <div className="d-flex align-items-center gap-2">
+            <Badge 
+              bg={getTypeColor(workItem.type)} 
+              className="me-2"
+              aria-label={getTypeAriaLabel(workItem.type)}
+            >
+              {getTypeIcon(workItem.type)} 
+              <span aria-hidden="true">{workItem.type === 'content' ? 'Content' : 'Task'}</span>
+            </Badge>
+            
+            {/* Visibility Badge */}
+            {workItem.visibility === 'draft' && (
+              <Badge bg="secondary" style={{ fontSize: '0.7rem', padding: '4px 6px' }}>
+                📝 Draft
+              </Badge>
+            )}
+            {workItem.visibility === 'scheduled' && (
+              <Badge bg="warning" style={{ fontSize: '0.7rem', padding: '4px 6px' }}>
+                ⏰ Scheduled
+              </Badge>
+            )}
+            {(!workItem.visibility || workItem.visibility === 'active') && (
+              <Badge bg="success" style={{ fontSize: '0.7rem', padding: '4px 6px' }}>
+                ✓ Active
+              </Badge>
+            )}
+          </div>
           
           <div className="d-flex align-items-center gap-2">
             {/* Interactive Status Badge */}

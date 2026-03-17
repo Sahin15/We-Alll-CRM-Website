@@ -23,6 +23,8 @@ import {
   removeSlotAssignment,
   getWorkItemsGroupedBySlots,
   getWorkItemsBySlot,
+  getPendingWorkCount,
+  activateWorkItem,
 } from "../controllers/workItemController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { createWorkItemLimiter, validateRequest } from "../middleware/securityMiddleware.js";
@@ -52,6 +54,9 @@ router.get("/calendar", queryValidation, validateRequest(queryValidation), getCa
 // Overdue items
 router.get("/overdue", getOverdueWorkItems);
 
+// Get pending work count for a user on a specific due date
+router.get("/pending-count/:userId", getPendingWorkCount);
+
 // Get work items by project
 router.get("/project/:projectId", queryValidation, validateRequest(queryValidation), getWorkItemsByProject);
 
@@ -60,10 +65,8 @@ router.route("/")
   .get(queryValidation, validateRequest(queryValidation), getAllWorkItems) // Get all work items (admin only)
   .post(
     createWorkItemLimiter,
-    createWorkItemValidation,
-    validateRequest(createWorkItemValidation),
     createWorkItem
-  ); // Create new work item
+  ); // Create new work item - validator removed for draft support
 
 router.route("/:id")
   .get(getWorkItemById)    // Get work item by ID
@@ -84,6 +87,9 @@ router.patch(
   validateRequest(updateStatusValidation),
   updateWorkItemStatus
 );
+
+// Activate draft/scheduled work item
+router.patch("/:id/activate", activateWorkItem);
 
 // Bulk operations
 router.post(

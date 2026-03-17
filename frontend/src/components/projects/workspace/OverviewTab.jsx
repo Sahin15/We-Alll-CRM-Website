@@ -350,10 +350,14 @@ const OverviewTab = ({ project, onRefresh }) => {
               </div>
 
               <div className="mb-4">
-                <small className="text-muted d-block mb-2" style={{ fontWeight: '500' }}>Department</small>
+                <small className="text-muted d-block mb-2" style={{ fontWeight: '500' }}>Services</small>
                 <div className="d-flex align-items-center">
                   <FaBuilding className="me-2 text-muted" />
-                  <strong>{project.department?.name || 'Not assigned'}</strong>
+                  <strong>
+                    {project.departments && project.departments.length > 0
+                      ? project.departments.map(d => (typeof d === 'object' ? d.name : d)).join(', ')
+                      : project.department?.name || 'Not assigned'}
+                  </strong>
                 </div>
               </div>
 

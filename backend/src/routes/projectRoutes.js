@@ -42,6 +42,14 @@ const router = express.Router();
 // Create new project (Admin / SuperAdmin / HR / Manager / HoD)
 router.post("/", protect, authorizeRoles("admin", "superadmin", "hr", "manager", "hod"), createProject);
 
+// Update project (full update) - HoD can edit their own projects
+router.put(
+  "/:id",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr", "manager", "hod"),
+  updateProject
+);
+
 // Get all projects (Admin / Manager / User)
 router.get("/", protect, getProjects);
 
@@ -133,14 +141,6 @@ router.get(
   protect,
   authorizeRoles("admin", "superadmin", "hr", "manager", "hod", "employee", "client"),
   getProjectById
-);
-
-// Update project (full update)
-router.put(
-  "/:id",
-  protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager", "hod"),
-  updateProject
 );
 
 // Update project progress

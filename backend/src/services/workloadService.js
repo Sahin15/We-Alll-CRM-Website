@@ -90,11 +90,30 @@ export const calculateWorkload = async (employeeId, thresholds = DEFAULT_THRESHO
   try {
     const activeTasks = await getActiveTasks(employeeId);
     
+    // Get upcoming deadlines (next 7 days, sorted by due date)
+    const now = new Date();
+    const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    
+    const upcomingDeadlines = activeTasks
+      .filter(task => {
+        const dueDate = new Date(task.dueDate);
+        return dueDate >= now && dueDate <= nextWeek;
+      })
+      .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+      .slice(0, 5) // Show top 5 upcoming deadlines
+      .map(task => ({
+        title: task.title,
+        dueDate: task.dueDate,
+        priority: task.priority,
+        status: task.status
+      }));
+    
     const workload = {
       totalActive: activeTasks.length,
       dueThisWeek: activeTasks.filter(task => isDueThisWeek(task.dueDate)).length,
       overdue: activeTasks.filter(task => isOverdue(task.dueDate, task.status)).length,
       capacity: determineCapacity(activeTasks.length, thresholds),
+      upcomingDeadlines: upcomingDeadlines,
       tasks: activeTasks // Include task details for breakdown
     };
     

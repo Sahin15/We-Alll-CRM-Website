@@ -1,5 +1,6 @@
 import workloadService from "../services/workloadService.js";
 import User from "../models/userModel.js";
+import WorkItem from "../models/workItemModel.js";
 
 /**
  * Get workload for a single employee
@@ -31,6 +32,37 @@ export const getEmployeeWorkload = async (req, res) => {
     // Calculate workload
     const workload = await workloadService.calculateWorkload(employeeId);
     
+    // Get active work items for this employee (both single and multiple assignees)
+    const activeWorkItems = await WorkItem.find({
+      $or: [
+        { assignedTo: employeeId },
+        { assignedToMultiple: employeeId }
+      ],
+      status: { $in: ["To Do", "In Progress", "Review"] },
+      isDeleted: { $ne: true }
+    })
+      .select("_id title status dueDate priority project")
+      .populate("project", "name")
+      .sort({ dueDate: 1 });
+    
+    // Get upcoming deadlines from work items (next 7 days)
+    const now = new Date();
+    const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    
+    const upcomingDeadlines = activeWorkItems
+      .filter(item => {
+        const dueDate = new Date(item.dueDate);
+        return dueDate >= now && dueDate <= nextWeek;
+      })
+      .slice(0, 5)
+      .map(item => ({
+        title: item.title,
+        dueDate: item.dueDate,
+        priority: item.priority,
+        status: item.status,
+        project: item.project?.name
+      }));
+    
     res.status(200).json({
       employee: {
         _id: employee._id,
@@ -39,7 +71,23 @@ export const getEmployeeWorkload = async (req, res) => {
         designation: employee.designation,
         avatar: employee.avatar
       },
-      ...workload
+      ...workload,
+      upcomingDeadlines: upcomingDeadlines,
+      totalActive: activeWorkItems.length,
+      dueThisWeek: activeWorkItems.filter(item => {
+        const dueDate = new Date(item.dueDate);
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - now.getDay());
+        startOfWeek.setHours(0, 0, 0, 0);
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        endOfWeek.setHours(23, 59, 59, 999);
+        return dueDate >= startOfWeek && dueDate <= endOfWeek;
+      }).length,
+      overdue: activeWorkItems.filter(item => {
+        const dueDate = new Date(item.dueDate);
+        return dueDate < now;
+      }).length
     });
   } catch (error) {
     console.error("Error in getEmployeeWorkload:", error.message);

@@ -13,13 +13,15 @@ import { logWorkItemOperation, logSecurityEvent } from "../utils/auditLogger.js"
 // @access  Private
 const getMyWorkItems = async (req, res) => {
   try {
-    const { status, type, project, priority, dueDate, search } = req.query;
+    const { status, type, project, priority, dueDate, search, visibility } = req.query;
     
     // Build query - support both single and multiple assignee fields
+    // Include draft items if user is the creator
     const query = {
       $or: [
         { assignedTo: req.user._id },
-        { assignedToMultiple: req.user._id }
+        { assignedToMultiple: req.user._id },
+        { createdBy: req.user._id, visibility: 'draft' } // Show own draft items
       ]
     };
     
@@ -35,6 +37,9 @@ const getMyWorkItems = async (req, res) => {
     }
     if (priority && priority !== "all") {
       query.priority = priority;
+    }
+    if (visibility && visibility !== "all") {
+      query.visibility = visibility;
     }
     if (dueDate) {
       query.dueDate = { $lte: new Date(dueDate) };
@@ -223,6 +228,7 @@ const getWorkItemById = async (req, res) => {
         },
       })
       .populate("assignedTo", "name email designation")
+      .populate("assignedToMultiple", "name email designation")
       .populate("createdBy", "name email")
       .populate("comments.user", "name email")
       .populate("attachments.uploadedBy", "name email")
@@ -239,7 +245,9 @@ const getWorkItemById = async (req, res) => {
     }
     
     // SIMPLIFIED ACCESS CHECK - Allow project members to view
-    const isAssigned = workItem.assignedTo._id.toString() === req.user._id.toString();
+    // Handle null assignedTo for draft items
+    const isAssigned = workItem.assignedTo?._id?.toString() === req.user._id.toString() ||
+                       (workItem.assignedToMultiple && workItem.assignedToMultiple.some(a => a._id.toString() === req.user._id.toString()));
     const isCreator = workItem.createdBy._id.toString() === req.user._id.toString();
     const isProjectMember = await Project.findOne({
       _id: workItem.project._id,
@@ -310,25 +318,42 @@ const createWorkItem = async (req, res) => {
       // Slot assignment fields
       assignToSlot,
       selectedSlot,
+      // Draft/Scheduled fields
+      visibility,
+      scheduledActivationDate,
     } = req.body;
     
     // ENHANCED VALIDATION - Check required fields based on type
-    // Either assignedTo or assignedToMultiple must be provided
+    // For draft mode, assignee is optional. For active/scheduled, it's required
     const hasAssignee = assignedTo || (assignedToMultiple && assignedToMultiple.length > 0);
+    const isDraft = visibility === 'draft';
+    const workType = type || 'task'; // Default to 'task' if not provided
     
-    if (!type || !title || !project || !hasAssignee || !dueDate) {
+    if (!title || !project || !dueDate) {
       return res.status(400).json({
         success: false,
         error: {
           code: "VALIDATION_ERROR",
           message: "Missing required fields",
-          details: "type, title, project, assignee(s), and dueDate are required",
+          details: "title, project, and dueDate are required",
         },
       });
     }
 
-    // Content-specific validation
-    if (type === "content") {
+    // For non-draft mode, assignee is required
+    if (!isDraft && !hasAssignee) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Assignee is required for active/scheduled work items",
+          details: "Please assign at least one team member",
+        },
+      });
+    }
+
+    // Content-specific validation (only if type is explicitly 'content')
+    if (workType === "content") {
       if (!platform) {
         return res.status(400).json({
           success: false,
@@ -377,7 +402,7 @@ const createWorkItem = async (req, res) => {
     
     // ENHANCED - Create work item with proper data handling
     const workItemData = {
-      type,
+      type: workType,
       title,
       description: description || '',
       project,
@@ -386,8 +411,14 @@ const createWorkItem = async (req, res) => {
       dueDate,
       status: "To Do",
       estimatedHours: estimatedHours || 0,
-      tags: Array.isArray(tags) ? tags : (tags ? [tags] : [])
+      tags: Array.isArray(tags) ? tags : (tags ? [tags] : []),
+      visibility: visibility || 'active',
     };
+
+    // Add scheduled activation date if provided
+    if (visibility === 'scheduled' && scheduledActivationDate) {
+      workItemData.scheduledActivationDate = scheduledActivationDate;
+    }
 
     // Handle assignee(s) - support both single and multiple assignment
     if (assignedToMultiple && assignedToMultiple.length > 0) {
@@ -533,11 +564,13 @@ const updateWorkItem = async (req, res) => {
     
     // SIMPLIFIED PERMISSION CHECK - Anyone with project access can update
     const project = await Project.findById(workItem.project);
-    const isAssigned = workItem.assignedTo.toString() === req.user._id.toString();
-    const isCreator = workItem.createdBy.toString() === req.user._id.toString();
-    const isProjectHead = project?.projectHead?.toString() === req.user._id.toString();
-    const isProjectMember = project?.assignedUsers?.some(userId => userId.toString() === req.user._id.toString());
-    const isAdmin = ["admin", "superadmin", "hod", "manager"].includes(req.user.role);
+    const userId = req.user?._id?.toString();
+    
+    const isAssigned = workItem.assignedTo && workItem.assignedTo.toString() === userId;
+    const isCreator = workItem.createdBy && workItem.createdBy.toString() === userId;
+    const isProjectHead = project?.projectHead && project.projectHead.toString() === userId;
+    const isProjectMember = project?.assignedUsers?.some(assignedUserId => assignedUserId.toString() === userId);
+    const isAdmin = ["admin", "superadmin", "hod", "manager"].includes(req.user?.role);
     
     // Allow if user is assigned, creator, project member, project head, or admin
     if (!isAssigned && !isCreator && !isProjectHead && !isProjectMember && !isAdmin) {
@@ -574,7 +607,9 @@ const updateWorkItem = async (req, res) => {
     });
     
     // Track who modified it
-    workItem.modifiedBy = req.user._id;
+    if (req.user?._id) {
+      workItem.modifiedBy = req.user._id;
+    }
     
     await workItem.save();
     
@@ -584,7 +619,7 @@ const updateWorkItem = async (req, res) => {
     await workItem.populate("createdBy", "name email");
     
     // Log audit event
-    logWorkItemOperation("UPDATE", workItem._id.toString(), req.user._id.toString(), {
+    logWorkItemOperation("UPDATE", workItem._id.toString(), req.user?._id?.toString(), {
       updatedFields: Object.keys(req.body),
     });
     
@@ -1105,10 +1140,24 @@ const addComment = async (req, res) => {
       });
     }
     
+    // Extract mentions from comment text
+    // Pattern: @name(userId)
+    const mentionPattern = /@([^(]+)\(([^)]+)\)/g;
+    const mentions = [];
+    let match;
+    
+    while ((match = mentionPattern.exec(text)) !== null) {
+      mentions.push({
+        userId: match[2], // userId from @name(userId)
+        userName: match[1], // name from @name(userId)
+      });
+    }
+    
     // Add comment
     workItem.comments.push({
       user: req.user._id,
       text: text.trim(),
+      mentions: mentions,
       createdAt: new Date(),
     });
     
@@ -1117,6 +1166,25 @@ const addComment = async (req, res) => {
     
     // Get the newly added comment
     const newComment = workItem.comments[workItem.comments.length - 1];
+    
+    // Send notification to mentioned users
+    if (mentions && mentions.length > 0) {
+      try {
+        for (const mention of mentions) {
+          // Send comment notification to mentioned users
+          // (will be enhanced with mention-specific notifications later)
+          await notificationService.sendWorkItemCommentedNotification(
+            mention.userId,
+            workItem.title,
+            req.user.name,
+            newComment.text
+          );
+        }
+      } catch (notificationError) {
+        console.error('Error sending mention notifications:', notificationError);
+        // Don't fail the comment creation if notifications fail
+      }
+    }
     
     // Send notification
     try {
@@ -2195,6 +2263,137 @@ export const getWorkItemsBySlot = async (req, res) => {
       error: {
         code: 'SERVER_ERROR',
         message: 'Failed to get work items by slot',
+        details: error.message
+      }
+    });
+  }
+};
+
+// @desc    Get pending work count for a user on a specific due date
+// @route   GET /api/work-items/pending-count/:userId
+// @access  Private
+export const getPendingWorkCount = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { dueDate } = req.query;
+
+    if (!dueDate) {
+      return res.status(400).json({
+        success: false,
+        error: { code: "VALIDATION_ERROR", message: "Due date is required" }
+      });
+    }
+
+    // Parse the due date
+    const dueDateObj = new Date(dueDate + 'T00:00:00.000Z');
+    const dueDateEndObj = new Date(dueDate + 'T23:59:59.999Z');
+
+    if (isNaN(dueDateObj.getTime())) {
+      return res.status(400).json({
+        success: false,
+        error: { code: "VALIDATION_ERROR", message: "Invalid due date format" }
+      });
+    }
+
+    // Count active work items for this user on the specified due date
+    const count = await WorkItem.countDocuments({
+      $or: [
+        { assignedTo: userId },
+        { assignedToMultiple: userId }
+      ],
+      status: { $in: ["To Do", "In Progress", "Review"] },
+      dueDate: {
+        $gte: dueDateObj,
+        $lte: dueDateEndObj
+      },
+      visibility: { $in: ["active", "scheduled"] }, // Only count active/scheduled items
+      isDeleted: { $ne: true }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        userId,
+        dueDate,
+        count
+      }
+    });
+  } catch (error) {
+    console.error("Error in getPendingWorkCount:", error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: "SERVER_ERROR",
+        message: "Failed to fetch pending work count",
+        details: error.message
+      }
+    });
+  }
+};
+
+
+// @desc    Activate a draft or scheduled work item
+// @route   PATCH /api/work-items/:id/activate
+// @access  Private (Creator, Admin, Project Head)
+export const activateWorkItem = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { visibility } = req.body; // 'active' or 'scheduled'
+
+    const workItem = await WorkItem.findById(id);
+
+    if (!workItem) {
+      return res.status(404).json({
+        success: false,
+        error: { code: "NOT_FOUND", message: "Work item not found" }
+      });
+    }
+
+    // Check authorization - only creator, admin, or project head can activate
+    const project = await Project.findById(workItem.project);
+    const isCreator = workItem.createdBy.toString() === req.user._id.toString();
+    const isProjectHead = project?.projectHead?.toString() === req.user._id.toString();
+    const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
+
+    if (!isCreator && !isProjectHead && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: { code: "FORBIDDEN", message: "You don't have permission to activate this work item" }
+      });
+    }
+
+    // Update visibility and activation timestamp
+    workItem.visibility = visibility || 'active';
+    workItem.activatedAt = new Date();
+
+    // If activating from draft/scheduled to active, ensure assignees are set
+    if (visibility === 'active' && !workItem.assignedTo && (!workItem.assignedToMultiple || workItem.assignedToMultiple.length === 0)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: "VALIDATION_ERROR", message: "Cannot activate work item without assignees" }
+      });
+    }
+
+    await workItem.save();
+
+    const populatedWorkItem = await WorkItem.findById(id)
+      .populate("project", "name")
+      .populate("assignedTo", "name email")
+      .populate("assignedToMultiple", "name email")
+      .populate("createdBy", "name email");
+
+    res.status(200).json({
+      success: true,
+      message: `Work item activated and is now visible to assigned team members`,
+      data: populatedWorkItem
+    });
+  } catch (error) {
+    console.error("Error in activateWorkItem:", error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: "SERVER_ERROR",
+        message: "Failed to activate work item",
         details: error.message
       }
     });

@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Badge, Alert, Tabs, Tab } from 'react-bootstrap';
 import { FaCalendar, FaTasks, FaUser, FaClock, FaComment, FaPaperPlane, FaTrash } from 'react-icons/fa';
 import { formatDate } from '../../utils/helpers';
 import { toast } from '../../utils/toast';
 import workItemApi from '../../api/workItemApi';
+import userApi from '../../api/userApi';
+import CommentInputWithMentions from './CommentInputWithMentions';
 import './WorkItemDetailsModal.css';
 
 const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, currentUser, onAddComment }) => {
@@ -14,6 +16,60 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
   const [comments, setComments] = useState(workItem?.comments || []);
   const [showCompletionDatePicker, setShowCompletionDatePicker] = useState(false);
   const [completionDate, setCompletionDate] = useState('');
+  const [activating, setActivating] = useState(false);
+  const [allTeamMembers, setAllTeamMembers] = useState([]);
+
+  // Helper function to render mentions in text
+  const renderMentions = (text) => {
+    if (!text) return null;
+    
+    // Decode HTML entities first
+    const decodedText = decodeHtmlEntities(text);
+    
+    // Pattern to match @name(userId)
+    const mentionPattern = /@([^(]+)\(([^)]+)\)/g;
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = mentionPattern.exec(decodedText)) !== null) {
+      // Add text before mention
+      if (match.index > lastIndex) {
+        parts.push(decodedText.substring(lastIndex, match.index));
+      }
+
+      // Add mention as a tag
+      const mentionName = match[1];
+      const mentionId = match[2];
+      parts.push(
+        <span
+          key={`mention-${mentionId}`}
+          className="mention-tag"
+          title={`Mentioned: ${mentionName}`}
+          style={{
+            backgroundColor: '#e7f1ff',
+            color: '#0066cc',
+            padding: '2px 6px',
+            borderRadius: '4px',
+            fontWeight: '500',
+            display: 'inline-block',
+            marginRight: '2px'
+          }}
+        >
+          @{mentionName}
+        </span>
+      );
+
+      lastIndex = mentionPattern.lastIndex;
+    }
+
+    // Add remaining text
+    if (lastIndex < decodedText.length) {
+      parts.push(decodedText.substring(lastIndex));
+    }
+
+    return parts.length > 0 ? parts : linkifyText(decodedText);
+  };
 
   // Helper function to decode HTML entities
   const decodeHtmlEntities = (text) => {
@@ -89,6 +145,67 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
       }
     }
   }, [workItem?.comments, workItem?._id, show]);
+
+  // Fetch all team members for mentions (project members + HR/Manager/Admin/SuperAdmin)
+  useEffect(() => {
+    const fetchTeamMembers = async () => {
+      try {
+        // Get all users with specific roles
+        const response = await userApi.getAllUsers({ 
+          limit: 1000 // Get all users
+        });
+        
+        const allUsers = response.data || [];
+        
+        // Combine:
+        // 1. Project assigned users
+        // 2. Work item assigned members
+        // 3. All HR, Manager, Admin, SuperAdmin users
+        const projectUsers = workItem.project?.assignedUsers || [];
+        const assignedUsers = workItem.assignedToMultiple || [];
+        const singleAssigned = workItem.assignedTo ? [workItem.assignedTo] : [];
+        
+        // Get HR, Manager, Admin, SuperAdmin users
+        const specialRoleUsers = allUsers.filter(user => 
+          ['hr', 'manager', 'admin', 'superadmin'].includes(user.role)
+        );
+        
+        // Combine all and remove duplicates
+        const combined = [
+          ...projectUsers,
+          ...assignedUsers,
+          ...singleAssigned,
+          ...specialRoleUsers
+        ].filter((member, index, self) => 
+          member && member._id && index === self.findIndex(m => m?._id === member._id)
+        );
+        
+        console.log('Fetched team members for mentions:', {
+          projectUsers: projectUsers.length,
+          assignedUsers: assignedUsers.length,
+          specialRoleUsers: specialRoleUsers.length,
+          total: combined.length
+        });
+        
+        setAllTeamMembers(combined);
+      } catch (error) {
+        console.error('Error fetching team members for mentions:', error);
+        // Fallback to just project and assigned users
+        const fallbackMembers = [
+          ...(workItem.project?.assignedUsers || []),
+          ...(workItem.assignedToMultiple || []),
+          ...(workItem.assignedTo ? [workItem.assignedTo] : [])
+        ].filter((member, index, self) => 
+          member && member._id && index === self.findIndex(m => m?._id === member._id)
+        );
+        setAllTeamMembers(fallbackMembers);
+      }
+    };
+
+    if (show && workItem?.project?._id) {
+      fetchTeamMembers();
+    }
+  }, [show, workItem?.project?._id, workItem?.assignedToMultiple, workItem?.assignedTo]);
 
   if (!workItem) return null;
 
@@ -258,6 +375,23 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       handleAddComment();
+    }
+  };
+
+  const handleActivateWorkItem = async () => {
+    setActivating(true);
+    try {
+      await workItemApi.activateWorkItem(workItem._id, 'active');
+      toast.success('Work item activated successfully');
+      if (onRefresh) {
+        onRefresh();
+      }
+      onHide();
+    } catch (error) {
+      console.error('Error activating work item:', error);
+      toast.error(error.response?.data?.error?.message || 'Failed to activate work item');
+    } finally {
+      setActivating(false);
     }
   };
 
@@ -464,18 +598,74 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
               <div className="mb-4 p-3" style={{ background: '#f8f9fa', borderRadius: '12px', border: '1px solid #e9ecef' }}>
                 <div className="d-flex justify-content-between align-items-center mb-3">
                   <strong style={{ fontSize: '0.95rem', color: '#495057' }}>Current Status</strong>
-                  <Badge 
-                    bg={getStatusColor(workItem.status)} 
-                    style={{ 
-                      fontSize: '0.9rem', 
-                      padding: '8px 16px',
-                      borderRadius: '20px',
-                      fontWeight: '600'
-                    }}
-                  >
-                    {workItem.status}
-                  </Badge>
+                  <div className="d-flex align-items-center gap-2">
+                    {workItem.visibility && workItem.visibility !== 'active' && (
+                      <Badge 
+                        bg={workItem.visibility === 'draft' ? 'secondary' : 'warning'}
+                        style={{ 
+                          fontSize: '0.75rem', 
+                          padding: '4px 8px',
+                          borderRadius: '12px',
+                          fontWeight: '600'
+                        }}
+                      >
+                        {workItem.visibility === 'draft' ? '📝 Draft' : '⏰ Scheduled'}
+                      </Badge>
+                    )}
+                    <Badge 
+                      bg={getStatusColor(workItem.status)} 
+                      style={{ 
+                        fontSize: '0.9rem', 
+                        padding: '8px 16px',
+                        borderRadius: '20px',
+                        fontWeight: '600'
+                      }}
+                    >
+                      {workItem.status}
+                    </Badge>
+                  </div>
                 </div>
+                
+                {/* Activate Button for Draft/Scheduled Items */}
+                {(workItem.visibility === 'draft' || workItem.visibility === 'scheduled') && canEdit() && (
+                  <div className="mb-3 p-3" style={{ background: '#e3f2fd', borderRadius: '8px', border: '1px solid #2196f3' }}>
+                    <div className="d-flex align-items-center justify-content-between">
+                      <div>
+                        <strong style={{ fontSize: '0.9rem', color: '#1976d2' }}>
+                          {workItem.visibility === 'draft' ? '📝 Draft Work Item' : '⏰ Scheduled Work Item'}
+                        </strong>
+                        <p className="mb-0 mt-1" style={{ fontSize: '0.85rem', color: '#1565c0' }}>
+                          {workItem.visibility === 'draft' 
+                            ? 'This work item is not yet visible to assigned team members. Activate it to make it visible.'
+                            : `This work item will become visible on ${formatDate(workItem.scheduledActivationDate)}. Activate it now to make it visible immediately.`
+                          }
+                        </p>
+                      </div>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={handleActivateWorkItem}
+                        disabled={activating || loading}
+                        style={{
+                          borderRadius: '20px',
+                          padding: '8px 16px',
+                          fontWeight: '600',
+                          whiteSpace: 'nowrap',
+                          marginLeft: '12px'
+                        }}
+                      >
+                        {activating ? (
+                          <>
+                            <span className="spinner-border spinner-border-sm me-2" style={{ width: '12px', height: '12px' }} />
+                            Activating...
+                          </>
+                        ) : (
+                          '✓ Activate Now'
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 
                 {canEdit() && (
                   <>
@@ -753,64 +943,20 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
 
           <Tab eventKey="comments" title={`Comments (${comments?.length || 0})`}>
             <div style={{ padding: '1.5rem' }}>
-              {/* Add Comment Section */}
-              <div className="mb-4 p-3" style={{ background: '#f8f9fc', borderRadius: '12px', border: '1px solid #e3e6f0' }}>
-                <div className="d-flex align-items-center mb-3">
-                  <FaComment className="me-2 text-primary" />
-                  <strong style={{ fontSize: '0.95rem', color: '#495057' }}>Add Comment</strong>
-                </div>
-                
-                <Form.Group className="mb-3">
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    placeholder="Share updates, ask questions, or provide feedback about this task..."
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    onKeyDown={handleKeyPress}
-                    disabled={commentLoading}
-                    style={{
-                      borderRadius: '8px',
-                      border: '2px solid #e3e6f0',
-                      fontSize: '0.9rem',
-                      resize: 'vertical',
-                      minHeight: '80px'
-                    }}
-                  />
-                  <Form.Text className="text-muted">
-                    💡 Tip: Press Ctrl+Enter to post quickly
-                  </Form.Text>
-                </Form.Group>
-                
-                <div className="d-flex justify-content-between align-items-center">
-                  <small className="text-muted">
-                    Posting as <strong>{currentUser?.name}</strong>
-                  </small>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={handleAddComment}
-                    disabled={!newComment.trim() || commentLoading}
-                    style={{
-                      borderRadius: '20px',
-                      padding: '6px 16px',
-                      fontWeight: '600'
-                    }}
-                  >
-                    {commentLoading ? (
-                      <>
-                        <div className="spinner-border spinner-border-sm me-2" style={{ width: '12px', height: '12px' }} />
-                        Posting...
-                      </>
-                    ) : (
-                      <>
-                        <FaPaperPlane className="me-2" />
-                        Post Comment
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
+              {/* Add Comment Section with Mentions */}
+              <CommentInputWithMentions
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                onSubmit={handleAddComment}
+                loading={commentLoading}
+                currentUser={currentUser}
+                teamMembers={allTeamMembers}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    handleAddComment();
+                  }
+                }}
+              />
 
               {/* Comments List */}
               <div className="comments-list" style={{
@@ -906,7 +1052,7 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                                 color: '#495057',
                                 whiteSpace: 'pre-wrap'
                               }}>
-                                {linkifyText(comment.text.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>'))}
+                                {renderMentions(comment.text.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>'))}
                               </p>
                             </div>
                             

@@ -141,7 +141,7 @@ const ProjectCard = ({ project, onEdit }) => {
             {project.projectHead?.name || 'No project head'}
           </small>
           <div className="d-flex gap-2">
-            {['admin', 'superadmin', 'hr', 'manager'].includes(user?.role) && (
+            {['admin', 'superadmin', 'hr', 'manager', 'hod'].includes(user?.role) && (
               <Button
                 variant="outline-secondary"
                 size="sm"

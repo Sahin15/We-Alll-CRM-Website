@@ -311,6 +311,35 @@ const KanbanTab = ({ project, onRefresh }) => {
                             </Badge>
                           )}
 
+                          {/* Visibility Badge */}
+                          {item.visibility === 'draft' && (
+                            <Badge
+                              bg="secondary"
+                              className="mb-2 me-1"
+                              style={{ fontSize: '0.7rem' }}
+                            >
+                              📝 Draft
+                            </Badge>
+                          )}
+                          {item.visibility === 'scheduled' && (
+                            <Badge
+                              bg="warning"
+                              className="mb-2 me-1"
+                              style={{ fontSize: '0.7rem' }}
+                            >
+                              ⏰ Scheduled
+                            </Badge>
+                          )}
+                          {(!item.visibility || item.visibility === 'active') && (
+                            <Badge
+                              bg="success"
+                              className="mb-2 me-1"
+                              style={{ fontSize: '0.7rem' }}
+                            >
+                              ✓ Active
+                            </Badge>
+                          )}
+
                           {/* Priority Badge */}
                           <Badge
                             bg={getPriorityColor(item.priority)}

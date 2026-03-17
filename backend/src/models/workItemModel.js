@@ -33,8 +33,8 @@ const workItemSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: function() {
-        // Either assignedTo or assignedToMultiple must be present
-        return !this.assignedToMultiple || this.assignedToMultiple.length === 0;
+        // assignedTo is only required if NOT in draft mode
+        return this.visibility !== 'draft';
       },
       index: true,
     },
@@ -55,6 +55,27 @@ const workItemSchema = new mongoose.Schema(
       enum: ["To Do", "In Progress", "Review", "Done"],
       default: "To Do",
       index: true,
+    },
+    
+    // Draft/Scheduled Status - Controls visibility to assigned team members
+    visibility: {
+      type: String,
+      enum: ["draft", "scheduled", "active"],
+      default: "active",
+      index: true,
+      description: "draft: Not visible to team members, scheduled: Visible only on due date, active: Visible immediately"
+    },
+    
+    // Scheduled activation - when to make work visible to team members
+    scheduledActivationDate: {
+      type: Date,
+      description: "Date when this work item becomes visible to assigned team members (only for scheduled items)"
+    },
+    
+    // Track when work was activated
+    activatedAt: {
+      type: Date,
+      description: "Timestamp when work item was activated from draft/scheduled"
     },
     
     // Priority
@@ -242,6 +263,13 @@ const workItemSchema = new mongoose.Schema(
         required: true,
         trim: true,
       },
+      mentions: [{
+        userId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        userName: String,
+      }],
       createdAt: {
         type: Date,
         default: Date.now,

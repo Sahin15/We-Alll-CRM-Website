@@ -177,6 +177,18 @@ const SlotHistory = ({ project, onRefresh, refreshKey }) => {
     }
   };
 
+  const handleActivateWorkItem = async (itemId) => {
+    try {
+      await workItemApi.activateWorkItem(itemId, 'active');
+      toast.success('Work item activated successfully!');
+      loadSelectedMonthSlots();
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error('Error activating work item:', error);
+      toast.error(error.response?.data?.error?.message || 'Failed to activate work item');
+    }
+  };
+
   // Check if user can manage slots
   const canManageSlots = 
     user?.role === 'admin' || 
@@ -225,6 +237,19 @@ const SlotHistory = ({ project, onRefresh, refreshKey }) => {
       low: 'secondary'
     };
     return colors[priority?.toLowerCase()] || 'secondary';
+  };
+
+  // Helper function to get assignee display (supports both single and multiple)
+  const getAssigneeDisplay = (item) => {
+    if (item.assignedToMultiple && item.assignedToMultiple.length > 0) {
+      const names = item.assignedToMultiple.map(assignee => assignee.name || assignee).filter(Boolean);
+      if (names.length === 0) return 'Unassigned';
+      if (names.length === 1) return names[0];
+      return `${names[0]} & ${names.length - 1} more`;
+    } else if (item.assignedTo?.name) {
+      return item.assignedTo.name;
+    }
+    return 'Unassigned';
   };
 
   const handleCreateMonthlySlots = async () => {
@@ -459,12 +484,13 @@ const SlotHistory = ({ project, onRefresh, refreshKey }) => {
                             <Table responsive hover className="mb-0">
                               <thead style={{ background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)' }}>
                                 <tr>
-                                  <th style={{ width: '30%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Title</th>
-                                  <th style={{ width: '20%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Assigned To</th>
-                                  <th style={{ width: '15%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Due Date</th>
-                                  <th style={{ width: '12%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Priority</th>
-                                  <th style={{ width: '12%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Status</th>
-                                  <th style={{ width: '11%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Actions</th>
+                                  <th style={{ width: '25%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Title</th>
+                                  <th style={{ width: '18%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Assigned To</th>
+                                  <th style={{ width: '12%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Due Date</th>
+                                  <th style={{ width: '10%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Priority</th>
+                                  <th style={{ width: '10%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Status</th>
+                                  <th style={{ width: '10%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Visibility</th>
+                                  <th style={{ width: '15%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Actions</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -511,7 +537,7 @@ const SlotHistory = ({ project, onRefresh, refreshKey }) => {
                                         </span>
                                       </div>
                                     </td>
-                                    <td style={{ padding: '12px 20px' }}>{item.assignedTo?.name || 'Unassigned'}</td>
+                                    <td style={{ padding: '12px 20px' }}>{getAssigneeDisplay(item)}</td>
                                     <td style={{ padding: '12px 20px' }}>
                                       {item.dueDate ? new Date(item.dueDate).toLocaleDateString() : '-'}
                                     </td>
@@ -524,6 +550,65 @@ const SlotHistory = ({ project, onRefresh, refreshKey }) => {
                                       <Badge bg={getStatusBadge(item.status)}>
                                         {item.status}
                                       </Badge>
+                                    </td>
+                                    <td style={{ padding: '12px 20px' }}>
+                                      {item.visibility === 'draft' && (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                          <Badge bg="secondary" style={{ fontSize: '0.75rem', padding: '4px 8px', borderRadius: '4px' }}>
+                                            📝 Draft
+                                          </Badge>
+                                          <Button
+                                            size="sm"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleActivateWorkItem(item._id);
+                                            }}
+                                            style={{ 
+                                              fontSize: '0.75rem', 
+                                              padding: '4px 10px',
+                                              border: 'none',
+                                              background: '#28a745',
+                                              color: 'white',
+                                              borderRadius: '4px',
+                                              cursor: 'pointer'
+                                            }}
+                                            title="Activate this draft work item"
+                                          >
+                                            Activate
+                                          </Button>
+                                        </div>
+                                      )}
+                                      {item.visibility === 'scheduled' && (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                          <Badge bg="warning" style={{ fontSize: '0.75rem', padding: '4px 8px', borderRadius: '4px', color: '#000' }}>
+                                            ⏰ Scheduled
+                                          </Badge>
+                                          <Button
+                                            size="sm"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleActivateWorkItem(item._id);
+                                            }}
+                                            style={{ 
+                                              fontSize: '0.75rem', 
+                                              padding: '4px 10px',
+                                              border: 'none',
+                                              background: '#28a745',
+                                              color: 'white',
+                                              borderRadius: '4px',
+                                              cursor: 'pointer'
+                                            }}
+                                            title="Activate this scheduled work item"
+                                          >
+                                            Activate
+                                          </Button>
+                                        </div>
+                                      )}
+                                      {(!item.visibility || item.visibility === 'active') && (
+                                        <Badge bg="success" style={{ fontSize: '0.75rem', padding: '4px 8px', borderRadius: '4px' }}>
+                                          ✓ Activated
+                                        </Badge>
+                                      )}
                                     </td>
                                     <td style={{ padding: '12px 20px' }}>
                                       <div className="d-flex gap-2">
@@ -627,12 +712,13 @@ const SlotHistory = ({ project, onRefresh, refreshKey }) => {
                     <Table responsive hover className="mb-0">
                       <thead style={{ background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)' }}>
                         <tr>
-                          <th style={{ width: '30%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Title</th>
-                          <th style={{ width: '20%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Assigned To</th>
-                          <th style={{ width: '15%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Due Date</th>
-                          <th style={{ width: '12%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Priority</th>
-                          <th style={{ width: '12%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Status</th>
-                          <th style={{ width: '11%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Actions</th>
+                          <th style={{ width: '25%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Title</th>
+                          <th style={{ width: '18%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Assigned To</th>
+                          <th style={{ width: '12%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Due Date</th>
+                          <th style={{ width: '10%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Priority</th>
+                          <th style={{ width: '10%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Status</th>
+                          <th style={{ width: '10%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Visibility</th>
+                          <th style={{ width: '15%', padding: '12px 20px', fontWeight: '600', fontSize: '0.85rem', color: '#495057' }}>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -679,7 +765,7 @@ const SlotHistory = ({ project, onRefresh, refreshKey }) => {
                                 </span>
                               </div>
                             </td>
-                            <td style={{ padding: '12px 20px' }}>{item.assignedTo?.name || 'Unassigned'}</td>
+                            <td style={{ padding: '12px 20px' }}>{getAssigneeDisplay(item)}</td>
                             <td style={{ padding: '12px 20px' }}>
                               {item.dueDate ? new Date(item.dueDate).toLocaleDateString() : '-'}
                             </td>
@@ -692,6 +778,65 @@ const SlotHistory = ({ project, onRefresh, refreshKey }) => {
                               <Badge bg={getStatusBadge(item.status)}>
                                 {item.status}
                               </Badge>
+                            </td>
+                            <td style={{ padding: '12px 20px' }}>
+                              {item.visibility === 'draft' && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <Badge bg="secondary" style={{ fontSize: '0.75rem', padding: '4px 8px', borderRadius: '4px' }}>
+                                    📝 Draft
+                                  </Badge>
+                                  <Button
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleActivateWorkItem(item._id);
+                                    }}
+                                    style={{ 
+                                      fontSize: '0.75rem', 
+                                      padding: '4px 10px',
+                                      border: 'none',
+                                      background: '#28a745',
+                                      color: 'white',
+                                      borderRadius: '4px',
+                                      cursor: 'pointer'
+                                    }}
+                                    title="Activate this draft work item"
+                                  >
+                                    Activate
+                                  </Button>
+                                </div>
+                              )}
+                              {item.visibility === 'scheduled' && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <Badge bg="warning" style={{ fontSize: '0.75rem', padding: '4px 8px', borderRadius: '4px', color: '#000' }}>
+                                    ⏰ Scheduled
+                                  </Badge>
+                                  <Button
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleActivateWorkItem(item._id);
+                                    }}
+                                    style={{ 
+                                      fontSize: '0.75rem', 
+                                      padding: '4px 10px',
+                                      border: 'none',
+                                      background: '#28a745',
+                                      color: 'white',
+                                      borderRadius: '4px',
+                                      cursor: 'pointer'
+                                    }}
+                                    title="Activate this scheduled work item"
+                                  >
+                                    Activate
+                                  </Button>
+                                </div>
+                              )}
+                              {(!item.visibility || item.visibility === 'active') && (
+                                <Badge bg="success" style={{ fontSize: '0.75rem', padding: '4px 8px', borderRadius: '4px' }}>
+                                  ✓ Activated
+                                </Badge>
+                              )}
                             </td>
                             <td style={{ padding: '12px 20px' }}>
                               <div className="d-flex gap-2">

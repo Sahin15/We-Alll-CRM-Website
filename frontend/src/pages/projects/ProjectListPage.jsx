@@ -48,8 +48,43 @@ const ProjectListPage = () => {
         // Admin roles can see all projects
         projectsRes = await projectApi.getAllProjects();
       } else if (user?.role === 'hod') {
-        // HoD sees their department's projects
-        projectsRes = await projectApi.getMyDepartmentProjects();
+        // HoD sees their department's projects AND projects where they are project head/assigned
+        const [deptProjectsRes, myProjectsRes] = await Promise.allSettled([
+          projectApi.getMyDepartmentProjects(),
+          projectApi.getMyProjects()
+        ]);
+
+        const deptProjects = deptProjectsRes.status === 'fulfilled'
+          ? (deptProjectsRes.value?.data || deptProjectsRes.value?.projects || deptProjectsRes.value || [])
+          : [];
+        const myProjects = myProjectsRes.status === 'fulfilled'
+          ? (myProjectsRes.value?.data || myProjectsRes.value?.projects || myProjectsRes.value || [])
+          : [];
+
+        // Merge and deduplicate by _id
+        const merged = [...deptProjects, ...myProjects];
+        const seen = new Set();
+        const combined = merged.filter(p => {
+          if (!p?._id || seen.has(p._id.toString())) return false;
+          seen.add(p._id.toString());
+          return true;
+        });
+
+        setProjects(combined);
+        setLoading(false);
+        // Skip the rest of loadData for hod — we already set projects
+        try {
+          const [clientsRes, deptsRes] = await Promise.all([
+            clientApi.getAllClients(),
+            departmentApi.getAllDepartments()
+          ]);
+          setClients(clientsRes.data || clientsRes.clients || []);
+          setDepartments(deptsRes.data || deptsRes.departments || []);
+        } catch (error) {
+          setClients([]);
+          setDepartments([]);
+        }
+        return;
       } else {
         // Regular employees see only their assigned projects
         projectsRes = await projectApi.getMyProjects();
