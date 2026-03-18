@@ -5,6 +5,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import toast from "../../utils/toast";
 import { expenseApi, bulkApproveExpenses, bulkRejectExpenses } from "../../api/expenseApi";
 import { useAuth } from "../../context/AuthContext";
+import { formatDate, formatCurrency } from "../../utils/helpers";
 
 const ExpenseDetails = () => {
   const { id } = useParams();
@@ -100,14 +101,6 @@ const ExpenseDetails = () => {
       style: "currency",
       currency: "INR",
     }).format(amount);
-  };
-
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString("en-IN", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
   };
 
   const getCategoryBadge = (category) => {

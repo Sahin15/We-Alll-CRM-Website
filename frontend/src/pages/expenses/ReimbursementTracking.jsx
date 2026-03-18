@@ -3,6 +3,7 @@ import { Container, Row, Col, Card, Button, Badge, Form, Alert, Spinner, Table }
 import { FaDownload, FaCalendarAlt } from "react-icons/fa";
 import { getReimbursementTracking } from "../../api/expenseApi";
 import toast from "../../utils/toast";
+import { formatDate, formatCurrency } from "../../utils/helpers";
 
 const ReimbursementTracking = () => {
   const [expenses, setExpenses] = useState([]);
@@ -47,17 +48,6 @@ const ReimbursementTracking = () => {
       [name]: value,
     }));
     setPage(1);
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-    }).format(amount);
-  };
-
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString("en-IN");
   };
 
   const getCategoryBadge = (category) => {

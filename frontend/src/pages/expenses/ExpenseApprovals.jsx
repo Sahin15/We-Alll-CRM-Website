@@ -3,6 +3,7 @@ import { Container, Row, Col, Card, Button, Badge, Modal, Form, Alert, Spinner, 
 import { FaCheck, FaTimes, FaEye } from "react-icons/fa";
 import { getAllExpenses, approveExpense, rejectExpense } from "../../api/expenseApi";
 import toast from "../../utils/toast";
+import { formatDate, formatCurrency } from "../../utils/helpers";
 
 const ExpenseApprovals = () => {
   const [expenses, setExpenses] = useState([]);
@@ -87,17 +88,6 @@ const ExpenseApprovals = () => {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-    }).format(amount);
-  };
-
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString("en-IN");
   };
 
   const getCategoryBadge = (category) => {

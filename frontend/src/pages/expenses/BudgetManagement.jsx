@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { getAllBudgets, setBudget, setBulkBudgets, getFinancialYears } from "../../api/expenseApi";
 import { useAuth } from "../../context/AuthContext";
 import toast from "../../utils/toast";
+import { formatDate } from "../../utils/helpers";
 import "./ExpenseManagement.css";
 
 const BudgetManagement = () => {
@@ -262,7 +263,7 @@ const BudgetManagement = () => {
                       </td>
                       <td>
                         <small>
-                          {new Date(budget.updatedAt).toLocaleDateString("en-IN")}
+                          {formatDate(budget.updatedAt)}
                         </small>
                       </td>
                       <td>

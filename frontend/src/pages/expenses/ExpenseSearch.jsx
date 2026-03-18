@@ -3,6 +3,7 @@ import { Container, Row, Col, Card, Button, Form, Alert, Spinner, Table, Badge }
 import { FaSearch, FaDownload, FaFileExcel, FaFile } from "react-icons/fa";
 import { searchExpenses, exportExpenses } from "../../api/expenseApi";
 import toast from "../../utils/toast";
+import { formatDate, formatCurrency } from "../../utils/helpers";
 
 const ExpenseSearch = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -82,17 +83,6 @@ const ExpenseSearch = () => {
     } finally {
       setExporting(false);
     }
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-    }).format(amount);
-  };
-
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString("en-IN");
   };
 
   const getCategoryBadge = (category) => {

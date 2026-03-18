@@ -4,6 +4,7 @@ import { FaPlus, FaEye, FaEdit, FaTrash, FaFilter, FaDownload, FaChartBar, FaArr
 import { useNavigate } from "react-router-dom";
 import toast from "../../utils/toast";
 import { expenseApi } from "../../api/expenseApi";
+import { formatDate, formatCurrency } from "../../utils/helpers";
 
 const EXPENSE_CATEGORIES = [
   { value: "travel", label: "Travel" },
@@ -111,13 +112,6 @@ const MyExpenses = () => {
       ...prev,
       page,
     }));
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-    }).format(amount);
   };
 
   const getCategoryLabel = (value) => {
@@ -293,7 +287,7 @@ const MyExpenses = () => {
                   <tbody>
                     {expenses.map((expense) => (
                       <tr key={expense._id}>
-                        <td>{new Date(expense.date).toLocaleDateString()}</td>
+                        <td>{formatDate(expense.date)}</td>
                         <td>{getCategoryLabel(expense.category)}</td>
                         <td>
                           <span title={expense.description}>

@@ -6,6 +6,7 @@ import { getAllExpenses, markAsReimbursed, bulkApproveExpenses, bulkRejectExpens
 import { useAuth } from "../../context/AuthContext";
 import toast from "../../utils/toast";
 import { BarChart, Bar, PieChart, Pie, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
+import { formatDate, formatCurrency } from "../../utils/helpers";
 import "./ExpenseManagement.css";
 
 const ExpenseManagementConsolidated = () => {
@@ -456,17 +457,6 @@ const ExpenseManagementConsolidated = () => {
     }
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-    }).format(amount);
-  };
-
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString("en-IN");
-  };
-  
   const getProgressVariant = (spent, limit) => {
     const percentage = (spent / limit) * 100;
     if (percentage >= 100) return "danger";
