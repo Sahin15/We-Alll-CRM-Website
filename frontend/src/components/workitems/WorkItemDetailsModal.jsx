@@ -941,7 +941,7 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
             </div>
           </Tab>
 
-          <Tab eventKey="comments" title={`Comments (${comments?.length || 0})`}>
+          <Tab eventKey="comments" title={`Comments (${comments?.filter(c => !c.isSystemComment)?.length || 0})`}>
             <div style={{ padding: '1.5rem' }}>
               {/* Add Comment Section with Mentions */}
               <CommentInputWithMentions
@@ -964,40 +964,44 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                 overflowY: 'auto',
                 paddingRight: '8px'
               }}>
-                {comments && comments.length > 0 ? (
-                  <>
-                    <div className="d-flex align-items-center mb-3">
-                      <div style={{ flex: 1, height: '1px', background: '#e3e6f0' }}></div>
-                      <span className="px-3 text-muted" style={{ fontSize: '0.85rem' }}>
-                        {comments.length} comment{comments.length !== 1 ? 's' : ''}
-                      </span>
-                      <div style={{ flex: 1, height: '1px', background: '#e3e6f0' }}></div>
-                    </div>
-                    
-                    <div className="comments-container" style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '12px'
-                    }}>
-                      {comments.map((comment, index) => (
-                        <div key={comment._id || index} className="comment-item">
-                          <div className="comment-card p-3" style={{ 
-                            background: '#ffffff', 
-                            borderRadius: '12px', 
-                            border: '1px solid #e3e6f0',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                            position: 'relative'
-                          }}>
-                            {/* Comment Header */}
-                            <div className="d-flex justify-content-between align-items-start mb-2">
-                              <div className="d-flex align-items-center">
-                                <div 
-                                  className="user-avatar me-2"
-                                  style={{
-                                    width: '32px',
-                                    height: '32px',
-                                    borderRadius: '50%',
-                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                {(() => {
+                  // Filter out system comments (status changes)
+                  const userComments = comments.filter(comment => !comment.isSystemComment);
+                  
+                  return userComments && userComments.length > 0 ? (
+                    <>
+                      <div className="d-flex align-items-center mb-3">
+                        <div style={{ flex: 1, height: '1px', background: '#e3e6f0' }}></div>
+                        <span className="px-3 text-muted" style={{ fontSize: '0.85rem' }}>
+                          {userComments.length} comment{userComments.length !== 1 ? 's' : ''}
+                        </span>
+                        <div style={{ flex: 1, height: '1px', background: '#e3e6f0' }}></div>
+                      </div>
+                      
+                      <div className="comments-container" style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px'
+                      }}>
+                        {userComments.map((comment, index) => (
+                          <div key={comment._id || index} className="comment-item">
+                            <div className="comment-card p-3" style={{ 
+                              background: '#ffffff', 
+                              borderRadius: '12px', 
+                              border: '1px solid #e3e6f0',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                              position: 'relative'
+                            }}>
+                              {/* Comment Header */}
+                              <div className="d-flex justify-content-between align-items-start mb-2">
+                                <div className="d-flex align-items-center">
+                                  <div 
+                                    className="user-avatar me-2"
+                                    style={{
+                                      width: '32px',
+                                      height: '32px',
+                                      borderRadius: '50%',
+                                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
@@ -1072,16 +1076,17 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                         </div>
                       ))}
                     </div>
-                  </>
-                ) : (
-                  <div className="text-center py-5">
-                    <div className="text-muted mb-3" style={{ fontSize: '3rem', opacity: 0.3 }}>💬</div>
-                    <h6 className="text-muted mb-2">No comments yet</h6>
-                    <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>
-                      Be the first to add a comment about this task!
-                    </p>
-                  </div>
-                )}
+                    </>
+                  ) : (
+                    <div className="text-center py-5">
+                      <div className="text-muted mb-3" style={{ fontSize: '3rem', opacity: 0.3 }}>💬</div>
+                      <h6 className="text-muted mb-2">No comments yet</h6>
+                      <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>
+                        Be the first to add a comment about this task!
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </Tab>
