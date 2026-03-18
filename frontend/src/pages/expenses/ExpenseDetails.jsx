@@ -4,10 +4,12 @@ import { FaArrowLeft, FaEdit, FaTrash, FaCheck, FaTimes, FaFileImage, FaDownload
 import { useParams, useNavigate } from "react-router-dom";
 import toast from "../../utils/toast";
 import { expenseApi, bulkApproveExpenses, bulkRejectExpenses } from "../../api/expenseApi";
+import { useAuth } from "../../context/AuthContext";
 
 const ExpenseDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [expense, setExpense] = useState(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
@@ -166,7 +168,7 @@ const ExpenseDetails = () => {
           <h2 className="mb-0">Expense Details</h2>
         </div>
         <div className="d-flex gap-2">
-          {expense.status === "pending" && (
+          {expense.status === "pending" && ['admin', 'superadmin', 'hr', 'manager'].includes(user?.role) && (
             <>
               <Button 
                 variant="success"
@@ -188,17 +190,19 @@ const ExpenseDetails = () => {
                 <FaTimes className="me-2" />
                 Reject
               </Button>
-              <Button 
-                variant="outline-danger"
-                size="sm"
-                onClick={handleDelete}
-                disabled={deleting}
-                className="d-flex align-items-center"
-              >
-                <FaTrash className="me-2" />
-                {deleting ? "Deleting..." : "Delete"}
-              </Button>
             </>
+          )}
+          {expense.status === "pending" && expense.employee?._id === user?._id && (
+            <Button 
+              variant="outline-danger"
+              size="sm"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="d-flex align-items-center"
+            >
+              <FaTrash className="me-2" />
+              {deleting ? "Deleting..." : "Delete"}
+            </Button>
           )}
         </div>
       </div>
