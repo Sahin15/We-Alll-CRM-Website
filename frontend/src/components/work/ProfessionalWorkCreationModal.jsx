@@ -599,11 +599,15 @@ const ProfessionalWorkCreationModal = ({
                 <Form.Label className="fw-bold">Description</Form.Label>
                 <Form.Control
                   as="textarea"
-                  rows={2}
+                  rows={6}
                   placeholder="Brief description of the work..."
                   value={formData.description}
                   onChange={(e) => handleInputChange('description', e.target.value)}
+                  style={{ resize: "vertical", minHeight: "120px", lineHeight: "1.6" }}
                 />
+                <Form.Text className="text-muted">
+                  {formData.description?.length || 0} chars
+                </Form.Text>
               </Form.Group>
             </Card.Body>
           </Card>

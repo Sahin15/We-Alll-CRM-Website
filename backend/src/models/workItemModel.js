@@ -270,6 +270,11 @@ const workItemSchema = new mongoose.Schema(
         },
         userName: String,
       }],
+      isSystemComment: {
+        type: Boolean,
+        default: false,
+        description: "True if this is an automatic system comment (e.g., status change)"
+      },
       createdAt: {
         type: Date,
         default: Date.now,

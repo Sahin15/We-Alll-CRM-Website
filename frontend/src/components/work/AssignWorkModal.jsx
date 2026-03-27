@@ -314,13 +314,17 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                 <Form.Label>Description</Form.Label>
                 <Form.Control
                   as="textarea"
-                  rows={3}
+                  rows={6}
                   placeholder="Enter work item description"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  maxLength={2000}
+                  maxLength={5000}
                   disabled={assigning}
+                  style={{ resize: "vertical", minHeight: "120px", lineHeight: "1.6" }}
                 />
+                <Form.Text className="text-muted">
+                  {formData.description?.length || 0} / 5000
+                </Form.Text>
               </Form.Group>
             </Col>
 

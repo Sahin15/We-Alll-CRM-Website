@@ -26,24 +26,26 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
     // Decode HTML entities first
     const decodedText = decodeHtmlEntities(text);
     
-    // Pattern to match @name(userId)
-    const mentionPattern = /@([^(]+)\(([^)]+)\)/g;
+    // Pattern to match @name (just the name, no ID)
+    // Matches: @[word characters and spaces] followed by space or end of string
+    const mentionPattern = /@([^\s@]+(?:\s+[^\s@]+)*)\s/g;
     const parts = [];
     let lastIndex = 0;
     let match;
+    let foundMentions = false;
 
     while ((match = mentionPattern.exec(decodedText)) !== null) {
+      foundMentions = true;
       // Add text before mention
       if (match.index > lastIndex) {
         parts.push(decodedText.substring(lastIndex, match.index));
       }
 
       // Add mention as a tag
-      const mentionName = match[1];
-      const mentionId = match[2];
+      const mentionName = match[1].trim();
       parts.push(
         <span
-          key={`mention-${mentionId}`}
+          key={`mention-${mentionName}-${Math.random()}`}
           className="mention-tag"
           title={`Mentioned: ${mentionName}`}
           style={{
@@ -60,7 +62,7 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
         </span>
       );
 
-      lastIndex = mentionPattern.lastIndex;
+      lastIndex = match.index + match[0].length - 1; // -1 to keep the space
     }
 
     // Add remaining text
@@ -68,7 +70,7 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
       parts.push(decodedText.substring(lastIndex));
     }
 
-    return parts.length > 0 ? parts : linkifyText(decodedText);
+    return foundMentions && parts.length > 0 ? parts : linkifyText(decodedText);
   };
 
   // Helper function to decode HTML entities
@@ -573,7 +575,7 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                                   lineHeight: '1.6',
                                   whiteSpace: 'pre-wrap'
                                 }}>
-                                  {activity.text}
+                                  {renderMentions(activity.text)}
                                 </div>
                               )}
                               {activity.type === 'created' && (
@@ -941,7 +943,7 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
             </div>
           </Tab>
 
-          <Tab eventKey="comments" title={`Comments (${comments?.filter(c => !c.isSystemComment)?.length || 0})`}>
+          <Tab eventKey="comments" title={`Comments (${comments?.filter(c => !c.isSystemComment && !c.text?.startsWith('Status changed'))?.length || 0})`}>
             <div style={{ padding: '1.5rem' }}>
               {/* Add Comment Section with Mentions */}
               <CommentInputWithMentions
@@ -966,7 +968,10 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
               }}>
                 {(() => {
                   // Filter out system comments (status changes)
-                  const userComments = comments.filter(comment => !comment.isSystemComment);
+                  // Check both isSystemComment flag and text pattern for backward compatibility
+                  const userComments = comments.filter(comment => 
+                    !comment.isSystemComment && !comment.text?.startsWith('Status changed')
+                  );
                   
                   return userComments && userComments.length > 0 ? (
                     <>

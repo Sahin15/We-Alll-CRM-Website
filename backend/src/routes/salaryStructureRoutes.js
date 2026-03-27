@@ -7,6 +7,7 @@ import {
   updateSalaryStructure,
   activateSalaryStructure,
   deleteSalaryStructure,
+  deleteAllSalaryStructures,
   getSalaryStructureHistory
 } from "../controllers/salaryStructureController.js";
 import { protect } from "../middleware/authMiddleware.js";
@@ -74,6 +75,14 @@ router.put(
   protect,
   authorizeRoles("admin", "superadmin", "hr", "accounts", "manager"),
   activateSalaryStructure
+);
+
+// IMPORTANT: /all must come BEFORE /:id
+router.delete(
+  "/all",
+  protect,
+  authorizeRoles("admin", "superadmin"),
+  deleteAllSalaryStructures
 );
 
 router.delete(

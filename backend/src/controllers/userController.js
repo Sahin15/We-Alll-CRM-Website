@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/userModel.js";
+import Department from "../models/departmentModel.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import logger from '../utils/logger.js';
@@ -83,8 +84,27 @@ export const getUsers = async (req, res) => {
     // Role filter
     if (role) query.role = role;
     
-    // Department filter
-    if (department) query.department = department;
+    // Department filter - handle both department name and ID
+    if (department) {
+      // Check if department is a valid MongoDB ObjectId
+      if (department.match(/^[0-9a-fA-F]{24}$/)) {
+        query.department = department;
+      } else {
+        // If it's a string name, look up the department ID
+        try {
+          const dept = await Department.findOne({ name: department });
+          if (dept) {
+            query.department = dept._id;
+          } else {
+            // Department not found, return empty array
+            return res.status(200).json([]);
+          }
+        } catch (deptError) {
+          logger.error("Error looking up department:", deptError);
+          return res.status(200).json([]);
+        }
+      }
+    }
     
     // Status filter
     if (status) query.status = status;

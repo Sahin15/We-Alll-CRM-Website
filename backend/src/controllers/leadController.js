@@ -7,6 +7,8 @@ export const createLead = async (req, res) => {
     const {
       fullName,
       phone,
+      phoneDesignation,
+      phoneLabel,
       email,
       companyName,
       service,
@@ -16,6 +18,7 @@ export const createLead = async (req, res) => {
       assignedTo,
       notes,
       reference,
+      contacts,
     } = req.body;
 
 
@@ -74,6 +77,8 @@ export const createLead = async (req, res) => {
     const leadData = {
       fullName,
       phone: phoneNumber,
+      phoneDesignation,
+      phoneLabel,
       companyName,
       service: Array.isArray(service) ? service : (service ? [service] : []),
       budget,
@@ -81,6 +86,7 @@ export const createLead = async (req, res) => {
       status: status || "New",
       assignedTo,
       notes: notes || reference, // Use reference as notes if provided
+      contacts: Array.isArray(contacts) ? contacts : [],
     };
 
 
@@ -156,17 +162,25 @@ export const createLead = async (req, res) => {
 // Get all leads
 export const getAllLeads = async (req, res) => {
   try {
-    const { status, assignedTo, source } = req.query;
+    const { status, assignedTo, source, myLeads } = req.query;
     const filter = {};
 
     if (status) filter.status = status;
-    if (assignedTo) filter.assignedTo = assignedTo;
     if (source) filter.source = source;
 
+    if (myLeads === 'true') {
+      filter.assignedTo = req.user._id;
+    } else if (assignedTo) {
+      filter.assignedTo = assignedTo;
+    }
+
+    // Only select fields needed for the list view — skip heavy arrays
     const leads = await Lead.find(filter)
+      .select('fullName phone email companyName service budget source status assignedTo createdBy createdAt followUps.status followUps.scheduledDate emailStats temperature')
       .populate("assignedTo", "name email")
       .populate("createdBy", "name email")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     return res.status(200).json(leads);
   } catch (error) {
@@ -209,51 +223,65 @@ export const updateLead = async (req, res) => {
       req.body.phone = Number(req.body.phone);
     }
 
-    // Handle adding remark to history (comprehensive activity log)
+    // Handle adding remark to history
     if (req.body.addRemark) {
-      
-      lead.addHistory(
-        "Note Added",
-        req.body.addRemark,
-        req.user._id
-      );
-      
-      
-      // Don't add addRemark to the lead object itself
+      lead.addHistory("Note Added", req.body.addRemark, req.user._id);
       delete req.body.addRemark;
     }
 
-    // If notes are being updated, add to notes history (quick internal notes)
+    // If notes are being updated, add to notes history
     if (req.body.notes && req.body.notes !== lead.notes) {
       lead.notesHistory.push({
         note: req.body.notes,
         addedBy: req.user._id,
         addedAt: new Date(),
       });
+      await lead.save();
     }
 
-    Object.keys(req.body || {}).forEach((key) => {
-      lead[key] = req.body[key];
+    // Only update simple scalar/array fields — never touch subdoc arrays from the list form
+    const allowedFields = [
+      'fullName', 'phone', 'phoneDesignation', 'phoneLabel', 'email', 'companyName', 'service', 'customService',
+      'budget', 'source', 'status', 'reference', 'notes', 'assignedTo', 'temperature', 'contacts'
+    ];
+
+    const updateData = {};
+    allowedFields.forEach((key) => {
+      if (req.body[key] !== undefined) {
+        // Don't set email to empty string (causes unique index conflicts)
+        if (key === 'email' && req.body[key] === '') {
+          return;
+        }
+        updateData[key] = req.body[key];
+      }
     });
 
-    await lead.save();
-    
-
-    // Populate assigned user and creator details
-    const populatedLead = await Lead.findById(lead._id)
+    const updatedLead = await Lead.findByIdAndUpdate(
+      req.params.id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    )
       .populate("assignedTo", "name email")
       .populate("createdBy", "name email")
       .populate("notesHistory.addedBy", "name email")
       .populate("history.performedBy", "name email");
 
-    
     return res.status(200).json({
       message: "Lead updated successfully",
-      lead: populatedLead,
+      lead: updatedLead,
     });
   } catch (error) {
     console.error("Error in updateLead:", error.message);
-    return res.status(500).json({ message: "Server error" });
+
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ message: error.message });
+    }
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      return res.status(400).json({ message: `A lead with this ${field} already exists` });
+    }
+
+    return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -509,23 +537,26 @@ export const getFollowUpDashboard = async (req, res) => {
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayEnd = new Date(todayStart);
     todayEnd.setDate(todayEnd.getDate() + 1);
-
     const next7Days = new Date(todayStart);
     next7Days.setDate(next7Days.getDate() + 7);
 
-    // Find all leads with pending follow-ups
-    const leads = await Lead.find({
-      'followUps.status': 'Pending'
-    })
+    const { myOnly, assignedTo } = req.query;
+
+    // Build lead filter
+    const leadFilter = { 'followUps.status': 'Pending' };
+    if (myOnly === 'true') {
+      leadFilter.assignedTo = req.user._id;
+    } else if (assignedTo) {
+      leadFilter.assignedTo = assignedTo;
+    }
+
+    const leads = await Lead.find(leadFilter)
       .populate('assignedTo', 'name email')
       .populate('createdBy', 'name email')
       .populate('followUps.createdBy', 'name email')
       .sort({ 'followUps.scheduledDate': 1 });
 
-    // Categorize follow-ups
-    const overdue = [];
-    const today = [];
-    const upcoming = [];
+    const overdue = [], today = [], upcoming = [];
 
     leads.forEach(lead => {
       lead.followUps.forEach(followUp => {
@@ -544,35 +575,28 @@ export const getFollowUpDashboard = async (req, res) => {
             scheduledDate: followUp.scheduledDate,
             notes: followUp.notes,
             createdBy: followUp.createdBy,
-            assignedTo: lead.assignedTo
+            assignedTo: lead.assignedTo,
           };
 
-          if (scheduledDate < todayStart) {
-            overdue.push(followUpData);
-          } else if (scheduledDate >= todayStart && scheduledDate < todayEnd) {
-            today.push(followUpData);
-          } else if (scheduledDate >= todayEnd && scheduledDate < next7Days) {
-            upcoming.push(followUpData);
-          }
+          if (scheduledDate < todayStart) overdue.push(followUpData);
+          else if (scheduledDate < todayEnd) today.push(followUpData);
+          else if (scheduledDate < next7Days) upcoming.push(followUpData);
         }
       });
     });
 
-    // Sort by scheduled date
     overdue.sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate));
     today.sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate));
     upcoming.sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate));
 
     return res.status(200).json({
-      overdue,
-      today,
-      upcoming,
+      overdue, today, upcoming,
       summary: {
         overdueCount: overdue.length,
         todayCount: today.length,
         upcomingCount: upcoming.length,
-        totalPending: overdue.length + today.length + upcoming.length
-      }
+        totalPending: overdue.length + today.length + upcoming.length,
+      },
     });
   } catch (error) {
     console.error('Error in getFollowUpDashboard:', error.message);

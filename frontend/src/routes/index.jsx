@@ -82,6 +82,11 @@ import HoDWorkLogReview from "../pages/worklog/HoDWorkLogReview";
 import ClientList from "../pages/clients/ClientList";
 import ClientDetails from "../pages/clients/ClientDetails";
 
+// Raw Data Sheet
+import RawDataList from "../pages/raw-data/RawDataList";
+import CallerQueuePage from "../pages/raw-data/CallerQueuePage";
+import RawDataDashboard from "../pages/raw-data/RawDataDashboard";
+
 // Lead Pages
 import LeadList from "../pages/leads/LeadList";
 import LeadDetails from "../pages/leads/LeadDetails";
@@ -423,6 +428,32 @@ const AppRoutes = () => {
           element={
             <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "manager"]}>
               <ClientDetails />
+            </RoleBasedRoute>
+          }
+        />
+
+        {/* Raw Data Sheet - Before Leads */}
+        <Route
+          path="/raw-data"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "manager"]}>
+              <RawDataList />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/raw-data/queue"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "manager"]}>
+              <CallerQueuePage />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/raw-data/dashboard"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <RawDataDashboard />
             </RoleBasedRoute>
           }
         />

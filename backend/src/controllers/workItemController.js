@@ -1141,16 +1141,28 @@ const addComment = async (req, res) => {
     }
     
     // Extract mentions from comment text
-    // Pattern: @name(userId)
-    const mentionPattern = /@([^(]+)\(([^)]+)\)/g;
+    // Pattern: @name (just the name, no ID)
+    const mentionPattern = /@([^\s@]+(?:\s+[^\s@]+)*)\s/g;
     const mentions = [];
     let match;
     
+    // Get all users to map names to IDs
+    const allUsers = await User.find({}, '_id name');
+    const userMap = {};
+    allUsers.forEach(user => {
+      userMap[user.name] = user._id;
+    });
+    
     while ((match = mentionPattern.exec(text)) !== null) {
-      mentions.push({
-        userId: match[2], // userId from @name(userId)
-        userName: match[1], // name from @name(userId)
-      });
+      const mentionName = match[1].trim();
+      const userId = userMap[mentionName];
+      
+      if (userId) {
+        mentions.push({
+          userId: userId,
+          userName: mentionName,
+        });
+      }
     }
     
     // Add comment
@@ -1171,9 +1183,8 @@ const addComment = async (req, res) => {
     if (mentions && mentions.length > 0) {
       try {
         for (const mention of mentions) {
-          // Send comment notification to mentioned users
-          // (will be enhanced with mention-specific notifications later)
-          await notificationService.sendWorkItemCommentedNotification(
+          // Send mention-specific notification to mentioned users
+          await notificationService.sendMentionNotification(
             mention.userId,
             workItem.title,
             req.user.name,

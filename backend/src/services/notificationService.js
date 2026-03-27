@@ -281,6 +281,22 @@ class NotificationService {
     });
   }
 
+  async sendMentionNotification(userId, workItemTitle, mentionerName, comment) {
+    return await this.sendToUser(userId, {
+      title: '👤 You were mentioned',
+      body: `${mentionerName} mentioned you in ${workItemTitle}`,
+      icon: '/icons/mention-icon.png',
+      tag: 'work-item-mention',
+      clickAction: '/work-items',
+      data: {
+        type: 'work_item_mention',
+        workItemTitle: workItemTitle,
+        mentionerName: mentionerName,
+        comment: comment.substring(0, 100)
+      }
+    });
+  }
+
   // Log notification for audit trail
   async logNotification(userId, notification, status, error = null) {
     try {
@@ -338,6 +354,7 @@ export const sendReviewRequestedNotification = notificationServiceInstance.sendR
 export const sendStatusChangedNotification = notificationServiceInstance.sendStatusChangedNotification.bind(notificationServiceInstance);
 export const sendWorkItemCompletedNotification = notificationServiceInstance.sendWorkItemCompletedNotification.bind(notificationServiceInstance);
 export const sendWorkItemCommentedNotification = notificationServiceInstance.sendWorkItemCommentedNotification.bind(notificationServiceInstance);
+export const sendMentionNotification = notificationServiceInstance.sendMentionNotification.bind(notificationServiceInstance);
 export const subscribeToTopic = notificationServiceInstance.subscribeToTopic.bind(notificationServiceInstance);
 export const unsubscribeFromTopic = notificationServiceInstance.unsubscribeFromTopic.bind(notificationServiceInstance);
 

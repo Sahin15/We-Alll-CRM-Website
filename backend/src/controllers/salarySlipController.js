@@ -1124,3 +1124,21 @@ export const sendBulkSalarySlipEmails = async (req, res) => {
     });
   }
 };
+
+// GET /salary-slips/stats/overview — total counts for dashboard
+export const getOverallStats = async (req, res) => {
+  try {
+    const SalaryStructure = (await import("../models/salaryStructureModel.js")).default;
+    const SalaryStructureTemplate = (await import("../models/salaryStructureTemplateModel.js")).default;
+
+    const [totalSlips, totalStructures, totalTemplates] = await Promise.all([
+      SalarySlip.countDocuments(),
+      SalaryStructure.countDocuments(),
+      SalaryStructureTemplate.countDocuments(),
+    ]);
+
+    res.json({ totalSlips, totalStructures, totalTemplates });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};

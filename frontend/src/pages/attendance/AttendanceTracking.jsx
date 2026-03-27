@@ -180,7 +180,7 @@ const AttendanceTracking = () => {
     try {
       const response = await userApi.getAllUsers();
       let employeeList = response.data.filter((u) => 
-        u.role === "employee" || u.role === "hod" || u.role === "hr"
+        u.role === "employee" || u.role === "hod" || u.role === "hr" || u.role === "manager"
       );
       
       // If user is HoD, filter to show only their department employees
@@ -427,8 +427,8 @@ const AttendanceTracking = () => {
   const absentEmployees = getAbsentEmployees();
 
   // Handle view details for employee - Opens modal
-  const handleViewDetails = (employeeId) => {
-    const employee = users.find(u => u._id === employeeId);
+  const handleViewDetails = (employeeId, attendanceEmployee) => {
+    const employee = users.find(u => u._id === employeeId) || attendanceEmployee;
     if (employee) {
       setSelectedEmployee(employee);
       setShowDetailsModal(true);
@@ -1050,7 +1050,7 @@ const AttendanceTracking = () => {
                                     <Button
                                       variant="outline-primary"
                                       size="sm"
-                                      onClick={() => handleViewDetails(attendance.employee?._id)}
+                                      onClick={() => handleViewDetails(attendance.employee?._id, attendance.employee)}
                                       title="View Details"
                                       style={{
                                         padding: '0.25rem 0.5rem',

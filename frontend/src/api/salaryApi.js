@@ -28,6 +28,9 @@ export const salaryStructureApi = {
 
   // Delete salary structure
   delete: (id) => api.delete(`/salary-structures/${id}`),
+
+  // Delete ALL salary structures
+  deleteAll: () => api.delete(`/salary-structures/all`),
 };
 
 // Salary Slip APIs
@@ -77,6 +80,9 @@ export const salarySlipApi = {
 
   // Get payroll summary
   getPayrollSummary: (params) => api.get("/salary-slips/reports/payroll-summary", { params }),
+
+  // Get overall stats (total slips, structures, templates)
+  getOverallStats: () => api.get("/salary-slips/stats/overview"),
 };
 
 // Salary Preview APIs

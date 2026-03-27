@@ -85,11 +85,12 @@ const CommentInputWithMentions = ({
     const text = value;
     const lastAtIndex = text.lastIndexOf('@');
     
-    // Replace @ and search text with @mention
+    // Replace @ and search text with @mention (without ID in display)
     const beforeMention = text.substring(0, lastAtIndex);
     const afterMention = text.substring(lastAtIndex + mentionSearch.length + 1);
     
-    const newText = `${beforeMention}@${member.name}(${member._id}) ${afterMention}`;
+    // Store mention as @name with a marker for the backend to parse
+    const newText = `${beforeMention}@${member.name} ${afterMention}`;
     
     onChange({ target: { value: newText } });
     setShowMentions(false);
@@ -100,7 +101,7 @@ const CommentInputWithMentions = ({
     if (textareaRef.current) {
       textareaRef.current.focus();
       // Set cursor position after the mention
-      const cursorPos = beforeMention.length + member.name.length + member._id.length + 4; // @name(id) + space
+      const cursorPos = beforeMention.length + member.name.length + 2; // @name + space
       textareaRef.current.setSelectionRange(cursorPos, cursorPos);
     }
   };

@@ -5,6 +5,15 @@ import { toast } from "react-toastify";
 import { leadApi } from "../../api/leadApi";
 import { formatDate } from "../../utils/helpers";
 
+// Quick follow-up options
+const QUICK_OPTIONS = [
+  { label: "2 hours", getValue: () => new Date(Date.now() + 2 * 60 * 60 * 1000) },
+  { label: "Tomorrow 10 AM", getValue: () => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(10, 0, 0, 0); return d; } },
+  { label: "Tomorrow 2 PM", getValue: () => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(14, 0, 0, 0); return d; } },
+  { label: "In 3 days", getValue: () => { const d = new Date(); d.setDate(d.getDate() + 3); d.setHours(10, 0, 0, 0); return d; } },
+  { label: "Next week", getValue: () => { const d = new Date(); d.setDate(d.getDate() + 7); d.setHours(10, 0, 0, 0); return d; } },
+];
+
 const FollowUpsTab = ({ leadId, followUps, onUpdate }) => {
   const [showModal, setShowModal] = useState(false);
   const [editingFollowUp, setEditingFollowUp] = useState(null);
@@ -52,6 +61,15 @@ const FollowUpsTab = ({ leadId, followUps, onUpdate }) => {
       });
     }
     setShowModal(true);
+  };
+
+  const handleQuickOption = (option) => {
+    const date = option.getValue();
+    setFormData({
+      ...formData,
+      scheduledDate: date.toISOString().split("T")[0],
+      scheduledTime: date.toTimeString().slice(0, 5),
+    });
   };
 
   const handleSubmit = async () => {
@@ -103,6 +121,18 @@ const FollowUpsTab = ({ leadId, followUps, onUpdate }) => {
     if (a.status === "Pending" && b.status !== "Pending") return -1;
     return new Date(a.scheduledDate) - new Date(b.scheduledDate);
   });
+
+  const formatDateTimeDisplay = (date, time) => {
+    if (!date || !time) return "Not set";
+    const dateObj = new Date(date + "T" + time);
+    return dateObj.toLocaleString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  };
 
   return (
     <>
@@ -179,14 +209,40 @@ const FollowUpsTab = ({ leadId, followUps, onUpdate }) => {
                 <option value="Reminder">Reminder</option>
               </Form.Select>
             </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label className="small fw-medium mb-2">Quick Schedule</Form.Label>
+              <div className="d-flex flex-wrap gap-2 mb-3">
+                {QUICK_OPTIONS.map((option) => (
+                  <Button 
+                    key={option.label}
+                    size="sm" 
+                    variant="outline-primary"
+                    onClick={() => handleQuickOption(option)}
+                    className="small"
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
+            </Form.Group>
+
             <Form.Group className="mb-3">
               <Form.Label>Date</Form.Label>
               <Form.Control type="date" value={formData.scheduledDate} onChange={(e) => setFormData({ ...formData, scheduledDate: e.target.value })} />
             </Form.Group>
+
             <Form.Group className="mb-3">
               <Form.Label>Time</Form.Label>
               <Form.Control type="time" value={formData.scheduledTime} onChange={(e) => setFormData({ ...formData, scheduledTime: e.target.value })} />
             </Form.Group>
+
+            {formData.scheduledDate && formData.scheduledTime && (
+              <div className="p-2 bg-info bg-opacity-10 rounded small mb-3">
+                <strong>Scheduled for:</strong> {formatDateTimeDisplay(formData.scheduledDate, formData.scheduledTime)}
+              </div>
+            )}
+
             <Form.Group className="mb-3">
               <Form.Label>Notes</Form.Label>
               <Form.Control as="textarea" rows={3} value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} />

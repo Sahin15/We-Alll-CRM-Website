@@ -1,37 +1,36 @@
 import { useState, useEffect } from "react";
 import { Card, Badge, ListGroup, Button, Spinner, Alert, Tabs, Tab } from "react-bootstrap";
-import { FaPhoneAlt, FaEnvelopeOpen, FaCalendarAlt, FaBell, FaCheck, FaExclamationTriangle, FaClock, FaEye } from "react-icons/fa";
+import { FaPhoneAlt, FaEnvelopeOpen, FaCalendarAlt, FaBell, FaCheck, FaExclamationTriangle, FaClock, FaEye, FaUsers, FaUser } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { leadApi } from "../../api/leadApi";
 import { formatDate } from "../../utils/helpers";
+import { useAuth } from "../../context/AuthContext";
 
 const FollowUpDashboard = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [myOnly, setMyOnly] = useState(false);
+  const isManager = ['admin', 'superadmin', 'manager', 'hod'].includes(user?.role);
   const [followUpData, setFollowUpData] = useState({
     overdue: [],
     today: [],
     upcoming: [],
-    summary: {
-      overdueCount: 0,
-      todayCount: 0,
-      upcomingCount: 0,
-      totalPending: 0
-    }
+    summary: { overdueCount: 0, todayCount: 0, upcomingCount: 0, totalPending: 0 }
   });
   const [activeTab, setActiveTab] = useState("overdue");
 
   useEffect(() => {
     fetchFollowUpData();
-    // Refresh every 5 minutes
     const interval = setInterval(fetchFollowUpData, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [myOnly]);
 
   const fetchFollowUpData = async () => {
     try {
-      const response = await leadApi.getFollowUpDashboard();
+      const params = myOnly ? { myOnly: 'true' } : {};
+      const response = await leadApi.getFollowUpDashboard(params);
       setFollowUpData(response.data);
     } catch (error) {
       console.error("Error fetching follow-up data:", error);
@@ -170,9 +169,27 @@ const FollowUpDashboard = () => {
     <Card className="shadow-sm">
       <Card.Header className="bg-primary text-white d-flex justify-content-between align-items-center">
         <h5 className="mb-0">📅 Follow-Up Dashboard</h5>
-        <Badge bg="light" text="dark" className="fs-6">
-          {followUpData.summary.totalPending} Pending
-        </Badge>
+        <div className="d-flex align-items-center gap-2">
+          {isManager && (
+            <div className="btn-group btn-group-sm">
+              <button
+                className={`btn btn-sm ${!myOnly ? 'btn-light' : 'btn-outline-light'}`}
+                onClick={() => setMyOnly(false)}
+              >
+                <FaUsers size={11} className="me-1" /> All
+              </button>
+              <button
+                className={`btn btn-sm ${myOnly ? 'btn-light' : 'btn-outline-light'}`}
+                onClick={() => setMyOnly(true)}
+              >
+                <FaUser size={11} className="me-1" /> Mine
+              </button>
+            </div>
+          )}
+          <Badge bg="light" text="dark" className="fs-6">
+            {followUpData.summary.totalPending} Pending
+          </Badge>
+        </div>
       </Card.Header>
       <Card.Body className="p-0">
         {followUpData.summary.totalPending === 0 ? (

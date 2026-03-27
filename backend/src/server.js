@@ -49,6 +49,7 @@ import workLogRoutes from "./routes/workLogRoutes.js";
 import workOnLeaveDayRoutes from "./routes/workOnLeaveDayRoutes.js";
 import todoRoutes from "./routes/todoRoutes.js";
 import expenseRoutes from "./routes/expenseRoutes.js";
+import rawDataRoutes from "./routes/rawDataRoutes.js";
 // Legacy routes removed - use workItemRoutes instead
 // Old: taskRoutes, slotRoutes, workRoutes → New: workItemRoutes
 import { initializeCronJobs } from "./config/cronJobs.js";
@@ -254,6 +255,7 @@ app.use("/api/worklogs", apiLimiter, workLogRoutes);
 app.use("/api/work-on-leave-day", apiLimiter, workOnLeaveDayRoutes);
 app.use("/api/todos", apiLimiter, todoRoutes);
 app.use("/api/expenses", apiLimiter, expenseRoutes);
+app.use("/api/raw-data", apiLimiter, rawDataRoutes);
 
 // Diagnostic endpoint to check server status and timezone
 app.get("/api/diagnostic", (req, res) => {

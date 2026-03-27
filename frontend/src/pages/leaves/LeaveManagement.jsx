@@ -517,15 +517,14 @@ const LeaveManagement = () => {
                               </td>
                               <td>
                                 <div className="d-flex gap-1">
-                                  {leave.status === 'pending' && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline-primary"
-                                      onClick={() => handleApproveReject(leave)}
-                                    >
-                                      <FaEye />
-                                    </Button>
-                                  )}
+                                  <Button
+                                    size="sm"
+                                    variant="outline-primary"
+                                    title="View Details"
+                                    onClick={() => handleApproveReject(leave)}
+                                  >
+                                    <FaEye />
+                                  </Button>
                                 </div>
                               </td>
                             </tr>

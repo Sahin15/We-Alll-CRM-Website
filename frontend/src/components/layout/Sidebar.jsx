@@ -25,6 +25,7 @@ import {
   FaShieldAlt,
   FaHandshake,
   FaPlus,
+  FaPhone,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import "./Sidebar.css";
@@ -49,7 +50,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
     const currentPath = location.pathname;
     
     // Auto-expand Business Management if on leads or clients page
-    if (currentPath.includes('/leads') || currentPath.includes('/clients')) {
+    if (currentPath.includes('/leads') || currentPath.includes('/clients') || currentPath.includes('/raw-data')) {
       setExpandedGroups(prev => ({
         ...prev,
         'business-management': true
@@ -85,6 +86,26 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       roles: ["admin", "superadmin", "manager", "hr", "employee", "hod"],
       isGroup: true,
       children: [
+        {
+          path: "/raw-data",
+          icon: <FaClipboardList />,
+          label: "Raw Data Sheet",
+          roles: ["admin", "superadmin", "manager", "employee", "hod"],
+          departments: ["Sales", "Telecaller"],
+        },
+        {
+          path: "/raw-data/queue",
+          icon: <FaPhone />,
+          label: "Calling Queue",
+          roles: ["admin", "superadmin", "manager", "employee", "hod"],
+          departments: ["Sales", "Telecaller"],
+        },
+        {
+          path: "/raw-data/dashboard",
+          icon: <FaChartBar />,
+          label: "Raw Data Analytics",
+          roles: ["admin", "superadmin", "manager"],
+        },
         {
           path: "/leads",
           icon: <FaUserTie />,

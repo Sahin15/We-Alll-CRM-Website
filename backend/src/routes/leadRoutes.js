@@ -38,10 +38,10 @@ import { authorizeRolesOrDepartments } from "../middleware/departmentMiddleware.
 const router = express.Router();
 
 // Allowed roles and departments for lead management
-// Roles: admin, superadmin, manager
+// Roles: admin, superadmin, manager, hr, employee, hod
 // Departments: Sales only
 const leadAccess = authorizeRolesOrDepartments(
-  ["admin", "superadmin", "manager"],
+  ["admin", "superadmin", "manager", "hr", "employee", "hod"],
   ["Sales"]
 );
 

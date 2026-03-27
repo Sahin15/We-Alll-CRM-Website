@@ -10,6 +10,8 @@ const LeaveApprovalModal = ({ show, onHide, leave, onAction }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const isPending = leave?.status === 'pending';
+
   const handleActionSelect = (selectedAction) => {
     setAction(selectedAction);
     setError('');
@@ -78,12 +80,19 @@ const LeaveApprovalModal = ({ show, onHide, leave, onAction }) => {
 
   if (!leave) return null;
 
+  const statusColors = { approved: 'success', rejected: 'danger', cancelled: 'secondary', pending: 'warning' };
+
   return (
     <Modal show={show} onHide={handleClose} size="lg" centered>
       <Modal.Header closeButton className="border-0 pb-0">
         <Modal.Title className="d-flex align-items-center gap-2">
           <FaCalendarAlt className="text-primary" />
-          Review Leave Request
+          {isPending ? 'Review Leave Request' : 'Leave Request Details'}
+          {!isPending && (
+            <Badge bg={statusColors[leave.status] || 'secondary'} className="ms-2 text-capitalize">
+              {leave.status}
+            </Badge>
+          )}
         </Modal.Title>
       </Modal.Header>
 
@@ -219,7 +228,8 @@ const LeaveApprovalModal = ({ show, onHide, leave, onAction }) => {
           </div>
         )}
 
-        {/* Action Selection */}
+        {/* Action Selection — only for pending leaves */}
+        {isPending && (
         <div className="action-section mb-4">
           <h6 className="section-title mb-3">Action Required</h6>
           <div className="action-buttons mb-3">
@@ -273,9 +283,24 @@ const LeaveApprovalModal = ({ show, onHide, leave, onAction }) => {
             </Form.Group>
           )}
         </div>
+        )}
+
+        {/* Show approval/rejection info for already-processed leaves */}
+        {!isPending && leave.approvalComment && (
+          <div className="mb-4">
+            <h6 className="section-title mb-2">Approval Comment</h6>
+            <div className="p-3 bg-light rounded">{leave.approvalComment}</div>
+          </div>
+        )}
+        {!isPending && leave.rejectionReason && (
+          <div className="mb-4">
+            <h6 className="section-title mb-2">Rejection Reason</h6>
+            <div className="p-3 bg-light rounded text-danger">{leave.rejectionReason}</div>
+          </div>
+        )}
 
         {/* Impact Notice */}
-        {action && (
+        {isPending && action && (
           <Alert variant={action === 'approve' ? 'success' : 'warning'} className="mb-0">
             <div className="d-flex align-items-start gap-2">
               {action === 'approve' ? <FaCheck /> : <FaTimes />}
@@ -297,8 +322,9 @@ const LeaveApprovalModal = ({ show, onHide, leave, onAction }) => {
 
       <Modal.Footer className="border-0 pt-0">
         <Button variant="outline-secondary" onClick={handleClose}>
-          Cancel
+          {isPending ? 'Cancel' : 'Close'}
         </Button>
+        {isPending && (
         <Button 
           variant={action === 'approve' ? 'success' : action === 'reject' ? 'danger' : 'primary'}
           onClick={handleSubmit}
@@ -317,6 +343,7 @@ const LeaveApprovalModal = ({ show, onHide, leave, onAction }) => {
             </>
           )}
         </Button>
+        )}
       </Modal.Footer>
     </Modal>
   );

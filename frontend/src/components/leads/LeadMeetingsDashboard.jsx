@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card, Table, Badge, Button, Modal, Form, Row, Col, Spinner, Alert } from "react-bootstrap";
-import { FaPlus, FaEdit, FaCheck, FaTimes, FaVideo, FaMapMarkerAlt, FaCalendar, FaClock, FaUser, FaEye, FaExternalLinkAlt } from "react-icons/fa";
+import { FaPlus, FaEdit, FaCheck, FaTimes, FaVideo, FaMapMarkerAlt, FaCalendar, FaClock, FaUser, FaUsers, FaEye, FaExternalLinkAlt } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { leadApi } from "../../api/leadApi";
 import { formatDate } from "../../utils/helpers";
@@ -10,6 +10,8 @@ import { useNavigate } from "react-router-dom";
 const LeadMeetingsDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isManager = ['admin', 'superadmin', 'manager', 'hod'].includes(user?.role);
+  const [myOnly, setMyOnly] = useState(false);
   const [meetings, setMeetings] = useState([]);
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,23 +35,20 @@ const LeadMeetingsDashboard = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [myOnly]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      
-      // Fetch all leads for the dropdown
       const leadsResponse = await leadApi.getAllLeads();
-      const leadsData = leadsResponse.data || leadsResponse;
-      setLeads(leadsData);
+      setLeads(leadsResponse.data || []);
 
-      // Fetch all meetings using the dedicated endpoint
-      const meetingsResponse = await leadApi.getAllMeetings();
-      
-      // The API returns { meetings: [...] }
-      const meetingsData = meetingsResponse.data?.meetings || meetingsResponse.meetings || [];
-      
+      // Use myMeetings or allMeetings based on toggle
+      const meetingsResponse = myOnly
+        ? await leadApi.getMyMeetings()
+        : await leadApi.getAllMeetings();
+
+      const meetingsData = meetingsResponse.data?.meetings || [];
       setMeetings(meetingsData);
     } catch (error) {
       console.error("Failed to fetch data:", error);
@@ -242,9 +241,27 @@ const LeadMeetingsDashboard = () => {
               {upcomingMeetings.length} upcoming • {pastMeetings.length} past
             </small>
           </div>
-          <Button size="sm" variant="primary" onClick={() => handleOpenModal()}>
-            <FaPlus className="me-1" /> Schedule Meeting
-          </Button>
+          <div className="d-flex align-items-center gap-2">
+            {isManager && (
+              <div className="btn-group btn-group-sm">
+                <button
+                  className={`btn btn-sm ${!myOnly ? 'btn-primary' : 'btn-outline-primary'}`}
+                  onClick={() => setMyOnly(false)}
+                >
+                  <FaUsers size={11} className="me-1" /> All
+                </button>
+                <button
+                  className={`btn btn-sm ${myOnly ? 'btn-primary' : 'btn-outline-primary'}`}
+                  onClick={() => setMyOnly(true)}
+                >
+                  <FaUser size={11} className="me-1" /> Mine
+                </button>
+              </div>
+            )}
+            <Button size="sm" variant="primary" onClick={() => handleOpenModal()}>
+              <FaPlus className="me-1" /> Schedule Meeting
+            </Button>
+          </div>
         </Card.Header>
         <Card.Body>
           {/* Filters */}
@@ -442,14 +459,24 @@ const LeadMeetingsDashboard = () => {
                               <FaEye size={10} />
                             </Button>
                             {meeting.status === "Scheduled" && (
-                              <Button 
-                                size="sm" 
-                                variant="outline-success" 
-                                onClick={() => handleComplete(meeting.leadId, meeting._id)}
-                                title="Mark Complete"
-                              >
-                                <FaCheck size={10} />
-                              </Button>
+                              <>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline-success" 
+                                  onClick={() => handleComplete(meeting.leadId, meeting._id)}
+                                  title="Mark Complete"
+                                >
+                                  <FaCheck size={10} />
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline-danger" 
+                                  onClick={() => handleCancel(meeting.leadId, meeting._id)}
+                                  title="Cancel Meeting"
+                                >
+                                  <FaTimes size={10} />
+                                </Button>
+                              </>
                             )}
                           </div>
                         </td>

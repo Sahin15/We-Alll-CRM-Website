@@ -35,6 +35,9 @@ const SalaryManagement = () => {
     totalEmployees: 0,
     slipsGenerated: 0,
     totalPayout: 0,
+    totalSlips: 0,
+    totalStructures: 0,
+    totalTemplates: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -61,35 +64,37 @@ const SalaryManagement = () => {
     try {
       setLoading(true);
       
-      // Get current month/year for stats
       const currentDate = new Date();
       const currentMonth = currentDate.getMonth() + 1;
       const currentYear = currentDate.getFullYear();
 
-      // Fetch payroll summary for current month
-      const payrollResponse = await salarySlipApi.getPayrollSummary({
-        month: currentMonth,
-        year: currentYear
-      });
+      const [payrollResponse, employeesResponse, overallResponse] = await Promise.all([
+        salarySlipApi.getPayrollSummary({ month: currentMonth, year: currentYear }),
+        api.get('/users/employees'),
+        salarySlipApi.getOverallStats(),
+      ]);
 
-      // Fetch total employees count
-      const employeesResponse = await api.get('/users/employees');
       const totalEmployees = employeesResponse.data?.length || 0;
-
       const payrollData = payrollResponse.data;
+      const overall = overallResponse.data;
       
       setStats({
-        totalEmployees: totalEmployees,
+        totalEmployees,
         slipsGenerated: payrollData?.totalEmployees || 0,
         totalPayout: payrollData?.totalNetSalary || 0,
+        totalSlips: overall?.totalSlips || 0,
+        totalStructures: overall?.totalStructures || 0,
+        totalTemplates: overall?.totalTemplates || 0,
       });
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
-      // Set default values on error
       setStats({
         totalEmployees: 0,
         slipsGenerated: 0,
         totalPayout: 0,
+        totalSlips: 0,
+        totalStructures: 0,
+        totalTemplates: 0,
       });
     } finally {
       setLoading(false);
@@ -236,6 +241,58 @@ const SalaryManagement = () => {
                 </h3>
                 <small className="text-muted">This month</small>
               </div>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Counts row */}
+      <Row className="mb-4">
+        <Col md={4}>
+          <Card className="shadow-sm h-100 border-start border-4 border-info">
+            <Card.Body className="d-flex align-items-center justify-content-between">
+              <div>
+                <h6 className="mb-1 text-muted">Total Salary Slips</h6>
+                <h3 className="mb-0">
+                  {loading ? <Spinner animation="border" size="sm" /> : stats.totalSlips}
+                </h3>
+                <small className="text-muted">All time</small>
+              </div>
+              <Button variant="outline-info" size="sm" onClick={() => setActiveTab("slips")}>
+                View
+              </Button>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={4}>
+          <Card className="shadow-sm h-100 border-start border-4 border-warning">
+            <Card.Body className="d-flex align-items-center justify-content-between">
+              <div>
+                <h6 className="mb-1 text-muted">Salary Structures</h6>
+                <h3 className="mb-0">
+                  {loading ? <Spinner animation="border" size="sm" /> : stats.totalStructures}
+                </h3>
+                <small className="text-muted">All employees</small>
+              </div>
+              <Button variant="outline-warning" size="sm" onClick={() => setActiveTab("structures")}>
+                Manage
+              </Button>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={4}>
+          <Card className="shadow-sm h-100 border-start border-4 border-danger">
+            <Card.Body className="d-flex align-items-center justify-content-between">
+              <div>
+                <h6 className="mb-1 text-muted">Salary Templates</h6>
+                <h3 className="mb-0">
+                  {loading ? <Spinner animation="border" size="sm" /> : stats.totalTemplates}
+                </h3>
+                <small className="text-muted">Reusable templates</small>
+              </div>
+              <Button variant="outline-danger" size="sm" onClick={() => setActiveTab("templates")}>
+                Manage
+              </Button>
             </Card.Body>
           </Card>
         </Col>

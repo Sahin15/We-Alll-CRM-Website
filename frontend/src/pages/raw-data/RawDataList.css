@@ -1,0 +1,3 @@
+.raw-data-page { background: #f8f9fa; min-height: 100vh; }
+.raw-data-table td, .raw-data-table th { vertical-align: middle; font-size: 0.875rem; }
+.raw-data-table tbody tr:hover { background-color: #f0f4ff; }

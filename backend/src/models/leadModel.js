@@ -14,6 +14,10 @@ const leadSchema = new mongoose.Schema(
           type: String,
           trim: true,
         },
+        designation: {
+          type: String,
+          trim: true,
+        },
         type: {
           type: String,
           enum: ["Phone", "Email"],
@@ -39,10 +43,20 @@ const leadSchema = new mongoose.Schema(
       type: Number,
       required: false,
     },
+    phoneDesignation: {
+      type: String,
+      trim: true,
+    },
+    phoneLabel: {
+      type: String,
+      enum: ["Primary", "Office", "Personal", "Other"],
+      default: "Primary",
+    },
     email: {
       type: String,
       lowercase: true,
       sparse: true,
+      // Note: NOT unique to allow multiple leads without email
     },
     companyName: {
       type: String,
@@ -300,6 +314,9 @@ leadSchema.methods.addHistory = function(actionType, description, performedBy, o
 leadSchema.index({ phone: 1 });
 leadSchema.index({ status: 1 });
 leadSchema.index({ assignedTo: 1 });
+leadSchema.index({ source: 1 });
+leadSchema.index({ createdAt: -1 });
+leadSchema.index({ assignedTo: 1, createdAt: -1 }); // compound for myLeads sorted
 leadSchema.index({ 'contacts.value': 1 });
 leadSchema.index({ 'followUps.scheduledDate': 1 });
 leadSchema.index({ 'meetings.scheduledDate': 1 });

@@ -9,6 +9,7 @@ const ContactsTab = ({ leadId, contacts, onUpdate }) => {
   const [editingContact, setEditingContact] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
+    designation: "",
     type: "Phone",
     value: "",
     label: "Primary",
@@ -20,6 +21,7 @@ const ContactsTab = ({ leadId, contacts, onUpdate }) => {
       setEditingContact(contact);
       setFormData({
         name: contact.name || "",
+        designation: contact.designation || "",
         type: contact.type,
         value: contact.value,
         label: contact.label,
@@ -29,6 +31,7 @@ const ContactsTab = ({ leadId, contacts, onUpdate }) => {
       setEditingContact(null);
       setFormData({
         name: "",
+        designation: "",
         type: "Phone",
         value: "",
         label: "Primary",
@@ -106,6 +109,9 @@ const ContactsTab = ({ leadId, contacts, onUpdate }) => {
                           {contact.name && (
                             <div className="fw-bold mb-1 small">{contact.name}</div>
                           )}
+                          {contact.designation && (
+                            <div className="text-muted small mb-1">{contact.designation}</div>
+                          )}
                           <div className="d-flex align-items-center gap-2 flex-wrap">
                             <small className="fw-bold">{contact.value}</small>
                             <Badge bg="secondary" className="small">{contact.label}</Badge>
@@ -170,6 +176,9 @@ const ContactsTab = ({ leadId, contacts, onUpdate }) => {
                         <div style={{ flex: '1 1 auto', minWidth: 0 }}>
                           {contact.name && (
                             <div className="fw-bold mb-1 small">{contact.name}</div>
+                          )}
+                          {contact.designation && (
+                            <div className="text-muted small mb-1">{contact.designation}</div>
                           )}
                           <div className="d-flex align-items-center gap-2 flex-wrap">
                             <small className="fw-bold text-break" style={{ wordBreak: 'break-all' }}>{contact.value}</small>
@@ -242,6 +251,15 @@ const ContactsTab = ({ leadId, contacts, onUpdate }) => {
                 placeholder="Contact person name (optional)" 
                 value={formData.name} 
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Designation</Form.Label>
+              <Form.Control 
+                type="text" 
+                placeholder="e.g., Manager, Director, Owner (optional)" 
+                value={formData.designation} 
+                onChange={(e) => setFormData({ ...formData, designation: e.target.value })} 
               />
             </Form.Group>
             <Form.Group className="mb-3">

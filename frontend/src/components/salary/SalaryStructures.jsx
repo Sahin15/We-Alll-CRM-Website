@@ -122,22 +122,31 @@ const SalaryStructures = () => {
     if (window.confirm("Are you sure you want to delete this salary structure?")) {
       try {
         setActionLoading(structureId);
-        console.log("Attempting to delete salary structure:", structureId);
-        
         const response = await salaryStructureApi.delete(structureId);
-        console.log("Delete response:", response);
-        
         toast.success("Salary structure deleted successfully");
         fetchSalaryStructures();
       } catch (error) {
         console.error("Error deleting salary structure:", error);
-        console.error("Error response:", error.response);
-        
         const errorMessage = error.response?.data?.message || "Failed to delete salary structure";
         toast.error(errorMessage);
       } finally {
         setActionLoading(null);
       }
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (!window.confirm("⚠️ This will permanently delete ALL salary structures. This cannot be undone. Are you sure?")) return;
+    if (!window.confirm("Final confirmation: delete ALL salary structures?")) return;
+    try {
+      setLoading(true);
+      const res = await salaryStructureApi.deleteAll();
+      toast.success(res.data.message);
+      fetchSalaryStructures();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to delete all structures");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -167,6 +176,12 @@ const SalaryStructures = () => {
           <Button variant="primary" onClick={handleCreateNew}>
             <FaPlus className="me-1" />
             Create New Structure
+          </Button>
+        </Col>
+        <Col xs="auto">
+          <Button variant="outline-danger" onClick={handleDeleteAll}>
+            <FaTrash className="me-1" />
+            Delete All
           </Button>
         </Col>
       </Row>

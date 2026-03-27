@@ -16,7 +16,6 @@ import {
 import { useParams, useNavigate } from "react-router-dom";
 import {
   FaArrowLeft,
-  FaEdit,
   FaEnvelope,
   FaPhone,
   FaBuilding,
@@ -92,33 +91,6 @@ const LeadDetails = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Check if current user can edit this lead
-  const canEditLead = () => {
-    if (!user || !lead) return false;
-    
-    // Admin, superadmin, and manager can edit any lead
-    if (user.role === 'admin' || user.role === 'superadmin' || user.role === 'manager') {
-      return true;
-    }
-    
-    // Sales department employees can edit any lead
-    if (user.department && user.department.name === 'Sales') {
-      return true;
-    }
-    
-    // User can edit if they are assigned to the lead
-    if (lead.assignedTo && lead.assignedTo._id === user.id) {
-      return true;
-    }
-    
-    // User can edit if they created the lead
-    if (lead.createdBy && lead.createdBy._id === user.id) {
-      return true;
-    }
-    
-    return false;
   };
 
   const getStatusVariant = (status) => {
@@ -448,17 +420,6 @@ const LeadDetails = () => {
           </Button>
           <h2>Lead Details</h2>
         </Col>
-        <Col className="text-end">
-          <Button
-            variant="primary"
-            onClick={() => navigate(`/leads/${id}/edit`)}
-            disabled={!canEditLead()}
-            title={canEditLead() ? "Edit Lead" : "You don't have permission to edit this lead"}
-          >
-            <FaEdit className="me-2" />
-            Edit Lead
-          </Button>
-        </Col>
       </Row>
 
       <Row className="g-4">
@@ -469,7 +430,12 @@ const LeadDetails = () => {
             </Card.Header>
             <Card.Body>
               <div className="mb-3">
-                <h4 className="mb-1">{lead.fullName}</h4>
+                <div className="d-flex align-items-baseline gap-2 mb-1">
+                  <h4 className="mb-0">{lead.fullName}</h4>
+                  {lead.phoneDesignation && (
+                    <span className="text-muted small">{lead.phoneDesignation}</span>
+                  )}
+                </div>
                 <div className="d-flex gap-2 mb-2 flex-wrap">
                   <Badge bg={getStatusVariant(lead.status)}>
                     {lead.status}

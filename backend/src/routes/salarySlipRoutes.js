@@ -13,7 +13,8 @@ import {
   getPayrollSummary,
   downloadSalarySlipPDF,
   sendSalarySlipEmail,
-  sendBulkSalarySlipEmails
+  sendBulkSalarySlipEmails,
+  getOverallStats
 } from "../controllers/salarySlipController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
@@ -95,6 +96,13 @@ router.get(
   protect,
   authorizeRoles("admin", "superadmin", "hr", "accounts", "manager"),
   getPayrollSummary
+);
+
+router.get(
+  "/stats/overview",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr", "accounts", "manager"),
+  getOverallStats
 );
 
 export default router;

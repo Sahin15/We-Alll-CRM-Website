@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Container,
   Row,
@@ -15,7 +15,7 @@ import {
   Tabs,
   Tab,
 } from "react-bootstrap";
-import { FaPlus, FaEdit, FaTrash, FaEye, FaFilter, FaEnvelope, FaCheck, FaHistory } from "react-icons/fa";
+import { FaPlus, FaEdit, FaTrash, FaEye, FaFilter, FaEnvelope, FaCheck, FaHistory, FaArrowUp, FaUserCheck, FaUsers, FaUser } from "react-icons/fa";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
@@ -24,6 +24,7 @@ import emailService from "../../services/emailService";
 import EmailHistoryModal from "../../components/leads/EmailHistoryModal";
 import FollowUpDashboard from "../../components/leads/FollowUpDashboard";
 import LeadMeetingsDashboard from "../../components/leads/LeadMeetingsDashboard";
+import MultipleContactsForm from "../../components/leads/MultipleContactsForm";
 import { formatDate } from "../../utils/helpers";
 import "./LeadList.css";
 
@@ -37,10 +38,12 @@ const LeadList = () => {
   const [currentLead, setCurrentLead] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'cards'
-  const [activeTab, setActiveTab] = useState('followup'); // 'followup' or 'leads'
+  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('leadListTab') || 'followup');
   const [formData, setFormData] = useState({
     fullName: "",
     phone: "",
+    phoneDesignation: "",
+    phoneLabel: "Primary",
     email: "",
     companyName: "",
     service: [],
@@ -51,6 +54,7 @@ const LeadList = () => {
     reference: "",
     status: "New",
   });
+  const [formContacts, setFormContacts] = useState([]);
   const [filterStatus, setFilterStatus] = useState("");
   const [filterSource, setFilterSource] = useState("");
   const [filterHasEmail, setFilterHasEmail] = useState("");
@@ -65,7 +69,94 @@ const LeadList = () => {
   const [selectedTemplate, setSelectedTemplate] = useState('vyapaar-expo-2');
   const [showEmailHistoryModal, setShowEmailHistoryModal] = useState(false);
   const [selectedLeadForHistory, setSelectedLeadForHistory] = useState(null);
+
+  // Team / assignment state — assign access for hod, manager, admin, superadmin only
+  const isManager = ['admin', 'superadmin', 'manager', 'hod'].includes(user?.role);
+  const [myLeadsOnly, setMyLeadsOnly] = useState(() => sessionStorage.getItem('leadListMyOnly') !== 'false');
+  const [filterAssignedTo, setFilterAssignedTo] = useState('');
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assigningLead, setAssigningLead] = useState(null);
+  const [assignTarget, setAssignTarget] = useState('');
   const navigate = useNavigate();
+
+  // Save and restore scroll position and active tab when navigating to/from lead details
+  const scrollKey = 'leadListScrollY';
+
+  // Restore scroll after leads finish loading (or instantly if loaded from cache)
+  useEffect(() => {
+    if (!loading) {
+      const saved = sessionStorage.getItem(scrollKey);
+      if (saved) {
+        // Double rAF ensures layout is fully painted before scrolling
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            window.scrollTo({ top: parseInt(saved), behavior: 'instant' });
+            sessionStorage.removeItem(scrollKey);
+          });
+        });
+      }
+    }
+  }, [loading]);
+
+  // Persist active tab to sessionStorage whenever it changes
+  useEffect(() => {
+    sessionStorage.setItem('leadListTab', activeTab);
+  }, [activeTab]);
+
+  // Persist myLeadsOnly to sessionStorage whenever it changes
+  useEffect(() => {
+    sessionStorage.setItem('leadListMyOnly', myLeadsOnly ? 'true' : 'false');
+  }, [myLeadsOnly]);
+
+  // Show scroll-to-top button when scrolled down
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setShowScrollTop(window.scrollY > 400);
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const handleViewLead = (leadId) => {
+    sessionStorage.setItem(scrollKey, window.scrollY);
+    navigate(`/leads/${leadId}`);
+  };
+
+  // Fetch sales team members for assignment
+  useEffect(() => {
+    if (isManager) {
+      import('../../api/userApi').then(({ userApi }) => {
+        userApi.getAllUsers().then(res => {
+          const users = Array.isArray(res.data) ? res.data : (res.data?.users || []);
+          // Only show Sales department members
+          const salesMembers = users.filter(u => {
+            const deptName = (u.department?.name || u.department || '').toLowerCase();
+            return deptName === 'sales' && ['employee', 'hod', 'manager'].includes(u.role);
+          });
+          setTeamMembers(salesMembers);
+        }).catch(() => {});
+      });
+    }
+  }, [isManager]);
+
+  const handleOpenAssign = (lead) => {
+    setAssigningLead(lead);
+    setAssignTarget(lead.assignedTo?._id || '');
+    setShowAssignModal(true);
+  };
+
+  const handleAssignSubmit = async () => {
+    if (!assignTarget) { toast.error('Select a team member'); return; }
+    try {
+      await leadApi.assignLead(assigningLead._id, assignTarget);
+      toast.success('Lead assigned successfully');
+      setShowAssignModal(false);
+      setAssigningLead(null);
+      fetchLeads(true);
+    } catch {
+      toast.error('Failed to assign lead');
+    }
+  };
 
   // Function to format budget for display (convert old format to new compact format)
   const formatBudgetForDisplay = (budget) => {
@@ -140,16 +231,31 @@ const LeadList = () => {
   ];
 
   useEffect(() => {
-    // Check authentication on component mount
     if (!user || !token) {
       toast.error("Please log in to access lead management");
       navigate("/login");
       return;
     }
-    
-    fetchLeads();
+
+    // If returning from a lead detail (cache exists), load instantly then refresh silently
+    const cached = sessionStorage.getItem(LEADS_CACHE_KEY);
+    const isReturning = !!sessionStorage.getItem(scrollKey);
+
+    if (cached && isReturning && !filterStatus && !filterSource) {
+      try {
+        setLeads(JSON.parse(cached));
+        setLoading(false);
+        // Silently refresh in background
+        fetchLeads(true);
+      } catch {
+        fetchLeads();
+      }
+    } else {
+      fetchLeads();
+    }
+
     fetchEmailTemplates();
-  }, [filterStatus, filterSource, user, token, navigate]);
+  }, [filterStatus, filterSource, myLeadsOnly, filterAssignedTo, user, token, navigate]);
 
   // Handle edit mode when ID is present in URL
   useEffect(() => {
@@ -167,6 +273,8 @@ const LeadList = () => {
       setFormData({
         fullName: response.data.fullName || "",
         phone: response.data.phone || "",
+        phoneDesignation: response.data.phoneDesignation || "",
+        phoneLabel: response.data.phoneLabel || "Primary",
         email: response.data.email || "",
         companyName: response.data.companyName || "",
         service: Array.isArray(response.data.service) ? response.data.service : (response.data.service ? [response.data.service] : []),
@@ -177,6 +285,7 @@ const LeadList = () => {
         reference: response.data.reference || "",
         status: response.data.status || "New",
       });
+      setFormContacts(response.data.contacts || []);
     } catch (error) {
       console.error("Lead fetch error:", error);
       toast.error("Failed to fetch lead for editing");
@@ -184,29 +293,31 @@ const LeadList = () => {
     }
   };
 
-  const fetchLeads = async () => {
+  const LEADS_CACHE_KEY = 'leadListCache';
+
+  const fetchLeads = async (background = false) => {
     try {
-      // Skip if not authenticated
-      if (!user || !token) {
-        return;
-      }
-      
-      setLoading(true);
+      if (!user || !token) return;
+
+      if (!background) setLoading(true);
+
       const params = {};
       if (filterStatus) params.status = filterStatus;
       if (filterSource) params.source = filterSource;
+      if (myLeadsOnly) params.myLeads = 'true';
+      else if (filterAssignedTo) params.assignedTo = filterAssignedTo;
 
       const response = await leadApi.getAllLeads(params);
       setLeads(response.data);
+      sessionStorage.setItem(LEADS_CACHE_KEY, JSON.stringify(response.data));
     } catch (error) {
       console.error("Lead fetch error:", error);
-      
       if (error.response?.status === 401) {
         toast.error("Session expired. Please log in again.");
         navigate("/login");
       }
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   };
 
@@ -214,18 +325,19 @@ const LeadList = () => {
   const canEditLead = (lead) => {
     if (!user) return false;
     
-    // Admin and superadmin can edit any lead
-    if (user.role === 'admin' || user.role === 'superadmin') {
+    // Admin, superadmin, hr, and manager can edit any lead
+    if (['admin', 'superadmin', 'hr', 'manager'].includes(user.role)) {
       return true;
     }
     
     // User can edit if they are assigned to the lead
-    if (lead.assignedTo && lead.assignedTo._id === user.id) {
+    const userId = user.id || user._id;
+    if (lead.assignedTo && (lead.assignedTo._id === userId || lead.assignedTo === userId)) {
       return true;
     }
     
     // User can edit if they created the lead
-    if (lead.createdBy && lead.createdBy._id === user.id) {
+    if (lead.createdBy && (lead.createdBy._id === userId || lead.createdBy === userId)) {
       return true;
     }
     
@@ -281,6 +393,8 @@ const LeadList = () => {
       setFormData({
         fullName: lead.fullName || "",
         phone: lead.phone || "",
+        phoneDesignation: lead.phoneDesignation || "",
+        phoneLabel: lead.phoneLabel || "Primary",
         email: lead.email || "",
         companyName: lead.companyName || "",
         service: Array.isArray(lead.service) ? lead.service : (lead.service ? [lead.service] : []),
@@ -291,12 +405,15 @@ const LeadList = () => {
         reference: lead.reference || "",
         status: lead.status || "New",
       });
+      setFormContacts(lead.contacts || []);
     } else {
       setEditMode(false);
       setCurrentLead(null);
       setFormData({
         fullName: "",
         phone: "",
+        phoneDesignation: "",
+        phoneLabel: "Primary",
         email: "",
         companyName: "",
         service: [],
@@ -307,6 +424,7 @@ const LeadList = () => {
         reference: "",
         status: "New",
       });
+      setFormContacts([]);
     }
     setShowModal(true);
   };
@@ -315,6 +433,7 @@ const LeadList = () => {
     setShowModal(false);
     setEditMode(false);
     setCurrentLead(null);
+    setFormContacts([]);
     // If we were in edit mode from URL, navigate back to list
     if (id) {
       navigate("/leads");
@@ -350,12 +469,12 @@ const LeadList = () => {
       const submitData = {
         ...formData,
         phone: formData.phone ? Number(formData.phone) : undefined,
-        service: formData.service, // Keep as array
-        // Use custom source if provided, otherwise use selected source
-        source: formData.customSource.trim() || formData.source,
+        service: formData.service,
+        source: (formData.customSource || '').trim() || formData.source,
+        contacts: formContacts,
       };
 
-      // Remove customSource from submit data as it's not needed in backend
+      // Remove customSource from submit data
       delete submitData.customSource;
 
       if (editMode) {
@@ -372,51 +491,27 @@ const LeadList = () => {
         navigate("/leads");
       }
     } catch (error) {
-      console.error("Lead submission error:", error);
-      
-      // Handle specific error cases
-      if (error.response?.status === 401) {
+      const status = error.response?.status;
+      const message = error.response?.data?.message;
+
+      if (status === 401) {
         toast.error("Session expired. Please log in again.");
         navigate("/login");
         return;
       }
-      
-      if (error.response?.status === 403) {
-        toast.error("You don't have permission to create leads");
+
+      if (status === 403) {
+        toast.error("You don't have permission to perform this action.");
         return;
       }
-      
-      // Handle validation errors with detailed messages
-      if (error.response?.status === 400) {
-        const errorData = error.response.data;
-        
-        if (errorData.details) {
-          // Show detailed validation errors
-          if (errorData.details.fullName) {
-            toast.error(errorData.details.fullName);
-            return;
-          }
-          if (errorData.details.phone) {
-            toast.error(errorData.details.phone);
-            return;
-          }
-          if (errorData.details.duplicateField) {
-            toast.error(`A lead with this ${errorData.details.duplicateField} already exists`);
-            return;
-          }
-        }
-        
-        // Fallback to general message
-        toast.error(errorData.message || "Please check your input and try again");
+
+      if (status === 400) {
+        // Show the exact server message — it's already human-readable
+        toast.error(message || "Please check your input and try again.");
         return;
       }
-      
-      // Generic error handling
-      toast.error(
-        error.response?.data?.message ||
-          `Failed to ${editMode ? "update" : "create"} lead`
-      );
-    }
+
+      toast.error(message || `Failed to ${editMode ? "update" : "create"} lead.`);    }
   };
 
   const handleDelete = async (id) => {
@@ -693,6 +788,74 @@ const LeadList = () => {
     return formatDate(emailStats.lastEmailSentAt);
   };
 
+  // Generate color-coded badge for assigned team member
+  const getAssignedToColor = (assignedTo) => {
+    if (!assignedTo) return '#E9ECEF';
+    
+    // Generate consistent color based on name hash - use distinct colors
+    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B88B', '#A8E6CF'];
+    const hash = assignedTo.name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[hash % colors.length];
+  };
+
+  const getAssignedToBadge = (lead) => {
+    if (!lead.assignedTo) {
+      return (
+        <span 
+          style={{ 
+            backgroundColor: '#E9ECEF',
+            color: '#495057',
+            fontSize: '0.75rem', 
+            padding: '0.4rem 0.6rem',
+            fontWeight: '600',
+            minWidth: '32px',
+            textAlign: 'center',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: '4px',
+            whiteSpace: 'nowrap',
+            cursor: 'default'
+          }}
+          title="Unassigned"
+        >
+          UN
+        </span>
+      );
+    }
+    
+    const initials = lead.assignedTo.name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+    
+    return (
+      <span 
+        style={{ 
+          backgroundColor: getAssignedToColor(lead.assignedTo),
+          color: '#FFFFFF',
+          fontSize: '0.75rem', 
+          padding: '0.4rem 0.6rem',
+          fontWeight: '600',
+          minWidth: '32px',
+          textAlign: 'center',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: '4px',
+          whiteSpace: 'nowrap',
+          cursor: 'default',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}
+        title={lead.assignedTo.name}
+      >
+        {initials}
+      </span>
+    );
+  };
+
   // Compact lead card component for 3x3 grid layout
   const LeadCard = ({ lead, showCheckbox = false, isSelected = false, onCheckboxChange }) => (
     <Card className="mb-3 lead-card shadow-sm compact-card">
@@ -710,9 +873,12 @@ const LeadList = () => {
               />
             )}
             <div className="flex-grow-1">
-              <h6 className="lead-name mb-1 text-truncate" title={lead.fullName}>
-                {lead.fullName}
-              </h6>
+              <div className="d-flex align-items-center gap-2 mb-1">
+                <h6 className="lead-name mb-0 text-truncate" title={lead.fullName}>
+                  {lead.fullName}
+                </h6>
+                {getAssignedToBadge(lead)}
+              </div>
               <div 
                 className="company-highlight-sm"
                 style={{
@@ -803,7 +969,7 @@ const LeadList = () => {
             <Button
               size="sm"
               variant="outline-primary"
-              onClick={() => navigate(`/leads/${lead._id}`)}
+              onClick={() => handleViewLead(lead._id)}
               title="View Details"
               className="action-btn-xs"
             >
@@ -889,162 +1055,86 @@ const LeadList = () => {
         </Tab>
 
         <Tab eventKey="leads" title="Lead List">
-          {/* View Toggle - Desktop Only */}
-          {!isMobile && (
-            <Row className="mb-3">
-              <Col>
-                <div className="btn-group" role="group">
-                  <Button
-                    variant={viewMode === 'table' ? 'primary' : 'outline-primary'}
-                    size="sm"
-                    onClick={() => setViewMode('table')}
-                    title="Table View"
-                  >
-                    <FaFilter className="me-1" />
-                    Table
-                  </Button>
-                  <Button
-                    variant={viewMode === 'cards' ? 'primary' : 'outline-primary'}
-                    size="sm"
-                    onClick={() => setViewMode('cards')}
-                    title="Card View"
-                  >
-                    <FaEye className="me-1" />
-                    Cards
-                  </Button>
-                </div>
-              </Col>
-            </Row>
-          )}
-
       {/* Filters - Compact Layout */}
-      <Row className="mb-3 filters-row-compact">
-        <Col xs={12}>
-          <div className="d-flex flex-wrap align-items-center gap-2">
-            {/* Status Filter */}
-            <div className="filter-item">
-              <Form.Select
-                size="sm"
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                style={{ minWidth: '140px' }}
-              >
-                <option value="">All Statuses</option>
-                {statusOptions.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </Form.Select>
-            </div>
+      <div className="d-flex align-items-center gap-2 flex-wrap mb-3">
 
-            {/* Source Filter */}
-            <div className="filter-item">
-              <Form.Select
-                size="sm"
-                value={filterSource}
-                onChange={(e) => setFilterSource(e.target.value)}
-                style={{ minWidth: '140px' }}
-              >
-                <option value="">All Sources</option>
-                {sourceOptions.map((source) => (
-                  <option key={source} value={source}>
-                    {source}
-                  </option>
-                ))}
-              </Form.Select>
-            </div>
-
-            {/* Has Email Filter */}
-            <div className="filter-item">
-              <Form.Select
-                size="sm"
-                value={filterHasEmail}
-                onChange={(e) => setFilterHasEmail(e.target.value)}
-                style={{ minWidth: '120px' }}
-              >
-                <option value="">All Leads</option>
-                <option value="yes">Has Email</option>
-                <option value="no">No Email</option>
-              </Form.Select>
-            </div>
-
-            {/* Follow-Up Filter */}
-            <div className="filter-item">
-              <Form.Select
-                size="sm"
-                value={filterFollowUp}
-                onChange={(e) => setFilterFollowUp(e.target.value)}
-                style={{ minWidth: '140px' }}
-              >
-                <option value="">All Follow-Ups</option>
-                <option value="overdue">🔴 Overdue</option>
-                <option value="today">🟡 Today</option>
-                <option value="week">🔵 This Week</option>
-                <option value="none">No Follow-Up</option>
-              </Form.Select>
-            </div>
-
-            {/* Search */}
-            <div className="filter-item flex-grow-1" style={{ minWidth: '200px', maxWidth: '300px' }}>
-              <Form.Control
-                size="sm"
-                type="text"
-                placeholder="Search name, email, phone, company..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-
-            {/* Clear Filters */}
-            <Button
-              size="sm"
-              variant="outline-secondary"
-              onClick={() => {
-                setFilterStatus("");
-                setFilterSource("");
-                setFilterHasEmail("");
-                setFilterFollowUp("");
-                setSearchQuery("");
-              }}
-            >
-              <FaFilter className="me-1" />
-              Clear
-            </Button>
-
-            {/* Bulk Actions */}
-            {filteredLeads.length > 0 && (
-              <>
-                <Button
-                  size="sm"
-                  variant="outline-primary"
-                  onClick={handleSelectAllLeads}
-                  disabled={filteredLeads.filter(lead => lead.email).length === 0}
-                >
-                  <FaCheck className="me-1" />
-                  {selectedLeads.length === filteredLeads.filter(lead => lead.email).length ? 'Deselect' : 'Select All'}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="success"
-                  onClick={handleBulkEmail}
-                  disabled={selectedLeads.length === 0}
-                >
-                  <FaEnvelope className="me-1" />
-                  Send ({selectedLeads.length})
-                </Button>
-              </>
-            )}
-
-            {/* Results Count */}
-            <div className="ms-auto">
-              <small className="text-muted fw-medium">
-                {filteredLeads.length} of {leads.length} leads
-              </small>
-            </div>
+        {/* Table / Cards toggle — desktop only */}
+        {!isMobile && (
+          <div className="btn-group btn-group-sm" role="group">
+            <Button variant={viewMode === 'table' ? 'primary' : 'outline-primary'} size="sm" onClick={() => setViewMode('table')}>Table</Button>
+            <Button variant={viewMode === 'cards' ? 'primary' : 'outline-primary'} size="sm" onClick={() => setViewMode('cards')}>Cards</Button>
           </div>
-        </Col>
-      </Row>
+        )}
+
+        <div className="btn-group btn-group-sm" role="group">
+          <button type="button" className={`btn btn-sm ${!myLeadsOnly ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => { setMyLeadsOnly(false); setFilterAssignedTo(''); }}>All Leads</button>
+          <button type="button" className={`btn btn-sm ${myLeadsOnly ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => { setMyLeadsOnly(true); setFilterAssignedTo(''); }}>My Leads</button>
+        </div>
+
+        {isManager && !myLeadsOnly && (
+          <Form.Select size="sm" value={filterAssignedTo} onChange={(e) => setFilterAssignedTo(e.target.value)} style={{ width: '130px' }}>
+            <option value="">All Members</option>
+            {teamMembers.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
+          </Form.Select>
+        )}
+
+        <Form.Select size="sm" value={filterStatus} onChange={(e) => {
+          if (e.target.value === 'has-email' || e.target.value === 'no-email') {
+            setFilterHasEmail(e.target.value === 'has-email' ? 'yes' : 'no');
+            setFilterStatus('');
+          } else {
+            setFilterHasEmail('');
+            setFilterStatus(e.target.value);
+          }
+        }} style={{ width: '130px' }}>
+          <option value="">All Statuses</option>
+          {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
+          <option disabled>──────</option>
+          <option value="has-email">✉ Has Email</option>
+          <option value="no-email">✉ No Email</option>
+        </Form.Select>
+
+        <Form.Select size="sm" value={filterSource} onChange={(e) => setFilterSource(e.target.value)} style={{ width: '120px' }}>
+          <option value="">All Sources</option>
+          {sourceOptions.map(s => <option key={s} value={s}>{s}</option>)}
+        </Form.Select>
+
+        <Form.Select size="sm" value={filterFollowUp} onChange={(e) => setFilterFollowUp(e.target.value)} style={{ width: '155px' }}>
+          <option value="">All Follow-Ups</option>
+          <option value="overdue">🔴 Overdue</option>
+          <option value="today">🟡 Today</option>
+          <option value="week">🔵 This Week</option>
+          <option value="none">No Follow-Up</option>
+        </Form.Select>
+
+        <Form.Control size="sm" type="text" placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ width: '160px' }} />
+
+        <Button size="sm" variant="outline-secondary" onClick={() => { setFilterStatus(""); setFilterSource(""); setFilterHasEmail(""); setFilterFollowUp(""); setSearchQuery(""); }}>Clear</Button>
+
+        {filteredLeads.filter(l => l.email).length > 0 && (
+          <Button size="sm" variant="outline-primary" onClick={handleSelectAllLeads}>
+            {selectedLeads.length === filteredLeads.filter(l => l.email).length ? 'Deselect All' : 'Select All'}
+          </Button>
+        )}
+
+        <small className="text-muted">{filteredLeads.length} / {leads.length} leads</small>
+      </div>
+
+      {/* Bulk email action bar — only when leads are selected */}
+      {selectedLeads.length > 0 && (
+        <div className="d-flex align-items-center gap-2 mb-3 px-3 py-2 rounded" style={{ background: '#e8f4fd', border: '1px solid #bee3f8' }}>
+          <span className="small fw-medium text-primary">{selectedLeads.length} lead{selectedLeads.length > 1 ? 's' : ''} selected</span>
+          <Button size="sm" variant="outline-primary" onClick={handleSelectAllLeads}>
+            {selectedLeads.length === filteredLeads.filter(l => l.email).length ? 'Deselect All' : 'Select All'}
+          </Button>
+          <Button size="sm" variant="primary" onClick={handleBulkEmail}>
+            <FaEnvelope className="me-1" size={11} /> Send Email to {selectedLeads.length}
+          </Button>
+          <Button size="sm" variant="outline-secondary" onClick={() => setSelectedLeads([])}>
+            Clear Selection
+          </Button>
+        </div>
+      )}
 
       <Row>
         <Col>
@@ -1082,10 +1172,21 @@ const LeadList = () => {
               ) : (
                 // Desktop Table View
                 <div className="table-responsive">
-                  <Table hover className="lead-management-table">
+                  <Table hover className="lead-management-table" style={{ tableLayout: 'fixed', width: '100%' }}>
+                    <colgroup>
+                      <col style={{ width: '24px' }} />
+                      <col style={{ width: '50px' }} />
+                      <col style={{ width: '18%' }} />
+                      <col style={{ width: '16%' }} />
+                      <col style={{ width: '12%' }} />
+                      <col style={{ width: '11%' }} />
+                      <col style={{ width: '11%' }} />
+                      <col style={{ width: '55px' }} />
+                      <col style={{ width: '120px' }} />
+                    </colgroup>
                     <thead className="table-dark">
                       <tr>
-                        <th className="text-center" style={{ width: '40px' }}>
+                        <th className="text-center">
                           <Form.Check
                             type="checkbox"
                             checked={selectedLeads.length === filteredLeads.filter(lead => lead.email).length && filteredLeads.filter(lead => lead.email).length > 0}
@@ -1093,6 +1194,7 @@ const LeadList = () => {
                             disabled={filteredLeads.filter(lead => lead.email).length === 0}
                           />
                         </th>
+                        <th className="text-center">Sl No.</th>
                         <th>Name</th>
                         <th>Company</th>
                         <th>Phone</th>
@@ -1104,11 +1206,11 @@ const LeadList = () => {
                     </thead>
                     <tbody>
                       {filteredLeads.length > 0 ? (
-                        filteredLeads.map((lead) => (
+                        filteredLeads.map((lead, index) => (
                           <tr 
                             key={lead._id} 
                             className="lead-table-row"
-                            onClick={() => navigate(`/leads/${lead._id}`)}
+                            onClick={() => handleViewLead(lead._id)}
                             style={{ cursor: 'pointer' }}
                             title="Click to view lead details"
                           >
@@ -1121,27 +1223,27 @@ const LeadList = () => {
                                 onClick={(e) => e.stopPropagation()}
                               />
                             </td>
+                            <td className="text-muted small text-center">{index + 1}</td>
                             <td>
-                              <div 
-                                className="text-truncate-table fw-bold" 
-                                title={lead.fullName}
-                              >
-                                {lead.fullName}
+                              <div className="d-flex align-items-center gap-2">
+                                <div 
+                                  className="text-truncate fw-bold" 
+                                  title={lead.fullName}
+                                  style={{ flex: 1 }}
+                                >
+                                  {lead.fullName}
+                                </div>
+                                {getAssignedToBadge(lead)}
                               </div>
                             </td>
                             <td>
                               <div 
-                                className="company-highlight"
+                                className="company-highlight text-truncate"
                                 style={{
                                   ...getCompanyStyle(lead.companyName),
-                                  padding: '6px 12px',
-                                  borderRadius: '6px',
-                                  fontSize: '0.85rem',
-                                  maxWidth: '180px',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap',
-                                  transition: 'all 0.2s ease'
+                                  padding: '4px 8px',
+                                  borderRadius: '4px',
+                                  fontSize: '0.82rem',
                                 }}
                                 title={lead.companyName || "Individual"}
                               >
@@ -1150,7 +1252,7 @@ const LeadList = () => {
                             </td>
                             <td>
                               <div 
-                                className="text-truncate-table" 
+                                className="text-truncate small" 
                                 title={lead.phone || "N/A"}
                               >
                                 {lead.phone || "N/A"}
@@ -1159,17 +1261,16 @@ const LeadList = () => {
                             <td>
                               <Badge 
                                 bg={getSourceVariant(lead.source)}
-                                className="text-truncate"
+                                style={{ fontSize: '0.75rem', whiteSpace: 'normal', wordBreak: 'break-word' }}
                                 title={lead.source}
                               >
-                                {lead.source.length > 8 ? lead.source.substring(0, 8) + '...' : lead.source}
+                                {lead.source}
                               </Badge>
                             </td>
                             <td>
                               <Badge 
                                 bg={getStatusVariant(lead.status)}
-                                className="text-truncate"
-                                title={lead.status}
+                                style={{ fontSize: '0.75rem' }}
                               >
                                 {lead.status}
                               </Badge>
@@ -1196,21 +1297,30 @@ const LeadList = () => {
                                 <Button
                                   size="sm"
                                   variant="outline-primary"
-                                  onClick={() => navigate(`/leads/${lead._id}`)}
+                                  onClick={() => handleViewLead(lead._id)}
                                   title="View Lead"
-                                  className="action-btn-compact"
+                                  style={{ padding: '2px 6px', lineHeight: 1 }}
                                 >
-                                  <FaEye size={10} />
+                                  <FaEye size={11} />
                                 </Button>
-                                {canEditLead(lead) && (
+                                <Button
+                                  size="sm"
+                                  variant="outline-success"
+                                  onClick={() => handleShowModal(lead)}
+                                  title="Edit Lead"
+                                  style={{ padding: '2px 6px', lineHeight: 1 }}
+                                >
+                                  <FaEdit size={11} />
+                                </Button>
+                                {isManager && (
                                   <Button
                                     size="sm"
-                                    variant="outline-success"
-                                    onClick={() => handleShowModal(lead)}
-                                    title="Edit Lead"
-                                    className="action-btn-compact"
+                                    variant="outline-secondary"
+                                    onClick={() => handleOpenAssign(lead)}
+                                    title={`Assign — ${lead.assignedTo?.name || 'Unassigned'}`}
+                                    style={{ padding: '2px 6px', lineHeight: 1 }}
                                   >
-                                    <FaEdit size={10} />
+                                    <FaUserCheck size={11} />
                                   </Button>
                                 )}
                                 {(user?.role === 'admin' || user?.role === 'superadmin') && (
@@ -1219,9 +1329,9 @@ const LeadList = () => {
                                     variant="outline-danger"
                                     onClick={() => handleDelete(lead._id)}
                                     title="Delete Lead"
-                                    className="action-btn-compact"
+                                    style={{ padding: '2px 6px', lineHeight: 1 }}
                                   >
-                                    <FaTrash size={10} />
+                                    <FaTrash size={11} />
                                   </Button>
                                 )}
                               </div>
@@ -1230,7 +1340,7 @@ const LeadList = () => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="8" className="text-center py-4">
+                          <td colSpan="9" className="text-center py-4">
                             <div className="text-muted">
                               <FaFilter className="mb-2" size={24} />
                               <p className="mb-0">No leads found</p>
@@ -1307,6 +1417,35 @@ const LeadList = () => {
                     />
                   </Form.Group>
                 </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label className="form-label-modern">Designation</Form.Label>
+                    <Form.Control
+                      type="text"
+                      name="phoneDesignation"
+                      value={formData.phoneDesignation}
+                      onChange={handleChange}
+                      placeholder="e.g., Manager, Director, Owner"
+                      className="form-control-modern"
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label className="form-label-modern">Label</Form.Label>
+                    <Form.Select
+                      name="phoneLabel"
+                      value={formData.phoneLabel}
+                      onChange={handleChange}
+                      className="form-select-modern"
+                    >
+                      <option value="Primary">Primary</option>
+                      <option value="Office">Office</option>
+                      <option value="Personal">Personal</option>
+                      <option value="Other">Other</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
               </Row>
 
               <Row>
@@ -1337,6 +1476,18 @@ const LeadList = () => {
                   </Form.Group>
                 </Col>
               </Row>
+            </div>
+
+            {/* Multiple Contacts Section */}
+            <div className="form-section mb-4">
+              <div className="section-header mb-3">
+                <h5 className="section-title">📞 Additional Contacts</h5>
+                <p className="section-subtitle">Add multiple contact persons with their designations</p>
+              </div>
+              <MultipleContactsForm 
+                contacts={formContacts} 
+                onContactsChange={setFormContacts}
+              />
             </div>
 
             {/* Service Requirements Section */}
@@ -1648,6 +1799,64 @@ const LeadList = () => {
             Send to {selectedLeads.length}
           </Button>
         </div>
+      )}
+
+      {/* Assign Lead Modal */}
+      <Modal show={showAssignModal} onHide={() => setShowAssignModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title className="fs-6">
+            <FaUserCheck className="me-2" />
+            Assign Lead — {assigningLead?.fullName}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Group>
+            <Form.Label className="small fw-medium">Assign to team member</Form.Label>
+            <Form.Select value={assignTarget} onChange={e => setAssignTarget(e.target.value)}>
+              <option value="">— Select member —</option>
+              {teamMembers.map(m => (
+                <option key={m._id} value={m._id}>{m.name}</option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+          {assigningLead?.assignedTo && (
+            <small className="text-muted mt-2 d-block">
+              Currently assigned to: <strong>{assigningLead.assignedTo.name}</strong>
+            </small>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" size="sm" onClick={() => setShowAssignModal(false)}>Cancel</Button>
+          <Button variant="primary" size="sm" onClick={handleAssignSubmit}>Assign</Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Scroll to Top */}
+      {showScrollTop && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          title="Scroll to top"
+          style={{
+            position: 'fixed',
+            bottom: selectedLeads.length > 0 ? '80px' : '24px',
+            right: '24px',
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            background: '#0d6efd',
+            color: '#fff',
+            border: 'none',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1050,
+            transition: 'opacity 0.2s',
+          }}
+        >
+          <FaArrowUp size={14} />
+        </button>
       )}
     </Container>
   );
