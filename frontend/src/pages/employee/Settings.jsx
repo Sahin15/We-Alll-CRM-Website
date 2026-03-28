@@ -399,11 +399,11 @@ const Settings = () => {
                     <tbody>
                       <tr>
                         <td><strong>Version:</strong></td>
-                        <td>4.2.2</td>
+                        <td>4.5.0</td>
                       </tr>
                       <tr>
                         <td><strong>Last Updated:</strong></td>
-                        <td>February 2026</td>
+                        <td>March 2026</td>
                       </tr>
                       <tr>
                         <td><strong>Environment:</strong></td>
