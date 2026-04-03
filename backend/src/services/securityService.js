@@ -385,7 +385,7 @@ class SecurityService {
       await auditLog.save();
       return auditLog;
     } catch (error) {
-      console.error('Failed to log audit event:', error);
+      
       // Don't throw error to avoid breaking the main operation
       return null;
     }
@@ -490,7 +490,7 @@ class SecurityService {
               severity: success ? 'low' : (res.statusCode >= 500 ? 'high' : 'medium')
             });
           } catch (error) {
-            console.error('Audit logging failed:', error);
+            
           }
         });
 

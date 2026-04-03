@@ -13,23 +13,56 @@ export const departmentApi = {
     return response.data;
   },
   
-  getDepartmentById: (id) => api.get(`/departments/${id}`),
-  createDepartment: (data) => api.post("/departments", data),
-  updateDepartment: (id, data) => api.put(`/departments/${id}`, data),
-  deleteDepartment: (id) => api.delete(`/departments/${id}`),
+  getDepartmentById: async (id) => {
+    const response = await api.get(`/departments/${id}`);
+    return response.data;
+  },
+  createDepartment: async (data) => {
+    const response = await api.post("/departments", data);
+    return response.data;
+  },
+  updateDepartment: async (id, data) => {
+    const response = await api.put(`/departments/${id}`, data);
+    return response.data;
+  },
+  deleteDepartment: async (id) => {
+    const response = await api.delete(`/departments/${id}`);
+    return response.data;
+  },
   
   // Department analytics
-  getDepartmentAnalytics: (id) => api.get(`/departments/${id}/analytics`),
-  getAllDepartmentsAnalytics: () => api.get("/departments/analytics/summary"),
+  getDepartmentAnalytics: async (id) => {
+    const response = await api.get(`/departments/${id}/analytics`);
+    return response.data;
+  },
+  getAllDepartmentsAnalytics: async () => {
+    const response = await api.get("/departments/analytics/summary");
+    return response.data;
+  },
   
   // Department members
-  getDepartmentMembers: (id) => api.get(`/departments/${id}/members`),
-  getDepartmentProjects: (id) => api.get(`/departments/${id}/projects`),
-  getDepartmentStats: (id) => api.get(`/departments/${id}/stats`),
+  getDepartmentMembers: async (id) => {
+    const response = await api.get(`/departments/${id}/members`);
+    return response.data;
+  },
+  getDepartmentProjects: async (id) => {
+    const response = await api.get(`/departments/${id}/projects`);
+    return response.data;
+  },
+  getDepartmentStats: async (id) => {
+    const response = await api.get(`/departments/${id}/stats`);
+    return response.data;
+  },
   
   // HoD Management
-  assignHoD: (departmentId, userId) => api.post(`/departments/${departmentId}/assign-hod`, { userId }),
-  removeHoD: (departmentId) => api.delete(`/departments/${departmentId}/remove-hod`),
+  assignHoD: async (departmentId, userId) => {
+    const response = await api.post(`/departments/${departmentId}/assign-hod`, { userId });
+    return response.data;
+  },
+  removeHoD: async (departmentId) => {
+    const response = await api.delete(`/departments/${departmentId}/remove-hod`);
+    return response.data;
+  },
 };
 
 export default departmentApi;

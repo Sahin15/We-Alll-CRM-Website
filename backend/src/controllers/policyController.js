@@ -35,7 +35,7 @@ export const getPolicies = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Error fetching policies:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -55,7 +55,7 @@ export const getPolicyById = async (req, res) => {
     
     res.json(policy);
   } catch (error) {
-    console.error("Error fetching policy:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -99,7 +99,7 @@ export const createPolicy = async (req, res) => {
       policy: populatedPolicy
     });
   } catch (error) {
-    console.error("Error creating policy:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -134,7 +134,7 @@ export const updatePolicy = async (req, res) => {
       policy: updatedPolicy
     });
   } catch (error) {
-    console.error("Error updating policy:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -154,7 +154,7 @@ export const deletePolicy = async (req, res) => {
     
     res.json({ message: "Policy deleted successfully" });
   } catch (error) {
-    console.error("Error deleting policy:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -179,7 +179,7 @@ export const getRecentPolicies = async (req, res) => {
     
     res.json(policies);
   } catch (error) {
-    console.error("Error fetching recent policies:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -190,7 +190,7 @@ export const getPolicyCategories = async (req, res) => {
     const categories = await Policy.distinct("category", { status: "active" });
     res.json(categories);
   } catch (error) {
-    console.error("Error fetching policy categories:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };

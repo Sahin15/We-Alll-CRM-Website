@@ -66,7 +66,7 @@ class LeaveImpactCalculator {
 
       return result;
     } catch (error) {
-      console.error("Error calculating leave deduction:", error);
+      
       throw error;
     }
   }
@@ -105,7 +105,7 @@ class LeaveImpactCalculator {
 
       return leaves;
     } catch (error) {
-      console.error("Error getting leave records:", error);
+      
       return []; // Return empty array on error to prevent calculation failure
     }
   }
@@ -145,7 +145,7 @@ class LeaveImpactCalculator {
 
       return daysDiff;
     } catch (error) {
-      console.error("Error calculating leave days in month:", error);
+      
       return 0;
     }
   }
@@ -206,7 +206,7 @@ class LeaveImpactCalculator {
 
       return Math.round(proportionalSalary);
     } catch (error) {
-      console.error("Error calculating proportional salary:", error);
+      
       return baseSalary; // Return full salary on error
     }
   }
@@ -259,7 +259,7 @@ class LeaveImpactCalculator {
 
       return report;
     } catch (error) {
-      console.error("Error generating leave impact report:", error);
+      
       throw error;
     }
   }
@@ -300,7 +300,7 @@ class LeaveImpactCalculator {
 
       return results;
     } catch (error) {
-      console.error("Error in bulk leave impact calculation:", error);
+      
       throw error;
     }
   }
@@ -368,7 +368,7 @@ class LeaveImpactCalculator {
         // Add more leave balance logic here based on company policy
       };
     } catch (error) {
-      console.error("Error getting leave balance:", error);
+      
       throw error;
     }
   }

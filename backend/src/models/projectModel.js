@@ -40,7 +40,7 @@ const projectSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Pending", "In Progress", "Completed", "On Hold", "Cancelled"],
+      enum: ["Pending", "Active", "On Hold", "Cancelled"],
       default: "Pending",
     },
     priority: {
@@ -101,7 +101,6 @@ const projectSchema = new mongoose.Schema(
       completedSlots: { 
         type: Number, 
         default: 0,
-        index: true
       },
       totalSlots: { 
         type: Number, 
@@ -112,7 +111,6 @@ const projectSchema = new mongoose.Schema(
         default: 0, 
         min: 0, 
         max: 100,
-        index: true
       },
       lastProgressUpdate: { 
         type: Date, 

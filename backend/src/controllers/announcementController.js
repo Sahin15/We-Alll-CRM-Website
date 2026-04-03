@@ -1,7 +1,7 @@
 import Announcement from "../models/announcementModel.js";
 import Notification from "../models/notificationModel.js";
 import User from "../models/userModel.js";
-import notificationService from "../services/notificationService.js";
+import NotificationService from "../services/notificationService.js";
 
 // @desc    Get all announcements
 // @route   GET /api/announcements
@@ -49,7 +49,7 @@ export const getAllAnnouncements = async (req, res) => {
 
     res.status(200).json(announcementsWithReadStatus);
   } catch (error) {
-    console.error("Error in getAllAnnouncements:", error.message);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -75,7 +75,7 @@ export const getAnnouncementById = async (req, res) => {
 
     res.status(200).json(announcement);
   } catch (error) {
-    console.error("Error in getAnnouncementById:", error.message);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -121,7 +121,7 @@ export const createAnnouncement = async (req, res) => {
 
     res.status(201).json(announcement);
   } catch (error) {
-    console.error("Error in createAnnouncement:", error.message);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -169,7 +169,7 @@ export const updateAnnouncement = async (req, res) => {
 
     res.status(200).json(announcement);
   } catch (error) {
-    console.error("Error in updateAnnouncement:", error.message);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -195,14 +195,14 @@ export const deleteAnnouncement = async (req, res) => {
       'data.announcementId': id
     });
 
-    console.log(`Deleted announcement "${announcement.title}" and ${deletedNotifications.deletedCount} related notifications`);
+    
 
     res.status(200).json({ 
       message: "Announcement and related notifications deleted successfully",
       deletedNotifications: deletedNotifications.deletedCount
     });
   } catch (error) {
-    console.error("Error in deleteAnnouncement:", error.message);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -225,7 +225,7 @@ export const markAnnouncementAsRead = async (req, res) => {
 
     res.status(200).json({ message: "Announcement marked as read" });
   } catch (error) {
-    console.error("Error in markAnnouncementAsRead:", error.message);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -266,7 +266,7 @@ export const getUnreadCount = async (req, res) => {
 
     res.status(200).json({ count });
   } catch (error) {
-    console.error("Error in getUnreadCount:", error.message);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -296,10 +296,16 @@ async function createAnnouncementNotifications(announcement, creator) {
     if (targetUsers.length > 0) {
       // Send push notifications using our notification service
       const userIds = targetUsers.map(user => user._id);
-      await notificationService.sendAnnouncementNotification(
+      await NotificationService.sendToMultiple(
         userIds,
-        announcement.title,
-        announcement.content.substring(0, 100) + (announcement.content.length > 100 ? "..." : "")
+        `📢 ${announcement.title}`,
+        announcement.content.substring(0, 100) + (announcement.content.length > 100 ? "..." : ""),
+        {
+          type: 'announcement',
+          data: { announcementId: announcement._id.toString() },
+          actionUrl: '/announcements',
+          senderId: creator._id,
+        }
       );
 
       // Also create database notifications for backward compatibility
@@ -317,10 +323,10 @@ async function createAnnouncementNotifications(announcement, creator) {
       }));
 
       await Notification.insertMany(notifications);
-      console.log(`✅ Created ${notifications.length} notifications for announcement: ${announcement.title}`);
+      
     }
   } catch (error) {
-    console.error("❌ Error creating announcement notifications:", error);
+    
     // Don't throw error - notification creation failure shouldn't block announcement creation
   }
 }

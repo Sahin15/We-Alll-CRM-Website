@@ -10,6 +10,7 @@ import { formatDate } from '../../../utils/helpers';
 import ViewToggle from './ViewToggle';
 import SlotGroupHeader from './SlotGroupHeader';
 import WorkItemDetailsModal from '../../workitems/WorkItemDetailsModal';
+import EditWorkItemModal from '../../workitems/EditWorkItemModal';
 
 /**
  * UnifiedWorkTab - Table view for all work assignment
@@ -1076,111 +1077,16 @@ const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
       )}
 
       {/* Assignment Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Edit Work Item</Modal.Title>
-        </Modal.Header>
-        <Form onSubmit={handleSubmit}>
-          <Modal.Body>
-            <Row>
-              <Col md={12} className="mb-3">
-                <Form.Group>
-                  <Form.Label>Title <span className="text-danger">*</span></Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="Enter work title"
-                    required
-                  />
-                </Form.Group>
-              </Col>
-
-              <Col md={12} className="mb-3">
-                <Form.Group>
-                  <Form.Label>Description</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Enter work description"
-                  />
-                </Form.Group>
-              </Col>
-
-              <Col md={6} className="mb-3">
-                <Form.Group>
-                  <Form.Label>Assign To <span className="text-danger">*</span></Form.Label>
-                  <Form.Select
-                    value={formData.assignedTo}
-                    onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
-                    required
-                  >
-                    <option value="">Select team member...</option>
-                    {teamMembers.map(member => (
-                      <option key={member._id || member} value={member._id || member}>
-                        {member.name || 'Unknown'}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-
-              <Col md={6} className="mb-3">
-                <Form.Group>
-                  <Form.Label>Due Date <span className="text-danger">*</span></Form.Label>
-                  <Form.Control
-                    type="date"
-                    value={formData.dueDate}
-                    onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                    required
-                    min={new Date().toISOString().split('T')[0]}
-                  />
-                </Form.Group>
-              </Col>
-
-              <Col md={6} className="mb-3">
-                <Form.Group>
-                  <Form.Label>Priority</Form.Label>
-                  <Form.Select
-                    value={formData.priority}
-                    onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="urgent">Urgent</option>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-
-              {!isSlotBased && (
-                <Col md={6} className="mb-3">
-                  <Form.Group>
-                    <Form.Label>Type</Form.Label>
-                    <Form.Select
-                      value={formData.type}
-                      onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    >
-                      <option value="task">Task</option>
-                      <option value="content">Content</option>
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-              )}
-            </Row>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowModal(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" type="submit">
-              Update
-            </Button>
-          </Modal.Footer>
-        </Form>
-      </Modal>
+      <EditWorkItemModal
+        show={showModal}
+        onHide={() => setShowModal(false)}
+        workItem={selectedItem}
+        project={project}
+        onSuccess={async () => {
+          await loadData();
+          if (onRefresh) onRefresh();
+        }}
+      />
 
       {/* Add Single Slot Modal */}
       <Modal show={showAddSlotModal} onHide={() => setShowAddSlotModal(false)} centered>

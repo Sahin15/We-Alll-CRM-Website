@@ -18,10 +18,12 @@ import {
   FaTrash,
   FaCheck,
   FaSearch,
+  FaArrowUp,
 } from "react-icons/fa";
 import { toast } from "../../utils/toast";
 import { salaryStructureApi } from "../../api/salaryApi";
 import SalaryStructureForm from "./SalaryStructureForm";
+import SalaryIncrementModal from "./SalaryIncrementModal";
 import api from "../../services/api";
 
 const SalaryStructures = () => {
@@ -29,7 +31,7 @@ const SalaryStructures = () => {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    status: "active",
+    status: "",
     employee: "",
   });
   const [pagination, setPagination] = useState({
@@ -41,6 +43,7 @@ const SalaryStructures = () => {
   const [selectedStructure, setSelectedStructure] = useState(null);
   const [showFormModal, setShowFormModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showIncrementModal, setShowIncrementModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
 
   useEffect(() => {
@@ -102,6 +105,11 @@ const SalaryStructures = () => {
   const handleViewDetails = (structure) => {
     setSelectedStructure(structure);
     setShowDetailModal(true);
+  };
+
+  const handleCreateIncrement = (structure) => {
+    setSelectedStructure(structure);
+    setShowIncrementModal(true);
   };
 
   const handleActivate = async (structureId) => {
@@ -294,6 +302,16 @@ const SalaryStructures = () => {
                     >
                       <FaEye />
                     </Button>
+                    {structure.status === "active" && (
+                      <Button
+                        variant="outline-success"
+                        size="sm"
+                        onClick={() => handleCreateIncrement(structure)}
+                        title="Create salary increment"
+                      >
+                        <FaArrowUp />
+                      </Button>
+                    )}
                     {structure.status === "draft" && (
                       <>
                         <Button
@@ -485,6 +503,17 @@ const SalaryStructures = () => {
           </Modal.Footer>
         </Modal>
       )}
+
+      {/* Salary Increment Modal */}
+      <SalaryIncrementModal
+        show={showIncrementModal}
+        onHide={() => setShowIncrementModal(false)}
+        currentStructure={selectedStructure}
+        onSuccess={() => {
+          setShowIncrementModal(false);
+          fetchSalaryStructures();
+        }}
+      />
     </>
   );
 };

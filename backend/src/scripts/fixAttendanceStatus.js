@@ -48,7 +48,7 @@ const calculateCorrectStatus = (clockIn, currentStatus) => {
 
 const fixAttendanceStatus = async () => {
   try {
-    console.log('🔄 Connecting to database...');
+    
     const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
     
     if (!mongoUri) {
@@ -56,17 +56,17 @@ const fixAttendanceStatus = async () => {
     }
     
     await mongoose.connect(mongoUri);
-    console.log('✅ Connected to database');
+    
 
-    console.log('\n🔍 Finding all attendance records...');
+    
     const allAttendance = await Attendance.find({});
-    console.log(`📊 Found ${allAttendance.length} attendance records`);
+    
 
     let fixedCount = 0;
     let unchangedCount = 0;
     const changes = [];
 
-    console.log('\n🔧 Processing records...\n');
+    
 
     for (const record of allAttendance) {
       const correctStatus = calculateCorrectStatus(record.clockIn, record.status);
@@ -74,12 +74,12 @@ const fixAttendanceStatus = async () => {
       if (record.status !== correctStatus) {
         const clockInTime = record.clockIn ? new Date(record.clockIn).toLocaleTimeString() : 'N/A';
         
-        console.log(`📝 Fixing record ${record._id}:`);
-        console.log(`   Employee: ${record.employee}`);
-        console.log(`   Date: ${new Date(record.date).toLocaleDateString()}`);
-        console.log(`   Clock In: ${clockInTime}`);
-        console.log(`   Old Status: ${record.status} ❌`);
-        console.log(`   New Status: ${correctStatus} ✅\n`);
+        
+        
+        .toLocaleDateString()}`);
+        
+        
+        
         
         changes.push({
           id: record._id,
@@ -97,27 +97,27 @@ const fixAttendanceStatus = async () => {
       }
     }
 
-    console.log('\n' + '='.repeat(60));
-    console.log('📊 SUMMARY');
-    console.log('='.repeat(60));
-    console.log(`Total Records: ${allAttendance.length}`);
-    console.log(`Fixed: ${fixedCount} ✅`);
-    console.log(`Unchanged: ${unchangedCount} ⏭️`);
-    console.log('='.repeat(60));
+    );
+    
+    );
+    
+    
+    
+    );
 
     if (changes.length > 0) {
-      console.log('\n📋 CHANGES MADE:');
+      
       console.table(changes);
     }
 
-    console.log('\n✅ Migration completed successfully!');
+    
     
     await mongoose.connection.close();
-    console.log('🔌 Database connection closed');
+    
     
     process.exit(0);
   } catch (error) {
-    console.error('\n❌ Error during migration:', error);
+    
     await mongoose.connection.close();
     process.exit(1);
   }

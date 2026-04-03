@@ -5,6 +5,7 @@ import Department from "../models/departmentModel.js";
 import logger from '../utils/logger.js';
 import { optimizedProjectPopulate, buildTextSearch } from '../utils/queryOptimizer.js';
 import { canViewAllProjects } from '../utils/permissions.js';
+import NotificationService from "../services/notificationService.js";
 // Temporarily removed imports for debugging
 // import WorkItem from "../models/workItemModel.js";
 // import Slot from "../models/slotModel.js";
@@ -184,14 +185,49 @@ export const createProject = async (req, res) => {
 
     logger.info(`Project created: ${project._id} by ${req.user.email}`);
 
+    // SEND NOTIFICATIONS TO PROJECT TEAM
+    try {
+      const creator = await User.findById(req.user._id).select('name');
+      const creatorName = creator?.name || 'System';
+      
+      // Get all team members to notify (project head + assigned users)
+      const teamMembersToNotify = [...new Set([projectHead, ...finalAssignedUsers])];
+      
+      if (teamMembersToNotify.length > 0) {
+        await NotificationService.sendToMultiple(
+          teamMembersToNotify,
+          '🚀 New Project Created',
+          `${creatorName} created a new project: "${name}"`,
+          {
+            type: 'project_created',
+            data: {
+              projectId: project._id.toString(),
+              projectName: name,
+              projectHead: projectHead,
+              creatorName,
+              startDate: startDate,
+              priority: priority || 'medium',
+            },
+            actionUrl: `/projects/${project._id}`,
+            senderId: req.user._id,
+          }
+        );
+      }
+      
+      
+    } catch (notificationError) {
+      
+      // Don't fail the request if notification fails
+    }
+
     res.status(201).json({
       message: "Project created successfully",
       project: populatedProject,
     });
   } catch (error) {
-    console.error("Error in createProject:", error);
-    console.error("❌ Error message:", error.message);
-    console.error("❌ Error stack:", error.stack);
+    
+    
+    
     logger.error("Error in createProject:", error);
     res.status(500).json({ 
       message: "Server error", 
@@ -252,61 +288,55 @@ export const getProjects = async (req, res) => {
     if (search) {
       Object.assign(query, buildTextSearch(search, ['name', 'description']));
     }
-    
+
     logger.info('Query:', query);
     
     // Optimized query WITHOUT pagination (backward compatible)
+    // Removed work item stats calculation to avoid N+1 queries
     const projects = await Project.find(query)
       .populate(optimizedProjectPopulate())
-      .select('+slotConfiguration +progressTracking +slotManagement') // Include slot system fields
+      .select('name description status progress startDate endDate client department projectHead assignedUsers teamMembers slotConfiguration progressTracking slotManagement workItemStats createdAt') // Include all necessary fields
       .sort({ createdAt: -1 })
       .lean();
-    
-    if (projects.length > 0) {
-      console.log('📊 Raw project from DB:', {
-        name: projects[0].name,
-        assignedUsers: projects[0].assignedUsers,
-        assignedUsersLength: projects[0].assignedUsers?.length
-      });
-    }
 
-    // Add work item statistics to each project
-    const WorkItem = (await import('../models/workItemModel.js')).default;
-    const projectsWithStats = await Promise.all(
-      projects.map(async (project) => {
-        const workItems = await WorkItem.find({ project: project._id }).select('status').lean();
-        const totalItems = workItems.length;
-        const doneItems = workItems.filter(item => item.status === 'Done').length;
-        
-        return {
-          ...project,
-          workItemStats: {
-            total: totalItems,
-            done: doneItems
+    logger.success(`Found ${projects.length} projects`);
+    
+    // Deduplicate assignedUsers and teamMembers in all projects
+    projects.forEach(project => {
+      if (project.assignedUsers && project.assignedUsers.length > 0) {
+        const seenIds = new Set();
+        project.assignedUsers = project.assignedUsers.filter(user => {
+          const userId = user._id?.toString() || user.toString();
+          if (seenIds.has(userId)) {
+            return false;
           }
-        };
-      })
-    );
+          seenIds.add(userId);
+          return true;
+        });
+      }
 
-    logger.success(`Found ${projects.length} projects with stats`);
+      if (project.teamMembers && project.teamMembers.length > 0) {
+        const seenTeamIds = new Set();
+        project.teamMembers = project.teamMembers.filter(member => {
+          const memberId = member.user?._id?.toString() || member.user?.toString();
+          if (seenTeamIds.has(memberId)) {
+            return false;
+          }
+          seenTeamIds.add(memberId);
+          return true;
+        });
+      }
+    });
     
-    // Debug: Log first project to verify assignedUsers
-    if (projectsWithStats.length > 0) {
-      console.log('📊 Sample project being returned:', {
-        name: projectsWithStats[0].name,
-        assignedUsers: projectsWithStats[0].assignedUsers,
-        assignedUsersCount: projectsWithStats[0].assignedUsers?.length,
-        assignedUsersType: typeof projectsWithStats[0].assignedUsers,
-        isArray: Array.isArray(projectsWithStats[0].assignedUsers)
-      });
+    // Log first project's assignedUsers for debugging
+    if (projects.length > 0) {
+      logger.info('[getProjects] First project assignedUsers:', projects[0].assignedUsers);
+      logger.info('[getProjects] First project teamMembers:', projects[0].teamMembers);
+      logger.info('[getProjects] First project projectHead:', projects[0].projectHead);
     }
-    
-    // Additional check: verify all projects have assignedUsers
-    const projectsWithMembers = projectsWithStats.filter(p => p.assignedUsers && p.assignedUsers.length > 0);
-    console.log(`📊 Projects with members: ${projectsWithMembers.length} out of ${projectsWithStats.length}`);
     
     // Return simple array (backward compatible)
-    res.status(200).json(projectsWithStats);
+    res.status(200).json(projects);
   } catch (error) {
     logger.error("Error in getProjects:", error);
     res.status(500).json({ message: "Server error", error: error.message });
@@ -327,20 +357,60 @@ export const updateProjectStatus = async (req, res) => {
     // Authorization check for HoD: can only update status for their own projects
     if (userRole === 'hod') {
       const isProjectHead = project.projectHead?.toString() === userId.toString();
-      const isInDepartment = project.department?.toString() === req.user.headOfDepartment?.toString();
+      const isInDepartment = project.department && req.user.department 
+        ? project.department.toString() === req.user.department.toString()
+        : false;
       
       if (!isProjectHead && !isInDepartment) {
         return res.status(403).json({ message: "You can only update status for your own projects" });
       }
     }
 
+    const oldStatus = project.status;
     project.status = status;
     await project.save();
 
+    // SEND NOTIFICATIONS FOR PROJECT STATUS CHANGE
+    try {
+      const updater = await User.findById(req.user._id).select('name');
+      const updaterName = updater?.name || 'System';
+      
+      // Get all team members to notify
+      const teamMembers = [...new Set([
+        project.projectHead?.toString(),
+        ...(project.assignedUsers?.map(user => user.toString()) || [])
+      ])].filter(Boolean);
+      
+      if (teamMembers.length > 0) {
+        await NotificationService.sendToMultiple(
+          teamMembers,
+          '🔄 Project Status Updated',
+          `${updaterName} changed project "${project.name}" from "${oldStatus}" to "${status}"`,
+          {
+            type: 'project_status_changed',
+            data: {
+              projectId: project._id.toString(),
+              projectName: project.name,
+              oldStatus,
+              newStatus: status,
+              updaterName,
+            },
+            actionUrl: `/projects/${project._id}`,
+            senderId: req.user._id,
+          }
+        );
+      }
+      
+      
+    } catch (notificationError) {
+      
+      // Don't fail the request if notification fails
+    }
+
     res.status(200).json({ message: "Project status updated", project });
   } catch (error) {
-    console.error("Error in updateProjectStatus:", error.message);
-    res.status(500).json({ message: "Server error" });
+    logger.error("Error in updateProjectStatus:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -356,14 +426,18 @@ export const assignUserToProject = async (req, res) => {
       return res.status(404).json({ message: "Project or User not found" });
     }
 
-    if (!project.assignedUsers.includes(userId)) {
+    const userIdString = userId.toString();
+    const isAlreadyAssigned = project.assignedUsers.some(
+      (id) => id.toString() === userIdString
+    );
+    if (!isAlreadyAssigned) {
       project.assignedUsers.push(userId);
       await project.save();
     }
 
     res.status(200).json({ message: "User assigned to project", project });
   } catch (error) {
-    console.error("Error in assignUserToProject:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -384,7 +458,7 @@ export const removeUserFromProject = async (req, res) => {
 
     res.status(200).json({ message: "User removed from project", project });
   } catch (error) {
-    console.error("Error in removeUserFromProject:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -412,7 +486,7 @@ export const getProjectsForUser = async (req, res) => {
 
     res.status(200).json(projects);
   } catch (error) {
-    console.error("Error in getProjectsForUser:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -445,7 +519,7 @@ export const getProjectsForEmployee = async (req, res) => {
 
     res.status(200).json(projects);
   } catch (error) {
-    console.error("Error in getProjectsForEmployee:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -471,6 +545,32 @@ export const getProjectById = async (req, res) => {
 
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
+    }
+
+    // Deduplicate assignedUsers array
+    if (project.assignedUsers && project.assignedUsers.length > 0) {
+      const seenIds = new Set();
+      project.assignedUsers = project.assignedUsers.filter(user => {
+        const userId = user._id?.toString() || user.toString();
+        if (seenIds.has(userId)) {
+          return false;
+        }
+        seenIds.add(userId);
+        return true;
+      });
+    }
+
+    // Deduplicate teamMembers array
+    if (project.teamMembers && project.teamMembers.length > 0) {
+      const seenTeamIds = new Set();
+      project.teamMembers = project.teamMembers.filter(member => {
+        const memberId = member.user?._id?.toString() || member.user?.toString();
+        if (seenTeamIds.has(memberId)) {
+          return false;
+        }
+        seenTeamIds.add(memberId);
+        return true;
+      });
     }
 
     // Client access check
@@ -512,7 +612,9 @@ export const updateProject = async (req, res) => {
     // Authorization check for HoD: can only edit their own projects (project head or department projects)
     if (userRole === 'hod') {
       const isProjectHead = project.projectHead?.toString() === userId.toString();
-      const isInDepartment = project.department?.toString() === req.user.headOfDepartment?.toString();
+      const isInDepartment = project.department && req.user.department
+        ? project.department.toString() === req.user.department.toString()
+        : false;
       
       if (!isProjectHead && !isInDepartment) {
         return res.status(403).json({ message: "You can only edit your own projects" });
@@ -576,7 +678,7 @@ export const updateProject = async (req, res) => {
       project: updatedProject 
     });
   } catch (error) {
-    console.error("Error in updateProject:", error);
+    logger.error("Error in updateProject:", error);
     return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -605,7 +707,7 @@ export const calculateProjectProgress = async (projectId) => {
     
     return progress;
   } catch (error) {
-    console.error('Error calculating project progress:', error);
+    
     return 0;
   }
 };
@@ -651,7 +753,7 @@ export const updateProjectProgress = async (req, res) => {
         progress: newProgress
       });
   } catch (error) {
-    console.error("Error in updateProjectProgress:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -673,7 +775,7 @@ export const addMilestone = async (req, res) => {
 
     return res.status(201).json({ message: "Milestone added", project });
   } catch (error) {
-    console.error("Error in addMilestone:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -702,7 +804,7 @@ export const updateMilestone = async (req, res) => {
 
     return res.status(200).json({ message: "Milestone updated", project });
   } catch (error) {
-    console.error("Error in updateMilestone:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -732,7 +834,7 @@ export const addTask = async (req, res) => {
 
     return res.status(201).json({ message: "Task added", project });
   } catch (error) {
-    console.error("Error in addTask:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -760,7 +862,7 @@ export const updateTask = async (req, res) => {
 
     return res.status(200).json({ message: "Task updated", project });
   } catch (error) {
-    console.error("Error in updateTask:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -782,7 +884,7 @@ export const addDeliverable = async (req, res) => {
 
     return res.status(201).json({ message: "Deliverable added", project });
   } catch (error) {
-    console.error("Error in addDeliverable:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -811,7 +913,7 @@ export const updateDeliverable = async (req, res) => {
 
     return res.status(200).json({ message: "Deliverable updated", project });
   } catch (error) {
-    console.error("Error in updateDeliverable:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -826,7 +928,7 @@ export const deleteProject = async (req, res) => {
 
     return res.status(200).json({ message: "Project deleted" });
   } catch (error) {
-    console.error("Error in deleteProject:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -884,7 +986,7 @@ export const assignProjectHead = async (req, res) => {
       project,
     });
   } catch (error) {
-    console.error("Error in assignProjectHead:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -907,7 +1009,7 @@ export const removeProjectHead = async (req, res) => {
       project,
     });
   } catch (error) {
-    console.error("Error in removeProjectHead:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -961,7 +1063,7 @@ export const assignProjectToDepartment = async (req, res) => {
       data: updatedProject,
     });
   } catch (error) {
-    console.error("Error in assignProjectToDepartment:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error assigning project to department",
@@ -1009,7 +1111,7 @@ export const assignHoP = async (req, res) => {
       user.department &&
       user.department.toString() !== project.department._id.toString()
     ) {
-      console.log(`⚠️ Warning: Assigning user from different department. User dept: ${user.department}, Project dept: ${project.department._id}`);
+      
       // Don't block - just log warning
     }
 
@@ -1042,7 +1144,7 @@ export const assignHoP = async (req, res) => {
       data: updatedProject,
     });
   } catch (error) {
-    console.error("Error in assignHoP:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error assigning Project Manager",
@@ -1104,7 +1206,11 @@ export const addTeamMember = async (req, res) => {
     });
 
     // Also add to assignedUsers for backward compatibility
-    if (!project.assignedUsers.includes(userId)) {
+    const userIdString = userId.toString();
+    const isAlreadyAssigned = project.assignedUsers.some(
+      (id) => id.toString() === userIdString
+    );
+    if (!isAlreadyAssigned) {
       project.assignedUsers.push(userId);
     }
 
@@ -1126,7 +1232,7 @@ export const addTeamMember = async (req, res) => {
       data: updatedProject,
     });
   } catch (error) {
-    console.error("Error in addTeamMember:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error adding team member",
@@ -1174,7 +1280,7 @@ export const removeTeamMember = async (req, res) => {
       data: project,
     });
   } catch (error) {
-    console.error("Error in removeTeamMember:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error removing team member",
@@ -1211,7 +1317,7 @@ export const getProjectTeam = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error in getProjectTeam:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error fetching project team",
@@ -1239,7 +1345,7 @@ export const getMyLeadingProjects = async (req, res) => {
       total: projects.length,
     });
   } catch (error) {
-    console.error("Error in getMyLeadingProjects:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error fetching leading projects",
@@ -1277,7 +1383,7 @@ export const getMyDepartmentProjects = async (req, res) => {
       department: user.headOfDepartment,
     });
   } catch (error) {
-    console.error("Error in getMyDepartmentProjects:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error fetching department projects",

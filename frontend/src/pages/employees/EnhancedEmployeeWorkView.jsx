@@ -362,7 +362,14 @@ const EnhancedEmployeeWorkView = () => {
                               <div key={work._id} className="list-group-item border-0 py-3">
                                 <div className="d-flex justify-content-between align-items-start">
                                   <div className="flex-grow-1">
-                                    <h6 className="mb-1">{work.title}</h6>
+                                    <div className="d-flex align-items-center gap-2 mb-1">
+                                      <h6 className="mb-0">{work.title}</h6>
+                                      {work.slotAssignment?.slotNumber && (
+                                        <Badge bg="info" className="small">
+                                          Slot {work.slotAssignment.slotNumber}
+                                        </Badge>
+                                      )}
+                                    </div>
                                     <p className="mb-1 text-muted small">
                                       {work.description?.substring(0, 100)}
                                       {work.description?.length > 100 ? '...' : ''}
@@ -562,7 +569,14 @@ const EnhancedEmployeeWorkView = () => {
                               <tr key={work._id}>
                                 <td>
                                   <div>
-                                    <strong>{work.title}</strong>
+                                    <div className="d-flex align-items-center gap-2">
+                                      <strong>{work.title}</strong>
+                                      {work.slotAssignment?.slotNumber && (
+                                        <Badge bg="info" className="small">
+                                          Slot {work.slotAssignment.slotNumber}
+                                        </Badge>
+                                      )}
+                                    </div>
                                     <div className="small text-muted">{work.type}</div>
                                   </div>
                                 </td>
@@ -972,7 +986,14 @@ const EnhancedEmployeeWorkView = () => {
                                         {projectWorkItems.slice(0, 2).map(work => (
                                           <div key={work._id} className="d-flex justify-content-between align-items-start mb-2 p-2 bg-light rounded" style={{ fontSize: '0.85rem' }}>
                                             <div className="flex-grow-1 min-width-0">
-                                              <div className="fw-semibold text-truncate">{work.title}</div>
+                                              <div className="d-flex align-items-center gap-1 mb-1">
+                                                <div className="fw-semibold text-truncate">{work.title}</div>
+                                                {work.slotAssignment?.slotNumber && (
+                                                  <Badge bg="info" className="small" style={{ fontSize: '0.7rem' }}>
+                                                    Slot {work.slotAssignment.slotNumber}
+                                                  </Badge>
+                                                )}
+                                              </div>
                                               <div className="d-flex gap-1 mt-1">
                                                 <Badge bg={getStatusColor(work.status)} className="small" style={{ fontSize: '0.7rem' }}>
                                                   {work.status}

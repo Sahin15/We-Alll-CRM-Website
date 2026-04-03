@@ -9,7 +9,21 @@ import CommentInputWithMentions from './CommentInputWithMentions';
 import './WorkItemDetailsModal.css';
 
 const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, currentUser, onAddComment }) => {
-  const [status, setStatus] = useState(workItem?.status || 'To Do');
+  // Helper function to get current user's status for collaborative work
+  const getUserStatus = (item) => {
+    if (!item) return 'To Do';
+    // If multiple assignees, get user's individual status
+    if (item?.assignedToMultiple && item.assignedToMultiple.length > 0) {
+      const userStatus = item.assigneeStatuses?.find(
+        as => as.assigneeId?._id === currentUser?._id || as.assigneeId === currentUser?._id
+      );
+      return userStatus?.status || item.status;
+    }
+    // Single assignee - use global status
+    return item?.status;
+  };
+
+  const [status, setStatus] = useState(getUserStatus(workItem) || 'To Do');
   const [loading, setLoading] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [commentLoading, setCommentLoading] = useState(false);
@@ -259,14 +273,14 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
     const colors = {
       'To Do': 'secondary',
       'In Progress': 'primary',
-      'Review': 'warning',
       'Done': 'success',
     };
     return colors[status] || 'secondary';
   };
 
   const handleStatusUpdate = async (newStatus = status, backDate = null) => {
-    if (newStatus === workItem.status) {
+    const currentUserStatus = getUserStatus(workItem);
+    if (newStatus === currentUserStatus) {
       return;
     }
 
@@ -274,7 +288,7 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
     setStatus(newStatus); // Update local state immediately for better UX
     
     try {
-      await onUpdate(workItem._id, newStatus, workItem.type, backDate);
+      await onUpdate(workItem._id, newStatus, backDate);
       if (onRefresh) {
         onRefresh();
       }
@@ -413,7 +427,7 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
               style={{ padding: '8px 12px', fontSize: '0.85rem' }}
             >
               {workItem.type === 'content' ? <FaCalendar className="me-1" /> : <FaTasks className="me-1" />}
-              {workItem.type === 'content' ? 'Content' : 'Task'}
+              {workItem.type === 'content' ? 'Content' : 'Work Item'}
             </Badge>
             <span style={{ fontSize: '1.1rem', fontWeight: '600' }}>{workItem.title}</span>
           </div>
@@ -675,8 +689,9 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                       <small className="text-muted">Change status to:</small>
                     </div>
                     <div className="d-flex gap-2 flex-wrap">
-                      {['To Do', 'In Progress', 'Review', 'Done'].map((statusOption) => {
-                        const isActive = workItem.status === statusOption;
+                      {['To Do', 'In Progress', 'Done'].map((statusOption) => {
+                        const userStatus = getUserStatus(workItem);
+                        const isActive = userStatus === statusOption;
                         if (isActive) return null;
                         
                         // Special handling for "Done" status - show date picker option
@@ -850,6 +865,39 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Individual Assignee Statuses (for multiple assignees) */}
+              {workItem.assignedToMultiple && workItem.assignedToMultiple.length > 1 && (
+                <div className="mb-4">
+                  <div className="p-3" style={{ background: '#fff', borderRadius: '8px', border: '1px solid #e9ecef' }}>
+                    <div className="d-flex align-items-center mb-3">
+                      <FaTasks className="me-2 text-info" />
+                      <strong style={{ fontSize: '0.85rem', color: '#6c757d' }}>INDIVIDUAL STATUS</strong>
+                    </div>
+                    <div className="d-flex flex-column gap-2">
+                      {workItem.assignedToMultiple.map((assignee) => {
+                        const assigneeStatus = workItem.assigneeStatuses?.find(
+                          as => as.assigneeId?._id === assignee._id || as.assigneeId === assignee._id
+                        );
+                        const currentStatus = assigneeStatus?.status || workItem.status;
+                        
+                        return (
+                          <div key={assignee._id} className="d-flex justify-content-between align-items-center">
+                            <span style={{ fontSize: '0.9rem' }}>{assignee.name}</span>
+                            <Badge bg={getStatusColor(currentStatus)}>
+                              {currentStatus}
+                            </Badge>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Additional Key Information Grid */}
+              <div className="row g-3 mb-4">
                 <div className="col-md-6">
                   <div className="p-3" style={{ background: '#fff', borderRadius: '8px', border: '1px solid #e9ecef' }}>
                     <div className="d-flex align-items-center mb-2">
@@ -1087,7 +1135,7 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                       <div className="text-muted mb-3" style={{ fontSize: '3rem', opacity: 0.3 }}>💬</div>
                       <h6 className="text-muted mb-2">No comments yet</h6>
                       <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>
-                        Be the first to add a comment about this task!
+                        Be the first to add a comment about this work item!
                       </p>
                     </div>
                   );

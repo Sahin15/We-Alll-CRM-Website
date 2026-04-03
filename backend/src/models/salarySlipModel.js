@@ -89,6 +89,7 @@ const salarySlipSchema = new mongoose.Schema(
       tds: { type: Number, default: 0 },
       esi: { type: Number, default: 0 },
       lossOfPay: { type: Number, default: 0 },
+      unpaidLeaveDeduction: { type: Number, default: 0 },
       advances: { type: Number, default: 0 },
       loans: { type: Number, default: 0 },
       otherDeductions: [
@@ -246,6 +247,37 @@ const salarySlipSchema = new mongoose.Schema(
       default: null
     },
     
+    // Pro-rata salary calculation (for mid-month salary changes)
+    isProRata: {
+      type: Boolean,
+      default: false
+    },
+    proRataDetails: {
+      effectiveDate: {
+        type: Date
+      },
+      daysWorkedOld: {
+        type: Number,
+        default: 0
+      },
+      daysWorkedNew: {
+        type: Number,
+        default: 0
+      },
+      totalDaysInMonth: {
+        type: Number,
+        default: 30
+      },
+      oldSalaryStructure: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "SalaryStructure"
+      },
+      breakdown: {
+        type: mongoose.Schema.Types.Mixed,
+        default: null
+      }
+    },
+    
     // Additional status fields for enhanced workflow
     rejectedAt: {
       type: Date
@@ -288,6 +320,7 @@ salarySlipSchema.pre("save", function (next) {
     this.deductions.tds +
     this.deductions.esi +
     this.deductions.lossOfPay +
+    this.deductions.unpaidLeaveDeduction +
     this.deductions.advances +
     this.deductions.loans;
   

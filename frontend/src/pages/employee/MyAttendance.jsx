@@ -56,17 +56,38 @@ const MyAttendance = () => {
       setLoading(true);
       const response = await api.get("/attendance/my-attendance");
       
+      console.log('[ATTENDANCE] Raw response data:', response.data);
+      
       // Format the attendance records
-      const formattedRecords = response.data.map(record => ({
-        date: record.date,
-        clockIn: record.clockIn ? formatTimeShort(record.clockIn) : "-",
-        clockOut: record.clockOut ? formatTimeShort(record.clockOut) : "-",
-        hours: record.workHours ? `${Math.floor(record.workHours)}h ${Math.round((record.workHours % 1) * 60)}m` : "-",
-        breakTime: record.totalBreakTime || 0,
-        breaks: record.breaks || [],
-        status: record.status || "present",
-        workHours: record.workHours || 0,
-      }));
+      const formattedRecords = response.data.map(record => {
+        console.log(`[ATTENDANCE] Processing record for ${new Date(record.date).toLocaleDateString()}: status=${record.status}, clockIn=${record.clockIn}, clockOut=${record.clockOut}`);
+        
+        // For leave days, show "-" for all time-related fields
+        if (record.status === 'on-leave') {
+          console.log(`[ATTENDANCE] Leave day detected - setting all times to "-"`);
+          return {
+            date: record.date,
+            clockIn: "-",
+            clockOut: "-",
+            hours: "-",
+            breakTime: 0,
+            breaks: [],
+            status: record.status,
+            workHours: 0,
+          };
+        }
+        
+        return {
+          date: record.date,
+          clockIn: record.clockIn ? formatTimeShort(record.clockIn) : "-",
+          clockOut: record.clockOut ? formatTimeShort(record.clockOut) : "-",
+          hours: record.workHours ? `${Math.floor(record.workHours)}h ${Math.round((record.workHours % 1) * 60)}m` : "-",
+          breakTime: record.totalBreakTime || 0,
+          breaks: record.breaks || [],
+          status: record.status || "present",
+          workHours: record.workHours || 0,
+        };
+      });
       
       setAttendanceRecords(formattedRecords);
       

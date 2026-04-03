@@ -63,31 +63,31 @@ router.get("/me", protect, async (req, res) => {
     
     res.json({ user });
   } catch (error) {
-    console.error("Error fetching user profile:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
 // Document download routes (MUST be before other document routes and /:id routes)
 router.get("/documents/:documentId/download", protect, (req, res, next) => {
-  console.log('[DOWNLOAD ROUTE] GET /documents/:documentId/download called');
-  console.log('[DOWNLOAD ROUTE] Document ID:', req.params.documentId);
-  console.log('[DOWNLOAD ROUTE] User:', req.user?.name, req.user?.email);
+  
+  
+  
   next();
 }, downloadDocument);
 router.get("/official-documents/:documentId/download", protect, (req, res, next) => {
-  console.log('[DOWNLOAD ROUTE] GET /official-documents/:documentId/download called');
-  console.log('[DOWNLOAD ROUTE] Document ID:', req.params.documentId);
+  
+  
   next();
 }, downloadDocument);
 
 // New document routes to match frontend expectations (MUST be before /:id route)
 router.get("/documents", protect, (req, res, next) => {
-  console.log('[USER ROUTES] GET /documents called');
+  
   next();
 }, getUserDocuments);
 router.get("/official-documents", protect, (req, res, next) => {
-  console.log('[USER ROUTES] GET /official-documents called');
+  
   next();
 }, getOfficialDocuments);
 router.post("/documents", protect, documentUpload.single('document'), uploadUserDocument);
@@ -96,29 +96,29 @@ router.post("/:id/official-documents", protect, authorizeRoles("admin", "superad
   try {
     const { id: userId } = req.params;
 
-    console.log('[OFFICIAL UPLOAD ROUTE] ========== START ==========');
-    console.log('[OFFICIAL UPLOAD ROUTE] Target User ID:', userId);
-    console.log('[OFFICIAL UPLOAD ROUTE] Uploaded by:', req.user?.name, req.user?.email);
-    console.log('[OFFICIAL UPLOAD ROUTE] File:', req.file ? req.file.originalname : 'NO FILE');
+    
+    
+    
+    
 
     if (!req.file) {
-      console.log('[OFFICIAL UPLOAD ROUTE] ERROR: No file uploaded');
+      
       return res.status(400).json({ message: "No file uploaded" });
     }
 
     // Set the target user ID in the request for the controller
     req.targetUserId = userId;
     
-    console.log('[OFFICIAL UPLOAD ROUTE] Calling uploadOfficialDocument controller...');
+    
     
     // Call the controller function
     await uploadOfficialDocument(req, res);
     
-    console.log('[OFFICIAL UPLOAD ROUTE] ========== END ==========');
+    
   } catch (error) {
-    console.error('[OFFICIAL UPLOAD ROUTE] ========== ERROR ==========');
-    console.error('[OFFICIAL UPLOAD ROUTE] Error:', error);
-    console.error('[OFFICIAL UPLOAD ROUTE] Error stack:', error.stack);
+    
+    
+    
     
     // Only send response if not already sent
     if (!res.headersSent) {
@@ -147,7 +147,7 @@ router.patch("/clear-broken-profile-picture", protect, async (req, res) => {
     const { clearBrokenProfilePicture } = await import("../controllers/uploadController.js");
     await clearBrokenProfilePicture(req, res);
   } catch (error) {
-    console.error("Error importing clearBrokenProfilePicture:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
@@ -173,7 +173,7 @@ router.get("/:id/documents", protect, authorizeRoles("admin", "superadmin", "hr"
 
     res.json(transformedDocuments);
   } catch (error) {
-    console.error("Error fetching user documents:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
@@ -238,7 +238,7 @@ router.put("/:id/reset-password", protect, authorizeRoles("admin", "superadmin",
 
     res.json({ message: "Password reset successfully" });
   } catch (error) {
-    console.error("Error resetting password:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });

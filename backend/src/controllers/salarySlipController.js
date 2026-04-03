@@ -5,6 +5,12 @@ import LeaveRequest from "../models/leaveRequestModel.js";
 import WorkingDaysCalculator from "../services/workingDaysCalculator.js";
 import LeaveImpactCalculator from "../services/leaveImpactCalculator.js";
 import notificationService from "../services/notificationService.js";
+import { calculateProRataSalarySlip } from "../utils/proRataSalaryCalculator.js";
+import { 
+  calculateUnpaidLeaveDeductionForSalarySlip,
+  getUnpaidLeaveDaysForMonth,
+  calculateUnpaidLeaveDeductionWithProRata 
+} from "../utils/unpaidLeaveDeductionCalculator.js";
 import path from "path";
 import fs from "fs";
 
@@ -15,6 +21,99 @@ const getMonthName = (month) => {
     "July", "August", "September", "October", "November", "December"
   ];
   return months[month - 1];
+};
+
+/**
+ * Check if there's a mid-month salary change and calculate pro-rata if needed
+ * @param {string} employeeId - Employee ID
+ * @param {number} month - Month (1-12)
+ * @param {number} year - Year
+ * @param {Object} currentStructure - Current active salary structure
+ * @returns {Object} Pro-rata calculation data or empty object if no pro-rata needed
+ */
+const checkAndCalculateProRata = async (employeeId, month, year, currentStructure) => {
+  try {
+    // Get all salary structures for this employee, sorted by effective date
+    const allStructures = await SalaryStructure.find({ employee: employeeId })
+      .sort({ effectiveFrom: -1 });
+
+    if (allStructures.length < 2) {
+      // No previous structure, no pro-rata needed
+      return {
+        isProRata: false,
+        earnings: {},
+        deductions: {}
+      };
+    }
+
+    // Get the previous structure (before current one)
+    const previousStructure = allStructures[1];
+
+    // Check if the current structure became effective in this month
+    const effectiveDate = new Date(currentStructure.effectiveFrom);
+    const monthStart = new Date(year, month - 1, 1);
+    const monthEnd = new Date(year, month, 0);
+
+    // If effective date is not in this month, no pro-rata needed
+    if (effectiveDate < monthStart || effectiveDate > monthEnd) {
+      return {
+        isProRata: false,
+        earnings: {},
+        deductions: {}
+      };
+    }
+
+    // If effective date is the first day of month, no pro-rata needed
+    if (effectiveDate.getDate() === 1) {
+      return {
+        isProRata: false,
+        earnings: {},
+        deductions: {}
+      };
+    }
+
+    // Calculate pro-rata salary
+    const proRataCalculation = calculateProRataSalarySlip({
+      oldStructure: previousStructure,
+      newStructure: currentStructure,
+      effectiveDate: effectiveDate,
+      monthDate: monthStart
+    });
+
+    // Extract pro-rata earnings and deductions
+    const proRataEarnings = {};
+    const proRataDeductions = {};
+
+    // Map earnings
+    Object.keys(proRataCalculation.earnings).forEach(key => {
+      proRataEarnings[key] = proRataCalculation.earnings[key].proRata;
+    });
+
+    // Map deductions
+    Object.keys(proRataCalculation.deductions).forEach(key => {
+      proRataDeductions[key] = proRataCalculation.deductions[key].proRata;
+    });
+
+    return {
+      isProRata: true,
+      effectiveDate: effectiveDate,
+      daysWorkedOld: proRataCalculation.daysWorkedOld,
+      daysWorkedNew: proRataCalculation.daysWorkedNew,
+      totalDaysInMonth: proRataCalculation.totalDaysInMonth,
+      oldStructureId: previousStructure._id,
+      earnings: proRataEarnings,
+      deductions: proRataDeductions,
+      breakdown: proRataCalculation
+    };
+  } catch (error) {
+    console.error('Error calculating pro-rata salary:', error);
+    // Return empty pro-rata data on error
+    return {
+      isProRata: false,
+      earnings: {},
+      deductions: {}
+    };
+  }
 };
 
 // Helper function to calculate working days and attendance using enhanced calculator
@@ -77,10 +176,10 @@ const calculateAttendance = async (employeeId, month, year) => {
       lossOfPayAmount: leaveImpactResult.deductionAmount
     };
   } catch (error) {
-    console.error("Error in enhanced attendance calculation:", error);
+    
     
     // Fallback to legacy calculation
-    console.warn("Falling back to legacy attendance calculation");
+    
     return await calculateAttendanceLegacy(employeeId, month, year);
   }
 };
@@ -204,19 +303,22 @@ export const generateSalarySlip = async (req, res) => {
       });
     }
 
+    // Check for mid-month salary changes (pro-rata calculation)
+    const proRataData = await checkAndCalculateProRata(employeeId, month, year, salaryStructure);
+
     // Calculate attendance using enhanced calculator
     const attendance = await calculateAttendance(employeeId, month, year);
 
     // Calculate Loss of Pay using enhanced calculation
     const lossOfPay = attendance.lossOfPayAmount || attendance.leaveImpactDetails.totalLeaveDeduction;
 
-    // Prepare earnings (copy from salary structure)
+    // Prepare earnings (use pro-rata values if applicable)
     const earnings = {
-      basicSalary: salaryStructure.basicSalary,
-      hra: salaryStructure.hra,
-      specialAllowance: salaryStructure.specialAllowance,
-      transportAllowance: salaryStructure.transportAllowance,
-      medicalAllowance: salaryStructure.medicalAllowance,
+      basicSalary: proRataData.earnings.basicSalary || salaryStructure.basicSalary,
+      hra: proRataData.earnings.hra || salaryStructure.hra,
+      specialAllowance: proRataData.earnings.specialAllowance || salaryStructure.specialAllowance,
+      transportAllowance: proRataData.earnings.transportAllowance || salaryStructure.transportAllowance,
+      medicalAllowance: proRataData.earnings.medicalAllowance || salaryStructure.medicalAllowance,
       otherAllowances: salaryStructure.otherAllowances || [],
       bonus: bonus || 0,
       overtime: overtime || 0,
@@ -225,17 +327,53 @@ export const generateSalarySlip = async (req, res) => {
       incentives: incentives || 0
     };
 
-    // Prepare deductions (copy from salary structure + additional)
+    // Prepare deductions (use pro-rata values if applicable)
     const deductions = {
-      providentFund: salaryStructure.providentFund,
-      professionalTax: salaryStructure.professionalTax,
-      tds: salaryStructure.tds,
-      esi: salaryStructure.esi,
+      providentFund: proRataData.deductions.providentFund || salaryStructure.providentFund,
+      professionalTax: proRataData.deductions.professionalTax || salaryStructure.professionalTax,
+      tds: proRataData.deductions.tds || salaryStructure.tds,
+      esi: proRataData.deductions.esi || salaryStructure.esi,
       lossOfPay: Math.round(lossOfPay),
       advances: advances || 0,
       loans: loans || 0,
       otherDeductions: salaryStructure.otherDeductions || []
     };
+
+    // Calculate unpaid leave deduction
+    let unpaidLeaveDeduction = 0;
+    let unpaidLeaveDetails = null;
+
+    try {
+      // Get all approved leave requests for the employee in this month
+      const leaveRequests = await LeaveRequest.find({
+        employee: employeeId,
+        status: 'approved',
+        leaveType: 'unpaid',
+        startDate: { $lte: new Date(year, month, 0) },
+        endDate: { $gte: new Date(year, month - 1, 1) }
+      });
+
+      // Get unpaid leave days for this month
+      const unpaidLeaveDays = getUnpaidLeaveDaysForMonth(leaveRequests, month, year);
+
+      if (unpaidLeaveDays > 0) {
+        // Calculate unpaid leave deduction
+        unpaidLeaveDetails = calculateUnpaidLeaveDeductionForSalarySlip({
+          salaryStructure,
+          unpaidLeaveDays,
+          month,
+          year
+        });
+
+        unpaidLeaveDeduction = unpaidLeaveDetails.totalDeduction;
+      }
+    } catch (error) {
+      console.error('Error calculating unpaid leave deduction:', error);
+      // Continue without unpaid leave deduction if calculation fails
+    }
+
+    // Add unpaid leave deduction to deductions
+    deductions.unpaidLeaveDeduction = Math.round(unpaidLeaveDeduction);
 
     // Calculate YTD
     const ytd = await SalarySlip.calculateYTD(employeeId, year, month - 1);
@@ -260,6 +398,17 @@ export const generateSalarySlip = async (req, res) => {
       workingDaysCalculation: attendance.workingDaysCalculation,
       leaveImpactDetails: attendance.leaveImpactDetails,
       
+      // Pro-rata information
+      isProRata: proRataData.isProRata,
+      proRataDetails: proRataData.isProRata ? {
+        effectiveDate: proRataData.effectiveDate,
+        daysWorkedOld: proRataData.daysWorkedOld,
+        daysWorkedNew: proRataData.daysWorkedNew,
+        totalDaysInMonth: proRataData.totalDaysInMonth,
+        oldSalaryStructure: proRataData.oldStructureId,
+        breakdown: proRataData.breakdown
+      } : null,
+      
       earnings,
       deductions,
       ytd,
@@ -279,17 +428,18 @@ export const generateSalarySlip = async (req, res) => {
         month,
         year
       );
-      console.log("✅ Salary slip notification sent to employee");
+      
     } catch (notificationError) {
-      console.error("⚠️ Error sending salary slip notification:", notificationError);
+      
     }
 
     res.status(201).json({
       message: "Salary slip generated successfully",
-      salarySlip
+      salarySlip,
+      proRataApplied: proRataData.isProRata
     });
   } catch (error) {
-    console.error("Error generating salary slip:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -437,7 +587,7 @@ export const bulkGenerateSalarySlips = async (req, res) => {
       results
     });
   } catch (error) {
-    console.error("Error in bulk generation:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -477,7 +627,7 @@ export const getAllSalarySlips = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Error fetching salary slips:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -521,7 +671,7 @@ export const getEmployeeSalarySlips = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Error fetching employee salary slips:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -539,7 +689,7 @@ export const getMySalarySlips = async (req, res) => {
 
     res.status(200).json(slips);
   } catch (error) {
-    console.error("Error fetching my salary slips:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -582,7 +732,7 @@ export const getSalarySlipById = async (req, res) => {
 
     res.status(200).json(slip);
   } catch (error) {
-    console.error("Error fetching salary slip:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -633,7 +783,7 @@ export const updateSalarySlip = async (req, res) => {
       salarySlip: slip
     });
   } catch (error) {
-    console.error("Error updating salary slip:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -664,7 +814,7 @@ export const deleteSalarySlip = async (req, res) => {
       message: "Salary slip deleted successfully"
     });
   } catch (error) {
-    console.error("Error deleting salary slip:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -690,7 +840,7 @@ export const markAsPaid = async (req, res) => {
       salarySlip: slip
     });
   } catch (error) {
-    console.error("Error marking slip as paid:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -719,7 +869,7 @@ export const trackDownload = async (req, res) => {
       message: "Download tracked successfully"
     });
   } catch (error) {
-    console.error("Error tracking download:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -788,8 +938,8 @@ export const getPayrollSummary = async (req, res) => {
       }
     ]);
 
-    console.log(`Found ${slipsWithDepartments.length} salary slips for ${month}/${year}`);
-    console.log("Sample slip:", slipsWithDepartments[0]);
+    
+    
 
     const summary = {
       totalEmployees: slipsWithDepartments.length,
@@ -837,17 +987,9 @@ export const getPayrollSummary = async (req, res) => {
       summary.byDepartment[deptName].totalNetSalary += netSalary;
     });
 
-    console.log("Final summary:", {
-      totalEmployees: summary.totalEmployees,
-      totalGrossSalary: summary.totalGrossSalary,
-      totalDeductions: summary.totalDeductions,
-      totalNetSalary: summary.totalNetSalary,
-      departmentCount: Object.keys(summary.byDepartment).length
-    });
-
     res.status(200).json(summary);
   } catch (error) {
-    console.error("Error fetching payroll summary:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -935,14 +1077,14 @@ export const downloadSalarySlipPDF = async (req, res) => {
     fileStream.pipe(res);
     
     fileStream.on('error', (error) => {
-      console.error("Error reading PDF file:", error);
+      
       if (!res.headersSent) {
         res.status(500).json({ message: "Error reading PDF file" });
       }
     });
 
   } catch (error) {
-    console.error("Error generating PDF:", error);
+    
     if (!res.headersSent) {
       res.status(500).json({
         message: "Server error",
@@ -1022,7 +1164,7 @@ export const sendSalarySlipEmail = async (req, res) => {
       salarySlip: slip
     });
   } catch (error) {
-    console.error("Error sending salary slip email:", error);
+    
     res.status(500).json({
       message: "Failed to send email",
       error: error.message
@@ -1117,7 +1259,7 @@ export const sendBulkSalarySlipEmails = async (req, res) => {
       results
     });
   } catch (error) {
-    console.error("Error sending bulk emails:", error);
+    
     res.status(500).json({
       message: "Failed to send bulk emails",
       error: error.message

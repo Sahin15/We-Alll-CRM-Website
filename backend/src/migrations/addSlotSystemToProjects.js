@@ -354,11 +354,11 @@ export {
 if (import.meta.url === `file://${process.argv[1]}`) {
   runSlotSystemMigration()
     .then((results) => {
-      console.log('Migration completed successfully:', results);
+      
       process.exit(0);
     })
     .catch((error) => {
-      console.error('Migration failed:', error);
+      
       process.exit(1);
     });
 }

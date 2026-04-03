@@ -24,8 +24,10 @@ import {
 } from "react-icons/fa";
 import toast from "../../utils/toast";
 import api from "../../services/api";
+import { useAuth } from "../../context/AuthContext";
 
 const MeetingManagement = () => {
+  const { user } = useAuth();
   const [meetings, setMeetings] = useState([]);
   const [filteredMeetings, setFilteredMeetings] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -77,10 +79,12 @@ const MeetingManagement = () => {
   const fetchMeetings = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/meetings/all");
+      // Fetch all company meetings
+      const response = await api.get("/meetings");
       const allMeetings = response.data;
       
       setMeetings(allMeetings);
+      setFilteredMeetings(allMeetings);
       
       // Calculate statistics
       setStats({
@@ -91,8 +95,11 @@ const MeetingManagement = () => {
       });
     } catch (error) {
       console.error("Error fetching meetings:", error);
-      if (error.response?.status === 403 || error.response?.status === 404) {
-        toast.error("You don't have permission to view all meetings");
+      if (error.response?.status === 403) {
+        console.error("403 Forbidden - User role may not have permission");
+        toast.error("You don't have permission to view meetings");
+      } else if (error.response?.status === 404) {
+        toast.error("Meetings endpoint not found");
       } else {
         toast.error("Failed to fetch meetings");
       }
@@ -256,10 +263,12 @@ const MeetingManagement = () => {
               <FaCalendarAlt className="me-2 text-primary" />
               Meeting Management
             </h5>
-            <Button variant="primary" size="sm" onClick={handleCreateMeeting}>
-              <FaPlus className="me-2" />
-              Schedule Meeting
-            </Button>
+            <div className="d-flex align-items-center gap-2">
+              <Button variant="primary" size="sm" onClick={handleCreateMeeting}>
+                <FaPlus className="me-2" />
+                Schedule Meeting
+              </Button>
+            </div>
           </div>
         </Card.Header>
         <Card.Body>

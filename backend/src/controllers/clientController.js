@@ -9,15 +9,11 @@ import User from "../models/userModel.js";
 import logger from '../utils/logger.js';
 import { buildTextSearch } from '../utils/queryOptimizer.js';
 import { securityService } from '../services/securityService.js';
+import NotificationService from "../services/notificationService.js";
 
 // Add new client
 export const createClient = async (req, res) => {
   try {
-    // Debug logging
-    console.log('=== CREATE CLIENT DEBUG ===');
-    console.log('Request body:', JSON.stringify(req.body, null, 2));
-    console.log('User:', req.user ? { id: req.user.id, role: req.user.role } : 'No user');
-    
     const {
       name,
       email,
@@ -37,24 +33,21 @@ export const createClient = async (req, res) => {
       serviceCompany,
     } = req.body;
 
-    console.log('Extracted fields:', {
-      name, email, phone, company, serviceCompany, 
-      hasUser: !!req.user, userId: req.user?.id
-    });
+    
 
     if (!req.user || !req.user.id) {
-      console.log('Authentication failed: No user or user ID');
+      
       return res.status(401).json({ message: "Authentication required" });
     }
 
     if (!name || !email) {
-      console.log('Validation failed: Missing name or email');
+      
       return res.status(400).json({ message: "Name and email are required" });
     }
 
     const existingClient = await Client.findOne({ email });
     if (existingClient) {
-      console.log('Client already exists with email:', email);
+      
       return res.status(400).json({ message: "Client already exists" });
     }
 
@@ -91,15 +84,13 @@ export const createClient = async (req, res) => {
       clientData.audienceGender = audienceGender;
     }
 
-    console.log('Final client data to create:', JSON.stringify(clientData, null, 2));
-    
     const client = await Client.create(clientData);
-    console.log('Client created successfully:', client._id);
+    
 
     // Automatically create a project for the new client
     try {
-      console.log('=== CREATING PROJECT FOR CLIENT ===');
-      console.log('Testing Project model availability...');
+      
+      
       
       // Test if Project model is available
       if (!Project) {
@@ -116,14 +107,11 @@ export const createClient = async (req, res) => {
         createdBy: req.user.id,
       };
 
-      console.log('Project data to create:', JSON.stringify(projectData, null, 2));
-      console.log('About to call Project.create...');
-      
       const project = await Project.create(projectData);
       
-      console.log('Project created successfully:', project._id);
-      console.log('Project name:', project.name);
-      console.log('About to send response...');
+      
+      
+      
 
       // Send a clean response without circular references
       const responseData = {
@@ -144,16 +132,34 @@ export const createClient = async (req, res) => {
         }
       };
 
-      console.log('Sending response:', JSON.stringify(responseData, null, 2));
       res.status(201).json(responseData);
-      console.log('Response sent successfully');
+      
+
+      // Notify sales team about new client
+      try {
+        const creator = await User.findById(req.user.id).select('name');
+        const creatorName = creator?.name || 'Team member';
+        await NotificationService.sendToRole(
+          'sales',
+          '🤝 New Client Added',
+          `${creatorName} added a new client: ${name}${company ? ` (${company})` : ''}`,
+          {
+            type: 'client_created',
+            data: { clientId: client._id.toString(), clientName: name },
+            actionUrl: `/clients/${client._id}`,
+            senderId: req.user.id,
+          }
+        );
+      } catch (notificationError) {
+        
+      }
     } catch (projectError) {
-      console.log('=== PROJECT CREATION ERROR ===');
-      console.log('Error name:', projectError.name);
-      console.log('Error message:', projectError.message);
-      console.log('Error code:', projectError.code);
-      console.log('Error stack:', projectError.stack);
-      console.log('Full project error:', projectError);
+      
+      
+      
+      
+      
+      
       
       // Client was created successfully, but project creation failed
       // Still return success for client creation
@@ -164,18 +170,18 @@ export const createClient = async (req, res) => {
       });
     }
   } catch (error) {
-    console.log('=== CREATE CLIENT ERROR ===');
-    console.log('Error name:', error.name);
-    console.log('Error message:', error.message);
-    console.log('Error code:', error.code);
-    console.log('Full error:', error);
+    
+    
+    
+    
+    
     
     logger.error("Error creating client:", error);
     
     // Handle specific validation errors
     if (error.name === 'ValidationError') {
       const validationErrors = Object.values(error.errors).map(err => err.message);
-      console.log('Validation errors:', validationErrors);
+      
       return res.status(400).json({ 
         message: "Validation error", 
         errors: validationErrors,
@@ -185,13 +191,13 @@ export const createClient = async (req, res) => {
     
     // Handle duplicate key error (email already exists)
     if (error.code === 11000) {
-      console.log('Duplicate key error for email');
+      
       return res.status(400).json({ 
         message: "Client with this email already exists" 
       });
     }
     
-    console.log('Sending 500 server error');
+    
     res.status(500).json({ 
       message: "Server error", 
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
@@ -255,8 +261,6 @@ export const getClientById = async (req, res) => {
       // For employees, check if they're assigned to any project for this client
       const Project = (await import('../models/projectModel.js')).default;
       
-      console.log(`🔍 Checking client access for user ${req.user.id} (${req.user.role}) on client ${req.params.id}`);
-      
       const assignedProject = await Project.findOne({
         client: req.params.id,
         $or: [
@@ -266,16 +270,16 @@ export const getClientById = async (req, res) => {
         ]
       });
 
-      console.log(`📊 Found assigned project:`, assignedProject ? assignedProject._id : 'None');
+      
 
       if (!assignedProject) {
-        console.log(`❌ Access denied for user ${req.user.id} to client ${req.params.id}`);
+        
         return res.status(403).json({ 
           message: "Access denied. You must be assigned to a project for this client to view their details." 
         });
       }
       
-      console.log(`✅ Access granted for user ${req.user.id} to client ${req.params.id}`);
+      
     }
 
     res.status(200).json(client);
@@ -426,6 +430,36 @@ export const updateClient = async (req, res) => {
     });
     if (!client) return res.status(404).json({ message: "Client not found" });
 
+    // Notify admins/managers when client status changes
+    if (sanitizedData.status && sanitizedData.status !== currentClient.status) {
+      try {
+        const updater = await User.findById(req.user.id).select('name');
+        const updaterName = updater?.name || 'Team member';
+        const notifyRoles = ['admin', 'superadmin', 'manager'];
+        const managers = await User.find({ role: { $in: notifyRoles } }).select('_id');
+        for (const manager of managers) {
+          await NotificationService.sendToUser(
+            manager._id,
+            '🔄 Client Status Changed',
+            `${client.name} status changed from "${currentClient.status}" to "${sanitizedData.status}" by ${updaterName}`,
+            {
+              type: 'client_status_changed',
+              data: {
+                clientId: client._id.toString(),
+                clientName: client.name,
+                oldStatus: currentClient.status,
+                newStatus: sanitizedData.status,
+              },
+              actionUrl: `/clients/${client._id}`,
+              senderId: req.user.id,
+            }
+          );
+        }
+      } catch (notificationError) {
+        
+      }
+    }
+
     // If status changed to "Lost", put all projects and work items on hold
     if (isStatusChangingToLost) {
       try {
@@ -454,7 +488,7 @@ export const updateClient = async (req, res) => {
 
     res.status(200).json({ message: "Client updated", client });
   } catch (error) {
-    console.error("Error updating client:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -466,7 +500,7 @@ export const deleteClient = async (req, res) => {
     if (!client) return res.status(404).json({ message: "Client not found" });
     res.status(200).json({ message: "Client deleted" });
   } catch (error) {
-    console.error("Error deleting client:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -565,7 +599,7 @@ export const getClientOverview = async (req, res) => {
       notifications: { unreadCount, items: notifications },
     });
   } catch (error) {
-    console.error("Error in getClientOverview:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -604,7 +638,7 @@ export const initiateOnboarding = async (req, res) => {
 
     return res.status(200).json({ message: "Onboarding initiated", client });
   } catch (error) {
-    console.error("Error in initiateOnboarding:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -632,7 +666,7 @@ export const updateOnboardingStatus = async (req, res) => {
       .status(200)
       .json({ message: "Onboarding status updated", client });
   } catch (error) {
-    console.error("Error in updateOnboardingStatus:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -668,7 +702,7 @@ export const completeOnboarding = async (req, res) => {
 
     return res.status(200).json({ message: "Onboarding completed", client });
   } catch (error) {
-    console.error("Error in completeOnboarding:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -698,7 +732,7 @@ export const getOnboardingDetails = async (req, res) => {
 
     return res.status(200).json(client);
   } catch (error) {
-    console.error("Error in getOnboardingDetails:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -723,7 +757,7 @@ export const assignAccountManager = async (req, res) => {
       .status(200)
       .json({ message: "Account manager assigned", client });
   } catch (error) {
-    console.error("Error in assignAccountManager:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -756,7 +790,7 @@ export const updateClientPlan = async (req, res) => {
 
     return res.status(200).json({ message: "Client plan updated", client });
   } catch (error) {
-    console.error("Error in updateClientPlan:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -778,7 +812,7 @@ export const renewClientPlan = async (req, res) => {
 
     return res.status(200).json({ message: "Plan renewed", client });
   } catch (error) {
-    console.error("Error in renewClientPlan:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };

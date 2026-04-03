@@ -263,17 +263,21 @@ const SlotSelectionDropdown = ({
           className={error ? 'is-invalid' : ''}
         >
           <option value="">{loading ? 'Loading slots...' : placeholder}</option>
-          {slots.map(slot => (
-            <option 
-              key={slot._id} 
-              value={slot._id}
-              disabled={!isSlotSelectable(slot)}
-            >
-              {slot.title || slot.slotIdentifier}
-              {slot.estimatedEffort && ` (${slot.estimatedEffort}h)`}
-              {!isSlotSelectable(slot) && ' [Not Available]'}
-            </option>
-          ))}
+          {slots.map(slot => {
+            const periodLabel = slot.period?.periodIdentifier ? ` [${slot.period.periodIdentifier}]` : '';
+            const effortLabel = slot.estimatedEffort ? ` (${slot.estimatedEffort}h)` : '';
+            const availabilityLabel = !isSlotSelectable(slot) ? ' [Not Available]' : '';
+            const slotTitle = slot.title || slot.slotIdentifier;
+            return (
+              <option 
+                key={slot._id} 
+                value={slot._id}
+                disabled={!isSlotSelectable(slot)}
+              >
+                {slotTitle}{periodLabel}{effortLabel}{availabilityLabel}
+              </option>
+            );
+          })}
         </Form.Select>
         
         {error && (

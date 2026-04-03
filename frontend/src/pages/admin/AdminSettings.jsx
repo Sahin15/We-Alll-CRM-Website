@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { Container, Row, Col, Card, Form, Button, Alert, Tab, Tabs, Badge } from 'react-bootstrap';
 import { FaSave, FaLock, FaBell, FaPalette, FaShieldAlt, FaCog, FaDatabase, FaUsers } from 'react-icons/fa';
+import NotificationSettings from '../../components/notifications/NotificationSettings';
+import { useAuth } from '../../context/AuthContext';
 import toast from '../../utils/toast';
 import api from '../../services/api';
 
 const AdminSettings = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('account');
   const [saving, setSaving] = useState(false);
   
@@ -105,8 +108,8 @@ const AdminSettings = () => {
     <Container className="mt-4">
       <Row className="mb-4">
         <Col>
-          <h2>Admin Settings</h2>
-          <p className="text-muted">Manage system-wide settings and configurations</p>
+          <h2>{user?.name}'s Settings</h2>
+          <p className="text-muted">Manage your account settings and preferences</p>
         </Col>
       </Row>
 
@@ -153,39 +156,7 @@ const AdminSettings = () => {
         </Tab>
 
         <Tab eventKey="notifications" title={<span><FaBell className="me-2" />Notifications</span>}>
-          <Card>
-            <Card.Body>
-              <h5 className="mb-4">Admin Notification Preferences</h5>
-              <Form.Group className="mb-3">
-                <Form.Check
-                  type="switch"
-                  label="Enable Email Notifications"
-                  checked={notifications.emailNotifications}
-                  onChange={(e) => setNotifications({ ...notifications, emailNotifications: e.target.checked })}
-                />
-              </Form.Group>
-              <hr />
-              <h6 className="mb-3">Notify me about:</h6>
-              <Form.Group className="mb-3">
-                <Form.Check type="switch" label="System alerts and warnings" checked={notifications.systemAlerts} onChange={(e) => setNotifications({ ...notifications, systemAlerts: e.target.checked })} />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Check type="switch" label="New user registrations" checked={notifications.userRegistrations} onChange={(e) => setNotifications({ ...notifications, userRegistrations: e.target.checked })} />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Check type="switch" label="Security alerts" checked={notifications.securityAlerts} onChange={(e) => setNotifications({ ...notifications, securityAlerts: e.target.checked })} />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Check type="switch" label="Backup status" checked={notifications.backupStatus} onChange={(e) => setNotifications({ ...notifications, backupStatus: e.target.checked })} />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Check type="switch" label="Error logs" checked={notifications.errorLogs} onChange={(e) => setNotifications({ ...notifications, errorLogs: e.target.checked })} />
-              </Form.Group>
-              <Button variant="primary" onClick={handleNotificationSave} disabled={saving}>
-                <FaSave className="me-2" />Save Preferences
-              </Button>
-            </Card.Body>
-          </Card>
+          <NotificationSettings />
         </Tab>
 
         <Tab eventKey="system" title={<span><FaCog className="me-2" />System</span>}>

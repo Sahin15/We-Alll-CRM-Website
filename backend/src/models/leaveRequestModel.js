@@ -107,7 +107,7 @@ leaveRequestSchema.statics.calculateEarnedLeaves = function(year = new Date().ge
   // Debug logging
   const debugLog = (message, data = {}) => {
     if (process.env.NODE_ENV !== 'production') {
-      console.log(`[LEAVE_CALC] ${message}`, data);
+      
     }
   };
   

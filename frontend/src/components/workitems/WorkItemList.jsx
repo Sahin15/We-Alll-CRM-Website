@@ -1,12 +1,87 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Table, Badge, Button, Dropdown } from 'react-bootstrap';
 import { FaEye, FaClock, FaExclamationTriangle, FaCalendarAlt, FaCheckCircle } from 'react-icons/fa';
 import { formatDate } from '../../utils/helpers';
+import AssigneeStatusDisplay from './AssigneeStatusDisplay';
 import './WorkItemList.css';
 
-const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, currentUser, emptyMessage }) => {
+const StatusSelector = ({ status, onStatusChange, getStatusColor }) => {
+  const [showMenu, setShowMenu] = useState(false);
+  const wrapperRef = useRef(null);
+  
+  const statuses = ['To Do', 'In Progress', 'Done'];
+  const statusEmojis = {
+    'To Do': '📋',
+    'In Progress': '⚙️',
+    'Done': '✅'
+  };
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setShowMenu(false);
+      }
+    };
+
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showMenu]);
+
+  return (
+    <div className="status-selector-wrapper" ref={wrapperRef}>
+      <button
+        className={`status-selector-btn status-${status.toLowerCase().replace(' ', '-')}`}
+        onClick={() => setShowMenu(!showMenu)}
+      >
+        <span className="status-emoji">{statusEmojis[status]}</span>
+        <span className="status-text">{status}</span>
+        <span className="status-arrow">▼</span>
+      </button>
+      
+      {showMenu && (
+        <div className="status-selector-menu">
+          {statuses.map((s) => (
+            <button
+              key={s}
+              className={`status-menu-item ${s === status ? 'active' : ''}`}
+              onClick={() => {
+                if (s !== status) {
+                  onStatusChange(s);
+                }
+                setShowMenu(false);
+              }}
+            >
+              <span className="menu-emoji">{statusEmojis[s]}</span>
+              <span className="menu-text">{s}</span>
+              {s === status && <span className="menu-check">✓</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, currentUser, emptyMessage, showAssigneeStatus = false }) => {
   const onView = onViewItem;
   
+  // Helper function to get current user's status for collaborative work
+  const getUserStatus = (workItem) => {
+    // If multiple assignees, get user's individual status
+    if (workItem.assignedToMultiple && workItem.assignedToMultiple.length > 0) {
+      const userStatus = workItem.assigneeStatuses?.find(
+        as => as.assigneeId?._id === currentUser?._id || as.assigneeId === currentUser?._id
+      );
+      return userStatus?.status || workItem.status;
+    }
+    // Single assignee - use global status
+    return workItem.status;
+  };
   const canEdit = (workItem) => {
     return workItem.assignedTo?._id === currentUser?._id || 
            ['admin', 'superadmin', 'hr', 'manager', 'hod'].includes(currentUser?.role);
@@ -74,11 +149,12 @@ const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, curren
       <Table hover className="modern-work-table">
         <thead>
           <tr>
-            <th style={{ width: '40%' }}>WORK ITEM</th>
-            <th style={{ width: '20%' }}>DUE DATE</th>
-            <th style={{ width: '15%' }}>STATUS</th>
-            <th style={{ width: '15%' }}>PRIORITY</th>
-            <th style={{ width: '10%' }}>ACTIONS</th>
+            <th style={{ width: '35%' }}>WORK ITEM</th>
+            <th style={{ width: '8%' }}>SLOT</th>
+            <th style={{ width: '15%' }}>DUE DATE</th>
+            <th style={{ width: '20%' }}>STATUS</th>
+            <th style={{ width: '12%' }}>PRIORITY</th>
+            <th style={{ width: '10%' }}>ACTION</th>
           </tr>
         </thead>
         <tbody>
@@ -103,7 +179,9 @@ const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, curren
                       {item.type === 'content' ? '📱' : '📋'}
                     </Badge>
                     <div className="work-info">
-                      <div className="work-title">{item.title}</div>
+                      <div className="d-flex align-items-center gap-2">
+                        <div className="work-title">{item.title}</div>
+                      </div>
                       <div className="work-meta">
                         {item.project?.name && (
                           <span className="meta-tag">
@@ -119,6 +197,19 @@ const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, curren
                         )}
                       </div>
                     </div>
+                  </div>
+                </td>
+
+                {/* Slot Column */}
+                <td>
+                  <div className="slot-cell">
+                    {item.slotAssignment?.slotNumber ? (
+                      <Badge bg="info" style={{ fontSize: '0.8rem', padding: '4px 8px' }}>
+                        {item.slotAssignment.slotNumber}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted" style={{ fontSize: '0.85rem' }}>—</span>
+                    )}
                   </div>
                 </td>
 
@@ -150,48 +241,20 @@ const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, curren
 
                 {/* Status Column */}
                 <td onClick={(e) => e.stopPropagation()}>
-                  {canEdit(item) && onStatusChange ? (
-                    <Dropdown align="end">
-                      <Dropdown.Toggle
-                        as={Badge}
-                        bg={getStatusColor(item.status)}
-                        className="status-badge-dropdown"
-                        style={{ userSelect: 'none' }}
-                      >
-                        {item.status} ▼
-                      </Dropdown.Toggle>
-
-                      <Dropdown.Menu className="status-dropdown-modern">
-                        {['To Do', 'In Progress', 'Review', 'Done'].map((status) => (
-                          <Dropdown.Item
-                            key={status}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (status !== item.status) {
-                                onStatusChange(item._id, status, item.type);
-                              }
-                            }}
-                            disabled={status === item.status}
-                            className={status === item.status ? 'active' : ''}
-                          >
-                            <Badge 
-                              bg={getStatusColor(status)} 
-                              className="me-2"
-                              style={{ minWidth: '90px' }}
-                            >
-                              {status}
-                            </Badge>
-                            {status === item.status && <FaCheckCircle className="text-success" />}
-                          </Dropdown.Item>
-                        ))}
-                      </Dropdown.Menu>
-                    </Dropdown>
+                  {showAssigneeStatus && item.assignedToMultiple && item.assignedToMultiple.length > 1 ? (
+                    <AssigneeStatusDisplay workItem={item} />
+                  ) : canEdit(item) && onStatusChange ? (
+                    <StatusSelector
+                      status={getUserStatus(item)}
+                      onStatusChange={(newStatus) => onStatusChange(item._id, newStatus)}
+                      getStatusColor={getStatusColor}
+                    />
                   ) : (
                     <Badge 
-                      bg={getStatusColor(item.status)} 
+                      bg={getStatusColor(getUserStatus(item))} 
                       className="status-badge"
                     >
-                      {item.status}
+                      {getUserStatus(item)}
                     </Badge>
                   )}
                 </td>
@@ -220,8 +283,7 @@ const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, curren
                       onView(item);
                     }}
                   >
-                    <FaEye className="me-1" />
-                    View
+                    <FaEye style={{ fontSize: '0.9rem' }} />
                   </Button>
                 </td>
               </tr>

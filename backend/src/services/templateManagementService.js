@@ -41,7 +41,7 @@ class TemplateManagementService {
 
       return template;
     } catch (error) {
-      console.error("Error creating template:", error);
+      
       throw error;
     }
   }
@@ -64,7 +64,7 @@ class TemplateManagementService {
 
       return template;
     } catch (error) {
-      console.error("Error getting template:", error);
+      
       throw error;
     }
   }
@@ -98,7 +98,7 @@ class TemplateManagementService {
 
       return templates;
     } catch (error) {
-      console.error("Error getting templates:", error);
+      
       throw error;
     }
   }
@@ -120,7 +120,7 @@ class TemplateManagementService {
 
       return templates;
     } catch (error) {
-      console.error("Error getting templates by department:", error);
+      
       throw error;
     }
   }
@@ -136,7 +136,7 @@ class TemplateManagementService {
       const template = await SalaryStructureTemplate.getActiveTemplate(departmentId, designation);
       return template;
     } catch (error) {
-      console.error("Error getting active template:", error);
+      
       throw error;
     }
   }
@@ -170,7 +170,7 @@ class TemplateManagementService {
 
       return template;
     } catch (error) {
-      console.error("Error updating template:", error);
+      
       throw error;
     }
   }
@@ -196,7 +196,7 @@ class TemplateManagementService {
 
       return newTemplate;
     } catch (error) {
-      console.error("Error creating new template version:", error);
+      
       throw error;
     }
   }
@@ -224,7 +224,7 @@ class TemplateManagementService {
 
       return template;
     } catch (error) {
-      console.error("Error approving template:", error);
+      
       throw error;
     }
   }
@@ -248,7 +248,7 @@ class TemplateManagementService {
 
       return results;
     } catch (error) {
-      console.error("Error applying template:", error);
+      
       throw error;
     }
   }
@@ -295,7 +295,7 @@ class TemplateManagementService {
         criteria: { departmentId, designation }
       };
     } catch (error) {
-      console.error("Error in bulk template application:", error);
+      
       throw error;
     }
   }
@@ -321,7 +321,7 @@ class TemplateManagementService {
       );
 
       if (!template) {
-        console.log(`No active template found for ${employee.designation} in ${employee.department.name}`);
+        
         return null;
       }
 
@@ -344,7 +344,7 @@ class TemplateManagementService {
         }
       };
     } catch (error) {
-      console.error("Error in auto-generation for new employee:", error);
+      
       throw error;
     }
   }
@@ -367,7 +367,7 @@ class TemplateManagementService {
 
       return template;
     } catch (error) {
-      console.error("Error deactivating template:", error);
+      
       throw error;
     }
   }
@@ -397,7 +397,7 @@ class TemplateManagementService {
       await SalaryStructureTemplate.findByIdAndDelete(templateId);
       return true;
     } catch (error) {
-      console.error("Error deleting template:", error);
+      
       throw error;
     }
   }
@@ -445,7 +445,7 @@ class TemplateManagementService {
         generatedAt: new Date()
       };
     } catch (error) {
-      console.error("Error getting template usage stats:", error);
+      
       throw error;
     }
   }
@@ -465,7 +465,7 @@ class TemplateManagementService {
 
       return versions;
     } catch (error) {
-      console.error("Error getting template versions:", error);
+      
       throw error;
     }
   }

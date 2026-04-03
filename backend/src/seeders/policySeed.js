@@ -1157,21 +1157,21 @@ const seedPolicies = async () => {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
-    console.log("✅ MongoDB connected");
+    
 
     // Find an admin user to assign as creator
     const adminUser = await User.findOne({ role: { $in: ["admin", "superadmin", "hr"] } });
     
     if (!adminUser) {
-      console.log("❌ No admin user found. Please create an admin user first.");
+      
       process.exit(1);
     }
 
-    console.log(`📝 Using ${adminUser.name} (${adminUser.role}) as policy creator`);
+     as policy creator`);
 
     // Clear existing policies
     await Policy.deleteMany({});
-    console.log("🗑️  Cleared existing policies");
+    
 
     // Add creator to each policy
     const policiesWithCreator = policies.map(policy => ({
@@ -1181,23 +1181,23 @@ const seedPolicies = async () => {
 
     // Insert policies
     const insertedPolicies = await Policy.insertMany(policiesWithCreator);
-    console.log(`✅ Successfully seeded ${insertedPolicies.length} policies`);
+    
 
     // Display summary
-    console.log("\n📊 Policy Summary:");
+    
     const categoryCounts = {};
     insertedPolicies.forEach(policy => {
       categoryCounts[policy.category] = (categoryCounts[policy.category] || 0) + 1;
     });
     
     Object.entries(categoryCounts).forEach(([category, count]) => {
-      console.log(`   ${category}: ${count} policies`);
+      
     });
 
-    console.log("\n🎉 Policy seeding completed successfully!");
+    
     process.exit(0);
   } catch (error) {
-    console.error("❌ Error seeding policies:", error);
+    
     process.exit(1);
   }
 };

@@ -22,7 +22,7 @@ export const isHoD = async (req, res, next) => {
     req.hodDepartment = department;
     next();
   } catch (error) {
-    console.error("Error in isHoD middleware:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error checking HoD status",
@@ -62,7 +62,7 @@ export const isHoDOfDepartment = async (req, res, next) => {
     req.hodDepartment = department;
     next();
   } catch (error) {
-    console.error("Error in isHoDOfDepartment middleware:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error checking HoD status",
@@ -128,7 +128,7 @@ export const canAssignHoP = async (req, res, next) => {
     req.hodDepartment = department;
     next();
   } catch (error) {
-    console.error("Error in canAssignHoP middleware:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error checking permissions",

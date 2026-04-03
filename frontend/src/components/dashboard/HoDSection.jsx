@@ -67,12 +67,12 @@ const HoDSection = ({ user }) => {
       };
 
       setStats({
-        ...statsRes.data,
+        ...statsRes,
         attendance: attendanceStats
       });
       setAttendanceDetails(departmentAttendance);
       setProjects(projectsRes.data.projects || []);
-      setMembers(membersRes.data.members || []);
+      setMembers(membersRes.members || []);
       setDepartment(deptRes);
     } catch (error) {
       console.error('Error loading HoD data:', error);

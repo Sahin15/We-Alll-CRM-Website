@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Container, Row, Col, Card, Form, Button, Alert, Tab, Tabs } from 'react-bootstrap';
 import { FaSave, FaLock, FaBell, FaPalette, FaShieldAlt } from 'react-icons/fa';
+import NotificationSettings from '../../components/notifications/NotificationSettings';
 import toast from '../../utils/toast';
 import api from '../../services/api';
 
@@ -171,83 +172,7 @@ const Settings = () => {
 
         {/* Notifications Tab */}
         <Tab eventKey="notifications" title={<span><FaBell className="me-2" />Notifications</span>}>
-          <Card>
-            <Card.Body>
-              <h5 className="mb-4">Notification Preferences</h5>
-              
-              <Form.Group className="mb-3">
-                <Form.Check
-                  type="switch"
-                  id="emailNotifications"
-                  label="Enable Email Notifications"
-                  checked={notifications.emailNotifications}
-                  onChange={(e) => setNotifications({ ...notifications, emailNotifications: e.target.checked })}
-                />
-                <Form.Text className="text-muted">
-                  Receive notifications via email
-                </Form.Text>
-              </Form.Group>
-
-              <hr className="my-3" />
-
-              <h6 className="mb-3">Notify me when:</h6>
-
-              <Form.Group className="mb-3">
-                <Form.Check
-                  type="switch"
-                  id="taskAssigned"
-                  label="A task is assigned to me"
-                  checked={notifications.taskAssigned}
-                  onChange={(e) => setNotifications({ ...notifications, taskAssigned: e.target.checked })}
-                />
-              </Form.Group>
-
-              <Form.Group className="mb-3">
-                <Form.Check
-                  type="switch"
-                  id="leaveApproved"
-                  label="My leave request is approved or rejected"
-                  checked={notifications.leaveApproved}
-                  onChange={(e) => setNotifications({ ...notifications, leaveApproved: e.target.checked })}
-                />
-              </Form.Group>
-
-              <Form.Group className="mb-3">
-                <Form.Check
-                  type="switch"
-                  id="meetingScheduled"
-                  label="A meeting is scheduled with me"
-                  checked={notifications.meetingScheduled}
-                  onChange={(e) => setNotifications({ ...notifications, meetingScheduled: e.target.checked })}
-                />
-              </Form.Group>
-
-              <Form.Group className="mb-3">
-                <Form.Check
-                  type="switch"
-                  id="documentUploaded"
-                  label="A document is uploaded for me"
-                  checked={notifications.documentUploaded}
-                  onChange={(e) => setNotifications({ ...notifications, documentUploaded: e.target.checked })}
-                />
-              </Form.Group>
-
-              <Form.Group className="mb-3">
-                <Form.Check
-                  type="switch"
-                  id="attendanceReminder"
-                  label="Daily attendance reminder"
-                  checked={notifications.attendanceReminder}
-                  onChange={(e) => setNotifications({ ...notifications, attendanceReminder: e.target.checked })}
-                />
-              </Form.Group>
-
-              <Button variant="primary" onClick={handleNotificationSave} disabled={saving}>
-                <FaSave className="me-2" />
-                {saving ? 'Saving...' : 'Save Preferences'}
-              </Button>
-            </Card.Body>
-          </Card>
+          <NotificationSettings />
         </Tab>
 
         {/* Display Preferences Tab */}
@@ -399,11 +324,11 @@ const Settings = () => {
                     <tbody>
                       <tr>
                         <td><strong>Version:</strong></td>
-                        <td>4.5.0</td>
+                        <td>4.7.7</td>
                       </tr>
                       <tr>
                         <td><strong>Last Updated:</strong></td>
-                        <td>March 2026</td>
+                        <td>April 2026</td>
                       </tr>
                       <tr>
                         <td><strong>Environment:</strong></td>

@@ -25,25 +25,25 @@ import User from '../src/models/userModel.js';
 
 async function backfillLeaveAttendance() {
   try {
-    console.log('🔌 Connecting to MongoDB...');
+    
     await mongoose.connect(process.env.MONGO_URI);
-    console.log('✅ Connected to MongoDB\n');
+    
 
     // Get all approved leave requests
     const approvedLeaves = await LeaveRequest.find({
       status: 'approved'
     }).populate('employee', 'name email').sort({ startDate: 1 });
 
-    console.log(`📋 Found ${approvedLeaves.length} approved leave requests\n`);
+    
 
     let totalRecordsCreated = 0;
     let totalRecordsSkipped = 0;
 
     for (const leave of approvedLeaves) {
-      console.log(`\n📅 Processing leave for ${leave.employee?.name || 'Unknown'}`);
-      console.log(`   Type: ${leave.leaveType}`);
-      console.log(`   Period: ${leave.startDate.toISOString().split('T')[0]} to ${leave.endDate.toISOString().split('T')[0]}`);
-      console.log(`   Days: ${leave.numberOfDays}`);
+      
+      
+      .split('T')[0]} to ${leave.endDate.toISOString().split('T')[0]}`);
+      
 
       const startDate = new Date(leave.startDate);
       const endDate = new Date(leave.endDate);
@@ -88,10 +88,10 @@ async function backfillLeaveAttendance() {
           });
           
           recordsCreatedForLeave++;
-          console.log(`   ✅ Created on-leave record for ${dateOnly.toISOString().split('T')[0]}`);
+          .split('T')[0]}`);
         } else {
           recordsSkippedForLeave++;
-          console.log(`   ⏭️  Record exists for ${dateOnly.toISOString().split('T')[0]} (Status: ${existingRecord.status})`);
+          .split('T')[0]} (Status: ${existingRecord.status})`);
         }
         
         // Move to next day
@@ -101,28 +101,28 @@ async function backfillLeaveAttendance() {
       totalRecordsCreated += recordsCreatedForLeave;
       totalRecordsSkipped += recordsSkippedForLeave;
 
-      console.log(`   📊 Summary: ${recordsCreatedForLeave} created, ${recordsSkippedForLeave} skipped`);
+      
     }
 
-    console.log('\n' + '='.repeat(60));
-    console.log('✅ BACKFILL COMPLETE');
-    console.log('='.repeat(60));
-    console.log(`📋 Total approved leaves processed: ${approvedLeaves.length}`);
-    console.log(`✅ Total attendance records created: ${totalRecordsCreated}`);
-    console.log(`⏭️  Total records skipped (already exist): ${totalRecordsSkipped}`);
-    console.log('='.repeat(60));
+    );
+    
+    );
+    
+    
+    : ${totalRecordsSkipped}`);
+    );
 
     // Verify the results
-    console.log('\n🔍 Verifying results...');
+    
     const onLeaveCount = await Attendance.countDocuments({ status: 'on-leave' });
-    console.log(`📊 Total "on-leave" attendance records in database: ${onLeaveCount}`);
+    
 
   } catch (error) {
-    console.error('❌ Error:', error);
-    console.error(error.stack);
+    
+    
   } finally {
     await mongoose.connection.close();
-    console.log('\n🔌 Disconnected from MongoDB');
+    
   }
 }
 

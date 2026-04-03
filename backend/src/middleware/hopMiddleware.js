@@ -22,7 +22,7 @@ export const isHoP = async (req, res, next) => {
     req.hopProjects = projects;
     next();
   } catch (error) {
-    console.error("Error in isHoP middleware:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error checking HoP status",
@@ -61,7 +61,7 @@ export const isHoPOfProject = async (req, res, next) => {
     req.hopProject = project;
     next();
   } catch (error) {
-    console.error("Error in isHoPOfProject middleware:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error checking HoP status",
@@ -147,7 +147,7 @@ export const canManageProject = async (req, res, next) => {
       message: "Access denied. You don't have permission to manage this project.",
     });
   } catch (error) {
-    console.error("Error in canManageProject middleware:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error checking permissions",
@@ -186,7 +186,7 @@ export const canCreateSlots = async (req, res, next) => {
     req.hopProject = project;
     next();
   } catch (error) {
-    console.error("Error in canCreateSlots middleware:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error checking permissions",

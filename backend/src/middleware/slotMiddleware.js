@@ -71,7 +71,7 @@ export const canEditSlot = async (req, res, next) => {
       message: 'You do not have permission to edit this slot'
     });
   } catch (error) {
-    console.error('Error in canEditSlot middleware:', error);
+    
     return res.status(500).json({
       success: false,
       message: 'Error checking permissions',
@@ -108,7 +108,7 @@ export const canDeleteSlot = async (req, res, next) => {
       message: 'You do not have permission to delete this slot'
     });
   } catch (error) {
-    console.error('Error in canDeleteSlot middleware:', error);
+    
     return res.status(500).json({
       success: false,
       message: 'Error checking permissions',
@@ -155,7 +155,7 @@ export const canViewSlot = async (req, res, next) => {
       message: 'You do not have permission to view this slot'
     });
   } catch (error) {
-    console.error('Error in canViewSlot middleware:', error);
+    
     return res.status(500).json({
       success: false,
       message: 'Error checking permissions',
@@ -192,10 +192,7 @@ export const canUpdateStatus = async (req, res, next) => {
       return next();
     }
 
-    console.log('Permission denied for user:', {
-      userId: req.user._id,
-      userRole: req.user.role,
-      slotAssignedTo: slot.assignedTo?.toString(),
+    ,
       projectHead: slot.project?.projectHead?.toString()
     });
 
@@ -204,7 +201,7 @@ export const canUpdateStatus = async (req, res, next) => {
       message: 'You do not have permission to update this slot status'
     });
   } catch (error) {
-    console.error('Error in canUpdateStatus middleware:', error);
+    
     return res.status(500).json({
       success: false,
       message: 'Error checking permissions',
@@ -246,7 +243,7 @@ export const canUploadCreative = async (req, res, next) => {
       message: 'You do not have permission to upload creatives to this slot'
     });
   } catch (error) {
-    console.error('Error in canUploadCreative middleware:', error);
+    
     return res.status(500).json({
       success: false,
       message: 'Error checking permissions',

@@ -536,14 +536,18 @@ const MyAttendance = () => {
                               )}
                             </div>
                           </td>
-                          <td>{formatTime(attendance.clockIn)}</td>
+                          <td>{attendance.status === 'on-leave' ? '-' : formatTime(attendance.clockIn)}</td>
                           <td>
-                            {attendance.clockOut
+                            {attendance.status === 'on-leave' 
+                              ? '-'
+                              : attendance.clockOut
                               ? formatTime(attendance.clockOut)
                               : <Badge bg="warning">In Progress</Badge>}
                           </td>
                           <td className="hide-mobile">
-                            {attendance.totalBreakTime > 0 ? (
+                            {attendance.status === 'on-leave' 
+                              ? '-'
+                              : attendance.totalBreakTime > 0 ? (
                               <div 
                                 className="d-flex align-items-center gap-1"
                                 onClick={() => {
@@ -573,7 +577,7 @@ const MyAttendance = () => {
                               "-"
                             )}
                           </td>
-                          <td>{formatWorkHours(attendance.workHours || 0)}</td>
+                          <td>{attendance.status === 'on-leave' ? '-' : formatWorkHours(attendance.workHours || 0)}</td>
                           <td className="hide-mobile">{formatWorkHours(attendance.overtime || 0)}</td>
                           <td>
                             <div className="d-flex align-items-center gap-2">

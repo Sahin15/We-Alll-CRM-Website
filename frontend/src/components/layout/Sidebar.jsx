@@ -188,6 +188,12 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           roles: ["employee", "admin", "superadmin", "hr", "hod", "manager"],
         },
         {
+          path: "/employee/assigned-work",
+          icon: <FaTasks />,
+          label: "Assigned Work",
+          roles: ["employee", "admin", "superadmin", "hr", "hod", "manager"],
+        },
+        {
           path: "/work-calendar/my-calendar",
           icon: <FaCalendarAlt />,
           label: "My Work Calendar",
@@ -242,7 +248,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       isGroup: true,
       children: [
         {
-          path: "/employee/meetings",
+          path: "/meetings",
           icon: <FaCalendarAlt />,
           label: "Meetings",
           roles: ["employee", "hod", "admin", "superadmin", "hr", "manager"],

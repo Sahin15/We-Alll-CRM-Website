@@ -1,6 +1,6 @@
 import LeaveRequest from "../models/leaveRequestModel.js";
 import User from "../models/userModel.js";
-import notificationService from "../services/notificationService.js";
+import NotificationService from "../services/notificationService.js";
 
 // Create leave request
 export const createLeaveRequest = async (req, res) => {
@@ -9,7 +9,7 @@ export const createLeaveRequest = async (req, res) => {
     const employee = req.user.id;
     const files = req.files || [];
 
-    console.log("📝 Creating leave request:", { leaveType, startDate, endDate, reason, employee, filesCount: files.length });
+    
 
     if (!leaveType || !startDate || !endDate || !reason) {
       return res.status(400).json({ message: "All fields are required" });
@@ -72,7 +72,7 @@ export const createLeaveRequest = async (req, res) => {
           );
           attachmentUrls.push(documentUrl);
         } catch (uploadError) {
-          console.error("Error uploading attachment:", uploadError);
+          
           return res.status(400).json({ 
             message: `Failed to upload attachment "${file.originalname}": ${uploadError.message}` 
           });
@@ -91,44 +91,45 @@ export const createLeaveRequest = async (req, res) => {
       leaveYear: start.getFullYear()
     });
 
-    console.log("✅ Leave request created successfully:", leaveRequest._id);
+    
 
     // Send notification to manager/HR
     try {
       const employeeData = await User.findById(employee).populate('reportingManager department');
-      console.log(`🔔 Sending leave request notifications for ${employeeData.name}`);
+      
       
       // Send to reporting manager if exists
       if (employeeData.reportingManager) {
-        console.log(`📤 Sending notification to manager: ${employeeData.reportingManager.name}`);
-        const managerResult = await notificationService.sendLeaveRequestNotification(
+        
+        await NotificationService.sendToUser(
           employeeData.reportingManager._id,
-          employeeData.name,
-          leaveType
+          '📋 New Leave Request',
+          `${employeeData.name} has requested ${leaveType} leave`,
+          {
+            type: 'leave_request',
+            data: { leaveRequestId: leaveRequest._id.toString() },
+            actionUrl: '/leaves',
+            senderId: employee,
+          }
         );
-        console.log(`📤 Manager notification result:`, managerResult);
       }
       
       // Also send to HR department
-      console.log(`📤 Sending notification to HR department`);
-      const hrResult = await notificationService.sendToRole(['hr'], {
-        title: '📋 New Leave Request',
-        body: `${employeeData.name} has requested ${leaveType} leave for ${numberOfDays} day(s)`,
-        icon: '/icons/leave-icon.png',
-        tag: 'leave-request',
-        clickAction: '/leaves',
-        data: {
-          type: 'leave_request',
-          leaveRequestId: leaveRequest._id.toString(),
-          employeeName: employeeData.name,
-          leaveType: leaveType
-        }
-      });
-      console.log(`📤 HR notification result:`, hrResult);
       
-      console.log("✅ Leave request notifications sent successfully");
+      await NotificationService.sendToRole('hr',
+        '📋 New Leave Request',
+        `${employeeData.name} has requested ${leaveType} leave for ${numberOfDays} day(s)`,
+        {
+          type: 'leave_request',
+          data: { leaveRequestId: leaveRequest._id.toString() },
+          actionUrl: '/leaves',
+          senderId: employee,
+        }
+      );
+      
+      
     } catch (notificationError) {
-      console.error("⚠️ Error sending leave request notifications:", notificationError);
+      
       // Don't fail the request if notification fails
     }
 
@@ -137,7 +138,7 @@ export const createLeaveRequest = async (req, res) => {
       leaveRequest,
     });
   } catch (error) {
-    console.error("❌ Error in createLeaveRequest:", error);
+    
     res.status(500).json({ 
       message: "Server error", 
       error: error.message,
@@ -165,7 +166,7 @@ export const getLeaveBalance = async (req, res) => {
       balance
     });
   } catch (error) {
-    console.error("Error in getLeaveBalance:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -221,7 +222,7 @@ export const getLeaveUsageSummary = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Error in getLeaveUsageSummary:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -251,7 +252,7 @@ export const getAllLeaveRequests = async (req, res) => {
 
     res.status(200).json(leaveRequests);
   } catch (error) {
-    console.error("Error in getAllLeaveRequests:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -267,7 +268,7 @@ export const getMyLeaveRequests = async (req, res) => {
 
     res.status(200).json(leaveRequests);
   } catch (error) {
-    console.error("Error in getMyLeaveRequests:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -292,7 +293,7 @@ export const getLeaveRequestById = async (req, res) => {
 
     res.status(200).json(leaveRequest);
   } catch (error) {
-    console.error("Error in getLeaveRequestById:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -304,7 +305,7 @@ export const approveLeaveRequest = async (req, res) => {
     const { approvalComment } = req.body;
     const approvedBy = req.user.id;
 
-    console.log("🔍 Approve request:", { id, approvalComment, approvedBy, userRole: req.user.role });
+    
 
     const leaveRequest = await LeaveRequest.findById(id).populate('employee', 'name email department');
 
@@ -349,8 +350,6 @@ export const approveLeaveRequest = async (req, res) => {
       const startDate = new Date(leaveRequest.startDate);
       const endDate = new Date(leaveRequest.endDate);
       
-      console.log(`📅 Creating attendance records for leave period: ${startDate.toISOString()} to ${endDate.toISOString()}`);
-      
       // Loop through each day in the leave period
       const currentDate = new Date(startDate);
       let recordsCreated = 0;
@@ -385,18 +384,15 @@ export const approveLeaveRequest = async (req, res) => {
           });
           
           recordsCreated++;
-          console.log(`✅ Created on-leave attendance record for ${dateOnly.toISOString().split('T')[0]}`);
         } else {
-          console.log(`⚠️ Attendance record already exists for ${dateOnly.toISOString().split('T')[0]} - skipping`);
+          // Record already exists, skip
         }
         
         // Move to next day
         currentDate.setDate(currentDate.getDate() + 1);
       }
       
-      console.log(`✅ Created ${recordsCreated} attendance records for leave period`);
     } catch (attendanceError) {
-      console.error("⚠️ Error creating attendance records for leave:", attendanceError);
       // Don't fail the approval if attendance creation fails
     }
 
@@ -404,22 +400,21 @@ export const approveLeaveRequest = async (req, res) => {
     try {
       const employeeData = await User.findById(leaveRequest.employee);
       if (employeeData) {
-        await notificationService.sendToUser(employeeData._id, {
-          title: '✅ Leave Request Approved',
-          body: `Your ${leaveRequest.leaveType} leave request has been approved`,
-          icon: '/icons/leave-approved-icon.png',
-          tag: 'leave-approved',
-          clickAction: '/leaves',
-          data: {
-            type: 'leave_approved',
-            leaveRequestId: leaveRequest._id.toString(),
-            leaveType: leaveRequest.leaveType
+        await NotificationService.sendToUser(
+          employeeData._id,
+          '✅ Leave Request Approved',
+          `Your ${leaveRequest.leaveType} leave request has been approved`,
+          {
+            type: 'leave_approval',
+            data: { leaveRequestId: leaveRequest._id.toString() },
+            actionUrl: '/leaves',
+            senderId: approvedBy,
           }
-        });
-        console.log("✅ Leave approval notification sent to employee");
+        );
+        
       }
     } catch (notificationError) {
-      console.error("⚠️ Error sending leave approval notification:", notificationError);
+      
     }
 
     res.status(200).json({
@@ -427,7 +422,7 @@ export const approveLeaveRequest = async (req, res) => {
       leaveRequest,
     });
   } catch (error) {
-    console.error("Error in approveLeaveRequest:", error);
+    
     res.status(500).json({ 
       message: "Server error", 
       error: error.message,
@@ -443,7 +438,7 @@ export const rejectLeaveRequest = async (req, res) => {
     const { rejectionReason } = req.body;
     const approvedBy = req.user.id;
 
-    console.log("🔍 Reject request:", { id, rejectionReason, approvedBy, userRole: req.user.role });
+    
 
     if (!rejectionReason) {
       return res.status(400).json({ message: "Rejection reason is required" });
@@ -487,23 +482,21 @@ export const rejectLeaveRequest = async (req, res) => {
     try {
       const employeeData = await User.findById(leaveRequest.employee);
       if (employeeData) {
-        await notificationService.sendToUser(employeeData._id, {
-          title: '❌ Leave Request Rejected',
-          body: `Your ${leaveRequest.leaveType} leave request has been rejected`,
-          icon: '/icons/leave-rejected-icon.png',
-          tag: 'leave-rejected',
-          clickAction: '/leaves',
-          data: {
-            type: 'leave_rejected',
-            leaveRequestId: leaveRequest._id.toString(),
-            leaveType: leaveRequest.leaveType,
-            rejectionReason: rejectionReason
+        await NotificationService.sendToUser(
+          employeeData._id,
+          '❌ Leave Request Rejected',
+          `Your ${leaveRequest.leaveType} leave request has been rejected`,
+          {
+            type: 'leave_rejection',
+            data: { leaveRequestId: leaveRequest._id.toString(), rejectionReason },
+            actionUrl: '/leaves',
+            senderId: req.user._id,
           }
-        });
-        console.log("✅ Leave rejection notification sent to employee");
+        );
+        
       }
     } catch (notificationError) {
-      console.error("⚠️ Error sending leave rejection notification:", notificationError);
+      
     }
 
     res.status(200).json({
@@ -511,7 +504,7 @@ export const rejectLeaveRequest = async (req, res) => {
       leaveRequest,
     });
   } catch (error) {
-    console.error("Error in rejectLeaveRequest:", error);
+    
     res.status(500).json({ 
       message: "Server error", 
       error: error.message,
@@ -553,7 +546,7 @@ export const cancelLeaveRequest = async (req, res) => {
       leaveRequest,
     });
   } catch (error) {
-    console.error("Error in cancelLeaveRequest:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -596,7 +589,7 @@ export const updateLeaveRequest = async (req, res) => {
       leaveRequest,
     });
   } catch (error) {
-    console.error("Error in updateLeaveRequest:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };

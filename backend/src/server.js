@@ -1,3 +1,12 @@
+// Suppress Node.js deprecation warnings
+process.removeAllListeners('warning');
+process.on('warning', (warning) => {
+  if (warning.name === 'DeprecationWarning' && warning.code === 'DEP0040') {
+    return; // Suppress punycode deprecation warning
+  }
+  console.warn(warning);
+});
+
 import express from "express";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
@@ -7,7 +16,7 @@ import { protect } from "./middleware/authMiddleware.js";
 import { authorizeRoles } from "./middleware/roleMiddleware.js";
 import userRoutes from "./routes/userRoutes.js";
 import connectDB from "./config/db.js";
-import "./config/firebase.js"; // Initialize Firebase Admin
+// Firebase Admin is initialized via firebaseAdmin.js (imported by notificationService)
 import adminRoutes from "./routes/adminRoutes.js";
 import clientRoutes from "./routes/clientRoutes.js";
 import clientWorkRoutes from "./routes/clientWorkRoutes.js";
@@ -107,6 +116,17 @@ app.use(auditMiddleware); // Audit logging for authenticated requests
 // Prevent search engine indexing (internal office use only)
 app.use((req, res, next) => {
   res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
+  next();
+});
+
+// Service worker must not be cached on Windows/Chrome
+app.use((req, res, next) => {
+  if (req.path === '/firebase-messaging-sw.js' || req.path.endsWith('firebase-messaging-sw.js')) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    console.log('[SW] Service worker requested - cache headers set');
+  }
   next();
 });
 
@@ -296,7 +316,7 @@ mongoose
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => {
+  .then(async () => {
     console.log("✅ MongoDB connected successfully");
     
     // Wait a moment for connection to be fully established
@@ -306,6 +326,18 @@ mongoose
     }, 100);
     
     console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
+
+    // Import and check Firebase initialization
+    const { firebaseInitialized, messaging } = await import('./config/firebaseAdmin.js');
+    
+    if (!firebaseInitialized) {
+      console.error('❌ Firebase Admin not initialized - push notifications will NOT work');
+      console.error('⚠️  Check: 1) Service account file exists, 2) Environment variables are set');
+    } else if (!messaging) {
+      console.error('❌ Firebase messaging is null - push notifications will NOT work');
+    } else {
+      console.log('✅ Firebase Admin initialized - push notifications enabled');
+    }
 
     // Initialize cron jobs after DB connection
     initializeCronJobs();

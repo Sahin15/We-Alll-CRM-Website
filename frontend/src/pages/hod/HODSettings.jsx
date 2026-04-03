@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { Container, Row, Col, Card, Form, Button, Alert, Tab, Tabs } from 'react-bootstrap';
 import { FaSave, FaLock, FaBell, FaPalette, FaShieldAlt, FaCog } from 'react-icons/fa';
+import NotificationSettings from '../../components/notifications/NotificationSettings';
+import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import api from '../../services/api';
 
 const HODSettings = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('account');
   const [saving, setSaving] = useState(false);
   
@@ -105,8 +108,8 @@ const HODSettings = () => {
     <Container className="mt-4">
       <Row className="mb-4">
         <Col>
-          <h2>HOD Settings</h2>
-          <p className="text-muted">Manage your department settings and preferences</p>
+          <h2>{user?.name}'s Settings</h2>
+          <p className="text-muted">Manage your account settings and preferences</p>
         </Col>
       </Row>
 
@@ -153,42 +156,7 @@ const HODSettings = () => {
         </Tab>
 
         <Tab eventKey="notifications" title={<span><FaBell className="me-2" />Notifications</span>}>
-          <Card>
-            <Card.Body>
-              <h5 className="mb-4">Notification Preferences</h5>
-              <Form.Group className="mb-3">
-                <Form.Check
-                  type="switch"
-                  label="Enable Email Notifications"
-                  checked={notifications.emailNotifications}
-                  onChange={(e) => setNotifications({ ...notifications, emailNotifications: e.target.checked })}
-                />
-              </Form.Group>
-              <hr />
-              <h6 className="mb-3">Notify me when:</h6>
-              <Form.Group className="mb-3">
-                <Form.Check type="switch" label="Team member requests leave" checked={notifications.teamLeaveRequests} onChange={(e) => setNotifications({ ...notifications, teamLeaveRequests: e.target.checked })} />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Check type="switch" label="Task status updates" checked={notifications.taskUpdates} onChange={(e) => setNotifications({ ...notifications, taskUpdates: e.target.checked })} />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Check type="switch" label="Team attendance issues" checked={notifications.teamAttendance} onChange={(e) => setNotifications({ ...notifications, teamAttendance: e.target.checked })} />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Check type="switch" label="Meeting reminders" checked={notifications.meetingReminders} onChange={(e) => setNotifications({ ...notifications, meetingReminders: e.target.checked })} />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Check type="switch" label="Department announcements" checked={notifications.departmentAnnouncements} onChange={(e) => setNotifications({ ...notifications, departmentAnnouncements: e.target.checked })} />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Check type="switch" label="Performance review reminders" checked={notifications.performanceReviews} onChange={(e) => setNotifications({ ...notifications, performanceReviews: e.target.checked })} />
-              </Form.Group>
-              <Button variant="primary" onClick={handleNotificationSave} disabled={saving}>
-                <FaSave className="me-2" />Save Preferences
-              </Button>
-            </Card.Body>
-          </Card>
+          <NotificationSettings />
         </Tab>
 
         <Tab eventKey="hod-prefs" title={<span><FaCog className="me-2" />Department Preferences</span>}>

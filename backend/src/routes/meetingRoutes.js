@@ -16,17 +16,17 @@ const router = express.Router();
 // All routes require authentication
 router.use(protect);
 
-// Get all meetings (base route)
-router.get("/", getAllMeetings);
-
-// Admin/HR/Manager routes
-router.get("/all", authorizeRoles("admin", "superadmin", "hr", "manager", "hod"), getAllMeetings);
-
-// Get my meetings
+// Get my meetings (where I'm an attendee or organizer)
 router.get("/my-meetings", getMyMeetings);
 
 // Get today's meetings
 router.get("/today", getTodaysMeetings);
+
+// Get all meetings (base route - for all authenticated users to see all company meetings)
+router.get("/", getAllMeetings);
+
+// Admin/HR/Manager/Employee routes - get all meetings with role restriction
+router.get("/all", authorizeRoles("admin", "superadmin", "hr", "manager", "hod", "employee"), getAllMeetings);
 
 // Create meeting
 router.post("/", createMeeting);

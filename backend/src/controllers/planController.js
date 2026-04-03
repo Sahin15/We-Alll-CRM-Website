@@ -74,7 +74,7 @@ export const createPlan = async (req, res) => {
       plan,
     });
   } catch (error) {
-    console.error("Error creating plan:", error);
+    
     return res.status(500).json({ 
       message: "Server error", 
       error: error.message,
@@ -101,7 +101,7 @@ export const getAllPlans = async (req, res) => {
 
     return res.status(200).json(plans);
   } catch (error) {
-    console.error("Error fetching plans:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -119,7 +119,7 @@ export const getPlanById = async (req, res) => {
 
     return res.status(200).json(plan);
   } catch (error) {
-    console.error("Error fetching plan:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -193,7 +193,7 @@ export const updatePlan = async (req, res) => {
       plan,
     });
   } catch (error) {
-    console.error("Error updating plan:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -221,7 +221,7 @@ export const deletePlan = async (req, res) => {
 
     return res.status(200).json({ message: "Plan deleted successfully" });
   } catch (error) {
-    console.error("Error deleting plan:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -243,7 +243,7 @@ export const togglePlanStatus = async (req, res) => {
       plan,
     });
   } catch (error) {
-    console.error("Error toggling plan status:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -301,7 +301,7 @@ export const addServiceToPlan = async (req, res) => {
       plan,
     });
   } catch (error) {
-    console.error("Error adding service to plan:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -336,7 +336,7 @@ export const removeServiceFromPlan = async (req, res) => {
       plan,
     });
   } catch (error) {
-    console.error("Error removing service from plan:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -371,7 +371,7 @@ export const updateServicePrice = async (req, res) => {
       plan,
     });
   } catch (error) {
-    console.error("Error updating service price:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -410,7 +410,7 @@ export const getPlansForComparison = async (req, res) => {
 
     return res.status(200).json(comparison);
   } catch (error) {
-    console.error("Error fetching plans for comparison:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };

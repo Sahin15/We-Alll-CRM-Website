@@ -2,6 +2,8 @@ import Invoice from "../models/invoiceModel.js";
 import Subscription from "../models/subscriptionModel.js";
 import Payment from "../models/paymentModel.js";
 import Client from "../models/clientModel.js";
+import User from "../models/userModel.js";
+import NotificationService from "../services/notificationService.js";
 
 // Create invoice
 export const createInvoice = async (req, res) => {
@@ -140,9 +142,28 @@ export const createInvoice = async (req, res) => {
       message: "Invoice created successfully",
       invoice: populatedInvoice,
     });
+
+    // Notify account managers about new invoice
+    try {
+      const accountManagers = await User.find({ role: { $in: ['admin', 'superadmin', 'accounts'] } }).select('_id');
+      for (const am of accountManagers) {
+        await NotificationService.sendToUser(
+          am._id,
+          '🧾 Invoice Generated',
+          `Invoice ${populatedInvoice.invoiceNumber} for ${client.name} (₹${totalAmount}) has been created`,
+          {
+            type: 'invoice_generated',
+            data: { invoiceId: invoice._id.toString(), invoiceNumber: populatedInvoice.invoiceNumber, amount: totalAmount },
+            actionUrl: `/invoices/${invoice._id}`,
+            senderId: req.user.id,
+          }
+        );
+      }
+    } catch (notificationError) {
+      
+    }
   } catch (error) {
-    console.error("Error creating invoice:", error);
-    return res.status(500).json({
+        return res.status(500).json({
       message: "Server error",
       error: error.message,
       stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
@@ -169,7 +190,7 @@ export const getAllInvoices = async (req, res) => {
 
     return res.status(200).json(invoices);
   } catch (error) {
-    console.error("Error fetching invoices:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -189,7 +210,7 @@ export const getInvoiceById = async (req, res) => {
 
     return res.status(200).json(invoice);
   } catch (error) {
-    console.error("Error fetching invoice:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -211,7 +232,7 @@ export const getMyInvoices = async (req, res) => {
 
     return res.status(200).json(invoices);
   } catch (error) {
-    console.error("Error fetching my invoices:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -228,7 +249,7 @@ export const getClientInvoices = async (req, res) => {
 
     return res.status(200).json(invoices);
   } catch (error) {
-    console.error("Error fetching client invoices:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -294,7 +315,7 @@ export const updateInvoice = async (req, res) => {
       invoice: populatedInvoice,
     });
   } catch (error) {
-    console.error("Error updating invoice:", error);
+    
     return res.status(500).json({
       message: "Server error",
       error: error.message,
@@ -324,12 +345,55 @@ export const updateInvoiceStatus = async (req, res) => {
 
     await invoice.save();
 
+    // Send notifications based on status change
+    try {
+      const populatedForNotif = await Invoice.findById(invoice._id).populate('client', 'name');
+      const clientName = populatedForNotif?.client?.name || 'Client';
+      const invoiceNum = invoice.invoiceNumber || invoice._id.toString();
+
+      if (status === 'paid') {
+        // Notify finance/accounts team
+        const financeTeam = await User.find({ role: { $in: ['accounts', 'admin', 'superadmin'] } }).select('_id');
+        for (const member of financeTeam) {
+          await NotificationService.sendToUser(
+            member._id,
+            '✅ Invoice Paid',
+            `Invoice ${invoiceNum} from ${clientName} has been marked as paid`,
+            {
+              type: 'invoice_paid',
+              data: { invoiceId: invoice._id.toString(), invoiceNumber: invoiceNum },
+              actionUrl: `/invoices/${invoice._id}`,
+              senderId: req.user.id,
+            }
+          );
+        }
+      } else if (status === 'overdue') {
+        // Notify account managers
+        const managers = await User.find({ role: { $in: ['admin', 'superadmin', 'manager', 'accounts'] } }).select('_id');
+        for (const manager of managers) {
+          await NotificationService.sendToUser(
+            manager._id,
+            '⚠️ Invoice Overdue',
+            `Invoice ${invoiceNum} for ${clientName} is now overdue`,
+            {
+              type: 'invoice_overdue',
+              data: { invoiceId: invoice._id.toString(), invoiceNumber: invoiceNum },
+              actionUrl: `/invoices/${invoice._id}`,
+              senderId: req.user.id,
+            }
+          );
+        }
+      }
+    } catch (notificationError) {
+      
+    }
+
     return res.status(200).json({
       message: "Invoice status updated successfully",
       invoice,
     });
   } catch (error) {
-    console.error("Error updating invoice status:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -347,6 +411,29 @@ export const sendInvoice = async (req, res) => {
     invoice.sentAt = new Date();
     await invoice.save();
 
+    // Notify account managers that invoice was sent to client
+    try {
+      const populatedForNotif = await Invoice.findById(invoice._id).populate('client', 'name');
+      const clientName = populatedForNotif?.client?.name || 'Client';
+      const invoiceNum = invoice.invoiceNumber || invoice._id.toString();
+      const managers = await User.find({ role: { $in: ['admin', 'superadmin', 'accounts', 'manager'] } }).select('_id');
+      for (const manager of managers) {
+        await NotificationService.sendToUser(
+          manager._id,
+          '📤 Invoice Sent',
+          `Invoice ${invoiceNum} has been sent to ${clientName}`,
+          {
+            type: 'invoice_sent',
+            data: { invoiceId: invoice._id.toString(), invoiceNumber: invoiceNum },
+            actionUrl: `/invoices/${invoice._id}`,
+            senderId: req.user.id,
+          }
+        );
+      }
+    } catch (notificationError) {
+      
+    }
+
     // TODO: Send email to client with invoice PDF
 
     return res.status(200).json({
@@ -354,7 +441,7 @@ export const sendInvoice = async (req, res) => {
       invoice,
     });
   } catch (error) {
-    console.error("Error sending invoice:", error);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -378,7 +465,7 @@ export const generateInvoicePDF = async (req, res) => {
     );
     return res.status(200).send(buffer);
   } catch (error) {
-    console.error("Error generating PDF:", error);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -789,7 +876,7 @@ export const deleteInvoice = async (req, res) => {
 
     return res.status(200).json({ message: "Invoice deleted successfully" });
   } catch (error) {
-    console.error("Error deleting invoice:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };

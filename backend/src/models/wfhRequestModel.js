@@ -56,12 +56,9 @@ const wfhRequestSchema = new mongoose.Schema(
   }
 );
 
-// Compound index for efficient queries
-wfhRequestSchema.index({ employee: 1, date: 1 });
-wfhRequestSchema.index({ status: 1, date: 1 });
-
-// Prevent duplicate WFH requests for same employee on same date
+// Compound index for efficient queries and prevent duplicates
 wfhRequestSchema.index({ employee: 1, date: 1 }, { unique: true });
+wfhRequestSchema.index({ status: 1, date: 1 });
 
 const WFHRequest = mongoose.model("WFHRequest", wfhRequestSchema);
 

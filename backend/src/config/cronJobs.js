@@ -3,10 +3,13 @@ import Bill from "../models/billModel.js";
 import Payment from "../models/paymentModel.js";
 import Client from "../models/clientModel.js";
 import User from "../models/userModel.js";
+import Project from "../models/projectModel.js";
 import Notification from "../models/notificationModel.js";
 import Slot from "../models/slotModel.js";
 import Attendance from "../models/attendanceModel.js";
+import Meeting from "../models/meetingModel.js";
 import { notifySlotDeadlineApproaching, notifySlotOverdue } from "../utils/slotNotifications.js";
+import NotificationService from "../services/notificationService.js";
 
 // Helper: create notification for a user
 const createNotificationForUser = async (
@@ -16,27 +19,21 @@ const createNotificationForUser = async (
   message,
   link,
   metadata,
-  priority = "medium"
+  priority = "normal"
 ) => {
   try {
-    await Notification.create({
-      user: userId,
+    // Map legacy priority values to model enum values
+    const priorityMap = { urgent: "high", medium: "normal" };
+    const mappedPriority = priorityMap[priority] || priority;
+
+    await NotificationService.sendToUser(userId, title, message, {
       type,
-      title,
-      message,
-      link,
-      metadata,
-      priority,
-      icon: type.includes("payment")
-        ? "💰"
-        : type.includes("plan")
-        ? "📅"
-        : "🔔",
-      color:
-        priority === "urgent" ? "red" : priority === "high" ? "orange" : "blue",
+      data: metadata || {},
+      actionUrl: link || null,
+      priority: mappedPriority,
     });
   } catch (error) {
-    console.error("Error creating notification:", error.message);
+    
   }
 };
 
@@ -115,13 +112,9 @@ const checkBillsDueSoon = async () => {
       }
     }
 
-    console.log(
-      `✅ Bill due reminders sent: ${
-        bills7Days.length + bills3Days.length
-      } notifications`
-    );
+    
   } catch (error) {
-    console.error("Error in checkBillsDueSoon:", error.message);
+    
   }
 };
 
@@ -190,11 +183,9 @@ const markOverdueAndNotify = async () => {
       }
     }
 
-    console.log(
-      `✅ Overdue checks completed: ${overdueBills.length} bills, ${overduePayments.length} payments marked overdue`
-    );
+    
   } catch (error) {
-    console.error("Error in markOverdueAndNotify:", error.message);
+    
   }
 };
 
@@ -301,13 +292,9 @@ const checkPlanRenewals = async () => {
       }
     }
 
-    console.log(
-      `✅ Plan renewal reminders sent: ${
-        clients30Days.length + clients7Days.length + expiredClients.length
-      } notifications`
-    );
+    
   } catch (error) {
-    console.error("Error in checkPlanRenewals:", error.message);
+    
   }
 };
 
@@ -363,19 +350,15 @@ const checkSlotDeadlines = async () => {
       }
     }
 
-    console.log(
-      `✅ Slot deadline checks completed: ${slotsDueTomorrow.length} due tomorrow, ${slotsDueIn3Days.length} due in 3 days, ${overdueSlots.length} overdue`
-    );
+    
   } catch (error) {
-    console.error("Error in checkSlotDeadlines:", error.message);
+    
   }
 };
 
 // Cron job: Auto clock-out employees who forgot to clock out (runs at 10 PM)
 const autoClockOutForgottenEmployees = async () => {
   try {
-    console.log("⏰ Running auto clock-out for forgotten employees...");
-    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
@@ -394,11 +377,8 @@ const autoClockOutForgottenEmployees = async () => {
     }).populate("employee", "name email");
 
     if (forgottenClockOuts.length === 0) {
-      console.log("✅ No forgotten clock-outs found");
       return;
     }
-
-    console.log(`📋 Found ${forgottenClockOuts.length} employees who forgot to clock out`);
 
     // Auto clock-out at 10 PM
     const clockOutTime = new Date();
@@ -431,16 +411,202 @@ const autoClockOutForgottenEmployees = async () => {
           },
           "high"
         );
-
-        console.log(`   ✓ Auto clocked-out: ${attendance.employee.name} at 10:00 PM`);
       }
     }
 
-    console.log(
-      `✅ Auto clock-out completed: ${autoClockOutCount} employees clocked out automatically`
-    );
+    
   } catch (error) {
-    console.error("Error in autoClockOutForgottenEmployees:", error.message);
+    
+  }
+};
+
+// Cron job: Send meeting reminders (15 minutes and 1 hour before)
+const sendMeetingReminders = async () => {
+  try {
+    const now = new Date();
+    
+    // Calculate times for reminders
+    const fifteenMinutesLater = new Date(now.getTime() + 15 * 60 * 1000); // 15 minutes from now
+    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
+    
+    // Find meetings starting in 15 minutes
+    const meetings15Min = await Meeting.find({
+      status: 'scheduled',
+      date: { 
+        $gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+        $lt: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+      },
+      startTime: {
+        $gte: new Date(fifteenMinutesLater.getTime() - 60000), // 1 minute buffer
+        $lt: new Date(fifteenMinutesLater.getTime() + 60000) // 1 minute window
+      }
+    }).populate('attendees', '_id').populate('organizer', 'name');
+
+    // Find meetings starting in 1 hour
+    const meetings1Hour = await Meeting.find({
+      status: 'scheduled',
+      date: { 
+        $gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+        $lt: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+      },
+      startTime: {
+        $gte: new Date(oneHourLater.getTime() - 60000), // 1 minute buffer
+        $lt: new Date(oneHourLater.getTime() + 60000) // 1 minute window
+      }
+    }).populate('attendees', '_id').populate('organizer', 'name');
+
+    let reminderCount = 0;
+
+    // Send 15-minute reminders
+    for (const meeting of meetings15Min) {
+      const attendees = meeting.attendees.map(attendee => attendee._id.toString());
+      const organizerName = meeting.organizer?.name || 'Organizer';
+      
+      if (attendees.length > 0) {
+        await NotificationService.sendToMultiple(
+          attendees,
+          '⏰ Meeting in 15 Minutes',
+          `"${meeting.title}" starts in 15 minutes. Location: ${meeting.location || 'Online'}`,
+          {
+            type: 'meeting_reminder_15min',
+            data: {
+              meetingId: meeting._id.toString(),
+              meetingTitle: meeting.title,
+              startTime: meeting.startTime,
+              location: meeting.location || 'Online',
+              meetingLink: meeting.meetingLink,
+              organizerName: organizerName
+            },
+            actionUrl: meeting.meetingLink || '/meetings',
+            senderId: meeting.organizer?._id
+          }
+        );
+        reminderCount += attendees.length;
+      }
+    }
+
+    // Send 1-hour reminders
+    for (const meeting of meetings1Hour) {
+      const attendees = meeting.attendees.map(attendee => attendee._id.toString());
+      const organizerName = meeting.organizer?.name || 'Organizer';
+      
+      if (attendees.length > 0) {
+        await NotificationService.sendToMultiple(
+          attendees,
+          '📅 Meeting in 1 Hour',
+          `"${meeting.title}" starts in 1 hour. Location: ${meeting.location || 'Online'}`,
+          {
+            type: 'meeting_reminder_1hour',
+            data: {
+              meetingId: meeting._id.toString(),
+              meetingTitle: meeting.title,
+              startTime: meeting.startTime,
+              location: meeting.location || 'Online',
+              meetingLink: meeting.meetingLink,
+              organizerName: organizerName
+            },
+            actionUrl: meeting.meetingLink || '/meetings',
+            senderId: meeting.organizer?._id
+          }
+        );
+        reminderCount += attendees.length;
+      }
+    }
+
+    
+  } catch (error) {
+    
+  }
+};
+
+// Cron job: Send project deadline approaching reminders
+const sendProjectDeadlineReminders = async () => {
+  try {
+    const now = new Date();
+    
+    // Calculate times for reminders (7 days and 3 days before deadline)
+    const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const threeDaysLater = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+    
+    // Find projects with endDate in 7 days
+    const projects7Days = await Project.find({
+      status: { $in: ['In Progress', 'Active', 'Pending'] },
+      endDate: {
+        $gte: new Date(sevenDaysLater.setHours(0, 0, 0, 0)),
+        $lte: new Date(sevenDaysLater.setHours(23, 59, 59, 999))
+      }
+    }).populate('assignedUsers', '_id').populate('projectHead', 'name');
+
+    // Find projects with endDate in 3 days
+    const projects3Days = await Project.find({
+      status: { $in: ['In Progress', 'Active', 'Pending'] },
+      endDate: {
+        $gte: new Date(threeDaysLater.setHours(0, 0, 0, 0)),
+        $lte: new Date(threeDaysLater.setHours(23, 59, 59, 999))
+      }
+    }).populate('assignedUsers', '_id').populate('projectHead', 'name');
+
+    let reminderCount = 0;
+
+    // Send 7-day reminders
+    for (const project of projects7Days) {
+      const teamMembers = [
+        project.projectHead?._id?.toString(),
+        ...(project.assignedUsers?.map(user => user._id?.toString() || user.toString()) || [])
+      ].filter(Boolean);
+      
+      if (teamMembers.length > 0) {
+        await NotificationService.sendToMultiple(
+          teamMembers,
+          '📅 Project Deadline in 7 Days',
+          `Project "${project.name}" ends in 7 days (${project.endDate.toISOString().split('T')[0]})`,
+          {
+            type: 'project_deadline_7days',
+            data: {
+              projectId: project._id.toString(),
+              projectName: project.name,
+              endDate: project.endDate,
+              daysLeft: 7,
+            },
+            actionUrl: `/projects/${project._id}`,
+            senderId: project.projectHead?._id,
+          }
+        );
+        reminderCount += teamMembers.length;
+      }
+    }
+
+    // Send 3-day reminders
+    for (const project of projects3Days) {
+      const teamMembers = [
+        project.projectHead?._id?.toString(),
+        ...(project.assignedUsers?.map(user => user._id?.toString() || user.toString()) || [])
+      ].filter(Boolean);
+      
+      if (teamMembers.length > 0) {
+        await NotificationService.sendToMultiple(
+          teamMembers,
+          '⏰ Project Deadline in 3 Days',
+          `Project "${project.name}" ends in 3 days (${project.endDate.toISOString().split('T')[0]})`,
+          {
+            type: 'project_deadline_3days',
+            data: {
+              projectId: project._id.toString(),
+              projectName: project.name,
+              endDate: project.endDate,
+              daysLeft: 3,
+            },
+            actionUrl: `/projects/${project._id}`,
+            senderId: project.projectHead?._id,
+          }
+        );
+        reminderCount += teamMembers.length;
+      }
+    }
+
+    
+  } catch (error) {
+    
   }
 };
 
@@ -448,35 +614,38 @@ const autoClockOutForgottenEmployees = async () => {
 export const initializeCronJobs = () => {
   // Run daily at 9 AM: Check bills due soon (7 days and 3 days)
   cron.schedule("0 9 * * *", () => {
-    console.log("⏰ Running scheduled job: checkBillsDueSoon");
     checkBillsDueSoon();
   });
 
   // Run daily at 10 AM: Mark overdue bills/payments and notify
   cron.schedule("0 10 * * *", () => {
-    console.log("⏰ Running scheduled job: markOverdueAndNotify");
     markOverdueAndNotify();
   });
 
   // Run daily at 8 AM: Check plan renewals (30 days, 7 days, expired)
   cron.schedule("0 8 * * *", () => {
-    console.log("⏰ Running scheduled job: checkPlanRenewals");
     checkPlanRenewals();
   });
 
   // Run daily at 7 AM: Check slot deadlines and send reminders
   cron.schedule("0 7 * * *", () => {
-    console.log("⏰ Running scheduled job: checkSlotDeadlines");
     checkSlotDeadlines();
   });
 
   // Run daily at 10 PM: Auto clock-out employees who forgot to clock out
   cron.schedule("0 22 * * *", () => {
-    console.log("⏰ Running scheduled job: autoClockOutForgottenEmployees");
     autoClockOutForgottenEmployees();
   });
 
-  console.log(
-    "✅ Cron jobs initialized: Bill reminders, Overdue checks, Plan renewals, Slot deadlines, Auto clock-out"
-  );
+  // Run every 5 minutes: Send meeting reminders (15 min and 1 hour before)
+  cron.schedule("*/5 * * * *", () => {
+    sendMeetingReminders();
+  });
+
+  // Run daily at 9 AM: Send project deadline reminders (7 days and 3 days before)
+  cron.schedule("0 9 * * *", () => {
+    sendProjectDeadlineReminders();
+  });
+
+  
 };

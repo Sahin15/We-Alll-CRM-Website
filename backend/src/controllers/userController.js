@@ -72,7 +72,7 @@ export const registerUser = async (req, res) => {
 // Get all users (optimized but backward compatible)
 export const getUsers = async (req, res) => {
   try {
-    const { search, role, department, status } = req.query;
+    const { search, role, department, status, limit = 100, skip = 0 } = req.query;
     
     let query = {};
     
@@ -111,12 +111,13 @@ export const getUsers = async (req, res) => {
     
     logger.info('getUsers query:', query);
     
-    // Optimized query WITHOUT pagination (backward compatible)
+    // Optimized query with pagination and all necessary fields for display
     const users = await User.find(query)
-      .select('name email role department phone status designation profilePicture employeeId joiningDate hireDate dateOfBirth gender')
+      .select('_id name email role department profilePicture designation status employeeId joiningDate hireDate phone')
       .populate('department', 'name')
-      .populate('manager', 'name email')
       .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip(parseInt(skip))
       .lean();
     
     logger.success(`Found ${users.length} users`);

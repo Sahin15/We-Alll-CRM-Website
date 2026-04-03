@@ -41,6 +41,7 @@ const workItemSchema = new mongoose.Schema(
     assignedToMultiple: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+      index: true,
     }],
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -56,6 +57,24 @@ const workItemSchema = new mongoose.Schema(
       default: "To Do",
       index: true,
     },
+    
+    // Individual status tracking for each assignee (when multiple assignees)
+    assigneeStatuses: [{
+      assigneeId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+      },
+      status: {
+        type: String,
+        enum: ["To Do", "In Progress", "Review", "Done"],
+        default: "To Do",
+      },
+      updatedAt: {
+        type: Date,
+        default: Date.now,
+      },
+    }],
     
     // Draft/Scheduled Status - Controls visibility to assigned team members
     visibility: {
@@ -405,7 +424,6 @@ const workItemSchema = new mongoose.Schema(
     isDeleted: {
       type: Boolean,
       default: false,
-      index: true,
     },
     deletedAt: {
       type: Date,
@@ -431,6 +449,7 @@ const workItemSchema = new mongoose.Schema(
 // Indexes for optimal query performance
 workItemSchema.index({ project: 1, status: 1 });
 workItemSchema.index({ assignedTo: 1, status: 1 });
+workItemSchema.index({ assignedToMultiple: 1, status: 1 }); // Index for multiple assignees
 workItemSchema.index({ status: 1, dueDate: 1 }); // Combined index covers single dueDate queries too
 workItemSchema.index({ type: 1, status: 1 });
 workItemSchema.index({ createdBy: 1 });
@@ -551,7 +570,7 @@ workItemSchema.pre("save", async function (next) {
             }
           }
         } catch (error) {
-          console.error('Error completing slot on work item completion:', error);
+          
           // Don't fail the work item save if slot completion fails
         }
       }

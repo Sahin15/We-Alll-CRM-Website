@@ -24,6 +24,7 @@ const MyLeaves = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showWFHModal, setShowWFHModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [leaveBalance, setLeaveBalance] = useState(null);
   const [formData, setFormData] = useState({
     leaveType: "personal",
@@ -95,6 +96,8 @@ const MyLeaves = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    if (isSubmitting) return; // Prevent double submission
+    
     if (!formData.startDate || !formData.endDate || !formData.reason) {
       toast.error("Please fill all required fields");
       return;
@@ -119,6 +122,7 @@ const MyLeaves = () => {
       }
     }
 
+    setIsSubmitting(true);
     try {
       const formDataToSend = new FormData();
       formDataToSend.append('leaveType', formData.leaveType);
@@ -141,6 +145,8 @@ const MyLeaves = () => {
       toast.error(
         error.response?.data?.message || "Failed to submit leave request"
       );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -424,11 +430,12 @@ const MyLeaves = () => {
               variant="primary" 
               type="submit"
               disabled={
+                isSubmitting ||
                 !validateAdvanceNotice(formData.leaveType, formData.startDate).valid || 
                 (formData.leaveType !== 'unpaid' && calculateDays(formData.startDate, formData.endDate) > (leaveBalance?.earned?.remaining || 0))
               }
             >
-              Submit Request
+              {isSubmitting ? 'Submitting...' : 'Submit Request'}
             </Button>
           </Modal.Footer>
         </Form>

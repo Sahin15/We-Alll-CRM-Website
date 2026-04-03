@@ -43,7 +43,7 @@ export const createService = async (req, res) => {
       service,
     });
   } catch (error) {
-    console.error("Error creating service:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -65,7 +65,7 @@ export const getAllServices = async (req, res) => {
 
     return res.status(200).json(services);
   } catch (error) {
-    console.error("Error fetching services:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -94,7 +94,7 @@ export const getServicesByCategory = async (req, res) => {
 
     return res.status(200).json(grouped);
   } catch (error) {
-    console.error("Error fetching services by category:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -112,7 +112,7 @@ export const getServiceById = async (req, res) => {
 
     return res.status(200).json(service);
   } catch (error) {
-    console.error("Error fetching service:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -138,7 +138,7 @@ export const updateService = async (req, res) => {
       service,
     });
   } catch (error) {
-    console.error("Error updating service:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -170,7 +170,7 @@ export const deleteService = async (req, res) => {
       message: "Service deleted successfully",
     });
   } catch (error) {
-    console.error("Error deleting service:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -194,7 +194,7 @@ export const toggleServiceStatus = async (req, res) => {
       service,
     });
   } catch (error) {
-    console.error("Error toggling service status:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -211,7 +211,7 @@ export const getCategories = async (req, res) => {
 
     return res.status(200).json(categories);
   } catch (error) {
-    console.error("Error fetching categories:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -235,7 +235,7 @@ export const updateDisplayOrder = async (req, res) => {
       message: "Display order updated successfully",
     });
   } catch (error) {
-    console.error("Error updating display order:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };

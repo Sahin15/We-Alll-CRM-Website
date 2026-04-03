@@ -12,7 +12,7 @@ export const getMyActivities = async (req, res) => {
 
     res.json(activities);
   } catch (error) {
-    console.error("Error fetching activities:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -23,7 +23,7 @@ export const createActivity = async (activityData) => {
     const activity = await Activity.create(activityData);
     return activity;
   } catch (error) {
-    console.error("Error creating activity:", error);
+    
     throw error;
   }
 };
@@ -43,7 +43,7 @@ export const deleteOldActivities = async (req, res) => {
       deletedCount: result.deletedCount,
     });
   } catch (error) {
-    console.error("Error deleting old activities:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };

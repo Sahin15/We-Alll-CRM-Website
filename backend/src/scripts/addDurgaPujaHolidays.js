@@ -54,13 +54,13 @@ const addDurgaPujaHolidays = async () => {
   try {
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGO_URI);
-    console.log('Connected to MongoDB');
+    
 
     // Find an admin user to assign as creator
     const adminUser = await User.findOne({ role: { $in: ['admin', 'superadmin', 'hr'] } });
     
     if (!adminUser) {
-      console.log('No admin user found. Please create an admin user first.');
+      
       process.exit(1);
     }
 
@@ -74,7 +74,7 @@ const addDurgaPujaHolidays = async () => {
     });
 
     if (existingHolidays.length > 0) {
-      console.log('Durga Puja holidays already exist. Removing existing ones first...');
+      
       await Holiday.deleteMany({
         name: { $regex: /Durga Puja/i },
         date: {
@@ -82,7 +82,7 @@ const addDurgaPujaHolidays = async () => {
           $lte: new Date('2026-10-22')
         }
       });
-      console.log('Existing Durga Puja holidays removed.');
+      
     }
 
     // Create Durga Puja holidays
@@ -93,18 +93,18 @@ const addDurgaPujaHolidays = async () => {
     }));
 
     const createdHolidays = await Holiday.insertMany(holidaysWithCreator);
-    console.log(`\n✅ Created ${createdHolidays.length} Durga Puja holidays:`);
+    
     
     createdHolidays.forEach(holiday => {
       const dayName = holiday.date.toLocaleDateString('en-US', { weekday: 'long' });
-      console.log(`- ${holiday.name} (${holiday.date.toDateString()} - ${dayName})`);
+      } - ${dayName})`);
     });
 
-    console.log('\n🎉 Durga Puja holidays added successfully!');
-    console.log('📅 Holiday period: October 16-22, 2026 (7 consecutive days)');
+    
+    ');
     process.exit(0);
   } catch (error) {
-    console.error('Error adding Durga Puja holidays:', error);
+    
     process.exit(1);
   }
 };

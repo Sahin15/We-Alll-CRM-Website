@@ -45,7 +45,7 @@ const router = express.Router();
 // Test routes (no auth required)
 router.get("/test-logic", testStatusLogic);
 router.get("/test-api", (req, res) => {
-  console.log('[TEST] Attendance API test endpoint called');
+  
   res.json({ 
     message: "Attendance API is working", 
     timestamp: new Date().toISOString(),
@@ -54,7 +54,7 @@ router.get("/test-api", (req, res) => {
 });
 
 router.get("/test-protected", protect, (req, res) => {
-  console.log('[TEST] Protected attendance API test called by:', req.user?.email);
+  
   res.json({ 
     message: "Protected attendance API is working", 
     user: req.user?.email,

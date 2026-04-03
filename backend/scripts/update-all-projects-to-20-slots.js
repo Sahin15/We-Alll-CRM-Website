@@ -18,16 +18,16 @@ const TARGET_SLOT_COUNT = 20;
 
 const updateAllProjectsTo20Slots = async () => {
   try {
-    console.log('🔌 Connecting to MongoDB...');
+    
     await mongoose.connect(process.env.MONGO_URI);
-    console.log('✅ Connected to MongoDB\n');
+    
 
     // Get all projects
     const allProjects = await Project.find({})
       .select('name slotConfiguration progressTracking createdBy projectHead')
       .lean();
 
-    console.log(`📊 Total projects in database: ${allProjects.length}\n`);
+    
 
     let updatedCount = 0;
     let skippedCount = 0;
@@ -35,21 +35,21 @@ const updateAllProjectsTo20Slots = async () => {
 
     for (const project of allProjects) {
       try {
-        console.log(`\n📋 Processing: ${project.name}`);
+        
 
         // Get current slot count
         const currentSlotCount = await Slot.countDocuments({ project: project._id });
-        console.log(`   Current slots: ${currentSlotCount}`);
+        
 
         if (currentSlotCount >= TARGET_SLOT_COUNT) {
-          console.log(`   ✅ Already has ${currentSlotCount} slots (>= ${TARGET_SLOT_COUNT}), skipping`);
+          , skipping`);
           skippedCount++;
           continue;
         }
 
         // Calculate how many slots to add
         const slotsToAdd = TARGET_SLOT_COUNT - currentSlotCount;
-        console.log(`   🔧 Adding ${slotsToAdd} slots...`);
+        
 
         // Update project configuration
         await Project.findByIdAndUpdate(project._id, {
@@ -70,30 +70,30 @@ const updateAllProjectsTo20Slots = async () => {
           createdBy: fallbackUserId
         });
 
-        console.log(`   ✅ Added ${result.created.length} slots`);
-        console.log(`   📊 Total slots now: ${currentSlotCount + result.created.length}`);
+        
+        
         
         updatedCount++;
 
       } catch (error) {
-        console.error(`   ❌ Error processing ${project.name}:`, error.message);
+        
         errorCount++;
       }
     }
 
-    console.log('\n' + '='.repeat(60));
-    console.log('📊 SUMMARY');
-    console.log('='.repeat(60));
-    console.log(`✅ Projects updated: ${updatedCount}`);
-    console.log(`⏭️  Projects skipped (already have >= ${TARGET_SLOT_COUNT} slots): ${skippedCount}`);
-    console.log(`❌ Projects with errors: ${errorCount}`);
-    console.log(`📦 Total projects processed: ${allProjects.length}`);
-    console.log('='.repeat(60));
+    );
+    
+    );
+    
+    : ${skippedCount}`);
+    
+    
+    );
 
     await mongoose.connection.close();
-    console.log('\n✅ Database connection closed');
+    
   } catch (error) {
-    console.error('❌ Error:', error);
+    
     await mongoose.connection.close();
     process.exit(1);
   }

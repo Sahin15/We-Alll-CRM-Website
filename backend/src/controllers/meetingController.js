@@ -1,5 +1,6 @@
 import Meeting from "../models/meetingModel.js";
 import Activity from "../models/activityModel.js";
+import NotificationService from "../services/notificationService.js";
 
 // Get all meetings (Admin/HR/Manager only)
 export const getAllMeetings = async (req, res) => {
@@ -27,7 +28,7 @@ export const getAllMeetings = async (req, res) => {
 
     res.json(meetings);
   } catch (error) {
-    console.error("Error fetching all meetings:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -58,7 +59,7 @@ export const getMyMeetings = async (req, res) => {
 
     res.json(meetings);
   } catch (error) {
-    console.error("Error fetching meetings:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -83,7 +84,7 @@ export const getTodaysMeetings = async (req, res) => {
 
     res.json(meetings);
   } catch (error) {
-    console.error("Error fetching today's meetings:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -132,6 +133,23 @@ export const createMeeting = async (req, res) => {
 
     await Promise.all(activityPromises);
 
+    // Send notifications to all attendees
+    try {
+      await NotificationService.sendToMultiple(
+        attendees,
+        '📅 Meeting Scheduled',
+        `You have been invited to: ${title}`,
+        {
+          type: 'meeting_scheduled',
+          data: { meetingId: meeting._id.toString(), title },
+          actionUrl: '/meetings',
+          senderId: req.user.id,
+        }
+      );
+    } catch (notificationError) {
+      
+    }
+
     const populatedMeeting = await Meeting.findById(meeting._id)
       .populate("organizer", "name email")
       .populate("attendees", "name email");
@@ -141,7 +159,7 @@ export const createMeeting = async (req, res) => {
       meeting: populatedMeeting,
     });
   } catch (error) {
-    console.error("Error creating meeting:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -163,6 +181,9 @@ export const updateMeeting = async (req, res) => {
         .json({ message: "Only organizer can update the meeting" });
     }
 
+    // Get old attendees before update
+    const oldAttendees = meeting.attendees.map(attendee => attendee.toString());
+    
     const updatedMeeting = await Meeting.findByIdAndUpdate(id, req.body, {
       new: true,
       runValidators: true,
@@ -170,12 +191,47 @@ export const updateMeeting = async (req, res) => {
       .populate("organizer", "name email")
       .populate("attendees", "name email");
 
+    // Get new attendees after update
+    const newAttendees = updatedMeeting.attendees.map(attendee => attendee._id.toString());
+    
+    // Send notifications to all attendees about the update
+    try {
+      const organizer = await import('../models/userModel.js').then(mod => mod.default.findById(req.user.id).select('name'));
+      const organizerName = organizer?.name || 'Organizer';
+      
+      // Notify all attendees (both old and new to cover changes)
+      const allAttendees = [...new Set([...oldAttendees, ...newAttendees])];
+      
+      if (allAttendees.length > 0) {
+        await NotificationService.sendToMultiple(
+          allAttendees,
+          '📝 Meeting Updated',
+          `${organizerName} updated the meeting: "${updatedMeeting.title}"`,
+          {
+            type: 'meeting_updated',
+            data: {
+              meetingId: updatedMeeting._id.toString(),
+              meetingTitle: updatedMeeting.title,
+              organizerName,
+              changes: Object.keys(req.body),
+            },
+            actionUrl: '/meetings',
+            senderId: req.user.id,
+          }
+        );
+      }
+      
+      
+    } catch (notificationError) {
+      
+    }
+
     res.json({
       message: "Meeting updated successfully",
       meeting: updatedMeeting,
     });
   } catch (error) {
-    console.error("Error updating meeting:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -184,7 +240,7 @@ export const updateMeeting = async (req, res) => {
 export const deleteMeeting = async (req, res) => {
   try {
     const { id } = req.params;
-    const meeting = await Meeting.findById(id);
+    const meeting = await Meeting.findById(id).populate("attendees", "_id name");
 
     if (!meeting) {
       return res.status(404).json({ message: "Meeting not found" });
@@ -197,11 +253,42 @@ export const deleteMeeting = async (req, res) => {
         .json({ message: "Only organizer can delete the meeting" });
     }
 
+    // Send notifications to all attendees before deleting
+    try {
+      const organizer = await import('../models/userModel.js').then(mod => mod.default.findById(req.user.id).select('name'));
+      const organizerName = organizer?.name || 'Organizer';
+      const attendees = meeting.attendees.map(attendee => attendee._id.toString());
+      
+      if (attendees.length > 0) {
+        await NotificationService.sendToMultiple(
+          attendees,
+          '❌ Meeting Cancelled',
+          `${organizerName} cancelled the meeting: "${meeting.title}"`,
+          {
+            type: 'meeting_cancelled',
+            data: {
+              meetingId: meeting._id.toString(),
+              meetingTitle: meeting.title,
+              organizerName,
+              date: meeting.date,
+              startTime: meeting.startTime,
+            },
+            actionUrl: '/meetings',
+            senderId: req.user.id,
+          }
+        );
+      }
+      
+      
+    } catch (notificationError) {
+      
+    }
+
     await Meeting.findByIdAndDelete(id);
 
     res.json({ message: "Meeting deleted successfully" });
   } catch (error) {
-    console.error("Error deleting meeting:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -242,7 +329,7 @@ export const completeMeeting = async (req, res) => {
       meeting: populatedMeeting,
     });
   } catch (error) {
-    console.error("Error completing meeting:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };

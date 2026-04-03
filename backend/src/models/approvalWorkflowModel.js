@@ -217,7 +217,7 @@ approvalWorkflowSchema.statics.createStandardWorkflow = async function(salarySli
     await workflow.save();
     return workflow;
   } catch (error) {
-    console.error("Error creating standard workflow:", error);
+    
     throw error;
   }
 };
@@ -242,7 +242,7 @@ approvalWorkflowSchema.statics.createBulkWorkflow = async function(salarySlipIds
     await workflow.save();
     return workflow;
   } catch (error) {
-    console.error("Error creating bulk workflow:", error);
+    
     throw error;
   }
 };
@@ -338,7 +338,7 @@ approvalWorkflowSchema.methods.processApproval = async function(approverId, acti
     await this.save();
     return this;
   } catch (error) {
-    console.error("Error processing approval:", error);
+    
     throw error;
   }
 };
@@ -384,7 +384,7 @@ approvalWorkflowSchema.methods.bulkApprove = async function(approverId, comments
     await this.save();
     return this;
   } catch (error) {
-    console.error("Error bulk approving workflow:", error);
+    
     throw error;
   }
 };
@@ -408,7 +408,7 @@ approvalWorkflowSchema.statics.getPendingApprovals = async function(userId) {
       return currentStage && currentStage.approver.toString() === userId.toString();
     });
   } catch (error) {
-    console.error("Error getting pending approvals:", error);
+    
     throw error;
   }
 };

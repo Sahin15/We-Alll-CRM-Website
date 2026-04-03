@@ -32,8 +32,8 @@ export const logAuditEvent = (event) => {
     }
   });
 
-  // Also log to console in development
-  if (process.env.NODE_ENV !== "production") {
+  // Also log to console in development (DISABLED - too verbose)
+  if (process.env.NODE_ENV !== "production" && process.env.DEBUG_AUDIT === "true") {
     console.log("[AUDIT]", logEntry);
   }
 };

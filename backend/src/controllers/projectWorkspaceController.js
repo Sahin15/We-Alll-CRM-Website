@@ -139,7 +139,7 @@ export const getWorkBoard = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching work board:", error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -186,7 +186,7 @@ export const getProjectTeam = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching project team:", error);
+    
     res.status(500).json({
       success: false,
       error: {

@@ -348,6 +348,60 @@ const userSchema = new mongoose.Schema(
         projects: { type: Boolean, default: true }
       }
     },
+
+    // Notification sound settings (individual per user)
+    notificationSoundSettings: {
+      sound: {
+        type: String,
+        enum: [
+          'bell_chime',
+          'digital_ping',
+          'soft_chime',
+          'ascending_tones',
+          'melodic_alert',
+          'bright_ding',
+          'subtle_beep',
+          'chirp',
+          'ding_dong',
+          'sparkle',
+          'gentle_bell',
+          'notification_pop',
+          'three_notes',
+          'xylophone',
+          'soft_alert',
+          'saranai',
+          'temple_bell',
+          'wind_chime',
+          'crystal_tone',
+          'harmony',
+          'forest_bird',
+          'ocean_wave',
+          'morning_dew',
+          'cosmic_ping',
+          'zen_bell',
+          'shehnai'
+        ],
+        default: 'bell_chime'
+      },
+      volume: {
+        type: Number,
+        min: 0,
+        max: 1,
+        default: 0.3
+      },
+      preferences: {
+        leaves: { type: Boolean, default: true },
+        tasks: { type: Boolean, default: true },
+        meetings: { type: Boolean, default: true },
+        attendance: { type: Boolean, default: true },
+        projects: { type: Boolean, default: true },
+        announcements: { type: Boolean, default: true },
+        salary: { type: Boolean, default: true },
+        expenses: { type: Boolean, default: true },
+        documents: { type: Boolean, default: true },
+        performance: { type: Boolean, default: true }
+      }
+    },
   },
   {
     timestamps: true, // adds createdAt and updatedAt automatically

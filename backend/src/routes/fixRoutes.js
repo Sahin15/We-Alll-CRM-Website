@@ -13,7 +13,7 @@ router.get("/test", (req, res) => {
 // Fix attendance status for recent records
 router.post("/fix-attendance", protect, authorize("admin", "superadmin", "hr"), async (req, res) => {
   try {
-    console.log("🔧 Starting attendance fix...");
+    
     
     // Get attendance records from last 30 days
     const thirtyDaysAgo = new Date();
@@ -24,7 +24,7 @@ router.post("/fix-attendance", protect, authorize("admin", "superadmin", "hr"), 
       clockIn: { $exists: true }
     }).populate('employee', 'name email role');
     
-    console.log(`Found ${attendanceRecords.length} attendance records to check`);
+    
     
     let fixedCount = 0;
     const fixedRecords = [];
@@ -75,8 +75,6 @@ router.post("/fix-attendance", protect, authorize("admin", "superadmin", "hr"), 
           oldStatus: oldStatus,
           newStatus: correctStatus
         });
-        
-        console.log(`Fixed: ${record.employee.name} - ${clockInTime.toLocaleString()} - ${oldStatus} → ${correctStatus}`);
       }
     }
     
@@ -89,7 +87,7 @@ router.post("/fix-attendance", protect, authorize("admin", "superadmin", "hr"), 
     });
     
   } catch (error) {
-    console.error("Error fixing attendance:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error fixing attendance records",
@@ -101,7 +99,7 @@ router.post("/fix-attendance", protect, authorize("admin", "superadmin", "hr"), 
 // Check department assignments
 router.get("/check-departments", protect, authorize("admin", "superadmin", "hr"), async (req, res) => {
   try {
-    console.log("🔍 Checking department assignments...");
+    
     
     // Get all users with their departments
     const users = await User.find({})
@@ -158,7 +156,7 @@ router.get("/check-departments", protect, authorize("admin", "superadmin", "hr")
     });
     
   } catch (error) {
-    console.error("Error checking departments:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error checking department assignments",

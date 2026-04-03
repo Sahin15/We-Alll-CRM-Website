@@ -24,12 +24,34 @@ const ReportsAnalytics = () => {
     try {
       setLoading(true);
 
-      // Fetch all data
-      const [usersRes, leavesRes, attendanceRes] = await Promise.all([
-        userApi.getAllUsers(),
-        leaveApi.getAllLeaves({}),
-        attendanceApi.getAllAttendance({}),
-      ]);
+      // Fetch all data with individual error handling
+      let usersRes = { data: [] };
+      let leavesRes = { data: [] };
+      let attendanceRes = { data: [] };
+
+      try {
+        usersRes = await userApi.getAllUsers();
+        console.log('[ReportsAnalytics] Users fetched:', usersRes);
+      } catch (error) {
+        console.error('[ReportsAnalytics] Error fetching users:', error.message);
+        toast.warning('Could not fetch user data');
+      }
+
+      try {
+        leavesRes = await leaveApi.getAllLeaves({});
+        console.log('[ReportsAnalytics] Leaves fetched:', leavesRes);
+      } catch (error) {
+        console.error('[ReportsAnalytics] Error fetching leaves:', error.message);
+        toast.warning('Could not fetch leave data');
+      }
+
+      try {
+        attendanceRes = await attendanceApi.getAllAttendance({});
+        console.log('[ReportsAnalytics] Attendance fetched:', attendanceRes);
+      } catch (error) {
+        console.error('[ReportsAnalytics] Error fetching attendance:', error.message);
+        toast.warning('Could not fetch attendance data');
+      }
 
       // Handle different response formats
       let allUsers = [];
@@ -41,9 +63,27 @@ const ReportsAnalytics = () => {
         allUsers = usersRes.users;
       }
 
+      let allLeaves = [];
+      if (Array.isArray(leavesRes.data)) {
+        allLeaves = leavesRes.data;
+      } else if (Array.isArray(leavesRes)) {
+        allLeaves = leavesRes;
+      } else if (leavesRes.leaves && Array.isArray(leavesRes.leaves)) {
+        allLeaves = leavesRes.leaves;
+      }
+
+      let allAttendance = [];
+      if (Array.isArray(attendanceRes.data)) {
+        allAttendance = attendanceRes.data;
+      } else if (Array.isArray(attendanceRes)) {
+        allAttendance = attendanceRes;
+      } else if (attendanceRes.attendance && Array.isArray(attendanceRes.attendance)) {
+        allAttendance = attendanceRes.attendance;
+      }
+
       const employees = allUsers.filter((u) => u.role === "employee" || u.role === "hod" || u.role === "hr" || u.role === "manager") || [];
-      const leaves = leavesRes.data || [];
-      const attendance = attendanceRes.data || [];
+      const leaves = allLeaves || [];
+      const attendance = allAttendance || [];
 
       // Headcount by Department
       const deptCount = {};
@@ -114,8 +154,10 @@ const ReportsAnalytics = () => {
         attendanceRate,
       });
     } catch (error) {
-      console.error("Error fetching analytics:", error);
-      toast.error("Failed to fetch analytics data");
+      console.error("[ReportsAnalytics] ❌ Error fetching analytics:", error);
+      console.error("[ReportsAnalytics] Error message:", error.message);
+      console.error("[ReportsAnalytics] Error response:", error.response?.data);
+      toast.error("Failed to fetch analytics data: " + (error.response?.data?.message || error.message));
     } finally {
       setLoading(false);
     }

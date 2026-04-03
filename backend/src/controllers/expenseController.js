@@ -2,6 +2,7 @@ import Expense from "../models/expenseModel.js";
 import User from "../models/userModel.js";
 import Budget from "../models/budgetModel.js";
 import XLSX from "xlsx";
+import NotificationService from "../services/notificationService.js";
 import { getCurrentFinancialYear, getFinancialYearForDate, getFinancialYearDateRange, getFinancialYears as getFinancialYearsUtil } from "../utils/financialYear.js";
 
 // Create a new expense
@@ -62,13 +63,35 @@ export const createExpense = async (req, res) => {
     if (project) await expense.populate("project", "name");
     if (client) await expense.populate("client", "name");
 
+    // Notify admins/hr that a new expense was submitted for review
+    try {
+      const submitter = await User.findById(req.user._id).select('name');
+      const submitterName = submitter?.name || 'Employee';
+      const reviewers = await User.find({ role: { $in: ['admin', 'hr', 'superadmin'] } }).select('_id');
+      for (const reviewer of reviewers) {
+        await NotificationService.sendToUser(
+          reviewer._id,
+          '🧾 Expense Submitted for Review',
+          `${submitterName} submitted an expense of ₹${amount} for review`,
+          {
+            type: 'expense_submitted',
+            data: { expenseId: expense._id.toString(), amount, category },
+            actionUrl: '/expenses/manage',
+            senderId: req.user._id,
+          }
+        );
+      }
+    } catch (notificationError) {
+      
+    }
+
     res.status(201).json({
       success: true,
       message: "Expense created successfully",
       expense,
     });
   } catch (error) {
-    console.error("Error in createExpense:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -118,7 +141,7 @@ export const getMyExpenses = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error in getMyExpenses:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -169,7 +192,7 @@ export const getAllExpenses = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error in getAllExpenses:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -211,7 +234,7 @@ export const getExpenseById = async (req, res) => {
       expense,
     });
   } catch (error) {
-    console.error("Error in getExpenseById:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -293,7 +316,7 @@ export const updateExpense = async (req, res) => {
       expense,
     });
   } catch (error) {
-    console.error("Error in updateExpense:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -339,7 +362,7 @@ export const deleteExpense = async (req, res) => {
       message: "Expense deleted successfully",
     });
   } catch (error) {
-    console.error("Error in deleteExpense:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -387,7 +410,7 @@ export const getExpenseStats = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error in getExpenseStats:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -434,6 +457,23 @@ export const approveExpense = async (req, res) => {
 
     await expense.save();
 
+    // Send notification to employee
+    try {
+      await NotificationService.sendToUser(
+        expense.employee,
+        '💰 Expense Approved',
+        `Your expense of ₹${expense.amount} has been approved`,
+        {
+          type: 'expense_approval',
+          data: { expenseId: expense._id.toString(), amount: expense.amount },
+          actionUrl: '/expenses',
+          senderId: req.user._id,
+        }
+      );
+    } catch (notificationError) {
+      
+    }
+
     await expense.populate("employee", "name email");
     await expense.populate("approvedBy", "name");
     if (expense.project) await expense.populate("project", "name");
@@ -445,7 +485,7 @@ export const approveExpense = async (req, res) => {
       expense,
     });
   } catch (error) {
-    console.error("Error in approveExpense:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -499,6 +539,23 @@ export const rejectExpense = async (req, res) => {
 
     await expense.save();
 
+    // Send notification to employee
+    try {
+      await NotificationService.sendToUser(
+        expense.employee,
+        '❌ Expense Rejected',
+        `Your expense of ₹${expense.amount} has been rejected`,
+        {
+          type: 'expense_rejection',
+          data: { expenseId: expense._id.toString(), reason },
+          actionUrl: '/expenses',
+          senderId: req.user._id,
+        }
+      );
+    } catch (notificationError) {
+      
+    }
+
     await expense.populate("employee", "name email");
     await expense.populate("rejectedBy", "name");
     if (expense.project) await expense.populate("project", "name");
@@ -510,7 +567,7 @@ export const rejectExpense = async (req, res) => {
       expense,
     });
   } catch (error) {
-    console.error("Error in rejectExpense:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -557,6 +614,23 @@ export const markAsReimbursed = async (req, res) => {
 
     await expense.save();
 
+    // Notify employee that their expense has been reimbursed
+    try {
+      await NotificationService.sendToUser(
+        expense.employee,
+        '💸 Expense Reimbursed',
+        `Your expense of ₹${expense.amount} has been reimbursed`,
+        {
+          type: 'expense_reimbursed',
+          data: { expenseId: expense._id.toString(), amount: expense.amount },
+          actionUrl: '/expenses',
+          senderId: req.user._id,
+        }
+      );
+    } catch (notificationError) {
+      
+    }
+
     await expense.populate("employee", "name email");
     await expense.populate("reimbursedBy", "name");
     if (expense.project) await expense.populate("project", "name");
@@ -568,7 +642,7 @@ export const markAsReimbursed = async (req, res) => {
       expense,
     });
   } catch (error) {
-    console.error("Error in markAsReimbursed:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -627,7 +701,7 @@ export const getReimbursementTracking = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error in getReimbursementTracking:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -643,11 +717,11 @@ export const searchExpenses = async (req, res) => {
     const userId = req.user._id;
     const isAdmin = req.user.role === "admin" || req.user.role === "hr" || req.user.role === "superadmin" || req.user.role === "manager";
 
-    console.log("=== SEARCH REQUEST ===");
-    console.log("Query:", query);
-    console.log("Filters:", filters);
-    console.log("User role:", req.user.role);
-    console.log("Is Admin:", isAdmin);
+    
+    
+    
+    
+    
 
     // Build the search query with proper $and logic
     const andConditions = [];
@@ -655,12 +729,11 @@ export const searchExpenses = async (req, res) => {
     // Add role-based filter
     if (!isAdmin) {
       andConditions.push({ employee: userId });
-      console.log("Non-admin user, filtering by employee:", userId.toString());
     }
 
     // Text search - if query is provided, search in multiple fields
     if (query && query.trim()) {
-      console.log("Searching for:", query);
+      
       
       // First, try to find employees matching the search query
       const matchingUsers = await User.find({
@@ -670,9 +743,9 @@ export const searchExpenses = async (req, res) => {
         ]
       }).select("_id name email");
       
-      console.log("Matching users found:", matchingUsers.length);
+      
       if (matchingUsers.length > 0) {
-        console.log("Users:", matchingUsers.map(u => ({ id: u._id.toString(), name: u.name, email: u.email })));
+        // Users found
       }
       
       const matchingUserIds = matchingUsers.map(user => user._id);
@@ -688,7 +761,7 @@ export const searchExpenses = async (req, res) => {
       // Add employee ID match if we found matching users
       if (matchingUserIds.length > 0) {
         textSearchConditions.push({ employee: { $in: matchingUserIds } });
-        console.log("Added employee IDs to search conditions");
+        
       }
 
       andConditions.push({ $or: textSearchConditions });
@@ -696,7 +769,7 @@ export const searchExpenses = async (req, res) => {
 
     // Apply filters
     if (filters && Object.keys(filters).length > 0) {
-      console.log("Applying filters:", filters);
+      
       
       if (filters.status) andConditions.push({ status: filters.status });
       if (filters.category) andConditions.push({ category: filters.category });
@@ -720,8 +793,6 @@ export const searchExpenses = async (req, res) => {
 
     // Build final query
     const searchQuery = andConditions.length > 0 ? { $and: andConditions } : {};
-    
-    console.log("Final MongoDB query:", JSON.stringify(searchQuery, null, 2));
 
     const skip = (page - 1) * limit;
 
@@ -734,19 +805,6 @@ export const searchExpenses = async (req, res) => {
       .limit(parseInt(limit));
 
     const total = await Expense.countDocuments(searchQuery);
-    
-    console.log("=== SEARCH RESULTS ===");
-    console.log("Total found:", total);
-    console.log("Returned:", expenses.length);
-    if (expenses.length > 0) {
-      console.log("First result:", {
-        id: expenses[0]._id.toString(),
-        employee: expenses[0].employee?.name,
-        description: expenses[0].description,
-        amount: expenses[0].amount
-      });
-    }
-    console.log("======================");
 
     res.status(200).json({
       success: true,
@@ -759,9 +817,9 @@ export const searchExpenses = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("=== SEARCH ERROR ===");
-    console.error("Error in searchExpenses:", error);
-    console.error("Stack:", error.stack);
+    
+    
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -847,7 +905,7 @@ export const exportExpenses = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error("Error in exportExpenses:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -893,7 +951,7 @@ export const bulkApproveExpenses = async (req, res) => {
       modifiedCount: result.modifiedCount,
     });
   } catch (error) {
-    console.error("Error in bulkApproveExpenses:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -946,7 +1004,7 @@ export const bulkRejectExpenses = async (req, res) => {
       modifiedCount: result.modifiedCount,
     });
   } catch (error) {
-    console.error("Error in bulkRejectExpenses:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -1324,12 +1382,12 @@ export const getExpenseAnalytics = async (req, res) => {
   try {
     const { startDate, endDate, groupBy = "category" } = req.query;
 
-    console.log("=== GET EXPENSE ANALYTICS ===");
-    console.log("User:", req.user.email, "Role:", req.user.role);
-    console.log("Params:", { startDate, endDate, groupBy });
+    
+    
+    
 
     if (req.user.role !== "admin" && req.user.role !== "hr" && req.user.role !== "superadmin" && req.user.role !== "manager") {
-      console.log("Authorization failed for role:", req.user.role);
+      
       return res.status(403).json({
         success: false,
         message: "Not authorized",
@@ -1387,9 +1445,6 @@ export const getExpenseAnalytics = async (req, res) => {
         { $sort: { total: -1 } },
       ]);
 
-      console.log("Department analytics results:", analytics.length, "departments found");
-      console.log("Department details:", JSON.stringify(analytics, null, 2));
-
       // Filter out null departments and ensure we have department names
       const filteredAnalytics = analytics
         .filter(item => item._id !== null && item.departmentName)
@@ -1398,7 +1453,7 @@ export const getExpenseAnalytics = async (req, res) => {
           departmentName: item.departmentName || 'Unknown Department'
         }));
 
-      console.log("Filtered department analytics:", filteredAnalytics);
+      
 
       return res.status(200).json({
         success: true,
@@ -1409,8 +1464,8 @@ export const getExpenseAnalytics = async (req, res) => {
       groupField = "$category";
     }
 
-    console.log("MongoDB query:", query);
-    console.log("Group by:", groupField);
+    
+    
 
     const analytics = await Expense.aggregate([
       { $match: query },
@@ -1427,7 +1482,7 @@ export const getExpenseAnalytics = async (req, res) => {
       { $sort: { total: -1 } },
     ]);
 
-    console.log("Analytics results:", analytics.length, "groups found");
+    
 
     // Populate employee names if grouped by employee
     if (groupBy === "employee") {
@@ -1444,7 +1499,7 @@ export const getExpenseAnalytics = async (req, res) => {
       groupBy,
     });
   } catch (error) {
-    console.error("Error in getExpenseAnalytics:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -1496,7 +1551,7 @@ export const getMonthlyTrends = async (req, res) => {
       trends,
     });
   } catch (error) {
-    console.error("Error in getMonthlyTrends:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -1551,7 +1606,7 @@ export const getBudgetTracking = async (req, res) => {
       totalSpent,
     });
   } catch (error) {
-    console.error("Error in getBudgetTracking:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -1597,7 +1652,7 @@ export const getCategoryStats = async (req, res) => {
       categoryStats: enrichedStats,
     });
   } catch (error) {
-    console.error("Error in getCategoryStats:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -1630,7 +1685,7 @@ export const getAllBudgets = async (req, res) => {
       financialYear: currentFY,
     });
   } catch (error) {
-    console.error("Error in getAllBudgets:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -1659,7 +1714,7 @@ export const getBudgetByCategory = async (req, res) => {
       budget,
     });
   } catch (error) {
-    console.error("Error in getBudgetByCategory:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -1723,7 +1778,7 @@ export const setBudget = async (req, res) => {
       budget,
     });
   } catch (error) {
-    console.error("Error in setBudget:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -1781,7 +1836,7 @@ export const setBulkBudgets = async (req, res) => {
       budgets: results,
     });
   } catch (error) {
-    console.error("Error in setBulkBudgets:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -1918,7 +1973,7 @@ export const getBudgetTrackingWithLimits = async (req, res) => {
       budgetCount: Object.keys(budgetMap).length,
     });
   } catch (error) {
-    console.error("Error in getBudgetTrackingWithLimits:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -1938,7 +1993,7 @@ export const getFinancialYears = async (req, res) => {
       currentFinancialYear: getCurrentFinancialYear(),
     });
   } catch (error) {
-    console.error("Error in getFinancialYears:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",

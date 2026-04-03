@@ -3,8 +3,9 @@
 /* Override parent card overflow to allow dropdown to show */
 .modern-table-container {
   background: #ffffff;
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: visible !important;
+  padding: 0;
 }
 
 /* Ensure parent card also has visible overflow */
@@ -16,6 +17,8 @@
   margin-bottom: 0;
   font-size: 14px;
   overflow: visible;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .modern-work-table thead {
@@ -26,30 +29,41 @@
 
 .modern-work-table thead th {
   border: none;
-  padding: 16px 20px;
-  font-weight: 600;
-  font-size: 11px;
-  letter-spacing: 0.5px;
+  padding: 18px 20px;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.6px;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.95);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
+}
+
+.modern-work-table thead th:first-child {
+  border-radius: 12px 0 0 0;
+}
+
+.modern-work-table thead th:last-child {
+  border-radius: 0 12px 0 0;
 }
 
 .modern-work-table tbody tr {
-  border-bottom: 1px solid #f0f0f0;
-  transition: background-color 0.2s ease;
+  border-bottom: 1px solid #e9ecef;
+  transition: all 0.25s ease;
   cursor: pointer;
   position: relative;
   will-change: auto;
 }
 
 .modern-work-table tbody tr:hover {
-  background-color: #f8f9ff;
+  background: linear-gradient(90deg, #f8f9ff 0%, #ffffff 100%);
+  box-shadow: inset 0 0 0 1px rgba(102, 126, 234, 0.1);
 }
 
 .modern-work-table tbody tr:has(.dropdown.show) {
   position: relative;
   z-index: 9998;
-  background-color: #f8f9ff;
+  background: linear-gradient(90deg, #f8f9ff 0%, #ffffff 100%);
   will-change: z-index;
 }
 
@@ -57,43 +71,55 @@
   border-bottom: none;
 }
 
+.modern-work-table tbody tr:last-child td:first-child {
+  border-radius: 0 0 0 12px;
+}
+
+.modern-work-table tbody tr:last-child td:last-child {
+  border-radius: 0 0 12px 0;
+}
+
 .modern-work-table tbody td {
-  padding: 16px 20px;
+  padding: 18px 20px;
   vertical-align: middle;
   border: none;
+  color: #2d3748;
 }
 
 /* Row States */
 .modern-row.row-overdue {
-  background-color: #fff5f5;
-  border-left: 3px solid #dc3545;
+  background: linear-gradient(90deg, #fff5f5 0%, #ffffff 100%);
+  border-left: 4px solid #dc3545;
 }
 
 .modern-row.row-overdue:hover {
-  background-color: #ffe5e5;
+  background: linear-gradient(90deg, #ffe5e5 0%, #ffffff 100%);
+  box-shadow: inset 0 0 0 1px rgba(220, 53, 69, 0.2);
 }
 
 .modern-row.row-due-today {
-  background-color: #fffbf0;
-  border-left: 3px solid #ffc107;
+  background: linear-gradient(90deg, #fffbf0 0%, #ffffff 100%);
+  border-left: 4px solid #ffc107;
 }
 
 .modern-row.row-due-today:hover {
-  background-color: #fff4d9;
+  background: linear-gradient(90deg, #fff4d9 0%, #ffffff 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 193, 7, 0.2);
 }
 
 /* Work Item Cell */
 .work-item-cell {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .type-badge {
   font-size: 16px;
-  padding: 6px 10px;
-  border-radius: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
   flex-shrink: 0;
+  font-weight: 600;
 }
 
 .work-info {
@@ -102,19 +128,22 @@
 }
 
 .work-title {
-  font-weight: 600;
+  font-weight: 700;
   font-size: 14px;
   color: #2d3748;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  letter-spacing: -0.3px;
+  max-width: 100%;
+  display: block;
 }
 
 .work-meta {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-size: 12px;
   color: #718096;
 }
@@ -123,6 +152,9 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  padding: 2px 6px;
+  background: #f0f2f5;
+  border-radius: 4px;
 }
 
 .meta-dot {
@@ -134,89 +166,123 @@
 .due-date-cell {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .date-value {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-weight: 500;
+  font-weight: 600;
   font-size: 13px;
   color: #2d3748;
 }
 
 .date-icon {
-  font-size: 12px;
-  opacity: 0.7;
+  font-size: 13px;
+  opacity: 0.8;
+  color: #667eea;
 }
 
 .date-status {
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   display: flex;
   align-items: center;
+  gap: 4px;
+  color: #718096;
+}
+
+/* Slot Cell */
+.slot-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  text-align: center;
 }
 
 /* Status Badge */
 .status-badge {
-  padding: 6px 14px;
+  padding: 8px 16px;
   border-radius: 20px;
-  font-weight: 500;
+  font-weight: 600;
   font-size: 12px;
   letter-spacing: 0.3px;
   display: inline-block;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
-.status-badge-dropdown {
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-weight: 500;
-  font-size: 12px;
-  letter-spacing: 0.3px;
-  cursor: pointer;
-  border: none;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+/* Status Selector Wrapper - Center content */
+.status-selector-wrapper {
   position: relative;
-  z-index: 1;
-  will-change: transform, box-shadow;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
 }
 
-.status-badge-dropdown:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-  z-index: 2;
-}
-
-/* Fix dropdown z-index and positioning */
-.dropdown {
-  position: static;
-}
-
-.dropdown.show {
-  position: relative;
-  z-index: 9999;
-}
-
-.status-dropdown-modern {
-  position: absolute !important;
-  z-index: 10000 !important;
-  border: 1px solid #e0e0e0;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
+.status-selector-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
   border-radius: 8px;
-  padding: 4px 0;
-  margin-top: 4px;
+  border: 2px solid #667eea;
+  background: white !important;
+  color: #667eea;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
   min-width: 140px;
-  animation: dropdownFadeIn 0.15s ease-out;
-  will-change: opacity, transform;
-  backface-visibility: hidden;
-  -webkit-font-smoothing: antialiased;
+  justify-content: space-between;
 }
 
-@keyframes dropdownFadeIn {
+.status-selector-btn:hover {
+  background: #f8f9ff;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+  transform: translateY(-1px);
+}
+
+.status-selector-btn .status-emoji {
+  font-size: 16px;
+}
+
+.status-selector-btn .status-text {
+  flex: 1;
+  text-align: left;
+}
+
+.status-selector-btn .status-arrow {
+  font-size: 10px;
+  transition: transform 0.2s ease;
+}
+
+.status-selector-wrapper:has(.status-selector-menu) .status-selector-btn .status-arrow {
+  transform: rotate(180deg);
+}
+
+/* Status Selector Menu */
+.status-selector-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  margin-top: 8px;
+  z-index: 10000;
+  overflow: hidden;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateY(-10px);
   }
   to {
     opacity: 1;
@@ -224,81 +290,215 @@
   }
 }
 
-.status-dropdown-modern .dropdown-item {
-  padding: 10px 16px;
+.status-menu-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  transition: background-color 0.1s ease;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: none;
+  background: white;
+  color: #2d3748;
+  font-weight: 500;
+  font-size: 13px;
   cursor: pointer;
-  will-change: background-color;
+  transition: all 0.15s ease;
+  text-align: left;
 }
 
-.status-dropdown-modern .dropdown-item:hover {
-  background-color: #f8f9ff;
+.status-menu-item:hover {
+  background: linear-gradient(90deg, #f8f9ff 0%, #ffffff 100%);
+  padding-left: 20px;
 }
 
-.status-dropdown-modern .dropdown-item.active {
-  background-color: #e8f5e9;
+.status-menu-item.active {
+  background: linear-gradient(90deg, #e8f5e9 0%, #ffffff 100%);
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.status-menu-item .menu-emoji {
+  font-size: 18px;
+  min-width: 24px;
+}
+
+.status-menu-item .menu-text {
+  flex: 1;
+}
+
+.status-menu-item .menu-check {
+  color: #2e7d32;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.status-selector-btn.status-to-do {
+  border-color: #6c757d !important;
+  color: #6c757d !important;
+  background: white !important;
+}
+
+.status-selector-btn.status-to-do:hover {
+  background: #f8f9fa !important;
+}
+
+.status-selector-btn.status-in-progress {
+  border-color: #0d6efd !important;
+  color: #0d6efd !important;
+  background: white !important;
+}
+
+.status-selector-btn.status-in-progress:hover {
+  background: #e7f1ff !important;
+}
+
+.status-selector-btn.status-review {
+  border-color: #ffc107 !important;
+  color: #ff9800 !important;
+  background: white !important;
+}
+
+.status-selector-btn.status-review:hover {
+  background: #fffbf0 !important;
+}
+
+.status-selector-btn.status-done {
+  border-color: #198754 !important;
+  color: #198754 !important;
+  background: white !important;
+}
+
+.status-selector-btn.status-done:hover {
+  background: #e8f5e9 !important;
 }
 
 /* Priority Cell */
 .priority-cell {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* Status Column - Center alignment */
+.modern-work-table tbody td:nth-child(4) {
+  text-align: center;
+  padding: 18px 20px;
 }
 
 .priority-icon {
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .priority-badge {
-  padding: 5px 12px;
-  border-radius: 16px;
-  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 18px;
+  font-weight: 600;
   font-size: 11px;
   letter-spacing: 0.3px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 /* Action Button */
 .action-btn {
-  padding: 6px 16px;
-  border-radius: 6px;
-  font-weight: 500;
-  font-size: 12px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.85rem;
   transition: all 0.2s ease;
-  border: 1.5px solid #667eea;
+  border: 1px solid #667eea;
   color: #667eea;
   background: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
 }
 
 .action-btn:hover {
   background: #667eea;
   color: white;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+/* Action Cell - Center alignment */
+.modern-work-table tbody td:nth-child(6) {
+  text-align: center;
+  padding: 18px 20px;
 }
 
 /* Empty State */
 .empty-state-modern {
   text-align: center;
-  padding: 80px 20px;
+  padding: 100px 20px;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border-radius: 12px;
+}
+
+/* Assignee Status Display */
+.assignee-status-display {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  cursor: pointer;
+}
+
+.assignee-status-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 2px solid #667eea;
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.assignee-status-content:hover {
+  background: #f8f9ff;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.assignee-icon {
+  color: #667eea;
+  flex-shrink: 0;
+}
+
+.assignee-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2d3748;
+  min-width: 30px;
+}
+
+.assignee-badges {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.assignee-badge {
+  font-size: 0.7rem !important;
+  padding: 2px 6px !important;
+  font-weight: 600;
 }
 
 .empty-icon {
-  font-size: 64px;
+  font-size: 72px;
   color: #cbd5e0;
-  margin-bottom: 20px;
-  opacity: 0.6;
+  margin-bottom: 24px;
+  opacity: 0.5;
 }
 
 .empty-title {
-  font-size: 20px;
-  font-weight: 600;
+  font-size: 22px;
+  font-weight: 700;
   color: #2d3748;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
+  letter-spacing: -0.5px;
 }
 
 .empty-subtitle {
@@ -314,12 +514,12 @@
   }
 
   .modern-work-table thead th {
-    padding: 12px 16px;
-    font-size: 10px;
+    padding: 14px 16px;
+    font-size: 11px;
   }
 
   .modern-work-table tbody td {
-    padding: 12px 16px;
+    padding: 14px 16px;
   }
 
   .work-title {
@@ -334,20 +534,25 @@
 @media (max-width: 768px) {
   .modern-work-table thead th,
   .modern-work-table tbody td {
-    padding: 10px 12px;
+    padding: 12px 14px;
   }
 
   .work-item-cell {
-    gap: 8px;
+    gap: 10px;
   }
 
   .type-badge {
     font-size: 14px;
-    padding: 4px 8px;
+    padding: 6px 10px;
   }
 
   .action-btn {
-    padding: 4px 12px;
+    padding: 6px 14px;
+    font-size: 11px;
+  }
+
+  .status-badge-dropdown {
+    padding: 6px 12px;
     font-size: 11px;
   }
 }

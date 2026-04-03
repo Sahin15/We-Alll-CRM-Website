@@ -171,6 +171,16 @@ export const workItemApi = {
   },
 
   /**
+   * Get all work items created by the current user
+   * @param {Object} params - Query parameters for filtering
+   * @returns {Promise} Work items data
+   */
+  getCreatedByMe: async (params = {}) => {
+    const response = await api.get('/work-items/created-by/me', { params });
+    return response.data;
+  },
+
+  /**
    * Activate a draft or scheduled work item
    * @param {string} id - Work item ID
    * @param {string} visibility - Target visibility ('active' or 'scheduled')

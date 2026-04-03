@@ -17,7 +17,7 @@ export const getMyTodos = async (req, res) => {
       todos,
     });
   } catch (error) {
-    console.error("Error in getMyTodos:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -60,7 +60,7 @@ export const createTodo = async (req, res) => {
       todo,
     });
   } catch (error) {
-    console.error("Error in createTodo:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -105,7 +105,7 @@ export const updateTodo = async (req, res) => {
       todo,
     });
   } catch (error) {
-    console.error("Error in updateTodo:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -139,7 +139,7 @@ export const toggleTodoStatus = async (req, res) => {
       todo,
     });
   } catch (error) {
-    console.error("Error in toggleTodoStatus:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -167,7 +167,7 @@ export const deleteTodo = async (req, res) => {
       message: "Todo deleted successfully",
     });
   } catch (error) {
-    console.error("Error in deleteTodo:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -203,7 +203,7 @@ export const reorderTodos = async (req, res) => {
       message: "Todos reordered successfully",
     });
   } catch (error) {
-    console.error("Error in reorderTodos:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -238,7 +238,7 @@ export const getTodoStats = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error in getTodoStats:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",

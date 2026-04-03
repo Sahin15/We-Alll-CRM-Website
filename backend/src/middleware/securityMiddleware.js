@@ -27,7 +27,7 @@ const requirePermission = (action, operation) => {
 
       next();
     } catch (error) {
-      console.error('Permission check error:', error);
+      
       res.status(500).json({
         success: false,
         message: 'Permission validation failed'
@@ -71,7 +71,7 @@ const validateBulkOperation = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('Bulk operation validation error:', error);
+    
     res.status(403).json({
       success: false,
       message: error.message || 'Bulk operation validation failed'
@@ -98,7 +98,7 @@ const validateExport = (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('Export validation error:', error);
+    
     res.status(403).json({
       success: false,
       message: error.message || 'Export validation failed'
@@ -124,7 +124,7 @@ const sanitizeFilters = (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('Filter sanitization error:', error);
+    
     res.status(400).json({
       success: false,
       message: error.message || 'Invalid filter parameters'
@@ -140,7 +140,7 @@ const validateRequestComplexity = (req, res, next) => {
     securityService.validateRequestComplexity(req);
     next();
   } catch (error) {
-    console.error('Request complexity validation error:', error);
+    
     res.status(400).json({
       success: false,
       message: error.message || 'Request too complex'

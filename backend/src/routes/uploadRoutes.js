@@ -53,7 +53,7 @@ router.get(
       const { checkProfilePictureHealth } = await import("../controllers/uploadController.js");
       await checkProfilePictureHealth(req, res);
     } catch (error) {
-      console.error("Error importing checkProfilePictureHealth:", error);
+      
       res.status(500).json({ message: "Server error", error: error.message });
     }
   }

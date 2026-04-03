@@ -8,7 +8,7 @@ import {
   FaCrown, FaShieldAlt, FaChartLine, FaUsers, FaProjectDiagram,
   FaCheckCircle, FaSave, FaMapMarkerAlt,
   FaIdCard, FaBriefcase, FaUser, FaHome,
-  FaFileUpload, FaDownload, FaEye, FaTrash, FaPlus, FaFileAlt,
+  FaFileUpload, FaDownload, FaEye, FaEyeSlash, FaTrash, FaPlus, FaFileAlt,
   FaUniversity, FaArrowLeft, FaMoneyBillWave
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
@@ -17,6 +17,7 @@ import ProfilePictureUpload from "../profile/ProfilePictureUpload";
 import ProfilePictureDisplay from "../profile/ProfilePictureDisplay";
 import EmployeeSalaryInfo from "../salary/EmployeeSalaryInfo";
 import api from "../../services/api";
+import { salaryStructureApi } from "../../api/salaryApi";
 import toast from "../../utils/toast";
 import "../../styles/pages-mobile.css";
 import "../../styles/modal-mobile.css";
@@ -59,6 +60,9 @@ const EmployeeProfileManagement = () => {
     newPassword: '',
     confirmPassword: ''
   });
+
+  const [salaryStructure, setSalaryStructure] = useState(null);
+  const [showSalary, setShowSalary] = useState(false);
 
   // Common designations list
   const commonDesignations = [
@@ -182,6 +186,7 @@ const EmployeeProfileManagement = () => {
   useEffect(() => {
     if (user) {
       fetchDocuments();
+      fetchSalaryStructure();
     }
   }, [user]);
 
@@ -198,6 +203,8 @@ const EmployeeProfileManagement = () => {
     setIsIntern(employmentType === 'intern');
     setCurrentEmploymentType(employmentType);
   }, [user?.employmentType]);
+
+
 
   const fetchUserProfile = async () => {
     try {
@@ -219,6 +226,19 @@ const EmployeeProfileManagement = () => {
       setDepartments(response.data);
     } catch (error) {
       console.error('Error fetching departments:', error);
+    }
+  };
+
+  const fetchSalaryStructure = async () => {
+    try {
+      const response = await salaryStructureApi.getActiveStructure(userId);
+      setSalaryStructure(response.data);
+    } catch (error) {
+      // Silently handle - employee may not have salary structure yet
+      if (error.response?.status !== 404) {
+        console.error('Error fetching salary structure:', error);
+      }
+      setSalaryStructure(null);
     }
   };
 
@@ -318,7 +338,6 @@ const EmployeeProfileManagement = () => {
           funBadge: document.getElementById('job-funBadge')?.value || user?.funBadge,
           reportingManager: document.getElementById('job-reportingManager')?.value || null,
           workLocation: document.getElementById('job-workLocation')?.value || user?.workLocation,
-          salary: document.getElementById('job-salary')?.value ? Number(document.getElementById('job-salary').value) : user?.salary,
           status: document.getElementById('job-status')?.value || user?.status,
         };
 
@@ -329,20 +348,18 @@ const EmployeeProfileManagement = () => {
           const durationField = document.getElementById('internship-duration');
           const startDateField = document.getElementById('internship-startDate');
           const endDateField = document.getElementById('internship-endDate');
-          const stipendField = document.getElementById('internship-stipend');
           const objectivesField = document.getElementById('internship-objectives');
           
           const internshipData = {
             duration: durationField?.value || user?.internshipDetails?.duration || '',
             startDate: startDateField?.value || user?.internshipDetails?.startDate || '',
             endDate: endDateField?.value || user?.internshipDetails?.endDate || '',
-            stipend: stipendField?.value ? Number(stipendField.value) : (user?.internshipDetails?.stipend || 0),
             objectives: objectivesField?.value || user?.internshipDetails?.objectives || '',
             isActive: true,
           };
           
-          // Only add internship details if at least one field has meaningful data
-          if (internshipData.duration || internshipData.startDate || internshipData.stipend || internshipData.objectives) {
+          // Add internship details if at least one field has meaningful data
+          if (internshipData.duration || internshipData.startDate || internshipData.objectives) {
             updateData.internshipDetails = internshipData;
           }
         }
@@ -1419,9 +1436,6 @@ const EmployeeProfileManagement = () => {
                                   </Button>
                                 </div>
                               )}
-                              <Form.Text className="text-muted">
-                                {showCustomDesignation ? 'Enter custom designation or click ↩️ to select from list' : 'Select from list or add custom'}
-                              </Form.Text>
                             </>
                           ) : (
                             <div className="form-control-plaintext border rounded p-2 bg-light">
@@ -1540,22 +1554,51 @@ const EmployeeProfileManagement = () => {
                       </Col>
                       <Col md={6} className="mb-3">
                         <Form.Group>
-                          <Form.Label>Salary (₹)</Form.Label>
-                          {editMode.job ? (
-                            <Form.Control
-                              type="number"
-                              defaultValue={user?.salary || ''}
-                              placeholder="Enter monthly salary"
-                              id="job-salary"
-                              min="0"
-                            />
-                          ) : (
-                            <div className="form-control-plaintext border rounded p-2 bg-light">
-                              {user?.salary ? `₹${user.salary.toLocaleString()}` : 'Not set'}
-                            </div>
-                          )}
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <Form.Label className="mb-0">Monthly Salary (₹)</Form.Label>
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="p-0"
+                              onClick={() => setShowSalary(!showSalary)}
+                              title={showSalary ? "Hide salary" : "Show salary"}
+                            >
+                              {showSalary ? <FaEye /> : <FaEyeSlash />}
+                            </Button>
+                          </div>
+                          <div className="form-control-plaintext border rounded p-2 bg-light">
+                            {showSalary ? (
+                              salaryStructure?.netSalary ? `₹${salaryStructure.netSalary.toLocaleString('en-IN')}` : 'Not set'
+                            ) : (
+                              '••••••'
+                            )}
+                          </div>
                         </Form.Group>
                       </Col>
+                      <Col md={6} className="mb-3">
+                        <Form.Group>
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <Form.Label className="mb-0">Annual CTC (₹)</Form.Label>
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="p-0"
+                              onClick={() => setShowSalary(!showSalary)}
+                              title={showSalary ? "Hide salary" : "Show salary"}
+                            >
+                              {showSalary ? <FaEye /> : <FaEyeSlash />}
+                            </Button>
+                          </div>
+                          <div className="form-control-plaintext border rounded p-2 bg-light">
+                            {showSalary ? (
+                              salaryStructure?.ctc ? `₹${salaryStructure.ctc.toLocaleString('en-IN')}` : 'Not set'
+                            ) : (
+                              '••••••'
+                            )}
+                          </div>
+                        </Form.Group>
+                      </Col>
+                      
                       <Col md={6} className="mb-3">
                         <Form.Group>
                           <Form.Label>Employee Status</Form.Label>
@@ -1704,24 +1747,7 @@ const EmployeeProfileManagement = () => {
                               )}
                             </Form.Group>
                           </Col>
-                          <Col md={6} className="mb-3">
-                            <Form.Group>
-                              <Form.Label>Monthly Stipend (Rs.)</Form.Label>
-                              {editMode.job ? (
-                                <Form.Control
-                                  type="number"
-                                  defaultValue={user?.internshipDetails?.stipend || ''}
-                                  placeholder="Enter monthly stipend"
-                                  id="internship-stipend"
-                                />
-                              ) : (
-                                <div className="form-control-plaintext border rounded p-2 bg-light">
-                                  {user?.internshipDetails?.stipend ? 
-                                    `Rs. ${user.internshipDetails.stipend.toLocaleString('en-IN')}` : '—'}
-                                </div>
-                              )}
-                            </Form.Group>
-                          </Col>
+
                           <Col md={12} className="mb-3">
                             <Form.Group>
                               <Form.Label>Learning Objectives</Form.Label>

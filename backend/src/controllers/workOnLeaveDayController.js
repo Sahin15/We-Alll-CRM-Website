@@ -64,7 +64,7 @@ export const createWorkOnLeaveDayRequest = async (req, res) => {
       request: populatedRequest,
     });
   } catch (error) {
-    console.error("Error in createWorkOnLeaveDayRequest:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -87,7 +87,7 @@ export const getAllWorkOnLeaveDayRequests = async (req, res) => {
 
     res.status(200).json(requests);
   } catch (error) {
-    console.error("Error in getAllWorkOnLeaveDayRequests:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -105,7 +105,7 @@ export const getMyWorkOnLeaveDayRequests = async (req, res) => {
 
     res.status(200).json(requests);
   } catch (error) {
-    console.error("Error in getMyWorkOnLeaveDayRequests:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -155,7 +155,7 @@ export const approveWorkOnLeaveDayRequest = async (req, res) => {
         await leaveRequest.save();
         request.leaveCancelled = true;
         
-        console.log(`[WORK ON LEAVE] Cancelled single-day leave request ${leaveRequest._id}`);
+        
       } else {
         // Multi-day leave: adjust the leave dates
         if (requestDate.getTime() === leaveStartDate.getTime()) {
@@ -166,7 +166,7 @@ export const approveWorkOnLeaveDayRequest = async (req, res) => {
           await leaveRequest.save();
           request.leaveCancelled = true;
           
-          console.log(`[WORK ON LEAVE] Adjusted leave start date from ${leaveStartDate} to ${newStartDate}`);
+          
         } else if (requestDate.getTime() === leaveEndDate.getTime()) {
           // Working on last day - move end date backward
           const newEndDate = new Date(leaveEndDate);
@@ -175,11 +175,11 @@ export const approveWorkOnLeaveDayRequest = async (req, res) => {
           await leaveRequest.save();
           request.leaveCancelled = true;
           
-          console.log(`[WORK ON LEAVE] Adjusted leave end date from ${leaveEndDate} to ${newEndDate}`);
+          
         } else {
           // Working on a middle day - this is complex, requires splitting the leave
           // For now, we'll just mark it but not auto-cancel
-          console.log(`[WORK ON LEAVE] Cannot auto-cancel middle day of multi-day leave. Manual intervention required.`);
+          
           request.leaveCancelled = false;
         }
       }
@@ -223,7 +223,7 @@ export const approveWorkOnLeaveDayRequest = async (req, res) => {
       request: populatedRequest,
     });
   } catch (error) {
-    console.error("Error in approveWorkOnLeaveDayRequest:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -271,7 +271,7 @@ export const rejectWorkOnLeaveDayRequest = async (req, res) => {
       request: populatedRequest,
     });
   } catch (error) {
-    console.error("Error in rejectWorkOnLeaveDayRequest:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -298,7 +298,7 @@ export const checkTodayWorkOnLeaveRequest = async (req, res) => {
 
     res.status(200).json({ hasRequest: true, request });
   } catch (error) {
-    console.error("Error in checkTodayWorkOnLeaveRequest:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };

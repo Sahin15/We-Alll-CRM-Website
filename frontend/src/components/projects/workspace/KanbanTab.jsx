@@ -21,7 +21,7 @@ const KanbanTab = ({ project, onRefresh }) => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedWorkItem, setSelectedWorkItem] = useState(null);
 
-  const statuses = ['To Do', 'In Progress', 'Review', 'Done'];
+  const statuses = ['To Do', 'In Progress', 'Done'];
   const isSlotBased = project.slotConfiguration?.enableSlotSystem;
 
   useEffect(() => {

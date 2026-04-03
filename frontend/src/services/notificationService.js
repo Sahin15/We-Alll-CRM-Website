@@ -1,151 +1,260 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import api from './api';
 import toast from '../utils/toast';
 
-// Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyA10c-WeEJTJNq8eCUgFuw1SVqtadRLP20",
-  authDomain: "we-alll-office.firebaseapp.com",
-  projectId: "we-alll-office",
-  storageBucket: "we-alll-office.firebasestorage.app",
-  messagingSenderId: "1039568040557",
-  appId: "1:1039568040557:web:da336859b30c4073b78564",
-  measurementId: "G-6120L1866E"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyD9_5d29l8tbde_1E4qJ08kwXczHxuS9ak',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'wealll-office.firebaseapp.com',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'wealll-office',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'wealll-office.firebasestorage.app',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '148208749075',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:148208749075:web:6dd10472b2656e03a4cde6',
 };
 
-// VAPID Key for push notifications
-const VAPID_KEY = "BMs-lW78BILD1_zH8LnF3Ka3RQyQZr-89U8HphMqdBGPcLBekJ66LQvPYQMRRvQnQSrisJ2P2KfCydvWfB7a9Ps";
+const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY || '';
 
-// Initialize Firebase - LAZY LOADED, iOS-safe
-let app, messaging;
-let firebaseInitialized = false;
-let firebaseInitPromise = null;
+let _app = null;
+let _messaging = null;
+let _initPromise = null;
 
-// Initialize Firebase with promise for proper async handling
-// IMPORTANT: This is NOT called automatically - only when needed
+// Shared AudioContext — reused to avoid browser limits on context creation
+let _audioCtx = null;
+const getAudioCtx = () => {
+  if (!_audioCtx) {
+    const Ctor = window.AudioContext || (window).webkitAudioContext;
+    if (Ctor) _audioCtx = new Ctor();
+  }
+  return _audioCtx;
+};
+
+// Sound configurations matching NotificationSettings.jsx
+const NOTIFICATION_SOUNDS = {
+  bell_chime: {
+    tones: [
+      { freq: 523, duration: 0.25, delay: 0 },
+      { freq: 659, duration: 0.25, delay: 0.15 }
+    ]
+  },
+  digital_ping: {
+    tones: [
+      { freq: 800, duration: 0.15, delay: 0 },
+      { freq: 1000, duration: 0.15, delay: 0.1 }
+    ]
+  },
+  soft_chime: {
+    tones: [
+      { freq: 440, duration: 0.4, delay: 0 }
+    ]
+  },
+  ascending_tones: {
+    tones: [
+      { freq: 440, duration: 0.15, delay: 0 },
+      { freq: 523, duration: 0.15, delay: 0.12 },
+      { freq: 659, duration: 0.15, delay: 0.24 }
+    ]
+  },
+  melodic_alert: {
+    tones: [
+      { freq: 659, duration: 0.2, delay: 0 },
+      { freq: 523, duration: 0.2, delay: 0.15 },
+      { freq: 659, duration: 0.25, delay: 0.3 }
+    ]
+  },
+  bright_ding: {
+    tones: [
+      { freq: 1046, duration: 0.2, delay: 0 },
+      { freq: 784, duration: 0.2, delay: 0.15 }
+    ]
+  },
+  subtle_beep: {
+    tones: [
+      { freq: 600, duration: 0.1, delay: 0 }
+    ]
+  }
+};
+
+// Get user's saved notification settings
+const getNotificationSettings = () => {
+  const sound = localStorage.getItem('notificationSound') || 'bell_chime';
+  const volume = parseFloat(localStorage.getItem('notificationVolume') || '0.3');
+  return { sound, volume };
+};
+
+// Play notification sound based on user settings
+// Must be called from a user-gesture context at least once to unlock AudioContext
+export const playSound = async () => {
+  try {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    // Browser autoplay policy suspends AudioContext until a user gesture occurs
+    if (ctx.state === 'suspended') await ctx.resume();
+
+    const { sound, volume } = getNotificationSettings();
+    const soundConfig = NOTIFICATION_SOUNDS[sound] || NOTIFICATION_SOUNDS.bell_chime;
+
+    const playTone = (freq, startTime, duration, gainValue) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(gainValue, startTime + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    };
+
+    const now = ctx.currentTime;
+    soundConfig.tones.forEach(tone => {
+      playTone(tone.freq, now + tone.delay, tone.duration, volume);
+    });
+  } catch {
+    // Sound is optional — never block anything
+  }
+};
+
+// Unlock AudioContext on first user interaction so sound works later
+const unlockAudio = () => {
+  const ctx = getAudioCtx();
+  if (ctx && ctx.state === 'suspended') {
+    ctx.resume().catch(() => {});
+  }
+  document.removeEventListener('click', unlockAudio);
+  document.removeEventListener('keydown', unlockAudio);
+};
+document.addEventListener('click', unlockAudio, { once: true });
+document.addEventListener('keydown', unlockAudio, { once: true });
+
 const initializeFirebase = () => {
-  if (firebaseInitPromise) return firebaseInitPromise;
-  
-  firebaseInitPromise = new Promise((resolve) => {
-    // Use requestIdleCallback for better iOS compatibility
-    const initFn = () => {
+  if (_initPromise) return _initPromise;
+
+  _initPromise = new Promise((resolve) => {
+    const run = () => {
       try {
-        // iOS Safari compatibility checks
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-        const isStandalone = window.navigator.standalone === true;
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-        
-        // Skip Firebase on iOS Safari (limited support)
-        if (isIOS && isSafari && !isStandalone) {
-          console.log('📱 iOS Safari detected - Firebase disabled for compatibility');
-          resolve(false);
-          return;
-        }
-        
-        // Check if Firebase is supported
-        if (typeof window === 'undefined' || !('indexedDB' in window)) {
-          console.log('⚠️ Firebase not supported in this browser');
-          resolve(false);
-          return;
-        }
-        
-        // Initialize Firebase
-        app = initializeApp(firebaseConfig);
-        messaging = getMessaging(app);
-        firebaseInitialized = true;
-        console.log('✅ Firebase initialized successfully');
+        const isStandalone = window.navigator.standalone === true;
+        if (isIOS && isSafari && !isStandalone) { resolve(false); return; }
+        if (typeof window === 'undefined' || !('indexedDB' in window)) { resolve(false); return; }
+
+        _app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+        _messaging = getMessaging(_app);
         resolve(true);
-      } catch (error) {
-        console.log('ℹ️ Firebase initialization skipped:', error.message);
-        // Don't throw - allow app to continue without Firebase
-        firebaseInitialized = false;
+      } catch (err) {
         resolve(false);
       }
     };
-    
-    // Use requestIdleCallback if available (better for iOS)
+
     if ('requestIdleCallback' in window) {
-      requestIdleCallback(initFn, { timeout: 2000 });
+      requestIdleCallback(run, { timeout: 2000 });
     } else {
-      // Fallback to setTimeout with longer delay for iOS
-      setTimeout(initFn, 500);
+      setTimeout(run, 500);
     }
   });
-  
-  return firebaseInitPromise;
-};
 
-// DO NOT initialize automatically - let it be lazy loaded
-// initializeFirebase(); // ❌ REMOVED - This was blocking iOS
+  return _initPromise;
+};
 
 class NotificationService {
   constructor() {
-    this.isSupported = firebaseInitialized && 'serviceWorker' in navigator && 'Notification' in window && messaging;
     this.permission = typeof Notification !== 'undefined' ? Notification.permission : 'denied';
     this.fcmToken = null;
     this.isInitialized = false;
+    // Set by NotificationContext to get instant bell updates on foreground push
+    this.onForegroundMessage = null;
   }
 
-  // Check if notifications are supported
   isNotificationSupported() {
-    return this.isSupported;
-  }
+    // iOS Safari (non-PWA) has no push support
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isStandalone = window.navigator.standalone === true;
+    if (isIOS && isSafari && !isStandalone) return false;
 
-  // Request notification permission
-  async requestPermission() {
-    if (!this.isSupported) {
-      throw new Error('Notifications are not supported in this browser');
+    // Check HTTPS (required for service workers on production)
+    const isHTTPS = window.location.protocol === 'https:' || window.location.hostname === 'localhost';
+    if (!isHTTPS) {
+      console.warn('[FCM] ⚠️  HTTPS required for push notifications (localhost is allowed)');
+      return false;
     }
 
+    return (
+      typeof window !== 'undefined' &&
+      'Notification' in window &&
+      'serviceWorker' in navigator &&
+      'PushManager' in window
+    );
+  }
+
+  async requestPermission() {
+    if (!this.isNotificationSupported()) {
+      throw new Error('Push notifications are not supported in this browser');
+    }
     const permission = await Notification.requestPermission();
     this.permission = permission;
-    
     if (permission === 'granted') {
       await this.initializeMessaging();
       return true;
     } else if (permission === 'denied') {
-      toast.error('Notifications are disabled. Enable them in browser settings for better experience.');
-      return false;
-    } else {
+      toast.error('Notifications blocked. Enable them in browser settings.');
       return false;
     }
+    return false;
   }
 
-  // Initialize Firebase messaging
   async initializeMessaging() {
     try {
-      // Wait for Firebase to be initialized
-      await initializeFirebase();
-      
-      if (!firebaseInitialized || !messaging) {
-        // Silent return - no warning needed as this is expected behavior
-        return false;
-      }
-
-      // Check if service worker is supported (iOS Safari has limited support)
-      if (!('serviceWorker' in navigator)) {
-        console.warn('Service Worker not supported');
-        return false;
-      }
-
-      // Prevent multiple initializations
+      // Early exit if already initialized
       if (this.isInitialized && this.fcmToken) {
         return this.fcmToken;
       }
-
-      // Register service worker
-      if ('serviceWorker' in navigator) {
-        const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-        
-        // Wait for service worker to be ready
-        await navigator.serviceWorker.ready;
+      
+      const ready = await initializeFirebase();
+      
+      if (!ready || !_messaging) {
+        return false;
+      }
+      
+      if (!('serviceWorker' in navigator)) {
+        return false;
       }
 
-      // Get FCM token
-      const token = await getToken(messaging, {
-        vapidKey: VAPID_KEY
+      const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+        scope: '/',
       });
+
+      // Wait for service worker to be ready
+      await navigator.serviceWorker.ready;
+
+      // Pass VAPID key to service worker
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'SET_VAPID_KEY',
+          vapidKey: VAPID_KEY,
+        });
+      }
+
+      // Retry logic for token generation (Windows may need multiple attempts)
+      let token = null;
+      let retries = 0;
+      const maxRetries = 3;
+
+      while (!token && retries < maxRetries) {
+        try {
+          token = await getToken(_messaging, { vapidKey: VAPID_KEY });
+          if (token) {
+            break;
+          }
+        } catch (err) {
+          retries++;
+          if (retries < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      }
 
       if (token) {
         this.fcmToken = token;
@@ -155,180 +264,144 @@ class NotificationService {
         this.setupServiceWorkerListener();
         return token;
       } else {
-        console.warn('No FCM registration token available');
         return null;
       }
-    } catch (error) {
-      console.error('❌ Error initializing messaging:', error);
-      throw error;
+    } catch (err) {
+      throw err;
     }
   }
 
-  // Update FCM token on server
   async updateFCMToken(token) {
     try {
-      await api.post('/notifications/fcm-token', { fcmToken: token });
-    } catch (error) {
-      console.error('❌ Error updating FCM token:', error);
+      const response = await api.post('/notifications/register-token', {
+        token,
+        deviceName: navigator.userAgent.split(' ').slice(-1)[0] || 'Web',
+        deviceType: 'web',
+      });
+    } catch (err) {
+      throw err;
     }
   }
 
-  // Setup foreground message listener
   setupForegroundListener() {
-    onMessage(messaging, (payload) => {
-      const { title, body, icon } = payload.notification || {};
-      
-      // Show custom toast notification
-      toast.info(`${title}: ${body}`, {
-        autoClose: 5000,
-        onClick: () => {
-          if (payload.data?.clickAction) {
-            window.location.href = payload.data.clickAction;
-          }
-        }
+    if (!_messaging) return;
+
+    onMessage(_messaging, (payload) => {
+      // FCM can send notification-only, data-only, or both
+      // Always fall back to data fields if notification object is missing
+      const title = payload.notification?.title || payload.data?.title || 'New Notification';
+      const body = payload.notification?.body || payload.data?.body || '';
+      const icon = payload.notification?.icon || payload.data?.icon;
+      const actionUrl = payload.data?.actionUrl;
+
+      // Only play sound and show notification if there's actual notification content
+      // Skip internal/data-only messages without title or body
+      if (!payload.notification && !payload.data?.title && !payload.data?.body) {
+        return;
+      }
+
+      // Play chime only for actual notifications
+      playSound();
+
+      // Show toast (always, even when tab is focused)
+      toast.info(`${title}${body ? ': ' + body : ''}`, {
+        autoClose: 6000,
+        onClick: () => { if (actionUrl) window.location.href = actionUrl; },
       });
 
-      // Show browser notification if page is not focused
+      // Also show OS notification when tab is hidden
       if (document.hidden) {
         this.showBrowserNotification(title, body, icon, payload.data);
+      }
+
+      // Tell context to refresh bell immediately
+      if (typeof this.onForegroundMessage === 'function') {
+        this.onForegroundMessage(payload);
       }
     });
   }
 
-  // Setup service worker message listener
   setupServiceWorkerListener() {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data && event.data.type === 'NOTIFICATION_CLICK') {
-          // Handle notification click navigation
-          const url = event.data.url;
-          if (url && url !== window.location.pathname) {
-            window.location.href = url;
-          }
-        }
-      });
-    }
+    if (!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data?.type === 'NOTIFICATION_CLICK') {
+        const url = event.data.url;
+        if (url && url !== window.location.pathname) window.location.href = url;
+      }
+    });
   }
 
-  // Show browser notification
   showBrowserNotification(title, body, icon, data) {
-    if (this.permission === 'granted') {
-      const notification = new Notification(title, {
+    if (this.permission !== 'granted') return;
+    try {
+      const n = new Notification(title, {
         body,
         icon: icon || '/favicon.ico',
-        badge: '/badge-icon.png',
-        tag: data?.tag || 'general',
-        data: data
+        badge: '/favicon.ico',
+        tag: data?.type || 'general',
+        data,
+        requireInteraction: true, // Keep notification visible until user interacts
       });
-
-      notification.onclick = () => {
+      n.onclick = () => {
         window.focus();
-        if (data?.clickAction) {
-          window.location.href = data.clickAction;
-        }
-        notification.close();
+        if (data?.actionUrl) window.location.href = data.actionUrl;
+        n.close();
       };
-
-      // Auto close after 5 seconds
-      setTimeout(() => notification.close(), 5000);
-    }
+      // Don't auto-close - let user dismiss it or Windows handle it
+    } catch { /* blocked */ }
   }
 
-  // Send test notification (Admin only)
-  async sendTestNotification(userId, title, body) {
-    try {
-      const response = await api.post('/notifications/test', {
-        userId,
-        title,
-        body
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error sending test notification:', error);
-      throw error;
-    }
-  }
+  async playSound() { await playSound(); }
 
-  // Update notification preferences
-  async updatePreferences(preferences) {
-    try {
-      await api.put('/notifications/preferences', {
-        notificationPreferences: preferences
-      });
-      toast.success('Notification preferences updated');
-    } catch (error) {
-      console.error('Error updating preferences:', error);
-      toast.error('Failed to update notification preferences');
-      throw error;
-    }
-  }
-
-  // Get notification preferences
-  async getPreferences() {
-    try {
-      const response = await api.get('/notifications/preferences');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching preferences:', error);
-      throw error;
-    }
-  }
-
-  // Check permission status
   getPermissionStatus() {
-    return this.permission;
+    return typeof Notification !== 'undefined' ? Notification.permission : 'denied';
+  }
+  getFCMToken() { return this.fcmToken; }
+  isServiceInitialized() { return this.isInitialized; }
+
+  // Helper methods for specific notification types
+  async sendFollowUpNotification(followUpType, leadName, scheduledDate) {
+    const title = `Follow-up Reminder: ${followUpType}`;
+    const body = `Scheduled for ${leadName} on ${new Date(scheduledDate).toLocaleDateString()}`;
+    this.showBrowserNotification(title, body, '/favicon.ico', { type: 'follow_up_reminder' });
   }
 
-  // Get current FCM token
-  getFCMToken() {
-    return this.fcmToken;
+  async sendCommentNotification(itemTitle, commenterName, commentPreview) {
+    const title = `New Comment on ${itemTitle}`;
+    const body = `${commenterName}: ${commentPreview.substring(0, 50)}...`;
+    this.showBrowserNotification(title, body, '/favicon.ico', { type: 'comment_notification' });
   }
 
-  // Check if service is initialized
-  isServiceInitialized() {
-    return this.isInitialized;
+  async sendMentionNotification(itemTitle, mentionerName) {
+    const title = `You were mentioned in ${itemTitle}`;
+    const body = `${mentionerName} mentioned you in a comment`;
+    this.showBrowserNotification(title, body, '/favicon.ico', { type: 'mention_notification' });
   }
 
-  // Show permission prompt with custom UI
   showPermissionPrompt() {
     return new Promise((resolve) => {
-      // Check if already granted
-      if (this.permission === 'granted') {
-        resolve(true);
-        return;
-      }
+      if (this.getPermissionStatus() === 'granted') { resolve(true); return; }
 
-      const modal = document.createElement('div');
-      modal.innerHTML = `
-        <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; align-items: center; justify-content: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-          <div style="background: white; padding: 2rem; border-radius: 12px; max-width: 400px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.1);">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">🔔</div>
-            <h3 style="margin: 0 0 1rem 0; color: #333;">Enable Notifications</h3>
-            <p style="color: #666; margin-bottom: 1.5rem; line-height: 1.5;">Get instant updates about:</p>
-            <div style="text-align: left; margin-bottom: 1.5rem;">
-              <div style="margin-bottom: 0.5rem;">📋 Leave request updates</div>
-              <div style="margin-bottom: 0.5rem;">💰 Salary slip notifications</div>
-              <div style="margin-bottom: 0.5rem;">📢 Important announcements</div>
-              <div style="margin-bottom: 0.5rem;">🕐 Meeting reminders</div>
-            </div>
-            <div style="margin-top: 1.5rem;">
-              <button id="enable-notifications" style="background: #007bff; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; margin-right: 0.5rem; cursor: pointer; font-weight: 600;">Enable Notifications</button>
-              <button id="maybe-later" style="background: #6c757d; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer;">Maybe Later</button>
-            </div>
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
+      overlay.innerHTML = `
+        <div style="background:white;padding:2rem;border-radius:12px;max-width:400px;width:90%;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,0.15)">
+          <div style="font-size:3rem;margin-bottom:1rem">🔔</div>
+          <h3 style="margin:0 0 0.75rem;color:#1a1a2e;font-size:1.25rem">Enable Notifications</h3>
+          <p style="color:#666;margin-bottom:1.25rem;line-height:1.5;font-size:0.9rem">Get instant alerts for work assignments, leave updates, meetings and more.</p>
+          <div style="display:flex;gap:0.75rem;justify-content:center">
+            <button id="notif-allow" style="background:#4f46e5;color:white;border:none;padding:0.65rem 1.5rem;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.95rem">Enable</button>
+            <button id="notif-later" style="background:#f3f4f6;color:#374151;border:none;padding:0.65rem 1.5rem;border-radius:8px;cursor:pointer;font-size:0.95rem">Later</button>
           </div>
-        </div>
-      `;
+        </div>`;
 
-      document.body.appendChild(modal);
-
-      document.getElementById('enable-notifications').onclick = async () => {
-        document.body.removeChild(modal);
-        const granted = await this.requestPermission();
-        resolve(granted);
+      document.body.appendChild(overlay);
+      overlay.querySelector('#notif-allow').onclick = async () => {
+        document.body.removeChild(overlay);
+        resolve(await this.requestPermission());
       };
-
-      document.getElementById('maybe-later').onclick = () => {
-        document.body.removeChild(modal);
+      overlay.querySelector('#notif-later').onclick = () => {
+        document.body.removeChild(overlay);
         resolve(false);
       };
     });

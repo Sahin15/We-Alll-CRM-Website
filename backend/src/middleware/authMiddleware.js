@@ -30,7 +30,7 @@ export const protect = async (req, res, next) => {
   } catch (error) {
     // Only log actual errors, not routine auth failures
     if (error.name !== 'JsonWebTokenError' && error.name !== 'TokenExpiredError') {
-      console.error("AUTH MIDDLEWARE ERROR:", error.message);
+      
     }
     
     if (error.name === 'JsonWebTokenError') {

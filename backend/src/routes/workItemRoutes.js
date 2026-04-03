@@ -25,6 +25,7 @@ import {
   getWorkItemsBySlot,
   getPendingWorkCount,
   activateWorkItem,
+  getCreatedByMe,
 } from "../controllers/workItemController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { createWorkItemLimiter, validateRequest } from "../middleware/securityMiddleware.js";
@@ -47,6 +48,9 @@ router.get("/debug", debugWorkItems);
 
 // My Work - Get all work items for current user
 router.get("/my-work", queryValidation, validateRequest(queryValidation), getMyWorkItems);
+
+// Created by me - Get all work items created by current user
+router.get("/created-by/me", queryValidation, validateRequest(queryValidation), getCreatedByMe);
 
 // Calendar view - Get work items for calendar
 router.get("/calendar", queryValidation, validateRequest(queryValidation), getCalendarWorkItems);

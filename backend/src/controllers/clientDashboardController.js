@@ -94,7 +94,7 @@ export const getClientDashboardStats = async (req, res) => {
       recentActivity,
     });
   } catch (error) {
-    console.error("Error fetching client dashboard stats:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -185,7 +185,7 @@ export const getClientDashboardStatsById = async (req, res) => {
       recentActivity,
     });
   } catch (error) {
-    console.error("Error fetching client dashboard stats:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };

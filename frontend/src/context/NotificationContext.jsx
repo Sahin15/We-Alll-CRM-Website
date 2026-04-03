@@ -1,6 +1,7 @@
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import notificationService from "../services/notificationService";
+import { playSound } from "../services/notificationService";
 
 const NotificationContext = createContext();
 
@@ -20,16 +21,32 @@ export const NotificationProvider = ({ children }) => {
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
+  const prevUnreadRef = useRef(0);
+
   // Fetch notifications
   const fetchNotifications = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      const response = await axios.get(`${API_URL}/notifications`, {
+      const response = await axios.get(`${API_URL}/notifications/my-notifications`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setNotifications(response.data.notifications || []);
-      setUnreadCount(response.data.unreadCount || 0);
+      const newNotifications = response.data.notifications || [];
+      const newUnreadCount = response.data.unreadCount || 0;
+
+      // Play sound if unread count increased (new notification arrived via polling)
+      if (newUnreadCount > prevUnreadRef.current) {
+        try {
+          await playSound();
+        } catch (soundError) {
+          // Sound is optional - don't block on audio errors
+          console.debug('Notification sound skipped:', soundError?.message);
+        }
+      }
+      prevUnreadRef.current = newUnreadCount;
+
+      setNotifications(newNotifications);
+      setUnreadCount(newUnreadCount);
     } catch (error) {
       console.error("Error fetching notifications:", error);
     } finally {
@@ -53,22 +70,41 @@ export const NotificationProvider = ({ children }) => {
   // Mark notification as read
   const markAsRead = async (notificationId) => {
     try {
+      console.log('[NotificationContext] ========== MARK AS READ START ==========');
+      console.log('[NotificationContext] Notification ID:', notificationId);
+      
       const token = localStorage.getItem("token");
-      await axios.patch(
+      console.log('[NotificationContext] Token available:', !!token);
+      
+      const response = await axios.put(
         `${API_URL}/notifications/${notificationId}/read`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
+      console.log('[NotificationContext] ✅ Backend response:', response.status);
+      
       // Update local state
-      setNotifications((prev) =>
-        prev.map((notif) =>
+      setNotifications((prev) => {
+        const updated = prev.map((notif) =>
           notif._id === notificationId ? { ...notif, isRead: true } : notif
-        )
-      );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
+        );
+        console.log('[NotificationContext] Updated notifications in state');
+        return updated;
+      });
+      
+      setUnreadCount((prev) => {
+        const newCount = Math.max(0, prev - 1);
+        console.log('[NotificationContext] Unread count updated:', prev, '→', newCount);
+        return newCount;
+      });
+      
+      console.log('[NotificationContext] ========== MARK AS READ END (SUCCESS) ==========');
     } catch (error) {
-      console.error("Error marking notification as read:", error);
+      console.error("[NotificationContext] ❌ Error marking notification as read:", error);
+      console.error("[NotificationContext] Error message:", error.message);
+      console.error("[NotificationContext] Error response:", error.response?.data);
+      console.error('[NotificationContext] ========== MARK AS READ END (ERROR) ==========');
     }
   };
 
@@ -76,8 +112,8 @@ export const NotificationProvider = ({ children }) => {
   const markAllAsRead = async () => {
     try {
       const token = localStorage.getItem("token");
-      await axios.patch(
-        `${API_URL}/notifications/read-all`,
+      await axios.put(
+        `${API_URL}/notifications/mark-all/read`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -131,43 +167,32 @@ export const NotificationProvider = ({ children }) => {
     // Note: Firebase messaging doesn't need explicit stopping
   }, []);
 
-  // Initialize notifications on mount
+  // Initialize notifications on mount + poll every 30s for real-time feel
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
-    
+
     fetchNotifications();
-    
-    // Check if notifications are already enabled
-    const initRealTime = async () => {
-      // iOS Safari detection - skip Firebase initialization
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-      const isStandalone = window.navigator.standalone === true;
-      
-      if (isIOS && isSafari && !isStandalone) {
-        console.log('📱 iOS Safari detected - Push notifications disabled for compatibility');
-        return; // Skip Firebase initialization on iOS Safari
+
+    // Poll every 30 seconds so new notifications appear without a page refresh
+    const pollInterval = setInterval(fetchNotifications, 30000);
+
+    // Wire up foreground FCM message handler — instant bell update + sound
+    notificationService.onForegroundMessage = () => {
+      try {
+        notificationService.playSound();
+      } catch (soundError) {
+        // Sound is optional - don't block on audio errors
+        console.debug('Notification sound skipped:', soundError?.message);
       }
-      
-      const permission = notificationService.getPermissionStatus();
-      if (permission === 'granted') {
-        setRealTimeEnabled(true);
-        // Only initialize if not already initialized
-        if (!notificationService.isServiceInitialized()) {
-          try {
-            // Silent initialization - errors are handled internally
-            await notificationService.initializeMessaging();
-          } catch (error) {
-            // Silently fail - Firebase is optional
-            console.debug("Firebase messaging not available");
-          }
-        }
-      }
+      fetchNotifications();
     };
-    
-    initRealTime();
-  }, [fetchNotifications]);
+
+    return () => {
+      clearInterval(pollInterval);
+      notificationService.onForegroundMessage = null;
+    };
+  }, []); // Empty dependency array - run only once on mount
 
   const value = {
     notifications,

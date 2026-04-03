@@ -36,8 +36,13 @@ const NotificationBell = () => {
   }, [show]);
 
   const handleNotificationClick = async (notification) => {
+    console.log('[AdminNotificationBell] Notification clicked:', notification._id, notification.title);
+    console.log('[AdminNotificationBell] Is read:', notification.isRead);
+    
     if (!notification.isRead) {
+      console.log('[AdminNotificationBell] Marking notification as read...');
       await markAsRead(notification._id);
+      console.log('[AdminNotificationBell] ✅ Notification marked as read');
     }
 
     // Navigate to relevant page based on notification type or link
@@ -218,13 +223,13 @@ const NotificationBell = () => {
                   <span className="visually-hidden">Loading...</span>
                 </div>
               </div>
-            ) : notifications.length === 0 ? (
+            ) : notifications.filter(n => !n.isRead).length === 0 ? (
               <div className="text-center py-4 text-muted">
                 <FaBell size={32} className="mb-2 opacity-50" />
-                <p className="mb-0">No notifications</p>
+                <p className="mb-0">{unreadCount === 0 ? 'No unread notifications' : 'All caught up!'}</p>
               </div>
             ) : (
-              notifications.slice(0, 10).map((notification) => (
+              notifications.filter(n => !n.isRead).slice(0, 10).map((notification) => (
                 <div
                   key={notification._id}
                   className={`notification-item ${!notification.isRead ? "unread" : ""}`}
@@ -235,7 +240,7 @@ const NotificationBell = () => {
                   </div>
                   <div className="notification-content">
                     <div className="notification-title">{notification.title}</div>
-                    <div className="notification-message">{notification.message}</div>
+                    <div className="notification-message">{notification.body || notification.message}</div>
                     <div className="notification-time">{formatTime(notification.createdAt)}</div>
                   </div>
                   <button
@@ -259,7 +264,7 @@ const NotificationBell = () => {
                   setShow(false);
                 }}
               >
-                View all notifications
+                View all notifications ({notifications.length})
               </button>
             </div>
           )}

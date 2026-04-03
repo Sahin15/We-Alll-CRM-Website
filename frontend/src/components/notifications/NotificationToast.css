@@ -1,0 +1,55 @@
+.notification-toast-container {
+  z-index: 9999;
+  position: fixed;
+  top: 20px;
+  right: 20px;
+}
+
+.notification-toast {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: none;
+  border-radius: 8px;
+  animation: slideIn 0.3s ease-out;
+}
+
+.notification-toast .toast-header {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  font-weight: 600;
+}
+
+.notification-toast .toast-body {
+  padding: 1rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  transition: all 0.2s ease;
+}
+
+.notification-toast .toast-body:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+}
+
+.notification-toast.hide {
+  animation: slideOut 0.3s ease-out;
+}

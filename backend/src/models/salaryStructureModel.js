@@ -195,13 +195,10 @@ salaryStructureSchema.index({ status: 1 });
 salaryStructureSchema.statics.getActiveStructure = async function(employeeId) {
   return this.findOne({
     employee: employeeId,
-    status: "active",
-    effectiveFrom: { $lte: new Date() },
-    $or: [
-      { effectiveTo: null },
-      { effectiveTo: { $gte: new Date() } }
-    ]
-  }).populate("employee", "name email employeeId designation department");
+    status: "active"
+  })
+  .sort({ effectiveFrom: -1 })
+  .populate("employee", "name email employeeId designation department");
 };
 
 const SalaryStructure = mongoose.model("SalaryStructure", salaryStructureSchema);

@@ -70,8 +70,10 @@ const LeadList = () => {
   const [showEmailHistoryModal, setShowEmailHistoryModal] = useState(false);
   const [selectedLeadForHistory, setSelectedLeadForHistory] = useState(null);
 
-  // Team / assignment state — assign access for hod, manager, admin, superadmin only
-  const isManager = ['admin', 'superadmin', 'manager', 'hod'].includes(user?.role);
+  // Team / assignment state — assign access for hod, manager, admin, superadmin, or Sales department members
+  const isManager = ['admin', 'superadmin', 'manager', 'hod'].includes(user?.role) || 
+                    user?.department?.name === 'Sales' || 
+                    user?.department === 'Sales';
   const [myLeadsOnly, setMyLeadsOnly] = useState(() => sessionStorage.getItem('leadListMyOnly') !== 'false');
   const [filterAssignedTo, setFilterAssignedTo] = useState('');
   const [teamMembers, setTeamMembers] = useState([]);
@@ -465,22 +467,44 @@ const LeadList = () => {
         return;
       }
 
-      // Prepare submit data
+      // Separate new contacts (with temporary _id) from existing ones
+      const newContacts = formContacts.filter(contact => contact._id && contact._id.match(/^\d+$/));
+      const existingContacts = formContacts.filter(contact => contact._id && !contact._id.match(/^\d+$/));
+
+      // Prepare submit data (without contacts)
       const submitData = {
         ...formData,
         phone: formData.phone ? Number(formData.phone) : undefined,
         service: formData.service,
         source: (formData.customSource || '').trim() || formData.source,
-        contacts: formContacts,
       };
 
       // Remove customSource from submit data
       delete submitData.customSource;
 
       if (editMode) {
+        // Update the lead
         await leadApi.updateLead(currentLead._id, submitData);
+        
+        // Add new contacts using dedicated endpoints
+        for (const contact of newContacts) {
+          const { _id, ...contactData } = contact;
+          try {
+            await leadApi.addContact(currentLead._id, contactData);
+          } catch (error) {
+            console.error("Error adding contact:", error);
+            toast.warning("Lead updated but some contacts failed to add");
+          }
+        }
+        
         toast.success("Lead updated successfully");
+        
+        // Trigger a custom event to notify LeadDetails page to refresh
+        window.dispatchEvent(new CustomEvent('leadUpdated', { detail: { leadId: currentLead._id } }));
       } else {
+        // For new leads, include contacts in creation
+        const cleanedContacts = newContacts.map(({ _id, ...rest }) => rest);
+        submitData.contacts = cleanedContacts;
         await leadApi.createLead(submitData);
         toast.success("Lead created successfully");
       }

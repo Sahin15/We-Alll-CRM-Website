@@ -11,7 +11,8 @@ const LeadMeetingsDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const isManager = ['admin', 'superadmin', 'manager', 'hod'].includes(user?.role);
-  const [myOnly, setMyOnly] = useState(false);
+  // Sales employees default to "Mine", managers default to "All"
+  const [myOnly, setMyOnly] = useState(!isManager);
   const [meetings, setMeetings] = useState([]);
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -242,22 +243,20 @@ const LeadMeetingsDashboard = () => {
             </small>
           </div>
           <div className="d-flex align-items-center gap-2">
-            {isManager && (
-              <div className="btn-group btn-group-sm">
-                <button
-                  className={`btn btn-sm ${!myOnly ? 'btn-primary' : 'btn-outline-primary'}`}
-                  onClick={() => setMyOnly(false)}
-                >
-                  <FaUsers size={11} className="me-1" /> All
-                </button>
-                <button
-                  className={`btn btn-sm ${myOnly ? 'btn-primary' : 'btn-outline-primary'}`}
-                  onClick={() => setMyOnly(true)}
-                >
-                  <FaUser size={11} className="me-1" /> Mine
-                </button>
-              </div>
-            )}
+            <div className="btn-group btn-group-sm">
+              <button
+                className={`btn btn-sm ${!myOnly ? 'btn-primary' : 'btn-outline-primary'}`}
+                onClick={() => setMyOnly(false)}
+              >
+                <FaUsers size={11} className="me-1" /> All
+              </button>
+              <button
+                className={`btn btn-sm ${myOnly ? 'btn-primary' : 'btn-outline-primary'}`}
+                onClick={() => setMyOnly(true)}
+              >
+                <FaUser size={11} className="me-1" /> Mine
+              </button>
+            </div>
             <Button size="sm" variant="primary" onClick={() => handleOpenModal()}>
               <FaPlus className="me-1" /> Schedule Meeting
             </Button>

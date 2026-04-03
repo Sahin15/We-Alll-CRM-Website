@@ -90,7 +90,7 @@ export const getEmployeeWorkload = async (req, res) => {
       }).length
     });
   } catch (error) {
-    console.error("Error in getEmployeeWorkload:", error.message);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -134,7 +134,7 @@ export const getDepartmentWorkload = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Error in getDepartmentWorkload:", error.message);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -169,7 +169,7 @@ export const getProjectWorkload = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Error in getProjectWorkload:", error.message);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -231,7 +231,7 @@ export const getWorkloadTrends = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Error in getWorkloadTrends:", error.message);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -283,7 +283,7 @@ export const getBatchWorkload = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Error in getBatchWorkload:", error.message);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };

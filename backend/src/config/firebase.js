@@ -40,11 +40,9 @@ const initializeFirebase = async () => {
           const serviceAccountData = readFileSync(serviceAccountPath, 'utf8');
           serviceAccount = JSON.parse(serviceAccountData);
           
-          console.log('✅ Firebase service account loaded from file');
+          
         } catch (error) {
-          console.log('⚠️ Firebase service account file not found. Notifications will be disabled.');
-          console.log('📁 Looking for file at:', process.env.FIREBASE_SERVICE_ACCOUNT_PATH || path.join(__dirname, '../../firebase-service-account.json'));
-          console.log('🔍 Error details:', error.message);
+          // Error reading service account file
           return;
         }
       }
@@ -54,11 +52,11 @@ const initializeFirebase = async () => {
         projectId: serviceAccount.project_id
       });
 
-      console.log('✅ Firebase Admin initialized successfully');
+      
     }
   } catch (error) {
-    console.error('❌ Firebase Admin initialization failed:', error.message);
-    console.log('⚠️ Push notifications will be disabled');
+    
+    
   }
 };
 

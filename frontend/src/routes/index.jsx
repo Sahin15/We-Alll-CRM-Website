@@ -9,6 +9,9 @@ import AuthLayout from "../components/layout/AuthLayout";
 import ProtectedRoute from "./ProtectedRoute";
 import RoleBasedRoute from "./RoleBasedRoute";
 
+// Diagnostics
+import NotificationDiagnostics from "../pages/NotificationDiagnostics";
+
 // Auth Pages
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
@@ -27,6 +30,7 @@ import HoDDashboard from "../pages/hod/HoDDashboard";
 // Employee Pages
 import MyProjects from "../pages/employee/MyProjects";
 import MyWorkPage from "../pages/employee/MyWorkPage";
+import AssignedWorkPage from "../pages/employee/AssignedWorkPage";
 import MyMeetings from "../pages/employee/MyMeetings";
 import TeamDirectory from "../pages/employee/TeamDirectory";
 import MySalarySlips from "../pages/employee/MySalarySlips";
@@ -184,6 +188,8 @@ const AppRoutes = () => {
       
       {/* Growth Summit 2026 Landing Page - Public Route */}
       <Route path="/growth-summit-2026" element={<GrowthSummitFinal />} />
+      
+
       
       {/* Registration route - Only accessible from inside app by admins */}
       <Route path="/register" element={<Register />} />
@@ -345,6 +351,7 @@ const AppRoutes = () => {
         {/* Employee Portal Routes */}
         <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
         <Route path="/employee/my-work" element={<MyWorkPage />} />
+        <Route path="/employee/assigned-work" element={<AssignedWorkPage />} />
         <Route path="/employee/meetings" element={<MyMeetings />} />
         <Route path="/employee/attendance" element={<EmployeeMyAttendance />} />
         <Route path="/employee/attendance-report/:employeeId" element={<EmployeeAttendanceReport />} />
@@ -620,11 +627,7 @@ const AppRoutes = () => {
         {/* Company Management Routes */}
         <Route
           path="/meetings"
-          element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
-              <MeetingManagement />
-            </RoleBasedRoute>
-          }
+          element={<MeetingManagement />}
         />
         <Route
           path="/policies"

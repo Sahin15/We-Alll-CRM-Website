@@ -1,21 +1,19 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Container, Row, Col, Card, Alert, Button, ButtonGroup } from 'react-bootstrap';
-import { FaExclamationTriangle, FaClock, FaCheckSquare } from 'react-icons/fa';
+import { Container, Row, Col, Card, Button, ButtonGroup } from 'react-bootstrap';
+import { FaClock, FaCheckSquare } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import workItemApi from '../../api/workItemApi';
 import WorkItemList from '../../components/workitems/WorkItemList';
 import WorkItemListWithBulk from '../../components/workitems/WorkItemListWithBulk';
 import WorkItemDetailsModal from '../../components/workitems/WorkItemDetailsModal';
-import WorkItemFilters from '../../components/workitems/WorkItemFilters';
 import WorkItemSearch from '../../components/workitems/WorkItemSearch';
-import StatisticsCards from '../../components/workitems/StatisticsCards';
 import AssignWorkModal from '../../components/work/AssignWorkModal';
+import './MyWorkPage.css';
 
 /**
  * MyWorkPage Component
  * Main page for viewing and managing all assigned work items
- * Requirements: 1.1, 1.3, 1.4, 8.2
  */
 const MyWorkPage = () => {
   const { user } = useAuth();
@@ -24,13 +22,8 @@ const MyWorkPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filters, setFilters] = useState({
-    status: 'all',
-    type: 'all',
-    priority: 'all',
-    dueDate: 'all'
-  });
-  const [activeFilter, setActiveFilter] = useState(null);
+  const [showTodayOnly, setShowTodayOnly] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(null);
   const [bulkMode, setBulkMode] = useState(false);
   const [showAssignWorkModal, setShowAssignWorkModal] = useState(false);
 
@@ -52,75 +45,92 @@ const MyWorkPage = () => {
   };
 
   // Calculate statistics
-  const stats = useMemo(() => {
+  const statistics = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    
+    let totalThisMonth = 0;
+    let dueToday = 0;
+    let inProgress = 0;
+    let overdue = 0;
+    let completedThisMonth = 0;
+    let overdueItems = [];
+    let dueTodayItems = [];
+    let inProgressItems = [];
 
-    const tasks = workItems.filter((item) => item.type === 'task');
-    const content = workItems.filter((item) => item.type === 'content');
-
-    const overdue = workItems.filter((item) => {
+    workItems.forEach((item) => {
       const dueDate = new Date(item.dueDate);
-      return dueDate < today && item.status !== 'Done';
+      dueDate.setHours(0, 0, 0, 0);
+      const itemMonth = dueDate.getMonth();
+      const itemYear = dueDate.getFullYear();
+
+      // Count items this month
+      if (itemMonth === currentMonth && itemYear === currentYear) {
+        totalThisMonth++;
+      }
+
+      // Count completed this month
+      if (item.status === 'Done' && itemMonth === currentMonth && itemYear === currentYear) {
+        completedThisMonth++;
+      }
+
+      // Count due today
+      if (dueDate.getTime() === today.getTime() && item.status !== 'Done') {
+        dueToday++;
+        dueTodayItems.push(item);
+      }
+
+      // Count in progress
+      if (item.status === 'In Progress') {
+        inProgress++;
+        inProgressItems.push(item);
+      }
+
+      // Count overdue
+      if (dueDate < today && item.status !== 'Done') {
+        overdue++;
+        overdueItems.push(item);
+      }
     });
-
-    const dueToday = workItems.filter((item) => {
-      const dueDate = new Date(item.dueDate);
-      return (
-        dueDate.toDateString() === today.toDateString() && item.status !== 'Done'
-      );
-    });
-
-    const inProgress = workItems.filter(
-      (item) => item.status === 'In Progress'
-    );
-
-    const completed = workItems.filter((item) => item.status === 'Done');
 
     return {
-      total: workItems.length,
-      tasks: tasks.length,
-      content: content.length,
-      overdue: overdue.length,
-      dueToday: dueToday.length,
-      inProgress: inProgress.length,
-      completed: completed.length
+      totalThisMonth,
+      dueToday,
+      inProgress,
+      overdue,
+      completedThisMonth,
+      overdueItems: overdueItems.slice(0, 3), // Top 3 overdue
+      dueTodayItems: dueTodayItems.slice(0, 3), // Top 3 due today
+      inProgressItems: inProgressItems.slice(0, 3), // Top 3 in progress
     };
   }, [workItems]);
 
-  // Filter work items
+  // Filter and sort work items
   const filteredItems = useMemo(() => {
     let filtered = [...workItems];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Apply card filter (from clicking statistics cards)
-    if (activeFilter) {
-      switch (activeFilter) {
-        case 'dueToday':
-          filtered = filtered.filter((item) => {
-            const dueDate = new Date(item.dueDate);
-            return (
-              dueDate.toDateString() === today.toDateString() &&
-              item.status !== 'Done'
-            );
-          });
-          break;
-        case 'inProgress':
-          filtered = filtered.filter((item) => item.status === 'In Progress');
-          break;
-        case 'overdue':
-          filtered = filtered.filter((item) => {
-            const dueDate = new Date(item.dueDate);
-            return dueDate < today && item.status !== 'Done';
-          });
-          break;
-        case 'completed':
-          filtered = filtered.filter((item) => item.status === 'Done');
-          break;
-        default:
-          break;
-      }
+    // Determine which date to filter by
+    let filterDate = today;
+    if (selectedDate) {
+      filterDate = new Date(selectedDate);
+      filterDate.setHours(0, 0, 0, 0);
+    } else if (showTodayOnly) {
+      filterDate = today;
+    }
+
+    // Show work for selected/today date if toggle is on or date is selected
+    if (showTodayOnly || selectedDate) {
+      filtered = filtered.filter((item) => {
+        const dueDate = new Date(item.dueDate);
+        dueDate.setHours(0, 0, 0, 0);
+        // Show items due exactly on the selected date
+        return dueDate.getTime() === filterDate.getTime();
+      });
     }
 
     // Apply search filter
@@ -130,97 +140,45 @@ const MyWorkPage = () => {
         (item) =>
           item.title?.toLowerCase().includes(term) ||
           item.description?.toLowerCase().includes(term) ||
-          item.project?.name?.toLowerCase().includes(term) ||
-          item.tags?.some((tag) => tag.toLowerCase().includes(term))
+          item.project?.name?.toLowerCase().includes(term)
       );
     }
 
-    // Apply status filter
-    if (filters.status && filters.status !== 'all') {
-      filtered = filtered.filter((item) => item.status === filters.status);
-    }
-
-    // Apply type filter
-    if (filters.type && filters.type !== 'all') {
-      filtered = filtered.filter((item) => item.type === filters.type);
-    }
-
-    // Apply priority filter
-    if (filters.priority && filters.priority !== 'all') {
-      filtered = filtered.filter((item) => item.priority === filters.priority);
-    }
-
-    // Apply due date filter
-    if (filters.dueDate && filters.dueDate !== 'all') {
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);
-
-      switch (filters.dueDate) {
-        case 'overdue':
-          filtered = filtered.filter((item) => {
-            const dueDate = new Date(item.dueDate);
-            return dueDate < now && item.status !== 'Done';
-          });
-          break;
-        case 'today':
-          filtered = filtered.filter((item) => {
-            const dueDate = new Date(item.dueDate);
-            return dueDate.toDateString() === now.toDateString();
-          });
-          break;
-        case 'week':
-          const weekEnd = new Date(now);
-          weekEnd.setDate(weekEnd.getDate() + 7);
-          filtered = filtered.filter((item) => {
-            const dueDate = new Date(item.dueDate);
-            return dueDate >= now && dueDate <= weekEnd;
-          });
-          break;
-        case 'month':
-          const monthEnd = new Date(now);
-          monthEnd.setMonth(monthEnd.getMonth() + 1);
-          filtered = filtered.filter((item) => {
-            const dueDate = new Date(item.dueDate);
-            return dueDate >= now && dueDate <= monthEnd;
-          });
-          break;
-        default:
-          break;
-      }
-    }
-
-    // Sort by due date (earliest first)
+    // Sort by priority: overdue first, then by due date, then completed items last
     filtered.sort((a, b) => {
       const dateA = new Date(a.dueDate);
       const dateB = new Date(b.dueDate);
+      dateA.setHours(0, 0, 0, 0);
+      dateB.setHours(0, 0, 0, 0);
+      
+      const isAOverdue = dateA < today && a.status !== 'Done';
+      const isBOverdue = dateB < today && b.status !== 'Done';
+      const isADone = a.status === 'Done';
+      const isBDone = b.status === 'Done';
+      
+      // Overdue items come first
+      if (isAOverdue && !isBOverdue) return -1;
+      if (!isAOverdue && isBOverdue) return 1;
+      
+      // Completed items come last
+      if (isADone && !isBDone) return 1;
+      if (!isADone && isBDone) return -1;
+      
+      // Then sort by due date (earliest first)
       return dateA - dateB;
     });
 
     return filtered;
-  }, [workItems, searchTerm, filters, activeFilter]);
-
-  const handleCardClick = (filterId) => {
-    setActiveFilter(filterId);
-    // Clear other filters when clicking a card
-    if (filterId) {
-      setFilters({
-        status: 'all',
-        type: 'all',
-        priority: 'all',
-        dueDate: 'all'
-      });
-    }
-  };
+  }, [workItems, searchTerm, showTodayOnly, selectedDate]);
 
   const handleViewItem = (item) => {
     setSelectedItem(item);
     setShowModal(true);
   };
 
-  const handleUpdateStatus = async (itemId, newStatus, itemType, completedAt = null) => {
+  const handleUpdateStatus = async (itemId, newStatus, completedAt = null) => {
     try {
       await workItemApi.updateStatus(itemId, newStatus, completedAt);
-      toast.success('Status updated successfully!');
       loadWorkItems();
 
       // Update selected item if it's the one being updated
@@ -229,7 +187,8 @@ const MyWorkPage = () => {
       }
     } catch (error) {
       console.error('Error updating status:', error);
-      toast.error(error.response?.data?.message || 'Failed to update status');
+      const errorMessage = error.response?.data?.error?.message || error.response?.data?.message || 'Failed to update status';
+      toast.error(errorMessage);
       throw error;
     }
   };
@@ -244,17 +203,6 @@ const MyWorkPage = () => {
       console.error('Error adding comment:', error);
       throw error;
     }
-  };
-
-  const handleClearFilters = () => {
-    setFilters({
-      status: 'all',
-      type: 'all',
-      priority: 'all',
-      dueDate: 'all'
-    });
-    setActiveFilter(null);
-    setSearchTerm('');
   };
 
   const handleBulkAction = async (action, data, selectedIds) => {
@@ -313,7 +261,7 @@ const MyWorkPage = () => {
             Assign Work
           </Button>
           <Button
-            variant={bulkMode ? 'secondary' : 'outline-secondary'}
+            variant={bulkMode ? 'warning' : 'outline-primary'}
             onClick={() => setBulkMode(!bulkMode)}
             size="sm"
           >
@@ -324,73 +272,139 @@ const MyWorkPage = () => {
       </Row>
 
       {/* Statistics Cards */}
-      <StatisticsCards
-        stats={stats}
-        activeFilter={activeFilter}
-        onCardClick={handleCardClick}
-      />
+      <Row className="mb-3 g-2 stats-row">
+        <Col className="stat-col">
+          <Card className="stat-card" style={{ background: 'white', border: '1px solid #e9ecef' }}>
+            <Card.Body className="p-3 text-center">
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📋</div>
+              <h3 className="stat-value mb-1">{statistics.totalThisMonth}</h3>
+              <p className="stat-label mb-0">Total Items</p>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col className="stat-col">
+          <Card className="stat-card" style={{ background: 'white', border: '1px solid #e9ecef' }}>
+            <Card.Body className="p-3 text-center">
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⏰</div>
+              <h3 className="stat-value mb-1">{statistics.dueToday}</h3>
+              <p className="stat-label mb-0">Due Today</p>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col className="stat-col">
+          <Card className="stat-card" style={{ background: 'white', border: '1px solid #e9ecef' }}>
+            <Card.Body className="p-3 text-center">
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⚙️</div>
+              <h3 className="stat-value mb-1">{statistics.inProgress}</h3>
+              <p className="stat-label mb-0">In Progress</p>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col className="stat-col">
+          <Card className="stat-card" style={{ background: 'white', border: '1px solid #e9ecef' }}>
+            <Card.Body className="p-3 text-center">
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⚠️</div>
+              <h3 className="stat-value mb-1">{statistics.overdue}</h3>
+              <p className="stat-label mb-0">Overdue</p>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col className="stat-col">
+          <Card className="stat-card" style={{ background: 'white', border: '1px solid #e9ecef' }}>
+            <Card.Body className="p-3 text-center">
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>✅</div>
+              <h3 className="stat-value mb-1">{statistics.completedThisMonth}</h3>
+              <p className="stat-label mb-0">Completed</p>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
 
-      {/* Active Filter Alert */}
-      {activeFilter && (
-        <Alert
-          variant="info"
-          className="mb-3 d-flex justify-content-between align-items-center"
-        >
-          <div>
-            <strong>Filter Active:</strong> Showing{' '}
-            {activeFilter === 'dueToday'
-              ? 'items due today'
-              : activeFilter === 'inProgress'
-              ? 'items in progress'
-              : activeFilter === 'overdue'
-              ? 'overdue items'
-              : activeFilter === 'completed'
-              ? 'completed items'
-              : 'all items'}
-          </div>
-          <Button
-            variant="outline-info"
-            size="sm"
-            onClick={() => setActiveFilter(null)}
-          >
-            Clear Filter
-          </Button>
-        </Alert>
-      )}
+      {/* Alert Banners */}
+      <Row className="mb-3 g-2">
+        {statistics.overdueItems.length > 0 && (
+          <Col xs={12}>
+            <div className="alert-banner alert-danger">
+              <div className="alert-icon">⚠️</div>
+              <div className="alert-content">
+                <strong>Attention!</strong> You have {statistics.overdueItems.length} overdue item{statistics.overdueItems.length > 1 ? 's' : ''}. Please prioritize these.
+              </div>
+            </div>
+          </Col>
+        )}
+        {statistics.dueTodayItems.length > 0 && (
+          <Col xs={12}>
+            <div className="alert-banner alert-warning">
+              <div className="alert-icon">⏰</div>
+              <div className="alert-content">
+                <strong>Reminder:</strong> You have {statistics.dueTodayItems.length} item{statistics.dueTodayItems.length > 1 ? 's' : ''} due today!
+              </div>
+            </div>
+          </Col>
+        )}
+      </Row>
 
-      {/* Alerts */}
-      {!activeFilter && stats.overdue > 0 && (
-        <Alert variant="danger" className="mb-3">
-          <FaExclamationTriangle className="me-2" />
-          <strong>Attention!</strong> You have {stats.overdue} overdue item
-          {stats.overdue > 1 ? 's' : ''}. Please prioritize these.
-        </Alert>
-      )}
-
-      {!activeFilter && stats.dueToday > 0 && (
-        <Alert variant="warning" className="mb-3">
-          <FaClock className="me-2" />
-          <strong>Reminder:</strong> You have {stats.dueToday} item
-          {stats.dueToday > 1 ? 's' : ''} due today!
-        </Alert>
-      )}
-
-      {/* Search and Filters */}
-      <Card className="mb-3">
-        <Card.Body>
-          <Row className="g-3">
-            <Col md={12}>
+      {/* Search and View Toggle */}
+      <Card className="mb-3 border-0 shadow-sm">
+        <Card.Body className="p-3">
+          <Row className="align-items-center g-3">
+            <Col md={6}>
               <WorkItemSearch
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
               />
             </Col>
-            <Col md={12}>
-              <WorkItemFilters
-                filters={filters}
-                onFilterChange={setFilters}
-                onClearFilters={handleClearFilters}
-              />
+            <Col md={3}>
+              <div className="d-flex gap-2 align-items-center">
+                <label className="text-muted mb-0" style={{ fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
+                  Select Date:
+                </label>
+                <input
+                  type="date"
+                  className="form-control form-control-sm"
+                  value={selectedDate || ''}
+                  onChange={(e) => {
+                    setSelectedDate(e.target.value);
+                    setShowTodayOnly(false);
+                  }}
+                  style={{ maxWidth: '150px' }}
+                />
+                {selectedDate && (
+                  <Button
+                    variant="outline-secondary"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedDate(null);
+                      setShowTodayOnly(true);
+                    }}
+                    style={{ padding: '0.375rem 0.75rem' }}
+                  >
+                    ✕
+                  </Button>
+                )}
+              </div>
+            </Col>
+            <Col md={3} className="text-end">
+              <ButtonGroup size="sm">
+                <Button
+                  variant={showTodayOnly && !selectedDate ? 'primary' : 'outline-secondary'}
+                  onClick={() => {
+                    setShowTodayOnly(true);
+                    setSelectedDate(null);
+                  }}
+                >
+                  Today
+                </Button>
+                <Button
+                  variant={!showTodayOnly && !selectedDate ? 'primary' : 'outline-secondary'}
+                  onClick={() => {
+                    setShowTodayOnly(false);
+                    setSelectedDate(null);
+                  }}
+                >
+                  All
+                </Button>
+              </ButtonGroup>
             </Col>
           </Row>
         </Card.Body>

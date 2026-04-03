@@ -35,7 +35,7 @@ class SalaryPreviewService {
       
       return preview;
     } catch (error) {
-      console.error("Error generating salary preview:", error);
+      
       throw error;
     }
   }
@@ -99,7 +99,7 @@ class SalaryPreviewService {
         results
       };
     } catch (error) {
-      console.error("Error in bulk preview generation:", error);
+      
       throw error;
     }
   }
@@ -134,7 +134,7 @@ class SalaryPreviewService {
 
       return preview;
     } catch (error) {
-      console.error("Error getting salary preview:", error);
+      
       throw error;
     }
   }
@@ -160,7 +160,7 @@ class SalaryPreviewService {
       
       return updatedPreview;
     } catch (error) {
-      console.error("Error submitting employee query:", error);
+      
       throw error;
     }
   }
@@ -188,7 +188,7 @@ class SalaryPreviewService {
       
       return updatedPreview;
     } catch (error) {
-      console.error("Error responding to query:", error);
+      
       throw error;
     }
   }
@@ -213,7 +213,7 @@ class SalaryPreviewService {
       
       return updatedPreview;
     } catch (error) {
-      console.error("Error acknowledging preview:", error);
+      
       throw error;
     }
   }
@@ -239,7 +239,7 @@ class SalaryPreviewService {
       
       return updatedPreview;
     } catch (error) {
-      console.error("Error finalizing preview:", error);
+      
       throw error;
     }
   }
@@ -270,7 +270,7 @@ class SalaryPreviewService {
 
       return previews;
     } catch (error) {
-      console.error("Error getting previews for month:", error);
+      
       throw error;
     }
   }
@@ -307,7 +307,7 @@ class SalaryPreviewService {
 
       return previews;
     } catch (error) {
-      console.error("Error getting previews requiring attention:", error);
+      
       throw error;
     }
   }
@@ -364,7 +364,7 @@ class SalaryPreviewService {
         generatedAt: new Date()
       };
     } catch (error) {
-      console.error("Error getting preview statistics:", error);
+      
       throw error;
     }
   }
@@ -433,7 +433,7 @@ class SalaryPreviewService {
       
       return preview;
     } catch (error) {
-      console.error("Error updating preview with corrections:", error);
+      
       throw error;
     }
   }
@@ -515,7 +515,7 @@ class SalaryPreviewService {
 
       return salarySlip;
     } catch (error) {
-      console.error("Error converting preview to salary slip:", error);
+      
       throw error;
     }
   }
@@ -540,7 +540,7 @@ class SalaryPreviewService {
       await SalaryPreview.findByIdAndDelete(previewId);
       return true;
     } catch (error) {
-      console.error("Error deleting preview:", error);
+      
       throw error;
     }
   }

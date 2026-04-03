@@ -25,7 +25,7 @@ const WorkBoardTab = ({ project, onRefresh }) => {
   });
   const [draggedItem, setDraggedItem] = useState(null);
 
-  const statuses = ['To Do', 'In Progress', 'Review', 'Done'];
+  const statuses = ['To Do', 'In Progress', 'Done'];
 
   useEffect(() => {
     loadWorkItems();

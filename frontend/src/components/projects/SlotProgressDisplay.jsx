@@ -31,13 +31,45 @@ const SlotProgressDisplay = ({
   const [selectedUser, setSelectedUser] = useState('');
   const [reassignLoading, setReassignLoading] = useState(false);
   const [reassignError, setReassignError] = useState('');
+  
+  // Month selection state
+  const [selectedMonth, setSelectedMonth] = useState(null);
+  const [availableMonths, setAvailableMonths] = useState([]);
 
   useEffect(() => {
     calculateProgressData();
+    initializeMonths();
   }, [project, slots]);
 
+  useEffect(() => {
+    calculateProgressData();
+  }, [selectedMonth]);
+
+  const initializeMonths = () => {
+    if (!slots || slots.length === 0) {
+      setAvailableMonths([]);
+      setSelectedMonth(null);
+      return;
+    }
+
+    // Get unique months from slots
+    const months = [...new Set(slots.map(s => s.period?.periodIdentifier))].filter(Boolean);
+    months.sort(); // Sort chronologically
+    setAvailableMonths(months);
+
+    // Determine current month in YYYY-MM format
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
+    const currentPeriodIdentifier = `${currentYear}-${currentMonth}`;
+
+    // Set current month as default if available, otherwise first available month
+    const defaultMonth = months.includes(currentPeriodIdentifier) ? currentPeriodIdentifier : months[0];
+    setSelectedMonth(defaultMonth);
+  };
+
   const calculateProgressData = () => {
-    if (!project || !slots) {
+    if (!project || !slots || !selectedMonth) {
       setProgressData({
         totalSlots: 0,
         completedSlots: 0,
@@ -48,16 +80,19 @@ const SlotProgressDisplay = ({
       return;
     }
 
-    const totalSlots = project.slotConfiguration?.totalSlots || slots.length || 0;
-    const completedSlots = slots.filter(slot => 
+    // Filter slots for selected month only
+    const monthSlots = slots.filter(slot => slot.period?.periodIdentifier === selectedMonth);
+
+    const totalSlots = monthSlots.length || 0;
+    const completedSlots = monthSlots.filter(slot => 
       slot.assignmentStatus === 'completed' || 
       slot.completionStatus?.isCompleted
     ).length;
-    const assignedSlots = slots.filter(slot => 
+    const assignedSlots = monthSlots.filter(slot => 
       slot.assignmentStatus === 'assigned' || 
       slot.assignmentStatus === 'in-progress'
     ).length;
-    const availableSlots = slots.filter(slot => 
+    const availableSlots = monthSlots.filter(slot => 
       slot.assignmentStatus === 'available'
     ).length;
 
@@ -100,6 +135,18 @@ const SlotProgressDisplay = ({
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const year = date.getFullYear();
     return `${day}/${month}/${year}`;
+  };
+
+  const formatMonthDisplay = (periodIdentifier) => {
+    if (!periodIdentifier) return periodIdentifier;
+    // Format: "2024-03" -> "March 2024"
+    const [year, month] = periodIdentifier.split('-');
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const monthIndex = parseInt(month) - 1;
+    return `${monthNames[monthIndex]} ${year}`;
   };
 
   const renderProgressTooltip = (props) => (
@@ -173,10 +220,32 @@ const SlotProgressDisplay = ({
       </Card.Header>
 
       <Card.Body>
+        {/* Month Selector - Only show if multiple months available */}
+        {availableMonths.length > 1 && (
+          <div className="mb-4 p-3 bg-light rounded">
+            <div className="d-flex align-items-center gap-3">
+              <label className="mb-0 fw-semibold">📅 Select Month:</label>
+              <Form.Select
+                value={selectedMonth || ''}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                style={{ maxWidth: '300px' }}
+              >
+                {availableMonths.map(month => (
+                  <option key={month} value={month}>
+                    {formatMonthDisplay(month)}
+                  </option>
+                ))}
+              </Form.Select>
+            </div>
+          </div>
+        )}
+
         {/* Main Progress Display */}
         <div className="mb-4">
           <div className="d-flex justify-content-between align-items-center mb-2">
-            <h6 className="mb-0">Overall Progress</h6>
+            <h6 className="mb-0">
+              {selectedMonth ? `${formatMonthDisplay(selectedMonth)} - Overall Progress` : 'Overall Progress'}
+            </h6>
             <div className="text-end">
               <span className="h5 mb-0">{progressData.progressPercentage}%</span>
               <div className="small text-muted">
@@ -221,13 +290,13 @@ const SlotProgressDisplay = ({
           </Row>
         </div>
 
-        {/* Detailed Slot Breakdown */}
-        {showDetailed && slots.length > 0 && (
+        {/* Detailed Slot Breakdown - Only for selected month */}
+        {showDetailed && selectedMonth && (
           <div>
-            <h6 className="mb-3">Slot Details</h6>
+            <h6 className="mb-3">Slot Details - {formatMonthDisplay(selectedMonth)}</h6>
             <div className="slot-list" style={{ maxHeight: '300px', overflowY: 'auto' }}>
-              {/* Sort slots to show assigned/in-progress first, then available */}
-              {[...slots]
+              {slots
+                .filter(slot => slot.period?.periodIdentifier === selectedMonth)
                 .sort((a, b) => {
                   const statusOrder = { 'assigned': 1, 'in-progress': 2, 'completed': 3, 'available': 4 };
                   const aOrder = statusOrder[a.assignmentStatus] || 5;

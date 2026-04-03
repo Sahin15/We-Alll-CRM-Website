@@ -15,12 +15,8 @@ const MultipleContactsForm = ({ contacts = [], onContactsChange }) => {
   });
 
   const handleAddContact = () => {
-    if (!newContact.value.trim()) {
-      toast.error("Please enter a contact value");
-      return;
-    }
-
-    if (newContact.type === "Email" && !newContact.value.includes("@")) {
+    // Contact value is now optional
+    if (newContact.type === "Email" && newContact.value && !newContact.value.includes("@")) {
       toast.error("Please enter a valid email address");
       return;
     }
@@ -250,7 +246,7 @@ const MultipleContactsForm = ({ contacts = [], onContactsChange }) => {
             </Row>
 
             <Form.Group className="mb-3">
-              <Form.Label className="small">Contact Value</Form.Label>
+              <Form.Label className="small">{newContact.type === "Email" ? "Email Address" : "Phone Number"} *</Form.Label>
               <Form.Control
                 type={newContact.type === "Email" ? "email" : "tel"}
                 placeholder={newContact.type === "Email" ? "email@example.com" : "+1234567890"}

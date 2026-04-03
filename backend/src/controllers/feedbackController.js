@@ -49,7 +49,7 @@ export const createFeedback = async (req, res) => {
             uploadDate: new Date()
           });
         } catch (uploadError) {
-          console.error("Error uploading attachment:", uploadError);
+          
           return res.status(400).json({
             message: `Failed to upload attachment "${file.originalname}": ${uploadError.message}`
           });
@@ -82,7 +82,7 @@ export const createFeedback = async (req, res) => {
       feedback: feedbackObj
     });
   } catch (error) {
-    console.error("Error creating feedback:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -177,7 +177,7 @@ export const getAllFeedback = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Error fetching feedback:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -246,7 +246,7 @@ export const getMyFeedback = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Error fetching my feedback:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -285,7 +285,7 @@ export const getFeedbackById = async (req, res) => {
 
     res.status(200).json(feedbackObj);
   } catch (error) {
-    console.error("Error fetching feedback:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -355,7 +355,7 @@ export const updateFeedback = async (req, res) => {
       feedback: feedbackObj
     });
   } catch (error) {
-    console.error("Error updating feedback:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -397,7 +397,7 @@ export const toggleUpvote = async (req, res) => {
       hasUpvoted: !hasUpvoted
     });
   } catch (error) {
-    console.error("Error toggling upvote:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -411,7 +411,7 @@ export const getFeedbackStatistics = async (req, res) => {
     const stats = await Feedback.getStatistics();
     res.status(200).json(stats);
   } catch (error) {
-    console.error("Error fetching feedback statistics:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -426,7 +426,7 @@ export const getTrendingFeedback = async (req, res) => {
     const trending = await Feedback.getTrending(parseInt(limit));
     res.status(200).json(trending);
   } catch (error) {
-    console.error("Error fetching trending feedback:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -466,7 +466,7 @@ export const deleteFeedback = async (req, res) => {
       message: "Feedback deleted successfully"
     });
   } catch (error) {
-    console.error("Error deleting feedback:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message

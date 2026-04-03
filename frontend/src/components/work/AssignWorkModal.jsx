@@ -11,6 +11,7 @@ import TeamMemberWorkloadInfo from '../workload/TeamMemberWorkloadInfo';
  * AssignWorkModal - Reusable modal for assigning work to team members
  * Can be used from any page (My Work, Calendar, etc.)
  * @param {Object} slotInfo - Optional slot information for slot-based assignments
+ * @param {string|Object} defaultProject - Project ID or full project object
  */
 const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defaultAssignee = null, slotInfo = null }) => {
   const [assigning, setAssigning] = useState(false);
@@ -18,6 +19,8 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
   const [users, setUsers] = useState([]);
   const [allUsers, setAllUsers] = useState([]); // Store all users
   const [slots, setSlots] = useState([]); // Store available slots
+  const [availableMonths, setAvailableMonths] = useState([]); // Store unique months from slots
+  const [selectedMonth, setSelectedMonth] = useState(null); // Track selected month for slot filtering
   const [loadingData, setLoadingData] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedUserForWorkload, setSelectedUserForWorkload] = useState(null); // Track selected user for workload display
@@ -54,6 +57,7 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
         scheduledActivationDate: ''
       });
       setSelectedProject(null);
+      setUsers([]);
       setSlots([]);
       loadProjectsAndUsers();
     }
@@ -62,31 +66,79 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
   // Auto-load project data when defaultProject is provided and projects are loaded
   useEffect(() => {
     if (show && defaultProject && projects.length > 0) {
-      handleProjectChange(defaultProject);
+      // If defaultProject is an object (full project data), use it directly
+      if (typeof defaultProject === 'object' && defaultProject._id) {
+        handleProjectChange(defaultProject._id);
+      } else if (typeof defaultProject === 'string') {
+        // If it's just an ID, find it in the projects array
+        handleProjectChange(defaultProject);
+      }
     }
-  }, [show, defaultProject, projects.length]); // Use projects.length instead of projects array
+  }, [show, defaultProject, projects.length]);
 
   const loadProjectsAndUsers = async () => {
     try {
       setLoadingData(true);
-      const [projectsRes, usersRes] = await Promise.all([
-        projectApi.getAllProjects(),
-        userApi.getAllUsers()
-      ]);
+      // Only load projects initially, load users only when project is selected
+      const projectsRes = await projectApi.getAllProjects();
       const loadedProjects = projectsRes.data || projectsRes.projects || [];
-      const loadedUsers = usersRes.data || usersRes.users || [];
+      
+      console.log('[AssignWorkModal] Projects loaded:', loadedProjects.length);
+      if (loadedProjects.length > 0) {
+        console.log('[AssignWorkModal] First project:', {
+          name: loadedProjects[0].name,
+          assignedUsers: loadedProjects[0].assignedUsers,
+          projectHead: loadedProjects[0].projectHead
+        });
+      }
       
       setProjects(loadedProjects);
-      setAllUsers(loadedUsers);
-      setUsers(loadedUsers); // Initially show all users
+      setAllUsers([]); // Don't load all users upfront
+      setUsers([]); // Users will be loaded when project is selected
     } catch (error) {
-      toast.error('Failed to load projects and users');
+      console.error('[AssignWorkModal] Error loading projects:', error);
+      toast.error('Failed to load projects');
     } finally {
       setLoadingData(false);
     }
   };
 
   // Filter users when project is selected
+  const initializeMonthsFromSlots = (loadedSlots) => {
+    if (!loadedSlots || loadedSlots.length === 0) {
+      setAvailableMonths([]);
+      setSelectedMonth(null);
+      return;
+    }
+
+    // Get unique months from slots
+    const months = [...new Set(loadedSlots.map(s => s.period?.periodIdentifier))].filter(Boolean);
+    months.sort(); // Sort chronologically
+    setAvailableMonths(months);
+
+    // Determine current month in YYYY-MM format
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
+    const currentPeriodIdentifier = `${currentYear}-${currentMonth}`;
+
+    // Set current month as default if available, otherwise first available month
+    const defaultMonth = months.includes(currentPeriodIdentifier) ? currentPeriodIdentifier : months[0];
+    setSelectedMonth(defaultMonth);
+  };
+
+  const formatMonthDisplay = (periodIdentifier) => {
+    if (!periodIdentifier) return periodIdentifier;
+    // Format: "2024-03" -> "March 2024"
+    const [year, month] = periodIdentifier.split('-');
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const monthIndex = parseInt(month) - 1;
+    return `${monthNames[monthIndex]} ${year}`;
+  };
+
   const handleProjectChange = async (projectId) => {
     setFormData({ 
       ...formData, 
@@ -102,15 +154,86 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
       setSelectedProject(project);
       
       if (project) {
-        // Get team members from the project
-        const teamMemberIds = [
-          ...(project.assignedUsers || []).map(u => u._id || u),
-          project.projectHead?._id || project.projectHead
-        ].filter(Boolean);
+        // Get team member IDs from the project
+        // Handle both populated objects and raw IDs
+        const teamMemberIds = [];
         
-        // Filter users to show only team members
-        const teamMembers = allUsers.filter(u => teamMemberIds.includes(u._id));
-        setUsers(teamMembers);
+        // Add assigned users
+        if (project.assignedUsers && Array.isArray(project.assignedUsers)) {
+          project.assignedUsers.forEach(u => {
+            const userId = u._id || u;
+            if (userId) teamMemberIds.push(userId.toString());
+          });
+        }
+        
+        // Add team members (newer structure with roles)
+        if (project.teamMembers && Array.isArray(project.teamMembers)) {
+          project.teamMembers.forEach(tm => {
+            const userId = tm.user?._id || tm.user;
+            if (userId) teamMemberIds.push(userId.toString());
+          });
+        }
+        
+        // Add project head
+        if (project.projectHead) {
+          const headId = project.projectHead._id || project.projectHead;
+          if (headId) teamMemberIds.push(headId.toString());
+        }
+        
+        // Check if we already have populated user objects in the project
+        const hasPopulatedUsers = project.assignedUsers?.some(u => u.name) || 
+                                  project.teamMembers?.some(tm => tm.user?.name) ||
+                                  project.projectHead?.name;
+        
+        if (hasPopulatedUsers && teamMemberIds.length > 0) {
+          // Use already populated user data from the project
+          const teamMembers = [];
+          
+          // Add assigned users
+          if (project.assignedUsers && Array.isArray(project.assignedUsers)) {
+            project.assignedUsers.forEach(u => {
+              if (u.name) teamMembers.push(u);
+            });
+          }
+          
+          // Add team members
+          if (project.teamMembers && Array.isArray(project.teamMembers)) {
+            project.teamMembers.forEach(tm => {
+              if (tm.user?.name && !teamMembers.find(u => u._id === tm.user._id)) {
+                teamMembers.push(tm.user);
+              }
+            });
+          }
+          
+          // Add project head
+          if (project.projectHead?.name && !teamMembers.find(u => u._id === project.projectHead._id)) {
+            teamMembers.push(project.projectHead);
+          }
+          
+          setUsers(teamMembers);
+          setAllUsers(teamMembers);
+        } else {
+          // Load only team members for this project (not all users)
+          try {
+            setLoadingData(true);
+            const usersRes = await userApi.getAllUsers({ limit: 1000 });
+            const allUsers = Array.isArray(usersRes) ? usersRes : (usersRes.data || usersRes.users || []);
+            
+            // Filter to show only team members
+            const teamMembers = allUsers.filter(u => {
+              const userId = u._id ? u._id.toString() : u.toString();
+              return teamMemberIds.includes(userId);
+            });
+            
+            setUsers(teamMembers);
+            setAllUsers(allUsers); // Store for future use
+          } catch (error) {
+            console.error('Error loading team members:', error);
+            setUsers([]);
+          } finally {
+            setLoadingData(false);
+          }
+        }
 
         // Load slots if project has slot system enabled
         if (project.slotConfiguration?.enableSlotSystem) {
@@ -118,18 +241,26 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
             const slotsResponse = await projectApi.getProjectSlots(projectId);
             const loadedSlots = slotsResponse.data || [];
             setSlots(loadedSlots);
+            initializeMonthsFromSlots(loadedSlots);
           } catch (error) {
+            console.error('Error loading slots:', error);
             setSlots([]);
+            setAvailableMonths([]);
+            setSelectedMonth(null);
           }
         } else {
           setSlots([]);
+          setAvailableMonths([]);
+          setSelectedMonth(null);
         }
       }
     } else {
-      // No project selected, show all users
-      setUsers(allUsers);
+      // No project selected, show no users
+      setUsers([]);
       setSelectedProject(null);
       setSlots([]);
+      setAvailableMonths([]);
+      setSelectedMonth(null);
     }
   };
 
@@ -518,6 +649,27 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
               return shouldShow;
             })() && (
               <Col md={12} className="mb-3">
+                {/* Month Selector - Only show if multiple months available */}
+                {availableMonths.length > 1 && (
+                  <div className="mb-3 p-2 bg-light rounded">
+                    <div className="d-flex align-items-center gap-2">
+                      <label className="mb-0 fw-semibold" style={{ minWidth: '100px' }}>📅 Month:</label>
+                      <Form.Select
+                        value={selectedMonth || ''}
+                        onChange={(e) => setSelectedMonth(e.target.value)}
+                        style={{ maxWidth: '250px' }}
+                        size="sm"
+                      >
+                        {availableMonths.map(month => (
+                          <option key={month} value={month}>
+                            {formatMonthDisplay(month)}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </div>
+                  </div>
+                )}
+
                 <Form.Group>
                   <Form.Label>Assign to Slot (Optional)</Form.Label>
                   <Form.Select
@@ -525,10 +677,11 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                     onChange={(e) => {
                       setFormData({ ...formData, selectedSlot: e.target.value });
                     }}
-                    disabled={assigning || loadingData}
+                    disabled={assigning || loadingData || slots.length === 0}
                   >
                     <option value="">No slot (unassigned)</option>
                     {slots
+                      .filter(slot => !selectedMonth || slot.period?.periodIdentifier === selectedMonth)
                       .sort((a, b) => a.slotNumber - b.slotNumber)
                       .map((slot) => (
                         <option key={slot._id} value={slot._id}>
@@ -537,7 +690,9 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                       ))}
                   </Form.Select>
                   <Form.Text className="text-muted">
-                    Work items can be assigned to slots or left unassigned
+                    {slots.length === 0 
+                      ? 'No slots available for this project'
+                      : 'Select a slot to assign this work to a specific project slot'}
                   </Form.Text>
                 </Form.Group>
               </Col>

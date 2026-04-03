@@ -32,6 +32,18 @@ const NotificationBell = () => {
 
   const getNotificationIcon = (type) => {
     const iconMap = {
+      // Work items
+      'work_assigned': '📋',
+      'work_reassigned': '🔄',
+      'work_reassigned_from': '🔄',
+      'work_reassigned_project': '🔄',
+      'work_updated': '✏️',
+      'work_updated_project': '✏️',
+      'work_status_changed': '🔄',
+      'work_completed': '✅',
+      'review_requested': '👀',
+      'task_assigned': '📋',
+      // Legacy work_item_ types (backward compat)
       'work_item_assigned': '📋',
       'work_item_due_soon': '⏰',
       'work_item_overdue': '🚨',
@@ -39,30 +51,75 @@ const NotificationBell = () => {
       'work_item_review_requested': '👀',
       'work_item_status_changed': '🔄',
       'work_item_commented': '💬',
-      'client_won': '🎉',
-      'new_project': '🚀',
-      'payment_received': '💰',
-      'leave_approved': '✅',
-      'leave_rejected': '❌',
-      'system': '⚙️',
-      'general': '📢'
+      // Leave
+      'leave_approval': '✅',
+      'leave_rejection': '❌',
+      'leave_request': '📋',
+      // Meeting
+      'meeting_scheduled': '📅',
+      'meeting_updated': '📅',
+      'meeting_cancelled': '🚫',
+      'meeting_reminder_15min': '⏰',
+      'meeting_reminder_1hour': '📅',
+      // Expense
+      'expense_approval': '💰',
+      'expense_rejection': '❌',
+      'expense_submitted': '🧾',
+      'expense_reimbursed': '💸',
+      // Invoice
+      'invoice_generated': '🧾',
+      'invoice_sent': '📤',
+      'invoice_paid': '✅',
+      'invoice_overdue': '⚠️',
+      // Client / Project
+      'client_created': '🤝',
+      'client_status_changed': '🔄',
+      'project_created': '🚀',
+      'project_status_changed': '🔄',
+      'project_deadline_7days': '📅',
+      'project_deadline_3days': '⏰',
+      // WFH
+      'wfh_request_submitted': '🏠',
+      'wfh_request_approved': '✅',
+      'wfh_request_rejected': '❌',
+      // Payment / Plan
+      'payment_processed': '💳',
+      'payment_due': '💰',
+      'payment_overdue': '⚠️',
+      'plan_renewal_reminder': '📅',
+      'plan_expiring': '⚠️',
+      'plan_expired': '🚫',
+      // Attendance
+      'attendance_alert': '⏰',
+      'attendance_auto_clockout': '⚠️',
+      // Other
+      'work_log_reminder': '📝',
+      'announcement': '📢',
+      'general': '📬',
     };
-    return iconMap[type] || '📢';
+    return iconMap[type] || '📬';
   };
 
   const getPriorityColor = (priority) => {
     const colorMap = {
+      'high': '#EF4444',
+      'normal': '#3B82F6',
+      'low': '#6B7280',
+      // legacy values
       'urgent': '#EF4444',
-      'high': '#F59E0B',
       'medium': '#3B82F6',
-      'low': '#6B7280'
     };
     return colorMap[priority] || '#6B7280';
   };
 
   const handleNotificationClick = async (notification) => {
+    console.log('[NotificationBell] Notification clicked:', notification._id, notification.title);
+    console.log('[NotificationBell] Is read:', notification.isRead);
+    
     if (!notification.isRead) {
+      console.log('[NotificationBell] Marking notification as read...');
       await markAsRead(notification._id);
+      console.log('[NotificationBell] ✅ Notification marked as read');
     }
     
     // Close dropdown on mobile after clicking a notification
@@ -111,7 +168,9 @@ const NotificationBell = () => {
     }
   };
 
-  const recentNotifications = notifications.filter(n => !n.isRead).slice(0, 5);
+  // Only show unread notifications in the bell dropdown
+  const unreadNotifications = notifications.filter(n => !n.isRead);
+  const recentNotifications = unreadNotifications.slice(0, 10);
 
   return (
     <>
@@ -188,7 +247,7 @@ const NotificationBell = () => {
           {recentNotifications.length === 0 ? (
             <div className="text-center py-4 text-muted">
               <FaBell size={32} className="mb-2 opacity-50" />
-              <p className="mb-0">No notifications yet</p>
+              <p className="mb-0">{unreadCount === 0 ? 'No unread notifications' : 'All caught up!'}</p>
             </div>
           ) : (
             <ListGroup variant="flush">
@@ -226,7 +285,7 @@ const NotificationBell = () => {
                       </div>
                       
                       <p className="notification-message mb-1 text-muted small">
-                        {notification.message}
+                        {notification.body}
                       </p>
                       
                       <div className="d-flex justify-content-between align-items-center">
@@ -278,12 +337,12 @@ const NotificationBell = () => {
               size="sm"
               className="text-decoration-none"
               onClick={() => {
-                navigate('/employee/notifications');
+                navigate('/employee/announcements');
                 if (isMobile) setShowDropdown(false);
               }}
             >
               <FaEye className="me-1" />
-              View All Notifications
+              View All ({notifications.length})
             </Button>
           </div>
         )}

@@ -2,6 +2,7 @@ import WFHRequest from "../models/wfhRequestModel.js";
 import User from "../models/userModel.js";
 import Attendance from "../models/attendanceModel.js";
 import { buildDateRangeQuery } from "../utils/queryOptimizer.js";
+import NotificationService from "../services/notificationService.js";
 
 // @desc    Apply for Work From Home
 // @route   POST /api/wfh/apply
@@ -45,13 +46,44 @@ export const applyWFH = async (req, res) => {
 
     await wfhRequest.populate("employee", "name email employeeId");
 
+    // SEND NOTIFICATION TO MANAGER
+    try {
+      const employee = await User.findById(employeeId).select('name reportingManager');
+      const employeeName = employee?.name || 'Employee';
+      
+      // Get reporting manager
+      if (employee?.reportingManager) {
+        await NotificationService.sendToUser(
+          employee.reportingManager,
+          '🏠 WFH Request Submitted',
+          `${employeeName} submitted a WFH request for ${wfhDate.toDateString()}`,
+          {
+            type: 'wfh_request_submitted',
+            data: {
+              wfhRequestId: wfhRequest._id.toString(),
+              employeeId: employeeId.toString(),
+              employeeName,
+              date: wfhDate,
+              reason: reason.trim(),
+            },
+            actionUrl: `/wfh/requests`,
+            senderId: employeeId,
+          }
+        );
+        
+      }
+    } catch (notificationError) {
+      
+      // Don't fail the request if notification fails
+    }
+
     res.status(201).json({
       success: true,
       message: "WFH request submitted successfully",
       data: wfhRequest,
     });
   } catch (error) {
-    console.error("Error in applyWFH:", error);
+    
     res.status(500).json({
       success: false,
       message: "Failed to submit WFH request",
@@ -91,7 +123,7 @@ export const getMyWFHRequests = async (req, res) => {
       data: requests,
     });
   } catch (error) {
-    console.error("Error in getMyWFHRequests:", error);
+    
     res.status(500).json({
       success: false,
       message: "Failed to fetch WFH requests",
@@ -134,7 +166,7 @@ export const getAllWFHRequests = async (req, res) => {
       data: requests,
     });
   } catch (error) {
-    console.error("Error in getAllWFHRequests:", error);
+    
     res.status(500).json({
       success: false,
       message: "Failed to fetch WFH requests",
@@ -158,7 +190,7 @@ export const getPendingWFHRequests = async (req, res) => {
       data: requests,
     });
   } catch (error) {
-    console.error("Error in getPendingWFHRequests:", error);
+    
     res.status(500).json({
       success: false,
       message: "Failed to fetch pending WFH requests",
@@ -215,13 +247,41 @@ export const approveWFHRequest = async (req, res) => {
     await wfhRequest.populate("employee", "name email employeeId");
     await wfhRequest.populate("approvedBy", "name email");
 
+    // SEND NOTIFICATION TO EMPLOYEE
+    try {
+      const approver = await User.findById(req.user._id).select('name');
+      const approverName = approver?.name || 'Manager';
+      const employeeName = wfhRequest.employee?.name || 'Employee';
+      
+      await NotificationService.sendToUser(
+        wfhRequest.employee._id,
+        '✅ WFH Request Approved',
+        `Your WFH request for ${wfhRequest.date.toDateString()} has been approved by ${approverName}`,
+        {
+          type: 'wfh_request_approved',
+          data: {
+            wfhRequestId: wfhRequest._id.toString(),
+            date: wfhRequest.date,
+            approvedBy: approverName,
+            approvedAt: wfhRequest.approvedAt,
+          },
+          actionUrl: `/wfh/my-requests`,
+          senderId: req.user._id,
+        }
+      );
+      
+    } catch (notificationError) {
+      
+      // Don't fail the request if notification fails
+    }
+
     res.status(200).json({
       success: true,
       message: "WFH request approved successfully",
       data: wfhRequest,
     });
   } catch (error) {
-    console.error("Error in approveWFHRequest:", error);
+    
     res.status(500).json({
       success: false,
       message: "Failed to approve WFH request",
@@ -287,13 +347,42 @@ export const rejectWFHRequest = async (req, res) => {
     await wfhRequest.populate("employee", "name email employeeId");
     await wfhRequest.populate("rejectedBy", "name email");
 
+    // SEND NOTIFICATION TO EMPLOYEE
+    try {
+      const rejector = await User.findById(req.user._id).select('name');
+      const rejectorName = rejector?.name || 'Manager';
+      const employeeName = wfhRequest.employee?.name || 'Employee';
+      
+      await NotificationService.sendToUser(
+        wfhRequest.employee._id,
+        '❌ WFH Request Rejected',
+        `Your WFH request for ${wfhRequest.date.toDateString()} was rejected. Reason: ${reason}`,
+        {
+          type: 'wfh_request_rejected',
+          data: {
+            wfhRequestId: wfhRequest._id.toString(),
+            date: wfhRequest.date,
+            rejectedBy: rejectorName,
+            rejectionReason: reason,
+            rejectedAt: wfhRequest.rejectedAt,
+          },
+          actionUrl: `/wfh/requests`,
+          senderId: req.user._id,
+        }
+      );
+      
+    } catch (notificationError) {
+      
+      // Don't fail the request if notification fails
+    }
+
     res.status(200).json({
       success: true,
       message: "WFH request rejected",
       data: wfhRequest,
     });
   } catch (error) {
-    console.error("Error in rejectWFHRequest:", error);
+    
     res.status(500).json({
       success: false,
       message: "Failed to reject WFH request",
@@ -342,7 +431,7 @@ export const cancelWFHRequest = async (req, res) => {
       message: "WFH request cancelled successfully",
     });
   } catch (error) {
-    console.error("Error in cancelWFHRequest:", error);
+    
     res.status(500).json({
       success: false,
       message: "Failed to cancel WFH request",
@@ -374,7 +463,7 @@ export const checkWFHStatus = async (req, res) => {
       data: wfhRequest || null,
     });
   } catch (error) {
-    console.error("Error in checkWFHStatus:", error);
+    
     res.status(500).json({
       success: false,
       message: "Failed to check WFH status",
@@ -445,7 +534,7 @@ export const getWFHStatistics = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error in getWFHStatistics:", error);
+    
     res.status(500).json({
       success: false,
       message: "Failed to fetch WFH statistics",

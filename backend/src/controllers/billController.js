@@ -405,7 +405,7 @@ export const createBill = async (req, res) => {
 
     return res.status(201).json({ message: "Bill created", bill: populated });
   } catch (error) {
-    console.error("Error in createBill:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -430,7 +430,7 @@ export const getAllBills = async (req, res) => {
 
     return res.status(200).json(bills);
   } catch (error) {
-    console.error("Error in getAllBills:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -450,7 +450,7 @@ export const getBillById = async (req, res) => {
 
     return res.status(200).json(bill);
   } catch (error) {
-    console.error("Error in getBillById:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -469,7 +469,7 @@ export const updateBill = async (req, res) => {
 
     return res.status(200).json({ message: "Bill updated", bill });
   } catch (error) {
-    console.error("Error in updateBill:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -481,7 +481,7 @@ export const deleteBill = async (req, res) => {
     if (!bill) return res.status(404).json({ message: "Bill not found" });
     return res.status(200).json({ message: "Bill deleted" });
   } catch (error) {
-    console.error("Error in deleteBill:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -524,7 +524,7 @@ Accounts Team`,
 
     return res.status(200).json({ message: "Invoice emailed", bill });
   } catch (error) {
-    console.error("Error in sendBillToClient:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -570,7 +570,7 @@ export const markBillAsPaid = async (req, res) => {
       .status(200)
       .json({ message: "Bill marked as paid", bill, payment });
   } catch (error) {
-    console.error("Error in markBillAsPaid:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -591,7 +591,7 @@ export const getClientBills = async (req, res) => {
 
     return res.status(200).json(bills);
   } catch (error) {
-    console.error("Error in getClientBills:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -618,7 +618,7 @@ export const getBillPDF = async (req, res) => {
     );
     return res.status(200).send(buffer);
   } catch (error) {
-    console.error("Error in getBillPDF:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -632,7 +632,7 @@ export const getOverdueBills = async (req, res) => {
       .sort({ dueDate: 1 });
     return res.status(200).json(bills);
   } catch (error) {
-    console.error("Error in getOverdueBills:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -651,7 +651,7 @@ export const applyDiscount = async (req, res) => {
 
     return res.status(200).json({ message: "Discount applied", bill });
   } catch (error) {
-    console.error("Error in applyDiscount:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };

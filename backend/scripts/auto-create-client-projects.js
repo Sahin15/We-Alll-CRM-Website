@@ -17,7 +17,7 @@ const autoCreateClientProjects = async () => {
   try {
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGO_URI);
-    console.log("✅ Connected to MongoDB");
+    
 
     // Get all clients
     const allClients = await Client.find({}).select('_id name email company ownername createdBy');
@@ -31,12 +31,12 @@ const autoCreateClientProjects = async () => {
       !clientsWithProjects.has(client._id.toString())
     );
 
-    console.log(`📊 Total clients: ${allClients.length}`);
-    console.log(`📊 Clients with projects: ${clientsWithProjects.size}`);
-    console.log(`🎯 Clients without projects: ${clientsWithoutProjects.length}`);
+    
+    
+    
     
     if (clientsWithoutProjects.length === 0) {
-      console.log("✅ All clients already have projects! No action needed.");
+      
       process.exit(0);
     }
 
@@ -46,11 +46,11 @@ const autoCreateClientProjects = async () => {
     }).select('_id');
 
     if (!defaultUser) {
-      console.error("❌ No admin or superadmin user found");
+      
       process.exit(1);
     }
 
-    console.log(`\n🚀 Creating ${clientsWithoutProjects.length} missing projects with slot system...\n`);
+    
 
     let successCount = 0;
     let errorCount = 0;
@@ -118,31 +118,31 @@ const autoCreateClientProjects = async () => {
           });
         }
         
-        console.log(`✅ ${client.name} → "${project.name}" (with ${DEFAULT_SLOT_COUNT} slots)`);
+        `);
         successCount++;
         
       } catch (error) {
-        console.error(`❌ ${client.name} → Failed: ${error.message}`);
+        
         errorCount++;
       }
     }
 
-    console.log("\n" + "=".repeat(50));
-    console.log(`✅ Successfully created: ${successCount} projects`);
-    console.log(`✅ Total slots created: ${successCount * DEFAULT_SLOT_COUNT}`);
-    console.log(`❌ Failed: ${errorCount} projects`);
-    console.log("=".repeat(50));
+    );
+    
+    
+    
+    );
 
     if (successCount > 0) {
-      console.log("\n💡 New auto-generated projects will appear in the");
-      console.log("   'Newly Created Projects - Needs Details' section");
-      console.log("   on the projects page for easy completion.");
-      console.log(`\n✨ Each project has ${DEFAULT_SLOT_COUNT} slots ready for work assignment`);
+      
+      
+      
+      
     }
 
     process.exit(0);
   } catch (error) {
-    console.error("❌ Error:", error.message);
+    
     process.exit(1);
   }
 };

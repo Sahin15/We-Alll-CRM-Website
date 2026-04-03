@@ -470,7 +470,7 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
           setSelectedMemberForWork(null);
         }}
         onSuccess={handleWorkAssignSuccess}
-        defaultProject={currentProject._id}
+        defaultProject={currentProject}
         defaultAssignee={selectedMemberForWork?._id}
       />
     </div>

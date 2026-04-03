@@ -249,7 +249,7 @@ attendanceSchema.methods.addOvertimeEntry = function(overtimeData) {
   };
   
   this.overtimeEntries.push(entry);
-  console.log(`[OVERTIME] Added overtime entry: ${duration || 'Timer started'} hours - ${reason}`);
+  
   
   return entry;
 };
@@ -274,7 +274,7 @@ attendanceSchema.methods.startOvertimeTimer = function(reason, taskReference) {
   };
   
   this.overtimeEntries.push(entry);
-  console.log(`[OVERTIME] Started overtime timer - ${reason}`);
+  
   
   return entry;
 };
@@ -297,7 +297,7 @@ attendanceSchema.methods.stopOvertimeTimer = function(entryId) {
   entry.duration = parseFloat((diffTime / (1000 * 60 * 60)).toFixed(2));
   entry.isActive = false;
   
-  console.log(`[OVERTIME] Stopped overtime timer: ${entry.duration} hours`);
+  
   
   return entry;
 };
@@ -327,7 +327,7 @@ attendanceSchema.methods.approveOvertimeEntry = function(entryId, approvedBy) {
   this.totalManualOvertime = this.calculateManualOvertime();
   this.totalWorkHours = this.calculateTotalWorkHours();
   
-  console.log(`[OVERTIME] Approved overtime entry: ${entry.duration} hours`);
+  
   
   return entry;
 };
@@ -353,7 +353,7 @@ attendanceSchema.methods.rejectOvertimeEntry = function(entryId, rejectionReason
   this.totalManualOvertime = this.calculateManualOvertime();
   this.totalWorkHours = this.calculateTotalWorkHours();
   
-  console.log(`[OVERTIME] Rejected overtime entry: ${entry.duration} hours - ${rejectionReason}`);
+  
   
   return entry;
 };
@@ -375,7 +375,7 @@ attendanceSchema.methods.trackManualModification = function(modifiedBy, reason, 
     changes,
   });
   
-  console.log(`[ATTENDANCE] Manual modification tracked by ${modifiedBy}: ${reason}`);
+  
 };
 
 // Method to calculate status based on clock-in time
@@ -394,7 +394,7 @@ attendanceSchema.methods.calculateStatus = function() {
     
     // Validate date
     if (isNaN(clockInTime.getTime())) {
-      console.error('[STATUS] Invalid clockIn date:', this.clockIn);
+      
       return 'present';
     }
     
@@ -421,27 +421,21 @@ attendanceSchema.methods.calculateStatus = function() {
     if (totalMinutes > 1140) {
       // After 7:00 PM (19:00) - Too late, mark as absent
       calculatedStatus = "absent";
-      console.log(`[STATUS] ${clockInHour}:${String(clockInMinute).padStart(2, '0')} IST (${totalMinutes} min) > 19:00 → ABSENT (too late)`);
     } else if (totalMinutes >= 720) {
       // 12:00 PM to 7:00 PM (720-1140 min) - Half day
       calculatedStatus = "half-day";
-      console.log(`[STATUS] ${clockInHour}:${String(clockInMinute).padStart(2, '0')} IST (${totalMinutes} min) 12:00-19:00 → HALF-DAY`);
     } else if (totalMinutes > 630) {
       // 10:31 AM to 11:59 AM (631-719 min) - Late
       calculatedStatus = "late";
-      console.log(`[STATUS] ${clockInHour}:${String(clockInMinute).padStart(2, '0')} IST (${totalMinutes} min) 10:31-11:59 → LATE`);
     } else {
       // 00:00 to 10:30 AM (0-630 min) - Present
       calculatedStatus = "present";
-      console.log(`[STATUS] ${clockInHour}:${String(clockInMinute).padStart(2, '0')} IST (${totalMinutes} min) 00:00-10:30 → PRESENT`);
     }
-    
-    console.log(`[STATUS] FINAL: Clock-in ${clockInHour}:${String(clockInMinute).padStart(2, '0')} IST = ${calculatedStatus.toUpperCase()}`);
     
     return calculatedStatus;
     
   } catch (error) {
-    console.error('[STATUS] Error calculating status:', error);
+    
     return 'present';
   }
 };
@@ -449,12 +443,12 @@ attendanceSchema.methods.calculateStatus = function() {
 // PRE-SAVE HOOK: Always calculate status and work hours
 attendanceSchema.pre("save", function (next) {
   try {
-    console.log(`[ATTENDANCE] PRE-SAVE: Processing attendance record...`);
-    console.log(`[ATTENDANCE] PRE-SAVE: Current status: ${this.status}, clockIn: ${this.clockIn}, isManuallyModified: ${this.isManuallyModified}`);
+    
+    
     
     // Special handling for on-leave status
     if (this.status === 'on-leave') {
-      console.log(`[ATTENDANCE] PRE-SAVE: On-leave record - skipping clockIn validation and calculations`);
+      
       // Ensure work hours are 0 for leave records
       this.workHours = 0;
       this.overtime = 0;
@@ -471,20 +465,20 @@ attendanceSchema.pre("save", function (next) {
       if (!isManualAbsentOrLeave) {
         const oldStatus = this.status;
         const newStatus = this.calculateStatus();
-        console.log(`[ATTENDANCE] PRE-SAVE: Status calculation: ${oldStatus} → ${newStatus}`);
+        
         
         // FORCE the status to be the calculated one
         this.status = newStatus;
         
         // If this is a new record and status was wrong, log it as a fix
         if (this.isNew && oldStatus && oldStatus !== newStatus) {
-          console.log(`[ATTENDANCE] PRE-SAVE: 🔧 NEW RECORD FIX: ${oldStatus} → ${newStatus}`);
+          
         }
       } else {
-        console.log(`[ATTENDANCE] PRE-SAVE: ⚠️  Skipping calculation - manually set to ${this.status}`);
+        
       }
     } else {
-      console.log(`[ATTENDANCE] PRE-SAVE: ⚠️  No clockIn time found`);
+      
     }
     
     // 2. Calculate work hours when clocking out
@@ -505,20 +499,15 @@ attendanceSchema.pre("save", function (next) {
       } else {
         this.overtime = 0;
       }
-      
-      console.log(`[ATTENDANCE] PRE-SAVE: Work hours calculated: ${this.workHours} (Break time: ${this.totalBreakTime} min, Auto overtime: ${this.overtime})`);
     }
     
     // 3. Calculate manual overtime and total work hours
     this.totalManualOvertime = this.calculateManualOvertime();
     this.totalWorkHours = this.calculateTotalWorkHours();
     
-    console.log(`[ATTENDANCE] PRE-SAVE: Total work hours: ${this.totalWorkHours} (Regular: ${this.workHours}, Auto OT: ${this.overtime}, Manual OT: ${this.totalManualOvertime})`);
-    
-    console.log(`[ATTENDANCE] PRE-SAVE: ✅ Final status: ${this.status}`);
     next();
   } catch (error) {
-    console.error('[ATTENDANCE] ❌ Error in pre-save hook:', error);
+    
     next(error);
   }
 });

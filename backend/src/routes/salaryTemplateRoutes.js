@@ -19,7 +19,7 @@ router.get("/", protect, authorizeRoles("admin", "superadmin", "hr", "manager"),
 
     res.json(templates);
   } catch (error) {
-    console.error("Error fetching salary templates:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
@@ -38,7 +38,7 @@ router.get("/:id", protect, authorizeRoles("admin", "superadmin", "hr", "manager
 
     res.json(template);
   } catch (error) {
-    console.error("Error fetching salary template:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
@@ -113,7 +113,7 @@ router.post("/", protect, authorizeRoles("admin", "superadmin", "hr", "manager")
 
     res.status(201).json(template);
   } catch (error) {
-    console.error("Error creating salary template:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
@@ -179,7 +179,7 @@ router.put("/:id", protect, authorizeRoles("admin", "superadmin", "hr", "manager
 
     res.json(updatedTemplate);
   } catch (error) {
-    console.error("Error updating salary template:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
@@ -249,7 +249,7 @@ router.post("/:id/apply", protect, authorizeRoles("admin", "superadmin", "hr", "
       results
     });
   } catch (error) {
-    console.error("Error applying salary template:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
@@ -319,7 +319,7 @@ router.post("/:id/bulk-apply", protect, authorizeRoles("admin", "superadmin", "h
       results
     });
   } catch (error) {
-    console.error("Error bulk applying salary template:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
@@ -343,7 +343,7 @@ router.delete("/:id", protect, authorizeRoles("admin", "superadmin", "hr", "mana
     await SalaryStructureTemplate.findByIdAndDelete(req.params.id);
     res.json({ message: "Template deleted successfully" });
   } catch (error) {
-    console.error("Error deleting salary template:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
@@ -397,7 +397,7 @@ router.get("/:id/usage-stats", protect, authorizeRoles("admin", "superadmin", "h
       usageByDepartment
     });
   } catch (error) {
-    console.error("Error fetching template usage stats:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
@@ -419,7 +419,7 @@ router.get("/:id/versions", protect, authorizeRoles("admin", "superadmin", "hr",
 
     res.json(versions);
   } catch (error) {
-    console.error("Error fetching template version history:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });

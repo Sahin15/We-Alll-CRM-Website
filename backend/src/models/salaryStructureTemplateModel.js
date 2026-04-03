@@ -180,7 +180,7 @@ salaryStructureTemplateSchema.statics.getActiveTemplate = async function(departm
 
     return template;
   } catch (error) {
-    console.error("Error getting active template:", error);
+    
     throw error;
   }
 };
@@ -213,7 +213,7 @@ salaryStructureTemplateSchema.statics.createNewVersion = async function(template
     await newTemplate.save();
     return newTemplate;
   } catch (error) {
-    console.error("Error creating new template version:", error);
+    
     throw error;
   }
 };
@@ -279,7 +279,7 @@ salaryStructureTemplateSchema.statics.applyToEmployees = async function(template
 
     return results;
   } catch (error) {
-    console.error("Error applying template to employees:", error);
+    
     throw error;
   }
 };

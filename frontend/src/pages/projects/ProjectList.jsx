@@ -195,8 +195,21 @@ const ProjectList = () => {
       filtered = filtered.filter(p => p.client?._id === filterClient);
     }
 
-    // Sort
+    // Define status priority: Active > On Hold > Pending > Cancelled
+    const statusPriority = {
+      'Active': 1,
+      'On Hold': 2,
+      'Pending': 3,
+      'Cancelled': 4
+    };
+
+    // Sort projects by status priority first, then by selected sort criteria
     filtered.sort((a, b) => {
+      // First, sort by status priority
+      const statusDiff = (statusPriority[a.status] || 999) - (statusPriority[b.status] || 999);
+      if (statusDiff !== 0) return statusDiff;
+
+      // Then apply the selected sort criteria within the same status
       switch (sortBy) {
         case 'name':
           return a.name.localeCompare(b.name);
@@ -435,9 +448,9 @@ const ProjectList = () => {
               <Form.Select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
                 <option value="all">All Status</option>
                 <option value="Active">Active</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Completed">Completed</option>
+                <option value="Pending">Pending</option>
                 <option value="On Hold">On Hold</option>
+                <option value="Cancelled">Cancelled</option>
               </Form.Select>
             </Col>
             <Col md={2}>
@@ -544,8 +557,8 @@ const ProjectList = () => {
                     <div className="d-flex justify-content-between align-items-start mb-3">
                       <div className="flex-grow-1">
                         <h5 className="mb-1">
-                          {project.name}
-                          {project.name.includes(' Project') && project.client && (
+                          {project.name || 'Untitled Project'}
+                          {project.name?.includes(' Project') && project.client && (
                             <Badge bg="info" className="ms-2" style={{ fontSize: '0.7rem' }}>
                               Auto-created
                             </Badge>
@@ -556,7 +569,7 @@ const ProjectList = () => {
                         </small>
                       </div>
                       <Badge bg={getProjectStatusColor(project.status)}>
-                        {project.status}
+                        {project.status || 'Pending'}
                       </Badge>
                     </div>
 
@@ -710,8 +723,8 @@ const ProjectList = () => {
                       <tr key={project._id}>
                         <td>
                           <div className="fw-bold">
-                            {project.name}
-                            {project.name.includes(' Project') && project.client && (
+                            {project.name || 'Untitled Project'}
+                            {project.name?.includes(' Project') && project.client && (
                               <Badge bg="info" className="ms-2" style={{ fontSize: '0.7rem' }}>
                                 Auto-created
                               </Badge>

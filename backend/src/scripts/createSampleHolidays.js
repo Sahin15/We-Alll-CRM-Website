@@ -75,19 +75,19 @@ const createSampleHolidays = async () => {
   try {
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGO_URI);
-    console.log('Connected to MongoDB');
+    
 
     // Find an admin user to assign as creator
     const adminUser = await User.findOne({ role: { $in: ['admin', 'superadmin', 'hr'] } });
     
     if (!adminUser) {
-      console.log('No admin user found. Please create an admin user first.');
+      
       process.exit(1);
     }
 
     // Clear existing holidays
     await Holiday.deleteMany({});
-    console.log('Cleared existing holidays');
+    
 
     // Create sample holidays
     const holidaysWithCreator = sampleHolidays.map(holiday => ({
@@ -96,16 +96,16 @@ const createSampleHolidays = async () => {
     }));
 
     const createdHolidays = await Holiday.insertMany(holidaysWithCreator);
-    console.log(`Created ${createdHolidays.length} sample holidays:`);
+    
     
     createdHolidays.forEach(holiday => {
-      console.log(`- ${holiday.name} (${holiday.date.toDateString()}) - ${holiday.type}`);
+      }) - ${holiday.type}`);
     });
 
-    console.log('\n✅ Sample holidays created successfully!');
+    
     process.exit(0);
   } catch (error) {
-    console.error('Error creating sample holidays:', error);
+    
     process.exit(1);
   }
 };

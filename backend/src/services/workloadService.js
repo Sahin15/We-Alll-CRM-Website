@@ -31,7 +31,7 @@ const getActiveTasks = async (employeeId) => {
     // Combine both types
     return [...tasks, ...slots];
   } catch (error) {
-    console.error("Error getting active tasks:", error);
+    
     throw error;
   }
 };
@@ -119,7 +119,7 @@ export const calculateWorkload = async (employeeId, thresholds = DEFAULT_THRESHO
     
     return workload;
   } catch (error) {
-    console.error("Error calculating workload:", error);
+    
     throw error;
   }
 };
@@ -141,7 +141,7 @@ export const calculateWorkloadForEmployees = async (employeeIds, thresholds = DE
     
     return workloads;
   } catch (error) {
-    console.error("Error calculating workload for employees:", error);
+    
     throw error;
   }
 };
@@ -180,7 +180,7 @@ export const getDepartmentWorkload = async (departmentId, thresholds = DEFAULT_T
     
     return workloads;
   } catch (error) {
-    console.error("Error getting department workload:", error);
+    
     throw error;
   }
 };
@@ -233,7 +233,7 @@ export const getProjectWorkload = async (projectId, thresholds = DEFAULT_THRESHO
     
     return workloads;
   } catch (error) {
-    console.error("Error getting project workload:", error);
+    
     throw error;
   }
 };
@@ -284,7 +284,7 @@ export const getWorkloadTrends = async (employeeId, days = 30, thresholds = DEFA
     
     return trends;
   } catch (error) {
-    console.error("Error getting workload trends:", error);
+    
     throw error;
   }
 };

@@ -636,7 +636,7 @@ class AnalyticsEngine {
       try {
         callback(event, data);
       } catch (error) {
-        console.error('Error notifying analytics subscriber:', error);
+        
       }
     });
   }

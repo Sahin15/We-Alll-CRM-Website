@@ -36,8 +36,8 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  // Add timeout to prevent hanging requests on mobile
-  timeout: 30000,
+  // Increased timeout for complex queries
+  timeout: 60000,
   // Ensure credentials are sent
   withCredentials: false,
 });

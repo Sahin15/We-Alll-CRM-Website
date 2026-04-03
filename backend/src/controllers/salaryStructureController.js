@@ -68,7 +68,7 @@ export const createSalaryStructure = async (req, res) => {
       salaryStructure,
     });
   } catch (error) {
-    console.error("Error creating salary structure:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message,
@@ -107,7 +107,7 @@ export const getAllSalaryStructures = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching salary structures:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message,
@@ -131,7 +131,7 @@ export const getSalaryStructureById = async (req, res) => {
 
     res.status(200).json(structure);
   } catch (error) {
-    console.error("Error fetching salary structure:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message,
@@ -154,7 +154,7 @@ export const getActiveSalaryStructure = async (req, res) => {
 
     res.status(200).json(structure);
   } catch (error) {
-    console.error("Error fetching active salary structure:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message,
@@ -194,7 +194,7 @@ export const updateSalaryStructure = async (req, res) => {
       salaryStructure: structure,
     });
   } catch (error) {
-    console.error("Error updating salary structure:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message,
@@ -240,7 +240,7 @@ export const activateSalaryStructure = async (req, res) => {
       salaryStructure: structure,
     });
   } catch (error) {
-    console.error("Error activating salary structure:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message,
@@ -257,7 +257,7 @@ export const deleteAllSalaryStructures = async (req, res) => {
       deletedCount: result.deletedCount,
     });
   } catch (error) {
-    console.error("Error deleting all salary structures:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -267,8 +267,8 @@ export const deleteSalaryStructure = async (req, res) => {
   try {
     const { id } = req.params;
     
-    console.log("Delete request for salary structure ID:", id);
-    console.log("User role:", req.user.role);
+    
+    
 
     // Validate ObjectId format
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -277,33 +277,29 @@ export const deleteSalaryStructure = async (req, res) => {
 
     const structure = await SalaryStructure.findById(id);
     if (!structure) {
-      console.log("Salary structure not found:", id);
+      
       return res.status(404).json({ message: "Salary structure not found" });
     }
 
-    console.log("Found structure:", {
-      id: structure._id,
-      status: structure.status,
-      employee: structure.employee
-    });
+    
 
     // Only allow deleting draft structures
     if (structure.status !== "draft") {
-      console.log("Cannot delete non-draft structure. Status:", structure.status);
+      
       return res.status(400).json({
         message: "Cannot delete active or superseded salary structures. Only draft structures can be deleted.",
       });
     }
 
-    console.log("Deleting salary structure:", id);
+    
     await SalaryStructure.findByIdAndDelete(id);
-    console.log("Salary structure deleted successfully");
+    
 
     res.status(200).json({
       message: "Salary structure deleted successfully",
     });
   } catch (error) {
-    console.error("Error deleting salary structure:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message,
@@ -323,7 +319,7 @@ export const getSalaryStructureHistory = async (req, res) => {
 
     res.status(200).json(structures);
   } catch (error) {
-    console.error("Error fetching salary structure history:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message,

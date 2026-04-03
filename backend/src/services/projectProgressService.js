@@ -28,7 +28,7 @@ export const calculateProjectProgress = async (projectId) => {
     
     return progress;
   } catch (error) {
-    console.error("Error calculating project progress:", error);
+    
     throw error;
   }
 };
@@ -61,7 +61,7 @@ export const updateProjectProgress = async (projectId) => {
     
     return project;
   } catch (error) {
-    console.error("Error updating project progress:", error);
+    
     throw error;
   }
 };
@@ -114,7 +114,7 @@ export const getProjectStatistics = async (projectId) => {
     
     return stats;
   } catch (error) {
-    console.error("Error getting project statistics:", error);
+    
     throw error;
   }
 };
@@ -180,7 +180,7 @@ export const getTeamWorkload = async (projectId) => {
     
     return workload;
   } catch (error) {
-    console.error("Error getting team workload:", error);
+    
     throw error;
   }
 };
@@ -194,7 +194,7 @@ export const syncProjectProgress = async (projectId) => {
   try {
     await updateProjectProgress(projectId);
   } catch (error) {
-    console.error("Error syncing project progress:", error);
+    
     // Don't throw - this is a background operation
   }
 };

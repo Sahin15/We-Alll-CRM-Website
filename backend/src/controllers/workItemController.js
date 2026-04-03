@@ -6,6 +6,7 @@ import { validateStatusTransition, VALID_STATUSES } from "../utils/statusValidat
 import { getWorkflowByDepartment, getWorkflowUIConfig, validateDepartmentFields } from "../utils/departmentWorkflows.js";
 import { syncProjectProgress } from "../services/projectProgressService.js";
 import notificationService from "../services/notificationService.js";
+import NotificationService from "../services/notificationService.js";
 import { logWorkItemOperation, logSecurityEvent } from "../utils/auditLogger.js";
 
 // @desc    Get all work items for current user (My Work)
@@ -54,6 +55,7 @@ const getMyWorkItems = async (req, res) => {
       ];
     }
     
+    // Optimized query with lean() for better performance
     const workItems = await WorkItem.find(query)
       .populate("project", "name client")
       .populate({
@@ -66,12 +68,11 @@ const getMyWorkItems = async (req, res) => {
       .populate("assignedTo", "name email")
       .populate("assignedToMultiple", "name email")
       .populate("createdBy", "name email")
-      .populate("comments.user", "name email")
-      .populate({
-        path: "slotAssignment.assignedSlot",
-        select: "slotNumber slotIdentifier slotType"
-      })
-      .sort({ dueDate: 1, createdAt: -1 });
+      .populate("assigneeStatuses.assigneeId", "name email")
+      .select("-comments -statusHistory -attachments")
+      .sort({ dueDate: 1, createdAt: -1 })
+      .limit(500)
+      .lean();
     
     res.status(200).json({
       success: true,
@@ -79,7 +80,7 @@ const getMyWorkItems = async (req, res) => {
       data: workItems,
     });
   } catch (error) {
-    console.error("Error fetching my work items:", error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -201,7 +202,7 @@ const getAllWorkItems = async (req, res) => {
       data: workItems,
     });
   } catch (error) {
-    console.error("Error fetching all work items:", error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -282,7 +283,7 @@ const getWorkItemById = async (req, res) => {
       data: workItem,
     });
   } catch (error) {
-    console.error("Error fetching work item:", error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -511,6 +512,59 @@ const createWorkItem = async (req, res) => {
       // Don't fail the request if calendar sync fails
     }
     
+    // SEND NOTIFICATION TO ASSIGNED EMPLOYEE(S)
+    try {
+      const creator = await User.findById(req.user._id).select('name');
+      const creatorName = creator?.name || 'System';
+      
+      // Handle multiple assignees
+      if (workItem.assignedToMultiple && workItem.assignedToMultiple.length > 0) {
+        for (const assigneeId of workItem.assignedToMultiple) {
+          await NotificationService.sendToUser(
+            assigneeId,
+            '📋 New Work Assigned',
+            `${creatorName} assigned you a new work: "${workItem.title}"`,
+            {
+              type: 'work_assigned',
+              data: {
+                workItemId: workItem._id.toString(),
+                projectId: workItem.project._id?.toString() || workItem.project.toString(),
+                projectName: workItem.project.name || 'Unknown Project',
+                priority: workItem.priority,
+                dueDate: workItem.dueDate,
+              },
+              actionUrl: `/work-items/${workItem._id}`,
+              senderId: req.user._id,
+            }
+          );
+        }
+      } else if (workItem.assignedTo) {
+        // Single assignee
+        await NotificationService.sendToUser(
+          workItem.assignedTo,
+          '📋 New Work Assigned',
+          `${creatorName} assigned you a new work: "${workItem.title}"`,
+          {
+            type: 'work_assigned',
+            data: {
+              workItemId: workItem._id.toString(),
+              projectId: workItem.project._id?.toString() || workItem.project.toString(),
+              projectName: workItem.project.name || 'Unknown Project',
+              priority: workItem.priority,
+              dueDate: workItem.dueDate,
+            },
+            actionUrl: `/work-items/${workItem._id}`,
+            senderId: req.user._id,
+          }
+        );
+      }
+      
+      
+    } catch (notificationError) {
+      
+      // Don't fail the request if notification fails
+    }
+    
     // Respond immediately to user
     res.status(201).json({
       success: true,
@@ -519,7 +573,7 @@ const createWorkItem = async (req, res) => {
     });
     
   } catch (error) {
-    console.error("Error creating work item:", error);
+    
     
     // Handle validation errors
     if (error.name === "ValidationError") {
@@ -618,6 +672,155 @@ const updateWorkItem = async (req, res) => {
     await workItem.populate("assignedTo", "name email");
     await workItem.populate("createdBy", "name email");
     
+    // SEND NOTIFICATIONS FOR WORK ITEM UPDATE
+    try {
+      const updater = await User.findById(req.user._id).select('name');
+      const updaterName = updater?.name || 'System';
+      const updatedFields = Object.keys(req.body);
+      
+      // Check if assignee changed
+      const oldAssignee = workItem.assignedTo?._id?.toString();
+      const newAssignee = req.body.assignedTo;
+      const assigneeChanged = newAssignee && oldAssignee !== newAssignee;
+      
+      // Get all employees on the project to notify them
+      const projectData = await Project.findById(workItem.project).populate('teamMembers', '_id');
+      const projectTeamMembers = projectData?.teamMembers?.map(member => member._id) || [];
+      
+      if (assigneeChanged) {
+        // Handle assignee change separately (similar to reassignWorkItem)
+        const oldAssigneeUser = await User.findById(oldAssignee).select('name');
+        const newAssigneeUser = await User.findById(newAssignee).select('name');
+        const oldAssigneeName = oldAssigneeUser?.name || 'Previous Assignee';
+        const newAssigneeName = newAssigneeUser?.name || 'New Assignee';
+        
+        // Notify the new assignee
+        await NotificationService.sendToUser(
+          newAssignee,
+          '📋 Work Assigned to You',
+          `${updaterName} assigned "${workItem.title}" to you`,
+          {
+            type: 'work_assigned',
+            data: {
+              workItemId: workItem._id.toString(),
+              workItemTitle: workItem.title,
+              projectId: workItem.project._id?.toString() || workItem.project.toString(),
+              projectName: workItem.project.name || 'Unknown Project',
+              updaterName,
+            },
+            actionUrl: `/work-items/${workItem._id}`,
+            senderId: req.user._id,
+          }
+        );
+        
+        // Notify the old assignee (if exists and is different from new assignee)
+        if (oldAssignee && oldAssignee !== newAssignee) {
+          await NotificationService.sendToUser(
+            oldAssignee,
+            '🔄 Work Reassigned',
+            `${updaterName} reassigned "${workItem.title}" from you to ${newAssigneeName}`,
+            {
+              type: 'work_reassigned_from',
+              data: {
+                workItemId: workItem._id.toString(),
+                workItemTitle: workItem.title,
+                projectId: workItem.project._id?.toString() || workItem.project.toString(),
+                projectName: workItem.project.name || 'Unknown Project',
+                newAssigneeName,
+                updaterName,
+              },
+              actionUrl: `/work-items/${workItem._id}`,
+              senderId: req.user._id,
+            }
+          );
+        }
+        
+        // Notify other project team members
+        const notificationRecipients = projectTeamMembers.filter(memberId => 
+          memberId.toString() !== req.user._id.toString() &&
+          (!oldAssignee || memberId.toString() !== oldAssignee) &&
+          memberId.toString() !== newAssignee
+        );
+        
+        if (notificationRecipients.length > 0) {
+          await NotificationService.sendToMultiple(
+            notificationRecipients,
+            '🔄 Work Reassigned',
+            `${updaterName} reassigned "${workItem.title}" from ${oldAssigneeName} to ${newAssigneeName}`,
+            {
+              type: 'work_reassigned_project',
+              data: {
+                workItemId: workItem._id.toString(),
+                workItemTitle: workItem.title,
+                projectId: workItem.project._id?.toString() || workItem.project.toString(),
+                projectName: workItem.project.name || 'Unknown Project',
+                oldAssigneeName,
+                newAssigneeName,
+                updaterName,
+              },
+              actionUrl: `/work-items/${workItem._id}`,
+              senderId: req.user._id,
+            }
+          );
+        }
+      } else {
+        // General update (not assignee change)
+        // Notify the assignee (if not the updater)
+        if (workItem.assignedTo && workItem.assignedTo._id.toString() !== req.user._id.toString()) {
+          await NotificationService.sendToUser(
+            workItem.assignedTo._id,
+            '📝 Work Updated',
+            `${updaterName} updated "${workItem.title}"`,
+            {
+              type: 'work_updated',
+              data: {
+                workItemId: workItem._id.toString(),
+                workItemTitle: workItem.title,
+                projectId: workItem.project._id?.toString() || workItem.project.toString(),
+                projectName: workItem.project.name || 'Unknown Project',
+                updatedFields,
+                updaterName,
+              },
+              actionUrl: `/work-items/${workItem._id}`,
+              senderId: req.user._id,
+            }
+          );
+        }
+        
+        // Notify other project team members (excluding updater and assignee)
+        const notificationRecipients = projectTeamMembers.filter(memberId => 
+          memberId.toString() !== req.user._id.toString() &&
+          (!workItem.assignedTo || memberId.toString() !== workItem.assignedTo._id.toString())
+        );
+        
+        if (notificationRecipients.length > 0) {
+          await NotificationService.sendToMultiple(
+            notificationRecipients,
+            '📝 Work Updated',
+            `${updaterName} updated "${workItem.title}"`,
+            {
+              type: 'work_updated_project',
+              data: {
+                workItemId: workItem._id.toString(),
+                workItemTitle: workItem.title,
+                projectId: workItem.project._id?.toString() || workItem.project.toString(),
+                projectName: workItem.project.name || 'Unknown Project',
+                updatedFields,
+                updaterName,
+              },
+              actionUrl: `/work-items/${workItem._id}`,
+              senderId: req.user._id,
+            }
+          );
+        }
+      }
+      
+      
+    } catch (notificationError) {
+      
+      // Don't fail the request if notification fails
+    }
+    
     // Log audit event
     logWorkItemOperation("UPDATE", workItem._id.toString(), req.user?._id?.toString(), {
       updatedFields: Object.keys(req.body),
@@ -629,7 +832,7 @@ const updateWorkItem = async (req, res) => {
       data: workItem,
     });
   } catch (error) {
-    console.error("Error updating work item:", error);
+    
     
     if (error.name === "ValidationError") {
       const errors = Object.values(error.errors).map((err) => err.message);
@@ -684,7 +887,16 @@ const updateWorkItemStatus = async (req, res) => {
     }
     
     // Validate status transition
-    const transition = validateStatusTransition(workItem.status, status);
+    // For multiple assignees, validate against individual status; for single assignee, validate against global status
+    let statusToValidate = workItem.status;
+    if (workItem.assignedToMultiple && workItem.assignedToMultiple.length > 0) {
+      const userStatusEntry = workItem.assigneeStatuses?.find(
+        as => as.assigneeId.toString() === req.user._id.toString()
+      );
+      statusToValidate = userStatusEntry?.status || workItem.status;
+    }
+    
+    const transition = validateStatusTransition(statusToValidate, status);
     if (!transition.valid) {
       return res.status(400).json({
         success: false,
@@ -696,13 +908,35 @@ const updateWorkItemStatus = async (req, res) => {
       });
     }
     
+    // If status is not changing, just return success (idempotent)
+    // For multiple assignees, check individual status; for single assignee, check global status
+    let currentUserStatus = workItem.status;
+    if (workItem.assignedToMultiple && workItem.assignedToMultiple.length > 0) {
+      const userStatusEntry = workItem.assigneeStatuses?.find(
+        as => as.assigneeId.toString() === req.user._id.toString()
+      );
+      currentUserStatus = userStatusEntry?.status || workItem.status;
+    }
+    
+    if (currentUserStatus === status) {
+      await workItem.populate("project", "name");
+      await workItem.populate("assignedTo", "name email");
+      
+      return res.status(200).json({
+        success: true,
+        message: "Status is already set to this value",
+        data: workItem,
+      });
+    }
+    
     // Check if user has permission
     const isAssigned = workItem.assignedTo && workItem.assignedTo.toString() === req.user._id.toString();
+    const isAssignedMultiple = workItem.assignedToMultiple && workItem.assignedToMultiple.some(id => id.toString() === req.user._id.toString());
     const project = await Project.findById(workItem.project);
     const isProjectHead = project?.projectHead?.toString() === req.user._id.toString();
     const isAdmin = ["admin", "superadmin", "hr", "manager", "hod"].includes(req.user.role);
     
-    if (!isAssigned && !isProjectHead && !isAdmin) {
+    if (!isAssigned && !isAssignedMultiple && !isProjectHead && !isAdmin) {
       return res.status(403).json({
         success: false,
         error: {
@@ -715,31 +949,42 @@ const updateWorkItemStatus = async (req, res) => {
     // Store old status for notification
     const oldStatus = workItem.status;
     
-    // Update status using the model method
-    workItem.status = status;
-    workItem.modifiedBy = req.user._id;
-    
-    // Handle back date for completion
-    if (status === "Done" && completedAt) {
-      const completionDate = new Date(completedAt);
-      
-      // Validate date is not in the future
-      if (completionDate > new Date()) {
-        return res.status(400).json({
-          success: false,
-          error: {
-            code: "VALIDATION_ERROR",
-            message: "Completion date cannot be in the future",
-            field: "completedAt",
-          },
-        });
+    // For multiple assignees, only update individual status, not global status
+    if (workItem.assignedToMultiple && workItem.assignedToMultiple.length > 0) {
+      // Initialize assigneeStatuses if not exists
+      if (!workItem.assigneeStatuses) {
+        workItem.assigneeStatuses = [];
       }
       
-      // Set the back date
-      workItem.completedAt = completionDate;
+      // Update status for current user ONLY
+      const existingStatusIndex = workItem.assigneeStatuses.findIndex(
+        as => as.assigneeId.toString() === req.user._id.toString()
+      );
+      
+      if (existingStatusIndex >= 0) {
+        workItem.assigneeStatuses[existingStatusIndex].status = status;
+        workItem.assigneeStatuses[existingStatusIndex].updatedAt = new Date();
+      } else {
+        workItem.assigneeStatuses.push({
+          assigneeId: req.user._id,
+          status: status,
+          updatedAt: new Date(),
+        });
+      }
+      // DO NOT update global status for multiple assignees
+    } else {
+      // For single assignee, update global status
+      workItem.status = status;
     }
     
+    workItem.modifiedBy = req.user._id;
+    
+    // The pre-save middleware will handle completedAt automatically
+    
     // Add automatic status change comment
+    if (!workItem.comments) {
+      workItem.comments = [];
+    }
     workItem.comments.push({
       user: req.user._id,
       text: `Status changed from "${oldStatus}" to "${status}"`,
@@ -750,53 +995,137 @@ const updateWorkItemStatus = async (req, res) => {
     await workItem.save();
     
     // Populate the work item with user data for comments
-    await workItem.populate("comments.user", "name email");
+    try {
+      await workItem.populate("comments.user", "name email");
+    } catch (populateError) {
+      console.error('Error populating comments:', populateError);
+    }
     
     // Update project progress automatically (with error handling)
     try {
       await syncProjectProgress(workItem.project.toString());
     } catch (progressError) {
+      console.error('Project progress sync error:', progressError);
       // Don't fail the request for this
     }
     
     // Send notifications based on status change (with error handling)
     try {
-      if (status === "Review") {
-        // Notify project manager or reviewer
-        if (project?.manager) {
-          await notificationService.sendReviewRequestedNotification(
-            project.manager,
-            workItem.title,
-            req.user.name
-          );
+      const updater = await User.findById(req.user._id).select('name');
+      const updaterName = updater?.name || 'System';
+      
+      // Get all employees on the project to notify them
+      const projectData = await Project.findById(workItem.project).populate('teamMembers', '_id');
+      const projectTeamMembers = projectData?.teamMembers?.map(member => member._id) || [];
+      
+      // Send notification to all project team members about status change
+      if (projectTeamMembers.length > 0) {
+        await NotificationService.sendToMultiple(
+          projectTeamMembers,
+          '🔄 Work Status Updated',
+          `${updaterName} changed "${workItem.title}" from "${oldStatus}" to "${status}"`,
+          {
+            type: 'work_status_changed',
+            data: {
+              workItemId: workItem._id.toString(),
+              workItemTitle: workItem.title,
+              oldStatus,
+              newStatus: status,
+              projectId: workItem.project.toString(),
+              projectName: projectData?.name || 'Unknown Project',
+            },
+            actionUrl: `/work-items/${workItem._id}`,
+            senderId: req.user._id,
+          }
+        );
+      }
+      
+      // Also send specific notifications based on status
+      if (status === "Done") {
+        // Notify assignees only if they didn't make the change
+        const assigneesToNotify = [];
+        
+        if (workItem.assignedTo && workItem.assignedTo.toString() !== req.user._id.toString()) {
+          assigneesToNotify.push(workItem.assignedTo);
         }
-      } else if (status === "Done") {
-        // Notify assignee and project manager
-        if (workItem.assignedTo) {
-          await notificationService.sendWorkItemCompletedNotification(
-            workItem.assignedTo,
-            workItem.title,
-            req.user.name
+        
+        if (workItem.assignedToMultiple && workItem.assignedToMultiple.length > 0) {
+          workItem.assignedToMultiple.forEach(assigneeId => {
+            if (assigneeId.toString() !== req.user._id.toString()) {
+              assigneesToNotify.push(assigneeId);
+            }
+          });
+        }
+        
+        // Send notification to each assignee
+        for (const assigneeId of assigneesToNotify) {
+          await NotificationService.sendToUser(
+            assigneeId,
+            '✅ Work Completed',
+            `${updaterName} completed "${workItem.title}"`,
+            {
+              type: 'work_completed',
+              data: {
+                workItemId: workItem._id.toString(),
+                workItemTitle: workItem.title,
+                completedBy: updaterName,
+              },
+              actionUrl: `/work-items/${workItem._id}`,
+              senderId: req.user._id,
+            }
           );
         }
       } else {
-        // Notify assignee of status change
+        // Notify assignees of status change (if not the updater)
+        const assigneesToNotify = [];
+        
         if (workItem.assignedTo && workItem.assignedTo.toString() !== req.user._id.toString()) {
-          await notificationService.sendStatusChangedNotification(
-            workItem.assignedTo,
-            workItem.title,
-            oldStatus,
-            status
+          assigneesToNotify.push(workItem.assignedTo);
+        }
+        
+        if (workItem.assignedToMultiple && workItem.assignedToMultiple.length > 0) {
+          workItem.assignedToMultiple.forEach(assigneeId => {
+            if (assigneeId.toString() !== req.user._id.toString()) {
+              assigneesToNotify.push(assigneeId);
+            }
+          });
+        }
+        
+        // Send notification to each assignee
+        for (const assigneeId of assigneesToNotify) {
+          await NotificationService.sendToUser(
+            assigneeId,
+            '🔄 Status Changed',
+            `${updaterName} changed "${workItem.title}" from "${oldStatus}" to "${status}"`,
+            {
+              type: 'work_status_changed',
+              data: {
+                workItemId: workItem._id.toString(),
+                workItemTitle: workItem.title,
+                oldStatus,
+                newStatus: status,
+              },
+              actionUrl: `/work-items/${workItem._id}`,
+              senderId: req.user._id,
+            }
           );
         }
       }
+      
     } catch (notificationError) {
+      console.error('Notification error:', notificationError);
       // Notification failed, continue
     }
     
     // Populate work item data
-    await workItem.populate("project", "name");
-    await workItem.populate("assignedTo", "name email");
+    try {
+      await workItem.populate("project", "name");
+      await workItem.populate("assignedTo", "name email");
+      await workItem.populate("assignedToMultiple", "name email");
+      await workItem.populate("assigneeStatuses.assigneeId", "name email");
+    } catch (populateError) {
+      console.error('Error populating work item data:', populateError);
+    }
     
     // Log audit event (with error handling)
     try {
@@ -814,7 +1143,7 @@ const updateWorkItemStatus = async (req, res) => {
       data: workItem,
     });
   } catch (error) {
-    console.error("Error updating work item status:", error);
+    console.error('Error in updateWorkItemStatus:', error);
     res.status(500).json({
       success: false,
       error: {
@@ -899,7 +1228,7 @@ const deleteWorkItem = async (req, res) => {
     try {
       await syncProjectProgress(projectId);
     } catch (progressError) {
-      console.error('Error syncing project progress after deletion:', progressError);
+      
       // Don't fail the delete operation if progress sync fails
     }
     
@@ -920,7 +1249,7 @@ const deleteWorkItem = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Error deleting work item:", error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -993,7 +1322,7 @@ const restoreWorkItem = async (req, res) => {
       data: workItem
     });
   } catch (error) {
-    console.error("Error restoring work item:", error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -1099,7 +1428,7 @@ const bulkUpdateWorkItems = async (req, res) => {
       data: results,
     });
   } catch (error) {
-    console.error("Error in bulk update:", error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -1192,7 +1521,7 @@ const addComment = async (req, res) => {
           );
         }
       } catch (notificationError) {
-        console.error('Error sending mention notifications:', notificationError);
+        
         // Don't fail the comment creation if notifications fail
       }
     }
@@ -1230,7 +1559,7 @@ const addComment = async (req, res) => {
       data: newComment,
     });
   } catch (error) {
-    console.error("Error adding comment:", error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -1297,7 +1626,7 @@ const deleteComment = async (req, res) => {
       message: "Comment deleted successfully",
     });
   } catch (error) {
-    console.error("Error deleting comment:", error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -1354,7 +1683,7 @@ const getCalendarWorkItems = async (req, res) => {
       data: workItems,
     });
   } catch (error) {
-    console.error("Error fetching calendar work items:", error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -1389,7 +1718,7 @@ const getOverdueWorkItems = async (req, res) => {
       data: workItems,
     });
   } catch (error) {
-    console.error("Error fetching overdue work items:", error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -1462,7 +1791,7 @@ const getWorkItemsByProject = async (req, res) => {
       data: workItems,
     });
   } catch (error) {
-    console.error("Error fetching project work items:", error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -1535,7 +1864,7 @@ const checkSyncStatus = async (req, res) => {
       data: syncStatus,
     });
   } catch (error) {
-    console.error("Error checking sync status:", error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -1583,7 +1912,7 @@ const getWorkflowConfig = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching workflow config:", error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -1618,7 +1947,7 @@ const progressWorkflowStage = async (req, res) => {
     });
     
   } catch (error) {
-    console.error("Error progressing workflow stage:", error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -1647,7 +1976,7 @@ const getWorkflowProgress = async (req, res) => {
     });
     
   } catch (error) {
-    console.error("Error fetching workflow progress:", error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -1739,7 +2068,7 @@ const debugWorkItems = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Error in debug endpoint:", error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -1884,7 +2213,7 @@ const assignWorkItemToSlot = async (req, res) => {
       data: workItem,
     });
   } catch (error) {
-    console.error("Error assigning work item to slot:", error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -2016,6 +2345,95 @@ const reassignWorkItem = async (req, res) => {
       }
     ]);
 
+    // SEND NOTIFICATIONS FOR REASSIGNMENT
+    try {
+      const reassigner = await User.findById(req.user._id).select('name');
+      const reassignerName = reassigner?.name || 'System';
+      const oldAssigneeName = oldAssignee?.name || 'Previous Assignee';
+      const newAssigneeName = newAssignee?.name || 'New Assignee';
+      
+      // Notify the new assignee
+      await NotificationService.sendToUser(
+        newAssigneeId,
+        '📋 Work Reassigned to You',
+        `${reassignerName} reassigned "${workItem.title}" to you`,
+        {
+          type: 'work_reassigned',
+          data: {
+            workItemId: workItem._id.toString(),
+            workItemTitle: workItem.title,
+            projectId: workItem.project._id?.toString() || workItem.project.toString(),
+            projectName: workItem.project.name || 'Unknown Project',
+            oldAssigneeName,
+            reassignerName,
+          },
+          actionUrl: `/work-items/${workItem._id}`,
+          senderId: req.user._id,
+        }
+      );
+      
+      // Notify the old assignee (if exists and is different from new assignee)
+      if (oldAssignee && oldAssignee._id.toString() !== newAssigneeId.toString()) {
+        await NotificationService.sendToUser(
+          oldAssignee._id,
+          '🔄 Work Reassigned',
+          `${reassignerName} reassigned "${workItem.title}" from you to ${newAssigneeName}`,
+          {
+            type: 'work_reassigned_from',
+            data: {
+              workItemId: workItem._id.toString(),
+              workItemTitle: workItem.title,
+              projectId: workItem.project._id?.toString() || workItem.project.toString(),
+              projectName: workItem.project.name || 'Unknown Project',
+              newAssigneeName,
+              reassignerName,
+            },
+            actionUrl: `/work-items/${workItem._id}`,
+            senderId: req.user._id,
+          }
+        );
+      }
+      
+      // Get all employees on the project to notify them
+      const projectData = await Project.findById(workItem.project).populate('teamMembers', '_id');
+      const projectTeamMembers = projectData?.teamMembers?.map(member => member._id) || [];
+      
+      // Filter out the reassigner, old assignee, and new assignee from project team notifications
+      const notificationRecipients = projectTeamMembers.filter(memberId => 
+        memberId.toString() !== req.user._id.toString() &&
+        (!oldAssignee || memberId.toString() !== oldAssignee._id.toString()) &&
+        memberId.toString() !== newAssigneeId.toString()
+      );
+      
+      // Notify other project team members
+      if (notificationRecipients.length > 0) {
+        await NotificationService.sendToMultiple(
+          notificationRecipients,
+          '🔄 Work Reassigned',
+          `${reassignerName} reassigned "${workItem.title}" from ${oldAssigneeName} to ${newAssigneeName}`,
+          {
+            type: 'work_reassigned_project',
+            data: {
+              workItemId: workItem._id.toString(),
+              workItemTitle: workItem.title,
+              projectId: workItem.project._id?.toString() || workItem.project.toString(),
+              projectName: workItem.project.name || 'Unknown Project',
+              oldAssigneeName,
+              newAssigneeName,
+              reassignerName,
+            },
+            actionUrl: `/work-items/${workItem._id}`,
+            senderId: req.user._id,
+          }
+        );
+      }
+      
+      
+    } catch (notificationError) {
+      
+      // Don't fail the request if notification fails
+    }
+
     res.status(200).json({
       success: true,
       message: `Work item successfully reassigned to ${newAssignee.name}`,
@@ -2027,7 +2445,7 @@ const reassignWorkItem = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error reassigning work item:", error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -2137,7 +2555,7 @@ export const removeSlotAssignment = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error removing slot assignment:', error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -2232,7 +2650,7 @@ export const getWorkItemsGroupedBySlots = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error getting work items grouped by slots:', error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -2268,7 +2686,7 @@ export const getWorkItemsBySlot = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error getting work items by slot:', error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -2312,7 +2730,7 @@ export const getPendingWorkCount = async (req, res) => {
         { assignedTo: userId },
         { assignedToMultiple: userId }
       ],
-      status: { $in: ["To Do", "In Progress", "Review"] },
+      status: { $in: ["To Do", "In Progress"] },
       dueDate: {
         $gte: dueDateObj,
         $lte: dueDateEndObj
@@ -2330,7 +2748,7 @@ export const getPendingWorkCount = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Error in getPendingWorkCount:", error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -2399,7 +2817,7 @@ export const activateWorkItem = async (req, res) => {
       data: populatedWorkItem
     });
   } catch (error) {
-    console.error("Error in activateWorkItem:", error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -2407,6 +2825,87 @@ export const activateWorkItem = async (req, res) => {
         message: "Failed to activate work item",
         details: error.message
       }
+    });
+  }
+};
+
+
+// @desc    Get all work items created by current user
+// @route   GET /api/work-items/created-by/me
+// @access  Private
+export const getCreatedByMe = async (req, res) => {
+  try {
+    const { status, type, project, priority, dueDate, search } = req.query;
+    
+    // Build query - only items created by current user
+    const query = {
+      createdBy: req.user._id,
+      isDeleted: { $ne: true }
+    };
+    
+    // Apply filters
+    if (status && status !== "all") {
+      query.status = status;
+    }
+    if (type && type !== "all") {
+      query.type = type;
+    }
+    if (project && project !== "all") {
+      query.project = project;
+    }
+    if (priority && priority !== "all") {
+      query.priority = priority;
+    }
+    if (dueDate) {
+      const dueDateObj = new Date(dueDate + 'T00:00:00.000Z');
+      const dueDateEndObj = new Date(dueDate + 'T23:59:59.999Z');
+      query.dueDate = {
+        $gte: dueDateObj,
+        $lte: dueDateEndObj
+      };
+    }
+    
+    // Apply search
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+        { tags: { $regex: search, $options: "i" } },
+      ];
+    }
+    
+    // Optimized query with lean() for better performance
+    const workItems = await WorkItem.find(query)
+      .populate("project", "name client")
+      .populate({
+        path: "project",
+        populate: {
+          path: "client",
+          select: "name company",
+        },
+      })
+      .populate("assignedTo", "name email")
+      .populate("assignedToMultiple", "name email")
+      .populate("createdBy", "name email")
+      .populate("assigneeStatuses.assigneeId", "name email")
+      .select("-comments -statusHistory -attachments")
+      .sort({ dueDate: 1, createdAt: -1 })
+      .limit(500)
+      .lean();
+    
+    res.status(200).json({
+      success: true,
+      count: workItems.length,
+      data: workItems,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: {
+        code: "SERVER_ERROR",
+        message: "Failed to fetch created work items",
+        details: error.message,
+      },
     });
   }
 };

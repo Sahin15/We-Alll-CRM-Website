@@ -50,7 +50,11 @@ export const optimizedProjectPopulate = () => [
   { path: 'department', select: 'name' }, // Legacy single department
   { path: 'departments', select: 'name' }, // New multiple departments
   { path: 'projectHead', select: 'name email' },
-  { path: 'assignedUsers', select: 'name email role' }
+  { path: 'assignedUsers', select: 'name email role' },
+  { 
+    path: 'teamMembers.user', 
+    select: 'name email role' 
+  }
 ];
 
 /**

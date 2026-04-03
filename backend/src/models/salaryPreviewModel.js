@@ -311,7 +311,7 @@ salaryPreviewSchema.statics.generatePreview = async function(employeeId, month, 
     await preview.save();
     return preview;
   } catch (error) {
-    console.error("Error generating salary preview:", error);
+    
     throw error;
   }
 };
@@ -338,7 +338,7 @@ salaryPreviewSchema.methods.submitQuery = async function(query, employeeId) {
 
     return this;
   } catch (error) {
-    console.error("Error submitting query:", error);
+    
     throw error;
   }
 };
@@ -365,7 +365,7 @@ salaryPreviewSchema.methods.respondToQuery = async function(queryIndex, response
     await this.save();
     return this;
   } catch (error) {
-    console.error("Error responding to query:", error);
+    
     throw error;
   }
 };
@@ -384,7 +384,7 @@ salaryPreviewSchema.methods.acknowledge = async function(employeeId) {
     await this.save();
     return this;
   } catch (error) {
-    console.error("Error acknowledging preview:", error);
+    
     throw error;
   }
 };
@@ -404,7 +404,7 @@ salaryPreviewSchema.methods.finalize = async function(hrUserId) {
     await this.save();
     return this;
   } catch (error) {
-    console.error("Error finalizing preview:", error);
+    
     throw error;
   }
 };

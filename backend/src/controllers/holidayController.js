@@ -12,7 +12,7 @@ export const getHolidays = async (req, res) => {
       data: holidays
     });
   } catch (error) {
-    console.error('Error fetching holidays:', error);
+    
     res.status(500).json({
       success: false,
       message: 'Failed to fetch holidays',
@@ -46,7 +46,7 @@ export const getUpcomingHolidays = async (req, res) => {
       data: holidays
     });
   } catch (error) {
-    console.error('Error fetching upcoming holidays:', error);
+    
     res.status(500).json({
       success: false,
       message: 'Failed to fetch upcoming holidays',
@@ -99,7 +99,7 @@ export const createHoliday = async (req, res) => {
       message: 'Holiday created successfully'
     });
   } catch (error) {
-    console.error('Error creating holiday:', error);
+    
     res.status(500).json({
       success: false,
       message: 'Failed to create holiday',
@@ -148,7 +148,7 @@ export const updateHoliday = async (req, res) => {
       message: 'Holiday updated successfully'
     });
   } catch (error) {
-    console.error('Error updating holiday:', error);
+    
     res.status(500).json({
       success: false,
       message: 'Failed to update holiday',
@@ -176,7 +176,7 @@ export const deleteHoliday = async (req, res) => {
       message: 'Holiday deleted successfully'
     });
   } catch (error) {
-    console.error('Error deleting holiday:', error);
+    
     res.status(500).json({
       success: false,
       message: 'Failed to delete holiday',

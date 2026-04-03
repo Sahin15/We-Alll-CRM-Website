@@ -11,11 +11,11 @@ dotenv.config({ path: join(__dirname, '../.env') });
 
 const deleteRoshalTestMeetings = async () => {
   try {
-    console.log("🔧 Deleting test meetings for Roshan Lal Agarwal...\n");
+    
 
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGO_URI);
-    console.log("✅ Connected to MongoDB\n");
+    
 
     // Find Roshan Lal Agarwal
     const lead = await Lead.findOne({ 
@@ -23,25 +23,25 @@ const deleteRoshalTestMeetings = async () => {
     });
 
     if (!lead) {
-      console.log("❌ Lead 'Roshan Lal Agarwal' not found");
+      
       process.exit(1);
     }
 
-    console.log(`✅ Found lead: ${lead.fullName}`);
-    console.log(`   Total meetings: ${lead.meetings?.length || 0}\n`);
+    
+    
 
     if (!lead.meetings || lead.meetings.length === 0) {
-      console.log("❌ No meetings found for this lead");
+      
       process.exit(1);
     }
 
     // Show all meetings
-    console.log("Current meetings:");
+    
     lead.meetings.forEach((meeting, index) => {
-      console.log(`\n${index + 1}. ${meeting.title}`);
-      console.log(`   Date: ${new Date(meeting.scheduledDate).toLocaleString()}`);
-      console.log(`   Type: ${meeting.meetingType}`);
-      console.log(`   Status: ${meeting.status}`);
+      
+      .toLocaleString()}`);
+      
+      
     });
 
     // Delete all meetings (assuming all 3 are test meetings)
@@ -55,12 +55,12 @@ const deleteRoshalTestMeetings = async () => {
 
     await lead.save();
 
-    console.log(`\n✅ Successfully deleted ${meetingsCount} meeting(s) for ${lead.fullName}`);
-    console.log(`   Remaining meetings: ${lead.meetings.length}`);
+     for ${lead.fullName}`);
+    
 
     process.exit(0);
   } catch (error) {
-    console.error("❌ Error:", error);
+    
     process.exit(1);
   }
 };

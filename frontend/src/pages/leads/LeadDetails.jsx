@@ -65,6 +65,16 @@ const LeadDetails = () => {
   useEffect(() => {
     fetchLeadDetails();
     fetchEmailHistory();
+    
+    // Listen for lead update events from other components
+    const handleLeadUpdate = (event) => {
+      if (event.detail.leadId === id) {
+        fetchLeadDetails();
+      }
+    };
+    
+    window.addEventListener('leadUpdated', handleLeadUpdate);
+    return () => window.removeEventListener('leadUpdated', handleLeadUpdate);
   }, [id]);
 
   const fetchEmailHistory = async () => {
@@ -86,6 +96,8 @@ const LeadDetails = () => {
     try {
       const response = await leadApi.getLeadById(id);
       setLead(response.data);
+      console.log("Lead fetched with phoneDesignation:", response.data.phoneDesignation);
+      console.log("Lead fetched with contacts:", response.data.contacts);
     } catch (error) {
       toast.error("Failed to fetch lead details");
     } finally {
@@ -455,18 +467,41 @@ const LeadDetails = () => {
               </div>
 
               <ListGroup variant="flush">
+                {/* Primary Contact Information */}
                 <ListGroup.Item className="px-0">
-                  <FaEnvelope className="me-2 text-primary" />
-                  <strong>Email:</strong>
-                  <br />
-                  <a href={`mailto:${lead.email}`}>{lead.email}</a>
-                </ListGroup.Item>
-
-                <ListGroup.Item className="px-0">
-                  <FaPhone className="me-2 text-primary" />
-                  <strong>Phone (WhatsApp):</strong>
-                  <br />
-                  <a href={`tel:${lead.phone}`}>{lead.phone}</a>
+                  <strong className="d-block mb-2">
+                    <FaUser className="me-2 text-primary" />
+                    Primary Contact
+                  </strong>
+                  <div className="ms-3">
+                    <div className="mb-2">
+                      <h6 className="mb-0">
+                        {lead.fullName}
+                        {lead.phoneDesignation && (
+                          <span className="text-muted ms-1 small">({lead.phoneDesignation})</span>
+                        )}
+                      </h6>
+                    </div>
+                    {lead.phone && (
+                      <div className="mb-1">
+                        <small className="text-muted">
+                          <FaPhone className="me-1" />
+                          <a href={`tel:${lead.phone}`}>{lead.phone}</a>
+                          {lead.phoneLabel && (
+                            <span className="ms-2">({lead.phoneLabel})</span>
+                          )}
+                        </small>
+                      </div>
+                    )}
+                    {lead.email && (
+                      <div>
+                        <small className="text-muted">
+                          <FaEnvelope className="me-1" />
+                          <a href={`mailto:${lead.email}`}>{lead.email}</a>
+                        </small>
+                      </div>
+                    )}
+                  </div>
                 </ListGroup.Item>
 
                 <ListGroup.Item className="px-0">
@@ -520,6 +555,49 @@ const LeadDetails = () => {
                     )}
                   </div>
                 </ListGroup.Item>
+
+                {/* Additional Contacts Section */}
+                {lead.contacts && lead.contacts.length > 0 && (
+                  <ListGroup.Item className="px-0 pt-3 border-top">
+                    <strong className="d-block mb-2">
+                      <FaUser className="me-2 text-info" />
+                      Other Contacts ({lead.contacts.length})
+                    </strong>
+                    <div className="ms-3">
+                      {lead.contacts.map((contact, index) => (
+                        <div key={index} className="mb-3 pb-2 border-bottom">
+                          <div className="mb-2">
+                            <h6 className="mb-0">
+                              {contact.name}
+                              {contact.designation && (
+                                <span className="text-muted ms-1 small">({contact.designation})</span>
+                              )}
+                            </h6>
+                          </div>
+                          {contact.type === "Phone" && contact.value && (
+                            <div className="mb-1">
+                              <small className="text-muted">
+                                <FaPhone className="me-1" />
+                                <a href={`tel:${contact.value}`}>{contact.value}</a>
+                                {contact.label && (
+                                  <span className="ms-2">({contact.label})</span>
+                                )}
+                              </small>
+                            </div>
+                          )}
+                          {contact.type === "Email" && contact.value && (
+                            <div>
+                              <small className="text-muted">
+                                <FaEnvelope className="me-1" />
+                                <a href={`mailto:${contact.value}`}>{contact.value}</a>
+                              </small>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </ListGroup.Item>
+                )}
               </ListGroup>
             </Card.Body>
           </Card>

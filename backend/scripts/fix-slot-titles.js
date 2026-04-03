@@ -9,7 +9,7 @@ const fixSlotTitles = async () => {
   try {
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGO_URI);
-    console.log('✅ Connected to MongoDB');
+    
 
     // Find all slots that don't have project name in title
     const slots = await Slot.find({
@@ -19,7 +19,7 @@ const fixSlotTitles = async () => {
       ]
     }).populate('project', 'name');
 
-    console.log(`Found ${slots.length} slots to fix`);
+    
 
     let updated = 0;
     for (const slot of slots) {
@@ -32,15 +32,15 @@ const fixSlotTitles = async () => {
           description: newDescription
         });
 
-        console.log(`✅ Updated slot ${slot._id}: "${newTitle}"`);
+        
         updated++;
       }
     }
 
-    console.log(`\n✅ Successfully updated ${updated} slots`);
+    
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error fixing slot titles:', error);
+    
     process.exit(1);
   }
 };

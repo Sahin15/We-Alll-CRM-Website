@@ -85,7 +85,7 @@ export const submitWorkLog = async (req, res) => {
       workLog: newWorkLog,
     });
   } catch (error) {
-    console.error("Error in submitWorkLog:", error);
+    
     
     // Handle duplicate key error
     if (error.code === 11000) {
@@ -173,8 +173,8 @@ export const saveDraft = async (req, res) => {
       workLog: newWorkLog,
     });
   } catch (error) {
-    console.error("Error in saveDraft:", error);
-    console.error("Error stack:", error.stack);
+    
+    
 
     // Handle duplicate key error
     if (error.code === 11000) {
@@ -210,7 +210,7 @@ export const getTodayWorkLog = async (req, res) => {
 
     res.status(200).json(workLog);
   } catch (error) {
-    console.error("Error in getTodayWorkLog:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message,
@@ -235,7 +235,7 @@ export const checkWorkLogStatus = async (req, res) => {
       workLog: workLog || null,
     });
   } catch (error) {
-    console.error("Error in checkWorkLogStatus:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message,
@@ -299,7 +299,7 @@ export const getMyWorkLogs = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error in getMyWorkLogs:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message,
@@ -342,7 +342,7 @@ export const getAllWorkLogs = async (req, res) => {
         const end = new Date(endUTC.getTime() - istOffset);
         query.date.$lte = end;
       }
-      console.log('Date filter:', { startDate, endDate, query: query.date });
+      
     }
 
     // Employee filter
@@ -404,7 +404,7 @@ export const getAllWorkLogs = async (req, res) => {
       WorkLog.countDocuments(query),
     ]);
 
-    console.log('Query result:', { total, workLogsCount: workLogs.length, query });
+    
 
     res.status(200).json({
       workLogs,
@@ -416,7 +416,7 @@ export const getAllWorkLogs = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error in getAllWorkLogs:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message,
@@ -484,7 +484,7 @@ export const getEmployeeWorkLogs = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error in getEmployeeWorkLogs:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message,
@@ -535,7 +535,7 @@ export const reviewWorkLog = async (req, res) => {
       workLog,
     });
   } catch (error) {
-    console.error("Error in reviewWorkLog:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message,
@@ -593,7 +593,7 @@ export const updateWorkLog = async (req, res) => {
       workLog: workLogDoc,
     });
   } catch (error) {
-    console.error("Error in updateWorkLog:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message,
@@ -665,7 +665,7 @@ export const updateMyWorkLog = async (req, res) => {
       workLog: workLogDoc,
     });
   } catch (error) {
-    console.error("Error in updateMyWorkLog:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message,
@@ -736,7 +736,7 @@ export const lateSubmission = async (req, res) => {
       workLog: newWorkLog,
     });
   } catch (error) {
-    console.error("Error in lateSubmission:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message,
@@ -817,7 +817,7 @@ export const getWorkLogStats = async (req, res) => {
       totalEmployees,
     });
   } catch (error) {
-    console.error("Error in getWorkLogStats:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message,
@@ -830,8 +830,8 @@ export const exportWorkLogs = async (req, res) => {
   try {
     const { startDate, endDate, employeeId, department, status, search } = req.query;
 
-    console.log('Export request params:', { startDate, endDate, employeeId, department, status, search });
-    console.log('User role:', req.user?.role);
+    
+    
 
     const query = {};
 
@@ -839,7 +839,7 @@ export const exportWorkLogs = async (req, res) => {
     const isRestrictedUser = !['admin', 'superadmin', 'hr', 'manager'].includes(req.user?.role);
     if (isRestrictedUser) {
       query.employee = req.user._id;
-      console.log('Restricting export to user own logs:', req.user._id);
+      
     } else {
       // Admin/HR/Manager can filter by employee
       if (employeeId) {
@@ -866,7 +866,7 @@ export const exportWorkLogs = async (req, res) => {
         const end = new Date(endUTC.getTime() - istOffset);
         query.date.$lte = end;
       }
-      console.log('Export date filter:', { startDate, endDate, queryDate: query.date });
+      
     }
 
     // Exclude draft status - only export submitted and reviewed logs
@@ -905,10 +905,6 @@ export const exportWorkLogs = async (req, res) => {
       }
     }
 
-    console.log('Export final query:', JSON.stringify(query, null, 2));
-
-    console.log('Export final query:', JSON.stringify(query, null, 2));
-
     const workLogs = await WorkLog.find(query)
       .populate({
         path: "employee",
@@ -922,17 +918,10 @@ export const exportWorkLogs = async (req, res) => {
       .sort({ date: -1 })
       .lean();
 
-    console.log('Export query result:', { 
-      total: workLogs.length, 
-      firstLog: workLogs[0] ? { 
-        date: workLogs[0].date, 
-        employee: workLogs[0].employee?.name,
-        status: workLogs[0].status 
-      } : 'none'
-    });
+    
 
     if (workLogs.length === 0) {
-      console.log('No work logs found for export with query:', query);
+      
     }
 
     // Format data for Excel
@@ -990,7 +979,7 @@ export const exportWorkLogs = async (req, res) => {
 
     res.send(buffer);
   } catch (error) {
-    console.error("Error in exportWorkLogs:", error);
+    
     res.status(500).json({
       message: "Server error",
       error: error.message,
@@ -1105,7 +1094,7 @@ export const getDepartmentWorkLogs = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error in getDepartmentWorkLogs:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -1167,7 +1156,7 @@ export const reviewDepartmentWorkLog = async (req, res) => {
       data: workLog,
     });
   } catch (error) {
-    console.error("Error in reviewDepartmentWorkLog:", error);
+    
     res.status(500).json({
       success: false,
       message: "Server error",

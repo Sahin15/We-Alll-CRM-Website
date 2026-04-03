@@ -36,8 +36,8 @@ router.get(
   protect,
   authorizeRoles("admin", "superadmin", "hr", "accounts", "manager"),
   (req, res, next) => {
-    console.log('[SALARY ROUTE] GET /employee/:employeeId/active called');
-    console.log('[SALARY ROUTE] Employee ID:', req.params.employeeId);
+    
+    
     next();
   },
   getActiveSalaryStructure
@@ -48,8 +48,8 @@ router.get(
   protect,
   authorizeRoles("admin", "superadmin", "hr", "accounts", "manager"),
   (req, res, next) => {
-    console.log('[SALARY ROUTE] GET /employee/:employeeId/history called');
-    console.log('[SALARY ROUTE] Employee ID:', req.params.employeeId);
+    
+    
     next();
   },
   getSalaryStructureHistory

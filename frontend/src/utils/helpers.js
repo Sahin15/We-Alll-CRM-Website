@@ -60,9 +60,9 @@ export const capitalizeFirst = (str) => {
 };
 
 // Format currency
-export const formatCurrency = (amount, currency = "USD") => {
-  if (!amount) return "$0.00";
-  return new Intl.NumberFormat("en-US", {
+export const formatCurrency = (amount, currency = "INR") => {
+  if (!amount) return "₹0.00";
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: currency,
   }).format(amount);
@@ -120,7 +120,7 @@ export const getStatusVariant = (status) => {
     absent: "danger",
     "half-day": "orange", // Changed from warning to orange for distinction
     late: "warning",
-    "on-leave": "info",
+    "on-leave": "danger", // Changed from info to danger for better visual distinction from WFH
   };
   return variants[statusLower] || "secondary";
 };

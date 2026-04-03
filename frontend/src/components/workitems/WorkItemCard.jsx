@@ -162,7 +162,7 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
                 </Dropdown.Toggle>
 
                 <Dropdown.Menu className="status-dropdown-menu">
-                  {['To Do', 'In Progress', 'Review', 'Done'].map((status) => (
+                  {['To Do', 'In Progress', 'Done'].map((status) => (
                     <Dropdown.Item
                       key={status}
                       onClick={(e) => {

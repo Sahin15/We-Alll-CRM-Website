@@ -164,8 +164,15 @@ const WorkItemListWithBulk = ({ workItems, onViewItem, onBulkAction, emptyMessag
                           </Badge>
                         </div>
                         <div className="work-item-info-container">
-                          <div className="work-item-title">
-                            {item.title}
+                          <div className="d-flex align-items-center gap-2 mb-1">
+                            <div className="work-item-title">
+                              {item.title}
+                            </div>
+                            {item.slotAssignment?.slotNumber && (
+                              <Badge bg="info" className="small">
+                                Slot {item.slotAssignment.slotNumber}
+                              </Badge>
+                            )}
                           </div>
                           <div className="work-item-details">
                             {item.project?.name && (

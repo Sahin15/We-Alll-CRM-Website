@@ -138,16 +138,26 @@ const ProjectDetails = () => {
     
     setLoadingSlots(true);
     try {
-      // Fetch slot statistics
-      const statsResponse = await projectApi.getProjectSlotStatistics(project._id);
+      // Fetch statistics and slots in parallel
+      const [statsResponse, slotsResponse] = await Promise.all([
+        projectApi.getProjectSlotStatistics(project._id).catch(err => {
+          console.error('[ProjectDetails] Error fetching slot statistics:', err);
+          return { success: false };
+        }),
+        projectApi.getAvailableSlots(project._id, { includeAll: true }).catch(err => {
+          console.error('[ProjectDetails] Error fetching slots:', err);
+          return { success: false };
+        })
+      ]);
+
       if (statsResponse.success) {
         setSlotStatistics(statsResponse.data);
       }
 
-      // Fetch all slots (both available and assigned) for proper display
-      const slotsResponse = await projectApi.getAvailableSlots(project._id, { includeAll: true });
       if (slotsResponse.success) {
-        setSlots(slotsResponse.data?.slots || []);
+        const fetchedSlots = slotsResponse.data?.slots || [];
+        console.log('[ProjectDetails] Received', fetchedSlots.length, 'slots from API');
+        setSlots(fetchedSlots);
       }
     } catch (error) {
       console.error("Error fetching slot data:", error);
@@ -418,11 +428,13 @@ const ProjectDetails = () => {
   const handleUpdateStatus = async (e) => {
     e.preventDefault();
     try {
-      // Use the specific progress update endpoint for better control
-      await projectApi.updateProjectProgress(id, newProgress);
-      // Also update the status if it changed
+      // Update the status using the dedicated status endpoint
       if (newStatus !== project.status) {
-        await projectApi.updateProject(id, { status: newStatus });
+        await projectApi.updateProjectStatus(id, newStatus);
+      }
+      // Update progress if it changed
+      if (newProgress !== project.progress) {
+        await projectApi.updateProjectProgress(id, newProgress);
       }
       toast.success("Project status updated successfully");
       setShowStatusModal(false);
@@ -1077,9 +1089,8 @@ const ProjectDetails = () => {
                 required
               >
                 <option value="Pending">Pending</option>
-                <option value="In Progress">In Progress</option>
+                <option value="Active">Active</option>
                 <option value="On Hold">On Hold</option>
-                <option value="Completed">Completed</option>
                 <option value="Cancelled">Cancelled</option>
               </Form.Select>
             </Form.Group>

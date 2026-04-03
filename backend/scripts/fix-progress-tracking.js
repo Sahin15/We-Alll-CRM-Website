@@ -9,14 +9,14 @@ const fixProgressTracking = async () => {
   try {
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGO_URI);
-    console.log('✅ Connected to MongoDB');
+    
 
     // Get all projects with slot system enabled
     const projects = await Project.find({ 'slotConfiguration.enableSlotSystem': true });
-    console.log(`\n📋 Found ${projects.length} projects with slot system enabled`);
+    
 
     for (const project of projects) {
-      console.log(`\n🔄 Processing project: ${project.name}`);
+      
 
       // Get current month slots
       const now = new Date();
@@ -42,10 +42,10 @@ const fixProgressTracking = async () => {
         ? Math.round((completedSlotsCount / totalSlotsCount) * 100)
         : 0;
 
-      console.log(`   Current Month: ${currentPeriodIdentifier}`);
-      console.log(`   Total Slots: ${totalSlotsCount}`);
-      console.log(`   Completed Slots: ${completedSlotsCount}`);
-      console.log(`   Progress: ${completedSlotsCount}/${totalSlotsCount} (${progressPercentage}%)`);
+      
+      
+      
+      `);
 
       // Update project progress tracking
       project.progressTracking = {
@@ -61,13 +61,13 @@ const fixProgressTracking = async () => {
       project.progress = progressPercentage;
 
       await project.save();
-      console.log(`   ✅ Updated progress tracking`);
+      
     }
 
-    console.log(`\n✅ Successfully fixed progress tracking for ${projects.length} projects`);
+    
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error fixing progress tracking:', error);
+    
     process.exit(1);
   }
 };

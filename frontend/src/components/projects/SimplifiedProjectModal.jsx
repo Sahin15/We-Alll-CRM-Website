@@ -312,8 +312,7 @@ const SimplifiedProjectModal = ({ show, onHide, onSuccess, project = null }) => 
                   onChange={handleChange}
                 >
                   <option value="Pending">Pending</option>
-                  <option value="In Progress">In Progress</option>
-                  <option value="Completed">Completed</option>
+                  <option value="Active">Active</option>
                   <option value="On Hold">On Hold</option>
                   <option value="Cancelled">Cancelled</option>
                 </Form.Select>

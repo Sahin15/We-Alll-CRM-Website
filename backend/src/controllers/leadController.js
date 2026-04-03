@@ -115,11 +115,11 @@ export const createLead = async (req, res) => {
       lead: populatedLead,
     });
   } catch (error) {
-    console.error("❌ Error in createLead:", error);
-    console.error("Error name:", error.name);
-    console.error("Error code:", error.code);
-    console.error("Error stack:", error.stack);
-    console.error("Request body:", req.body);
+    
+    
+    
+    
+    
     
     // Handle mongoose validation errors
     if (error.name === 'ValidationError') {
@@ -184,7 +184,7 @@ export const getAllLeads = async (req, res) => {
 
     return res.status(200).json(leads);
   } catch (error) {
-    console.error("Error in getAllLeads:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -205,7 +205,7 @@ export const getLeadById = async (req, res) => {
 
     return res.status(200).json(lead);
   } catch (error) {
-    console.error("Error in getLeadById:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -240,9 +240,10 @@ export const updateLead = async (req, res) => {
     }
 
     // Only update simple scalar/array fields — never touch subdoc arrays from the list form
+    // Note: 'contacts' is NOT included here - use dedicated contact endpoints instead
     const allowedFields = [
       'fullName', 'phone', 'phoneDesignation', 'phoneLabel', 'email', 'companyName', 'service', 'customService',
-      'budget', 'source', 'status', 'reference', 'notes', 'assignedTo', 'temperature', 'contacts'
+      'budget', 'source', 'status', 'reference', 'notes', 'assignedTo', 'temperature'
     ];
 
     const updateData = {};
@@ -271,7 +272,7 @@ export const updateLead = async (req, res) => {
       lead: updatedLead,
     });
   } catch (error) {
-    console.error("Error in updateLead:", error.message);
+    
 
     if (error.name === 'ValidationError') {
       return res.status(400).json({ message: error.message });
@@ -295,7 +296,7 @@ export const deleteLead = async (req, res) => {
 
     return res.status(200).json({ message: "Lead deleted successfully" });
   } catch (error) {
-    console.error("Error in deleteLead:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -328,7 +329,7 @@ export const assignLead = async (req, res) => {
       lead: populatedLead,
     });
   } catch (error) {
-    console.error("Error in assignLead:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -355,7 +356,7 @@ export const updateLeadStatus = async (req, res) => {
       lead: populatedLead,
     });
   } catch (error) {
-    console.error("Error in updateLeadStatus:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -389,7 +390,7 @@ export const updateLeadTemperature = async (req, res) => {
       lead: populatedLead,
     });
   } catch (error) {
-    console.error("Error in updateLeadTemperature:", error);
+    
     return res.status(500).json({ 
       message: "Server error", 
       error: error.message 
@@ -439,14 +440,30 @@ export const scheduleFollowUp = async (req, res) => {
       .populate("createdBy", "name email")
       .populate("followUps.createdBy", "name email");
 
+    // Send notification to assigned user
+    if (lead.assignedTo) {
+      try {
+        await NotificationService.sendFollowUpReminder(
+          lead.assignedTo._id || lead.assignedTo,
+          type,
+          lead.name,
+          scheduledDate
+        );
+      } catch (notificationError) {
+        console.error('[LeadController] Error sending follow-up notification:', notificationError.message);
+        // Don't fail the request if notification fails
+      }
+    }
+
     return res.status(200).json({
       message: "Follow-up scheduled successfully",
       lead: populatedLead,
     });
   } catch (error) {
-    console.error("Error in scheduleFollowUp:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
+
 };
 
 // Cancel a follow-up
@@ -486,7 +503,7 @@ export const cancelFollowUp = async (req, res) => {
       lead: populatedLead,
     });
   } catch (error) {
-    console.error("Error in cancelFollowUp:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -525,7 +542,7 @@ export const deleteNote = async (req, res) => {
       lead: populatedLead,
     });
   } catch (error) {
-    console.error("Error in deleteNote:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -599,7 +616,7 @@ export const getFollowUpDashboard = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error in getFollowUpDashboard:', error.message);
+    
     return res.status(500).json({ message: 'Server error' });
   }
 };
@@ -626,7 +643,7 @@ export const getLeadFollowUps = async (req, res) => {
 
     res.status(200).json({ followUps: sortedFollowUps });
   } catch (error) {
-    console.error("Error fetching follow-ups:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -668,7 +685,7 @@ export const createFollowUp = async (req, res) => {
     const createdFollowUp = lead.followUps[lead.followUps.length - 1];
     res.status(201).json({ message: "Follow-up created", followUp: createdFollowUp });
   } catch (error) {
-    console.error("Error creating follow-up:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -702,7 +719,7 @@ export const updateFollowUp = async (req, res) => {
 
     res.status(200).json({ message: "Follow-up updated", followUp });
   } catch (error) {
-    console.error("Error updating follow-up:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -760,7 +777,7 @@ export const completeFollowUp = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error("Error completing follow-up:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -786,7 +803,7 @@ export const deleteFollowUp = async (req, res) => {
     await lead.save();
     res.status(200).json({ message: "Follow-up deleted" });
   } catch (error) {
-    console.error("Error deleting follow-up:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -811,7 +828,7 @@ export const getLeadMeetings = async (req, res) => {
 
     res.status(200).json({ meetings: sortedMeetings });
   } catch (error) {
-    console.error("Error fetching meetings:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -871,7 +888,7 @@ export const createMeeting = async (req, res) => {
     
     res.status(201).json({ message: "Meeting scheduled", meeting: createdMeeting });
   } catch (error) {
-    console.error("[CREATE MEETING] Error:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -907,7 +924,7 @@ export const updateMeeting = async (req, res) => {
 
     res.status(200).json({ message: "Meeting updated", meeting });
   } catch (error) {
-    console.error("[UPDATE MEETING] Error:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -939,7 +956,7 @@ export const completeMeeting = async (req, res) => {
     await lead.save();
     res.status(200).json({ message: "Meeting marked as completed", meeting });
   } catch (error) {
-    console.error("Error completing meeting:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -973,7 +990,7 @@ export const cancelMeeting = async (req, res) => {
     
     res.status(200).json({ message: "Meeting cancelled", meeting });
   } catch (error) {
-    console.error("[CANCEL MEETING] Error:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -1008,7 +1025,7 @@ export const getMyMeetings = async (req, res) => {
 
     res.status(200).json({ meetings: myMeetings });
   } catch (error) {
-    console.error("Error fetching my meetings:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -1045,7 +1062,7 @@ export const getTeamMeetings = async (req, res) => {
 
     res.status(200).json({ meetings: teamMeetings });
   } catch (error) {
-    console.error("Error fetching team meetings:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -1076,7 +1093,7 @@ export const getAllMeetings = async (req, res) => {
 
     res.status(200).json({ meetings: allMeetings });
   } catch (error) {
-    console.error("[GET ALL MEETINGS] Error:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -1087,7 +1104,7 @@ export const getAllMeetings = async (req, res) => {
 export const addContact = async (req, res) => {
   try {
     const { id } = req.params;
-    const { type, value, label, isPrimary } = req.body;
+    const { name, designation, type, value, label, isPrimary } = req.body;
 
     const lead = await Lead.findById(id);
     if (!lead) {
@@ -1103,20 +1120,35 @@ export const addContact = async (req, res) => {
       });
     }
 
-    const newContact = { type, value, label, isPrimary: isPrimary || false };
+    // Create new contact with all fields
+    const newContact = {
+      name: name || "",
+      designation: designation || "",
+      type,
+      value,
+      label: label || "Primary",
+      isPrimary: isPrimary || false,
+    };
+    
     lead.contacts.push(newContact);
 
     lead.addHistory(
       "Contact Added",
-      `${type} contact added: ${value}`,
+      `${type} contact added: ${value}${name ? ` (${name})` : ''}`,
       req.user._id
     );
 
     await lead.save();
-    const addedContact = lead.contacts[lead.contacts.length - 1];
+    
+    // Populate the response with the newly added contact
+    const populatedLead = await Lead.findById(id)
+      .populate("assignedTo", "name email")
+      .populate("createdBy", "name email");
+    
+    const addedContact = populatedLead.contacts[populatedLead.contacts.length - 1];
     res.status(201).json({ message: "Contact added", contact: addedContact });
   } catch (error) {
-    console.error("Error adding contact:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -1160,7 +1192,7 @@ export const updateContact = async (req, res) => {
     await lead.save();
     res.status(200).json({ message: "Contact updated", contact });
   } catch (error) {
-    console.error("Error updating contact:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -1189,7 +1221,7 @@ export const deleteContact = async (req, res) => {
     await lead.save();
     res.status(200).json({ message: "Contact deleted" });
   } catch (error) {
-    console.error("Error deleting contact:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -1221,7 +1253,7 @@ export const setPrimaryContact = async (req, res) => {
 
     res.status(200).json({ message: "Contact set as primary", contact });
   } catch (error) {
-    console.error("Error setting primary contact:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -1246,7 +1278,7 @@ export const getLeadHistory = async (req, res) => {
 
     res.status(200).json({ history: sortedHistory });
   } catch (error) {
-    console.error("Error fetching lead history:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };

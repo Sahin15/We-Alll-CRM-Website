@@ -15,30 +15,27 @@ const uploadsDir = path.join(backendRoot, 'uploads', 'documents');
 // Ensure uploads directory exists
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
-  console.log('[DOCUMENT CONTROLLER] Created uploads directory:', uploadsDir);
+  
 }
 
-console.log('[DOCUMENT CONTROLLER] Uploads directory:', uploadsDir);
+
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    console.log('[MULTER] Upload destination:', uploadsDir);
+    
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const filename = file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname);
-    console.log('[MULTER] Generated filename:', filename);
+    
     cb(null, filename);
   }
 });
 
 const fileFilter = (req, file, cb) => {
-  console.log('[MULTER] File filter check:', {
-    originalname: file.originalname,
-    mimetype: file.mimetype
-  });
+  
   
   // Check file extension
   const ext = path.extname(file.originalname).toLowerCase();
@@ -60,15 +57,10 @@ const fileFilter = (req, file, cb) => {
   const isValidMimetype = allowedMimetypes.includes(file.mimetype);
 
   if (isValidExtension && isValidMimetype) {
-    console.log('[MULTER] File accepted:', { ext, mimetype: file.mimetype });
+    
     return cb(null, true);
   } else {
-    console.log('[MULTER] File rejected:', { 
-      ext, 
-      mimetype: file.mimetype,
-      isValidExtension,
-      isValidMimetype
-    });
+    
     cb(new Error(`Invalid file type. Allowed: JPEG, JPG, PNG, PDF, DOC, DOCX. Got: ${ext} (${file.mimetype})`));
   }
 };
@@ -151,7 +143,7 @@ const uploadDocument = async (req, res) => {
 
     res.status(201).json(responseData);
   } catch (error) {
-    console.error('Error uploading document:', error);
+    
     if (req.file) {
       fs.unlinkSync(req.file.path);
     }
@@ -210,13 +202,13 @@ const uploadOfficialDocument = async (req, res) => {
 
     res.status(201).json(responseData);
   } catch (error) {
-    console.error('Error uploading official document:', error);
+    
     
     if (req.file) {
       try {
         fs.unlinkSync(req.file.path);
       } catch (cleanupError) {
-        console.error('Error cleaning up file:', cleanupError);
+        
       }
     }
     
@@ -249,7 +241,7 @@ const getUserDocuments = async (req, res) => {
     
     res.json(transformedDocuments);
   } catch (error) {
-    console.error('Error fetching documents:', error);
+    
     res.status(500).json({ message: 'Failed to fetch documents' });
   }
 };
@@ -278,7 +270,7 @@ const getOfficialDocuments = async (req, res) => {
 
     res.json(transformedDocuments);
   } catch (error) {
-    console.error('Error fetching official documents:', error);
+    
     res.status(500).json({ message: 'Failed to fetch official documents' });
   }
 };
@@ -287,57 +279,52 @@ const getOfficialDocuments = async (req, res) => {
 // Download document
 const downloadDocument = async (req, res) => {
   try {
-    console.log('[DOWNLOAD CONTROLLER] ========== START ==========');
+    
     const { documentId } = req.params;
     const userId = req.user._id;
-    console.log('[DOWNLOAD CONTROLLER] Document ID:', documentId);
-    console.log('[DOWNLOAD CONTROLLER] User ID:', userId);
-    console.log('[DOWNLOAD CONTROLLER] User role:', req.user.role);
+    
+    
+    
 
     const document = await Document.findById(documentId);
-    console.log('[DOWNLOAD CONTROLLER] Document found:', document ? 'YES' : 'NO');
+    
     
     if (!document) {
-      console.log('[DOWNLOAD CONTROLLER] ERROR: Document not found in database');
+      
       return res.status(404).json({ message: 'Document not found' });
     }
 
-    console.log('[DOWNLOAD CONTROLLER] Document details:', {
-      _id: document._id,
-      userId: document.userId,
-      originalName: document.originalName,
-      path: document.path
-    });
+    
 
     // Check if user has permission to download
     const isOwner = document.userId.toString() === userId.toString();
     const isAuthorized = ['hr', 'admin', 'superadmin'].includes(req.user.role);
     const canDownload = isOwner || isAuthorized;
     
-    console.log('[DOWNLOAD CONTROLLER] Permission check:', { isOwner, isAuthorized, canDownload });
+    
     
     if (!canDownload) {
-      console.log('[DOWNLOAD CONTROLLER] ERROR: Access denied');
+      
       return res.status(403).json({ message: 'Access denied. You can only download your own documents.' });
     }
 
-    console.log('[DOWNLOAD CONTROLLER] Checking if file exists:', document.path);
+    
     if (!fs.existsSync(document.path)) {
-      console.log('[DOWNLOAD CONTROLLER] ERROR: File not found on filesystem');
+      
       return res.status(404).json({ message: 'File not found on server' });
     }
 
-    console.log('[DOWNLOAD CONTROLLER] File exists, streaming...');
+    
     res.setHeader('Content-Disposition', `attachment; filename="${document.originalName}"`);
     res.setHeader('Content-Type', document.mimetype);
     
     const fileStream = fs.createReadStream(document.path);
     fileStream.pipe(res);
-    console.log('[DOWNLOAD CONTROLLER] ========== SUCCESS ==========');
+    
   } catch (error) {
-    console.error('[DOWNLOAD CONTROLLER] ========== ERROR ==========');
-    console.error('[DOWNLOAD CONTROLLER] Error:', error);
-    console.error('[DOWNLOAD CONTROLLER] Error stack:', error.stack);
+    
+    
+    
     res.status(500).json({ message: 'Failed to download document' });
   }
 };
@@ -367,7 +354,7 @@ const deleteDocument = async (req, res) => {
 
     res.json({ message: 'Document deleted successfully' });
   } catch (error) {
-    console.error('Error deleting document:', error);
+    
     res.status(500).json({ message: 'Failed to delete document' });
   }
 };
@@ -386,7 +373,7 @@ const getAllDocuments = async (req, res) => {
 
     res.json(documents);
   } catch (error) {
-    console.error('Error fetching all documents:', error);
+    
     res.status(500).json({ message: 'Failed to fetch documents' });
   }
 };

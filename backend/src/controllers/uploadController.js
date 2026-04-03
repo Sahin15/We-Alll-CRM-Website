@@ -39,7 +39,7 @@ export const uploadExpenseReceipt = async (req, res) => {
       fileSize: req.file.size,
     });
   } catch (error) {
-    console.error("Error uploading expense receipt:", error);
+    
     return res.status(500).json({
       message: "Failed to upload receipt",
       error: error.message,
@@ -71,7 +71,7 @@ export const uploadPaymentProof = async (req, res) => {
       fileSize: req.file.size,
     });
   } catch (error) {
-    console.error("Error uploading payment proof:", error);
+    
     return res.status(500).json({
       message: "Failed to upload image",
       error: error.message,
@@ -85,27 +85,23 @@ export const uploadPaymentProof = async (req, res) => {
  */
 export const uploadProfilePicture = async (req, res) => {
   try {
-    console.log("[UPLOAD] Profile picture upload request received");
-    console.log("[UPLOAD] User ID:", req.user?._id);
-    console.log("[UPLOAD] File info:", req.file ? {
-      originalname: req.file.originalname,
-      mimetype: req.file.mimetype,
-      size: req.file.size
-    } : "No file");
+    
+    
+    
 
     if (!req.file) {
-      console.log("[UPLOAD] No file uploaded");
+      
       return res.status(400).json({ message: "No file uploaded" });
     }
 
     if (!req.user || !req.user._id) {
-      console.log("[UPLOAD] User not authenticated");
+      
       return res.status(401).json({ message: "User not authenticated" });
     }
 
-    console.log("[UPLOAD] Starting S3 upload...");
-    console.log("[UPLOAD] File buffer size:", req.file.buffer.length);
-    console.log("[UPLOAD] File mime type:", req.file.mimetype);
+    
+    
+    
     
     // Upload to S3 without any processing since frontend already cropped the image perfectly
     const imageUrl = await uploadRawImageToS3(
@@ -115,8 +111,8 @@ export const uploadProfilePicture = async (req, res) => {
       "profile-pictures"
     );
 
-    console.log("[UPLOAD] S3 upload successful:", imageUrl);
-    console.log("[UPLOAD] Image uploaded without any backend processing");
+    
+    
 
     // Update user's profile picture in database
     const User = (await import("../models/userModel.js")).default;
@@ -126,9 +122,8 @@ export const uploadProfilePicture = async (req, res) => {
     if (existingUser?.profilePicture && existingUser.profilePicture !== imageUrl) {
       try {
         await deleteImageFromS3(existingUser.profilePicture);
-        console.log("[UPLOAD] Old profile picture deleted from S3");
       } catch (deleteError) {
-        console.log("[UPLOAD] Failed to delete old profile picture (may not exist):", deleteError.message);
+        // Log error but continue
       }
     }
     
@@ -142,11 +137,11 @@ export const uploadProfilePicture = async (req, res) => {
     );
 
     if (!updatedUser) {
-      console.log("[UPLOAD] User not found for update");
+      
       return res.status(404).json({ message: "User not found" });
     }
 
-    console.log("[UPLOAD] Database update successful");
+    
 
     return res.status(200).json({
       message: "Profile picture uploaded successfully",
@@ -155,7 +150,7 @@ export const uploadProfilePicture = async (req, res) => {
       fileSize: req.file.size,
     });
   } catch (error) {
-    console.error("[UPLOAD] Error uploading profile picture:", error);
+    
     return res.status(500).json({
       message: "Failed to upload profile picture",
       error: error.message,
@@ -181,7 +176,7 @@ export const deletePaymentProof = async (req, res) => {
       message: "Image deleted successfully",
     });
   } catch (error) {
-    console.error("Error deleting payment proof:", error);
+    
     return res.status(500).json({
       message: "Failed to delete image",
       error: error.message,
@@ -211,7 +206,7 @@ export const uploadMultipleImages = async (req, res) => {
       count: imageUrls.length,
     });
   } catch (error) {
-    console.error("Error uploading multiple images:", error);
+    
     return res.status(500).json({
       message: "Failed to upload images",
       error: error.message,
@@ -292,7 +287,7 @@ export const uploadDocument = async (req, res) => {
       fileSize: req.file.size,
     });
   } catch (error) {
-    console.error("Error uploading document:", error);
+    
     return res.status(500).json({
       message: "Failed to upload document",
       error: error.message,
@@ -306,7 +301,7 @@ export const uploadDocument = async (req, res) => {
  */
 export const clearBrokenProfilePicture = async (req, res) => {
   try {
-    console.log("[CLEAR] Clearing broken profile picture for user:", req.user?._id);
+    
 
     if (!req.user || !req.user._id) {
       return res.status(401).json({ message: "User not authenticated" });
@@ -327,13 +322,13 @@ export const clearBrokenProfilePicture = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    console.log("[CLEAR] Broken profile picture URL cleared from database");
+    
 
     return res.status(200).json({
       message: "Broken profile picture cleared successfully",
     });
   } catch (error) {
-    console.error("[CLEAR] Error clearing broken profile picture:", error);
+    
     return res.status(500).json({
       message: "Failed to clear broken profile picture",
       error: error.message,
@@ -347,11 +342,11 @@ export const clearBrokenProfilePicture = async (req, res) => {
  */
 export const deleteProfilePicture = async (req, res) => {
   try {
-    console.log("[DELETE] Profile picture delete request received");
-    console.log("[DELETE] User ID:", req.user?._id);
+    
+    
 
     if (!req.user || !req.user._id) {
-      console.log("[DELETE] User not authenticated");
+      
       return res.status(401).json({ message: "User not authenticated" });
     }
 
@@ -360,7 +355,7 @@ export const deleteProfilePicture = async (req, res) => {
     const user = await User.findById(req.user._id);
     
     if (!user) {
-      console.log("[DELETE] User not found");
+      
       return res.status(404).json({ message: "User not found" });
     }
 
@@ -368,9 +363,7 @@ export const deleteProfilePicture = async (req, res) => {
     if (user.profilePicture) {
       try {
         await deleteImageFromS3(user.profilePicture);
-        console.log("[DELETE] Profile picture deleted from S3");
       } catch (s3Error) {
-        console.log("[DELETE] S3 deletion failed (file may not exist):", s3Error.message);
         // Continue with database update even if S3 deletion fails
       }
     }
@@ -385,13 +378,13 @@ export const deleteProfilePicture = async (req, res) => {
       { new: true }
     );
 
-    console.log("[DELETE] Database update successful");
+    
 
     return res.status(200).json({
       message: "Profile picture deleted successfully",
     });
   } catch (error) {
-    console.error("[DELETE] Error deleting profile picture:", error);
+    
     return res.status(500).json({
       message: "Failed to delete profile picture",
       error: error.message,
@@ -405,7 +398,7 @@ export const deleteProfilePicture = async (req, res) => {
  */
 export const checkProfilePictureHealth = async (req, res) => {
   try {
-    console.log("[HEALTH] Profile picture health check for user:", req.user?._id);
+    
 
     if (!req.user || !req.user._id) {
       return res.status(401).json({ message: "User not authenticated" });
@@ -444,7 +437,7 @@ export const checkProfilePictureHealth = async (req, res) => {
           result.fileSize = response.headers.get('content-length');
           result.lastModified = response.headers.get('last-modified');
           result.contentType = response.headers.get('content-type');
-          console.log("[HEALTH] Profile picture is accessible");
+          
         } else {
           // Don't treat 4xx errors as critical failures
           if (response.status >= 400 && response.status < 500) {
@@ -453,7 +446,7 @@ export const checkProfilePictureHealth = async (req, res) => {
           } else {
             result.error = `HTTP ${response.status}: ${response.statusText}`;
           }
-          console.log("[HEALTH] Profile picture check result:", result.error || result.warning);
+          
         }
       } catch (error) {
         // Don't treat network errors as critical failures
@@ -464,13 +457,13 @@ export const checkProfilePictureHealth = async (req, res) => {
           result.warning = error.message;
           result.accessible = true; // Assume accessible unless proven otherwise
         }
-        console.log("[HEALTH] Profile picture check warning:", error.message);
+        
       }
     }
 
     return res.status(200).json(result);
   } catch (error) {
-    console.error("[HEALTH] Error checking profile picture health:", error);
+    
     return res.status(500).json({
       message: "Failed to check profile picture health",
       error: error.message,
@@ -520,7 +513,7 @@ export const deleteDocument = async (req, res) => {
       message: "Document deleted successfully",
     });
   } catch (error) {
-    console.error("Error deleting document:", error);
+    
     return res.status(500).json({
       message: "Failed to delete document",
       error: error.message,

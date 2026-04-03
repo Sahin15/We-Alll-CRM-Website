@@ -158,7 +158,7 @@ export const createSubscription = async (req, res) => {
       subscription: populatedSubscription,
     });
   } catch (error) {
-    console.error("Error creating subscription:", error);
+    
     return res.status(500).json({ 
       message: "Server error",
       error: error.message,
@@ -170,9 +170,6 @@ export const createSubscription = async (req, res) => {
 // Get all subscriptions
 export const getAllSubscriptions = async (req, res) => {
   try {
-    console.log(`🔍 getAllSubscriptions called by user ${req.user.id} (${req.user.role})`);
-    console.log(`📋 Query params:`, req.query);
-    
     const { client, status, company } = req.query;
     const filter = {};
 
@@ -182,13 +179,13 @@ export const getAllSubscriptions = async (req, res) => {
 
     // Permission check
     const isAdminRole = ['admin', 'superadmin', 'hr', 'manager', 'hod'].includes(req.user.role);
-    console.log(`👤 Is admin role:`, isAdminRole);
+    
     
     if (!isAdminRole && client) {
       // For employees, check if they're assigned to any project for this client
       const Project = (await import('../models/projectModel.js')).default;
       
-      console.log(`🔍 Checking if user ${req.user.id} is assigned to any project for client ${client}`);
+      
       
       const assignedProject = await Project.findOne({
         client: client,
@@ -199,19 +196,19 @@ export const getAllSubscriptions = async (req, res) => {
         ]
       });
 
-      console.log(`📊 Found assigned project:`, assignedProject ? assignedProject._id : 'None');
+      
 
       if (!assignedProject) {
-        console.log(`❌ Access denied - no project found`);
+        
         return res.status(403).json({ 
           message: "Access denied. You must be assigned to a project for this client to view their subscriptions." 
         });
       }
       
-      console.log(`✅ Access granted`);
+      
     } else if (!isAdminRole && !client) {
       // If no client filter and not admin, deny access
-      console.log(`❌ Access denied - no client specified and not admin`);
+      
       return res.status(403).json({ 
         message: "Access denied. Employees can only view subscriptions for clients they're assigned to." 
       });
@@ -224,10 +221,10 @@ export const getAllSubscriptions = async (req, res) => {
       .populate("createdBy", "name email")
       .sort({ createdAt: -1 });
 
-    console.log(`📦 Returning ${subscriptions.length} subscriptions`);
+    
     return res.status(200).json(subscriptions);
   } catch (error) {
-    console.error("Error fetching subscriptions:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -249,7 +246,7 @@ export const getSubscriptionById = async (req, res) => {
 
     return res.status(200).json(subscription);
   } catch (error) {
-    console.error("Error fetching subscription:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -284,7 +281,7 @@ export const activateSubscription = async (req, res) => {
       subscription: populatedSubscription,
     });
   } catch (error) {
-    console.error("Error activating subscription:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -315,7 +312,7 @@ export const cancelSubscription = async (req, res) => {
       subscription,
     });
   } catch (error) {
-    console.error("Error cancelling subscription:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -336,7 +333,7 @@ export const getMySubscriptions = async (req, res) => {
 
     return res.status(200).json(subscriptions);
   } catch (error) {
-    console.error("Error fetching my subscriptions:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -353,7 +350,7 @@ export const getClientSubscriptions = async (req, res) => {
 
     return res.status(200).json(subscriptions);
   } catch (error) {
-    console.error("Error fetching client subscriptions:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -376,7 +373,7 @@ export const updateSubscription = async (req, res) => {
       subscription,
     });
   } catch (error) {
-    console.error("Error updating subscription:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -394,7 +391,7 @@ export const deleteSubscription = async (req, res) => {
       message: "Subscription deleted successfully",
     });
   } catch (error) {
-    console.error("Error deleting subscription:", error);
+    
     return res.status(500).json({ 
       message: "Server error",
       error: error.message,

@@ -1,87 +1,129 @@
-// Firebase Messaging Service Worker
-importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js');
+// Firebase Cloud Messaging Service Worker
+// Uses compat SDK — must match the Firebase project config exactly
+importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js');
 
-// Initialize Firebase in the service worker
 firebase.initializeApp({
-  apiKey: "AIzaSyA10c-WeEJTJNq8eCUgFuw1SVqtadRLP20",
-  authDomain: "we-alll-office.firebaseapp.com",
-  projectId: "we-alll-office",
-  storageBucket: "we-alll-office.firebasestorage.app",
-  messagingSenderId: "1039568040557",
-  appId: "1:1039568040557:web:da336859b30c4073b78564"
+  apiKey: 'AIzaSyD9_5d29l8tbde_1E4qJ08kwXczHxuS9ak',
+  authDomain: 'wealll-office.firebaseapp.com',
+  projectId: 'wealll-office',
+  storageBucket: 'wealll-office.firebasestorage.app',
+  messagingSenderId: '148208749075',
+  appId: '1:148208749075:web:6dd10472b2656e03a4cde6',
+  measurementId: 'G-6KXKBSJ9C5',
 });
 
 const messaging = firebase.messaging();
+let vapidKey = null;
 
-// Handle background messages
-messaging.onBackgroundMessage((payload) => {
-  console.log('📱 Received background message:', payload);
-
-  const notificationTitle = payload.notification?.title || 'New Notification';
-  const notificationOptions = {
-    body: payload.notification?.body || 'You have a new notification',
-    icon: payload.notification?.icon || '/favicon.ico',
-    badge: '/badge-icon.png',
-    tag: payload.data?.tag || 'general',
-    data: payload.data,
-    requireInteraction: payload.data?.requireInteraction === 'true',
-    actions: [
-      {
-        action: 'open',
-        title: 'Open App',
-        icon: '/icons/open-icon.png'
-      },
-      {
-        action: 'dismiss',
-        title: 'Dismiss',
-        icon: '/icons/dismiss-icon.png'
-      }
-    ]
-  };
-
-  self.registration.showNotification(notificationTitle, notificationOptions);
+// Receive VAPID key from main app
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SET_VAPID_KEY') {
+    vapidKey = event.data.vapidKey;
+  }
 });
 
-// Handle notification clicks
+// Background message handler — fires when app is closed or tab is not focused
+messaging.onBackgroundMessage((payload) => {
+  try {
+    // Validate we have a registration
+    if (!self.registration) {
+      return Promise.reject(new Error('No service worker registration'));
+    }
+
+    const title = payload.notification?.title || payload.data?.title || 'New Notification';
+    const body = payload.notification?.body || payload.data?.body || '';
+    const icon = payload.notification?.icon || payload.data?.icon || '/favicon.ico';
+    const badge = payload.notification?.badge || payload.data?.badge || '/favicon.ico';
+    const actionUrl = payload.data?.actionUrl || '/';
+    const tag = payload.data?.type || 'crm-notification';
+
+    // Windows-specific notification options
+    const notificationOptions = {
+      body,
+      icon,
+      badge,
+      tag,
+      data: { ...payload.data, actionUrl },
+      requireInteraction: true,
+      vibrate: [200, 100, 200],
+      actions: [
+        { action: 'open', title: 'Open' },
+        { action: 'dismiss', title: 'Dismiss' },
+      ],
+      silent: false,
+      timestamp: Date.now(),
+      dir: 'auto',
+    };
+
+    // Must call showNotification — if we don't, Chrome shows a default notification
+    return self.registration.showNotification(title, notificationOptions)
+      .then(() => {
+        // Notification displayed successfully
+      })
+      .catch((error) => {
+        // Fallback: try without some options for Windows compatibility
+        const fallbackOptions = {
+          body,
+          icon,
+          badge,
+          tag,
+          data: { ...payload.data, actionUrl },
+          requireInteraction: true,
+        };
+        return self.registration.showNotification(title, fallbackOptions);
+      });
+  } catch (error) {
+    return Promise.reject(error);
+  }
+});
+
+// Notification click — open or focus the app
 self.addEventListener('notificationclick', (event) => {
-  console.log('🔔 Notification clicked:', event);
-  
   event.notification.close();
 
-  if (event.action === 'dismiss') {
+  const action = event.action;
+  if (action === 'dismiss') {
     return;
   }
 
-  // Get click action from notification data
-  const clickAction = event.notification.data?.clickAction || '/';
-  const fullUrl = self.location.origin + clickAction;
-  
+  const urlToOpen = event.notification.data?.actionUrl || '/';
+  const notificationId = event.notification.data?.notificationId;
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Check if app is already open
+      // If app is already open, focus it and navigate
       for (const client of clientList) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
+        if ('focus' in client) {
           client.focus();
-          // Navigate to the specific page
-          client.postMessage({
-            type: 'NOTIFICATION_CLICK',
-            url: clickAction,
-            data: event.notification.data
+          // Post message to app to navigate and mark as read
+          client.postMessage({ 
+            type: 'NOTIFICATION_CLICK', 
+            url: urlToOpen,
+            notificationId: notificationId,
           });
           return;
         }
       }
-      
-      // Open new window if app is not open
+      // App not open — open a new window
       if (clients.openWindow) {
-        return clients.openWindow(fullUrl);
+        return clients.openWindow(urlToOpen);
       }
     })
   );
 });
 
-// Handle notification close
+// Notification close event
 self.addEventListener('notificationclose', (event) => {
-  console.log('🔔 Notification closed:', event.notification.tag);
+  // Handle notification close if needed
+});
+
+// Service worker activation
+self.addEventListener('activate', (event) => {
+  event.waitUntil(clients.claim());
+});
+
+// Service worker installation
+self.addEventListener('install', (event) => {
+  // Installation handler
 });

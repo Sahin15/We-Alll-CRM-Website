@@ -1,364 +1,460 @@
-import admin from '../config/firebase.js';
+import Notification from '../models/notificationModel.js';
+import FCMToken from '../models/fcmTokenModel.js';
 import User from '../models/userModel.js';
 
 class NotificationService {
-  
-  // Send notification to a single user
-  async sendToUser(userId, notification) {
+  /**
+   * Send notification to a single user
+   */
+  static async sendToUser(userId, title, body, options = {}) {
     try {
-      const user = await User.findById(userId);
-      if (!user || !user.fcmToken) {
-        console.log(`No FCM token found for user: ${userId}`);
-        return { success: false, error: 'No FCM token' };
+      // Import Firebase dynamically to ensure it's initialized
+      const { messaging, firebaseInitialized } = await import('../config/firebaseAdmin.js');
+      
+      const {
+        type = 'general',
+        data = {},
+        actionUrl = null,
+        icon = null,
+        badge = null,
+        tag = null,
+        priority = 'normal',
+        senderId = null,
+      } = options;
+
+      console.log('[NotificationService] ========== SEND NOTIFICATION START ==========');
+      console.log('[NotificationService] Recipient:', userId);
+      console.log('[NotificationService] Title:', title);
+      console.log('[NotificationService] Body:', body);
+      console.log('[NotificationService] Firebase initialized:', firebaseInitialized);
+      console.log('[NotificationService] Messaging available:', !!messaging);
+
+      // Get active FCM tokens for user
+      const tokens = await FCMToken.getActiveTokens(userId);
+      const tokenList = tokens.map(t => t.token);
+
+      console.log('[NotificationService] Found tokens:', tokenList.length);
+      if (tokenList.length > 0) {
+        console.log('[NotificationService] Token preview:', tokenList[0].substring(0, 50) + '...');
       }
 
-      const message = {
-        token: user.fcmToken,
-        notification: {
-          title: notification.title,
-          body: notification.body,
-          icon: notification.icon || '/favicon.ico'
-        },
-        data: {
-          ...notification.data,
-          clickAction: notification.clickAction || '/',
-          timestamp: new Date().toISOString()
-        },
-        webpush: {
-          headers: {
-            Urgency: notification.priority || 'normal'
+      if (tokenList.length === 0) {
+        console.log('[NotificationService] ⚠️  No active tokens for user:', userId);
+      } else {
+        console.log('[NotificationService] ✅ Found', tokenList.length, 'active tokens for user:', userId);
+      }
+
+      // Create notification record in database
+      const notification = new Notification({
+        recipient: userId,
+        sender: senderId,
+        title,
+        body,
+        type,
+        data,
+        actionUrl,
+        icon,
+        badge,
+        tag,
+        priority,
+      });
+
+      await notification.save();
+      console.log('[NotificationService] ✅ Notification saved to database:', notification._id);
+
+      // Send via Firebase Cloud Messaging if tokens exist
+      if (tokenList.length > 0) {
+        if (!messaging) {
+          console.error('[NotificationService] ❌ Firebase messaging is NULL - notifications will not be sent');
+          console.error('[NotificationService] Firebase initialized:', firebaseInitialized);
+          console.error('[NotificationService] This means Firebase Admin SDK failed to initialize');
+          return notification;
+        }
+
+        if (!firebaseInitialized) {
+          console.error('[NotificationService] ❌ Firebase not properly initialized (firebaseInitialized = false)');
+          return notification;
+        }
+        
+        console.log('[NotificationService] ✅ Firebase messaging is ready, proceeding with FCM send');
+        // FCM data payload — ALL values MUST be strings (FCM requirement)
+        const rawData = { ...data, notificationId: notification._id.toString(), type };
+        if (actionUrl) rawData.actionUrl = actionUrl;
+        const fcmData = {};
+        for (const [k, v] of Object.entries(rawData)) {
+          fcmData[k] = (v === null || v === undefined) ? '' : String(v);
+        }
+
+        const message = {
+          notification: {
+            title,
+            body,
+            ...(icon && { icon }),
           },
-          notification: {
-            title: notification.title,
-            body: notification.body,
-            icon: notification.icon || '/favicon.ico',
-            badge: '/badge-icon.png',
-            tag: notification.tag || 'general',
-            requireInteraction: notification.requireInteraction || false,
-            actions: notification.actions || []
+          data: fcmData,
+          // webpush — required for Chrome/Edge desktop OS push (Windows/Mac/Linux)
+          webpush: {
+            headers: {
+              'TTL': '86400', // 24 hours
+            },
+            notification: {
+              title,
+              body,
+              icon: icon || '/favicon.ico',
+              badge: '/favicon.ico',
+              tag: tag || type || 'notification',
+              requireInteraction: true, // Windows: keep notification visible
+              vibrate: [200, 100, 200],
+              actions: [
+                { action: 'open', title: 'Open' },
+                { action: 'dismiss', title: 'Dismiss' },
+              ],
+              timestamp: Date.now(),
+              dir: 'auto',
+              silent: false,
+            },
+            fcmOptions: {
+              link: actionUrl || '/',
+              analyticsLabel: type || 'notification',
+            },
+            data: fcmData,
+          },
+          // android — required for Android push notifications
+          android: {
+            notification: {
+              title,
+              body,
+              icon: 'notification_icon',
+              color: '#4f46e5',
+              sound: 'default',
+              channelId: 'crm_notifications',
+              priority: priority === 'high' ? 'high' : 'default',
+              clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+            },
+            priority: priority === 'high' ? 'high' : 'normal',
+          },
+        };
+
+        try {
+          console.log('[NotificationService] Sending FCM message to', tokenList.length, 'tokens');
+          console.log('[NotificationService] Message structure:', {
+            hasNotification: !!message.notification,
+            hasWebpush: !!message.webpush,
+            hasAndroid: !!message.android,
+            hasApns: !!message.apns,
+            dataKeys: Object.keys(fcmData),
+          });
+          
+          console.log('[NotificationService] Calling messaging.sendEachForMulticast()...');
+          const response = await messaging.sendEachForMulticast({
+            tokens: tokenList,
+            ...message,
+          });
+
+          console.log('[NotificationService] ✅ FCM response received');
+          console.log('[NotificationService] Success:', response.successCount);
+          console.log('[NotificationService] Failed:', response.failureCount);
+          console.log('[NotificationService] ========== SEND NOTIFICATION END ==========');
+
+          // Handle failed tokens
+          if (response.failureCount > 0) {
+            console.log('[NotificationService] Processing failed tokens...');
+            response.responses.forEach((resp, idx) => {
+              if (!resp.success) {
+                console.warn('[NotificationService] ⚠️  Token failed:', resp.error?.code, resp.error?.message);
+                // Optionally deactivate failed token
+                if (resp.error.code === 'messaging/invalid-registration-token' ||
+                    resp.error.code === 'messaging/registration-token-not-registered') {
+                  FCMToken.updateOne(
+                    { token: tokenList[idx] },
+                    { isActive: false }
+                  ).catch(err => {
+                    console.error('[NotificationService] Error deactivating token:', err.message);
+                  });
+                }
+              }
+            });
           }
+        } catch (error) {
+          console.error('[NotificationService] ❌ FCM send error:', error.message);
+          console.error('[NotificationService] Error code:', error.code);
+          console.error('[NotificationService] Error details:', error);
+          console.error('[NotificationService] ========== SEND NOTIFICATION END (ERROR) ==========');
         }
-      };
+      }
 
-      const response = await admin.messaging().send(message);
-      console.log('✅ Notification sent successfully:', response);
-      
-      // Log notification in database (optional)
-      await this.logNotification(userId, notification, 'sent');
-      
-      return { success: true, messageId: response };
+      return notification;
     } catch (error) {
-      console.error('❌ Error sending notification:', error);
-      await this.logNotification(userId, notification, 'failed', error.message);
-      return { success: false, error: error.message };
+      
+      throw error;
     }
   }
 
-  // Send notification to multiple users
-  async sendToMultipleUsers(userIds, notification) {
+  /**
+   * Send notification to multiple users
+   */
+  static async sendToMultiple(userIds, title, body, options = {}) {
     try {
-      const users = await User.find({ 
-        _id: { $in: userIds }, 
-        fcmToken: { $exists: true, $ne: null } 
+      const results = [];
+      for (const userId of userIds) {
+        const notification = await this.sendToUser(userId, title, body, options);
+        results.push(notification);
+      }
+      return results;
+    } catch (error) {
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Send notification to all users with a specific role
+   */
+  static async sendToRole(role, title, body, options = {}) {
+    try {
+      const users = await User.find({ role }).select('_id');
+      const userIds = users.map(u => u._id);
+      return this.sendToMultiple(userIds, title, body, options);
+    } catch (error) {
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Send notification to all users
+   */
+  static async sendToAll(title, body, options = {}) {
+    try {
+      const users = await User.find().select('_id');
+      const userIds = users.map(u => u._id);
+      return this.sendToMultiple(userIds, title, body, options);
+    } catch (error) {
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Send notification to department
+   */
+  static async sendToDepartment(departmentId, title, body, options = {}) {
+    try {
+      const users = await User.find({ department: departmentId }).select('_id');
+      const userIds = users.map(u => u._id);
+      return this.sendToMultiple(userIds, title, body, options);
+    } catch (error) {
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Register FCM token for user
+   */
+  static async registerToken(userId, token, deviceName = 'Unknown Device', deviceType = 'web') {
+    try {
+      console.log('[NotificationService] Registering token for user:', userId);
+      
+      // Check if token already exists
+      let fcmToken = await FCMToken.findOne({ token });
+
+      if (fcmToken) {
+        // Update existing token
+        console.log('[NotificationService] Token already exists, updating...');
+        fcmToken.user = userId;
+        fcmToken.isActive = true;
+        fcmToken.lastUsed = new Date();
+        fcmToken.deviceName = deviceName;
+        fcmToken.deviceType = deviceType;
+        await fcmToken.save();
+        console.log('[NotificationService] ✅ Token updated');
+      } else {
+        // Create new token
+        console.log('[NotificationService] Creating new token');
+        fcmToken = new FCMToken({
+          user: userId,
+          token,
+          deviceName,
+          deviceType,
+        });
+        await fcmToken.save();
+        console.log('[NotificationService] ✅ Token created');
+      }
+
+      // Deactivate other tokens (keep only latest 5 tokens per user)
+      const userTokens = await FCMToken.find({ user: userId, isActive: true })
+        .sort({ lastUsed: -1 })
+        .limit(5);
+
+      if (userTokens.length > 5) {
+        const tokensToDeactivate = userTokens.slice(5).map(t => t._id);
+        await FCMToken.updateMany(
+          { _id: { $in: tokensToDeactivate } },
+          { isActive: false }
+        );
+        console.log('[NotificationService] Deactivated', tokensToDeactivate.length, 'old tokens');
+      }
+
+      return fcmToken;
+    } catch (error) {
+      console.error('[NotificationService] ❌ Error registering token:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get user notifications
+   */
+  static async getUserNotifications(userId, limit = 20, skip = 0) {
+    try {
+      const notifications = await Notification.getUserNotifications(userId, limit, skip);
+      const unreadCount = await Notification.getUnreadCount(userId);
+      return { notifications, unreadCount };
+    } catch (error) {
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Mark notification as read
+   */
+  static async markAsRead(notificationId, userId) {
+    try {
+      console.log('[NotificationService] ========== MARK AS READ START ==========');
+      console.log('[NotificationService] Notification ID:', notificationId);
+      console.log('[NotificationService] User ID:', userId);
+
+      const notification = await Notification.findOne({
+        _id: notificationId,
+        recipient: userId,
       });
 
-      if (users.length === 0) {
-        return { success: false, error: 'No users with FCM tokens found' };
+      console.log('[NotificationService] Notification found:', !!notification);
+
+      if (!notification) {
+        console.error('[NotificationService] ❌ Notification not found');
+        throw new Error('Notification not found');
       }
 
-      const tokens = users.map(user => user.fcmToken);
+      console.log('[NotificationService] Current isRead status:', notification.isRead);
+      await notification.markAsRead();
+      console.log('[NotificationService] ✅ Notification marked as read');
+      console.log('[NotificationService] New isRead status:', notification.isRead);
+      console.log('[NotificationService] ========== MARK AS READ END ==========');
       
-      const message = {
-        tokens: tokens,
-        notification: {
-          title: notification.title,
-          body: notification.body,
-          icon: notification.icon || '/favicon.ico'
-        },
-        data: {
-          ...notification.data,
-          clickAction: notification.clickAction || '/',
-          timestamp: new Date().toISOString()
-        },
-        webpush: {
-          notification: {
-            title: notification.title,
-            body: notification.body,
-            icon: notification.icon || '/favicon.ico',
-            badge: '/badge-icon.png',
-            tag: notification.tag || 'general'
-          }
-        }
-      };
-
-      const response = await admin.messaging().sendMulticast(message);
-      console.log(`✅ Sent ${response.successCount} notifications, ${response.failureCount} failed`);
-      
-      // Log notifications
-      for (const user of users) {
-        await this.logNotification(user._id, notification, 'sent');
-      }
-      
-      return { 
-        success: true, 
-        successCount: response.successCount,
-        failureCount: response.failureCount,
-        responses: response.responses
-      };
+      return notification;
     } catch (error) {
-      console.error('❌ Error sending bulk notifications:', error);
-      return { success: false, error: error.message };
+      console.error('[NotificationService] ❌ Error in markAsRead:', error.message);
+      console.error('[NotificationService] Error stack:', error.stack);
+      throw error;
     }
   }
 
-  // Send notification to users by role
-  async sendToRole(roles, notification) {
+  /**
+   * Mark all notifications as read
+   */
+  static async markAllAsRead(userId) {
     try {
-      const users = await User.find({ 
-        role: { $in: Array.isArray(roles) ? roles : [roles] },
-        fcmToken: { $exists: true, $ne: null }
+      const result = await Notification.markAllAsRead(userId);
+      return result;
+    } catch (error) {
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Delete notification
+   */
+  static async deleteNotification(notificationId, userId) {
+    try {
+      const result = await Notification.deleteOne({
+        _id: notificationId,
+        recipient: userId,
       });
 
-      const userIds = users.map(user => user._id);
-      return await this.sendToMultipleUsers(userIds, notification);
+      if (result.deletedCount === 0) {
+        throw new Error('Notification not found');
+      }
+
+      return result;
     } catch (error) {
-      console.error('❌ Error sending role-based notifications:', error);
-      return { success: false, error: error.message };
+      
+      throw error;
     }
   }
 
-  // Send notification to department
-  async sendToDepartment(departmentId, notification) {
+  /**
+   * Delete all notifications for user
+   */
+  static async deleteAllNotifications(userId) {
     try {
-      const users = await User.find({ 
-        department: departmentId,
-        fcmToken: { $exists: true, $ne: null }
-      });
-
-      const userIds = users.map(user => user._id);
-      return await this.sendToMultipleUsers(userIds, notification);
+      const result = await Notification.deleteMany({ recipient: userId });
+      return result;
     } catch (error) {
-      console.error('❌ Error sending department notifications:', error);
-      return { success: false, error: error.message };
+      
+      throw error;
     }
   }
 
-  // Predefined notification templates
-  async sendLeaveRequestNotification(managerId, employeeName, leaveType) {
-    return await this.sendToUser(managerId, {
-      title: '📋 New Leave Request',
-      body: `${employeeName} has requested ${leaveType} leave`,
-      icon: '/icons/leave-icon.png',
-      tag: 'leave-request',
-      clickAction: '/leaves',
-      data: {
-        type: 'leave_request',
-        action: 'view_leaves'
-      }
-    });
-  }
-
-  async sendSalarySlipNotification(userId, month, year) {
-    return await this.sendToUser(userId, {
-      title: '💰 Salary Slip Generated',
-      body: `Your salary slip for ${month}/${year} is ready`,
-      icon: '/icons/salary-icon.png',
-      tag: 'salary-slip',
-      clickAction: '/salary-slips',
-      data: {
-        type: 'salary_slip',
-        month: month.toString(),
-        year: year.toString()
-      }
-    });
-  }
-
-  async sendMeetingReminderNotification(userId, meetingTitle, time) {
-    return await this.sendToUser(userId, {
-      title: '🕐 Meeting Reminder',
-      body: `"${meetingTitle}" starts in 15 minutes`,
-      icon: '/icons/meeting-icon.png',
-      tag: 'meeting-reminder',
-      requireInteraction: true,
-      clickAction: '/meetings',
-      data: {
-        type: 'meeting_reminder',
-        time: time
-      }
-    });
-  }
-
-  async sendAnnouncementNotification(userIds, title, message) {
-    return await this.sendToMultipleUsers(userIds, {
-      title: '📢 New Announcement',
-      body: message,
-      icon: '/icons/announcement-icon.png',
-      tag: 'announcement',
-      clickAction: '/announcements',
-      data: {
-        type: 'announcement',
-        announcementTitle: title
-      }
-    });
-  }
-
-  // Work item notification templates
-  async sendWorkItemAssignedNotification(userId, workItemTitle, assignedBy) {
-    return await this.sendToUser(userId, {
-      title: '📋 New Work Item Assigned',
-      body: `You have been assigned: ${workItemTitle}`,
-      icon: '/icons/work-item-icon.png',
-      tag: 'work-item-assigned',
-      clickAction: '/work-items',
-      data: {
-        type: 'work_item_assigned',
-        workItemTitle: workItemTitle,
-        assignedBy: assignedBy
-      }
-    });
-  }
-
-  async sendReviewRequestedNotification(userId, workItemTitle, requestedBy) {
-    return await this.sendToUser(userId, {
-      title: '👀 Review Requested',
-      body: `Review requested for: ${workItemTitle}`,
-      icon: '/icons/review-icon.png',
-      tag: 'review-requested',
-      clickAction: '/work-items',
-      requireInteraction: true,
-      data: {
-        type: 'review_requested',
-        workItemTitle: workItemTitle,
-        requestedBy: requestedBy
-      }
-    });
-  }
-
-  async sendStatusChangedNotification(userId, workItemTitle, oldStatus, newStatus) {
-    return await this.sendToUser(userId, {
-      title: '🔄 Status Updated',
-      body: `${workItemTitle} changed from ${oldStatus} to ${newStatus}`,
-      icon: '/icons/status-icon.png',
-      tag: 'status-changed',
-      clickAction: '/work-items',
-      data: {
-        type: 'status_changed',
-        workItemTitle: workItemTitle,
-        oldStatus: oldStatus,
-        newStatus: newStatus
-      }
-    });
-  }
-
-  async sendWorkItemCompletedNotification(userId, workItemTitle, completedBy) {
-    return await this.sendToUser(userId, {
-      title: '✅ Work Item Completed',
-      body: `${workItemTitle} has been completed`,
-      icon: '/icons/completed-icon.png',
-      tag: 'work-item-completed',
-      clickAction: '/work-items',
-      data: {
-        type: 'work_item_completed',
-        workItemTitle: workItemTitle,
-        completedBy: completedBy
-      }
-    });
-  }
-
-  async sendWorkItemCommentedNotification(userId, workItemTitle, commenterName, comment) {
-    return await this.sendToUser(userId, {
-      title: '💬 New Comment',
-      body: `${commenterName} commented on ${workItemTitle}`,
-      icon: '/icons/comment-icon.png',
-      tag: 'work-item-comment',
-      clickAction: '/work-items',
-      data: {
-        type: 'work_item_comment',
-        workItemTitle: workItemTitle,
-        commenterName: commenterName,
-        comment: comment.substring(0, 100)
-      }
-    });
-  }
-
-  async sendMentionNotification(userId, workItemTitle, mentionerName, comment) {
-    return await this.sendToUser(userId, {
-      title: '👤 You were mentioned',
-      body: `${mentionerName} mentioned you in ${workItemTitle}`,
-      icon: '/icons/mention-icon.png',
-      tag: 'work-item-mention',
-      clickAction: '/work-items',
-      data: {
-        type: 'work_item_mention',
-        workItemTitle: workItemTitle,
-        mentionerName: mentionerName,
-        comment: comment.substring(0, 100)
-      }
-    });
-  }
-
-  // Log notification for audit trail
-  async logNotification(userId, notification, status, error = null) {
+  /**
+   * Send follow-up reminder notification
+   */
+  static async sendFollowUpReminder(userId, followUpType, leadName, scheduledDate) {
     try {
-      // You can create a NotificationLog model to store this data
-      console.log('Notification Log:', {
-        userId,
-        title: notification.title,
-        status,
-        timestamp: new Date(),
-        error
+      const title = `Follow-up Reminder: ${followUpType}`;
+      const body = `Scheduled for ${leadName} on ${new Date(scheduledDate).toLocaleDateString()}`;
+      
+      return this.sendToUser(userId, title, body, {
+        type: 'follow_up_reminder',
+        data: { followUpType, leadName, scheduledDate },
+        actionUrl: '/leads',
       });
     } catch (error) {
-      console.error('Error logging notification:', error);
+      console.error('[NotificationService] Error sending follow-up reminder:', error.message);
+      throw error;
     }
   }
 
-  // Subscribe user to topic
-  async subscribeToTopic(fcmToken, topic) {
+  /**
+   * Send work item comment notification
+   */
+  static async sendWorkItemCommentedNotification(userId, itemTitle, commenterName, commentText) {
     try {
-      await admin.messaging().subscribeToTopic([fcmToken], topic);
-      console.log(`✅ Subscribed to topic: ${topic}`);
-      return { success: true };
+      const title = `New Comment on ${itemTitle}`;
+      const body = `${commenterName}: ${commentText.substring(0, 50)}${commentText.length > 50 ? '...' : ''}`;
+      
+      return this.sendToUser(userId, title, body, {
+        type: 'work_commented',
+        data: { itemTitle, commenterName },
+        actionUrl: '/work-items',
+      });
     } catch (error) {
-      console.error('❌ Error subscribing to topic:', error);
-      return { success: false, error: error.message };
+      console.error('[NotificationService] Error sending comment notification:', error.message);
+      throw error;
     }
   }
 
-  // Unsubscribe user from topic
-  async unsubscribeFromTopic(fcmToken, topic) {
+  /**
+   * Send mention notification
+   */
+  static async sendMentionNotification(userId, itemTitle, mentionerName, commentText) {
     try {
-      await admin.messaging().unsubscribeFromTopic([fcmToken], topic);
-      console.log(`✅ Unsubscribed from topic: ${topic}`);
-      return { success: true };
+      const title = `You were mentioned in ${itemTitle}`;
+      const body = `${mentionerName} mentioned you: ${commentText.substring(0, 50)}${commentText.length > 50 ? '...' : ''}`;
+      
+      return this.sendToUser(userId, title, body, {
+        type: 'mention_notification',
+        data: { itemTitle, mentionerName },
+        actionUrl: '/work-items',
+      });
     } catch (error) {
-      console.error('❌ Error unsubscribing from topic:', error);
-      return { success: false, error: error.message };
+      console.error('[NotificationService] Error sending mention notification:', error.message);
+      throw error;
     }
   }
 }
 
-const notificationServiceInstance = new NotificationService();
-
-// Export individual methods for backward compatibility
-export const sendToUser = notificationServiceInstance.sendToUser.bind(notificationServiceInstance);
-export const sendToMultipleUsers = notificationServiceInstance.sendToMultipleUsers.bind(notificationServiceInstance);
-export const sendToRole = notificationServiceInstance.sendToRole.bind(notificationServiceInstance);
-export const sendToDepartment = notificationServiceInstance.sendToDepartment.bind(notificationServiceInstance);
-export const sendLeaveRequestNotification = notificationServiceInstance.sendLeaveRequestNotification.bind(notificationServiceInstance);
-export const sendSalarySlipNotification = notificationServiceInstance.sendSalarySlipNotification.bind(notificationServiceInstance);
-export const sendMeetingReminderNotification = notificationServiceInstance.sendMeetingReminderNotification.bind(notificationServiceInstance);
-export const sendAnnouncementNotification = notificationServiceInstance.sendAnnouncementNotification.bind(notificationServiceInstance);
-export const sendWorkItemAssignedNotification = notificationServiceInstance.sendWorkItemAssignedNotification.bind(notificationServiceInstance);
-export const sendReviewRequestedNotification = notificationServiceInstance.sendReviewRequestedNotification.bind(notificationServiceInstance);
-export const sendStatusChangedNotification = notificationServiceInstance.sendStatusChangedNotification.bind(notificationServiceInstance);
-export const sendWorkItemCompletedNotification = notificationServiceInstance.sendWorkItemCompletedNotification.bind(notificationServiceInstance);
-export const sendWorkItemCommentedNotification = notificationServiceInstance.sendWorkItemCommentedNotification.bind(notificationServiceInstance);
-export const sendMentionNotification = notificationServiceInstance.sendMentionNotification.bind(notificationServiceInstance);
-export const subscribeToTopic = notificationServiceInstance.subscribeToTopic.bind(notificationServiceInstance);
-export const unsubscribeFromTopic = notificationServiceInstance.unsubscribeFromTopic.bind(notificationServiceInstance);
-
-// Alias for backward compatibility
-export const notifyReviewRequested = notificationServiceInstance.sendReviewRequestedNotification.bind(notificationServiceInstance);
-
-export default notificationServiceInstance;
+export default NotificationService;

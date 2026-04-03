@@ -39,14 +39,14 @@ const testCases = [
   { time: "16:00", expected: "half-day", description: "Late afternoon" },
 ];
 
-console.log('\n' + '='.repeat(80));
-console.log('🧪 ATTENDANCE STATUS CALCULATION TEST');
-console.log('='.repeat(80));
-console.log('\nBusiness Rules:');
-console.log('  ✅ ≤ 10:30 AM  → Present');
-console.log('  ⚠️  > 10:30 AM  → Late (until 12:00 PM)');
-console.log('  🕐 ≥ 12:00 PM  → Half-day');
-console.log('='.repeat(80) + '\n');
+);
+
+);
+
+
+');
+
+ + '\n');
 
 let passed = 0;
 let failed = 0;
@@ -61,26 +61,26 @@ testCases.forEach((test, index) => {
   
   if (isPass) {
     passed++;
-    console.log(`✅ Test ${index + 1}: ${test.time} → ${result} (${test.description})`);
+    `);
   } else {
     failed++;
-    console.log(`❌ Test ${index + 1}: ${test.time} → ${result} (Expected: ${test.expected}) - ${test.description}`);
+     - ${test.description}`);
   }
 });
 
-console.log('\n' + '='.repeat(80));
-console.log('📊 TEST RESULTS');
-console.log('='.repeat(80));
-console.log(`Total Tests: ${testCases.length}`);
-console.log(`Passed: ${passed} ✅`);
-console.log(`Failed: ${failed} ❌`);
-console.log(`Success Rate: ${((passed / testCases.length) * 100).toFixed(1)}%`);
-console.log('='.repeat(80) + '\n');
+);
+
+);
+
+
+
+ * 100).toFixed(1)}%`);
+ + '\n');
 
 if (failed === 0) {
-  console.log('🎉 All tests passed! The logic is correct.\n');
+  
   process.exit(0);
 } else {
-  console.log('⚠️  Some tests failed. Please review the logic.\n');
+  
   process.exit(1);
 }

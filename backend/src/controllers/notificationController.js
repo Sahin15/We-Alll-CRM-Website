@@ -1,337 +1,416 @@
-import Notification from "../models/notificationModel.js";
+import NotificationService from '../services/notificationService.js';
+import Notification from '../models/notificationModel.js';
+import User from '../models/userModel.js';
 
-// Create notification
-export const createNotification = async (req, res) => {
+export const registerFCMToken = async (req, res) => {
   try {
-    const {
-      recipient,
-      recipientType,
-      type,
-      title,
-      message,
-      data,
-      priority,
-      channels,
-      expiresAt,
-    } = req.body;
+    const { token, deviceName, deviceType } = req.body;
+    const userId = req.user._id;
 
-    if (!recipient || !type || !title || !message) {
-      return res.status(400).json({
-        message: "Recipient, type, title, and message are required",
-      });
+    if (!token) {
+      return res.status(400).json({ message: 'FCM token is required' });
     }
 
-    const notification = await Notification.createNotification({
-      recipient,
-      recipientType: recipientType || "client",
-      type,
-      title,
-      message,
-      data,
-      priority: priority || "medium",
-      channels: channels || { inApp: true },
-      expiresAt,
-      createdBy: req.user?.id,
-    });
+    console.log('[FCM] Registering token for user:', userId, 'device:', deviceName);
 
-    return res.status(201).json({
-      message: "Notification created successfully",
-      notification,
-    });
-  } catch (error) {
-    console.error("Error creating notification:", error.message);
-    return res.status(500).json({ message: "Server error" });
-  }
-};
-
-// Get user notifications
-export const getUserNotifications = async (req, res) => {
-  try {
-    if (!req.user || !req.user.id) {
-      return res.status(401).json({ message: "User not authenticated" });
-    }
-
-    const { isRead, type, priority } = req.query;
-    const filter = { recipient: req.user.id };
-
-    if (isRead !== undefined) filter.isRead = isRead === "true";
-    if (type) filter.type = type;
-    if (priority) filter.priority = priority;
-
-    const notifications = await Notification.find(filter)
-      .sort({ createdAt: -1 });
-      // No limit - show all notifications
-
-    const unreadCount = await Notification.getUnreadCount(req.user.id);
-
-    return res.status(200).json({
-      notifications,
-      unreadCount,
-    });
-  } catch (error) {
-    console.error("Error fetching notifications:", error);
-    return res.status(500).json({ 
-      message: "Server error",
-      error: error.message,
-    });
-  }
-};
-
-// Mark notification as read
-export const markAsRead = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const notification = await Notification.findOne({
-      _id: id,
-      recipient: req.user.id,
-    });
-
-    if (!notification) {
-      return res.status(404).json({ message: "Notification not found" });
-    }
-
-    await notification.markAsRead();
-
-    return res.status(200).json({
-      message: "Notification marked as read",
-      notification,
-    });
-  } catch (error) {
-    console.error("Error marking notification as read:", error.message);
-    return res.status(500).json({ message: "Server error" });
-  }
-};
-
-// Mark all as read
-export const markAllAsRead = async (req, res) => {
-  try {
-    await Notification.updateMany(
-      { recipient: req.user.id, isRead: false },
-      { isRead: true, readAt: new Date() }
+    const fcmToken = await NotificationService.registerToken(
+      userId,
+      token,
+      deviceName || 'Unknown Device',
+      deviceType || 'web'
     );
 
-    return res.status(200).json({
-      message: "All notifications marked as read",
+    console.log('[FCM] ✅ Token registered successfully:', fcmToken._id);
+
+    res.status(200).json({
+      message: 'FCM token registered successfully',
+      data: fcmToken,
     });
   } catch (error) {
-    console.error("Error marking all as read:", error.message);
-    return res.status(500).json({ message: "Server error" });
+    console.error('[FCM] ❌ Error registering token:', error.message);
+    res.status(500).json({ message: 'Error registering FCM token', error: error.message });
   }
 };
 
-// Delete notification
+export const getMyNotifications = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { limit = 20, skip = 0 } = req.query;
+
+    const { notifications, unreadCount } = await NotificationService.getUserNotifications(
+      userId,
+      parseInt(limit),
+      parseInt(skip)
+    );
+
+    res.status(200).json({
+      notifications,
+      unreadCount,
+      total: await Notification.countDocuments({ recipient: userId }),
+    });
+  } catch (error) {
+    
+    res.status(500).json({ message: 'Error fetching notifications' });
+  }
+};
+
+export const getUnreadNotifications = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { limit = 50 } = req.query;
+
+    // Get only unread notifications (for login/refresh)
+    const notifications = await Notification.getUnreadNotifications(userId, parseInt(limit));
+    const unreadCount = notifications.length;
+
+    res.status(200).json({
+      notifications,
+      unreadCount,
+      total: unreadCount,
+    });
+  } catch (error) {
+    console.error('[NotificationController] Error fetching unread notifications:', error.message);
+    res.status(500).json({ message: 'Error fetching unread notifications' });
+  }
+};
+
+export const markAsRead = async (req, res) => {
+  try {
+    console.log('[NotificationController] ========== MARK AS READ REQUEST ==========');
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    console.log('[NotificationController] Notification ID:', id);
+    console.log('[NotificationController] User ID:', userId);
+
+    const notification = await NotificationService.markAsRead(id, userId);
+
+    console.log('[NotificationController] ✅ Notification marked as read');
+    console.log('[NotificationController] Notification:', notification._id, 'isRead:', notification.isRead);
+    console.log('[NotificationController] ========== MARK AS READ REQUEST END ==========');
+
+    res.status(200).json({
+      message: 'Notification marked as read',
+      data: notification,
+    });
+  } catch (error) {
+    console.error('[NotificationController] ❌ Error marking notification as read:', error.message);
+    console.error('[NotificationController] Error stack:', error.stack);
+    res.status(500).json({ message: 'Error marking notification as read' });
+  }
+};
+
+export const markAllAsRead = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    await NotificationService.markAllAsRead(userId);
+
+    res.status(200).json({
+      message: 'All notifications marked as read',
+    });
+  } catch (error) {
+    
+    res.status(500).json({ message: 'Error marking all notifications as read' });
+  }
+};
+
 export const deleteNotification = async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user._id;
 
-    const notification = await Notification.findOneAndDelete({
-      _id: id,
-      recipient: req.user.id,
-    });
+    await NotificationService.deleteNotification(id, userId);
 
-    if (!notification) {
-      return res.status(404).json({ message: "Notification not found" });
-    }
-
-    return res.status(200).json({
-      message: "Notification deleted successfully",
+    res.status(200).json({
+      message: 'Notification deleted successfully',
     });
   } catch (error) {
-    console.error("Error deleting notification:", error.message);
-    return res.status(500).json({ message: "Server error" });
+    
+    res.status(500).json({ message: 'Error deleting notification' });
   }
 };
 
-// Get unread count
+export const deleteAllNotifications = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    await NotificationService.deleteAllNotifications(userId);
+
+    res.status(200).json({
+      message: 'All notifications deleted successfully',
+    });
+  } catch (error) {
+    
+    res.status(500).json({ message: 'Error deleting all notifications' });
+  }
+};
+
+export const sendNotification = async (req, res) => {
+  try {
+    console.log('[NotificationController] ========== SEND NOTIFICATION REQUEST ==========');
+    console.log('[NotificationController] User role:', req.user.role);
+    console.log('[NotificationController] User ID:', req.user._id);
+    
+    // Allow any authenticated user to send notifications
+    // (Remove role restrictions - notifications should work for everyone)
+
+    const { recipientId, title, body, type, data, actionUrl } = req.body;
+
+    console.log('[NotificationController] Request body:', { recipientId, title, body, type, actionUrl });
+
+    if (!recipientId || !title || !body) {
+      console.log('[NotificationController] ❌ Missing required fields');
+      return res.status(400).json({
+        message: 'recipientId, title, and body are required',
+      });
+    }
+
+    console.log('[NotificationController] Calling NotificationService.sendToUser...');
+    
+    const notification = await NotificationService.sendToUser(
+      recipientId,
+      title,
+      body,
+      {
+        type,
+        data,
+        actionUrl,
+        senderId: req.user._id,
+      }
+    );
+
+    console.log('[NotificationController] ✅ Notification sent successfully');
+    console.log('[NotificationController] Notification ID:', notification._id);
+    console.log('[NotificationController] ========== SEND NOTIFICATION REQUEST END ==========');
+
+    res.status(200).json({
+      message: 'Notification sent successfully',
+      data: notification,
+    });
+  } catch (error) {
+    console.error('[NotificationController] ❌ Error sending notification:', error.message);
+    console.error('[NotificationController] Error stack:', error.stack);
+    console.error('[NotificationController] ========== SEND NOTIFICATION REQUEST END (ERROR) ==========');
+    
+    res.status(500).json({ message: 'Error sending notification' });
+  }
+};
+
+export const sendBulkNotification = async (req, res) => {
+  try {
+    // Allow any authenticated user to send bulk notifications
+    // (Remove role restrictions - notifications should work for everyone)
+
+    const { userIds, title, body, type, data, actionUrl } = req.body;
+
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({
+        message: 'userIds array is required',
+      });
+    }
+
+    if (!title || !body) {
+      return res.status(400).json({
+        message: 'title and body are required',
+      });
+    }
+
+    const notifications = await NotificationService.sendToMultiple(
+      userIds,
+      title,
+      body,
+      {
+        type,
+        data,
+        actionUrl,
+        senderId: req.user._id,
+      }
+    );
+
+    res.status(200).json({
+      message: `Notification sent to ${notifications.length} users`,
+      data: notifications,
+    });
+  } catch (error) {
+    
+    res.status(500).json({ message: 'Error sending bulk notification' });
+  }
+};
+
 export const getUnreadCount = async (req, res) => {
   try {
-    if (!req.user || !req.user.id) {
-      return res.status(401).json({ message: "User not authenticated" });
+    const userId = req.user._id;
+    const unreadCount = await Notification.getUnreadCount(userId);
+
+    res.status(200).json({
+      count: unreadCount,
+    });
+  } catch (error) {
+    
+    res.status(500).json({ message: 'Error fetching unread count' });
+  }
+};
+
+export const sendTestNotification = async (req, res) => {
+  try {
+    console.log('[NotificationController] ========== SEND TEST NOTIFICATION ==========');
+    const userId = req.user._id;
+    const { title = 'Test Notification', body = 'This is a test notification' } = req.body;
+
+    console.log('[NotificationController] Sending test notification to user:', userId);
+    console.log('[NotificationController] Title:', title);
+    console.log('[NotificationController] Body:', body);
+
+    const notification = await NotificationService.sendToUser(
+      userId,
+      title,
+      body,
+      {
+        type: 'general',
+        data: { isTest: 'true' },
+        actionUrl: '/notifications',
+      }
+    );
+
+    console.log('[NotificationController] ✅ Test notification sent');
+    console.log('[NotificationController] ========== SEND TEST NOTIFICATION END ==========');
+
+    res.status(200).json({
+      message: 'Test notification sent successfully',
+      data: notification,
+    });
+  } catch (error) {
+    console.error('[NotificationController] ❌ Error sending test notification:', error.message);
+    res.status(500).json({ message: 'Error sending test notification', error: error.message });
+  }
+};
+
+
+export const getSoundSettings = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    console.log('[getSoundSettings] Fetching settings for user:', userId);
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      console.log('[getSoundSettings] User not found:', userId);
+      return res.status(404).json({ message: 'User not found' });
     }
 
-    const count = await Notification.getUnreadCount(req.user.id);
-
-    return res.status(200).json({ count });
-  } catch (error) {
-    console.error("Error fetching unread count:", error);
-    return res.status(500).json({ 
-      message: "Server error",
-      error: error.message,
-    });
-  }
-};
-
-// Helper: Send payment due notification
-export const sendPaymentDueNotification = async (clientId, invoiceData) => {
-  try {
-    await Notification.createNotification({
-      recipient: clientId,
-      recipientType: "client",
-      type: "payment_due",
-      title: "Payment Due",
-      message: `Your payment of ₹${invoiceData.totalAmount} is due on ${new Date(
-        invoiceData.dueDate
-      ).toLocaleDateString()}`,
-      data: {
-        invoiceId: invoiceData.invoiceId,
-        amount: invoiceData.totalAmount,
-        dueDate: invoiceData.dueDate,
-        company: invoiceData.company,
-      },
-      priority: "high",
-      channels: { inApp: true, email: true },
-    });
-  } catch (error) {
-    console.error("Error sending payment due notification:", error.message);
-  }
-};
-
-// Helper: Send payment submitted notification
-export const sendPaymentSubmittedNotification = async (adminId, paymentData) => {
-  try {
-    await Notification.createNotification({
-      recipient: adminId,
-      recipientType: "admin",
-      type: "payment_submitted",
-      title: "New Payment Submitted",
-      message: `${paymentData.clientName} has submitted a payment of ₹${paymentData.amount} for verification`,
-      data: {
-        paymentId: paymentData.paymentId,
-        invoiceId: paymentData.invoiceId,
-        amount: paymentData.amount,
-        company: paymentData.company,
-      },
-      priority: "high",
-      channels: { inApp: true, email: true },
-    });
-  } catch (error) {
-    console.error("Error sending payment submitted notification:", error.message);
-  }
-};
-
-// Helper: Send payment verified notification
-export const sendPaymentVerifiedNotification = async (clientId, paymentData) => {
-  try {
-    await Notification.createNotification({
-      recipient: clientId,
-      recipientType: "client",
-      type: "payment_verified",
-      title: "Payment Verified",
-      message: `Your payment of ₹${paymentData.amount} has been verified and your subscription is now active`,
-      data: {
-        paymentId: paymentData.paymentId,
-        subscriptionId: paymentData.subscriptionId,
-        amount: paymentData.amount,
-        company: paymentData.company,
-      },
-      priority: "medium",
-      channels: { inApp: true, email: true },
-    });
-  } catch (error) {
-    console.error("Error sending payment verified notification:", error.message);
-  }
-};
-
-// Helper: Send subscription activated notification
-export const sendSubscriptionActivatedNotification = async (
-  clientId,
-  subscriptionData
-) => {
-  try {
-    await Notification.createNotification({
-      recipient: clientId,
-      recipientType: "client",
-      type: "subscription_activated",
-      title: "Subscription Activated",
-      message: `Your ${subscriptionData.planName} subscription has been activated`,
-      data: {
-        subscriptionId: subscriptionData.subscriptionId,
-        planId: subscriptionData.planId,
-        company: subscriptionData.company,
-      },
-      priority: "medium",
-      channels: { inApp: true, email: true },
-    });
-  } catch (error) {
-    console.error("Error sending subscription activated notification:", error.message);
-  }
-};
-
-// Get user notification preferences
-export const getUserPreferences = async (req, res) => {
-  try {
-    if (!req.user || !req.user.id) {
-      return res.status(401).json({ message: "User not authenticated" });
-    }
-
-    // For now, return default preferences since we don't have a preferences model yet
-    // In a full implementation, you'd create a UserPreferences model
-    const defaultPreferences = {
-      workItems: {
-        inApp: true,
-        email: false,
-        sms: false
-      },
-      leaves: {
-        inApp: true,
-        email: true,
-        sms: false
-      },
-      projects: {
-        inApp: true,
-        email: false,
-        sms: false
-      },
-      payments: {
-        inApp: true,
-        email: true,
-        sms: false
-      },
-      general: {
-        inApp: true,
-        email: false,
-        sms: false
+    const soundSettings = user.notificationSoundSettings || {
+      sound: 'bell_chime',
+      volume: 0.3,
+      preferences: {
+        leaves: true,
+        tasks: true,
+        meetings: true,
+        attendance: true,
+        projects: true,
+        announcements: true,
+        salary: true,
+        expenses: true,
+        documents: true,
+        performance: true
       }
     };
 
-    return res.status(200).json({
-      preferences: defaultPreferences,
-    });
+    console.log('[getSoundSettings] Returning settings:', soundSettings);
+    res.status(200).json(soundSettings);
   } catch (error) {
-    console.error("Error fetching user preferences:", error);
-    return res.status(500).json({ 
-      message: "Server error",
-      error: error.message,
+    console.error('[getSoundSettings] Error:', error.message);
+    console.error('[getSoundSettings] Error details:', error);
+    res.status(500).json({ 
+      message: 'Error fetching sound settings',
+      error: error.message 
     });
   }
 };
 
-// Update user notification preferences
-export const updateUserPreferences = async (req, res) => {
+export const updateSoundSettings = async (req, res) => {
   try {
-    if (!req.user || !req.user.id) {
-      return res.status(401).json({ message: "User not authenticated" });
+    const userId = req.user._id;
+    const { sound, volume, preferences } = req.body;
+
+    console.log('[updateSoundSettings] Received request:', { userId, sound, volume, preferences });
+
+    if (!sound || volume === undefined) {
+      console.log('[updateSoundSettings] Missing required fields');
+      return res.status(400).json({ message: 'sound and volume are required' });
     }
 
-    const { preferences } = req.body;
-
-    if (!preferences) {
-      return res.status(400).json({ message: "Preferences are required" });
+    if (volume < 0 || volume > 1) {
+      console.log('[updateSoundSettings] Volume out of range:', volume);
+      return res.status(400).json({ message: 'volume must be between 0 and 1' });
     }
 
-    // For now, just return success since we don't have a preferences model yet
-    // In a full implementation, you'd save to UserPreferences model
-    
-    return res.status(200).json({
-      message: "Notification preferences updated successfully",
-      preferences,
+    console.log('[updateSoundSettings] Updating user:', userId);
+
+    const updateData = {
+      $set: {
+        'notificationSoundSettings.sound': sound,
+        'notificationSoundSettings.volume': volume
+      }
+    };
+
+    // Add preferences if provided
+    if (preferences) {
+      Object.keys(preferences).forEach(key => {
+        updateData.$set[`notificationSoundSettings.preferences.${key}`] = preferences[key];
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    console.log('[updateSoundSettings] Update result:', user?.notificationSoundSettings);
+
+    if (!user) {
+      console.log('[updateSoundSettings] User not found:', userId);
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.status(200).json({
+      message: 'Sound settings updated successfully',
+      data: user.notificationSoundSettings
     });
   } catch (error) {
-    console.error("Error updating user preferences:", error);
-    return res.status(500).json({ 
-      message: "Server error",
-      error: error.message,
+    console.error('[updateSoundSettings] Error:', error.message);
+    console.error('[updateSoundSettings] Error details:', error);
+    res.status(500).json({ 
+      message: 'Error updating sound settings',
+      error: error.message 
     });
+  }
+};
+
+export const cleanupOldNotifications = async (req, res) => {
+  try {
+    // Only allow admin/superadmin to run cleanup
+    if (!['admin', 'superadmin'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const daysOld = req.query.daysOld || 30;
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - parseInt(daysOld));
+
+    const result = await Notification.deleteMany({
+      isRead: true,
+      readAt: { $lt: cutoffDate }
+    });
+
+    res.status(200).json({
+      message: `Deleted ${result.deletedCount} old read notifications`,
+      deletedCount: result.deletedCount,
+      cutoffDate
+    });
+  } catch (error) {
+    console.error('[NotificationController] Error cleaning up notifications:', error.message);
+    res.status(500).json({ message: 'Error cleaning up notifications' });
   }
 };

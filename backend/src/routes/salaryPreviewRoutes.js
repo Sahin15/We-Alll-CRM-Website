@@ -32,7 +32,7 @@ router.post("/generate",
         preview
       });
     } catch (error) {
-      console.error("Error generating salary preview:", error);
+      
       res.status(500).json({
         message: "Failed to generate salary preview",
         error: error.message
@@ -67,7 +67,7 @@ router.post("/bulk-generate",
         ...results
       });
     } catch (error) {
-      console.error("Error in bulk preview generation:", error);
+      
       res.status(500).json({
         message: "Failed to generate previews",
         error: error.message
@@ -89,7 +89,7 @@ router.get("/my-preview/:month/:year",
 
       res.status(200).json(preview);
     } catch (error) {
-      console.error("Error getting employee preview:", error);
+      
       res.status(404).json({
         message: "Salary preview not found",
         error: error.message
@@ -124,7 +124,7 @@ router.post("/:previewId/query",
         preview: updatedPreview
       });
     } catch (error) {
-      console.error("Error submitting query:", error);
+      
       res.status(500).json({
         message: "Failed to submit query",
         error: error.message
@@ -161,7 +161,7 @@ router.post("/:previewId/query/:queryIndex/respond",
         preview: updatedPreview
       });
     } catch (error) {
-      console.error("Error responding to query:", error);
+      
       res.status(500).json({
         message: "Failed to respond to query",
         error: error.message
@@ -185,7 +185,7 @@ router.post("/:previewId/acknowledge",
         preview: updatedPreview
       });
     } catch (error) {
-      console.error("Error acknowledging preview:", error);
+      
       res.status(500).json({
         message: "Failed to acknowledge preview",
         error: error.message
@@ -210,7 +210,7 @@ router.post("/:previewId/finalize",
         preview: updatedPreview
       });
     } catch (error) {
-      console.error("Error finalizing preview:", error);
+      
       res.status(500).json({
         message: "Failed to finalize preview",
         error: error.message
@@ -240,7 +240,7 @@ router.get("/month/:month/:year",
 
       res.status(200).json(previews);
     } catch (error) {
-      console.error("Error getting previews for month:", error);
+      
       res.status(500).json({
         message: "Failed to get previews",
         error: error.message
@@ -264,7 +264,7 @@ router.get("/attention/:month/:year",
 
       res.status(200).json(previews);
     } catch (error) {
-      console.error("Error getting previews requiring attention:", error);
+      
       res.status(500).json({
         message: "Failed to get previews requiring attention",
         error: error.message
@@ -288,7 +288,7 @@ router.get("/statistics/:month/:year",
 
       res.status(200).json(statistics);
     } catch (error) {
-      console.error("Error getting preview statistics:", error);
+      
       res.status(500).json({
         message: "Failed to get statistics",
         error: error.message
@@ -324,7 +324,7 @@ router.put("/:previewId/corrections",
         preview: updatedPreview
       });
     } catch (error) {
-      console.error("Error updating preview with corrections:", error);
+      
       res.status(500).json({
         message: "Failed to update preview",
         error: error.message
@@ -349,7 +349,7 @@ router.post("/:previewId/convert-to-slip",
         salarySlip
       });
     } catch (error) {
-      console.error("Error converting preview to salary slip:", error);
+      
       res.status(500).json({
         message: "Failed to convert preview",
         error: error.message
@@ -373,7 +373,7 @@ router.delete("/:previewId",
         message: "Preview deleted successfully"
       });
     } catch (error) {
-      console.error("Error deleting preview:", error);
+      
       res.status(500).json({
         message: "Failed to delete preview",
         error: error.message

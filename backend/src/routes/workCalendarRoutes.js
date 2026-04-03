@@ -176,7 +176,7 @@ router.get('/admin/audit-logs',
         data: result
       });
     } catch (error) {
-      console.error('Get audit logs error:', error);
+      
       res.status(403).json({
         success: false,
         message: error.message || 'Failed to retrieve audit logs'
@@ -254,42 +254,23 @@ router.post('/sync-my-work', protect, workCalendarController.syncMyWorkItemsToCa
  */
 router.get('/test', protect, async (req, res) => {
   try {
-    console.log('[TEST] Work calendar API test endpoint hit by user:', req.user.email, 'Role:', req.user.role);
+    
     
     // Import WorkItem model to test database query
     const WorkItem = (await import('../models/workItemModel.js')).default;
     
     // Check if user has work items
     const userWorkItems = await WorkItem.find({ assignedTo: req.user.id });
-    console.log(`[TEST] Found ${userWorkItems.length} work items assigned to user ${req.user.email}`);
+    
     
     // Check all work items if user is admin
     let allWorkItems = [];
     if (['admin', 'superadmin', 'hod', 'hr', 'manager'].includes(req.user.role)) {
       allWorkItems = await WorkItem.find({});
-      console.log(`[TEST] Found ${allWorkItems.length} total work items in database`);
+      
     }
     
-    if (userWorkItems.length > 0) {
-      console.log('[TEST] User work items:', userWorkItems.map(item => ({
-        id: item._id,
-        title: item.title,
-        dueDate: item.dueDate,
-        status: item.status,
-        createdAt: item.createdAt
-      })));
-    }
-    
-    if (allWorkItems.length > 0) {
-      console.log('[TEST] Recent work items:', allWorkItems.slice(-3).map(item => ({
-        id: item._id,
-        title: item.title,
-        dueDate: item.dueDate,
-        status: item.status,
-        assignedTo: item.assignedTo,
-        createdAt: item.createdAt
-      })));
-    }
+
     
     res.json({
       success: true,
@@ -321,7 +302,7 @@ router.get('/test', protect, async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('[TEST] Error in test endpoint:', error);
+    
     res.status(500).json({
       success: false,
       error: error.message

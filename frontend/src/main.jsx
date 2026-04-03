@@ -10,6 +10,19 @@ import { initMobileDebug } from "./utils/mobileDebug";
 // Initialize mobile debugging in production
 initMobileDebug();
 
+// Register service worker early for push notifications
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' })
+      .then(registration => {
+        console.log('[SW] Service worker registered at app startup:', registration.scope);
+      })
+      .catch(error => {
+        console.warn('[SW] Service worker registration failed:', error.message);
+      });
+  });
+}
+
 // Robust React mounting with error handling for iOS
 try {
   const rootElement = document.getElementById("root");

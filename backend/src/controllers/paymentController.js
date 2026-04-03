@@ -86,7 +86,7 @@ export const createPayment = async (req, res) => {
 
     return res.status(201).json({ message: "Payment created", payment });
   } catch (error) {
-    console.error("Error in createPayment:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -111,7 +111,7 @@ export const getAllPayments = async (req, res) => {
 
     return res.status(200).json(payments);
   } catch (error) {
-    console.error("Error in getAllPayments:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -135,7 +135,7 @@ export const getPaymentById = async (req, res) => {
 
     return res.status(200).json(payment);
   } catch (error) {
-    console.error("Error in getPaymentById:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -158,7 +158,7 @@ export const updatePayment = async (req, res) => {
 
     return res.status(200).json({ message: "Payment updated", payment });
   } catch (error) {
-    console.error("Error in updatePayment:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -174,7 +174,7 @@ export const deletePayment = async (req, res) => {
 
     return res.status(200).json({ message: "Payment deleted" });
   } catch (error) {
-    console.error("Error in deletePayment:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -211,7 +211,7 @@ export const recordPartialPayment = async (req, res) => {
       .status(200)
       .json({ message: "Partial payment recorded", payment });
   } catch (error) {
-    console.error("Error in recordPartialPayment:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -234,7 +234,7 @@ export const getMyPayments = async (req, res) => {
 
     return res.status(200).json(payments);
   } catch (error) {
-    console.error("Error fetching my payments:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -255,7 +255,7 @@ export const getClientPayments = async (req, res) => {
 
     return res.status(200).json(payments);
   } catch (error) {
-    console.error("Error in getClientPayments:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -269,7 +269,7 @@ export const getOverduePayments = async (req, res) => {
       .sort({ dueDate: 1 });
     return res.status(200).json(overdue);
   } catch (error) {
-    console.error("Error in getOverduePayments:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -312,7 +312,7 @@ export const getPaymentStats = async (req, res) => {
 
     return res.status(200).json(summary);
   } catch (error) {
-    console.error("Error in getPaymentStats:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -341,7 +341,7 @@ export const getPaymentHistory = async (req, res) => {
 
     return res.status(200).json(payments);
   } catch (error) {
-    console.error("Error in getPaymentHistory:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -400,7 +400,7 @@ export const submitPaymentForVerification = async (req, res) => {
       payment: populatedPayment,
     });
   } catch (error) {
-    console.error("Error submitting payment:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -408,18 +408,18 @@ export const submitPaymentForVerification = async (req, res) => {
 // Get pending payments for verification (admin/accounts)
 export const getPendingPayments = async (req, res) => {
   try {
-    console.log("📋 Fetching pending payments...");
+    
     const payments = await Payment.find({ status: "pending" })
       .populate("client", "name email phone company")
       .populate("subscription", "subscriptionNumber company totalAmount")
       .populate("createdBy", "name email")
       .sort({ createdAt: -1 });
 
-    console.log(`✅ Found ${payments.length} pending payments`);
+    
     return res.status(200).json(payments);
   } catch (error) {
-    console.error("❌ Error fetching pending payments:", error.message);
-    console.error("Error stack:", error.stack);
+    
+    
     return res.status(500).json({ 
       message: "Server error", 
       error: error.message,
@@ -481,12 +481,32 @@ export const verifyPayment = async (req, res) => {
       .populate("subscription", "subscriptionNumber")
       .populate("verifiedBy", "name email");
 
+    // Send notification to client
+    try {
+      if (payment.client) {
+        const clientId = payment.client._id || payment.client;
+        await NotificationService.sendToUser(
+          clientId,
+          '✅ Payment Verified',
+          `Your payment of ₹${payment.amount} has been verified and your subscription is now active`,
+          {
+            type: 'payment_verified',
+            data: { paymentId: payment._id.toString(), amount: payment.amount },
+            actionUrl: '/subscriptions',
+            senderId: req.user._id,
+          }
+        );
+      }
+    } catch (notificationError) {
+      console.error('[PaymentController] Error sending payment verification notification:', notificationError.message);
+    }
+
     return res.status(200).json({
       message: "Payment verified successfully",
       payment: populatedPayment,
     });
   } catch (error) {
-    console.error("Error verifying payment:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -524,12 +544,32 @@ export const rejectPayment = async (req, res) => {
       .populate("subscription", "subscriptionNumber")
       .populate("rejectedBy", "name email");
 
+    // Send notification to client
+    try {
+      if (payment.client) {
+        const clientId = payment.client._id || payment.client;
+        await NotificationService.sendToUser(
+          clientId,
+          '❌ Payment Rejected',
+          `Your payment of ₹${payment.amount} has been rejected. Reason: ${rejectionReason}`,
+          {
+            type: 'payment_rejected',
+            data: { paymentId: payment._id.toString(), reason: rejectionReason },
+            actionUrl: '/subscriptions',
+            senderId: req.user._id,
+          }
+        );
+      }
+    } catch (notificationError) {
+      console.error('[PaymentController] Error sending payment rejection notification:', notificationError.message);
+    }
+
     return res.status(200).json({
       message: "Payment rejected",
       payment: populatedPayment,
     });
   } catch (error) {
-    console.error("Error rejecting payment:", error.message);
+    
     return res.status(500).json({ message: "Server error" });
   }
 };

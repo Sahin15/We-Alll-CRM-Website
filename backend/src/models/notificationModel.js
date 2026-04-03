@@ -1,93 +1,93 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const notificationSchema = new mongoose.Schema(
   {
     recipient: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User',
       required: true,
     },
-    recipientType: {
-      type: String,
-      enum: ["client", "admin", "user", "hr", "employee"],
-      default: "user",
-    },
-    type: {
-      type: String,
-      enum: [
-        "payment_due",
-        "payment_overdue",
-        "payment_received",
-        "payment_submitted",
-        "payment_verified",
-        "bill_generated",
-        "bill_sent",
-        "plan_renewal_reminder",
-        "plan_expiring",
-        "plan_expired",
-        "subscription_activated",
-        "onboarding_started",
-        "onboarding_completed",
-        // Work item notifications
-        "work_item_assigned",
-        "work_item_due_soon",
-        "work_item_overdue",
-        "work_item_status_changed",
-        "work_item_review_requested",
-        "work_item_commented",
-        "work_item_completed",
-        // Business notifications
-        "client_won",
-        "new_project",
-        "project_completed",
-        "project_milestone",
-        // Leave notifications
-        "leave_approved",
-        "leave_rejected",
-        "leave_requested",
-        "leave_cancelled",
-        // Employee notifications
-        "employee_joined",
-        "employee_birthday",
-        "employee_anniversary",
-        // System notifications
-        "system_maintenance",
-        "system_update",
-        "general",
-        "system",
-      ],
-      required: true,
+    sender: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
     },
     title: {
       type: String,
       required: true,
+      trim: true,
     },
-    message: {
+    body: {
       type: String,
       required: true,
+      trim: true,
     },
-    link: {
-      type: String, // URL to redirect when clicked
+    type: {
+      type: String,
+      enum: [
+        // Leave
+        'leave_approval',
+        'leave_rejection',
+        'leave_request',
+        // Meeting
+        'meeting_scheduled',
+        'meeting_updated',
+        'meeting_cancelled',
+        'meeting_reminder_15min',
+        'meeting_reminder_1hour',
+        // Task / Work
+        'task_assigned',
+        'work_assigned',
+        'work_reassigned',
+        'work_reassigned_from',
+        'work_reassigned_project',
+        'work_updated',
+        'work_updated_project',
+        'work_status_changed',
+        'work_completed',
+        'review_requested',
+        // Expense
+        'expense_approval',
+        'expense_rejection',
+        'expense_submitted',
+        'expense_reimbursed',
+        // Invoice
+        'invoice_generated',
+        'invoice_sent',
+        'invoice_paid',
+        'invoice_overdue',
+        // Client
+        'client_created',
+        'client_status_changed',
+        // Project
+        'project_created',
+        'project_status_changed',
+        'project_deadline_7days',
+        'project_deadline_3days',
+        // WFH
+        'wfh_request_submitted',
+        'wfh_request_approved',
+        'wfh_request_rejected',
+        // Payment / Billing
+        'payment_processed',
+        'payment_due',
+        'payment_overdue',
+        // Plan
+        'plan_renewal_reminder',
+        'plan_expiring',
+        'plan_expired',
+        // Attendance
+        'attendance_alert',
+        'attendance_auto_clockout',
+        // Other
+        'work_log_reminder',
+        'announcement',
+        'general',
+      ],
+      default: 'general',
     },
     data: {
-      type: mongoose.Schema.Types.Mixed, // Additional data (payment ID, bill ID, etc.)
-    },
-    metadata: {
-      type: mongoose.Schema.Types.Mixed, // Additional data (payment ID, bill ID, etc.)
-    },
-    channels: {
-      inApp: { type: Boolean, default: true },
-      email: { type: Boolean, default: false },
-      sms: { type: Boolean, default: false },
-    },
-    createdBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-    priority: {
-      type: String,
-      enum: ["low", "medium", "high", "urgent"],
-      default: "medium",
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
     },
     isRead: {
       type: Boolean,
@@ -96,40 +96,96 @@ const notificationSchema = new mongoose.Schema(
     readAt: {
       type: Date,
     },
-    icon: {
-      type: String, // Icon class or name
+    actionUrl: {
+      type: String,
     },
-    color: {
-      type: String, // Color code for notification
+    icon: {
+      type: String,
+    },
+    badge: {
+      type: String,
+    },
+    tag: {
+      type: String,
+    },
+    priority: {
+      type: String,
+      enum: ['low', 'normal', 'high'],
+      default: 'normal',
     },
     expiresAt: {
-      type: Date, // Auto-delete notification after this date
+      type: Date,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-// Mark as read method
-notificationSchema.methods.markAsRead = function () {
+// Index for faster queries
+notificationSchema.index({ recipient: 1, createdAt: -1 });
+notificationSchema.index({ recipient: 1, isRead: 1 });
+notificationSchema.index({ recipient: 1, isRead: 1, createdAt: -1 }); // Composite index for unread notifications
+notificationSchema.index({ type: 1 });
+notificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // TTL index
+notificationSchema.index({ recipient: 1, readAt: 1 }); // For cleanup queries
+
+// Method to mark as read
+notificationSchema.methods.markAsRead = function() {
   this.isRead = true;
   this.readAt = new Date();
   return this.save();
 };
 
 // Static method to get unread count
-notificationSchema.statics.getUnreadCount = async function (userId) {
-  return await this.countDocuments({ recipient: userId, isRead: false });
+notificationSchema.statics.getUnreadCount = function(userId) {
+  return this.countDocuments({
+    recipient: userId,
+    isRead: false,
+  });
 };
 
-// Static method to create notification
-notificationSchema.statics.createNotification = async function (data) {
-  return await this.create(data);
+// Static method to get user notifications
+notificationSchema.statics.getUserNotifications = function(userId, limit = 20, skip = 0) {
+  return this.find({ recipient: userId })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .skip(skip)
+    .populate('sender', 'name email');
 };
 
-// Indexes for performance
-notificationSchema.index({ recipient: 1, isRead: 1 });
-notificationSchema.index({ recipient: 1, createdAt: -1 });
-notificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // Auto-delete expired
+// Static method to get ONLY unread notifications (for login/refresh)
+notificationSchema.statics.getUnreadNotifications = function(userId, limit = 50) {
+  return this.find({ recipient: userId, isRead: false })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .populate('sender', 'name email');
+};
 
-const Notification = mongoose.model("Notification", notificationSchema);
+// Static method to get read notifications for cleanup (older than 30 days)
+notificationSchema.statics.getOldReadNotifications = function(daysOld = 30) {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+  return this.find({
+    isRead: true,
+    readAt: { $lt: cutoffDate }
+  });
+};
+
+// Static method to mark all as read
+notificationSchema.statics.markAllAsRead = function(userId) {
+  return this.updateMany(
+    {
+      recipient: userId,
+      isRead: false,
+    },
+    {
+      isRead: true,
+      readAt: new Date(),
+    }
+  );
+};
+
+const Notification = mongoose.model('Notification', notificationSchema);
+
 export default Notification;

@@ -42,7 +42,7 @@ export const authorizeDepartments = (...allowedDepartments) => {
 
       next();
     } catch (error) {
-      console.error('Department authorization error:', error);
+      
       return res.status(500).json({ message: 'Server error during authorization' });
     }
   };
@@ -55,22 +55,17 @@ export const authorizeDepartments = (...allowedDepartments) => {
 export const authorizeRolesOrDepartments = (allowedRoles = [], allowedDepartments = []) => {
   return async (req, res, next) => {
     try {
-      console.log('🔐 Authorization check:', {
-        userRole: req.user.role,
-        userDepartment: req.user.department,
-        allowedRoles,
-        allowedDepartments
-      });
+      
 
       // Check if user has an allowed role
       if (allowedRoles.includes(req.user.role)) {
-        console.log('✅ Access granted by role:', req.user.role);
+        
         return next();
       }
 
       // If not an allowed role, check department
       if (!req.user.department) {
-        console.log('❌ Access denied: No department assigned');
+        
         return res.status(403).json({
           message: 'Access denied. Insufficient permissions.',
         });
@@ -80,13 +75,13 @@ export const authorizeRolesOrDepartments = (allowedRoles = [], allowedDepartment
       const department = await Department.findById(req.user.department);
       
       if (!department) {
-        console.log('❌ Access denied: Department not found');
+        
         return res.status(403).json({
           message: 'Access denied. Department not found.',
         });
       }
 
-      console.log('📊 User department:', department.name);
+      
 
       // Check if user's department is in the allowed list (case-insensitive)
       const userDepartmentName = department.name.toLowerCase();
@@ -95,18 +90,18 @@ export const authorizeRolesOrDepartments = (allowedRoles = [], allowedDepartment
       );
 
       if (!isAllowed) {
-        console.log('❌ Access denied: Department not in allowed list');
-        console.log('   User dept:', userDepartmentName);
-        console.log('   Allowed:', allowedDepartments);
+        
+        
+        
         return res.status(403).json({
           message: 'Access denied. Insufficient permissions.',
         });
       }
 
-      console.log('✅ Access granted by department:', department.name);
+      
       next();
     } catch (error) {
-      console.error('Authorization error:', error);
+      
       return res.status(500).json({ message: 'Server error during authorization' });
     }
   };

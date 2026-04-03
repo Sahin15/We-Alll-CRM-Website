@@ -92,7 +92,7 @@ workingDaysCalendarSchema.statics.getWorkingDays = async function(month, year, d
 
     return workingDaysRecord;
   } catch (error) {
-    console.error("Error getting working days:", error);
+    
     throw error;
   }
 };
@@ -106,9 +106,8 @@ workingDaysCalendarSchema.statics.invalidateCache = async function(month, year, 
     }
     
     await this.deleteMany(query);
-    console.log(`Invalidated working days cache for ${month}/${year}${departmentId ? ` (dept: ${departmentId})` : ''}`);
   } catch (error) {
-    console.error("Error invalidating working days cache:", error);
+    
     throw error;
   }
 };
@@ -130,7 +129,7 @@ workingDaysCalendarSchema.methods.recalculate = async function() {
     
     return this;
   } catch (error) {
-    console.error("Error recalculating working days:", error);
+    
     throw error;
   }
 };

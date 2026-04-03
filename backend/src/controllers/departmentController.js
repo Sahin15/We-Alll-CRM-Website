@@ -121,7 +121,7 @@ export const getDepartmentById = async (req, res) => {
 
     res.status(200).json(department);
   } catch (error) {
-    console.error("Error in getDepartmentById:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -164,7 +164,7 @@ export const deleteDepartment = async (req, res) => {
 
     res.status(200).json({ message: "Department deleted successfully" });
   } catch (error) {
-    console.error("Error in deleteDepartment:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -195,7 +195,7 @@ export const addEmployeeToDepartment = async (req, res) => {
       department,
     });
   } catch (error) {
-    console.error("Error in addEmployeeToDepartment:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -226,7 +226,7 @@ export const removeEmployeeFromDepartment = async (req, res) => {
       department,
     });
   } catch (error) {
-    console.error("Error in removeEmployeeFromDepartment:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -273,7 +273,7 @@ export const bulkAssignEmployees = async (req, res) => {
       department: updatedDepartment,
     });
   } catch (error) {
-    console.error("Error in bulkAssignEmployees:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -302,7 +302,7 @@ export const setDepartmentHead = async (req, res) => {
       department: updatedDepartment,
     });
   } catch (error) {
-    console.error("Error in setDepartmentHead:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -312,7 +312,7 @@ export const getDepartmentAnalytics = async (req, res) => {
   try {
     const { id } = req.params;
 
-    console.log('🔍 getDepartmentAnalytics called for department:', id);
+    
 
     const department = await Department.findById(id)
       .populate("head", "name email");
@@ -321,18 +321,13 @@ export const getDepartmentAnalytics = async (req, res) => {
       return res.status(404).json({ message: "Department not found" });
     }
 
-    console.log('📊 Department found:', department.name);
+    
 
     // Query employees directly from User model instead of relying on department.employees array
     // This ensures we always get the current state without sync issues
     const employees = await User.find({ department: id })
       .select("name email position role status")
       .lean();
-
-    console.log('👥 Employees found:', employees.length);
-    if (employees.length > 0) {
-      console.log('   Employee names:', employees.map(e => e.name).join(', '));
-    }
 
     // Calculate analytics
     const totalEmployees = employees.length;
@@ -375,7 +370,7 @@ export const getDepartmentAnalytics = async (req, res) => {
 
     res.status(200).json(analytics);
   } catch (error) {
-    console.error("Error in getDepartmentAnalytics:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -418,7 +413,7 @@ export const getAllDepartmentsAnalytics = async (req, res) => {
       departments: summary,
     });
   } catch (error) {
-    console.error("Error in getAllDepartmentsAnalytics:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -501,7 +496,7 @@ export const assignHoD = async (req, res) => {
       data: updatedDepartment,
     });
   } catch (error) {
-    console.error("Error in assignHoD:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error assigning Head of Department",
@@ -553,7 +548,7 @@ export const removeHoD = async (req, res) => {
       data: department,
     });
   } catch (error) {
-    console.error("Error in removeHoD:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error removing Head of Department",
@@ -601,7 +596,7 @@ export const getDepartmentProjects = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error in getDepartmentProjects:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error fetching department projects",
@@ -646,7 +641,7 @@ export const getDepartmentMembers = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error in getDepartmentMembers:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error fetching department members",
@@ -686,7 +681,7 @@ export const getDepartmentStats = async (req, res) => {
     ).length;
     const totalProjects = department.projects.length;
     const activeProjects = department.projects.filter(
-      (p) => p.status === "In Progress"
+      (p) => p.status === "In Progress" || p.status === "Active"
     ).length;
     const completedProjects = department.projects.filter(
       (p) => p.status === "Completed"
@@ -704,7 +699,7 @@ export const getDepartmentStats = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error in getDepartmentStats:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error fetching department statistics",

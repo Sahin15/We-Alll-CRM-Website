@@ -6,10 +6,11 @@ import {
   FaClock, FaCheckCircle, FaSave, FaBuilding, FaMapMarkerAlt,
   FaIdCard, FaBriefcase, FaGraduationCap, FaAward, FaUser, FaHome,
   FaFileUpload, FaDownload, FaEye, FaTrash, FaPlus, FaFileAlt,
-  FaUniversity, FaCreditCard, FaMoneyBillWave, FaFileContract
+  FaUniversity, FaCreditCard, FaMoneyBillWave, FaFileContract, FaVolumeUp
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import ProfilePictureUpload from "../../components/profile/ProfilePictureUpload";
+import NotificationSettings from "../../components/notifications/NotificationSettings";
 import api from "../../services/api";
 import toast from "../../utils/toast";
 import "../../styles/pages-mobile.css";
@@ -2490,6 +2491,13 @@ const MyProfile = () => {
                 </div>
               </Tab>
             )}
+
+            {/* Notification Settings Tab - For all users */}
+            <Tab eventKey="notifications" title={<><FaVolumeUp className="me-2" />Notification Settings</>}>
+              <div className="p-4">
+                <NotificationSettings />
+              </div>
+            </Tab>
               </Tabs>
             </Card.Body>
           </Card>

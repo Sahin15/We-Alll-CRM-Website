@@ -3489,30 +3489,51 @@ export const getAvailableSlots = async (req, res) => {
       // Get all slots (both available and assigned) for display purposes
       const Slot = (await import('../models/slotModel.js')).default;
       
+      console.log('[WorkCalendarController] Fetching all slots for project:', projectId);
+      
       const allSlots = await Slot.find({ 
         project: projectId,
         ...filters 
       })
-        .sort({ slotNumber: 1 })
+        .sort({ 'period.periodIdentifier': 1, slotNumber: 1 })
         .populate('project', 'name client slotConfiguration')
-        .populate('assignedWorkItem', 'title status assignedTo')
-        .populate('assignedTo', 'name email')
         .populate({
           path: 'assignedWorkItem',
+          select: 'title status assignedTo',
           populate: {
             path: 'assignedTo',
             select: 'name email'
           }
         })
+        .select('+period')
         .lean();
 
+      console.log('[WorkCalendarController] Found', allSlots.length, 'slots');
+      
+      // Deduplicate slots by _id
+      const slotMap = new Map();
+      allSlots.forEach(slot => {
+        const slotId = slot._id.toString();
+        if (!slotMap.has(slotId)) {
+          slotMap.set(slotId, slot);
+        }
+      });
+      
+      const deduplicatedSlots = Array.from(slotMap.values());
+      
+      if (allSlots.length !== deduplicatedSlots.length) {
+        console.warn('[WorkCalendarController] ⚠️  DUPLICATE SLOTS REMOVED!');
+        console.warn('[WorkCalendarController] Before dedup:', allSlots.length);
+        console.warn('[WorkCalendarController] After dedup:', deduplicatedSlots.length);
+      }
+
       result = {
-        slots: allSlots,
-        count: allSlots.length,
-        availableCount: allSlots.filter(slot => 
+        slots: deduplicatedSlots,
+        count: deduplicatedSlots.length,
+        availableCount: deduplicatedSlots.filter(slot => 
           slot.assignmentStatus === 'available' && !slot.assignedWorkItem
         ).length,
-        assignedCount: allSlots.filter(slot => 
+        assignedCount: deduplicatedSlots.filter(slot => 
           slot.assignmentStatus === 'assigned' || slot.assignedWorkItem
         ).length
       };
@@ -4899,7 +4920,7 @@ export const getProjectSlots = async (req, res) => {
     const { includeAll = false, status } = req.query;
 
     // Get project to check if slots are enabled
-    const project = await Project.findById(projectId);
+    const project = await Project.findById(projectId).select('slotConfiguration').lean();
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -4928,13 +4949,19 @@ export const getProjectSlots = async (req, res) => {
       query['completionStatus.isCompleted'] = { $ne: true };
     }
 
-    // Get slots
+    // Get slots with minimal population - only populate assignedWorkItem if assigned
     const slots = await Slot.find(query)
-      .populate('project', 'name client status')
-      .populate('assignedWorkItem', 'title status priority')
-      .populate('assignedTo', 'name email')
-      .populate('createdBy', 'name email')
-      .sort({ slotNumber: 1 });
+      .select('slotNumber title period assignmentStatus assignedWorkItem dueDate')
+      .populate({
+        path: 'assignedWorkItem',
+        select: 'title status priority assignedTo',
+        populate: {
+          path: 'assignedTo',
+          select: 'name email'
+        }
+      })
+      .sort({ 'period.periodIdentifier': 1, slotNumber: 1 })
+      .lean();
 
     res.status(200).json({
       success: true,

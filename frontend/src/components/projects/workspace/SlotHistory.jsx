@@ -8,6 +8,7 @@ import workItemApi from '../../../api/workItemApi';
 import AssignWorkModal from '../../work/AssignWorkModal';
 import SlotGroupHeader from './SlotGroupHeader';
 import WorkItemDetailsModal from '../../workitems/WorkItemDetailsModal';
+import EditWorkItemModal from '../../workitems/EditWorkItemModal';
 import { useAuth } from '../../../context/AuthContext';
 
 /**
@@ -27,6 +28,8 @@ const SlotHistory = ({ project, onRefresh, refreshKey }) => {
   const [selectedWorkItem, setSelectedWorkItem] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAddSlotModal, setShowAddSlotModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
   // Dropdown selections
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
@@ -127,6 +130,17 @@ const SlotHistory = ({ project, onRefresh, refreshKey }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOpenEditModal = (item) => {
+    // Only allow editing existing items
+    if (!item) {
+      toast.error('No item selected for editing');
+      return;
+    }
+    
+    setSelectedItem(item);
+    setShowEditModal(true);
   };
 
   const handleOpenAssignModal = (slot) => {
@@ -624,7 +638,7 @@ const SlotHistory = ({ project, onRefresh, refreshKey }) => {
                                           <Button
                                             variant="outline-primary"
                                             size="sm"
-                                            onClick={() => handleOpenAssignModal(item)}
+                                            onClick={() => handleOpenEditModal(item)}
                                           >
                                             <FaEdit />
                                           </Button>
@@ -983,6 +997,21 @@ const SlotHistory = ({ project, onRefresh, refreshKey }) => {
           currentUser={user}
         />
       )}
+
+      {/* Edit Work Item Modal */}
+      <EditWorkItemModal
+        show={showEditModal}
+        onHide={() => {
+          setShowEditModal(false);
+          setSelectedItem(null);
+        }}
+        workItem={selectedItem}
+        project={project}
+        onSuccess={async () => {
+          await loadSelectedMonthSlots();
+          if (onRefresh) onRefresh();
+        }}
+      />
     </div>
   );
 };

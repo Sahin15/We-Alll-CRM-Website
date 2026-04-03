@@ -4,13 +4,12 @@
  */
 
 // Valid status values
-export const VALID_STATUSES = ["To Do", "In Progress", "Review", "Done"];
+export const VALID_STATUSES = ["To Do", "In Progress", "Done"];
 
 // Status colors for UI (can be used by frontend)
 export const STATUS_COLORS = {
   "To Do": "#6B7280",      // Gray
   "In Progress": "#3B82F6", // Blue
-  "Review": "#F59E0B",      // Yellow/Orange
   "Done": "#10B981",        // Green
 };
 
@@ -18,8 +17,7 @@ export const STATUS_COLORS = {
 export const STATUS_ORDER = {
   "To Do": 1,
   "In Progress": 2,
-  "Review": 3,
-  "Done": 4,
+  "Done": 3,
 };
 
 /**
@@ -46,13 +44,8 @@ export const validateStatusTransition = (currentStatus, newStatus) => {
     };
   }
   
-  // Check if status is actually changing
-  if (currentStatus === newStatus) {
-    return {
-      valid: false,
-      message: "Status is already set to this value",
-    };
-  }
+  // Allow idempotent requests (setting to same status is allowed)
+  // This prevents errors when users click the same button twice
   
   // All transitions are allowed (flexible workflow)
   // You can add specific business rules here if needed
@@ -75,8 +68,7 @@ export const validateStatusTransition = (currentStatus, newStatus) => {
 export const getNextStatus = (currentStatus) => {
   const statusFlow = {
     "To Do": "In Progress",
-    "In Progress": "Review",
-    "Review": "Done",
+    "In Progress": "Done",
     "Done": "Done", // Already done
   };
   
@@ -98,7 +90,7 @@ export const isComplete = (status) => {
  * @returns {boolean} - True if in progress
  */
 export const isInProgress = (status) => {
-  return status === "In Progress" || status === "Review";
+  return status === "In Progress";
 };
 
 /**
@@ -110,7 +102,6 @@ export const getStatusVariant = (status) => {
   const variants = {
     "To Do": "secondary",
     "In Progress": "primary",
-    "Review": "warning",
     "Done": "success",
   };
   

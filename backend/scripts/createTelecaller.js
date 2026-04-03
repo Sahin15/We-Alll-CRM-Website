@@ -10,14 +10,14 @@ const createTelecaller = async () => {
   try {
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGO_URI);
-    console.log("✅ Connected to MongoDB");
+    
 
     // Check if telecaller already exists
     const existingTelecaller = await User.findOne({ email: "telecaller@example.com" });
     if (existingTelecaller) {
-      console.log("⚠️  Telecaller already exists:");
-      console.log(`   Email: ${existingTelecaller.email}`);
-      console.log(`   Name: ${existingTelecaller.name}`);
+      
+      
+      
       process.exit(0);
     }
 
@@ -29,9 +29,9 @@ const createTelecaller = async () => {
         description: "Telecalling and Raw Data Management",
         status: "active"
       });
-      console.log("✅ Telecaller department created");
+      
     } else {
-      console.log("✅ Telecaller department found");
+      
     }
 
     // Telecaller details
@@ -55,18 +55,18 @@ const createTelecaller = async () => {
     // Create telecaller
     const telecaller = await User.create(telecallerData);
 
-    console.log("\n✅ Telecaller employee created successfully!");
-    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    console.log("📧 Email: telecaller@example.com");
-    console.log("🔑 Password: 123456");
-    console.log("👤 Name:", telecaller.name);
-    console.log("🆔 ID:", telecaller._id);
-    console.log("🏢 Department:", telecallerDept.name);
-    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    
+    
+    
+    
+    
+    
+    
+    
 
     process.exit(0);
   } catch (error) {
-    console.error("❌ Error creating telecaller:", error.message);
+    
     process.exit(1);
   }
 };

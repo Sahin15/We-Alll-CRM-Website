@@ -30,10 +30,10 @@ export const clockIn = async (req, res) => {
     const { start: todayStart, end: todayEnd } = getTodayRangeIST();
     const clockInTime = getCurrentISTTime();
     
-    // Log timezone info for debugging
-    console.log(`[CLOCK-IN] Timezone Info:`);
-    logTimezoneInfo();
-    console.log(`[CLOCK-IN] Clock-in time (IST): ${clockInTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
+    // Log timezone info for debugging (only if DEBUG_ATTENDANCE is set)
+    if (process.env.DEBUG_ATTENDANCE === 'true') {
+      logTimezoneInfo();
+    }
 
     // CHECK FOR APPROVED LEAVE: Check if employee is on approved leave today
     const approvedLeave = await LeaveRequest.findOne({
@@ -44,7 +44,6 @@ export const clockIn = async (req, res) => {
     });
 
     if (approvedLeave) {
-      console.log(`[CLOCK-IN] ⚠️  Employee ${req.user.name} is on approved leave today`);
       
       // Check if there's already a pending or approved work on leave day request
       const existingWorkOnLeaveRequest = await WorkOnLeaveDayRequest.findOne({
@@ -64,7 +63,6 @@ export const clockIn = async (req, res) => {
           });
         } else if (existingWorkOnLeaveRequest.status === "approved") {
           // Approved - allow clock in
-          console.log(`[CLOCK-IN] ✅ Work on leave day request approved - allowing clock in`);
         } else if (existingWorkOnLeaveRequest.status === "rejected") {
           return res.status(403).json({
             message: "Your request to work on this leave day was rejected. You cannot clock in today.",
@@ -98,32 +96,18 @@ export const clockIn = async (req, res) => {
         minute: '2-digit'
       });
       
-      console.log(`[CLOCK-IN] ❌ Duplicate attempt by ${req.user.name}`);
-      console.log(`[CLOCK-IN] Existing record ID: ${existingAttendance._id}`);
-      console.log(`[CLOCK-IN] Existing clock-in: ${existingAttendance.clockIn.toISOString()}`);
-      console.log(`[CLOCK-IN] Date range checked: ${todayStart.toISOString()} to ${todayEnd.toISOString()}`);
-      
-      // Check if there are multiple records (race condition happened)
+      // Clean up duplicates if race condition happened
       const duplicateCount = await Attendance.countDocuments({
         employee,
-        date: {
-          $gte: todayStart,
-          $lt: todayEnd,
-        },
+        date: { $gte: todayStart, $lt: todayEnd },
       });
       
       if (duplicateCount > 1) {
-        console.log(`[CLOCK-IN] ⚠️  Found ${duplicateCount} records for today - cleaning up duplicates`);
-        // Delete all except the earliest one
         await Attendance.deleteMany({
           employee,
-          date: {
-            $gte: todayStart,
-            $lt: todayEnd,
-          },
-          _id: { $ne: existingAttendance._id } // Keep the earliest record
+          date: { $gte: todayStart, $lt: todayEnd },
+          _id: { $ne: existingAttendance._id }
         });
-        console.log(`[CLOCK-IN] ✅ Cleaned up ${duplicateCount - 1} duplicate record(s)`);
       }
       
       return res.status(400).json({ 
@@ -134,27 +118,15 @@ export const clockIn = async (req, res) => {
       });
     }
 
-    // Create attendance - status will be calculated automatically by the pre-save hook
-    console.log(`[CLOCK-IN] Creating attendance for ${req.user.name} (${req.user.role})`);
-    
-    // Create attendance object WITHOUT explicit status - let pre-save hook calculate it
+    // Create attendance object WITHOUT explicit status - let the pre-save hook calculate it
     const attendanceData = {
       employee,
-      date: todayStart, // Use IST midnight
-      clockIn: clockInTime, // Use IST time
+      date: todayStart,
+      clockIn: clockInTime,
       location,
-      // NO status field - let the pre-save hook calculate it
     };
     
-    console.log(`[CLOCK-IN] Attendance data:`, {
-      ...attendanceData,
-      clockIn: clockInTime.toISOString(),
-      clockInIST: clockInTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
-    });
-    
     const attendance = await Attendance.create(attendanceData);
-
-    console.log(`[CLOCK-IN] ✅ Attendance created with status: ${attendance.status} for ${req.user.name} (${req.user.role})`);
 
     // Determine message based on calculated status
     let message;
@@ -165,8 +137,6 @@ export const clockIn = async (req, res) => {
     } else {
       message = "Clocked in successfully";
     }
-    
-    console.log(`[CLOCK-IN] ✅ Final status: ${attendance.status} at ${clockInTime.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
 
     res.status(201).json({
       message: message,
@@ -175,7 +145,7 @@ export const clockIn = async (req, res) => {
       isHalfDay: attendance.status === "half-day",
     });
   } catch (error) {
-    console.error("Error in clockIn:", error);
+    
     
     // Handle duplicate key error
     if (error.code === 11000) {
@@ -250,7 +220,6 @@ export const clockOut = async (req, res) => {
       });
 
       if (!todayWorkLog) {
-        console.log(`[CLOCK-OUT] ❌ Work log not submitted by ${req.user.name}`);
         return res.status(400).json({
           message: 'Please submit your daily work log before clocking out',
           type: 'work_log_required',
@@ -258,9 +227,8 @@ export const clockOut = async (req, res) => {
         });
       }
 
-      console.log(`[CLOCK-OUT] ✅ Work log verified for ${req.user.name}`);
     } else {
-      console.log(`[CLOCK-OUT] ⏭️  Manager ${req.user.name} - work log check skipped`);
+      // Managers/HoD/Admin skip work log check
     }
 
     attendance.clockOut = clockOutTime; // Use IST time
@@ -273,7 +241,7 @@ export const clockOut = async (req, res) => {
       attendance,
     });
   } catch (error) {
-    console.error("Error in clockOut:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -281,34 +249,7 @@ export const clockOut = async (req, res) => {
 // Get all attendance records (Admin/HR)
 export const getAllAttendance = async (req, res) => {
   try {
-    console.log('[ATTENDANCE API] getAllAttendance called by:', req.user?.email || 'unknown', 'role:', req.user?.role || 'unknown');
-    console.log('[ATTENDANCE API] User object:', req.user);
     const { startDate, endDate, date, employee, status } = req.query;
-    console.log('[ATTENDANCE API] Query params:', { startDate, endDate, date, employee, status });
-
-    // Debug: Check if we can access the database
-    console.log('[ATTENDANCE API] Testing database connection...');
-    const testCount = await Attendance.countDocuments();
-    console.log('[ATTENDANCE API] Total attendance records in DB:', testCount);
-    
-    // Debug: Check recent records
-    const recentRecords = await Attendance.find().sort({ date: -1 }).limit(5).lean();
-    console.log('[ATTENDANCE API] Recent 5 records:', recentRecords.map(r => ({
-      id: r._id,
-      employee: r.employee,
-      date: r.date,
-      status: r.status,
-      clockIn: r.clockIn
-    })));
-
-    // Debug: Check user permissions
-    console.log('[ATTENDANCE API] User role check:', {
-      role: req.user?.role,
-      isAdmin: ['admin', 'superadmin'].includes(req.user?.role),
-      isHR: req.user?.role === 'hr',
-      isHoD: req.user?.role === 'hod',
-      department: req.user?.department
-    });
 
     let filter = {};
 
@@ -373,28 +314,15 @@ export const getAllAttendance = async (req, res) => {
         $gte: startOfDay,
         $lte: endOfDay,
       };
-      console.log('[ATTENDANCE API] Single date filter (IST-aware):', { 
-        date, 
-        startOfDay: startOfDay.toISOString(), 
-        endOfDay: endOfDay.toISOString(),
-        startOfDayIST: startOfDay.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
-        endOfDayIST: endOfDay.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
-      });
     }
     // Handle date range filter
     else if (startDate && endDate) {
       const dateRangeFilter = buildDateRangeQuery(startDate, endDate, 'date');
       Object.assign(filter, dateRangeFilter);
-      console.log('[ATTENDANCE API] Date range filter:', { startDate, endDate, dateRangeFilter });
     }
 
 
     
-    console.log('[ATTENDANCE API] Filter:', filter);
-    console.log('[ATTENDANCE API] Request params:', { employee, status, startDate, endDate, userRole: req.user.role });
-
-    // Debug: Try a simple query first
-    console.log('[ATTENDANCE API] Executing database query...');
     let attendance;
     try {
       attendance = await Attendance.find(filter)
@@ -404,26 +332,14 @@ export const getAllAttendance = async (req, res) => {
         .populate("modificationHistory.modifiedBy", "name email role")
         .sort({ date: -1 })
         .lean();
-      console.log('[ATTENDANCE API] Database query successful');
-      
-      // Log sample record to check breaks field
-      if (attendance.length > 0) {
-        console.log('[ATTENDANCE API] Sample record:', {
-          id: attendance[0]._id,
-          employee: attendance[0].employee?.name,
-          breaks: attendance[0].breaks,
-          totalBreakTime: attendance[0].totalBreakTime,
-          hasBreaksField: attendance[0].hasOwnProperty('breaks')
-        });
-      }
     } catch (dbError) {
-      console.error('[ATTENDANCE API] Database query failed:', dbError);
+      
       throw dbError;
     }
 
 
     
-    console.log(`[ATTENDANCE API] Found ${attendance.length} attendance records`);
+    
 
     // Remove duplicates based on employee and date (keep the latest one)
     const uniqueAttendance = [];
@@ -434,30 +350,18 @@ export const getAllAttendance = async (req, res) => {
         const employeeId = record.employee?._id || record.employee;
         const dateStr = record.date?.toDateString();
         
-        if (!employeeId || !dateStr) {
-          console.log(`[ATTENDANCE API] Skipping invalid record:`, record);
-          continue;
-        }
+        if (!employeeId || !dateStr) continue;
         
         const key = `${employeeId}-${dateStr}`;
-        
         if (!seen.has(key)) {
           seen.add(key);
           uniqueAttendance.push(record);
-        } else {
-          console.log(`[ATTENDANCE API] Skipping duplicate record for employee ${employeeId} on ${dateStr}`);
         }
       } catch (recordError) {
-        console.error(`[ATTENDANCE API] Error processing record:`, recordError, record);
+        
         continue;
       }
     }
-    
-    if (uniqueAttendance.length !== attendance.length) {
-      console.log(`[ATTENDANCE API] Filtered out ${attendance.length - uniqueAttendance.length} duplicate records from response`);
-    }
-    
-    console.log(`[ATTENDANCE API] Returning ${uniqueAttendance.length} unique attendance records`);
 
     // Fetch WFH data for the same date range and employees
     const WFHRequest = (await import('../models/wfhRequestModel.js')).default;
@@ -476,8 +380,6 @@ export const getAllAttendance = async (req, res) => {
     const wfhRequests = await WFHRequest.find(wfhFilter)
       .select('employee date reason')
       .lean();
-    
-    console.log(`[ATTENDANCE API] Found ${wfhRequests.length} approved WFH requests`);
     
     // Create a map of WFH requests by employee and date
     const wfhMap = new Map();
@@ -506,10 +408,10 @@ export const getAllAttendance = async (req, res) => {
     // Return simple array (backward compatible)
     res.status(200).json(attendanceWithWFH);
   } catch (error) {
-    console.error('[ATTENDANCE API] Error in getAllAttendance:', error);
-    console.error('[ATTENDANCE API] Error stack:', error.stack);
-    console.error('[ATTENDANCE API] Error name:', error.name);
-    console.error('[ATTENDANCE API] Error message:', error.message);
+    
+    
+    
+    
     res.status(500).json({ 
       message: "Server error", 
       error: error.message,
@@ -555,8 +457,6 @@ export const getMyAttendance = async (req, res) => {
       .select('employee date reason')
       .lean();
     
-    console.log(`[MY ATTENDANCE] Found ${wfhRequests.length} approved WFH requests for employee ${employee}`);
-    
     // Create a map of WFH requests by date
     const wfhMap = new Map();
     for (const wfh of wfhRequests) {
@@ -564,13 +464,15 @@ export const getMyAttendance = async (req, res) => {
       wfhMap.set(dateStr, wfh);
     }
     
-    // Attach WFH data to attendance records
+    // Attach WFH data to attendance records and ensure status field is always present
     const attendanceWithWFH = attendance.map(record => {
       const dateStr = new Date(record.date).toDateString();
       const wfhData = wfhMap.get(dateStr);
+      const status = record.status || 'present';
       
       return {
         ...record,
+        status: status,
         isWFH: !!wfhData,
         wfhReason: wfhData?.reason || null
       };
@@ -578,7 +480,7 @@ export const getMyAttendance = async (req, res) => {
 
     res.status(200).json(attendanceWithWFH);
   } catch (error) {
-    console.error("Error in getMyAttendance:", error);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -596,7 +498,7 @@ export const getAttendanceById = async (req, res) => {
 
     res.status(200).json(attendance);
   } catch (error) {
-    console.error("Error in getAttendanceById:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -655,7 +557,7 @@ export const updateAttendanceStatus = async (req, res) => {
       attendance: populatedAttendance,
     });
   } catch (error) {
-    console.error("Error in updateAttendanceStatus:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -686,7 +588,7 @@ export const markAbsence = async (req, res) => {
       attendance,
     });
   } catch (error) {
-    console.error("Error in markAbsence:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -745,7 +647,7 @@ export const getAttendanceSummary = async (req, res) => {
       employee: attendance[0]?.employee || null,
     });
   } catch (error) {
-    console.error("Error in getAttendanceSummary:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -823,7 +725,7 @@ export const createManualAttendance = async (req, res) => {
       attendance: populatedAttendance,
     });
   } catch (error) {
-    console.error("Error in createManualAttendance:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -901,7 +803,7 @@ export const updateManualAttendance = async (req, res) => {
       attendance: populatedAttendance,
     });
   } catch (error) {
-    console.error("Error in updateManualAttendance:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -919,7 +821,7 @@ export const deleteAttendance = async (req, res) => {
 
     res.status(200).json({ message: "Attendance record deleted successfully" });
   } catch (error) {
-    console.error("Error in deleteAttendance:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -977,7 +879,7 @@ export const getAttendanceReport = async (req, res) => {
       records: filteredAttendance,
     });
   } catch (error) {
-    console.error("Error in getAttendanceReport:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -1009,7 +911,7 @@ export const getTodayAttendance = async (req, res) => {
 
     res.status(200).json(attendance);
   } catch (error) {
-    console.error("Error in getTodayAttendance:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -1064,7 +966,7 @@ export const testStatusLogic = async (req, res) => {
     });
     
   } catch (error) {
-    console.error("Error in testStatusLogic:", error);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -1128,7 +1030,7 @@ export const debugStatusCalculation = async (req, res) => {
     });
     
   } catch (error) {
-    console.error("Error in debugStatusCalculation:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -1159,8 +1061,6 @@ export const recalculateTodayStatus = async (req, res) => {
     const oldStatus = attendance.status;
     const newStatus = attendance.calculateStatus();
     
-    console.log(`[RECALCULATE] ${req.user.name}: ${oldStatus} → ${newStatus}`);
-    
     if (oldStatus !== newStatus) {
       attendance.status = newStatus;
       await attendance.save();
@@ -1182,7 +1082,7 @@ export const recalculateTodayStatus = async (req, res) => {
     }
     
   } catch (error) {
-    console.error("Error in recalculateTodayStatus:", error.message);
+    
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -1190,12 +1090,7 @@ export const recalculateTodayStatus = async (req, res) => {
 // Fix all HR attendance records (Admin only)
 export const fixAllHRAttendance = async (req, res) => {
   try {
-    console.log(`[FIX-HR] Starting HR attendance fix by ${req.user.name} (${req.user.role})`);
-    
-    // Get all HR users
     const hrUsers = await User.find({ role: 'hr' }).select('_id name email');
-    
-    console.log(`[FIX-HR] Found ${hrUsers.length} HR users`);
     
     // Get recent attendance records for HR users (last 30 days)
     const thirtyDaysAgo = new Date();
@@ -1211,7 +1106,7 @@ export const fixAllHRAttendance = async (req, res) => {
         clockIn: { $exists: true }
       });
       
-      console.log(`[FIX-HR] Checking ${attendanceRecords.length} records for ${hrUser.name}`);
+      
       
       for (const record of attendanceRecords) {
         const clockInTime = new Date(record.clockIn);
@@ -1257,8 +1152,6 @@ export const fixAllHRAttendance = async (req, res) => {
             oldStatus: oldStatus,
             newStatus: correctStatus
           });
-          
-          console.log(`[FIX-HR] Fixed: ${hrUser.name} - ${clockInTime.toLocaleString()} - ${oldStatus} → ${correctStatus}`);
         }
       }
     }
@@ -1272,7 +1165,7 @@ export const fixAllHRAttendance = async (req, res) => {
     });
     
   } catch (error) {
-    console.error("Error fixing HR attendance:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error fixing HR attendance records",
@@ -1352,7 +1245,7 @@ export const downloadAttendancePDF = async (req, res) => {
       
       let logoLoaded = false;
       for (const logoPath of logoPaths) {
-        console.log('Checking for uploaded logo at:', logoPath);
+        
         
         if (fs.default.existsSync(logoPath)) {
           const logoBuffer = fs.default.readFileSync(logoPath);
@@ -1368,17 +1261,17 @@ export const downloadAttendancePDF = async (req, res) => {
           }
           
           logoBase64 = `data:${mimeType};base64,${logoBuffer.toString('base64')}`;
-          console.log('Uploaded logo loaded successfully from:', logoPath, 'base64 length:', logoBase64.length);
+          
           logoLoaded = true;
           break;
         }
       }
       
       if (!logoLoaded) {
-        console.log('No uploaded logo found, using embedded We ALLL logo');
+        
       }
     } catch (error) {
-      console.log('Error loading uploaded logo, using embedded We ALLL logo:', error.message);
+      
     }
 
     // Build query
@@ -1593,7 +1486,7 @@ export const downloadAttendancePDF = async (req, res) => {
     res.send(html);
 
   } catch (error) {
-    console.error("Error generating attendance PDF:", error);
+    
     res.status(500).json({ 
       message: "Failed to generate PDF", 
       error: error.message 
@@ -1606,14 +1499,14 @@ export const downloadAttendancePDF = async (req, res) => {
 // Remove duplicate attendance records
 export const removeDuplicateAttendance = async (req, res) => {
   try {
-    console.log('[DUPLICATES] Starting duplicate removal...');
+    
     
     // Find all attendance records
     const allRecords = await Attendance.find({})
       .populate('employee', 'name')
       .sort({ createdAt: -1 }); // Keep the latest created record
     
-    console.log(`[DUPLICATES] Found ${allRecords.length} total records`);
+    
     
     // Group by employee and date
     const groupedRecords = {};
@@ -1627,7 +1520,6 @@ export const removeDuplicateAttendance = async (req, res) => {
       } else {
         // This is a duplicate - mark for removal
         duplicatesToRemove.push(record._id);
-        console.log(`[DUPLICATES] Found duplicate: ${record.employee?.name || 'Unknown'} - ${record.date.toDateString()}`);
       }
     }
     
@@ -1638,7 +1530,7 @@ export const removeDuplicateAttendance = async (req, res) => {
         _id: { $in: duplicatesToRemove }
       });
       removedCount = result.deletedCount;
-      console.log(`[DUPLICATES] Removed ${removedCount} duplicate records`);
+      
     }
     
     res.status(200).json({
@@ -1650,7 +1542,7 @@ export const removeDuplicateAttendance = async (req, res) => {
     });
     
   } catch (error) {
-    console.error("Error removing duplicates:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error removing duplicate records",
@@ -1661,7 +1553,7 @@ export const removeDuplicateAttendance = async (req, res) => {
 
 export const recalculateWorkHours = async (req, res) => {
   try {
-    console.log('[WORK-HOURS] Starting work hours recalculation...');
+    
     
     // Find records that have both clockIn and clockOut but workHours is 0 or null
     const recordsToFix = await Attendance.find({
@@ -1674,7 +1566,7 @@ export const recalculateWorkHours = async (req, res) => {
       ]
     }).populate('employee', 'name');
     
-    console.log(`[WORK-HOURS] Found ${recordsToFix.length} records to fix`);
+    
     
     let fixedCount = 0;
     const fixedRecords = [];
@@ -1704,8 +1596,6 @@ export const recalculateWorkHours = async (req, res) => {
           workHours: workHours,
           overtime: overtime
         });
-        
-        console.log(`[WORK-HOURS] Fixed: ${record.employee?.name || 'Unknown'} - ${record.date.toDateString()} - ${workHours}h (${overtime}h overtime)`);
         fixedCount++;
       }
     }
@@ -1719,7 +1609,7 @@ export const recalculateWorkHours = async (req, res) => {
     });
     
   } catch (error) {
-    console.error("Error recalculating work hours:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error recalculating work hours",
@@ -1740,7 +1630,7 @@ export const fixTodayAttendance = async (req, res) => {
       status: { $nin: ['absent', 'on-leave'] } // Don't fix manually set statuses
     }).populate('employee', 'name');
 
-    console.log(`[FIX-TODAY] Checking ${attendanceRecords.length} attendance records...`);
+    
 
     let fixedCount = 0;
     const fixedRecords = [];
@@ -1785,8 +1675,6 @@ export const fixTodayAttendance = async (req, res) => {
           oldStatus: oldStatus,
           newStatus: correctStatus
         });
-
-        console.log(`[FIX-TODAY] Fixed: ${record.employee?.name || 'Unknown'} - UTC: ${clockInTime.toISOString()} -> IST: ${timeStr} (${totalMinutes}min) - ${oldStatus} → ${correctStatus}`);
         fixedCount++;
       }
     }
@@ -1809,7 +1697,7 @@ export const fixTodayAttendance = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error fixing today's attendance:", error);
+    
     res.status(500).json({
       success: false,
       message: "Error fixing attendance records",
@@ -1878,7 +1766,7 @@ export const startBreak = async (req, res) => {
       isOnBreak: true,
     });
   } catch (error) {
-    console.error("Error in startBreak:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -1938,7 +1826,7 @@ export const endBreak = async (req, res) => {
       totalBreakTime: attendance.totalBreakTime,
     });
   } catch (error) {
-    console.error("Error in endBreak:", error);
+    
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -1947,7 +1835,7 @@ export const endBreak = async (req, res) => {
 // Initialize breaks field for existing attendance records
 export const initializeBreaksField = async (req, res) => {
   try {
-    console.log('[INIT-BREAKS] Starting breaks field initialization...');
+    
     
     // Find all attendance records that don't have breaks field or have null/undefined breaks
     const recordsToUpdate = await Attendance.find({
@@ -1958,7 +1846,7 @@ export const initializeBreaksField = async (req, res) => {
       ]
     });
     
-    console.log(`[INIT-BREAKS] Found ${recordsToUpdate.length} records to initialize`);
+    
     
     let updatedCount = 0;
     
@@ -1970,7 +1858,7 @@ export const initializeBreaksField = async (req, res) => {
       updatedCount++;
     }
     
-    console.log(`[INIT-BREAKS] Successfully initialized ${updatedCount} records`);
+    
     
     res.status(200).json({
       success: true,
@@ -1980,7 +1868,7 @@ export const initializeBreaksField = async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[INIT-BREAKS] Error initializing breaks field:', error);
+    
     res.status(500).json({
       success: false,
       message: "Error initializing breaks field",
@@ -1993,7 +1881,7 @@ export const initializeBreaksField = async (req, res) => {
 // Manual trigger for auto clock-out (for testing)
 export const manualAutoClockOut = async (req, res) => {
   try {
-    console.log('[MANUAL-AUTO-CLOCKOUT] Starting manual auto clock-out...');
+    
     
     // Use IST timezone-aware date range
     const { start: today, end: tomorrow } = getTodayRangeIST();
@@ -2016,7 +1904,7 @@ export const manualAutoClockOut = async (req, res) => {
       });
     }
 
-    console.log(`[MANUAL-AUTO-CLOCKOUT] Found ${forgottenClockOuts.length} employees who forgot to clock out`);
+    
 
     // Auto clock-out at 10 PM
     const clockOutTime = new Date();
@@ -2042,7 +1930,7 @@ export const manualAutoClockOut = async (req, res) => {
         autoClockOutTime: clockOutTime
       });
 
-      console.log(`[MANUAL-AUTO-CLOCKOUT] Auto clocked-out: ${attendance.employee?.name} at 10:00 PM`);
+      
     }
 
     res.status(200).json({
@@ -2053,7 +1941,7 @@ export const manualAutoClockOut = async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[MANUAL-AUTO-CLOCKOUT] Error:', error);
+    
     res.status(500).json({
       success: false,
       message: "Error during auto clock-out",
@@ -2098,7 +1986,7 @@ export const startOvertimeTimer = async (req, res) => {
     const entry = attendance.startOvertimeTimer(reason, taskReference);
     await attendance.save();
 
-    console.log(`[OVERTIME] ${req.user.name} started overtime timer`);
+    
 
     res.status(201).json({
       message: "Overtime timer started successfully",
@@ -2106,7 +1994,7 @@ export const startOvertimeTimer = async (req, res) => {
       attendance,
     });
   } catch (error) {
-    console.error("Error starting overtime timer:", error);
+    
     res.status(500).json({
       message: error.message || "Failed to start overtime timer",
     });
@@ -2140,7 +2028,7 @@ export const stopOvertimeTimer = async (req, res) => {
     const entry = attendance.stopOvertimeTimer(entryId);
     await attendance.save();
 
-    console.log(`[OVERTIME] ${req.user.name} stopped overtime timer: ${entry.duration} hours`);
+    
 
     res.status(200).json({
       message: `Overtime timer stopped. Duration: ${entry.duration} hours`,
@@ -2148,7 +2036,7 @@ export const stopOvertimeTimer = async (req, res) => {
       attendance,
     });
   } catch (error) {
-    console.error("Error stopping overtime timer:", error);
+    
     res.status(500).json({
       message: error.message || "Failed to stop overtime timer",
     });
@@ -2184,7 +2072,7 @@ export const getActiveOvertimeTimer = async (req, res) => {
       attendance: activeTimer ? attendance : null,
     });
   } catch (error) {
-    console.error("Error getting active overtime timer:", error);
+    
     res.status(500).json({
       message: "Failed to get active overtime timer",
     });
@@ -2265,15 +2153,13 @@ export const addOvertimeEntry = async (req, res) => {
 
     await attendance.save();
 
-    console.log(`[OVERTIME] Employee ${req.user.name} logged ${duration.toFixed(2)} hours overtime`);
-
     res.status(201).json({
       message: "Overtime entry added successfully. Pending approval.",
       entry,
       attendance,
     });
   } catch (error) {
-    console.error("Error adding overtime entry:", error);
+    
     res.status(500).json({
       message: "Failed to add overtime entry",
       error: error.message,
@@ -2335,7 +2221,7 @@ export const getMyOvertimeEntries = async (req, res) => {
       summary,
     });
   } catch (error) {
-    console.error("Error fetching overtime entries:", error);
+    
     res.status(500).json({
       message: "Failed to fetch overtime entries",
       error: error.message,
@@ -2410,7 +2296,7 @@ export const getPendingOvertimeEntries = async (req, res) => {
       total: pendingEntries.length,
     });
   } catch (error) {
-    console.error("Error fetching pending overtime entries:", error);
+    
     res.status(500).json({
       message: "Failed to fetch pending overtime entries",
       error: error.message,
@@ -2444,7 +2330,7 @@ export const approveOvertimeEntry = async (req, res) => {
     const entry = attendance.approveOvertimeEntry(entryId, req.user._id);
     await attendance.save();
 
-    console.log(`[OVERTIME] ${req.user.name} approved ${entry.duration} hours overtime for ${attendance.employee.name}`);
+    
 
     // TODO: Send notification to employee about approval
     // Example: notificationService.sendOvertimeApprovalNotification(attendance.employee._id, entry);
@@ -2455,7 +2341,7 @@ export const approveOvertimeEntry = async (req, res) => {
       attendance,
     });
   } catch (error) {
-    console.error("Error approving overtime entry:", error);
+    
     res.status(500).json({
       message: error.message || "Failed to approve overtime entry",
     });
@@ -2495,7 +2381,7 @@ export const rejectOvertimeEntry = async (req, res) => {
     const entry = attendance.rejectOvertimeEntry(entryId, rejectionReason, req.user._id);
     await attendance.save();
 
-    console.log(`[OVERTIME] ${req.user.name} rejected overtime for ${attendance.employee.name}: ${rejectionReason}`);
+    
 
     // TODO: Send notification to employee about rejection
     // Example: notificationService.sendOvertimeRejectionNotification(attendance.employee._id, entry, rejectionReason);
@@ -2506,7 +2392,7 @@ export const rejectOvertimeEntry = async (req, res) => {
       attendance,
     });
   } catch (error) {
-    console.error("Error rejecting overtime entry:", error);
+    
     res.status(500).json({
       message: error.message || "Failed to reject overtime entry",
     });
@@ -2613,7 +2499,7 @@ export const getOvertimeStatistics = async (req, res) => {
 
     res.status(200).json(stats);
   } catch (error) {
-    console.error("Error fetching overtime statistics:", error);
+    
     res.status(500).json({
       message: "Failed to fetch overtime statistics",
       error: error.message,

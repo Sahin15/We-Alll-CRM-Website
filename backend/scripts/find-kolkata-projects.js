@@ -10,21 +10,21 @@ mongoose.connect(process.env.MONGO_URI).then(async () => {
       .sort({ createdAt: -1 })
       .select('_id name createdAt updatedAt');
     
-    console.log('Kolkata Digital Projects:');
+    
     projects.forEach((p, i) => {
-      console.log(`${i + 1}. ID: ${p._id}`);
-      console.log(`   Name: ${p.name}`);
-      console.log(`   Created: ${p.createdAt}`);
-      console.log(`   Updated: ${p.updatedAt}`);
-      console.log('');
+      
+      
+      
+      
+      
     });
     
     process.exit(0);
   } catch (error) {
-    console.error('Error:', error.message);
+    
     process.exit(1);
   }
 }).catch(err => {
-  console.error('Connection error:', err.message);
+  
   process.exit(1);
 });
