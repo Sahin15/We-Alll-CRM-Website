@@ -354,25 +354,41 @@ class SlotManagementService {
         throw new Error('Cannot create slots: No valid user ID available');
       }
 
-      const createdSlots = await Slot.createMonthlySlots(projectId, year, month, {
-        count: 20,
-        createdBy: fallbackUserId
-      });
+      try {
+        const createdSlots = await Slot.createMonthlySlots(projectId, year, month, {
+          count: 20,
+          createdBy: fallbackUserId
+        });
 
-      // Add client to slots if project has one
-      if (project.client) {
-        await Slot.updateMany(
-          { _id: { $in: createdSlots.map(s => s._id) } },
-          { $set: { client: project.client } }
-        );
+        // Add client to slots if project has one
+        if (project.client) {
+          await Slot.updateMany(
+            { _id: { $in: createdSlots.map(s => s._id) } },
+            { $set: { client: project.client } }
+          );
+        }
+
+        logger.info(`Created ${createdSlots.length} new slots for current month for project ${projectId}`);
+
+        return {
+          created: createdSlots,
+          message: `Created ${createdSlots.length} new slots for current month`
+        };
+      } catch (createError) {
+        // If slots already exist (race condition), just return them
+        if (createError.message.includes('already exist')) {
+          logger.info(`Slots already exist for period ${periodIdentifier}, returning existing slots`);
+          const existingSlots = await Slot.find({
+            project: projectId,
+            'period.periodIdentifier': periodIdentifier
+          });
+          return {
+            existing: existingSlots,
+            message: `Slots already exist for period ${periodIdentifier}`
+          };
+        }
+        throw createError;
       }
-
-      logger.info(`Created ${createdSlots.length} new slots for current month for project ${projectId}`);
-
-      return {
-        created: createdSlots,
-        message: `Created ${createdSlots.length} new slots for current month`
-      };
     } catch (error) {
       logger.error('Error ensuring current month slots:', error);
       throw error;
