@@ -686,7 +686,9 @@ slotSchema.statics.createMonthlySlots = async function(projectId, year, month, o
   });
   
   if (existingSlots.length > 0) {
-    throw new Error(`Slots already exist for period ${periodIdentifier}`);
+    // Slots already exist, return them instead of throwing error
+    console.log(`[Slot] Slots already exist for period ${periodIdentifier}, returning existing slots`);
+    return existingSlots;
   }
 
   // Get project name for slot titles
