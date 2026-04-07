@@ -52,6 +52,7 @@ messaging.onBackgroundMessage((payload) => {
         { action: 'dismiss', title: 'Dismiss' },
       ],
       silent: false,
+      sound: '/notification-sound.mp3', // Add sound to notification
       timestamp: Date.now(),
       dir: 'auto',
     };

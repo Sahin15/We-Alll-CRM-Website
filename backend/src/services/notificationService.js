@@ -112,6 +112,7 @@ class NotificationService {
               timestamp: Date.now(),
               dir: 'auto',
               silent: false,
+              sound: '/notification-sound.mp3', // Play notification sound
             },
             fcmOptions: {
               link: actionUrl || '/',

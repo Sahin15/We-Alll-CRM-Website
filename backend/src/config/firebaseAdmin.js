@@ -29,7 +29,6 @@ if (!admin.apps.length) {
         databaseURL: process.env.FIREBASE_DATABASE_URL || undefined,
       });
 
-      messaging = admin.messaging();
       firebaseInitialized = true;
       console.log('[Firebase] ✅ Firebase Admin initialized with service account');
     } else {
@@ -55,7 +54,6 @@ if (!admin.apps.length) {
           databaseURL: process.env.FIREBASE_DATABASE_URL || undefined,
         });
 
-        messaging = admin.messaging();
         firebaseInitialized = true;
         console.log('[Firebase] ✅ Firebase Admin initialized with environment variables');
       } else {
@@ -71,15 +69,29 @@ if (!admin.apps.length) {
   } catch (error) {
     console.error('[Firebase] ❌ Firebase initialization error:', error.message);
   }
-} else {
-  // Already initialized — reuse existing messaging instance
+}
+
+// Get messaging instance after initialization
+if (firebaseInitialized && admin.apps.length > 0) {
   try {
     messaging = admin.messaging();
-    firebaseInitialized = true;
-    console.log('[Firebase] ✅ Firebase Admin already initialized, reusing messaging instance');
   } catch (error) {
     console.error('[Firebase] ❌ Error getting messaging instance:', error.message);
   }
 }
 
-export { messaging, admin, firebaseInitialized };
+// Safe wrapper for messaging that prevents "app does not exist" errors
+const getMessaging = () => {
+  if (!firebaseInitialized || !admin.apps.length) {
+    console.warn('[Firebase] ⚠️  Firebase not initialized, returning null for messaging');
+    return null;
+  }
+  try {
+    return admin.messaging();
+  } catch (error) {
+    console.error('[Firebase] ❌ Error getting messaging instance:', error.message);
+    return null;
+  }
+};
+
+export { messaging, admin, firebaseInitialized, getMessaging };
