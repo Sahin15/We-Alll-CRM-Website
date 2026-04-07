@@ -159,16 +159,26 @@ export const createProject = async (req, res) => {
     try {
       const slotManagementService = (await import('../services/slotManagementService.js')).default;
       
-      await slotManagementService.createSlotsForProject(project._id, {
-        count: slotConfig.totalSlots,
-        slotType: slotConfig.slotType,
-        createdBy: req.user._id
-      });
+      const slotResult = await slotManagementService.createMonthlySlotsForProject(
+        project._id,
+        new Date().getFullYear(),
+        new Date().getMonth() + 1,
+        {
+          count: slotConfig.totalSlots,
+          createdBy: req.user._id
+        }
+      );
       
-      logger.info(`Created ${slotConfig.totalSlots} slots for project ${project._id}`);
+      // Verify correct number of slots were created
+      const createdCount = slotResult.created?.length || 0;
+      if (createdCount !== slotConfig.totalSlots) {
+        logger.warn(`Slot count mismatch for project ${project._id}: Expected ${slotConfig.totalSlots}, got ${createdCount}`);
+      } else {
+        logger.info(`✅ Created ${createdCount} slots for project ${project._id}`);
+      }
     } catch (slotError) {
-      logger.error('Error creating slots:', slotError);
-      // Don't fail project creation if slot creation fails
+      logger.error('Error creating slots for new project:', slotError);
+      // Don't fail project creation if slot creation fails, but log it
     }
 
     // SIMPLIFIED: No department updates needed
