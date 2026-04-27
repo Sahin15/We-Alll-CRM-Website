@@ -23,8 +23,7 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
-    minify: 'esbuild',
-    // Target modern browsers including mobile Safari
+    minify: 'oxc',
     target: ['es2015', 'safari11'],
     rollupOptions: {
       output: {
@@ -50,10 +49,6 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom'],
-    // Force optimization of these packages for mobile
-    esbuildOptions: {
-      target: 'es2015',
-    },
   },
   base: '/',
   // Ensure proper MIME types for mobile
