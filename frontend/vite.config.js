@@ -28,13 +28,14 @@ export default defineConfig({
     target: ['es2015', 'safari11'],
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Keep React and ReactDOM together in one chunk
-          'react-vendor': ['react', 'react-dom'],
-          'react-router': ['react-router-dom'],
-          'ui': ['react-bootstrap', 'bootstrap'],
-          'icons': ['react-icons'],
-          'charts': ['chart.js', 'react-chartjs-2'],
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            if (id.includes('react-dom') || id.includes('react/')) return 'react-vendor';
+            if (id.includes('react-router')) return 'react-router';
+            if (id.includes('react-bootstrap') || id.includes('bootstrap')) return 'ui';
+            if (id.includes('react-icons')) return 'icons';
+            if (id.includes('chart.js') || id.includes('react-chartjs')) return 'charts';
+          }
         },
         chunkFileNames: 'assets/js/[name]-[hash].js',
         entryFileNames: 'assets/js/[name]-[hash].js',
