@@ -188,10 +188,11 @@ a, button, .btn, .badge, .card {
 /* Responsive font sizes for widgets */
 @media (max-width: 768px) {
   .quick-stats-widget h4 {
-    font-size: 1.5rem;
+    font-size: 1.5rem !important;
   }
   
   .quick-stats-widget small {
     font-size: 0.65rem;
   }
 }
+

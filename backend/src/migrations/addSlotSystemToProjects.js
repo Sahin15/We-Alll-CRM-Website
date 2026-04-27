@@ -11,18 +11,18 @@ import logger from '../utils/logger.js';
  */
 
 const DEFAULT_SLOT_CONFIGURATION = {
-  totalSlots: 10,
+  totalSlots: 20, // Changed from 10 to 20 slots per month
   slotType: 'generic',
   allowDynamicSlots: true,
   slotNamingPattern: 'Slot {number}',
   autoCreateSlots: true,
-  enableSlotSystem: false // Start disabled for existing projects
+  enableSlotSystem: true // Changed from false to true - enable by default
 };
 
 const DEFAULT_PROGRESS_TRACKING = {
-  calculationMethod: 'manual', // Keep existing behavior
+  calculationMethod: 'slot-based', // Changed from 'manual' to 'slot-based'
   completedSlots: 0,
-  totalSlots: 10,
+  totalSlots: 20, // Changed from 10 to 20
   progressPercentage: 0,
   lastProgressUpdate: new Date(),
   progressHistory: []
@@ -57,14 +57,14 @@ async function addSlotConfigurationToProjects() {
         // Add slot configuration
         project.slotConfiguration = {
           ...DEFAULT_SLOT_CONFIGURATION,
-          totalSlots: 10 // Default to 10 slots
+          totalSlots: 20 // Fixed 20 slots per month
         };
         
         // Add progress tracking
         project.progressTracking = {
           ...DEFAULT_PROGRESS_TRACKING,
           progressPercentage: project.progress || 0, // Preserve existing progress
-          totalSlots: 10
+          totalSlots: 20 // Fixed 20 slots per month
         };
         
         // Add slot management configuration
@@ -108,7 +108,7 @@ async function createInitialSlotsForProjects() {
         const existingSlots = await Slot.countDocuments({ project: project._id });
         
         if (existingSlots === 0) {
-          const totalSlots = project.slotConfiguration.totalSlots || 10;
+          const totalSlots = project.slotConfiguration.totalSlots || 20; // Default to 20 slots
           const slotNamingPattern = project.slotConfiguration.slotNamingPattern || 'Slot {number}';
           
           // Create initial slots

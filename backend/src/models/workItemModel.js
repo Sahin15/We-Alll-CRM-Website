@@ -223,26 +223,6 @@ const workItemSchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
     }],
-
-    // Slot Integration Configuration
-    slotIntegration: {
-      autoCompleteSlotOnWorkItemCompletion: { 
-        type: Boolean, 
-        default: true 
-      },
-      requireSlotApprovalForCompletion: { 
-        type: Boolean, 
-        default: false 
-      },
-      releaseSlotOnDeletion: { 
-        type: Boolean, 
-        default: true 
-      },
-      notifyOnSlotCompletion: {
-        type: Boolean,
-        default: true
-      }
-    },
     
     // Attachments
     attachments: [{
@@ -418,6 +398,54 @@ const workItemSchema = new mongoose.Schema(
     metadata: {
       type: mongoose.Schema.Types.Mixed,
       default: {},
+    },
+    
+    // Edit History - Track all changes made to work item
+    editHistory: [{
+      editedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+      },
+      editorName: {
+        type: String,
+        default: null,
+      },
+      editorEmail: {
+        type: String,
+        default: null,
+      },
+      editedAt: {
+        type: Date,
+        default: Date.now,
+      },
+      changes: {
+        type: Map,
+        of: {
+          oldValue: mongoose.Schema.Types.Mixed,
+          newValue: mongoose.Schema.Types.Mixed,
+        },
+      },
+      reason: {
+        type: String,
+        trim: true,
+      },
+      fieldsChanged: [String], // Array of field names that were changed
+    }],
+    
+    // Track if work item has been edited (for visual indicator)
+    isEdited: {
+      type: Boolean,
+      default: false,
+    },
+    lastEditedAt: {
+      type: Date,
+      default: null,
+    },
+    lastEditedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
     },
     
     // Soft Delete - Work items should never be permanently deleted

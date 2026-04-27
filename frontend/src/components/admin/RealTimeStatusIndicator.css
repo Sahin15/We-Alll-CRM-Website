@@ -148,7 +148,7 @@
 
 .status-header h4 {
   margin: 0;
-  font-size: 16px;
+  font-size: 16px !important;
   font-weight: 600;
   color: var(--text-primary, #212529);
 }

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Table, Badge, Button, Dropdown } from 'react-bootstrap';
-import { FaEye, FaClock, FaExclamationTriangle, FaCalendarAlt, FaCheckCircle } from 'react-icons/fa';
+import { FaEye, FaClock, FaExclamationTriangle, FaCalendarAlt, FaCheckCircle, FaEdit } from 'react-icons/fa';
 import { formatDate } from '../../utils/helpers';
 import AssigneeStatusDisplay from './AssigneeStatusDisplay';
 import './WorkItemList.css';
@@ -67,7 +67,7 @@ const StatusSelector = ({ status, onStatusChange, getStatusColor }) => {
   );
 };
 
-const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, currentUser, emptyMessage, showAssigneeStatus = false }) => {
+const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, currentUser, emptyMessage, showAssigneeStatus = false, onEdit }) => {
   const onView = onViewItem;
   
   // Helper function to get current user's status for collaborative work
@@ -85,6 +85,17 @@ const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, curren
   const canEdit = (workItem) => {
     return workItem.assignedTo?._id === currentUser?._id || 
            ['admin', 'superadmin', 'hr', 'manager', 'hod'].includes(currentUser?.role);
+  };
+
+  // Helper function to check if user can edit a work item
+  const canEditWorkItem = (workItem) => {
+    const userId = currentUser?._id?.toString();
+    const isCreator = workItem.createdBy?._id?.toString() === userId;
+    const isAssigned = workItem.assignedTo?._id?.toString() === userId;
+    const isAssignedMultiple = workItem.assignedToMultiple?.some(id => (id._id || id).toString() === userId);
+    const isAdmin = ['admin', 'superadmin', 'hod', 'manager'].includes(currentUser?.role);
+    
+    return isCreator || isAssigned || isAssignedMultiple || isAdmin;
   };
   
   const getStatusColor = (status) => {
@@ -115,7 +126,8 @@ const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, curren
   };
 
   const isOverdue = (workItem) => {
-    return workItem.dueDate && 
+    return workItem.status !== 'Done' &&
+      workItem.dueDate && 
       new Date(workItem.dueDate) < new Date() && 
       workItem.status !== 'Done';
   };
@@ -181,6 +193,11 @@ const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, curren
                     <div className="work-info">
                       <div className="d-flex align-items-center gap-2">
                         <div className="work-title">{item.title}</div>
+                        {item.isEdited && (
+                          <Badge bg="warning" style={{ fontSize: '0.7rem', padding: '2px 6px' }} title="This work item has been edited">
+                            ✏️ Edited
+                          </Badge>
+                        )}
                       </div>
                       <div className="work-meta">
                         {item.project?.name && (
@@ -274,17 +291,34 @@ const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, curren
 
                 {/* Actions Column */}
                 <td>
-                  <Button
-                    variant="outline-primary"
-                    size="sm"
-                    className="action-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onView(item);
-                    }}
-                  >
-                    <FaEye style={{ fontSize: '0.9rem' }} />
-                  </Button>
+                  <div className="d-flex gap-2">
+                    <Button
+                      variant="outline-info"
+                      size="sm"
+                      className="action-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onView(item);
+                      }}
+                      title="View details and activity"
+                    >
+                      <FaEye style={{ fontSize: '0.9rem' }} />
+                    </Button>
+                    {canEditWorkItem(item) && onEdit && (
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        className="action-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(item);
+                        }}
+                        title="Edit work item"
+                      >
+                        <FaEdit style={{ fontSize: '0.9rem' }} />
+                      </Button>
+                    )}
+                  </div>
                 </td>
               </tr>
             );

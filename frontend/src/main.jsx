@@ -5,6 +5,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "react-toastify/dist/ReactToastify.css";
 import "react-datepicker/dist/react-datepicker.css";
 import "./index.css";
+import "./styles/card-header-fix.css";
 import { initMobileDebug } from "./utils/mobileDebug";
 
 // Initialize mobile debugging in production

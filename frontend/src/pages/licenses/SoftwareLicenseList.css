@@ -1,0 +1,134 @@
+.software-license-list-page {
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 0;
+}
+
+.btn-add {
+  padding: 0.5rem 1.5rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filters-section {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.filters-section .form-label {
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 0.5rem;
+}
+
+.filters-section .form-control,
+.filters-section .form-select {
+  border-color: #ddd;
+  border-radius: 0.375rem;
+}
+
+.filters-section .form-control:focus,
+.filters-section .form-select:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.table-responsive {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.licenses-table {
+  margin-bottom: 0;
+}
+
+.licenses-table thead {
+  background-color: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.licenses-table thead th {
+  font-weight: 700;
+  color: #555;
+  padding: 1rem;
+  text-transform: uppercase;
+  font-size: 0.875rem;
+  letter-spacing: 0.5px;
+}
+
+.licenses-table tbody td {
+  padding: 1rem;
+  vertical-align: middle;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.licenses-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.license-id {
+  font-weight: 600;
+  color: #0d6efd;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.action-buttons .btn {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.pagination-section {
+  display: flex;
+  justify-content: center;
+  margin-top: 2rem;
+  padding: 1rem;
+}
+
+.pagination-section .pagination {
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .page-title {
+    font-size: 1.5rem;
+  }
+
+  .btn-add {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .filters-section {
+    padding: 1rem;
+  }
+
+  .licenses-table thead th {
+    padding: 0.75rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .licenses-table tbody td {
+    padding: 0.75rem 0.5rem;
+    font-size: 0.875rem;
+  }
+
+  .action-buttons {
+    flex-wrap: wrap;
+  }
+}

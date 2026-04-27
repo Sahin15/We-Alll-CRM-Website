@@ -86,6 +86,15 @@ const SlotHistory = ({ project, onRefresh, refreshKey }) => {
   const loadSelectedMonthSlots = async () => {
     try {
       setLoading(true);
+      
+      // Check if slots are enabled for this project
+      if (!project.slotConfiguration?.enableSlotSystem) {
+        setSelectedMonthSlots([]);
+        setGroupedWorkItems({ slotted: {}, unassigned: [] });
+        setExpandedSlots({});
+        return;
+      }
+      
       const response = await workCalendarApi.getSlotsByMonth(project._id, selectedYear, selectedMonth);
       
       if (response.data.success) {
@@ -213,6 +222,18 @@ const SlotHistory = ({ project, onRefresh, refreshKey }) => {
     user?._id === project.projectHead?._id;
 
   const canDeleteWork = ['admin', 'superadmin', 'hr', 'manager'].includes(user?.role);
+
+  // Helper function to check if user can edit a work item
+  const canEditWorkItem = (workItem) => {
+    const userId = user?._id?.toString();
+    const isCreator = workItem.createdBy?._id?.toString() === userId;
+    const isAssigned = workItem.assignedTo?._id?.toString() === userId;
+    const isAssignedMultiple = workItem.assignedToMultiple?.some(id => (id._id || id).toString() === userId);
+    const isProjectHead = project?.projectHead?._id?.toString() === userId;
+    const isAdmin = ['admin', 'superadmin', 'hod', 'manager'].includes(user?.role);
+    
+    return isCreator || isAssigned || isAssignedMultiple || isProjectHead || isAdmin;
+  };
 
   // Get slot color scheme for visual differentiation (same as Work tab)
   const getSlotColor = (slotNumber) => {
@@ -549,6 +570,11 @@ const SlotHistory = ({ project, onRefresh, refreshKey }) => {
                                         >
                                           {item.title}
                                         </span>
+                                        {item.isEdited && (
+                                          <Badge bg="warning" style={{ fontSize: '0.7rem', padding: '2px 6px', marginLeft: '8px' }} title="This work item has been edited">
+                                            ✏️ Edited
+                                          </Badge>
+                                        )}
                                       </div>
                                     </td>
                                     <td style={{ padding: '12px 20px' }}>{getAssigneeDisplay(item)}</td>
@@ -634,11 +660,12 @@ const SlotHistory = ({ project, onRefresh, refreshKey }) => {
                                         >
                                           <FaEye />
                                         </Button>
-                                        {canManageSlots && (
+                                        {canEditWorkItem(item) && (
                                           <Button
                                             variant="outline-primary"
                                             size="sm"
                                             onClick={() => handleOpenEditModal(item)}
+                                            title="Edit work item"
                                           >
                                             <FaEdit />
                                           </Button>
@@ -777,6 +804,11 @@ const SlotHistory = ({ project, onRefresh, refreshKey }) => {
                                 >
                                   {item.title}
                                 </span>
+                                {item.isEdited && (
+                                  <Badge bg="warning" style={{ fontSize: '0.7rem', padding: '2px 6px', marginLeft: '8px' }} title="This work item has been edited">
+                                    ✏️ Edited
+                                  </Badge>
+                                )}
                               </div>
                             </td>
                             <td style={{ padding: '12px 20px' }}>{getAssigneeDisplay(item)}</td>
@@ -862,11 +894,12 @@ const SlotHistory = ({ project, onRefresh, refreshKey }) => {
                                 >
                                   <FaEye />
                                 </Button>
-                                {canManageSlots && (
+                                {canEditWorkItem(item) && (
                                   <Button
                                     variant="outline-primary"
                                     size="sm"
-                                    onClick={() => handleOpenAssignModal(item)}
+                                    onClick={() => handleOpenEditModal(item)}
+                                    title="Edit work item"
                                   >
                                     <FaEdit />
                                   </Button>
@@ -995,6 +1028,11 @@ const SlotHistory = ({ project, onRefresh, refreshKey }) => {
           onRefresh={loadSelectedMonthSlots}
           onAddComment={handleAddComment}
           currentUser={user}
+          onEdit={(workItem) => {
+            setSelectedItem(workItem);
+            setShowEditModal(true);
+            setShowDetailsModal(false);
+          }}
         />
       )}
 

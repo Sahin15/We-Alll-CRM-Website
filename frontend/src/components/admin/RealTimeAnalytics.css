@@ -696,6 +696,6 @@
   }
   
   .analytics-cards-row .card-header h6 {
-    font-size: 0.9rem;
+    font-size: 0.9rem !important;
   }
 }

@@ -5,16 +5,7 @@ import { useNavigate } from "react-router-dom";
 import toast from "../../utils/toast";
 import { expenseApi } from "../../api/expenseApi";
 import { formatDate, formatCurrency } from "../../utils/helpers";
-
-const EXPENSE_CATEGORIES = [
-  { value: "travel", label: "Travel" },
-  { value: "food", label: "Food & Meals" },
-  { value: "accommodation", label: "Accommodation" },
-  { value: "office_supplies", label: "Office Supplies" },
-  { value: "client_meeting", label: "Client Meeting" },
-  { value: "training", label: "Training" },
-  { value: "other", label: "Other" },
-];
+import { getTypeColor, EXPENSE_PURPOSES_ARRAY, EXPENSE_TYPES_ARRAY } from "../../utils/expenseConstants";
 
 const STATUS_COLORS = {
   pending: "warning",
@@ -35,7 +26,8 @@ const MyExpenses = () => {
   // Filters
   const [filters, setFilters] = useState({
     status: "",
-    category: "",
+    expensePurpose: "",
+    expenseType: "",
     page: 1,
     limit: 10,
   });
@@ -112,10 +104,6 @@ const MyExpenses = () => {
       ...prev,
       page,
     }));
-  };
-
-  const getCategoryLabel = (value) => {
-    return EXPENSE_CATEGORIES.find((cat) => cat.value === value)?.label || value;
   };
 
   return (
@@ -220,7 +208,7 @@ const MyExpenses = () => {
         <Card.Body className="p-4">
           {/* Filters */}
           <Row className="mb-4 g-3">
-            <Col md={6}>
+            <Col md={4}>
               <Form.Group>
                 <Form.Label>Status</Form.Label>
                 <Form.Select
@@ -236,18 +224,35 @@ const MyExpenses = () => {
                 </Form.Select>
               </Form.Group>
             </Col>
-            <Col md={6}>
+            <Col md={4}>
               <Form.Group>
-                <Form.Label>Category</Form.Label>
+                <Form.Label>Purpose</Form.Label>
                 <Form.Select
-                  name="category"
-                  value={filters.category}
+                  name="expensePurpose"
+                  value={filters.expensePurpose}
                   onChange={handleFilterChange}
                 >
-                  <option value="">All Categories</option>
-                  {EXPENSE_CATEGORIES.map((cat) => (
-                    <option key={cat.value} value={cat.value}>
-                      {cat.label}
+                  <option value="">All Purposes</option>
+                  {EXPENSE_PURPOSES_ARRAY.map((purpose) => (
+                    <option key={purpose.value} value={purpose.value}>
+                      {purpose.label}
+                    </option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+            </Col>
+            <Col md={4}>
+              <Form.Group>
+                <Form.Label>Type</Form.Label>
+                <Form.Select
+                  name="expenseType"
+                  value={filters.expenseType}
+                  onChange={handleFilterChange}
+                >
+                  <option value="">All Types</option>
+                  {EXPENSE_TYPES_ARRAY.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
                     </option>
                   ))}
                 </Form.Select>
@@ -277,7 +282,8 @@ const MyExpenses = () => {
                   <thead className="table-light">
                     <tr>
                       <th>Date</th>
-                      <th>Category</th>
+                      <th>Purpose</th>
+                      <th>Type</th>
                       <th>Description</th>
                       <th>Amount</th>
                       <th>Status</th>
@@ -288,7 +294,16 @@ const MyExpenses = () => {
                     {expenses.map((expense) => (
                       <tr key={expense._id}>
                         <td>{formatDate(expense.date)}</td>
-                        <td>{getCategoryLabel(expense.category)}</td>
+                        <td>
+                          <Badge bg="secondary">
+                            {expense.expensePurpose || "N/A"}
+                          </Badge>
+                        </td>
+                        <td>
+                          <Badge bg={getTypeColor(expense.expenseType || expense.category)}>
+                            {(expense.expenseType || expense.category || "N/A").replace(/_/g, " ")}
+                          </Badge>
+                        </td>
                         <td>
                           <span title={expense.description}>
                             {expense.description.substring(0, 40)}

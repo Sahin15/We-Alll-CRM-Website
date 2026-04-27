@@ -48,9 +48,32 @@ const HRSalaryPreviewManagement = () => {
   const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
-  const [generateType, setGenerateType] = useState('bulk'); // 'bulk', 'individual', 'department'
+  const [generateType, setGenerateType] = useState('bulk');
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [departments, setDepartments] = useState([]);
+
+  // Mid-month confirmation state
+  const [showMidMonthModal, setShowMidMonthModal] = useState(false);
+  const [midMonthData, setMidMonthData] = useState(null);
+  const [midMonthOverride, setMidMonthOverride] = useState({ totalDays: 0, workingDays: 0, holidays: 0, weekends: 0 });
+  const [pendingGenerateAction, setPendingGenerateAction] = useState(null); // stores the action to execute after confirmation
+
+  // Corrections form state
+  const [corrections, setCorrections] = useState({
+    earnings: {
+      bonus: 0,
+      overtime: 0,
+      arrears: 0,
+      reimbursements: 0,
+      incentives: 0,
+    },
+    deductions: {
+      advances: 0,
+      loans: 0,
+    },
+    note: ''
+  });
+  const [savingCorrections, setSavingCorrections] = useState(false);
 
   useEffect(() => {
     if (selectedMonth && selectedYear) {
@@ -151,88 +174,166 @@ const HRSalaryPreviewManagement = () => {
     }
   };
 
-  const handleBulkGenerate = async () => {
+  const openCorrectionsModal = (preview) => {
+    setSelectedPreview(preview);
+    const e = preview.salaryBreakdown?.earnings || {};
+    const d = preview.salaryBreakdown?.deductions || {};
+    setCorrections({
+      earnings: {
+        basicSalary:        e.basicSalary || 0,
+        hra:                e.hra || 0,
+        specialAllowance:   e.specialAllowance || 0,
+        transportAllowance: e.transportAllowance || 0,
+        medicalAllowance:   e.medicalAllowance || 0,
+        bonus:              e.bonus || 0,
+        overtime:           e.overtime || 0,
+        arrears:            e.arrears || 0,
+        reimbursements:     e.reimbursements || 0,
+        incentives:         e.incentives || 0,
+      },
+      deductions: {
+        providentFund:    d.providentFund || 0,
+        professionalTax:  d.professionalTax || 0,
+        tds:              d.tds || 0,
+        esi:              d.esi || 0,
+        lossOfPay:        d.lossOfPay || 0,
+        advances:         d.advances || 0,
+        loans:            d.loans || 0,
+      },
+      note: ''
+    });
+    setShowCorrectionsModal(true);
+  };
+
+  const handleSaveCorrections = async () => {
+    if (!corrections.note.trim()) {
+      toast.error("Please add a note explaining the correction");
+      return;
+    }
+    setSavingCorrections(true);
     try {
-      // Get all active employees
-      const employeesResponse = await api.get('/users/employees');
-      const employees = employeesResponse.data;
-      const employeeIds = employees.map(emp => emp._id);
-
-      const response = await salaryPreviewApi.bulkGenerate({
-        employeeIds,
-        month: selectedMonth,
-        year: selectedYear
-      });
-
-      const data = response.data;
-      toast.success(`Bulk generation completed: ${data.summary.success} successful, ${data.summary.failed} failed`);
+      await salaryPreviewApi.makeCorrections(selectedPreview._id, { corrections });
+      toast.success("Corrections saved successfully");
+      setShowCorrectionsModal(false);
+      setSelectedPreview(null);
       fetchData();
     } catch (error) {
-      console.error("Error in bulk generation:", error);
+      console.error("Error saving corrections:", error);
+      toast.error(error.response?.data?.message || "Failed to save corrections");
+    } finally {
+      setSavingCorrections(false);
+    }
+  };
+
+  // ── Shared confirmation dialog helper ──────────────────────────────────────
+  // countWeekends: count Sundays up to a given day (6-day work week)
+  const countWeekends = (month, year, upToDay) => {
+    let count = 0;
+    for (let d = 1; d <= upToDay; d++) {
+      if (new Date(year, month - 1, d).getDay() === 0) count++;
+    }
+    return count;
+  };
+
+  // Opens the confirmation dialog for any generate action.
+  // actionFn(workingDaysOverride) is called when HR confirms.
+  const openConfirmationDialog = async (actionFn) => {
+    const now = new Date();
+    const isCurrentMonth = selectedMonth === (now.getMonth() + 1) && selectedYear === now.getFullYear();
+    const todayDay = now.getDate();
+    const totalDaysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+    const monthName = new Date(selectedYear, selectedMonth - 1).toLocaleString('en-US', { month: 'long' });
+    const effectiveDays = isCurrentMonth ? todayDay : totalDaysInMonth;
+
+    let workingDays = 0, holidays = 0, weekends = 0;
+    try {
+      const res = await api.get(`/salary-preview/working-days-info?month=${selectedMonth}&year=${selectedYear}`);
+      workingDays = res.data.workingDays || 0;
+      holidays   = res.data.holidays   || 0;
+      weekends   = res.data.weekends   || 0;
+    } catch {
+      weekends     = countWeekends(selectedMonth, selectedYear, effectiveDays);
+      workingDays  = effectiveDays - weekends;
+    }
+
+    setMidMonthData({
+      monthName, totalDaysInMonth, isCurrentMonth,
+      todayDate: now.toLocaleDateString('en-GB'),
+      todayDay,
+      note: isCurrentMonth
+        ? `Generating salary preview for ${monthName} ${selectedYear} (current running month). Only ${todayDay} of ${totalDaysInMonth} days have passed.`
+        : `Generating salary preview for ${monthName} ${selectedYear}. Review the working days data before confirming.`
+    });
+    setMidMonthOverride({ totalDays: effectiveDays, workingDays, holidays, weekends });
+    setPendingGenerateAction(() => actionFn);
+    setShowMidMonthModal(true);
+  };
+
+  // Called when HR clicks "Confirm & Generate" in the dialog
+  const executeBulkGenerate = async (overrideData) => {
+    if (!pendingGenerateAction) return;
+    setShowMidMonthModal(false);
+    try {
+      await pendingGenerateAction(overrideData);
+    } catch (error) {
+      console.error("Error in generation:", error);
       toast.error("Failed to generate previews");
     }
+    setPendingGenerateAction(null);
   };
 
-  const handleIndividualGenerate = async (employeeId) => {
-    try {
-      const response = await salaryPreviewApi.generate(employeeId, selectedMonth, selectedYear);
-      toast.success(`Preview generated for ${response.data.preview.employee.name}`);
+  // ── Individual generate handlers (all go through confirmation) ─────────────
+
+  const handleBulkGenerate = () => {
+    openConfirmationDialog(async (override) => {
+      const res = await api.get('/users/employees');
+      const employeeIds = res.data.map(e => e._id);
+      const data = (await salaryPreviewApi.bulkGenerate({
+        employeeIds, month: selectedMonth, year: selectedYear, workingDaysOverride: override
+      })).data;
+      toast.success(`Bulk: ${data.summary.success} done, ${data.summary.failed} failed, ${data.summary.skipped} skipped`);
       fetchData();
-    } catch (error) {
-      console.error("Error generating individual preview:", error);
-      toast.error("Failed to generate preview");
-    }
+    });
   };
 
-  const handleDepartmentGenerate = async (departmentId) => {
-    try {
-      // Get employees from selected department
-      const departmentEmployees = employees.filter(emp => emp.department?._id === departmentId);
-      const employeeIds = departmentEmployees.map(emp => emp._id);
-
-      if (employeeIds.length === 0) {
-        toast.warning("No employees found in selected department");
-        return;
-      }
-
-      const response = await salaryPreviewApi.bulkGenerate({
-        employeeIds,
-        month: selectedMonth,
-        year: selectedYear
-      });
-
-      const data = response.data;
-      const department = departments.find(d => d._id === departmentId);
-      toast.success(`Department generation completed for ${department?.name}: ${data.summary.success} successful, ${data.summary.failed} failed`);
+  const handleIndividualGenerate = (employeeId) => {
+    openConfirmationDialog(async (override) => {
+      const res = await salaryPreviewApi.generate(employeeId, selectedMonth, selectedYear, {}, override);
+      toast.success(`Preview generated for ${res.data.preview?.employee?.name || 'employee'}`);
+      setShowGenerateModal(false);
+      setSelectedEmployees([]);
       fetchData();
-    } catch (error) {
-      console.error("Error in department generation:", error);
-      toast.error("Failed to generate department previews");
-    }
+    });
   };
 
-  const handleSelectedEmployeesGenerate = async () => {
-    try {
-      if (selectedEmployees.length === 0) {
-        toast.warning("Please select employees to generate previews");
-        return;
-      }
+  const handleDepartmentGenerate = (departmentId) => {
+    const deptEmployees = employees.filter(emp => emp.department?._id === departmentId);
+    if (deptEmployees.length === 0) { toast.warning("No employees found in selected department"); return; }
+    openConfirmationDialog(async (override) => {
+      const data = (await salaryPreviewApi.bulkGenerate({
+        employeeIds: deptEmployees.map(e => e._id),
+        month: selectedMonth, year: selectedYear, workingDaysOverride: override
+      })).data;
+      const dept = departments.find(d => d._id === departmentId);
+      toast.success(`${dept?.name}: ${data.summary.success} done, ${data.summary.failed} failed`);
+      setShowGenerateModal(false);
+      setSelectedDepartment('');
+      fetchData();
+    });
+  };
 
-      const response = await salaryPreviewApi.bulkGenerate({
+  const handleSelectedEmployeesGenerate = () => {
+    if (selectedEmployees.length === 0) { toast.warning("Please select employees"); return; }
+    openConfirmationDialog(async (override) => {
+      const data = (await salaryPreviewApi.bulkGenerate({
         employeeIds: selectedEmployees,
-        month: selectedMonth,
-        year: selectedYear
-      });
-
-      const data = response.data;
-      toast.success(`Selected employees generation completed: ${data.summary.success} successful, ${data.summary.failed} failed`);
+        month: selectedMonth, year: selectedYear, workingDaysOverride: override
+      })).data;
+      toast.success(`Selected: ${data.summary.success} done, ${data.summary.failed} failed`);
       setSelectedEmployees([]);
       setShowGenerateModal(false);
       fetchData();
-    } catch (error) {
-      console.error("Error generating selected employees previews:", error);
-      toast.error("Failed to generate previews");
-    }
+    });
   };
 
   const formatCurrency = (amount) => {
@@ -461,10 +562,7 @@ const HRSalaryPreviewManagement = () => {
                                 </Dropdown.Item>
                               )}
                               <Dropdown.Item 
-                                onClick={() => {
-                                  setSelectedPreview(preview);
-                                  setShowCorrectionsModal(true);
-                                }}
+                                onClick={() => openCorrectionsModal(preview)}
                               >
                                 <FaEdit className="me-2" />
                                 Make Corrections
@@ -602,71 +700,333 @@ const HRSalaryPreviewManagement = () => {
         >
           <Modal.Header closeButton>
             <Modal.Title>
-              Salary Preview - {selectedPreview.employee.name}
+              Salary Preview — {selectedPreview.employee.name}
+              <small className="ms-2 text-muted fs-6">{selectedPreview.employee.employeeId}</small>
             </Modal.Title>
           </Modal.Header>
           <Modal.Body>
-            {/* Preview details would go here - similar to employee view but with HR controls */}
-            <Row>
+            <Row className="mb-3">
+              {/* Working Days */}
               <Col md={6}>
-                <h6>Working Days Breakdown</h6>
-                <Table size="sm">
+                <h6 className="text-muted mb-2">Working Days Breakdown</h6>
+                <Table size="sm" bordered>
                   <tbody>
-                    <tr>
-                      <td>Total Days</td>
-                      <td>{selectedPreview.workingDaysBreakdown.totalDays}</td>
-                    </tr>
-                    <tr>
-                      <td>Working Days</td>
-                      <td>{selectedPreview.workingDaysBreakdown.workingDays}</td>
-                    </tr>
-                    <tr>
-                      <td>Weekends</td>
-                      <td>{selectedPreview.workingDaysBreakdown.weekends}</td>
-                    </tr>
-                    <tr>
-                      <td>Holidays</td>
-                      <td>{selectedPreview.workingDaysBreakdown.holidays}</td>
-                    </tr>
+                    <tr><td>Total Calendar Days</td><td className="text-end">{selectedPreview.workingDaysBreakdown.totalDays}</td></tr>
+                    <tr><td>Weekends</td><td className="text-end">{selectedPreview.workingDaysBreakdown.weekends}</td></tr>
+                    <tr><td>Holidays</td><td className="text-end">{selectedPreview.workingDaysBreakdown.holidays}</td></tr>
+                    <tr className="table-primary"><td><strong>Working Days</strong></td><td className="text-end"><strong>{selectedPreview.workingDaysBreakdown.workingDays}</strong></td></tr>
                   </tbody>
                 </Table>
               </Col>
+              {/* Leave Impact */}
               <Col md={6}>
-                <h6>Leave Impact</h6>
-                <Table size="sm">
+                <h6 className="text-muted mb-2">Leave Impact</h6>
+                <Table size="sm" bordered>
                   <tbody>
-                    <tr>
-                      <td>Per Day Salary</td>
-                      <td>{formatCurrency(selectedPreview.leaveImpact.perDaySalary)}</td>
-                    </tr>
-                    <tr>
-                      <td>Paid Leaves</td>
-                      <td>{selectedPreview.leaveImpact.paidLeaves} days</td>
-                    </tr>
-                    <tr>
-                      <td>Unpaid Leaves</td>
-                      <td>{selectedPreview.leaveImpact.unpaidLeaves} days</td>
-                    </tr>
-                    <tr>
-                      <td>Deduction</td>
-                      <td>{formatCurrency(selectedPreview.leaveImpact.deductionAmount)}</td>
-                    </tr>
+                    <tr><td>Per Day Salary</td><td className="text-end">{formatCurrency(selectedPreview.leaveImpact.perDaySalary)}</td></tr>
+                    <tr><td>Paid Leaves</td><td className="text-end">{selectedPreview.leaveImpact.paidLeaves} days</td></tr>
+                    <tr><td>Unpaid Leaves</td><td className="text-end">{selectedPreview.leaveImpact.unpaidLeaves} days</td></tr>
+                    <tr className="table-warning"><td><strong>Leave Deduction</strong></td><td className="text-end"><strong>{formatCurrency(selectedPreview.leaveImpact.deductionAmount)}</strong></td></tr>
                   </tbody>
                 </Table>
               </Col>
             </Row>
-            
-            <Alert variant="success" className="text-center mt-3">
-              <h5>Net Salary: {formatCurrency(selectedPreview.salaryBreakdown.netSalary)}</h5>
-            </Alert>
+
+            <Row>
+              {/* Earnings */}
+              <Col md={6}>
+                <h6 className="text-success mb-2">Earnings</h6>
+                <Table size="sm" bordered>
+                  <tbody>
+                    {[
+                      ['Basic Salary',         selectedPreview.salaryBreakdown.earnings.basicSalary],
+                      ['HRA',                  selectedPreview.salaryBreakdown.earnings.hra],
+                      ['Special Allowance',    selectedPreview.salaryBreakdown.earnings.specialAllowance],
+                      ['Transport Allowance',  selectedPreview.salaryBreakdown.earnings.transportAllowance],
+                      ['Medical Allowance',    selectedPreview.salaryBreakdown.earnings.medicalAllowance],
+                      ['Bonus',                selectedPreview.salaryBreakdown.earnings.bonus],
+                      ['Overtime',             selectedPreview.salaryBreakdown.earnings.overtime],
+                      ['Arrears',              selectedPreview.salaryBreakdown.earnings.arrears],
+                      ['Reimbursements',       selectedPreview.salaryBreakdown.earnings.reimbursements],
+                      ['Incentives',           selectedPreview.salaryBreakdown.earnings.incentives],
+                    ].filter(([, v]) => v > 0).map(([label, value]) => (
+                      <tr key={label}><td>{label}</td><td className="text-end">{formatCurrency(value)}</td></tr>
+                    ))}
+                    <tr className="table-success"><td><strong>Gross Salary</strong></td><td className="text-end"><strong>{formatCurrency(selectedPreview.salaryBreakdown.grossSalary)}</strong></td></tr>
+                  </tbody>
+                </Table>
+              </Col>
+
+              {/* Deductions */}
+              <Col md={6}>
+                <h6 className="text-danger mb-2">Deductions</h6>
+                <Table size="sm" bordered>
+                  <tbody>
+                    {[
+                      ['Provident Fund (PF)',  selectedPreview.salaryBreakdown.deductions.providentFund],
+                      ['Professional Tax',    selectedPreview.salaryBreakdown.deductions.professionalTax],
+                      ['TDS',                 selectedPreview.salaryBreakdown.deductions.tds],
+                      ['ESI',                 selectedPreview.salaryBreakdown.deductions.esi],
+                      ['Loss of Pay',         selectedPreview.salaryBreakdown.deductions.lossOfPay],
+                      ['Advance Recovery',    selectedPreview.salaryBreakdown.deductions.advances],
+                      ['Loan EMI',            selectedPreview.salaryBreakdown.deductions.loans],
+                    ].filter(([, v]) => v > 0).map(([label, value]) => (
+                      <tr key={label}><td>{label}</td><td className="text-end text-danger">{formatCurrency(value)}</td></tr>
+                    ))}
+                    <tr className="table-danger"><td><strong>Total Deductions</strong></td><td className="text-end"><strong>{formatCurrency(selectedPreview.salaryBreakdown.totalDeductions)}</strong></td></tr>
+                  </tbody>
+                </Table>
+
+                <Alert variant="success" className="text-center py-2 mt-2">
+                  <div className="small text-muted">Net Salary</div>
+                  <h5 className="mb-0">{formatCurrency(selectedPreview.salaryBreakdown.netSalary)}</h5>
+                </Alert>
+              </Col>
+            </Row>
+
+            {/* Queries if any */}
+            {selectedPreview.employeeQueries?.length > 0 && (
+              <div className="mt-3">
+                <h6 className="text-muted mb-2">Queries & Corrections Log</h6>
+                {selectedPreview.employeeQueries.map((q, i) => (
+                  <Alert key={i} variant={q.query.startsWith('HR Correction') ? 'warning' : 'info'} className="small py-2">
+                    <strong>{q.query.startsWith('HR Correction') ? '🔧 Correction' : '❓ Query'}:</strong> {q.query}
+                    {q.hrResponse && <div className="mt-1"><strong>Response:</strong> {q.hrResponse}</div>}
+                  </Alert>
+                ))}
+              </div>
+            )}
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setSelectedPreview(null)}>
               Close
             </Button>
+            <Button variant="warning" size="sm" onClick={() => {
+              openCorrectionsModal(selectedPreview);
+              setSelectedPreview(null);
+            }}>
+              Make Corrections
+            </Button>
           </Modal.Footer>
         </Modal>
       )}
+
+      {/* Mid-Month Confirmation Modal */}
+      <Modal show={showMidMonthModal} onHide={() => setShowMidMonthModal(false)} centered>
+        <Modal.Header closeButton className={midMonthData?.isCurrentMonth ? 'bg-warning' : 'bg-primary text-white'}>
+          <Modal.Title>
+            {midMonthData?.isCurrentMonth ? '⚠️ Mid-Month Preview' : '📋 Confirm Salary Preview Generation'}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {midMonthData && (
+            <>
+              <Alert variant={midMonthData.isCurrentMonth ? 'warning' : 'info'} className="small">
+                {midMonthData.note}
+              </Alert>
+
+              <h6 className="mb-2">Month Summary</h6>
+              <Table bordered size="sm" className="mb-3">
+                <tbody>
+                  <tr>
+                    <td className="text-muted">Month</td>
+                    <td><strong>{midMonthData.monthName} {midMonthData.year}</strong></td>
+                  </tr>
+                  {midMonthData.isCurrentMonth && (
+                    <tr>
+                      <td className="text-muted">Today's Date</td>
+                      <td><strong>{midMonthData.todayDate} ({midMonthData.todayDay} of {midMonthData.totalDaysInMonth} days)</strong></td>
+                    </tr>
+                  )}
+                  <tr>
+                    <td className="text-muted">Total Days in Month</td>
+                    <td><strong>{midMonthData.totalDaysInMonth}</strong></td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Weekends (Sundays)</td>
+                    <td><strong>{midMonthOverride.weekends}</strong></td>
+                  </tr>
+                  <tr>
+                    <td className="text-muted">Holidays</td>
+                    <td><strong>{midMonthOverride.holidays}</strong></td>
+                  </tr>
+                  <tr className="table-success">
+                    <td><strong>Working Days</strong></td>
+                    <td><strong>{midMonthOverride.workingDays}</strong></td>
+                  </tr>
+                </tbody>
+              </Table>
+
+              <h6 className="mb-2">Adjust if needed</h6>
+              <Row className="g-2">
+                <Col xs={4}>
+                  <Form.Group>
+                    <Form.Label className="small fw-semibold">Total Days</Form.Label>
+                    <Form.Control type="number" size="sm" min="1" max={midMonthData.totalDaysInMonth}
+                      value={midMonthOverride.totalDays}
+                      onChange={e => setMidMonthOverride({...midMonthOverride, totalDays: Number(e.target.value)})} />
+                  </Form.Group>
+                </Col>
+                <Col xs={4}>
+                  <Form.Group>
+                    <Form.Label className="small fw-semibold">Working Days</Form.Label>
+                    <Form.Control type="number" size="sm" min="0"
+                      value={midMonthOverride.workingDays}
+                      onChange={e => setMidMonthOverride({...midMonthOverride, workingDays: Number(e.target.value)})} />
+                  </Form.Group>
+                </Col>
+                <Col xs={4}>
+                  <Form.Group>
+                    <Form.Label className="small fw-semibold">Holidays</Form.Label>
+                    <Form.Control type="number" size="sm" min="0"
+                      value={midMonthOverride.holidays}
+                      onChange={e => setMidMonthOverride({...midMonthOverride, holidays: Number(e.target.value)})} />
+                  </Form.Group>
+                </Col>
+              </Row>
+              <small className="text-muted mt-2 d-block">Edit the values above if the auto-calculated data is incorrect.</small>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowMidMonthModal(false)}>Cancel</Button>
+          <Button variant={midMonthData?.isCurrentMonth ? 'warning' : 'primary'} onClick={() => executeBulkGenerate(midMonthOverride)}>
+            Confirm & Generate
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Corrections Modal */}
+      <Modal show={showCorrectionsModal} onHide={() => setShowCorrectionsModal(false)} size="xl">
+        <Modal.Header closeButton>
+          <Modal.Title>Make Salary Corrections — {selectedPreview?.employee?.name}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Alert variant="info" className="small mb-3">
+            All existing salary values are pre-filled. Edit any field to make corrections. Changes will be saved and totals recalculated automatically.
+          </Alert>
+
+          <Row>
+            {/* Earnings Column */}
+            <Col md={6}>
+              <Card className="mb-3">
+                <Card.Header className="bg-success text-white py-2">
+                  <strong>Earnings</strong>
+                </Card.Header>
+                <Card.Body className="py-2">
+                  {[
+                    { key: 'basicSalary',        label: 'Basic Salary' },
+                    { key: 'hra',                label: 'HRA' },
+                    { key: 'specialAllowance',   label: 'Special Allowance' },
+                    { key: 'transportAllowance', label: 'Transport Allowance' },
+                    { key: 'medicalAllowance',   label: 'Medical Allowance' },
+                    { key: 'bonus',              label: 'Bonus' },
+                    { key: 'overtime',           label: 'Overtime' },
+                    { key: 'arrears',            label: 'Arrears' },
+                    { key: 'reimbursements',     label: 'Reimbursements' },
+                    { key: 'incentives',         label: 'Incentives' },
+                  ].map(({ key, label }) => (
+                    <Row key={key} className="align-items-center mb-2">
+                      <Col xs={6}><small className="text-muted">{label}</small></Col>
+                      <Col xs={6}>
+                        <Form.Control
+                          type="number" size="sm" min="0"
+                          value={corrections.earnings[key]}
+                          onChange={e => setCorrections({
+                            ...corrections,
+                            earnings: { ...corrections.earnings, [key]: Number(e.target.value) }
+                          })}
+                        />
+                      </Col>
+                    </Row>
+                  ))}
+                  <hr className="my-2" />
+                  <Row className="align-items-center">
+                    <Col xs={6}><strong className="text-success small">Gross Salary</strong></Col>
+                    <Col xs={6} className="text-end">
+                      <strong className="text-success">
+                        {formatCurrency(Object.values(corrections.earnings).reduce((s, v) => s + (Number(v) || 0), 0))}
+                      </strong>
+                    </Col>
+                  </Row>
+                </Card.Body>
+              </Card>
+            </Col>
+
+            {/* Deductions Column */}
+            <Col md={6}>
+              <Card className="mb-3">
+                <Card.Header className="bg-danger text-white py-2">
+                  <strong>Deductions</strong>
+                </Card.Header>
+                <Card.Body className="py-2">
+                  {[
+                    { key: 'providentFund',   label: 'Provident Fund (PF)' },
+                    { key: 'professionalTax', label: 'Professional Tax' },
+                    { key: 'tds',             label: 'TDS' },
+                    { key: 'esi',             label: 'ESI' },
+                    { key: 'lossOfPay',       label: 'Loss of Pay' },
+                    { key: 'advances',        label: 'Advance Recovery' },
+                    { key: 'loans',           label: 'Loan EMI' },
+                  ].map(({ key, label }) => (
+                    <Row key={key} className="align-items-center mb-2">
+                      <Col xs={6}><small className="text-muted">{label}</small></Col>
+                      <Col xs={6}>
+                        <Form.Control
+                          type="number" size="sm" min="0"
+                          value={corrections.deductions[key]}
+                          onChange={e => setCorrections({
+                            ...corrections,
+                            deductions: { ...corrections.deductions, [key]: Number(e.target.value) }
+                          })}
+                        />
+                      </Col>
+                    </Row>
+                  ))}
+                  <hr className="my-2" />
+                  <Row className="align-items-center">
+                    <Col xs={6}><strong className="text-danger small">Total Deductions</strong></Col>
+                    <Col xs={6} className="text-end">
+                      <strong className="text-danger">
+                        {formatCurrency(Object.values(corrections.deductions).reduce((s, v) => s + (Number(v) || 0), 0))}
+                      </strong>
+                    </Col>
+                  </Row>
+                </Card.Body>
+              </Card>
+
+              {/* Net Salary Preview */}
+              <Alert variant="success" className="text-center py-2">
+                <div className="small text-muted mb-1">Net Salary (after corrections)</div>
+                <h5 className="mb-0">
+                  {formatCurrency(
+                    Object.values(corrections.earnings).reduce((s, v) => s + (Number(v) || 0), 0) -
+                    Object.values(corrections.deductions).reduce((s, v) => s + (Number(v) || 0), 0)
+                  )}
+                </h5>
+              </Alert>
+            </Col>
+          </Row>
+
+          <Form.Group>
+            <Form.Label>Correction Note <span className="text-danger">*</span></Form.Label>
+            <Form.Control
+              as="textarea" rows={2}
+              value={corrections.note}
+              onChange={e => setCorrections({ ...corrections, note: e.target.value })}
+              placeholder="Explain the reason for this correction (e.g., 'Added Q1 performance bonus, corrected PT deduction')"
+            />
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowCorrectionsModal(false)} disabled={savingCorrections}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleSaveCorrections} disabled={savingCorrections || !corrections.note.trim()}>
+            {savingCorrections ? <><Spinner size="sm" className="me-1" />Saving...</> : 'Save Corrections'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       {/* Generate Preview Modal */}
       <Modal show={showGenerateModal} onHide={() => setShowGenerateModal(false)} size="lg">
@@ -789,14 +1149,13 @@ const HRSalaryPreviewManagement = () => {
             variant="primary" 
             onClick={() => {
               if (generateType === 'individual' && selectedEmployees[0]) {
+                setShowGenerateModal(false);
                 handleIndividualGenerate(selectedEmployees[0]);
-                setShowGenerateModal(false);
-                setSelectedEmployees([]);
               } else if (generateType === 'department' && selectedDepartment) {
-                handleDepartmentGenerate(selectedDepartment);
                 setShowGenerateModal(false);
-                setSelectedDepartment('');
+                handleDepartmentGenerate(selectedDepartment);
               } else if (generateType === 'selected') {
+                setShowGenerateModal(false);
                 handleSelectedEmployeesGenerate();
               }
             }}

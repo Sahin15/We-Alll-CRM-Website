@@ -5,8 +5,8 @@ import { authorizeRoles } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
-// Admin dashboard stats - accessible by admin, superadmin, accounts, and manager roles
-router.get("/stats", protect, authorizeRoles("admin", "superadmin", "accounts", "manager"), getAdminDashboardStats);
+// Admin dashboard stats - accessible by admin, superadmin, accounts, manager, and hod roles
+router.get("/stats", protect, authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"), getAdminDashboardStats);
 
 export default router;
 

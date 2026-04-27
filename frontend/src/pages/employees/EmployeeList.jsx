@@ -41,6 +41,7 @@ import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
 import ProfilePictureDisplay from "../../components/profile/ProfilePictureDisplay";
+import StatusBadge from "../../components/hr/StatusBadge";
 
 
 const EmployeeList = () => {
@@ -117,6 +118,11 @@ const EmployeeList = () => {
 
     setFilteredEmployees(filtered);
   };
+
+  // Three sections: active-only, inactive-only, and past members (terminated/offboarded)
+  const activeEmployees = filteredEmployees.filter((emp) => emp.status === "active");
+  const inactiveEmployees = filteredEmployees.filter((emp) => emp.status === "inactive");
+  const pastMembersSection = filteredEmployees.filter((emp) => emp.status === "terminated" || emp.status === "offboarded");
 
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this employee?")) {
@@ -329,7 +335,8 @@ const EmployeeList = () => {
                 <option value="">All Status</option>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
-                <option value="suspended">Suspended</option>
+                <option value="terminated">Terminated</option>
+                <option value="offboarded">Offboarded</option>
               </Form.Select>
             </Col>
             <Col lg={3} md={3}>
@@ -387,7 +394,7 @@ const EmployeeList = () => {
           <div className="d-flex justify-content-between align-items-center">
             <h5 className="mb-0 text-dark fw-bold">
               <FaUsers className="me-2 text-primary" />
-              Employee Directory ({filteredEmployees.length})
+              Active Employees ({activeEmployees.length})
             </h5>
             <div className="d-flex align-items-center gap-2">
               {/* View Toggle */}
@@ -414,7 +421,7 @@ const EmployeeList = () => {
                 </Button>
               </div>
               <Badge bg="primary" className="px-3 py-2 rounded-pill">
-                {filteredEmployees.length} Results
+                {activeEmployees.length} Results
               </Badge>
             </div>
           </div>
@@ -561,12 +568,12 @@ const EmployeeList = () => {
             }
           `}</style>
           
-          {filteredEmployees.length > 0 ? (
+          {activeEmployees.length > 0 ? (
             <div className="p-4" style={{ overflow: 'visible' }}>
               {viewMode === "cards" ? (
                 // Card View (Original)
                 <Row className="g-4" style={{ overflow: 'visible' }}>
-                  {filteredEmployees.map((employee) => (
+                  {activeEmployees.map((employee) => (
                     <Col lg={6} xl={4} key={employee._id}>
                       <Card className="employee-card h-100 border-0 shadow-sm">
                         <Card.Body className="p-4">
@@ -583,12 +590,15 @@ const EmployeeList = () => {
                             <div className="flex-grow-1 min-width-0">
                               <h6 className="mb-1 fw-bold text-dark text-truncate">{employee.name}</h6>
                               <p className="mb-2 text-muted small text-truncate">{employee.designation || "N/A"}</p>
-                              <Badge 
-                                bg={employee.status === 'active' ? 'success' : employee.status === 'inactive' ? 'secondary' : 'danger'} 
-                                className="status-badge"
-                              >
-                                {employee.status}
-                              </Badge>
+                              <StatusBadge status={employee.status} />
+                              {employee.status === 'inactive' && employee.reactivationDate && (
+                                <div className="mt-1">
+                                  <small className="text-warning fw-semibold">
+                                    <FaCalendarAlt className="me-1" size={10} />
+                                    Reactivates: {formatDate(employee.reactivationDate)}
+                                  </small>
+                                </div>
+                              )}
                             </div>
                           </div>
 
@@ -632,17 +642,6 @@ const EmployeeList = () => {
                               <FaClock className="me-1" />
                               Work Details
                             </Button>
-                            {(currentUser?.role === "admin" || currentUser?.role === "superadmin") && employee.role !== "superadmin" && (
-                              <Button
-                                variant="outline-danger"
-                                size="sm"
-                                className="action-btn"
-                                onClick={() => handleDelete(employee._id)}
-                                title="Delete Employee"
-                              >
-                                <FaTrash size={12} />
-                              </Button>
-                            )}
                           </div>
                         </Card.Body>
                       </Card>
@@ -664,7 +663,7 @@ const EmployeeList = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredEmployees.map((employee) => (
+                      {activeEmployees.map((employee) => (
                         <tr key={employee._id} className="align-middle">
                           <td className="py-3">
                             <div className="d-flex align-items-center">
@@ -707,12 +706,15 @@ const EmployeeList = () => {
                             </div>
                           </td>
                           <td className="py-3">
-                            <Badge 
-                              bg={employee.status === 'active' ? 'success' : employee.status === 'inactive' ? 'secondary' : 'danger'} 
-                              className="rounded-pill"
-                            >
-                              {employee.status}
-                            </Badge>
+                            <StatusBadge status={employee.status} />
+                            {employee.status === 'inactive' && employee.reactivationDate && (
+                              <div className="mt-1">
+                                <small className="text-warning fw-semibold">
+                                  <FaCalendarAlt className="me-1" size={10} />
+                                  Reactivates: {formatDate(employee.reactivationDate)}
+                                </small>
+                              </div>
+                            )}
                           </td>
                           <td className="py-3">
                             <small className="text-muted">
@@ -764,7 +766,7 @@ const EmployeeList = () => {
               <div className="mb-4">
                 <FaUsers size={64} className="text-muted opacity-50" />
               </div>
-              <h5 className="text-muted mb-2">No Employees Found</h5>
+              <h5 className="text-muted mb-2">No Active Employees Found</h5>
               <p className="text-muted mb-4">
                 {searchTerm || statusFilter || departmentFilter 
                   ? "Try adjusting your search criteria or filters"
@@ -785,6 +787,227 @@ const EmployeeList = () => {
           )}
         </Card.Body>
       </Card>
+
+      {/* Inactive Employees Section */}
+      {inactiveEmployees.length > 0 && (
+        <Card className="border-0 shadow-lg mt-4" style={{ borderRadius: '20px', overflow: 'visible' }}>
+          <Card.Header className="bg-white border-0 pt-4 pb-0" style={{ borderRadius: '20px 20px 0 0' }}>
+            <div className="d-flex justify-content-between align-items-center">
+              <h5 className="mb-0 text-dark fw-bold">
+                <FaClock className="me-2 text-warning" />
+                Inactive Employees ({inactiveEmployees.length})
+              </h5>
+              <Badge bg="warning" text="dark" className="px-3 py-2 rounded-pill">
+                {inactiveEmployees.length} Results
+              </Badge>
+            </div>
+          </Card.Header>
+          <Card.Body className="p-0" style={{ overflow: 'visible' }}>
+            {viewMode === "cards" ? (
+              <div className="p-4" style={{ overflow: 'visible' }}>
+                <Row className="g-4" style={{ overflow: 'visible' }}>
+                  {inactiveEmployees.map((employee) => (
+                    <Col lg={6} xl={4} key={employee._id}>
+                      <Card className="employee-card h-100 border-0 shadow-sm">
+                        <Card.Body className="p-4">
+                          <div className="d-flex align-items-start mb-3">
+                            <div className="me-3 flex-shrink-0">
+                              <ProfilePictureDisplay
+                                profilePicture={employee.profilePicture}
+                                userName={employee.name}
+                                size={60}
+                                showViewButton={false}
+                              />
+                            </div>
+                            <div className="flex-grow-1 min-width-0">
+                              <h6 className="mb-1 fw-bold text-dark text-truncate">{employee.name}</h6>
+                              <p className="mb-2 text-muted small text-truncate">{employee.designation || "N/A"}</p>
+                              <StatusBadge status={employee.status} />
+                              {employee.reactivationDate && (
+                                <div className="mt-1">
+                                  <small className="text-warning fw-semibold">
+                                    <FaCalendarAlt className="me-1" size={10} />
+                                    Reactivates: {formatDate(employee.reactivationDate)}
+                                  </small>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="mb-3">
+                            <div className="employee-info-item">
+                              <FaIdCard className="icon" />
+                              <span>ID: {employee.employeeId || "Not assigned"}</span>
+                            </div>
+                            <div className="employee-info-item">
+                              <FaEnvelope className="icon" />
+                              <span className="text-truncate">{employee.email}</span>
+                            </div>
+                            <div className="employee-info-item">
+                              <FaBuilding className="icon" />
+                              <span>{employee.department?.name || "No department"}</span>
+                            </div>
+                          </div>
+                          <div className="d-flex gap-2">
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              className="action-btn flex-fill"
+                              onClick={() => navigate(`/employees/${employee._id}/profile`)}
+                            >
+                              <FaUserShield className="me-1" />
+                              Manage Profile
+                            </Button>
+                          </div>
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                  ))}
+                </Row>
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <Table hover className="mb-0">
+                  <thead className="table-warning">
+                    <tr>
+                      <th className="border-0">Employee</th>
+                      <th className="border-0">Department</th>
+                      <th className="border-0">Status</th>
+                      <th className="border-0">Reactivation Date</th>
+                      <th className="border-0 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {inactiveEmployees.map((employee) => (
+                      <tr key={employee._id} className="align-middle">
+                        <td className="py-3">
+                          <div className="d-flex align-items-center">
+                            <div className="me-3 flex-shrink-0">
+                              <ProfilePictureDisplay
+                                profilePicture={employee.profilePicture}
+                                userName={employee.name}
+                                size={40}
+                                showViewButton={false}
+                              />
+                            </div>
+                            <div>
+                              <div className="fw-bold text-dark">{employee.name}</div>
+                              <small className="text-muted">
+                                <FaIdCard className="me-1" size={10} />
+                                {employee.employeeId || "Not assigned"}
+                              </small>
+                              <div className="small text-muted">{employee.designation || "N/A"}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3">
+                          <div className="d-flex align-items-center">
+                            <FaBuilding className="me-2 text-warning" size={12} />
+                            <span>{employee.department?.name || "No department"}</span>
+                          </div>
+                        </td>
+                        <td className="py-3">
+                          <StatusBadge status={employee.status} />
+                        </td>
+                        <td className="py-3">
+                          {employee.reactivationDate ? (
+                            <small className="text-warning fw-semibold">
+                              <FaCalendarAlt className="me-1" size={10} />
+                              {formatDate(employee.reactivationDate)}
+                            </small>
+                          ) : (
+                            <small className="text-muted">—</small>
+                          )}
+                        </td>
+                        <td className="py-3 text-center">
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => navigate(`/employees/${employee._id}/profile`)}
+                            title="Manage Profile"
+                            style={{ padding: '0.25rem 0.5rem' }}
+                          >
+                            <FaUserShield size={12} />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </div>
+            )}
+          </Card.Body>
+        </Card>
+      )}
+
+      {/* Past Members Section */}
+      {pastMembersSection.length > 0 && (
+        <Card className="border-0 shadow-lg mt-4" style={{ borderRadius: '20px', overflow: 'visible' }}>
+          <Card.Header className="bg-light border-0 pt-4 pb-0" style={{ borderRadius: '20px 20px 0 0' }}>
+            <div className="d-flex justify-content-between align-items-center">
+              <h5 className="mb-0 text-dark fw-bold">
+                <FaUsers className="me-2 text-secondary" />
+                Past Members ({pastMembersSection.length})
+              </h5>
+              <Badge bg="secondary" className="px-3 py-2 rounded-pill">
+                {pastMembersSection.length} Results
+              </Badge>
+            </div>
+          </Card.Header>
+          <Card.Body className="p-0" style={{ overflow: 'visible' }}>
+            <div className="table-responsive">
+              <Table hover className="mb-0">
+                <thead className="table-light">
+                  <tr>
+                    <th className="border-0">Employee</th>
+                    <th className="border-0">Department</th>
+                    <th className="border-0">Status</th>
+                    <th className="border-0">Status Changed</th>
+                    <th className="border-0 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pastMembersSection.map((employee) => (
+                    <tr key={employee._id} className="align-middle">
+                      <td className="py-3">
+                        <div className="fw-bold text-dark">{employee.name}</div>
+                        <small className="text-muted">
+                          <FaIdCard className="me-1" size={10} />
+                          {employee.employeeId || "Not assigned"}
+                        </small>
+                      </td>
+                      <td className="py-3">
+                        <div className="d-flex align-items-center">
+                          <FaBuilding className="me-2 text-secondary" size={12} />
+                          <span>{employee.department?.name || "No department"}</span>
+                        </div>
+                      </td>
+                      <td className="py-3">
+                        <StatusBadge status={employee.status} />
+                      </td>
+                      <td className="py-3">
+                        <small className="text-muted">
+                          {employee.statusChangedAt ? formatDate(employee.statusChangedAt) : "N/A"}
+                        </small>
+                      </td>
+                      <td className="py-3 text-center">
+                        <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          onClick={() => navigate(`/employees/${employee._id}/profile`)}
+                          title="View Profile"
+                          style={{ padding: '0.25rem 0.5rem' }}
+                        >
+                          <FaEye size={12} />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </div>
+          </Card.Body>
+        </Card>
+      )}
     </Container>
   );
 };

@@ -143,21 +143,6 @@ const SalaryStructures = () => {
     }
   };
 
-  const handleDeleteAll = async () => {
-    if (!window.confirm("⚠️ This will permanently delete ALL salary structures. This cannot be undone. Are you sure?")) return;
-    if (!window.confirm("Final confirmation: delete ALL salary structures?")) return;
-    try {
-      setLoading(true);
-      const res = await salaryStructureApi.deleteAll();
-      toast.success(res.data.message);
-      fetchSalaryStructures();
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to delete all structures");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
@@ -184,12 +169,6 @@ const SalaryStructures = () => {
           <Button variant="primary" onClick={handleCreateNew}>
             <FaPlus className="me-1" />
             Create New Structure
-          </Button>
-        </Col>
-        <Col xs="auto">
-          <Button variant="outline-danger" onClick={handleDeleteAll}>
-            <FaTrash className="me-1" />
-            Delete All
           </Button>
         </Col>
       </Row>
@@ -299,8 +278,18 @@ const SalaryStructures = () => {
                       variant="outline-primary"
                       size="sm"
                       onClick={() => handleViewDetails(structure)}
+                      title="View details"
                     >
                       <FaEye />
+                    </Button>
+                    <Button
+                      variant="outline-secondary"
+                      size="sm"
+                      onClick={() => handleEdit(structure)}
+                      disabled={actionLoading === structure._id}
+                      title="Edit structure"
+                    >
+                      <FaEdit />
                     </Button>
                     {structure.status === "active" && (
                       <Button
@@ -315,18 +304,11 @@ const SalaryStructures = () => {
                     {structure.status === "draft" && (
                       <>
                         <Button
-                          variant="outline-secondary"
-                          size="sm"
-                          onClick={() => handleEdit(structure)}
-                          disabled={actionLoading === structure._id}
-                        >
-                          <FaEdit />
-                        </Button>
-                        <Button
                           variant="outline-success"
                           size="sm"
                           onClick={() => handleActivate(structure._id)}
                           disabled={actionLoading === structure._id}
+                          title="Activate structure"
                         >
                           <FaCheck />
                         </Button>
@@ -335,6 +317,7 @@ const SalaryStructures = () => {
                           size="sm"
                           onClick={() => handleDelete(structure._id)}
                           disabled={actionLoading === structure._id}
+                          title="Delete structure"
                         >
                           <FaTrash />
                         </Button>
@@ -351,10 +334,14 @@ const SalaryStructures = () => {
       {/* Form Modal */}
       <SalaryStructureForm
         show={showFormModal}
-        onHide={() => setShowFormModal(false)}
+        onHide={() => {
+          setShowFormModal(false);
+          setSelectedStructure(null);
+        }}
         structure={selectedStructure}
         onSuccess={() => {
           setShowFormModal(false);
+          setSelectedStructure(null);
           fetchSalaryStructures();
         }}
       />

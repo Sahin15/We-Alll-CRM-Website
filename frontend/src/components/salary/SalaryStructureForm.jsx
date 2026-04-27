@@ -30,8 +30,7 @@ const SalaryStructureForm = ({ show, onHide, structure, onSuccess }) => {
     notes: "",
   });
   const [employees, setEmployees] = useState([]);
-  const [employeeSearchTerm, setEmployeeSearchTerm] = useState("");
-  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
   const [calculations, setCalculations] = useState({
     grossSalary: 0,
@@ -85,18 +84,19 @@ const SalaryStructureForm = ({ show, onHide, structure, onSuccess }) => {
     setFormData({
       employee: "",
       effectiveFrom: "",
-      basicSalary: "", // Empty string instead of 0
+      basicSalary: "",
       hra: "",
       specialAllowance: "",
       transportAllowance: "",
       medicalAllowance: "",
       providentFund: "",
-      professionalTax: "200", // Default value as string
+      professionalTax: "200",
       tds: "",
       esi: "",
-      otherDeductions: [], // Array for custom deductions
+      otherDeductions: [],
       notes: "",
     });
+    setSearchTerm("");
   };
 
   const calculateTotals = () => {
@@ -313,93 +313,69 @@ const SalaryStructureForm = ({ show, onHide, structure, onSuccess }) => {
                   <Row>
                     <Col md={6}>
                       <Form.Group className="mb-3">
-                        <Form.Label>Employee *</Form.Label>
+                        <Form.Label>Select Team Member *</Form.Label>
                         {!!structure ? (
-                          // Edit mode - show selected employee as disabled field
                           <Form.Control
                             type="text"
                             value={structure.employee.name}
                             disabled
                           />
                         ) : (
-                          // Create mode - show searchable dropdown
-                          <div className="salary-dropdown-container">
+                          <div style={{ position: 'relative' }}>
                             <Form.Control
                               type="text"
-                              placeholder="Type to search employees..."
-                              value={employeeSearchTerm}
+                              placeholder="Search by name..."
+                              value={searchTerm}
                               onChange={(e) => {
-                                setEmployeeSearchTerm(e.target.value);
-                                setShowEmployeeDropdown(true);
-                                handleInputChange("employee", ''); // Clear selection when typing
+                                setSearchTerm(e.target.value);
+                                handleInputChange("employee", "");
                               }}
-                              onFocus={() => setShowEmployeeDropdown(true)}
-                              required={!formData.employee}
+                              onBlur={() => setTimeout(() => setSearchTerm(formData.employee ? searchTerm : ""), 200)}
+                              autoComplete="off"
+                              style={formData.employee ? { borderColor: '#198754' } : {}}
                             />
-                            
-                            {/* Selected employee display */}
-                            {formData.employee && !showEmployeeDropdown && (
-                              <div className="mt-2">
-                                <span className="badge bg-primary me-2">
-                                  {employees.find(emp => emp._id === formData.employee)?.name}
-                                  <button
-                                    type="button"
-                                    className="btn-close btn-close-white ms-2"
-                                    style={{ fontSize: '0.7em' }}
-                                    onClick={() => {
-                                      handleInputChange("employee", '');
-                                      setEmployeeSearchTerm('');
-                                    }}
-                                  ></button>
-                                </span>
-                              </div>
-                            )}
-
-                            {/* Dropdown list */}
-                            {showEmployeeDropdown && (
-                              <div className="salary-dropdown-list">
+                            {searchTerm && !formData.employee && (
+                              <div style={{
+                                position: 'absolute',
+                                top: '100%',
+                                left: 0,
+                                right: 0,
+                                border: '1px solid #dee2e6',
+                                borderRadius: '0 0 6px 6px',
+                                maxHeight: '220px',
+                                overflowY: 'auto',
+                                background: '#fff',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                zIndex: 9999
+                              }}>
                                 {employees
-                                  .filter(emp => 
-                                    emp.name.toLowerCase().includes(employeeSearchTerm.toLowerCase())
-                                  )
-                                  .slice(0, 10)
-                                  .map((employee) => (
+                                  .filter(emp => emp.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                                  .map(emp => (
                                     <div
-                                      key={employee._id}
-                                      className="p-2 border-bottom dropdown-item-hover"
-                                      style={{ 
-                                        cursor: 'pointer'
+                                      key={emp._id}
+                                      onMouseDown={() => {
+                                        handleInputChange("employee", emp._id);
+                                        setSearchTerm(emp.name);
                                       }}
-                                      onClick={() => {
-                                        handleInputChange("employee", employee._id);
-                                        setEmployeeSearchTerm(employee.name);
-                                        setShowEmployeeDropdown(false);
+                                      style={{
+                                        padding: '10px 14px',
+                                        cursor: 'pointer',
+                                        borderBottom: '1px solid #f0f0f0',
+                                        fontSize: '0.95rem'
                                       }}
+                                      onMouseEnter={e => e.currentTarget.style.background = '#e8f4fd'}
+                                      onMouseLeave={e => e.currentTarget.style.background = '#fff'}
                                     >
-                                      <div className="fw-medium">{employee.name}</div>
-                                      {employee.department && (
-                                        <small className="text-muted">{employee.department.name}</small>
-                                      )}
+                                      {emp.name}
                                     </div>
                                   ))
                                 }
-                                {employees.filter(emp => 
-                                  emp.name.toLowerCase().includes(employeeSearchTerm.toLowerCase())
-                                ).length === 0 && (
-                                  <div className="p-3 text-muted text-center">
-                                    No employees found matching "{employeeSearchTerm}"
+                                {employees.filter(emp => emp.name.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 && (
+                                  <div style={{ padding: '10px 14px', color: '#6c757d', fontSize: '0.9rem' }}>
+                                    No results found
                                   </div>
                                 )}
                               </div>
-                            )}
-                            
-                            {/* Click outside to close dropdown */}
-                            {showEmployeeDropdown && (
-                              <div 
-                                className="position-fixed w-100 h-100"
-                                style={{ top: 0, left: 0, zIndex: 999998 }} // Just below dropdown
-                                onClick={() => setShowEmployeeDropdown(false)}
-                              />
                             )}
                           </div>
                         )}

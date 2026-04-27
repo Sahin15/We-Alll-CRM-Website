@@ -419,6 +419,11 @@ const KanbanTab = ({ project, onRefresh }) => {
           onRefresh={loadData}
           onAddComment={handleAddComment}
           currentUser={user}
+          onEdit={() => {
+            // For now, just close the modal
+            // Edit functionality can be added later if needed
+            setShowDetailsModal(false);
+          }}
         />
       )}
     </div>

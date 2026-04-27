@@ -93,7 +93,7 @@ const ExpenseSearch = () => {
       office_supplies: "warning",
       client_meeting: "danger",
       training: "secondary",
-      other: "light",
+      other: "dark",
     };
     return colors[category] || "light";
   };

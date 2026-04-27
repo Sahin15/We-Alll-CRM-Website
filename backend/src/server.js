@@ -59,6 +59,10 @@ import workOnLeaveDayRoutes from "./routes/workOnLeaveDayRoutes.js";
 import todoRoutes from "./routes/todoRoutes.js";
 import expenseRoutes from "./routes/expenseRoutes.js";
 import rawDataRoutes from "./routes/rawDataRoutes.js";
+import assetRoutes from "./routes/assetRoutes.js";
+import softwareLicenseRoutes from "./routes/softwareLicenseRoutes.js";
+import supportRoutes from "./routes/supportRoutes.js";
+import importantPersonRoutes from "./routes/importantPersonRoutes.js";
 // Legacy routes removed - use workItemRoutes instead
 // Old: taskRoutes, slotRoutes, workRoutes → New: workItemRoutes
 import { initializeCronJobs } from "./config/cronJobs.js";
@@ -276,6 +280,10 @@ app.use("/api/work-on-leave-day", apiLimiter, workOnLeaveDayRoutes);
 app.use("/api/todos", apiLimiter, todoRoutes);
 app.use("/api/expenses", apiLimiter, expenseRoutes);
 app.use("/api/raw-data", apiLimiter, rawDataRoutes);
+app.use("/api/assets", apiLimiter, assetRoutes);
+app.use("/api/software-licenses", apiLimiter, softwareLicenseRoutes);
+app.use("/api/support-contacts", apiLimiter, supportRoutes);
+app.use("/api/important-persons", apiLimiter, importantPersonRoutes);
 
 // Diagnostic endpoint to check server status and timezone
 app.get("/api/diagnostic", (req, res) => {
@@ -310,11 +318,14 @@ if (!MONGO_URI) {
   process.exit(1);
 }
 
-// ✅ MongoDB connection
+// ✅ MongoDB connection with reconnection handling
 mongoose
   .connect(MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
+    maxPoolSize: 10,
+    minPoolSize: 5,
+    socketTimeoutMS: 45000,
+    serverSelectionTimeoutMS: 5000,
+    retryWrites: true,
   })
   .then(async () => {
     console.log("✅ MongoDB connected successfully");
@@ -355,9 +366,39 @@ mongoose
       console.log(`📦 AWS S3 Bucket: ${process.env.AWS_S3_BUCKET_NAME || "Not configured"}`);
       console.log(`🌐 AWS Region: ${process.env.AWS_REGION || "Not configured"}`);
     });
+
+    // Handle server errors
+    server.on('error', (error) => {
+      console.error('❌ Server error:', error);
+    });
   })
   .catch((error) => {
     console.error("❌ MongoDB connection failed:", error.message);
     console.error("💡 Check your MONGO_URI in .env file");
     process.exit(1);
   });
+
+// Handle MongoDB connection events
+mongoose.connection.on('disconnected', () => {
+  console.warn('⚠️  MongoDB disconnected - attempting to reconnect...');
+});
+
+mongoose.connection.on('reconnected', () => {
+  console.log('✅ MongoDB reconnected successfully');
+});
+
+mongoose.connection.on('error', (error) => {
+  console.error('❌ MongoDB connection error:', error.message);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  // Gracefully shutdown
+  process.exit(1);
+});

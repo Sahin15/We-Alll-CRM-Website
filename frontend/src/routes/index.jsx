@@ -143,6 +143,32 @@ import EditExpense from "../pages/expenses/EditExpense";
 import ExpenseManagementConsolidated from "../pages/expenses/ExpenseManagementConsolidated";
 import BudgetManagement from "../pages/expenses/BudgetManagement";
 
+// Asset Pages
+import AssetDashboard from "../pages/assets/AssetDashboard";
+import AssetList from "../pages/assets/AssetList";
+import AddAsset from "../pages/assets/AddAsset";
+import EditAsset from "../pages/assets/EditAsset";
+import AssetDetails from "../pages/assets/AssetDetails";
+import AssignAsset from "../pages/assets/AssignAsset";
+import SendToRepair from "../pages/assets/SendToRepair";
+import AssignmentHistory from "../pages/assets/AssignmentHistory";
+import RepairLog from "../pages/assets/RepairLog";
+import WarrantyTracker from "../pages/assets/WarrantyTracker";
+import MyAssets from "../pages/assets/MyAssets";
+import AssetManagement from "../pages/assets/AssetManagement";
+
+// Software License Pages
+import SoftwareLicenseDashboard from "../pages/licenses/SoftwareLicenseDashboard";
+import SoftwareLicenseList from "../pages/licenses/SoftwareLicenseList";
+import AddSoftwareLicense from "../pages/licenses/AddSoftwareLicense";
+import EditSoftwareLicense from "../pages/licenses/EditSoftwareLicense";
+import SoftwareLicenseDetails from "../pages/licenses/SoftwareLicenseDetails";
+import AssignSoftwareLicense from "../pages/licenses/AssignSoftwareLicense";
+import LicenseHistory from "../pages/licenses/LicenseHistory";
+import LicenseExpiryAlerts from "../pages/licenses/LicenseExpiryAlerts";
+import MyLicenses from "../pages/licenses/MyLicenses";
+import SoftwareLicenseManagement from "../pages/licenses/SoftwareLicenseManagement";
+
 // Company Management Pages
 import MeetingManagement from "../pages/meetings/MeetingManagement";
 import PolicyManagement from "../pages/policies/PolicyManagement";
@@ -153,6 +179,8 @@ import ReportsAnalytics from "../pages/reports/ReportsAnalytics";
 import NotFound from "../pages/errors/NotFound";
 import Unauthorized from "../pages/errors/Unauthorized";
 import GrowthSummitFinal from "../pages/GrowthSummitFinal";
+import SupportPage from "../pages/support/SupportPage";
+import SupportManagement from "../pages/support/SupportManagement";
 
 const AppRoutes = () => {
   const { user } = useAuth();
@@ -353,7 +381,7 @@ const AppRoutes = () => {
         <Route path="/employee/my-work" element={<MyWorkPage />} />
         <Route path="/employee/assigned-work" element={<AssignedWorkPage />} />
         <Route path="/employee/meetings" element={<MyMeetings />} />
-        <Route path="/employee/attendance" element={<EmployeeMyAttendance />} />
+        <Route path="/employee/attendance" element={<Navigate to="/attendance/my-attendance" replace />} />
         <Route path="/employee/attendance-report/:employeeId" element={<EmployeeAttendanceReport />} />
         <Route path="/employee/leaves" element={<EmployeeMyLeaves />} />
         <Route path="/employee/salary-slips" element={<MySalarySlips />} />
@@ -544,7 +572,7 @@ const AppRoutes = () => {
         <Route
           path="/admin/billing"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager", "hod"]}>
               <AdminBillingDashboard />
             </RoleBasedRoute>
           }
@@ -552,7 +580,7 @@ const AppRoutes = () => {
         <Route
           path="/admin/services"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager", "hod"]}>
               <ServiceManagement />
             </RoleBasedRoute>
           }
@@ -560,7 +588,7 @@ const AppRoutes = () => {
         <Route
           path="/admin/plans"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager", "hod"]}>
               <PlanManagement />
             </RoleBasedRoute>
           }
@@ -568,7 +596,7 @@ const AppRoutes = () => {
         <Route
           path="/admin/subscriptions"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager", "hod"]}>
               <SubscriptionManagement />
             </RoleBasedRoute>
           }
@@ -576,7 +604,7 @@ const AppRoutes = () => {
         <Route
           path="/admin/invoices"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager", "hod"]}>
               <InvoiceManagement />
             </RoleBasedRoute>
           }
@@ -584,7 +612,7 @@ const AppRoutes = () => {
         <Route
           path="/admin/payments"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager", "hod"]}>
               <PaymentVerification />
             </RoleBasedRoute>
           }
@@ -695,6 +723,8 @@ const AppRoutes = () => {
         />
 
         {/* Expense Management Routes */}
+        {/* Redirect /expenses to /expenses/my-expenses (old notification links) */}
+        <Route path="/expenses" element={<Navigate to="/expenses/my-expenses" replace />} />
         <Route
           path="/expenses/my-expenses"
           element={
@@ -786,8 +816,209 @@ const AppRoutes = () => {
         <Route
           path="/expenses/budget-management"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
               <BudgetManagement />
+            </RoleBasedRoute>
+          }
+        />
+
+        {/* Asset Management Routes */}
+        {/* Static routes MUST come before dynamic :id routes */}
+        <Route
+          path="/assets/dashboard"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+              <AssetDashboard />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/assets/add"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <AddAsset />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/assets/assignments/history"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+              <AssignmentHistory />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/assets/history"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+              <AssignmentHistory />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/assets/repairs"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+              <RepairLog />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/assets/warranty"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+              <WarrantyTracker />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/assets/my-assets"
+          element={
+            <RoleBasedRoute allowedRoles={["employee", "admin", "superadmin", "hr", "manager", "hod"]}>
+              <MyAssets />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/assets/management"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "employee", "hod"]}>
+              <AssetManagement />
+            </RoleBasedRoute>
+          }
+        />
+        {/* Dynamic routes MUST come after static routes */}
+        <Route
+          path="/assets/:id/assign"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <AssignAsset />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/assets/:id/repair"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <SendToRepair />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/assets/:id/edit"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <EditAsset />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/assets/:id"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+              <AssetDetails />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/assets"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+              <AssetList />
+            </RoleBasedRoute>
+          }
+        />
+
+        {/* Software License Management Routes */}
+        <Route
+          path="/licenses/dashboard"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+              <SoftwareLicenseDashboard />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/licenses"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+              <SoftwareLicenseList />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/licenses/add"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <AddSoftwareLicense />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/licenses/:id"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+              <SoftwareLicenseDetails />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/licenses/:id/edit"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <EditSoftwareLicense />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/licenses/:id/assign"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <AssignSoftwareLicense />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/licenses/:id/history"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <LicenseHistory />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/licenses/expiry-alerts"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+              <LicenseExpiryAlerts />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/licenses/my-licenses"
+          element={
+            <RoleBasedRoute allowedRoles={["employee", "admin", "superadmin", "hr", "manager", "hod"]}>
+              <MyLicenses />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/licenses/management"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "employee", "hod"]}>
+              <SoftwareLicenseManagement />
+            </RoleBasedRoute>
+          }
+        />
+
+        {/* Support Routes */}
+        <Route path="/support" element={<SupportPage />} />
+        <Route
+          path="/admin/support-management"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
+              <SupportManagement />
             </RoleBasedRoute>
           }
         />

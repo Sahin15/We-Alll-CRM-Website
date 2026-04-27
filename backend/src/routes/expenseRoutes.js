@@ -25,6 +25,9 @@ import {
   setBulkBudgets,
   getBudgetTrackingWithLimits,
   getFinancialYears,
+  getExpensePurposes,
+  getExpenseTypes,
+  getPurposeTypeMatrix,
 } from "../controllers/expenseController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
@@ -38,11 +41,14 @@ router.use(protect);
 router.get("/my-expenses", getMyExpenses);
 router.get("/stats", getExpenseStats);
 router.get("/category/stats", getCategoryStats);
+router.get("/purposes", getExpensePurposes);
+router.get("/types", getExpenseTypes);
 router.get("/tracking/reimbursement", authorizeRoles("admin", "hr", "superadmin", "manager"), getReimbursementTracking);
 router.get("/analytics/overview", authorizeRoles("admin", "hr", "superadmin", "manager"), getExpenseAnalytics);
 router.get("/analytics/trends", authorizeRoles("admin", "hr", "superadmin", "manager"), getMonthlyTrends);
 router.get("/analytics/budget", authorizeRoles("admin", "hr", "superadmin", "manager"), getBudgetTracking);
 router.get("/analytics/budget-with-limits", authorizeRoles("admin", "hr", "superadmin", "manager"), getBudgetTrackingWithLimits);
+router.get("/analytics/purpose-type-matrix", authorizeRoles("admin", "hr", "superadmin", "manager"), getPurposeTypeMatrix);
 router.get("/budget/all", authorizeRoles("admin", "superadmin"), getAllBudgets);
 router.get("/budget/:category", authorizeRoles("admin", "hr", "superadmin", "manager"), getBudgetByCategory);
 router.get("/financial-years", authorizeRoles("admin", "hr", "superadmin", "manager"), getFinancialYears);

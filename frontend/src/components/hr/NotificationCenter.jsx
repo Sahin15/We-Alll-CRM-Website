@@ -71,11 +71,11 @@ const NotificationCenter = () => {
       <Card.Header className="bg-white border-bottom">
         <div className="d-flex justify-content-between align-items-center">
           <div>
-            <h5 className="mb-0">
-              <FaBell className="me-2 text-primary" />
-              Notification Center
+            <h5 className="mb-0 d-inline-flex align-items-center gap-2">
+              <FaBell className="text-primary" />
+              <span>Notification Center</span>
               {notificationCount > 0 && (
-                <Badge bg="danger" className="ms-2">
+                <Badge bg="danger">
                   {notificationCount}
                 </Badge>
               )}
@@ -100,12 +100,14 @@ const NotificationCenter = () => {
               onClick={() => setActiveTab("all")}
               className="py-2"
             >
-              All
-              {notificationCount > 0 && (
-                <Badge bg="secondary" className="ms-1">
-                  {notificationCount}
-                </Badge>
-              )}
+              <span className="d-inline-flex align-items-center gap-1">
+                All
+                {notificationCount > 0 && (
+                  <Badge bg="secondary">
+                    {notificationCount}
+                  </Badge>
+                )}
+              </span>
             </Nav.Link>
           </Nav.Item>
           <Nav.Item>
@@ -114,12 +116,14 @@ const NotificationCenter = () => {
               onClick={() => setActiveTab("leave")}
               className="py-2"
             >
-              Leaves
-              {notifications.filter((n) => n.type === "leave").length > 0 && (
-                <Badge bg="warning" className="ms-1">
-                  {notifications.filter((n) => n.type === "leave").length}
-                </Badge>
-              )}
+              <span className="d-inline-flex align-items-center gap-1">
+                Leaves
+                {notifications.filter((n) => n.type === "leave").length > 0 && (
+                  <Badge bg="warning">
+                    {notifications.filter((n) => n.type === "leave").length}
+                  </Badge>
+                )}
+              </span>
             </Nav.Link>
           </Nav.Item>
           <Nav.Item>
@@ -128,7 +132,7 @@ const NotificationCenter = () => {
               onClick={() => setActiveTab("task")}
               className="py-2"
             >
-              Tasks
+              <span>Tasks</span>
             </Nav.Link>
           </Nav.Item>
           <Nav.Item>
@@ -137,7 +141,7 @@ const NotificationCenter = () => {
               onClick={() => setActiveTab("meeting")}
               className="py-2"
             >
-              Meetings
+              <span>Meetings</span>
             </Nav.Link>
           </Nav.Item>
         </Nav>

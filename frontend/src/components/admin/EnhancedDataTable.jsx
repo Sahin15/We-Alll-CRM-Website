@@ -886,7 +886,6 @@ const EnhancedDataTable = ({
           style={{ position: 'relative' }}
         >
           <Table 
-            striped 
             hover 
             className={`enhanced-table ${isMobile ? 'mobile-optimized' : ''}`}
           >

@@ -46,11 +46,46 @@ const ReportsAnalytics = () => {
       }
 
       try {
-        attendanceRes = await attendanceApi.getAllAttendance({});
-        console.log('[ReportsAnalytics] Attendance fetched:', attendanceRes);
+        // Fetch attendance data for the last 30 days to avoid timeout
+        const today = new Date();
+        const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+        
+        const formatDateIST = (date) => {
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        };
+        
+        const params = {
+          startDate: formatDateIST(thirtyDaysAgo),
+          endDate: formatDateIST(today)
+        };
+        
+        // Set a timeout for the attendance request
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+        
+        try {
+          attendanceRes = await attendanceApi.getAllAttendance(params);
+          clearTimeout(timeoutId);
+          console.log('[ReportsAnalytics] Attendance fetched:', attendanceRes);
+        } catch (timeoutError) {
+          clearTimeout(timeoutId);
+          if (timeoutError.code === 'ECONNABORTED') {
+            console.warn('[ReportsAnalytics] Attendance request timeout, using empty data');
+            attendanceRes = { data: [] };
+          } else {
+            throw timeoutError;
+          }
+        }
       } catch (error) {
         console.error('[ReportsAnalytics] Error fetching attendance:', error.message);
-        toast.warning('Could not fetch attendance data');
+        // Don't show warning for timeout, just use empty data
+        if (error.message && !error.message.includes('timeout')) {
+          toast.warning('Could not fetch attendance data');
+        }
+        attendanceRes = { data: [] };
       }
 
       // Handle different response formats

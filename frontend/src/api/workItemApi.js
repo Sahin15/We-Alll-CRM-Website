@@ -189,6 +189,35 @@ export const workItemApi = {
   activateWorkItem: async (id, visibility = 'active') => {
     const response = await api.patch(`/work-items/${id}/activate`, { visibility });
     return response.data;
+  },
+
+  /**
+   * Edit a work item with full change tracking
+   * Only creator, project head, or admin can edit
+   * @param {string} id - Work item ID
+   * @param {Object} updates - Fields to update
+   * @param {string} updates.title - Work item title
+   * @param {string} updates.description - Work item description
+   * @param {string} updates.priority - Priority level
+   * @param {string} updates.dueDate - Due date
+   * @param {number} updates.estimatedHours - Estimated hours
+   * @param {string} updates.editReason - Optional reason for edit
+   * @returns {Promise} Updated work item with edit summary
+   */
+  editWorkItem: async (id, updates) => {
+    const response = await api.put(`/work-items/${id}/edit`, updates);
+    return response.data;
+  },
+
+  /**
+   * Get edit history for a work item
+   * Shows all changes made to the work item
+   * @param {string} id - Work item ID
+   * @returns {Promise} Edit history data
+   */
+  getEditHistory: async (id) => {
+    const response = await api.get(`/work-items/${id}/edit-history`);
+    return response.data;
   }
 };
 

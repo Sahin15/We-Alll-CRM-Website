@@ -5,8 +5,8 @@ import {
   FaCrown, FaShieldAlt, FaChartLine, FaUsers, FaProjectDiagram,
   FaClock, FaCheckCircle, FaSave, FaBuilding, FaMapMarkerAlt,
   FaIdCard, FaBriefcase, FaGraduationCap, FaAward, FaUser, FaHome,
-  FaFileUpload, FaDownload, FaEye, FaTrash, FaPlus, FaFileAlt,
-  FaUniversity, FaCreditCard, FaMoneyBillWave, FaFileContract, FaVolumeUp
+  FaFileUpload, FaDownload, FaEye, FaEyeSlash, FaTrash, FaPlus, FaFileAlt,
+  FaUniversity, FaCreditCard, FaMoneyBillWave, FaFileContract, FaVolumeUp, FaTimes
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import ProfilePictureUpload from "../../components/profile/ProfilePictureUpload";
@@ -15,6 +15,7 @@ import api from "../../services/api";
 import toast from "../../utils/toast";
 import "../../styles/pages-mobile.css";
 import "../../styles/modal-mobile.css";
+import "../../styles/profile-tabs.css";
 
 const MyProfile = () => {
   const { user, refreshUser } = useAuth();
@@ -25,12 +26,17 @@ const MyProfile = () => {
   const [showDocumentModal, setShowDocumentModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDocumentViewer, setShowDocumentViewer] = useState(false);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [documentType, setDocumentType] = useState('');
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [documents, setDocuments] = useState([]);
+  const [documentsLoaded, setDocumentsLoaded] = useState(false);
   const [officialDocuments, setOfficialDocuments] = useState([]);
+  const [officialDocumentsLoaded, setOfficialDocumentsLoaded] = useState(false);
   const [viewingDocument, setViewingDocument] = useState(null);
   const [bankDetailsUpdated, setBankDetailsUpdated] = useState(false);
   const [editMode, setEditMode] = useState({
@@ -47,6 +53,10 @@ const MyProfile = () => {
     assignedProjects: 0
   });
 
+  // Salary structure
+  const [salaryStructure, setSalaryStructure] = useState(null);
+  const [showSalary, setShowSalary] = useState(false);
+
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
@@ -58,6 +68,7 @@ const MyProfile = () => {
     description: '',
     category: ''
   });
+  const [reuploadDocumentId, setReuploadDocumentId] = useState(null);
 
   // Document categories based on user role
   const getDocumentCategories = () => {
@@ -86,26 +97,44 @@ const MyProfile = () => {
 
   useEffect(() => {
     if (user) {
-      const loadDocuments = async () => {
+      const loadInitialData = async () => {
         setLoading(true);
         try {
-          await Promise.all([
-            fetchDocuments(),
-            fetchOfficialDocuments(),
-            fetchProjectStats()
-          ]);
+          await fetchProjectStats();
+          // Fetch active salary structure for this user
+          try {
+            const res = await api.get(`/salary-structures/employee/${user._id}/active`);
+            setSalaryStructure(res.data);
+          } catch {
+            setSalaryStructure(null);
+          }
         } catch (error) {
-          console.error('[INIT] Error loading documents:', error);
+          console.error('[INIT] Error loading data:', error);
         } finally {
           setLoading(false);
         }
       };
       
-      loadDocuments();
-      // Check if employee has already updated bank details
+      loadInitialData();
       setBankDetailsUpdated(user?.bankDetails?.updatedByEmployee || false);
     }
   }, [user]);
+
+  // Load documents when documents tab is opened
+  useEffect(() => {
+    if (activeTab === 'documents' && !documentsLoaded) {
+      fetchDocuments();
+      setDocumentsLoaded(true);
+    }
+  }, [activeTab, documentsLoaded]);
+
+  // Load official documents when downloads tab is opened
+  useEffect(() => {
+    if (activeTab === 'downloads' && !officialDocumentsLoaded) {
+      fetchOfficialDocuments();
+      setOfficialDocumentsLoaded(true);
+    }
+  }, [activeTab, officialDocumentsLoaded]);
 
   // Reset sameAsCurrentAddress when edit mode changes
   useEffect(() => {
@@ -196,6 +225,17 @@ const MyProfile = () => {
 
     try {
       setUploading(true);
+      
+      // If reupload, delete the old document first
+      if (reuploadDocumentId) {
+        try {
+          await api.delete(`/users/documents/${reuploadDocumentId}`);
+        } catch (error) {
+          console.error('Error deleting old document:', error);
+          // Continue with upload even if delete fails
+        }
+      }
+      
       const formData = new FormData();
       formData.append('document', documentForm.file);
       formData.append('category', documentForm.category);
@@ -205,9 +245,10 @@ const MyProfile = () => {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      toast.success('Document uploaded successfully');
+      toast.success(reuploadDocumentId ? 'Document reuploaded successfully' : 'Document uploaded successfully');
       setShowDocumentModal(false);
       setDocumentForm({ file: null, description: '', category: '' });
+      setReuploadDocumentId(null);
       
       // Refresh documents list
       await fetchDocuments();
@@ -220,14 +261,26 @@ const MyProfile = () => {
   };
 
   const handleDocumentDelete = async (documentId) => {
-    if (!window.confirm('Are you sure you want to delete this document?')) return;
+    const doc = documents.find(d => d._id === documentId);
+    setDocumentToDelete(doc);
+    setShowDeleteConfirmModal(true);
+  };
+
+  const confirmDeleteDocument = async () => {
+    if (!documentToDelete) return;
 
     try {
-      await api.delete(`/users/documents/${documentId}`);
+      setDeleting(true);
+      await api.delete(`/users/documents/${documentToDelete._id}`);
       toast.success('Document deleted successfully');
-      fetchDocuments();
+      setShowDeleteConfirmModal(false);
+      setDocumentToDelete(null);
+      await fetchDocuments();
     } catch (error) {
-      toast.error('Failed to delete document');
+      console.error('Error deleting document:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete document');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -474,9 +527,10 @@ const MyProfile = () => {
   const isAdmin = ['admin', 'superadmin'].includes(user?.role);
   const isEmployee = ['employee', 'hod', 'hr'].includes(user?.role);
 
-  const openDocumentModal = (category = '') => {
+  const openDocumentModal = (category = '', documentId = null) => {
     setDocumentType(category);
     setDocumentForm({ file: null, description: '', category });
+    setReuploadDocumentId(documentId);
     setShowDocumentModal(true);
   };
 
@@ -1029,11 +1083,12 @@ const MyProfile = () => {
               <Tabs
                 activeKey={activeTab}
                 onSelect={(k) => setActiveTab(k)}
-                className="px-4 pt-3"
+                className="pt-3"
               >
             {/* Admin Profile Layout - Matches the image exactly */}
             {isAdmin ? (
-              <div className="p-0">
+              <Tab eventKey="admin" title={<><FaShieldAlt className="me-2" />Admin Dashboard</>}>
+                <div className="p-0">
                 <Row className="g-0">
                   {/* Left Column - Profile Card */}
                   <Col xs={12} lg={4} className="border-end">
@@ -1231,6 +1286,7 @@ const MyProfile = () => {
                   </Col>
                 </Row>
               </div>
+            </Tab>
             ) : (
               /* Employee Profile Layout - Tabbed Interface */
               <Tab eventKey="personal" title={<><FaUser className="me-2" />Personal Details</>}>
@@ -1502,9 +1558,27 @@ const MyProfile = () => {
                   </Col>
                   <Col md={6} className="mb-3">
                     <Form.Group>
-                      <Form.Label>Salary</Form.Label>
-                      <div className="form-control-plaintext border rounded p-2 bg-light">
-                        {user?.salary ? `₹${user.salary.toLocaleString()}` : 'Not disclosed'}
+                      <Form.Label>Salary (Net)</Form.Label>
+                      <div className="d-flex align-items-center gap-2">
+                        <div className="form-control-plaintext border rounded p-2 bg-light flex-grow-1" style={{ letterSpacing: showSalary ? 'normal' : '0.15em' }}>
+                          {salaryStructure
+                            ? showSalary
+                              ? `₹${salaryStructure.netSalary?.toLocaleString('en-IN')} / month`
+                              : '₹ ••••••'
+                            : 'Not set'
+                          }
+                        </div>
+                        {salaryStructure && (
+                          <Button
+                            variant="outline-secondary"
+                            size="sm"
+                            onClick={() => setShowSalary(v => !v)}
+                            title={showSalary ? 'Hide salary' : 'Show salary'}
+                            style={{ flexShrink: 0 }}
+                          >
+                            {showSalary ? <FaEyeSlash /> : <FaEye />}
+                          </Button>
+                        )}
                       </div>
                     </Form.Group>
                   </Col>
@@ -2106,7 +2180,7 @@ const MyProfile = () => {
                                   <div>
                                     {categoryDocs.map((doc) => (
                                       <div key={doc._id} className="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
-                                        <div>
+                                        <div className="flex-grow-1">
                                           <small className="text-muted d-block">
                                             {new Date(doc.uploadedAt).toLocaleDateString('en-GB')}
                                           </small>
@@ -2114,6 +2188,37 @@ const MyProfile = () => {
                                           {doc.description && (
                                             <small className="text-muted d-block">{doc.description}</small>
                                           )}
+                                          {/* Verification Status */}
+                                          <div className="mt-2">
+                                            {doc.verificationStatus === 'pending' && (
+                                              <Badge bg="warning" text="dark" className="me-2">
+                                                <FaClock className="me-1" />
+                                                Verification Pending
+                                              </Badge>
+                                            )}
+                                            {doc.verificationStatus === 'approved' && (
+                                              <Badge bg="success" className="me-2">
+                                                <FaCheckCircle className="me-1" />
+                                                Approved by {doc.verifiedBy?.name || 'HR'}
+                                              </Badge>
+                                            )}
+                                            {doc.verificationStatus === 'rejected' && (
+                                              <Badge bg="danger" className="me-2">
+                                                <FaTimes className="me-1" />
+                                                Rejected
+                                              </Badge>
+                                            )}
+                                            {doc.verificationStatus === 'approved' && doc.verificationDate && (
+                                              <small className="text-muted d-block mt-1">
+                                                on {new Date(doc.verificationDate).toLocaleDateString('en-GB')}
+                                              </small>
+                                            )}
+                                            {doc.verificationStatus === 'rejected' && doc.rejectionReason && (
+                                              <small className="text-danger d-block mt-1">
+                                                Reason: {doc.rejectionReason}
+                                              </small>
+                                            )}
+                                          </div>
                                         </div>
                                         <div className="d-flex gap-1">
                                           <Button
@@ -2132,7 +2237,28 @@ const MyProfile = () => {
                                           >
                                             <FaDownload />
                                           </Button>
-                                          {isHROrAdmin && (
+                                          {/* Delete and Reupload options for pending/rejected documents */}
+                                          {(doc.verificationStatus === 'pending' || doc.verificationStatus === 'rejected') && (
+                                            <>
+                                              <Button
+                                                variant="outline-warning"
+                                                size="sm"
+                                                onClick={() => openDocumentModal(category.value, doc._id)}
+                                                title="Reupload Document"
+                                              >
+                                                <FaFileUpload />
+                                              </Button>
+                                              <Button
+                                                variant="outline-danger"
+                                                size="sm"
+                                                onClick={() => handleDocumentDelete(doc._id)}
+                                                title="Delete Document"
+                                              >
+                                                <FaTrash />
+                                              </Button>
+                                            </>
+                                          )}
+                                          {isHROrAdmin && doc.verificationStatus === 'approved' && (
                                             <Button
                                               variant="outline-danger"
                                               size="sm"
@@ -2493,7 +2619,7 @@ const MyProfile = () => {
             )}
 
             {/* Notification Settings Tab - For all users */}
-            <Tab eventKey="notifications" title={<><FaVolumeUp className="me-2" />Notification Settings</>}>
+            <Tab eventKey="notifications" title={<><FaVolumeUp className="me-2" />Notifications</>}>
               <div className="p-4">
                 <NotificationSettings />
               </div>
@@ -2561,7 +2687,7 @@ const MyProfile = () => {
         <Modal.Header closeButton>
           <Modal.Title>
             <FaFileUpload className="me-2" />
-            Upload Document
+            {reuploadDocumentId ? 'Reupload Document' : 'Upload Document'}
           </Modal.Title>
         </Modal.Header>
         <Form onSubmit={handleDocumentUpload}>
@@ -2607,24 +2733,84 @@ const MyProfile = () => {
             </Form.Group>
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowDocumentModal(false)}>
+            <Button variant="secondary" onClick={() => {
+              setShowDocumentModal(false);
+              setReuploadDocumentId(null);
+            }}>
               Cancel
             </Button>
             <Button variant="primary" type="submit" disabled={uploading}>
               {uploading ? (
                 <>
                   <span className="spinner-border spinner-border-sm me-2" />
-                  Uploading...
+                  {reuploadDocumentId ? 'Reuploading...' : 'Uploading...'}
                 </>
               ) : (
                 <>
                   <FaFileUpload className="me-2" />
-                  Upload Document
+                  {reuploadDocumentId ? 'Reupload Document' : 'Upload Document'}
                 </>
               )}
             </Button>
           </Modal.Footer>
         </Form>
+      </Modal>
+
+      {/* Delete Document Confirmation Modal */}
+      <Modal show={showDeleteConfirmModal} onHide={() => setShowDeleteConfirmModal(false)} centered>
+        <Modal.Header closeButton className="border-bottom">
+          <Modal.Title className="text-danger">
+            <FaTrash className="me-2" />
+            Delete Document
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="py-4">
+          {documentToDelete && (
+            <div>
+              <div className="alert alert-warning mb-3" role="alert">
+                <strong>Warning:</strong> This action cannot be undone.
+              </div>
+              <p className="mb-2">
+                <strong>Document:</strong> {documentToDelete.originalName}
+              </p>
+              <p className="mb-3">
+                <strong>Category:</strong> {documentToDelete.category}
+              </p>
+              <p className="text-muted mb-0">
+                Are you sure you want to permanently delete this document?
+              </p>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer className="border-top">
+          <Button 
+            variant="secondary" 
+            onClick={() => {
+              setShowDeleteConfirmModal(false);
+              setDocumentToDelete(null);
+            }}
+            disabled={deleting}
+          >
+            Cancel
+          </Button>
+          <Button 
+            variant="danger" 
+            onClick={confirmDeleteDocument}
+            disabled={deleting}
+          >
+            {deleting ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" />
+                Deleting...
+              </>
+            ) : (
+              <>
+                <FaTrash className="me-2" />
+                Delete Document
+              </>
+            )}
+          </Button>
+        </Modal.Footer>
       </Modal>
 
       {/* Change Password Modal */}

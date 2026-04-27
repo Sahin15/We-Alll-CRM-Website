@@ -17,7 +17,7 @@
 
 .personal-workload-card .card-header h5 {
   font-weight: 600;
-  font-size: 1.1rem;
+  font-size: 1.1rem !important;
 }
 
 .capacity-badge {
@@ -241,3 +241,4 @@
 .collapsing {
   transition: height 0.3s ease;
 }
+

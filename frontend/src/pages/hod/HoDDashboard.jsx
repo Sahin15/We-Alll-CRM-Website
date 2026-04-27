@@ -223,10 +223,18 @@ const HoDDashboard = () => {
     try {
       await projectApi.assignHoP(selectedProject._id, selectedUserId);
       toast.success('Head of Project assigned successfully!');
+      
+      // Update only the projects list instead of reloading entire dashboard
+      const updatedProjects = projects.map(p => 
+        p._id === selectedProject._id 
+          ? { ...p, headOfProject: selectedUserId }
+          : p
+      );
+      setProjects(updatedProjects);
+      
       setShowAssignHoPModal(false);
       setSelectedProject(null);
       setSelectedUserId('');
-      loadDashboardData();
     } catch (error) {
       console.error('Error assigning HoP:', error);
       toast.error(error.response?.data?.message || 'Failed to assign Head of Project');
@@ -300,7 +308,16 @@ const HoDDashboard = () => {
                     <FaClock className="me-2 text-primary" />
                     Today's Attendance
                   </h5>
-                  {todayAttendance && todayAttendance.clockIn ? (
+                  {todayAttendance && todayAttendance.status === 'on-leave' ? (
+                    <div>
+                      <p className="mb-1">
+                        <strong>Status:</strong> <Badge bg="secondary">On Leave</Badge>
+                      </p>
+                      {todayAttendance.notes && (
+                        <p className="mb-1 text-muted small">{todayAttendance.notes}</p>
+                      )}
+                    </div>
+                  ) : todayAttendance && todayAttendance.clockIn ? (
                     <div>
                       <p className="mb-1">
                         <strong>Clock In:</strong> {new Date(todayAttendance.clockIn).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}

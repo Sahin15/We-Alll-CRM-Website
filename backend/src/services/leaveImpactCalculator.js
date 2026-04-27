@@ -8,65 +8,144 @@ class LeaveImpactCalculator {
 
   /**
    * Calculate leave deduction for an employee in a specific month
-   * @param {string} employeeId - Employee ID
-   * @param {number} month - Month (1-12)
-   * @param {number} year - Year
-   * @param {Object} salaryStructure - Employee's salary structure
-   * @returns {Object} Leave impact calculation result
+   * Rules:
+   * - Approved leave (any type) = PAID, no deduction
+   * - Absent days (no clock-in, not on approved leave) = DEDUCTION
+   * - Unpaid leave explicitly requested = DEDUCTION
    */
   async calculateLeaveDeduction(employeeId, month, year, salaryStructure) {
     try {
-      // Get working days for the month
       const workingDaysResult = await this.workingDaysCalculator.getWorkingDays(month, year);
       const actualWorkingDays = workingDaysResult.workingDays;
 
-      // Get leave records for the month
+      // Per-day salary = gross / 30 (fixed, used ONLY for deductions)
+      // Total salary is always the same regardless of working days in the month
+      const grossSalary = salaryStructure.grossSalary || 0;
+      const perDaySalary = grossSalary / 30;
+
+      // Get all APPROVED leave records for the month
       const leaveRecords = await this.getLeaveRecordsForMonth(employeeId, month, year);
 
-      // Calculate per-day salary based on gross salary and working days
-      const grossSalary = salaryStructure.grossSalary || 0;
-      const perDaySalary = actualWorkingDays > 0 ? grossSalary / actualWorkingDays : 0;
-
-      // Process leave records
-      const leaveBreakdown = [];
+      // Build a set of dates covered by approved leaves
+      const approvedLeaveDates = new Set();
       let totalPaidLeaves = 0;
-      let totalUnpaidLeaves = 0;
-      let totalDeductionAmount = 0;
 
       for (const leave of leaveRecords) {
         const leaveDays = this.calculateLeaveDaysInMonth(leave, month, year);
-        const isPaid = this.isLeaveTypePaid(leave.leaveType);
-        const deductionAmount = isPaid ? 0 : leaveDays * perDaySalary;
+        totalPaidLeaves += leaveDays;
 
-        leaveBreakdown.push({
-          leaveId: leave._id,
-          leaveType: leave.leaveType,
-          days: leaveDays,
-          isPaid,
-          deductionAmount: Math.round(deductionAmount)
-        });
+        // Mark each date as covered by approved leave
+        const monthStart = new Date(year, month - 1, 1);
+        const monthEnd = new Date(year, month, 0);
+        const leaveStart = new Date(Math.max(new Date(leave.startDate), monthStart));
+        const leaveEnd = new Date(Math.min(new Date(leave.endDate), monthEnd));
 
-        if (isPaid) {
-          totalPaidLeaves += leaveDays;
-        } else {
-          totalUnpaidLeaves += leaveDays;
-          totalDeductionAmount += deductionAmount;
+        for (let d = new Date(leaveStart); d <= leaveEnd; d.setDate(d.getDate() + 1)) {
+          approvedLeaveDates.add(d.toDateString());
         }
       }
 
-      const result = {
+      // Get attendance records for the month to find absent days
+      const Attendance = (await import("../models/attendanceModel.js")).default;
+      const monthStart = new Date(year, month - 1, 1);
+      const monthEnd = new Date(year, month, 0);
+
+      // Only count absences up to today if generating for current month
+      const today = new Date();
+      const effectiveEnd = monthEnd < today ? monthEnd : today;
+
+      const attendanceRecords = await Attendance.find({
+        employee: employeeId,
+        date: { $gte: monthStart, $lte: effectiveEnd }
+      });
+
+      // Build set of dates with attendance records
+      const attendanceDates = new Set(
+        attendanceRecords.map(a => new Date(a.date).toDateString())
+      );
+
+      // Count absent days: working days with no attendance AND no approved leave
+      let absentDays = 0;
+      const absentDates = [];
+
+      for (let d = new Date(monthStart); d <= effectiveEnd; d.setDate(d.getDate() + 1)) {
+        const dayOfWeek = d.getDay();
+        const dateStr = d.toDateString();
+
+        // Skip weekends (Sunday = 0, Saturday = 6 for 5-day; Sunday only for 6-day)
+        if (dayOfWeek === 0) continue; // Always skip Sunday
+
+        // Skip holidays
+        const isHoliday = workingDaysResult.holidayDates?.some(
+          hd => new Date(hd).toDateString() === dateStr
+        );
+        if (isHoliday) continue;
+
+        // Skip if covered by approved leave
+        if (approvedLeaveDates.has(dateStr)) continue;
+
+        // If no attendance record for this working day = absent
+        if (!attendanceDates.has(dateStr)) {
+          absentDays++;
+          absentDates.push(new Date(d));
+        }
+      }
+
+      // Also count explicitly unpaid leaves
+      let explicitUnpaidLeaves = 0;
+      const unpaidLeaveBreakdown = [];
+
+      for (const leave of leaveRecords) {
+        if (!this.isLeaveTypePaid(leave.leaveType)) {
+          const days = this.calculateLeaveDaysInMonth(leave, month, year);
+          explicitUnpaidLeaves += days;
+          unpaidLeaveBreakdown.push({
+            leaveId: leave._id,
+            leaveType: leave.leaveType,
+            days,
+            isPaid: false,
+            deductionAmount: Math.round(days * perDaySalary)
+          });
+        }
+      }
+
+      const totalUnpaidDays = absentDays + explicitUnpaidLeaves;
+      const totalDeductionAmount = Math.round(totalUnpaidDays * perDaySalary);
+
+      const leaveBreakdown = [
+        // Paid approved leaves
+        ...leaveRecords
+          .filter(l => this.isLeaveTypePaid(l.leaveType))
+          .map(l => ({
+            leaveId: l._id,
+            leaveType: l.leaveType,
+            days: this.calculateLeaveDaysInMonth(l, month, year),
+            isPaid: true,
+            deductionAmount: 0
+          })),
+        // Unpaid leaves
+        ...unpaidLeaveBreakdown,
+        // Absent days
+        ...(absentDays > 0 ? [{
+          leaveType: 'absent',
+          days: absentDays,
+          isPaid: false,
+          deductionAmount: Math.round(absentDays * perDaySalary),
+          absentDates
+        }] : [])
+      ];
+
+      return {
         paidLeaves: totalPaidLeaves,
-        unpaidLeaves: totalUnpaidLeaves,
+        unpaidLeaves: totalUnpaidDays,
         perDaySalary: Math.round(perDaySalary),
-        deductionAmount: Math.round(totalDeductionAmount),
+        deductionAmount: totalDeductionAmount,
         leaveBreakdown,
         workingDays: actualWorkingDays,
-        calculationMethod: "proportional"
+        absentDays,
+        calculationMethod: "approved_leave_paid_absent_deducted"
       };
-
-      return result;
     } catch (error) {
-      
       throw error;
     }
   }
@@ -151,41 +230,18 @@ class LeaveImpactCalculator {
   }
 
   /**
-   * Determine if a leave type is paid or unpaid
-   * @param {string} leaveType - Type of leave
-   * @returns {boolean} True if paid, false if unpaid
+   * Determine if a leave type is paid or unpaid.
+   * Rule: All approved leaves are paid EXCEPT explicitly unpaid/LOP types.
    */
   isLeaveTypePaid(leaveType) {
-    const paidLeaveTypes = [
-      "annual",
-      "sick",
-      "casual",
-      "earned",
-      "compensatory",
-      "festival",
-      "bereavement"
-    ];
-
     const unpaidLeaveTypes = [
       "unpaid",
       "loss_of_pay",
       "lop",
-      "extended_sick",
-      "personal"
+      "lwp",
+      "leave_without_pay"
     ];
-
-    // Check if explicitly unpaid
-    if (unpaidLeaveTypes.includes(leaveType.toLowerCase())) {
-      return false;
-    }
-
-    // Check if explicitly paid
-    if (paidLeaveTypes.includes(leaveType.toLowerCase())) {
-      return true;
-    }
-
-    // Default to paid for unknown types (conservative approach)
-    return true;
+    return !unpaidLeaveTypes.includes(leaveType?.toLowerCase());
   }
 
   /**

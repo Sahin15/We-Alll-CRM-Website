@@ -321,7 +321,7 @@
   }
 
   .sidebar.collapsed .sidebar-header h4 {
-    font-size: 14px;
+    font-size: 14px !important;
   }
 }
 
@@ -460,3 +460,4 @@
     font-size: 13px;
   }
 }
+

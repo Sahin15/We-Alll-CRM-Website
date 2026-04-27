@@ -12,6 +12,10 @@ export const documentApi = {
   downloadDocument: (id) => api.get(`/documents/${id}/download`, {
     responseType: 'blob'
   }),
+  // Document verification APIs
+  getPendingDocuments: () => api.get("/documents/verification/pending"),
+  approveDocument: (documentId) => api.put(`/documents/${documentId}/approve`),
+  rejectDocument: (documentId, reason) => api.put(`/documents/${documentId}/reject`, { reason }),
 };
 
 export default documentApi;

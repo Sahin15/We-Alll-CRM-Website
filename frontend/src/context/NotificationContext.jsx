@@ -22,6 +22,20 @@ export const NotificationProvider = ({ children }) => {
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
   const prevUnreadRef = useRef(0);
+  // Track IDs deleted in this session so polling doesn't bring them back
+  // Persisted in localStorage so they survive page refreshes
+  const deletedIdsRef = useRef(new Set(
+    JSON.parse(localStorage.getItem('_deleted_notif_ids') || '[]')
+  ));
+
+  // Helper to persist deleted IDs
+  const persistDeletedId = (id) => {
+    deletedIdsRef.current.add(id);
+    try {
+      const arr = Array.from(deletedIdsRef.current).slice(-200); // keep last 200
+      localStorage.setItem('_deleted_notif_ids', JSON.stringify(arr));
+    } catch {}
+  };
 
   // Fetch notifications
   const fetchNotifications = useCallback(async () => {
@@ -31,22 +45,22 @@ export const NotificationProvider = ({ children }) => {
       const response = await axios.get(`${API_URL}/notifications/my-notifications`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const newNotifications = response.data.notifications || [];
+      let newNotifications = response.data.notifications || [];
       const newUnreadCount = response.data.unreadCount || 0;
 
-      // Play sound if unread count increased (new notification arrived via polling)
+      // Filter out any IDs we already deleted this session
+      if (deletedIdsRef.current.size > 0) {
+        newNotifications = newNotifications.filter(n => !deletedIdsRef.current.has(n._id));
+      }
+
+      // Play sound if unread count increased
       if (newUnreadCount > prevUnreadRef.current) {
-        try {
-          await playSound();
-        } catch (soundError) {
-          // Sound is optional - don't block on audio errors
-          console.debug('Notification sound skipped:', soundError?.message);
-        }
+        try { await playSound(); } catch {}
       }
       prevUnreadRef.current = newUnreadCount;
 
       setNotifications(newNotifications);
-      setUnreadCount(newUnreadCount);
+      setUnreadCount(newNotifications.filter(n => !n.isRead).length);
     } catch (error) {
       console.error("Error fetching notifications:", error);
     } finally {
@@ -130,20 +144,27 @@ export const NotificationProvider = ({ children }) => {
 
   // Delete notification
   const deleteNotification = async (notificationId) => {
+    // Immediately add to deleted set AND persist so polling won't bring it back after refresh
+    persistDeletedId(notificationId);
+
+    // Optimistically remove from local state
+    setNotifications((prev) => {
+      const deletedNotif = prev.find((n) => n._id === notificationId);
+      if (deletedNotif && !deletedNotif.isRead) {
+        setUnreadCount((c) => Math.max(0, c - 1));
+      }
+      return prev.filter((n) => n._id !== notificationId);
+    });
+
+    // Delete from backend
     try {
       const token = localStorage.getItem("token");
       await axios.delete(`${API_URL}/notifications/${notificationId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      
-      // Update local state
-      const deletedNotif = notifications.find((n) => n._id === notificationId);
-      setNotifications((prev) => prev.filter((n) => n._id !== notificationId));
-      if (deletedNotif && !deletedNotif.isRead) {
-        setUnreadCount((prev) => Math.max(0, prev - 1));
-      }
     } catch (error) {
       console.error("Error deleting notification:", error);
+      // Even if backend fails, keep it out of local state
     }
   };
 

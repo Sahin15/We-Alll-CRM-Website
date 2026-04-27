@@ -6,38 +6,44 @@
    1. BASIC TABLE MOBILE OPTIMIZATION
    ============================================ */
 
+/* Apply to all screen sizes - not just mobile */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+}
+
+/* Table styling - applies to all sizes */
+.table {
+  font-size: 1rem;
+  margin-bottom: 0;
+}
+
+.table th,
+.table td {
+  padding: 8px !important;
+  vertical-align: middle;
+}
+
+.table th {
+  white-space: nowrap;
+}
+
+.table td {
+  white-space: normal;
+}
+
+.table thead th {
+  font-size: 1rem;
+  font-weight: 600;
+  background-color: #f8f9fa;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
 @media (max-width: 767.98px) {
-  /* Make tables horizontally scrollable */
-  .table-responsive {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    margin-bottom: 1rem;
-    border-radius: 8px;
-  }
-  
-  /* Table styling */
-  .table {
-    font-size: 0.8rem;
-    margin-bottom: 0;
-  }
-  
-  .table th,
-  .table td {
-    padding: 10px 8px;
-    white-space: nowrap;
-    vertical-align: middle;
-  }
-  
-  .table thead th {
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    background-color: #f8f9fa;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-  }
   
   /* Action buttons in tables */
   .table .btn-sm {
@@ -441,7 +447,7 @@
   }
   
   .status-card h6 {
-    font-size: 0.9rem;
+    font-size: 0.9rem !important;
   }
   
   .status-card p {
@@ -634,5 +640,53 @@
   
   .table-mobile-cards {
     display: table !important;
+  }
+}
+
+
+
+/* ============================================
+   21. FORM GROUP DROPDOWN FIX
+   ============================================ */
+
+.form-group {
+  overflow: visible !important;
+}
+
+.position-relative {
+  overflow: visible !important;
+}
+
+/* Ensure custom dropdowns don't get clipped */
+.attendance-dropdown-container {
+  overflow: visible !important;
+  z-index: 10001 !important;
+}
+
+.attendance-dropdown {
+  overflow: visible !important;
+  z-index: 10002 !important;
+}
+
+@media (max-width: 767.98px) {
+  /* Mobile-specific dropdown fixes */
+  .form-group {
+    overflow: visible !important;
+  }
+  
+  .position-relative {
+    overflow: visible !important;
+  }
+  
+  .attendance-dropdown-container {
+    overflow: visible !important;
+    z-index: 10001 !important;
+  }
+  
+  .attendance-dropdown {
+    overflow: visible !important;
+    z-index: 10002 !important;
+    word-wrap: break-word !important;
+    white-space: normal !important;
   }
 }

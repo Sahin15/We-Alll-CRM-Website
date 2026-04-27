@@ -21,18 +21,21 @@ import {
   FaChartLine,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
+import { useAuth } from "../../context/AuthContext";
 import { attendanceApi } from "../../api/attendanceApi";
-import { formatDate, formatDateTime, formatTime, getStatusVariant } from "../../utils/helpers";
+import { formatDate, formatDateTime, formatTime, getStatusVariant, formatHours } from "../../utils/helpers";
 import { formatWorkHours } from "../../utils/attendanceHelpers";
 import ConfirmModal from "../../components/common/ConfirmModal";
 import WorkLogSubmissionModal from "../../components/worklog/WorkLogSubmissionModal";
 import MyOvertimeHistory from "../../components/attendance/MyOvertimeHistory";
+import AttendanceCalendar from "../../components/attendance/AttendanceCalendar";
 import { workLogApi } from "../../api/workLogApi";
 import * as XLSX from "xlsx";
 import "../../styles/table-mobile.css";
 import "../../styles/modal-mobile.css";
 
 const MyAttendance = () => {
+  const { user } = useAuth();
   const [attendances, setAttendances] = useState([]);
   const [todayAttendance, setTodayAttendance] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -84,18 +87,25 @@ const MyAttendance = () => {
       const absent = data.filter((a) => a.status === "absent").length;
       const late = data.filter((a) => a.status === "late").length;
       const halfDay = data.filter((a) => a.status === "half-day").length;
+      const onLeave = data.filter((a) => a.status === "on-leave").length;
       const totalHours = data.reduce((sum, a) => sum + (a.workHours || 0), 0);
       const overtime = data.reduce((sum, a) => sum + (a.overtime || 0), 0);
       const totalBreakMinutes = data.reduce((sum, a) => sum + (a.totalBreakTime || 0), 0);
+      
+      // Calculate working days (exclude on-leave days)
+      const workingDays = data.length - onLeave;
+      const avgHoursPerDay = workingDays > 0 ? totalHours / workingDays : 0;
 
       setStats({
         present,
         absent,
         late,
         halfDay,
-        totalHours: totalHours.toFixed(2),
-        overtime: overtime.toFixed(2),
+        onLeave,
+        totalHours: formatHours(totalHours),
+        overtime: formatHours(overtime),
         totalBreakTime: totalBreakMinutes.toFixed(0),
+        avgHoursPerDay: formatHours(avgHoursPerDay),
         total: data.length,
       });
 
@@ -242,6 +252,329 @@ const MyAttendance = () => {
     }
   };
 
+  const formatDateDDMMYYYY = (date) => {
+    const d = new Date(date);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  const handleExportPDF = () => {
+    try {
+      // Calculate expected average hours
+      let totalExpected = 0;
+      let workingDays = 0;
+      attendances.forEach((a) => {
+        if (a.status === 'present' || a.status === 'late') {
+          const date = new Date(a.date);
+          const dayOfWeek = date.getDay();
+          if (dayOfWeek === 6) {
+            totalExpected += 6;
+          } else if (dayOfWeek !== 0) {
+            totalExpected += 8;
+          }
+          workingDays += 1;
+        } else if (a.status === 'half-day') {
+          const date = new Date(a.date);
+          const dayOfWeek = date.getDay();
+          if (dayOfWeek === 6) {
+            totalExpected += 3;
+          } else if (dayOfWeek !== 0) {
+            totalExpected += 4;
+          }
+          workingDays += 1;
+        }
+      });
+      const expectedAvgHours = workingDays > 0 ? totalExpected / workingDays : 0;
+      const expectedAvgHoursFormatted = formatHours(expectedAvgHours);
+
+      // Create a printable version
+      const printWindow = window.open('', '_blank');
+      const currentDate = formatDateDDMMYYYY(new Date());
+      const startDateFormatted = formatDateDDMMYYYY(dateRange.startDate);
+      const endDateFormatted = formatDateDDMMYYYY(dateRange.endDate);
+      
+      // Pre-calculate all values needed in the template
+      const totalBreakTimeFormatted = `${Math.floor(stats.totalBreakTime / 60)}h ${Math.round(stats.totalBreakTime % 60)}m`;
+      const daysWorked = stats.present + stats.late + stats.halfDay;
+      
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Attendance Report - ${user?.name}</title>
+          <style>
+            body { 
+              font-family: Arial, sans-serif; 
+              padding: 20px; 
+              margin: 0;
+              background-color: #f5f5f5;
+            }
+            .container {
+              max-width: 1000px;
+              margin: 0 auto;
+              background-color: white;
+              padding: 30px;
+              border-radius: 8px;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 30px;
+              border-bottom: 3px solid #007bff;
+              padding-bottom: 20px;
+            }
+            .logo {
+              width: 120px;
+              height: auto;
+            }
+            .header-info {
+              flex: 1;
+              margin-left: 30px;
+            }
+            .header-info h1 {
+              margin: 0;
+              color: #007bff;
+              font-size: 28px;
+            }
+            .header-info p {
+              margin: 5px 0;
+              color: #666;
+              font-size: 14px;
+            }
+            .employee-info {
+              background-color: #f8f9fa;
+              padding: 15px;
+              border-radius: 5px;
+              margin-bottom: 20px;
+              border-left: 4px solid #007bff;
+            }
+            .employee-info p {
+              margin: 8px 0;
+              font-size: 14px;
+            }
+            .employee-info strong {
+              color: #333;
+            }
+            .stats {
+              display: grid;
+              grid-template-columns: repeat(6, 1fr);
+              gap: 15px;
+              margin: 20px 0;
+            }
+            .stat-card {
+              border: 1px solid #ddd;
+              padding: 15px;
+              border-radius: 5px;
+              text-align: center;
+              background-color: #f9f9f9;
+            }
+            .stat-value {
+              font-size: 24px;
+              font-weight: bold;
+              margin: 10px 0;
+              color: #007bff;
+            }
+            .stat-label {
+              color: #666;
+              font-size: 12px;
+              font-weight: 600;
+            }
+            .summary-section {
+              margin: 30px 0;
+            }
+            .summary-section h3 {
+              color: #333;
+              border-bottom: 2px solid #007bff;
+              padding-bottom: 10px;
+              margin-bottom: 15px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 15px;
+            }
+            th, td {
+              border: 1px solid #ddd;
+              padding: 10px;
+              text-align: left;
+              font-size: 13px;
+            }
+            th {
+              background-color: #007bff;
+              color: white;
+              font-weight: bold;
+            }
+            tr:nth-child(even) {
+              background-color: #f9f9f9;
+            }
+            tr:hover {
+              background-color: #f0f0f0;
+            }
+            .status-present { color: #28a745; font-weight: bold; }
+            .status-late { color: #ffc107; font-weight: bold; }
+            .status-halfday { color: #17a2b8; font-weight: bold; }
+            .status-absent { color: #dc3545; font-weight: bold; }
+            .status-on-leave { color: #6c757d; font-weight: bold; }
+            .footer {
+              margin-top: 30px;
+              padding-top: 20px;
+              border-top: 1px solid #ddd;
+              text-align: center;
+              color: #999;
+              font-size: 12px;
+            }
+            @media print {
+              body { background-color: white; }
+              .container { box-shadow: none; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <!-- Header with Logo -->
+            <div class="header">
+              <img src="/We Alll.png" alt="We Alll" class="logo" />
+              <div class="header-info">
+                <h1>Attendance Report</h1>
+                <p><strong>Period:</strong> ${startDateFormatted} to ${endDateFormatted}</p>
+                <p><strong>Generated on:</strong> ${currentDate}</p>
+              </div>
+            </div>
+
+            <!-- Employee Information -->
+            <div class="employee-info">
+              <p><strong>Employee Name:</strong> ${user?.name || 'N/A'}</p>
+              <p><strong>Email:</strong> ${user?.email || 'N/A'}</p>
+              <p><strong>Department:</strong> ${user?.department?.name || 'N/A'}</p>
+              <p><strong>Employee ID:</strong> ${user?.employeeId || 'N/A'}</p>
+            </div>
+
+            <!-- Statistics -->
+            <div class="summary-section">
+              <h3>Summary Statistics</h3>
+              <div class="stats">
+                <div class="stat-card">
+                  <div class="stat-label">Present</div>
+                  <div class="stat-value" style="color: #28a745;">${stats.present}</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Late</div>
+                  <div class="stat-value" style="color: #ffc107;">${stats.late}</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Half Day</div>
+                  <div class="stat-value" style="color: #17a2b8;">${stats.halfDay}</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Absent</div>
+                  <div class="stat-value" style="color: #dc3545;">${stats.absent}</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">On Leave</div>
+                  <div class="stat-value" style="color: #6c757d;">${stats.onLeave}</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Total Days</div>
+                  <div class="stat-value">${stats.total}</div>
+                </div>
+              </div>
+              <div class="stats">
+                <div class="stat-card">
+                  <div class="stat-label">Total Hours</div>
+                  <div class="stat-value">${stats.totalHours}</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Overtime</div>
+                  <div class="stat-value">${stats.overtime}</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Avg Hours/Day</div>
+                  <div class="stat-value">${stats.avgHoursPerDay}</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Expected Avg/Day</div>
+                  <div class="stat-value">${expectedAvgHoursFormatted}</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Total Break Time</div>
+                  <div class="stat-value">${totalBreakTimeFormatted}</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Days Worked</div>
+                  <div class="stat-value">${daysWorked}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Attendance Records Table -->
+            <div class="summary-section">
+              <h3>Detailed Attendance Records</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Clock In</th>
+                    <th>Clock Out</th>
+                    <th>Break Time</th>
+                    <th>Work Hours</th>
+                    <th>Overtime</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${attendances.map((a) => {
+                    const breakTime = a.status === 'on-leave' ? '-' : (a.totalBreakTime > 0 ? `${Math.floor(a.totalBreakTime / 60)}h ${Math.round(a.totalBreakTime % 60)}m` : '-');
+                    const workHours = a.status === 'on-leave' ? '-' : formatHours(a.workHours || 0);
+                    const overtime = formatHours(a.overtime || 0);
+                    const clockIn = a.status === 'on-leave' ? 'On Leave' : formatTime(a.clockIn);
+                    const clockOut = a.status === 'on-leave' ? 'On Leave' : (a.clockOut ? formatTime(a.clockOut) : 'N/A');
+                    const dateFormatted = formatDateDDMMYYYY(a.date);
+                    
+                    return `
+                      <tr>
+                        <td>${dateFormatted}</td>
+                        <td>${clockIn}</td>
+                        <td>${clockOut}</td>
+                        <td>${breakTime}</td>
+                        <td>${workHours}</td>
+                        <td>${overtime}</td>
+                        <td class="status-${a.status.replace('-', '')}">${a.status}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer">
+              <p>This is an official attendance report generated from We Alll Office Management System.</p>
+              <p>For any queries, please contact the HR department.</p>
+            </div>
+          </div>
+
+          <script>
+            window.print();
+          </script>
+        </body>
+        </html>
+      `;
+
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      
+      toast.success("Attendance report opened for printing/export!");
+    } catch (error) {
+      console.error('PDF export error:', error);
+      toast.error("Failed to export attendance to PDF");
+    }
+  };
+
   const handleDateChange = (e) => {
     setDateRange({ ...dateRange, [e.target.name]: e.target.value });
   };
@@ -315,9 +648,17 @@ const MyAttendance = () => {
                     )}
                   </div>
                   
-                  <Row>
-                    <Col xs={6} md={3}>
-                      <p className="mb-1 text-muted">Clock In</p>
+                  {todayAttendance.status === 'on-leave' ? (
+                    <div className="alert alert-info">
+                      <p className="mb-1"><strong>You are on leave today</strong></p>
+                      {todayAttendance.notes && (
+                        <p className="mb-0 small text-muted">{todayAttendance.notes}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <Row>
+                      <Col xs={6} md={3}>
+                        <p className="mb-1 text-muted">Clock In</p>
                       <h6>{formatTime(todayAttendance.clockIn)}</h6>
                     </Col>
                     {todayAttendance.clockOut && (
@@ -343,6 +684,7 @@ const MyAttendance = () => {
                       </Col>
                     )}
                   </Row>
+                  )}
                   
                   {/* Break Details */}
                   {todayAttendance.breaks && todayAttendance.breaks.length > 0 && (
@@ -456,6 +798,18 @@ const MyAttendance = () => {
                       <small className="text-muted">Total Days</small>
                     </div>
                   </Col>
+                  {stats.onLeave > 0 && (
+                    <Col xs={12} className="mt-2">
+                      <div className="p-2 bg-secondary bg-opacity-10 rounded">
+                        <small className="text-muted">On Leave: <strong>{stats.onLeave}</strong> days</small>
+                      </div>
+                    </Col>
+                  )}
+                  <Col xs={12} className="mt-2">
+                    <div className="p-2 bg-primary bg-opacity-10 rounded">
+                      <small className="text-muted">Avg Hours/Day (excluding leave): <strong>{stats.avgHoursPerDay}</strong></small>
+                    </div>
+                  </Col>
                 </Row>
               )}
             </Card.Body>
@@ -487,10 +841,14 @@ const MyAttendance = () => {
             />
           </Form.Group>
         </Col>
-        <Col xs={12} md={3} className="d-flex align-items-end">
-          <Button variant="outline-success" onClick={handleExport} className="w-100 w-mobile-100">
+        <Col xs={12} md={3} className="d-flex align-items-end gap-2">
+          <Button variant="outline-success" onClick={handleExport} className="flex-fill w-mobile-100">
             <FaDownload className="me-2" />
-            Export to Excel
+            Excel
+          </Button>
+          <Button variant="outline-danger" onClick={handleExportPDF} className="flex-fill w-mobile-100">
+            <FaDownload className="me-2" />
+            PDF
           </Button>
         </Col>
       </Row>
@@ -536,10 +894,10 @@ const MyAttendance = () => {
                               )}
                             </div>
                           </td>
-                          <td>{attendance.status === 'on-leave' ? '-' : formatTime(attendance.clockIn)}</td>
+                          <td>{attendance.status === 'on-leave' ? <Badge bg="secondary">On Leave</Badge> : formatTime(attendance.clockIn)}</td>
                           <td>
                             {attendance.status === 'on-leave' 
-                              ? '-'
+                              ? <Badge bg="secondary">On Leave</Badge>
                               : attendance.clockOut
                               ? formatTime(attendance.clockOut)
                               : <Badge bg="warning">In Progress</Badge>}
@@ -577,8 +935,8 @@ const MyAttendance = () => {
                               "-"
                             )}
                           </td>
-                          <td>{attendance.status === 'on-leave' ? '-' : formatWorkHours(attendance.workHours || 0)}</td>
-                          <td className="hide-mobile">{formatWorkHours(attendance.overtime || 0)}</td>
+                          <td>{attendance.status === 'on-leave' ? '-' : formatHours(attendance.workHours || 0)}</td>
+                          <td className="hide-mobile">{formatHours(attendance.overtime || 0)}</td>
                           <td>
                             <div className="d-flex align-items-center gap-2">
                               <Badge bg={getStatusVariant(attendance.status)}>
@@ -606,78 +964,12 @@ const MyAttendance = () => {
         </Tab>
 
         <Tab eventKey="calendar" title="Calendar View">
-          <Card>
-            <Card.Body>
-              <div className="attendance-calendar">
-                <Row className="g-2">
-                  {calendarView.map((day, index) => (
-                    <Col key={index} xs={6} sm={4} md={3} lg={2}>
-                      <Card
-                        className={`text-center ${
-                          day.isWeekend ? "bg-light" : ""
-                        } ${
-                          day.record
-                            ? day.record.status === "present"
-                              ? "border-success"
-                              : day.record.status === "absent"
-                              ? "border-danger"
-                              : "border-warning"
-                            : "border-secondary"
-                        }`}
-                        style={{ borderWidth: "2px" }}
-                      >
-                        <Card.Body className="p-2">
-                          <div className="fw-bold">{day.date.getDate()}</div>
-                          <small className="text-muted">
-                            {day.date.toLocaleDateString("en-US", {
-                              weekday: "short",
-                            })}
-                          </small>
-                          <div className="mt-1">
-                            {day.record ? (
-                              <Badge
-                                bg={getStatusVariant(day.record.status)}
-                                className="w-100"
-                              >
-                                {day.record.status}
-                              </Badge>
-                            ) : day.isWeekend ? (
-                              <Badge bg="secondary" className="w-100">
-                                Weekend
-                              </Badge>
-                            ) : (
-                              <Badge bg="light" text="dark" className="w-100">
-                                No data
-                              </Badge>
-                            )}
-                          </div>
-                          {day.record && (
-                            <>
-                              {day.record.isWFH && (
-                                <div style={{ fontSize: '1.5em' }} title={`Work From Home${day.record.wfhReason ? ': ' + day.record.wfhReason : ''}`}>
-                                  🏠
-                                </div>
-                              )}
-                              {day.record.workHours && (
-                                <small className="text-muted d-block mt-1">
-                                  {formatWorkHours(day.record.workHours)}
-                                </small>
-                              )}
-                              {day.record.totalBreakTime > 0 && (
-                                <small className="text-info d-block">
-                                  ☕ {Math.floor(day.record.totalBreakTime / 60)}h {Math.round(day.record.totalBreakTime % 60)}m
-                                </small>
-                              )}
-                            </>
-                          )}
-                        </Card.Body>
-                      </Card>
-                    </Col>
-                  ))}
-                </Row>
-              </div>
-            </Card.Body>
-          </Card>
+          <AttendanceCalendar
+            attendances={attendances}
+            selectedMonth={new Date(dateRange.startDate).getMonth()}
+            selectedYear={new Date(dateRange.startDate).getFullYear()}
+            employeeName="My Attendance"
+          />
         </Tab>
 
         <Tab eventKey="overtime" title="Overtime History">

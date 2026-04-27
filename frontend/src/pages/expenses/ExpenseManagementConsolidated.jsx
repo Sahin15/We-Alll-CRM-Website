@@ -7,6 +7,7 @@ import { useAuth } from "../../context/AuthContext";
 import toast from "../../utils/toast";
 import { BarChart, Bar, PieChart, Pie, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
 import { formatDate, formatCurrency } from "../../utils/helpers";
+import { EXPENSE_PURPOSES_ARRAY, getTypeColor } from "../../utils/expenseConstants";
 import "./ExpenseManagement.css";
 
 const ExpenseManagementConsolidated = () => {
@@ -19,7 +20,8 @@ const ExpenseManagementConsolidated = () => {
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({
     status: "all",
-    category: "all",
+    expensePurpose: "all",
+    expenseType: "all",
     startDate: "",
     endDate: "",
   });
@@ -31,6 +33,7 @@ const ExpenseManagementConsolidated = () => {
   // Analytics state
   const [analyticsData, setAnalyticsData] = useState({
     categoryData: [],
+    typeData: [],
     statusData: [],
     trendData: [],
     departmentData: [],
@@ -89,8 +92,12 @@ const ExpenseManagementConsolidated = () => {
       params.status = filters.status;
     }
 
-    if (filters.category !== "all") {
-      params.category = filters.category;
+    if (filters.expensePurpose !== "all") {
+      params.expensePurpose = filters.expensePurpose;
+    }
+
+    if (filters.expenseType !== "all") {
+      params.expenseType = filters.expenseType;
     }
 
     if (filters.startDate) params.startDate = filters.startDate;
@@ -103,24 +110,31 @@ const ExpenseManagementConsolidated = () => {
   };
 
   const fetchReimbursementData = async () => {
-    const params = {
-      page,
-      limit: 10,
-    };
-    
-    // Reimbursement should show approved expenses
-    params.status = "approved";
-    
-    if (filters.category !== "all") {
-      params.category = filters.category;
-    }
-    
-    if (filters.startDate) params.startDate = filters.startDate;
-    if (filters.endDate) params.endDate = filters.endDate;
+    try {
+      const params = {
+        page,
+        limit: 10,
+      };
+      
+      if (filters.expensePurpose !== "all") {
+        params.expensePurpose = filters.expensePurpose;
+      }
+      
+      if (filters.expenseType !== "all") {
+        params.expenseType = filters.expenseType;
+      }
+      
+      if (filters.startDate) params.startDate = filters.startDate;
+      if (filters.endDate) params.endDate = filters.endDate;
 
-    const response = await getAllExpenses(params);
-    setExpenses(response.expenses || []);
-    setPagination(response.pagination || {});
+      const response = await getReimbursementTracking(params);
+      setExpenses(response.expenses || []);
+      setPagination(response.pagination || {});
+    } catch (error) {
+      console.error("Error fetching reimbursement data:", error);
+      toast.error("Failed to fetch reimbursement data");
+      setExpenses([]);
+    }
   };
 
   const fetchAnalyticsData = async () => {
@@ -131,42 +145,59 @@ const ExpenseManagementConsolidated = () => {
 
       console.log("Fetching analytics with params:", params);
 
-      const [categoryAnalytics, statusAnalytics, departmentAnalytics, trendsRes, categoryStatsRes] = await Promise.all([
-        getExpenseAnalytics({ ...params, groupBy: 'category' }),
+      const [purposeAnalytics, typeAnalytics, statusAnalytics, departmentAnalytics, trendsRes, categoryStatsRes] = await Promise.all([
+        getExpenseAnalytics({ ...params, groupBy: 'expensePurpose' }),
+        getExpenseAnalytics({ ...params, groupBy: 'expenseType' }),
         getExpenseAnalytics({ ...params, groupBy: 'status' }),
         getExpenseAnalytics({ ...params, groupBy: 'department' }),
         getMonthlyTrends({ months: 12 }),
-        getCategoryStats(),
+        getCategoryStats(params),
       ]);
 
       console.log("Analytics responses:", { 
-        categoryAnalytics: categoryAnalytics?.analytics || [], 
+        purposeAnalytics: purposeAnalytics?.analytics || [], 
+        typeAnalytics: typeAnalytics?.analytics || [], 
         statusAnalytics: statusAnalytics?.analytics || [], 
         departmentAnalytics: departmentAnalytics?.analytics || [], 
         trendsRes: trendsRes?.trends || [], 
         categoryStatsRes: categoryStatsRes?.categoryStats || [] 
       });
 
-      // Transform category stats for pie chart (use categoryStats for more detailed data)
-      const categoryData = (categoryStatsRes?.categoryStats || []).map(stat => ({
-        name: stat._id || 'Unknown',
-        value: stat.total || 0,
-        count: stat.count || 0
-      }));
+      // Transform purpose analytics for pie chart
+      const categoryData = (purposeAnalytics?.analytics || [])
+        .filter(stat => stat._id && stat._id !== 'null' && stat._id !== null)
+        .map(stat => ({
+          name: stat._id ? stat._id.replace(/_/g, ' ').toUpperCase() : 'Unknown',
+          value: stat.total || 0,
+          count: stat.count || 0
+        }));
+
+      // Transform type analytics for pie chart
+      const typeData = (typeAnalytics?.analytics || [])
+        .filter(stat => stat._id && stat._id !== 'null' && stat._id !== null)
+        .map(stat => ({
+          name: stat._id ? stat._id.replace(/_/g, ' ').toUpperCase() : 'Unknown',
+          value: stat.total || 0,
+          count: stat.count || 0
+        }));
 
       // Transform status analytics for status breakdown
-      const statusData = (statusAnalytics?.analytics || []).map(stat => ({
-        name: stat._id || 'Unknown',
-        value: stat.total || 0,
-        count: stat.count || 0
-      }));
+      const statusData = (statusAnalytics?.analytics || [])
+        .filter(stat => stat._id && stat._id !== 'null' && stat._id !== null)
+        .map(stat => ({
+          name: stat._id || 'Unknown',
+          value: stat.total || 0,
+          count: stat.count || 0
+        }));
 
       // Transform department analytics
-      const departmentData = (departmentAnalytics?.analytics || []).map(stat => ({
-        name: stat.departmentName || stat._id || 'Unknown',
-        value: stat.total || 0,
-        count: stat.count || 0
-      }));
+      const departmentData = (departmentAnalytics?.analytics || [])
+        .filter(stat => stat._id && stat._id !== 'null' && stat._id !== null)
+        .map(stat => ({
+          name: stat.departmentName || stat._id || 'Unknown',
+          value: stat.total || 0,
+          count: stat.count || 0
+        }));
 
       // Transform trends for line chart
       const trendData = (trendsRes?.trends || []).map(trend => ({
@@ -178,10 +209,11 @@ const ExpenseManagementConsolidated = () => {
         rejected: trend.rejected || 0
       }));
 
-      console.log("Transformed data:", { categoryData, statusData, departmentData, trendData });
+      console.log("Transformed data:", { categoryData, typeData, statusData, departmentData, trendData });
 
       setAnalyticsData({
         categoryData,
+        typeData,
         statusData,
         departmentData,
         trendData,
@@ -192,6 +224,7 @@ const ExpenseManagementConsolidated = () => {
       // Set empty data on error
       setAnalyticsData({
         categoryData: [],
+        typeData: [],
         statusData: [],
         departmentData: [],
         trendData: [],
@@ -412,8 +445,9 @@ const ExpenseManagementConsolidated = () => {
       };
       
       // Add optional filters if set
-      if (filters.category !== "all") exportFilters.category = filters.category;
-      if (filters.status !== "all") exportFilters.status = filters.status;
+      if (filters.expensePurpose && filters.expensePurpose !== "all") exportFilters.expensePurpose = filters.expensePurpose;
+      if (filters.expenseType && filters.expenseType !== "all") exportFilters.expenseType = filters.expenseType;
+      if (filters.status && filters.status !== "all") exportFilters.status = filters.status;
       if (filters.startDate) exportFilters.startDate = filters.startDate;
       if (filters.endDate) exportFilters.endDate = filters.endDate;
 
@@ -473,19 +507,6 @@ const ExpenseManagementConsolidated = () => {
     return 0;
   };
 
-  const getCategoryBadge = (category) => {
-    const colors = {
-      travel: "primary",
-      food: "success",
-      accommodation: "info",
-      office_supplies: "warning",
-      client_meeting: "danger",
-      training: "secondary",
-      other: "light",
-    };
-    return colors[category] || "light";
-  };
-
   const getStatusBadge = (status) => {
     const colors = {
       pending: "warning",
@@ -520,7 +541,8 @@ const ExpenseManagementConsolidated = () => {
               </th>
             )}
             <th>Employee</th>
-            <th>Category</th>
+            <th>Purpose</th>
+            <th>Type</th>
             <th>Amount</th>
             <th>Date</th>
             <th>Status</th>
@@ -545,8 +567,13 @@ const ExpenseManagementConsolidated = () => {
                 <small className="text-muted">{expense.employee?.email}</small>
               </td>
               <td>
-                <Badge bg={getCategoryBadge(expense.category)}>
-                  {expense.category.replace(/_/g, " ")}
+                <Badge bg="secondary">
+                  {expense.expensePurpose || "N/A"}
+                </Badge>
+              </td>
+              <td>
+                <Badge bg={getTypeColor(expense.expenseType || expense.category)}>
+                  {(expense.expenseType || expense.category || "N/A").replace(/_/g, " ")}
                 </Badge>
               </td>
               <td>
@@ -646,15 +673,32 @@ const ExpenseManagementConsolidated = () => {
       {/* Filters */}
       <Card className="mb-4 p-3">
         <Row>
-          <Col md={3}>
+          <Col md={2}>
             <Form.Group>
-              <Form.Label>Category</Form.Label>
+              <Form.Label>Purpose</Form.Label>
               <Form.Select
-                name="category"
-                value={filters.category}
+                name="expensePurpose"
+                value={filters.expensePurpose}
                 onChange={handleFilterChange}
               >
-                <option value="all">All Categories</option>
+                <option value="all">All Purposes</option>
+                {EXPENSE_PURPOSES_ARRAY.map((purpose) => (
+                  <option key={purpose.value} value={purpose.value}>
+                    {purpose.label}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+          </Col>
+          <Col md={2}>
+            <Form.Group>
+              <Form.Label>Type</Form.Label>
+              <Form.Select
+                name="expenseType"
+                value={filters.expenseType}
+                onChange={handleFilterChange}
+              >
+                <option value="all">All Types</option>
                 <option value="travel">Travel</option>
                 <option value="food">Food</option>
                 <option value="accommodation">Accommodation</option>
@@ -665,7 +709,7 @@ const ExpenseManagementConsolidated = () => {
               </Form.Select>
             </Form.Group>
           </Col>
-          <Col md={3}>
+          <Col md={2}>
             <Form.Group>
               <Form.Label>Start Date</Form.Label>
               <Form.Control
@@ -676,7 +720,7 @@ const ExpenseManagementConsolidated = () => {
               />
             </Form.Group>
           </Col>
-          <Col md={3}>
+          <Col md={2}>
             <Form.Group>
               <Form.Label>End Date</Form.Label>
               <Form.Control
@@ -687,14 +731,15 @@ const ExpenseManagementConsolidated = () => {
               />
             </Form.Group>
           </Col>
-          <Col md={3} className="d-flex align-items-end">
+          <Col md={2} className="d-flex align-items-end">
             <Button
               variant="outline-secondary"
               className="w-100"
               onClick={() => {
                 setFilters({
                   status: "all",
-                  category: "all",
+                  expensePurpose: "all",
+                  expenseType: "all",
                   startDate: "",
                   endDate: "",
                 });
@@ -995,7 +1040,7 @@ const ExpenseManagementConsolidated = () => {
                   <Col lg={6} className="mb-4">
                     <Card className="shadow-sm h-100">
                       <Card.Body>
-                        <h6 className="mb-3">Expenses by Category</h6>
+                        <h6 className="mb-3">Expenses by Purpose</h6>
                         <ResponsiveContainer width="100%" height={300}>
                           <PieChart>
                             <Pie
@@ -1019,6 +1064,37 @@ const ExpenseManagementConsolidated = () => {
                     </Card>
                   </Col>
                 )}
+                {analyticsData.typeData.length > 0 && (
+                  <Col lg={6} className="mb-4">
+                    <Card className="shadow-sm h-100">
+                      <Card.Body>
+                        <h6 className="mb-3">Expenses by Type</h6>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <PieChart>
+                            <Pie
+                              data={analyticsData.typeData}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              label={({ name, value }) => `${name}: ₹${value}`}
+                              outerRadius={80}
+                              fill="#82ca9d"
+                              dataKey="value"
+                            >
+                              {analyticsData.typeData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[(index + 3) % COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip formatter={(value) => `₹${value}`} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                )}
+              </Row>
+
+              <Row className="mb-4">
                 {analyticsData.statusData.length > 0 && (
                   <Col lg={6} className="mb-4">
                     <Card className="shadow-sm h-100">
@@ -1031,6 +1107,24 @@ const ExpenseManagementConsolidated = () => {
                             <YAxis />
                             <Tooltip formatter={(value) => `₹${value}`} />
                             <Bar dataKey="value" fill="#8884d8" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                )}
+                {analyticsData.categoryData.length > 0 && (
+                  <Col lg={6} className="mb-4">
+                    <Card className="shadow-sm h-100">
+                      <Card.Body>
+                        <h6 className="mb-3">Purpose Distribution (Count)</h6>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <BarChart data={analyticsData.categoryData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
+                            <YAxis />
+                            <Tooltip formatter={(value) => value} />
+                            <Bar dataKey="count" fill="#ffc658" name="Count" />
                           </BarChart>
                         </ResponsiveContainer>
                       </Card.Body>
@@ -1062,7 +1156,7 @@ const ExpenseManagementConsolidated = () => {
               </Row>
               
               {analyticsData.trendData.length > 0 && (
-                <Card className="shadow-sm">
+                <Card className="shadow-sm mb-4">
                   <Card.Body>
                     <h6 className="mb-3">Monthly Trends</h6>
                     <ResponsiveContainer width="100%" height={300}>
@@ -1081,6 +1175,62 @@ const ExpenseManagementConsolidated = () => {
                   </Card.Body>
                 </Card>
               )}
+
+              {/* Summary Statistics */}
+              <Row className="mb-4">
+                {analyticsData.categoryData.length > 0 && (
+                  <Col lg={3} md={6} className="mb-3">
+                    <Card className="shadow-sm h-100">
+                      <Card.Body>
+                        <h6 className="text-muted mb-2">Total Purposes</h6>
+                        <h3 className="mb-0">{analyticsData.categoryData.length}</h3>
+                        <small className="text-muted">Expense purposes tracked</small>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                )}
+                {analyticsData.typeData.length > 0 && (
+                  <Col lg={3} md={6} className="mb-3">
+                    <Card className="shadow-sm h-100">
+                      <Card.Body>
+                        <h6 className="text-muted mb-2">Total Types</h6>
+                        <h3 className="mb-0">{analyticsData.typeData.length}</h3>
+                        <small className="text-muted">Expense types tracked</small>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                )}
+                {analyticsData.categoryData.length > 0 && (
+                  <Col lg={3} md={6} className="mb-3">
+                    <Card className="shadow-sm h-100">
+                      <Card.Body>
+                        <h6 className="text-muted mb-2">Highest Purpose</h6>
+                        <h5 className="mb-0">
+                          {analyticsData.categoryData.reduce((max, curr) => curr.value > max.value ? curr : max, analyticsData.categoryData[0])?.name || 'N/A'}
+                        </h5>
+                        <small className="text-muted">
+                          {formatCurrency(analyticsData.categoryData.reduce((max, curr) => curr.value > max.value ? curr : max, analyticsData.categoryData[0])?.value || 0)}
+                        </small>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                )}
+                {analyticsData.typeData.length > 0 && (
+                  <Col lg={3} md={6} className="mb-3">
+                    <Card className="shadow-sm h-100">
+                      <Card.Body>
+                        <h6 className="text-muted mb-2">Highest Type</h6>
+                        <h5 className="mb-0">
+                          {analyticsData.typeData.reduce((max, curr) => curr.value > max.value ? curr : max, analyticsData.typeData[0])?.name || 'N/A'}
+                        </h5>
+                        <small className="text-muted">
+                          {formatCurrency(analyticsData.typeData.reduce((max, curr) => curr.value > max.value ? curr : max, analyticsData.typeData[0])?.value || 0)}
+                        </small>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                )}
+              </Row>
             </>
           )}
         </Tab>
@@ -1093,134 +1243,127 @@ const ExpenseManagementConsolidated = () => {
             </Alert>
           )}
           
-          {!hasBudgets ? (
-            <Alert variant="warning" className="mb-4">
-              <h6>No Budgets Configured</h6>
-              <p className="mb-2">
-                No budgets have been set for the current financial year ({currentFinancialYear}). 
-                To track budget vs spending, budgets need to be configured first.
-              </p>
-              {(user?.role === "admin" || user?.role === "superadmin") ? (
-                <Button 
-                  variant="primary" 
-                  size="sm"
-                  onClick={() => navigate('/budget-management')}
-                >
-                  Configure Budgets
-                </Button>
-              ) : (
-                <small className="text-muted">
-                  Contact your administrator to configure budgets.
-                </small>
-              )}
+          {/* Expense Tracking View - No budgets required */}
+          <Alert variant="success" className="mb-4">
+            <h6>Expense Tracking</h6>
+            <p className="mb-2">
+              View total expenses by category for the financial year. This helps understand spending patterns before allocating budgets.
+            </p>
+            <Button 
+              variant="primary" 
+              size="sm"
+              onClick={() => navigate('/expenses/budget-management')}
+            >
+              View Detailed Expense Tracking
+            </Button>
+          </Alert>
+
+          {budgetData.length === 0 ? (
+            <Alert variant="info" className="mb-0">
+              No expense data available for the selected period.
             </Alert>
           ) : (
             <>
-              {/* Overall Budget Summary */}
+              {/* Summary Cards */}
               <Row className="mb-4">
-                <Col md={6}>
+                <Col md={4}>
                   <Card className="shadow-sm">
                     <Card.Body>
-                      <h6 className="text-muted mb-3">Total Budget</h6>
-                      <h3 className="mb-3">{formatCurrency(getTotalBudget())}</h3>
-                      <div className="progress" style={{ height: "25px" }}>
-                        <div
-                          className={`progress-bar ${getProgressVariant(totalSpent, getTotalBudget())}`}
-                          style={{ width: `${Math.min((totalSpent / getTotalBudget()) * 100, 100)}%` }}
-                        >
-                          {getTotalBudget() > 0 ? ((totalSpent / getTotalBudget()) * 100).toFixed(1) : 0}%
-                        </div>
-                      </div>
+                      <h6 className="text-muted mb-3">Total Expenses</h6>
+                      <h3 className="mb-0">{formatCurrency(budgetData.reduce((sum, b) => sum + (b.spent || 0), 0))}</h3>
                     </Card.Body>
                   </Card>
                 </Col>
-                <Col md={6}>
+                <Col md={4}>
                   <Card className="shadow-sm">
                     <Card.Body>
-                      <h6 className="text-muted mb-3">Total Spent</h6>
-                      <h3 className="mb-3">{formatCurrency(totalSpent)}</h3>
-                      <p className="mb-0">
-                        <strong>Remaining:</strong>{" "}
-                        <span className={totalSpent > getTotalBudget() ? "text-danger" : "text-success"}>
-                          {formatCurrency(Math.max(0, getTotalBudget() - totalSpent))}
-                        </span>
-                      </p>
+                      <h6 className="text-muted mb-3">Total Transactions</h6>
+                      <h3 className="mb-0">{budgetData.reduce((sum, b) => sum + (b.count || 0), 0)}</h3>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col md={4}>
+                  <Card className="shadow-sm">
+                    <Card.Body>
+                      <h6 className="text-muted mb-3">Average Expense</h6>
+                      <h3 className="mb-0">
+                        {formatCurrency(
+                          budgetData.reduce((sum, b) => sum + (b.spent || 0), 0) / 
+                          Math.max(budgetData.reduce((sum, b) => sum + (b.count || 0), 0), 1)
+                        )}
+                      </h3>
                     </Card.Body>
                   </Card>
                 </Col>
               </Row>
 
-              {/* Category Budget Breakdown */}
+              {/* Category Breakdown */}
               <Card className="shadow-sm">
                 <Card.Header className="bg-light">
-                  <h6 className="mb-0">Budget by Category</h6>
+                  <h6 className="mb-0">Expenses by Category</h6>
                 </Card.Header>
                 <Card.Body>
-                  {budgetData.length === 0 ? (
-                    <Alert variant="info" className="mb-0">
-                      No budget data available for the selected period
-                    </Alert>
-                  ) : (
-                    <div>
-                      {budgetData.map((budget) => {
-                        const limit = budget.limit || 0;
-                        const spent = budget.spent || 0;
-                        const percentage = limit > 0 ? (spent / limit) * 100 : 0;
-                        const isOverBudget = limit > 0 && spent > limit;
-
-                        return (
-                          <div key={budget._id} className="mb-4">
-                            <Row className="mb-2">
-                              <Col>
-                                <div className="d-flex justify-content-between align-items-center">
-                                  <div>
-                                    <h6 className="mb-1">
-                                      {budget._id.replace(/_/g, " ").toUpperCase()}
-                                    </h6>
-                                    <small className="text-muted">
-                                      {budget.count || 0} expense{(budget.count || 0) !== 1 ? "s" : ""}
-                                    </small>
-                                  </div>
-                                  <div className="text-end">
-                                    <div className="fw-bold">
-                                      {formatCurrency(spent)} / {formatCurrency(limit)}
-                                    </div>
-                                    {isOverBudget && (
-                                      <Badge bg="danger">
-                                        Over by {formatCurrency(spent - limit)}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                </div>
-                              </Col>
-                            </Row>
-                            <div className="progress mb-2" style={{ height: "20px" }}>
-                              <div
-                                className={`progress-bar ${getProgressVariant(spent, limit)}`}
-                                style={{ width: `${Math.min(percentage, 100)}%` }}
-                              >
-                                {percentage.toFixed(1)}%
-                              </div>
-                            </div>
-                            <Row className="text-muted small">
-                              <Col md={3}>
-                                <Badge bg="warning">Pending: {formatCurrency(budget.pending || 0)}</Badge>
-                              </Col>
-                              <Col md={3}>
-                                <Badge bg="info">Approved: {formatCurrency(budget.approved || 0)}</Badge>
-                              </Col>
-                              <Col md={3}>
-                                <Badge bg="success">Reimbursed: {formatCurrency(budget.reimbursed || 0)}</Badge>
-                              </Col>
-                              <Col md={3}>
-                                <Badge bg="danger">Rejected: {formatCurrency(budget.rejected || 0)}</Badge>
-                              </Col>
-                            </Row>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                  <div className="table-responsive">
+                    <Table hover className="mb-0">
+                      <thead className="table-light">
+                        <tr>
+                          <th>Category</th>
+                          <th className="text-end">Total Expenses</th>
+                          <th className="text-end">Number of Expenses</th>
+                          <th className="text-end">Average Expense</th>
+                          <th className="text-end">% of Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {budgetData.map((budget, index) => {
+                          const totalSpent = budgetData.reduce((sum, b) => sum + (b.spent || 0), 0);
+                          const percentage = totalSpent > 0 ? ((budget.spent / totalSpent) * 100).toFixed(1) : 0;
+                          const average = budget.count > 0 ? (budget.spent / budget.count).toFixed(2) : 0;
+                          
+                          // Handle both string _id and object _id (purpose/type combination)
+                          const categoryLabel = typeof budget._id === 'string' 
+                            ? budget._id.replace(/_/g, " ").toUpperCase()
+                            : budget._id?.purpose 
+                              ? `${budget._id.purpose.replace(/_/g, " ")} / ${budget._id.type.replace(/_/g, " ")}`.toUpperCase()
+                              : "Unknown";
+                          
+                          return (
+                            <tr key={`${budget._id?.purpose || budget._id}-${budget._id?.type || index}`}>
+                              <td>
+                                <Badge bg="primary">
+                                  {categoryLabel}
+                                </Badge>
+                              </td>
+                              <td className="text-end">
+                                <strong>{formatCurrency(budget.spent || 0)}</strong>
+                              </td>
+                              <td className="text-end">{budget.count || 0}</td>
+                              <td className="text-end">{formatCurrency(average)}</td>
+                              <td className="text-end">
+                                <Badge bg="light" text="dark">{percentage}%</Badge>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        <tr className="table-light fw-bold">
+                          <td>TOTAL</td>
+                          <td className="text-end">
+                            {formatCurrency(budgetData.reduce((sum, b) => sum + (b.spent || 0), 0))}
+                          </td>
+                          <td className="text-end">
+                            {budgetData.reduce((sum, b) => sum + (b.count || 0), 0)}
+                          </td>
+                          <td className="text-end">
+                            {formatCurrency(
+                              budgetData.reduce((sum, b) => sum + (b.spent || 0), 0) / 
+                              Math.max(budgetData.reduce((sum, b) => sum + (b.count || 0), 0), 1)
+                            )}
+                          </td>
+                          <td className="text-end">100%</td>
+                        </tr>
+                      </tbody>
+                    </Table>
+                  </div>
                 </Card.Body>
               </Card>
             </>
@@ -1272,7 +1415,7 @@ const ExpenseManagementConsolidated = () => {
             <Card.Body>
               <h6 className="mb-3">🔍 Active Filters</h6>
               <Row>
-                <Col md={3}>
+                <Col md={2}>
                   <small className="text-muted">Date Range:</small>
                   <p className="mb-0 small fw-medium">
                     {filters.startDate && filters.endDate
@@ -1280,22 +1423,28 @@ const ExpenseManagementConsolidated = () => {
                       : "All dates"}
                   </p>
                 </Col>
-                <Col md={3}>
-                  <small className="text-muted">Category:</small>
+                <Col md={2}>
+                  <small className="text-muted">Purpose:</small>
                   <p className="mb-0 small fw-medium text-capitalize">
-                    {filters.category !== "all" ? filters.category : "All"}
+                    {filters.expensePurpose && filters.expensePurpose !== "all" ? filters.expensePurpose : "All"}
                   </p>
                 </Col>
-                <Col md={3}>
+                <Col md={2}>
+                  <small className="text-muted">Type:</small>
+                  <p className="mb-0 small fw-medium text-capitalize">
+                    {filters.expenseType && filters.expenseType !== "all" ? filters.expenseType : "All"}
+                  </p>
+                </Col>
+                <Col md={2}>
                   <small className="text-muted">Status:</small>
                   <p className="mb-0 small fw-medium text-capitalize">
                     {filters.status !== "all" ? filters.status : "All"}
                   </p>
                 </Col>
-                <Col md={3}>
+                <Col md={2}>
                   <small className="text-muted">Report Type:</small>
                   <p className="mb-0 small fw-medium text-capitalize">
-                    {reportType.replace(/_/g, " ")}
+                    {reportType ? reportType.replace(/_/g, " ") : "N/A"}
                   </p>
                 </Col>
               </Row>
@@ -1345,7 +1494,7 @@ const ExpenseManagementConsolidated = () => {
             <Card.Body>
               <Alert variant="info" className="mb-0">
                 <div className="mb-2">
-                  <strong>Report Type:</strong> {reportType.replace(/_/g, " ").toUpperCase()}
+                  <strong>Report Type:</strong> {reportType ? reportType.replace(/_/g, " ").toUpperCase() : "N/A"}
                 </div>
                 <div className="mb-2">
                   <strong>Date Range:</strong> {filters.startDate && filters.endDate
@@ -1353,7 +1502,10 @@ const ExpenseManagementConsolidated = () => {
                     : "All available data"}
                 </div>
                 <div className="mb-2">
-                  <strong>Category Filter:</strong> {filters.category !== "all" ? filters.category.replace(/_/g, " ") : "All categories"}
+                  <strong>Purpose Filter:</strong> {filters.expensePurpose && filters.expensePurpose !== "all" ? filters.expensePurpose.replace(/_/g, " ") : "All purposes"}
+                </div>
+                <div className="mb-2">
+                  <strong>Type Filter:</strong> {filters.expenseType && filters.expenseType !== "all" ? filters.expenseType.replace(/_/g, " ") : "All types"}
                 </div>
                 <div>
                   <strong>Status Filter:</strong> {filters.status !== "all" ? filters.status : "All statuses"}

@@ -6,8 +6,6 @@ import {
   Card,
   Form,
   Button,
-  Tabs,
-  Tab,
   Spinner,
 } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
@@ -20,70 +18,9 @@ const AddEmployee = () => {
   const [loading, setLoading] = useState(false);
   const [departments, setDepartments] = useState([]);
   const [managers, setManagers] = useState([]);
-  const [activeTab, setActiveTab] = useState("basic");
-  const [showCustomDesignation, setShowCustomDesignation] = useState(false);
-
-  // Common designations list
-  const commonDesignations = [
-    // Software Development
-    'Software Engineer',
-    'Senior Software Engineer',
-    'Lead Software Engineer',
-    'Full Stack Developer',
-    'Frontend Developer',
-    'Backend Developer',
-    'Mobile App Developer',
-    'DevOps Engineer',
-    'QA Engineer',
-    
-    // Management
-    'Team Lead',
-    'Technical Lead',
-    'Project Manager',
-    'Product Manager',
-    'Engineering Manager',
-    
-    // Design & UI/UX
-    'UI/UX Designer',
-    'Graphic Designer',
-    'Product Designer',
-    'Web Designer',
-    
-    // Data & Analytics
-    'Data Analyst',
-    'Data Scientist',
-    'Business Analyst',
-    'Data Engineer',
-    
-    // Sales & Marketing
-    'Sales Executive',
-    'Sales Manager',
-    'Business Development Executive',
-    'Marketing Executive',
-    'Digital Marketing Executive',
-    'Senior Digital Marketing Executive',
-    'Social Media Manager',
-    'Content Writer',
-    'SEO Specialist',
-    
-    // HR & Admin
-    'HR Executive',
-    'HR Manager',
-    'Recruiter',
-    'Admin Executive',
-    
-    // Finance & Accounts
-    'Accountant',
-    'Finance Manager',
-    'Accounts Executive',
-    
-    // Operations
-    'Operations Manager',
-    'Operations Executive',
-  ];
 
   const [formData, setFormData] = useState({
-    // Basic Information
+    // Basic Information only
     name: "",
     email: "",
     password: "",
@@ -95,61 +32,6 @@ const AddEmployee = () => {
     motherName: "",
     maritalStatus: "",
     nationality: "Indian",
-    
-    // Job Details
-    employeeId: "",
-    designation: "",
-    department: "",
-    joiningDate: "",
-    employmentType: "full-time",
-    reportingManager: "",
-    workLocation: "Office",
-    salary: "",
-    
-    // Address
-    currentAddress: {
-      street: "",
-      city: "",
-      state: "",
-      pincode: "",
-      country: "India",
-    },
-    permanentAddress: {
-      street: "",
-      city: "",
-      state: "",
-      pincode: "",
-      country: "India",
-    },
-    sameAsCurrentAddress: false,
-    alternatePhone: "",
-    
-    // Emergency Contact
-    emergencyContact: {
-      name: "",
-      phone: "",
-      relationship: "",
-      address: "",
-    },
-    
-    // Bank Details
-    bankDetails: {
-      accountNumber: "",
-      accountHolderName: "",
-      ifscCode: "",
-      bankName: "",
-      branchName: "",
-      upiId: "",
-    },
-    
-    // Government IDs
-    governmentIds: {
-      aadhaarNumber: "",
-      panNumber: "",
-      uanNumber: "",
-      esicNumber: "",
-    },
-    
     status: "active",
     role: "employee",
   });
@@ -157,16 +39,6 @@ const AddEmployee = () => {
   useEffect(() => {
     fetchDepartments();
     fetchManagers();
-    
-    console.log('[ADD-EMPLOYEE] Component mounted');
-    console.log('[ADD-EMPLOYEE] Common designations count:', commonDesignations.length);
-    console.log('[ADD-EMPLOYEE] Includes Digital Marketing Executive:', commonDesignations.includes('Digital Marketing Executive'));
-    
-    // Reset form when component mounts (in case user navigates back)
-    return () => {
-      // Cleanup function - reset form when component unmounts
-      console.log('[ADD-EMPLOYEE] Component unmounting, form will be reset on next mount');
-    };
   }, []);
 
   const fetchDepartments = async () => {
@@ -193,25 +65,8 @@ const AddEmployee = () => {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     
-    if (name.includes(".")) {
-      const [parent, child] = name.split(".");
-      setFormData((prev) => ({
-        ...prev,
-        [parent]: {
-          ...prev[parent],
-          [child]: value,
-        },
-      }));
-    } else if (type === "checkbox") {
+    if (type === "checkbox") {
       setFormData((prev) => ({ ...prev, [name]: checked }));
-      
-      // Copy current address to permanent if checkbox is checked
-      if (name === "sameAsCurrentAddress" && checked) {
-        setFormData((prev) => ({
-          ...prev,
-          permanentAddress: { ...prev.currentAddress },
-        }));
-      }
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
@@ -229,20 +84,28 @@ const AddEmployee = () => {
     try {
       setLoading(true);
       
-      // Prepare data - remove empty strings for ObjectId fields
+      // Submit only basic information
       const submitData = {
-        ...formData,
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        phone: formData.phone,
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender,
+        bloodGroup: formData.bloodGroup,
+        fatherName: formData.fatherName,
+        motherName: formData.motherName,
+        maritalStatus: formData.maritalStatus,
+        nationality: formData.nationality,
+        status: "active",
         role: "employee",
-        department: formData.department || null,
-        reportingManager: formData.reportingManager || null,
       };
       
       await api.post("/users/register", submitData);
       toast.success("Employee added successfully");
       
-      // Reset form data before navigating
+      // Reset form data
       setFormData({
-        // Basic Information
         name: "",
         email: "",
         password: "",
@@ -254,70 +117,9 @@ const AddEmployee = () => {
         motherName: "",
         maritalStatus: "",
         nationality: "Indian",
-        
-        // Job Details
-        employeeId: "",
-        designation: "",
-        department: "",
-        joiningDate: "",
-        employmentType: "full-time",
-        reportingManager: "",
-        workLocation: "Office",
-        salary: "",
-        
-        // Address
-        currentAddress: {
-          street: "",
-          city: "",
-          state: "",
-          pincode: "",
-          country: "India",
-        },
-        permanentAddress: {
-          street: "",
-          city: "",
-          state: "",
-          pincode: "",
-          country: "India",
-        },
-        sameAsCurrentAddress: false,
-        alternatePhone: "",
-        
-        // Emergency Contact
-        emergencyContact: {
-          name: "",
-          phone: "",
-          relationship: "",
-          address: "",
-        },
-        
-        // Bank Details
-        bankDetails: {
-          accountNumber: "",
-          accountHolderName: "",
-          ifscCode: "",
-          bankName: "",
-          branchName: "",
-          upiId: "",
-        },
-        
-        // Government IDs
-        governmentIds: {
-          aadhaarNumber: "",
-          panNumber: "",
-          uanNumber: "",
-          esicNumber: "",
-        },
-        
         status: "active",
         role: "employee",
       });
-      
-      // Reset custom designation state
-      setShowCustomDesignation(false);
-      
-      // Reset to first tab
-      setActiveTab("basic");
       
       navigate("/employees");
     } catch (error) {
@@ -355,14 +157,9 @@ const AddEmployee = () => {
       <Form onSubmit={handleSubmit}>
         <Card className="border-0 shadow-sm">
           <Card.Body>
-            <Tabs
-              activeKey={activeTab}
-              onSelect={(k) => setActiveTab(k)}
-              className="mb-4"
-            >
-              {/* Basic Information Tab */}
-              <Tab eventKey="basic" title="Basic Information">
-                <Row>
+            {/* Basic Information Section */}
+            <div className="mb-4">
+              <Row>
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>
@@ -523,502 +320,7 @@ const AddEmployee = () => {
                     </Form.Group>
                   </Col>
                 </Row>
-              </Tab>
-
-              {/* Job Details Tab */}
-              <Tab eventKey="job" title="Job Details">
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Employee ID</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="employeeId"
-                        value={formData.employeeId}
-                        onChange={handleChange}
-                        placeholder="EMP001"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Designation <span className="text-danger">*</span></Form.Label>
-                      {!showCustomDesignation ? (
-                        <>
-                          <Form.Select
-                            name="designation"
-                            value={formData.designation}
-                            onChange={(e) => {
-                              console.log('[DESIGNATION] Selected value:', e.target.value);
-                              if (e.target.value === 'custom') {
-                                setShowCustomDesignation(true);
-                                setFormData({ ...formData, designation: '' });
-                              } else {
-                                handleChange(e);
-                              }
-                            }}
-                            required
-                          >
-                            <option value="">Select Designation</option>
-                            {commonDesignations.map((designation, index) => {
-                              if (index === 0) console.log('[DESIGNATION] Rendering options, total:', commonDesignations.length);
-                              return (
-                                <option key={index} value={designation}>
-                                  {designation}
-                                </option>
-                              );
-                            })}
-                            <option value="custom" className="fw-bold text-primary">
-                              ➕ Add Custom Designation
-                            </option>
-                          </Form.Select>
-                        </>
-                      ) : (
-                        <div className="d-flex gap-2">
-                          <Form.Control
-                            type="text"
-                            name="designation"
-                            value={formData.designation}
-                            onChange={handleChange}
-                            placeholder="Enter custom designation"
-                            required
-                          />
-                          <Button
-                            variant="outline-secondary"
-                            onClick={() => {
-                              setShowCustomDesignation(false);
-                              setFormData({ ...formData, designation: '' });
-                            }}
-                            title="Back to list"
-                          >
-                            ↩️
-                          </Button>
-                        </div>
-                      )}
-                      <Form.Text className="text-muted">
-                        {showCustomDesignation ? 'Enter a custom designation or click ↩️ to select from list' : 'Select from list or add custom'}
-                      </Form.Text>
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Department</Form.Label>
-                      <Form.Select
-                        name="department"
-                        value={formData.department}
-                        onChange={handleChange}
-                      >
-                        <option value="">Select Department</option>
-                        {departments.map((dept) => (
-                          <option key={dept._id} value={dept._id}>
-                            {dept.name}
-                          </option>
-                        ))}
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Joining Date</Form.Label>
-                      <Form.Control
-                        type="date"
-                        name="joiningDate"
-                        value={formData.joiningDate}
-                        onChange={handleChange}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Employment Type</Form.Label>
-                      <Form.Select
-                        name="employmentType"
-                        value={formData.employmentType}
-                        onChange={handleChange}
-                      >
-                        <option value="full-time">Full Time</option>
-                        <option value="part-time">Part Time</option>
-                        <option value="intern">Intern</option>
-                        <option value="contract">Contract</option>
-                        <option value="freelancer">Freelancer</option>
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Reporting Manager</Form.Label>
-                      <Form.Select
-                        name="reportingManager"
-                        value={formData.reportingManager}
-                        onChange={handleChange}
-                      >
-                        <option value="">Select Manager</option>
-                        {managers.map((manager) => (
-                          <option key={manager._id} value={manager._id}>
-                            {manager.name}
-                          </option>
-                        ))}
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Work Location</Form.Label>
-                      <Form.Select
-                        name="workLocation"
-                        value={formData.workLocation}
-                        onChange={handleChange}
-                      >
-                        <option value="Office">Office</option>
-                        <option value="Remote">Remote</option>
-                        <option value="Hybrid">Hybrid</option>
-                        <option value="Field">Field</option>
-                        <option value="Client Site">Client Site</option>
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Salary (₹/month)</Form.Label>
-                      <Form.Control
-                        type="number"
-                        name="salary"
-                        value={formData.salary}
-                        onChange={handleChange}
-                        placeholder="Enter monthly salary"
-                        min="0"
-                      />
-                      <Form.Text className="text-muted">
-                        Optional - can be set later
-                      </Form.Text>
-                    </Form.Group>
-                  </Col>
-                </Row>
-              </Tab>
-
-              {/* Address Tab */}
-              <Tab eventKey="address" title="Address & Contact">
-                <Row className="mb-4">
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Alternate Phone</Form.Label>
-                      <Form.Control
-                        type="tel"
-                        name="alternatePhone"
-                        value={formData.alternatePhone}
-                        onChange={handleChange}
-                        placeholder="+91 1234567890"
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                
-                <h6 className="mb-3">Current Address</h6>
-                <Row>
-                  <Col md={12}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Street Address</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="currentAddress.street"
-                        value={formData.currentAddress.street}
-                        onChange={handleChange}
-                        placeholder="House/Flat No, Street Name"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>City</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="currentAddress.city"
-                        value={formData.currentAddress.city}
-                        onChange={handleChange}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>State</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="currentAddress.state"
-                        value={formData.currentAddress.state}
-                        onChange={handleChange}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Pincode</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="currentAddress.pincode"
-                        value={formData.currentAddress.pincode}
-                        onChange={handleChange}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Country</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="currentAddress.country"
-                        value={formData.currentAddress.country}
-                        onChange={handleChange}
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-
-                <Form.Check
-                  type="checkbox"
-                  label="Permanent address same as current address"
-                  name="sameAsCurrentAddress"
-                  checked={formData.sameAsCurrentAddress}
-                  onChange={handleChange}
-                  className="mb-3"
-                />
-
-                {!formData.sameAsCurrentAddress && (
-                  <>
-                    <h6 className="mb-3 mt-4">Permanent Address</h6>
-                    <Row>
-                      <Col md={12}>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Street Address</Form.Label>
-                          <Form.Control
-                            type="text"
-                            name="permanentAddress.street"
-                            value={formData.permanentAddress.street}
-                            onChange={handleChange}
-                          />
-                        </Form.Group>
-                      </Col>
-                      <Col md={6}>
-                        <Form.Group className="mb-3">
-                          <Form.Label>City</Form.Label>
-                          <Form.Control
-                            type="text"
-                            name="permanentAddress.city"
-                            value={formData.permanentAddress.city}
-                            onChange={handleChange}
-                          />
-                        </Form.Group>
-                      </Col>
-                      <Col md={6}>
-                        <Form.Group className="mb-3">
-                          <Form.Label>State</Form.Label>
-                          <Form.Control
-                            type="text"
-                            name="permanentAddress.state"
-                            value={formData.permanentAddress.state}
-                            onChange={handleChange}
-                          />
-                        </Form.Group>
-                      </Col>
-                      <Col md={6}>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Pincode</Form.Label>
-                          <Form.Control
-                            type="text"
-                            name="permanentAddress.pincode"
-                            value={formData.permanentAddress.pincode}
-                            onChange={handleChange}
-                          />
-                        </Form.Group>
-                      </Col>
-                      <Col md={6}>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Country</Form.Label>
-                          <Form.Control
-                            type="text"
-                            name="permanentAddress.country"
-                            value={formData.permanentAddress.country}
-                            onChange={handleChange}
-                          />
-                        </Form.Group>
-                      </Col>
-                    </Row>
-                  </>
-                )}
-
-                <h6 className="mb-3 mt-4">Emergency Contact</h6>
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Contact Name</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="emergencyContact.name"
-                        value={formData.emergencyContact.name}
-                        onChange={handleChange}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Contact Phone</Form.Label>
-                      <Form.Control
-                        type="tel"
-                        name="emergencyContact.phone"
-                        value={formData.emergencyContact.phone}
-                        onChange={handleChange}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Relationship</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="emergencyContact.relationship"
-                        value={formData.emergencyContact.relationship}
-                        onChange={handleChange}
-                        placeholder="Father, Mother, Spouse, etc."
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Address</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="emergencyContact.address"
-                        value={formData.emergencyContact.address}
-                        onChange={handleChange}
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-              </Tab>
-
-              {/* Bank & IDs Tab */}
-              <Tab eventKey="bank" title="Bank & IDs">
-                <h6 className="mb-3">Bank Details</h6>
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Account Number</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="bankDetails.accountNumber"
-                        value={formData.bankDetails.accountNumber}
-                        onChange={handleChange}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Account Holder Name</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="bankDetails.accountHolderName"
-                        value={formData.bankDetails.accountHolderName}
-                        onChange={handleChange}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>IFSC Code</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="bankDetails.ifscCode"
-                        value={formData.bankDetails.ifscCode}
-                        onChange={handleChange}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Bank Name</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="bankDetails.bankName"
-                        value={formData.bankDetails.bankName}
-                        onChange={handleChange}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Branch Name</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="bankDetails.branchName"
-                        value={formData.bankDetails.branchName}
-                        onChange={handleChange}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>UPI ID</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="bankDetails.upiId"
-                        value={formData.bankDetails.upiId}
-                        onChange={handleChange}
-                        placeholder="username@upi"
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-
-                <h6 className="mb-3 mt-4">Government IDs</h6>
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>PAN Number</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="governmentIds.panNumber"
-                        value={formData.governmentIds.panNumber}
-                        onChange={handleChange}
-                        placeholder="ABCDE1234F"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Aadhaar Number</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="governmentIds.aadhaarNumber"
-                        value={formData.governmentIds.aadhaarNumber}
-                        onChange={handleChange}
-                        placeholder="1234 5678 9012"
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>UAN Number</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="governmentIds.uanNumber"
-                        value={formData.governmentIds.uanNumber}
-                        onChange={handleChange}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>ESIC Number</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="governmentIds.esicNumber"
-                        value={formData.governmentIds.esicNumber}
-                        onChange={handleChange}
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-              </Tab>
-            </Tabs>
+            </div>
 
             {/* Action Buttons */}
             <div className="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
@@ -1027,7 +329,6 @@ const AddEmployee = () => {
                 onClick={() => {
                   if (window.confirm('Are you sure you want to clear all form data?')) {
                     setFormData({
-                      // Basic Information
                       name: "",
                       email: "",
                       password: "",
@@ -1035,63 +336,13 @@ const AddEmployee = () => {
                       dateOfBirth: "",
                       gender: "",
                       bloodGroup: "",
-                      
-                      // Job Details
-                      employeeId: "",
-                      designation: "",
-                      department: "",
-                      joiningDate: "",
-                      employmentType: "full-time",
-                      reportingManager: "",
-                      
-                      // Address
-                      currentAddress: {
-                        street: "",
-                        city: "",
-                        state: "",
-                        pincode: "",
-                        country: "India",
-                      },
-                      permanentAddress: {
-                        street: "",
-                        city: "",
-                        state: "",
-                        pincode: "",
-                        country: "India",
-                      },
-                      sameAsCurrentAddress: false,
-                      
-                      // Emergency Contact
-                      emergencyContact: {
-                        name: "",
-                        phone: "",
-                        relationship: "",
-                        address: "",
-                      },
-                      
-                      // Bank Details
-                      bankDetails: {
-                        accountNumber: "",
-                        accountHolderName: "",
-                        ifscCode: "",
-                        bankName: "",
-                        branchName: "",
-                        upiId: "",
-                      },
-                      
-                      // Government IDs
-                      governmentIds: {
-                        aadhaarNumber: "",
-                        panNumber: "",
-                        uanNumber: "",
-                        esicNumber: "",
-                      },
-                      
+                      fatherName: "",
+                      motherName: "",
+                      maritalStatus: "",
+                      nationality: "Indian",
                       status: "active",
                       role: "employee",
                     });
-                    setShowCustomDesignation(false);
-                    setActiveTab("basic");
                     toast.info("Form cleared");
                   }
                 }}

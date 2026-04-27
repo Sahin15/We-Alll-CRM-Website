@@ -16,8 +16,24 @@ const generateToken = (id) => {
 // Register new user
 export const registerUser = async (req, res) => {
   try {
-    const { name, email, password, role, phone, department, position } =
-      req.body;
+    const {
+      name,
+      email,
+      password,
+      role,
+      phone,
+      department,
+      position,
+      // Basic Information fields
+      dateOfBirth,
+      gender,
+      bloodGroup,
+      fatherName,
+      motherName,
+      maritalStatus,
+      nationality,
+      status,
+    } = req.body;
 
     logger.info("Registration attempt:", { name, email, role });
 
@@ -38,7 +54,7 @@ export const registerUser = async (req, res) => {
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create new user
+    // Create new user with all basic information fields
     const user = await User.create({
       name,
       email,
@@ -47,6 +63,15 @@ export const registerUser = async (req, res) => {
       phone,
       department,
       position,
+      // Basic Information
+      dateOfBirth: dateOfBirth || undefined,
+      gender: gender || undefined,
+      bloodGroup: bloodGroup || undefined,
+      fatherName: fatherName || undefined,
+      motherName: motherName || undefined,
+      maritalStatus: maritalStatus || undefined,
+      nationality: nationality || "Indian",
+      status: status || "active",
     });
 
     logger.success("User created successfully:", user._id);
@@ -61,6 +86,14 @@ export const registerUser = async (req, res) => {
         phone: user.phone,
         department: user.department,
         position: user.position,
+        dateOfBirth: user.dateOfBirth,
+        gender: user.gender,
+        bloodGroup: user.bloodGroup,
+        fatherName: user.fatherName,
+        motherName: user.motherName,
+        maritalStatus: user.maritalStatus,
+        nationality: user.nationality,
+        status: user.status,
       },
     });
   } catch (error) {
@@ -413,34 +446,95 @@ export const updateUser = async (req, res) => {
 };
 
 // Update user status (Admin only)
-export const updateUserStatus = async (req, res) => {
+// Update employee status with lifecycle management
+export const updateEmployeeStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, reactivationDate, adminOverride } = req.body;
 
-    if (!status || !["active", "inactive", "suspended"].includes(status)) {
-      return res.status(400).json({ message: "Invalid status" });
+    // Validate status value
+    const validStatuses = ["active", "inactive", "terminated", "offboarded"];
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({
+        message: `Invalid status. Must be one of: ${validStatuses.join(", ")}`,
+      });
     }
 
-    const user = await User.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true }
-    ).select("-password");
-
+    const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
+    const oldStatus = user.status;
+
+    // Validate state transitions
+    const blockedTransitions = [
+      { from: "terminated", to: ["active", "inactive"] },
+      { from: "offboarded", to: ["active", "inactive"] },
+    ];
+
+    for (const rule of blockedTransitions) {
+      if (rule.from === oldStatus && rule.to.includes(status) && !adminOverride) {
+        return res.status(400).json({
+          message: `Cannot transition from ${oldStatus} to ${status} without adminOverride flag`,
+        });
+      }
+    }
+
+    // Validate reactivationDate
+    if (reactivationDate) {
+      if (status !== "inactive") {
+        return res.status(400).json({
+          message: "Reactivation date is only valid when setting status to inactive",
+        });
+      }
+      const reactivationDateObj = new Date(reactivationDate);
+      if (reactivationDateObj <= new Date()) {
+        return res.status(400).json({
+          message: "Reactivation date must be in the future",
+        });
+      }
+      user.reactivationDate = reactivationDateObj;
+    } else if (status === "active") {
+      // Clear reactivation date when activating
+      user.reactivationDate = null;
+    }
+
+    // Remove from projects if transitioning to terminated/offboarded
+    let projectsAffected = 0;
+    if (status === "terminated" || status === "offboarded") {
+      const { removeEmployeeFromAllProjects } = await import(
+        "../services/projectRemovalService.js"
+      );
+      projectsAffected = await removeEmployeeFromAllProjects(id);
+    }
+
+    // Update status and audit fields
+    user.status = status;
+    user.statusChangedAt = new Date();
+    user.statusChangedBy = req.user._id;
+
+    await user.save();
+
     res.status(200).json({
-      message: "User status updated successfully",
-      user,
+      message: "Employee status updated successfully",
+      user: {
+        _id: user._id,
+        name: user.name,
+        status: user.status,
+        statusChangedAt: user.statusChangedAt,
+        statusChangedBy: user.statusChangedBy,
+      },
+      projectsAffected,
     });
   } catch (error) {
-    logger.error("Error in updateUserStatus:", error);
+    logger.error("Error in updateEmployeeStatus:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
+
+// Legacy function kept for backward compatibility
+export const updateUserStatus = updateEmployeeStatus;
 
 // Request password reset
 export const requestPasswordReset = async (req, res) => {
@@ -582,6 +676,64 @@ export const changePassword = async (req, res) => {
     });
   } catch (error) {
     logger.error("Error in changePassword:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Generate next employee ID sequence
+export const getNextEmployeeIdSequence = async (req, res) => {
+  try {
+    const { joiningDate, employmentType } = req.body;
+
+    // Validate input
+    if (!joiningDate) {
+      return res.status(400).json({ message: "Joining date is required" });
+    }
+
+    if (employmentType !== 'full-time') {
+      return res.status(400).json({ 
+        message: "Only permanent (full-time) employees can be assigned an employee ID" 
+      });
+    }
+
+    // Get all employees with employee IDs, sorted by sequence number
+    const employeesWithIds = await User.find({
+      employeeId: { $exists: true, $ne: null }
+    }).exec();
+
+    // Extract sequence numbers from existing employee IDs
+    // Format: WA-YY-XXXX
+    let maxSequence = 1; // Start from 1, will be incremented to 2
+
+    employeesWithIds.forEach(emp => {
+      if (emp.employeeId) {
+        const parts = emp.employeeId.split('-');
+        if (parts.length === 3) {
+          const sequence = parseInt(parts[2], 10);
+          if (!isNaN(sequence) && sequence > maxSequence) {
+            maxSequence = sequence;
+          }
+        }
+      }
+    });
+
+    // Next sequence number
+    const nextSequence = maxSequence + 1;
+
+    // Generate employee ID
+    const year = new Date(joiningDate).getFullYear().toString().slice(-2);
+    const sequenceStr = String(nextSequence).padStart(4, '0');
+    const employeeId = `WA-${year}-${sequenceStr}`;
+
+    logger.info("Generated employee ID:", { employeeId, nextSequence });
+
+    res.status(200).json({
+      employeeId,
+      sequence: nextSequence,
+      message: "Employee ID generated successfully"
+    });
+  } catch (error) {
+    logger.error("Error in getNextEmployeeIdSequence:", error);
     res.status(500).json({ message: "Server error" });
   }
 };

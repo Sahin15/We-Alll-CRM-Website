@@ -41,6 +41,12 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    personalEmail: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      default: null,
+    },
     dateOfBirth: {
       type: Date,
     },
@@ -280,8 +286,22 @@ const userSchema = new mongoose.Schema(
     // Status and Notes
     status: {
       type: String,
-      enum: ["active", "inactive", "suspended"],
+      enum: ["active", "inactive", "terminated", "offboarded"],
       default: "active",
+    },
+    // Lifecycle audit fields
+    reactivationDate: {
+      type: Date,
+      default: null,
+    },
+    statusChangedAt: {
+      type: Date,
+      default: null,
+    },
+    statusChangedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
     },
     notes: {
       type: String,
@@ -449,7 +469,7 @@ userSchema.pre('save', function(next) {
 
 // Add indexes for faster queries (email index is already created by unique: true)
 userSchema.index({ role: 1, department: 1 });
-userSchema.index({ status: 1 });
+userSchema.index({ status: 1, reactivationDate: 1 });
 userSchema.index({ department: 1 });
 userSchema.index({ isHeadOfDepartment: 1 });
 

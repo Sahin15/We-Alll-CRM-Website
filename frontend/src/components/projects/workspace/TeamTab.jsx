@@ -112,7 +112,7 @@ const TeamTab = ({ project, onRefresh }) => {
       // Get project department ID
       const projectDeptId = project.department?._id || project.department;
       
-      // Filter users
+      // Filter users - prioritize same department but allow all employees if none available
       const available = allUsers.filter((u) => {
         // Only include employees and HoDs
         if (u.role !== 'employee' && u.role !== 'hod') {
@@ -129,15 +129,22 @@ const TeamTab = ({ project, onRefresh }) => {
           return false;
         }
         
-        // Include only if from same department
-        if (projectDeptId) {
-          const userDeptId = u.department?._id || u.department;
-          return userDeptId === projectDeptId;
-        }
-        
-        // If no department, still only show employees/HoDs
+        // Allow all employees/HoDs (removed department restriction)
         return true;
       });
+      
+      // Sort: same department first, then others
+      if (projectDeptId) {
+        available.sort((a, b) => {
+          const aDeptId = a.department?._id || a.department;
+          const bDeptId = b.department?._id || b.department;
+          
+          const aMatch = aDeptId === projectDeptId ? 0 : 1;
+          const bMatch = bDeptId === projectDeptId ? 0 : 1;
+          
+          return aMatch - bMatch;
+        });
+      }
       
       setAvailableUsers(available);
     } catch (error) {
@@ -154,6 +161,7 @@ const TeamTab = ({ project, onRefresh }) => {
 
     try {
       setAddingMember(true);
+      console.log('Adding team member with userId:', selectedUser);
       await projectApi.addTeamMember(project._id, selectedUser);
       toast.success('Team member added successfully!');
       setShowAddModal(false);
@@ -165,7 +173,11 @@ const TeamTab = ({ project, onRefresh }) => {
       }
     } catch (error) {
       console.error('Error adding team member:', error);
-      toast.error(error.response?.data?.message || 'Failed to add team member');
+      console.error('Full error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      console.error('Error details:', error.response?.data?.details);
+      const errorMsg = error.response?.data?.message || error.response?.data?.error || 'Failed to add team member';
+      toast.error(errorMsg);
     } finally {
       setAddingMember(false);
     }

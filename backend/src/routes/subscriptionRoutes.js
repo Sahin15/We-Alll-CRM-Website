@@ -19,7 +19,7 @@ const router = express.Router();
 router.post(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "client", "accounts"),
+  authorizeRoles("admin", "superadmin", "client", "accounts", "hod"),
   createSubscription
 );
 
@@ -42,7 +42,7 @@ router.get(
 router.get(
   "/client/:clientId",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "client"),
+  authorizeRoles("admin", "superadmin", "accounts", "client", "hod"),
   getClientSubscriptions
 );
 
@@ -50,7 +50,7 @@ router.get(
 router.get(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "client"),
+  authorizeRoles("admin", "superadmin", "accounts", "client", "hod"),
   getSubscriptionById
 );
 
@@ -58,7 +58,7 @@ router.get(
 router.put(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"),
   updateSubscription
 );
 
@@ -66,7 +66,7 @@ router.put(
 router.patch(
   "/:id/activate",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"),
   activateSubscription
 );
 
@@ -87,4 +87,3 @@ router.delete(
 );
 
 export default router;
-

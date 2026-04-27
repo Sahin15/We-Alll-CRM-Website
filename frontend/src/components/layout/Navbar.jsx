@@ -511,9 +511,11 @@ const Navbar = ({ toggleSidebar }) => {
             align="end"
             className="user-dropdown"
           >
-            <div className="px-3 py-2 border-bottom bg-light">
-              <div className="fw-bold">{user?.name || "User"}</div>
-              <div className="small text-muted">
+            <div className="px-3 py-2 border-bottom bg-light" style={{ maxWidth: "280px" }}>
+              <div className="fw-bold text-truncate" style={{ maxWidth: "100%" }} title={user?.name || "User"}>
+                {user?.name || "User"}
+              </div>
+              <div className="small text-muted text-truncate" style={{ maxWidth: "100%" }}>
                 {user?.email || "No email"}
               </div>
               <div className="mt-1">
@@ -685,7 +687,7 @@ const Navbar = ({ toggleSidebar }) => {
         /* User Dropdown - Higher z-index to appear above other elements */
         .user-dropdown {
           position: relative !important;
-          z-index: 1050 !important;
+          z-index: 99999 !important;
         }
         
         /* Ensure navbar doesn't clip dropdown */
@@ -704,9 +706,10 @@ const Navbar = ({ toggleSidebar }) => {
           padding: 0 !important;
           margin-top: 12px !important;
           min-width: 280px !important;
-          overflow: hidden !important;
+          max-height: 420px !important;
+          overflow-y: auto !important;
           animation: dropdownSlideIn 0.3s ease-out !important;
-          z-index: 1051 !important;
+          z-index: 99999 !important;
           position: absolute !important;
           top: 100% !important;
           right: 0 !important;
@@ -739,20 +742,28 @@ const Navbar = ({ toggleSidebar }) => {
         .user-dropdown .dropdown-menu .border-bottom {
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
           color: white !important;
-          padding: 20px !important;
+          padding: 16px 20px !important;
           border: none !important;
         }
         
         .user-dropdown .dropdown-menu .border-bottom .fw-bold {
-          font-size: 1.1rem !important;
+          font-size: 1rem !important;
           font-weight: 600 !important;
           margin-bottom: 4px !important;
           color: white !important;
+          white-space: nowrap !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          max-width: 240px !important;
         }
         
         .user-dropdown .dropdown-menu .border-bottom .text-muted {
           color: rgba(255, 255, 255, 0.85) !important;
           font-size: 0.875rem !important;
+          white-space: nowrap !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          max-width: 240px !important;
         }
         
         .user-dropdown .dropdown-menu .border-bottom .badge {

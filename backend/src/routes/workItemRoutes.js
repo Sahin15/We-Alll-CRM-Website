@@ -26,6 +26,8 @@ import {
   getPendingWorkCount,
   activateWorkItem,
   getCreatedByMe,
+  editWorkItem,
+  getEditHistory,
 } from "../controllers/workItemController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { createWorkItemLimiter, validateRequest } from "../middleware/securityMiddleware.js";
@@ -130,5 +132,11 @@ router.get("/by-slot/:slotId", getWorkItemsBySlot);
 
 // Work item reassignment (admin/manager only)
 router.put("/:id/reassign", reassignWorkItem);
+
+// Edit work item with change tracking (creator/project head/admin only)
+router.put("/:id/edit", editWorkItem);
+
+// Get edit history for a work item
+router.get("/:id/edit-history", getEditHistory);
 
 export default router;

@@ -225,6 +225,10 @@ const slotSchema = new mongoose.Schema(
       ref: "User",
       required: false, // Made optional - slots can be created without assignment
     },
+    assignedToMultiple: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    }],
     assignedAt: {
       type: Date,
       default: Date.now
@@ -587,6 +591,7 @@ slotSchema.statics.getSlotsByMonth = function(projectId, year, month) {
     .populate('project', 'name client')
     .populate('assignedWorkItem', 'title status')
     .populate('assignedTo', 'name email')
+    .populate('assignedToMultiple', 'name email')
     .lean();
 };
 

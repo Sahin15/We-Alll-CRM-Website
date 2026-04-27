@@ -60,6 +60,25 @@ const documentSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  // Document verification fields
+  verificationStatus: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending'
+  },
+  verifiedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  verificationDate: {
+    type: Date,
+    default: null
+  },
+  rejectionReason: {
+    type: String,
+    default: null
   }
 }, {
   timestamps: true
@@ -69,5 +88,6 @@ const documentSchema = new mongoose.Schema({
 documentSchema.index({ userId: 1, category: 1 });
 documentSchema.index({ isOfficial: 1 });
 documentSchema.index({ createdAt: -1 });
+documentSchema.index({ verificationStatus: 1 });
 
 export default mongoose.model('Document', documentSchema);

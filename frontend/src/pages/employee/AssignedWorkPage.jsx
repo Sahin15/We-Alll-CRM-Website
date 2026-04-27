@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import WorkItemList from '../../components/workitems/WorkItemList';
 import WorkItemSearch from '../../components/workitems/WorkItemSearch';
 import WorkItemDetailsModal from '../../components/workitems/WorkItemDetailsModal';
+import EditWorkItemModal from '../../components/workitems/EditWorkItemModal';
 
 /**
  * AssignedWorkPage Component
@@ -17,6 +18,8 @@ const AssignedWorkPage = () => {
   const [workItems, setWorkItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [workItemToEdit, setWorkItemToEdit] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showTodayOnly, setShowTodayOnly] = useState(true);
@@ -112,6 +115,12 @@ const AssignedWorkPage = () => {
   const handleViewItem = (item) => {
     setSelectedItem(item);
     setShowModal(true);
+  };
+
+  const handleEdit = (workItem) => {
+    setWorkItemToEdit(workItem);
+    setShowEditModal(true);
+    setShowModal(false);
   };
 
   const handleStatusChangeRequest = (itemId, newStatus, itemTitle) => {
@@ -246,6 +255,7 @@ const AssignedWorkPage = () => {
             onStatusChange={handleStatusChangeRequest}
             currentUser={user}
             showAssigneeStatus={true}
+            onEdit={handleEdit}
             emptyMessage={
               workItems.length === 0
                 ? 'No work items assigned by you yet.'
@@ -267,8 +277,24 @@ const AssignedWorkPage = () => {
           onUpdate={handleStatusChangeRequest}
           onRefresh={loadWorkItems}
           currentUser={user}
+          onEdit={handleEdit}
         />
       )}
+
+      {/* Edit Work Item Modal */}
+      <EditWorkItemModal
+        show={showEditModal}
+        onHide={() => {
+          setShowEditModal(false);
+          setWorkItemToEdit(null);
+        }}
+        workItem={workItemToEdit}
+        onSuccess={async () => {
+          await loadWorkItems();
+          setShowEditModal(false);
+          setWorkItemToEdit(null);
+        }}
+      />
 
       {/* Status Change Confirmation Modal */}
       <Modal show={confirmationModal.show} onHide={handleCancelStatusChange} centered style={{ zIndex: 9999 }}>

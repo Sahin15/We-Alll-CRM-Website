@@ -21,37 +21,37 @@ const router = express.Router();
 router.post(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "hod"),
   createBill
 );
 router.put(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "hod"),
   updateBill
 );
 router.delete(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "hod"),
   deleteBill
 );
 router.post(
   "/:id/send",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "hod"),
   sendBillToClient
 );
 router.put(
   "/:id/mark-paid",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "hod"),
   markBillAsPaid
 );
 router.put(
   "/:id/discount",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "hod"),
   applyDiscount
 );
 
@@ -59,13 +59,13 @@ router.put(
 router.get(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "hod"),
   getAllBills
 );
 router.get(
   "/overdue",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  authorizeRoles("admin", "superadmin", "accounts", "hod"),
   getOverdueBills
 );
 router.get(

@@ -301,9 +301,9 @@ const EmployeeDashboard = () => {
       let pendingTasks = 0;
       if (tasksRes.status === 'fulfilled') {
         const allTasks = tasksRes.value.data || [];
-        pendingTasks = allTasks.filter(t => t.status !== 'Done').length;
+        pendingTasks = allTasks.filter(t => t.status !== 'Done' && !t.isDeleted).length;
         const topTasks = allTasks
-          .filter(t => t.status !== 'Done')
+          .filter(t => t.status !== 'Done' && !t.isDeleted)
           .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
           .slice(0, 3);
         setRecentTasks(topTasks);
@@ -1649,7 +1649,7 @@ const EmployeeDashboard = () => {
         }
 
         .leave-type-card h6 {
-          font-size: 0.95rem;
+          font-size: 0.95rem !important;
           font-weight: 600;
           margin-bottom: 0.25rem;
         }

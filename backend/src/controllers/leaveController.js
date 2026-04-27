@@ -353,6 +353,7 @@ export const approveLeaveRequest = async (req, res) => {
       // Loop through each day in the leave period
       const currentDate = new Date(startDate);
       let recordsCreated = 0;
+      let recordsUpdated = 0;
       
       while (currentDate <= endDate) {
         // Set time to start of day for consistent date comparison
@@ -385,7 +386,27 @@ export const approveLeaveRequest = async (req, res) => {
           
           recordsCreated++;
         } else {
-          // Record already exists, skip
+          // Record already exists - UPDATE it to "on-leave" status
+          // This handles cases where employee clocked in but then leave was approved
+          await Attendance.findByIdAndUpdate(
+            existingRecord._id,
+            {
+              status: 'on-leave',
+              clockIn: undefined,
+              clockOut: undefined,
+              workHours: 0,
+              overtime: 0,
+              breaks: [],
+              totalBreakTime: 0,
+              notes: `On ${leaveRequest.leaveType} leave (Approved by ${approvedBy})`,
+              approvedBy: approvedBy,
+              isManuallyModified: true,
+              originalStatus: existingRecord.status // Store the original status before changing to on-leave
+            },
+            { new: true }
+          );
+          
+          recordsUpdated++;
         }
         
         // Move to next day

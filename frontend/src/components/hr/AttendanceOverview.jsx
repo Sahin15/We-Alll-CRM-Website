@@ -146,7 +146,11 @@ const AttendanceOverview = () => {
   const fetchEmployees = useCallback(async () => {
     try {
       const response = await api.get("/users");
-      setEmployees(response.data.filter(u => u.role === "employee" || u.role === "hod" || u.role === "hr"));
+      // Only show active employees for attendance management
+      setEmployees(response.data.filter(u => 
+        (u.role === "employee" || u.role === "hod" || u.role === "hr") &&
+        u.status === "active"
+      ));
     } catch (error) {
       console.error("Error fetching employees:", error);
     }
@@ -738,15 +742,33 @@ const AttendanceOverview = () => {
               <Row className="mb-3">
                 <Col md={4}>
                   <strong>Clock In:</strong>
-                  <p>{formatTime(selectedAttendance.clockIn)}</p>
+                  <p>
+                    {selectedAttendance.status === 'on-leave' ? (
+                      <Badge bg="secondary">On Leave</Badge>
+                    ) : (
+                      formatTime(selectedAttendance.clockIn)
+                    )}
+                  </p>
                 </Col>
                 <Col md={4}>
                   <strong>Clock Out:</strong>
-                  <p>{formatTime(selectedAttendance.clockOut)}</p>
+                  <p>
+                    {selectedAttendance.status === 'on-leave' ? (
+                      <Badge bg="secondary">On Leave</Badge>
+                    ) : (
+                      formatTime(selectedAttendance.clockOut)
+                    )}
+                  </p>
                 </Col>
                 <Col md={4}>
                   <strong>Work Hours:</strong>
-                  <p>{calculateWorkHours(selectedAttendance.clockIn, selectedAttendance.clockOut)}</p>
+                  <p>
+                    {selectedAttendance.status === 'on-leave' ? (
+                      '-'
+                    ) : (
+                      calculateWorkHours(selectedAttendance.clockIn, selectedAttendance.clockOut)
+                    )}
+                  </p>
                 </Col>
               </Row>
 

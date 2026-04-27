@@ -1,0 +1,186 @@
+.my-assets-container {
+  padding: 2rem;
+  background-color: #f5f5f5;
+  min-height: 100vh;
+}
+
+.my-assets-header {
+  margin-bottom: 2rem;
+}
+
+.my-assets-header h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 2rem !important;
+  color: #333;
+}
+
+.my-assets-header p {
+  margin: 0;
+  color: #666;
+  font-size: 1rem;
+}
+
+.my-assets-container .loading {
+  padding: 2rem;
+  text-align: center;
+  color: #666;
+  font-size: 1rem;
+}
+
+.no-assets {
+  background: white;
+  padding: 4rem 2rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.no-assets-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.no-assets h2 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem !important;
+  color: #333;
+}
+
+.no-assets p {
+  margin: 0;
+  color: #666;
+  font-size: 1rem;
+}
+
+.assets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.asset-card {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+
+.asset-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.asset-card .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.asset-id {
+  font-weight: 700;
+  color: #007bff;
+  font-size: 0.95rem;
+}
+
+.asset-card .card-body {
+  padding: 1.5rem;
+  flex: 1;
+}
+
+.asset-card .card-body h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem !important;
+  color: #333;
+}
+
+.asset-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.detail-row {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 1rem;
+  font-size: 0.875rem;
+}
+
+.detail-row .label {
+  font-weight: 600;
+  color: #666;
+}
+
+.detail-row .value {
+  color: #333;
+  word-break: break-word;
+}
+
+.asset-description {
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 0.25rem;
+  margin-top: 1rem;
+}
+
+.asset-description p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #666;
+  line-height: 1.5;
+}
+
+.asset-card .card-footer {
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-top: 1px solid #e9ecef;
+}
+
+.info-text {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.warranty-info {
+  display: block;
+  padding: 0.5rem;
+  background-color: #e7f3ff;
+  color: #0056b3;
+  border-radius: 0.25rem;
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .my-assets-container {
+    padding: 1rem;
+  }
+
+  .my-assets-header h1 {
+    font-size: 1.5rem !important;
+  }
+
+  .assets-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-row {
+    grid-template-columns: 80px 1fr;
+    gap: 0.5rem;
+  }
+
+  .detail-row .label {
+    font-size: 0.8rem;
+  }
+
+  .detail-row .value {
+    font-size: 0.8rem;
+  }
+}
+

@@ -19,6 +19,7 @@ const getMyWorkItems = async (req, res) => {
     // Build query - support both single and multiple assignee fields
     // Include draft items if user is the creator
     const query = {
+      isDeleted: { $ne: true }, // Always exclude soft-deleted items
       $or: [
         { assignedTo: req.user._id },
         { assignedToMultiple: req.user._id },
@@ -74,10 +75,21 @@ const getMyWorkItems = async (req, res) => {
       .limit(500)
       .lean();
     
+    // Compute isOverdue for each item (lean() strips virtuals)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const workItemsWithVirtuals = workItems.map(item => {
+      const due = item.dueDate ? new Date(item.dueDate) : null;
+      if (due) due.setHours(0, 0, 0, 0);
+      const isOverdue = item.status !== 'Done' && due && due < today;
+      const isDueToday = item.status !== 'Done' && due && due.getTime() === today.getTime();
+      return { ...item, isOverdue, isDueToday };
+    });
+    
     res.status(200).json({
       success: true,
-      count: workItems.length,
-      data: workItems,
+      count: workItemsWithVirtuals.length,
+      data: workItemsWithVirtuals,
     });
   } catch (error) {
     
@@ -233,7 +245,8 @@ const getWorkItemById = async (req, res) => {
       .populate("createdBy", "name email")
       .populate("comments.user", "name email")
       .populate("attachments.uploadedBy", "name email")
-      .populate("statusHistory.changedBy", "name email");
+      .populate("statusHistory.changedBy", "name email")
+      .populate("editHistory.editedBy", "name email");
     
     if (!workItem) {
       return res.status(404).json({
@@ -449,14 +462,43 @@ const createWorkItem = async (req, res) => {
 
     const workItem = await WorkItem.create(workItemData);
     
-    // SLOT ASSIGNMENT - Handle slot assignment if requested
-    if (assignToSlot && selectedSlot) {
+    // SLOT ASSIGNMENT - Handle slot assignment if requested or auto-assign for multiple assignees
+    let slotToAssign = selectedSlot;
+    
+    // Auto-assign to first available slot if multiple assignees and project uses slots
+    if (!slotToAssign && assignedToMultiple && assignedToMultiple.length > 0 && projectExists.slotConfiguration?.enableSlotSystem) {
       try {
-        const slot = await Slot.findById(selectedSlot);
+        // Get first available slot for current month
+        const currentPeriod = Slot.getCurrentPeriodIdentifier();
+        const availableSlot = await Slot.findOne({
+          project: project,
+          'period.periodIdentifier': currentPeriod,
+          assignmentStatus: 'available',
+          'completionStatus.isCompleted': { $ne: true }
+        }).sort({ slotNumber: 1 });
+        
+        if (availableSlot) {
+          slotToAssign = availableSlot._id;
+        }
+      } catch (autoSlotError) {
+        // If auto-slot selection fails, continue without slot assignment
+        console.log('Auto-slot selection failed:', autoSlotError.message);
+      }
+    }
+    
+    if ((assignToSlot || slotToAssign) && slotToAssign) {
+      try {
+        const slot = await Slot.findById(slotToAssign);
         if (slot) {
           slot.assignmentStatus = 'assigned';
           slot.assignedWorkItem = workItem._id;
-          slot.assignedTo = assignedTo;
+          // Handle both single and multiple assignees
+          if (assignedToMultiple && assignedToMultiple.length > 0) {
+            slot.assignedToMultiple = assignedToMultiple; // Assign to all multiple assignees
+            slot.assignedTo = assignedToMultiple[0]; // Set first as primary for backward compatibility
+          } else {
+            slot.assignedTo = assignedTo;
+          }
           slot.dueDate = dueDate;
           slot.assignedAt = new Date();
           slot.assignedBy = req.user._id;
@@ -497,6 +539,7 @@ const createWorkItem = async (req, res) => {
       ]
     });
     await workItem.populate("assignedTo", "name email");
+    await workItem.populate("assignedToMultiple", "name email");
     await workItem.populate("createdBy", "name email");
     
     // Populate slot assignment if it exists
@@ -670,6 +713,7 @@ const updateWorkItem = async (req, res) => {
     // Populate the updated work item
     await workItem.populate("project", "name client");
     await workItem.populate("assignedTo", "name email");
+    await workItem.populate("assignedToMultiple", "name email");
     await workItem.populate("createdBy", "name email");
     
     // SEND NOTIFICATIONS FOR WORK ITEM UPDATE
@@ -975,6 +1019,11 @@ const updateWorkItemStatus = async (req, res) => {
     } else {
       // For single assignee, update global status
       workItem.status = status;
+      
+      // Clear isOverdue flag when marking as Done
+      if (status === 'Done') {
+        workItem.isOverdue = false;
+      }
     }
     
     workItem.modifiedBy = req.user._id;
@@ -1674,6 +1723,7 @@ const getCalendarWorkItems = async (req, res) => {
     const workItems = await WorkItem.find(query)
       .populate("project", "name client")
       .populate("assignedTo", "name email")
+      .populate("assignedToMultiple", "name email")
       .populate("createdBy", "name email")
       .sort({ dueDate: 1 });
     
@@ -1782,6 +1832,7 @@ const getWorkItemsByProject = async (req, res) => {
     
     const workItems = await WorkItem.find(query)
       .populate("assignedTo", "name email")
+      .populate("assignedToMultiple", "name email")
       .populate("createdBy", "name email")
       .sort({ status: 1, dueDate: 1 });
     
@@ -2080,6 +2131,334 @@ const debugWorkItems = async (req, res) => {
   }
 };
 
+// @desc    Edit work item with full change tracking and activity logging
+// @route   PUT /api/work-items/:id/edit
+// @access  Private (Creator/Assignee/Project Head/Admin)
+const editWorkItem = async (req, res) => {
+  try {
+    const workItem = await WorkItem.findById(req.params.id);
+    
+    if (!workItem) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: "NOT_FOUND",
+          message: "Work item not found",
+        },
+      });
+    }
+    
+    // PERMISSION CHECK - Creator, assignee, project head, or admin can edit
+    const project = await Project.findById(workItem.project);
+    const userId = req.user?._id?.toString();
+    
+    const isCreator = workItem.createdBy && workItem.createdBy.toString() === userId;
+    const isAssigned = workItem.assignedTo && workItem.assignedTo.toString() === userId;
+    const isAssignedMultiple = workItem.assignedToMultiple && workItem.assignedToMultiple.some(id => (id._id || id).toString() === userId);
+    const isProjectHead = project?.projectHead && project.projectHead.toString() === userId;
+    const isAdmin = ["admin", "superadmin", "hod", "manager"].includes(req.user?.role);
+    
+    // Creator, assignee, project head, or admin can edit
+    if (!isCreator && !isAssigned && !isAssignedMultiple && !isProjectHead && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: "FORBIDDEN",
+          message: "You don't have permission to edit this work item. Only the creator, assignee, project head, or admin can edit.",
+        },
+      });
+    }
+    
+    // Editable fields
+    const editableFields = [
+      "title",
+      "description",
+      "priority",
+      "dueDate",
+      "platform",
+      "postType",
+      "contentBucket",
+      "caption",
+      "hashtags",
+      "tags",
+      "estimatedHours",
+    ];
+    
+    // Track changes
+    const changes = {};
+    const fieldsChanged = [];
+    
+    // Helper function to compare values, with special handling for dates
+    const valuesAreEqual = (oldVal, newVal, fieldName) => {
+      // Handle null/undefined cases
+      if (oldVal === null || oldVal === undefined) {
+        oldVal = '';
+      }
+      if (newVal === null || newVal === undefined) {
+        newVal = '';
+      }
+      
+      // For date fields, compare only the date part (ignore time)
+      if (fieldName.toLowerCase().includes('date')) {
+        try {
+          // Convert to Date objects
+          const oldDate = new Date(oldVal);
+          const newDate = new Date(newVal);
+          
+          // Check if both are valid dates
+          if (isNaN(oldDate.getTime()) || isNaN(newDate.getTime())) {
+            // If not valid dates, compare as strings
+            return String(oldVal).trim() === String(newVal).trim();
+          }
+          
+          // Compare dates without time component (UTC)
+          const oldDateStr = oldDate.toISOString().split('T')[0];
+          const newDateStr = newDate.toISOString().split('T')[0];
+          
+          return oldDateStr === newDateStr;
+        } catch (e) {
+          // Fall back to string comparison if date parsing fails
+          return String(oldVal).trim() === String(newVal).trim();
+        }
+      }
+      
+      // For other fields, use string comparison
+      return String(oldVal).trim() === String(newVal).trim();
+    };
+    
+    for (const field of editableFields) {
+      if (field in req.body) {
+        const oldValue = workItem[field];
+        const newValue = req.body[field];
+        
+        // Only track if value actually changed
+        if (!valuesAreEqual(oldValue, newValue, field)) {
+          changes[field] = {
+            oldValue,
+            newValue,
+          };
+          fieldsChanged.push(field);
+          workItem[field] = newValue;
+        }
+      }
+    }
+    
+    // If no changes, return early
+    if (fieldsChanged.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No changes detected",
+        data: workItem,
+      });
+    }
+    
+    // Add to edit history
+    // Get editor name before adding to history
+    const editor = await User.findById(req.user._id).select('name email');
+    const editorName = editor?.name || editor?.email || 'Unknown User';
+    const editorEmail = editor?.email || '';
+    
+    workItem.editHistory.push({
+      editedBy: req.user._id,
+      editorName: editorName,  // Store name directly
+      editorEmail: editorEmail,  // Also store email as backup
+      editedAt: new Date(),
+      changes: changes,
+      reason: req.body.editReason || null,
+      fieldsChanged,
+    });
+    
+    // Mark as edited
+    workItem.isEdited = true;
+    workItem.lastEditedAt = new Date();
+    workItem.lastEditedBy = req.user._id;
+    workItem.modifiedBy = req.user._id;
+    
+    await workItem.save();
+    
+    // Fetch fresh document with all populated fields
+    let responseData = await WorkItem.findById(workItem._id)
+      .populate("project", "name client")
+      .populate("assignedTo", "name email")
+      .populate("createdBy", "name email")
+      .populate("lastEditedBy", "name email")
+      .populate("editHistory.editedBy", "name email");
+    
+    // SEND NOTIFICATIONS FOR WORK ITEM EDIT
+    try {
+      // editorName is already defined above, just use it
+      // If we need to update it, we can, but it's already set correctly
+      
+      // Notify the assignee (if not the editor)
+      if (workItem.assignedTo && workItem.assignedTo._id.toString() !== req.user._id.toString()) {
+        await NotificationService.sendToUser(
+          workItem.assignedTo._id,
+          '✏️ Work Item Edited',
+          `${editorName} edited "${workItem.title}" - ${fieldsChanged.join(', ')} changed`,
+          {
+            type: 'work_edited',
+            data: {
+              workItemId: workItem._id.toString(),
+              workItemTitle: workItem.title,
+              projectId: workItem.project._id?.toString() || workItem.project.toString(),
+              projectName: workItem.project.name || 'Unknown Project',
+              fieldsChanged,
+              editorName,
+            },
+            actionUrl: `/work-items/${workItem._id}`,
+            senderId: req.user._id,
+          }
+        );
+      }
+      
+      // Notify other project team members
+      const projectData = await Project.findById(workItem.project).populate('teamMembers', '_id');
+      const projectTeamMembers = projectData?.teamMembers?.map(member => member._id) || [];
+      
+      const notificationRecipients = projectTeamMembers.filter(memberId => 
+        memberId.toString() !== req.user._id.toString() &&
+        (!workItem.assignedTo || memberId.toString() !== workItem.assignedTo._id.toString())
+      );
+      
+      if (notificationRecipients.length > 0) {
+        await NotificationService.sendToMultiple(
+          notificationRecipients,
+          '✏️ Work Item Edited',
+          `${editorName} edited "${workItem.title}"`,
+          {
+            type: 'work_edited_project',
+            data: {
+              workItemId: workItem._id.toString(),
+              workItemTitle: workItem.title,
+              projectId: workItem.project._id?.toString() || workItem.project.toString(),
+              projectName: workItem.project.name || 'Unknown Project',
+              fieldsChanged,
+              editorName,
+            },
+            actionUrl: `/work-items/${workItem._id}`,
+            senderId: req.user._id,
+          }
+        );
+      }
+      
+    } catch (notificationError) {
+      // Don't fail the request if notification fails
+      console.error('Notification error:', notificationError);
+    }
+    
+    // Log audit event
+    logWorkItemOperation("EDIT", workItem._id.toString(), req.user?._id?.toString(), {
+      fieldsChanged,
+      changes: Object.keys(changes),
+      editReason: req.body.editReason || null,
+    });
+    
+    res.status(200).json({
+      success: true,
+      message: `Work item edited successfully. ${fieldsChanged.length} field(s) changed.`,
+      data: responseData,
+      editSummary: {
+        fieldsChanged,
+        editedBy: editorName,
+        editedAt: workItem.lastEditedAt,
+        changeCount: fieldsChanged.length,
+      },
+    });
+  } catch (error) {
+    
+    if (error.name === "ValidationError") {
+      const errors = Object.values(error.errors).map((err) => err.message);
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Validation failed",
+          details: errors,
+        },
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      error: {
+        code: "SERVER_ERROR",
+        message: "Failed to edit work item",
+        details: error.message,
+      },
+    });
+  }
+};
+
+// @desc    Get edit history for a work item
+// @route   GET /api/work-items/:id/edit-history
+// @access  Private
+const getEditHistory = async (req, res) => {
+  try {
+    const workItem = await WorkItem.findById(req.params.id)
+      .populate('editHistory.editedBy', 'name email avatar')
+      .select('editHistory isEdited lastEditedAt lastEditedBy title');
+    
+    if (!workItem) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: "NOT_FOUND",
+          message: "Work item not found",
+        },
+      });
+    }
+    
+    // Check permission - user must be able to view the work item
+    const project = await Project.findById(workItem.project);
+    const userId = req.user?._id?.toString();
+    
+    const isCreator = workItem.createdBy && workItem.createdBy.toString() === userId;
+    const isProjectHead = project?.projectHead && project.projectHead.toString() === userId;
+    const isProjectMember = project?.assignedUsers?.some(assignedUserId => assignedUserId.toString() === userId);
+    const isAdmin = ["admin", "superadmin", "hod", "manager"].includes(req.user?.role);
+    
+    if (!isCreator && !isProjectHead && !isProjectMember && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: "FORBIDDEN",
+          message: "You don't have permission to view this work item's edit history",
+        },
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        workItemId: workItem._id,
+        workItemTitle: workItem.title,
+        isEdited: workItem.isEdited,
+        lastEditedAt: workItem.lastEditedAt,
+        lastEditedBy: workItem.lastEditedBy,
+        editHistory: workItem.editHistory.map(edit => ({
+          editedBy: edit.editedBy,
+          editorName: edit.editorName || edit.editedBy?.name || 'Unknown User',
+          editorEmail: edit.editorEmail || edit.editedBy?.email || '',
+          editedAt: edit.editAt,
+          fieldsChanged: edit.fieldsChanged,
+          reason: edit.reason,
+          changes: Object.fromEntries(edit.changes || []),
+        })),
+        totalEdits: workItem.editHistory.length,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: {
+        code: "SERVER_ERROR",
+        message: "Failed to get edit history",
+        details: error.message,
+      },
+    });
+  }
+};
+
 // Named exports for individual imports
 export {
   getAllWorkItems,
@@ -2102,7 +2481,9 @@ export {
   getWorkflowProgress,
   debugWorkItems,
   assignWorkItemToSlot,
-  reassignWorkItem
+  reassignWorkItem,
+  editWorkItem,
+  getEditHistory
 };
 
 // @desc    Assign work item to slot (Utility function for testing)
@@ -2601,6 +2982,7 @@ export const getWorkItemsGroupedBySlots = async (req, res) => {
     // Get all work items for the project
     const workItems = await WorkItem.find({ project: projectId })
       .populate('assignedTo', 'name email')
+      .populate('assignedToMultiple', 'name email')
       .populate('slotAssignment.assignedSlot', 'slotNumber slotIdentifier')
       .sort({ 'slotAssignment.slotNumber': 1, createdAt: 1 });
 
@@ -2676,6 +3058,7 @@ export const getWorkItemsBySlot = async (req, res) => {
     })
       .populate('project', 'name client')
       .populate('assignedTo', 'name email')
+      .populate('assignedToMultiple', 'name email')
       .populate('slotAssignment.assignedSlot', 'slotNumber slotIdentifier')
       .sort({ createdAt: -1 });
 

@@ -34,11 +34,14 @@ router.get(
 router.get(
   "/employee/:employeeId/active",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "accounts", "manager"),
+  // Allow HR/Admin roles OR the employee accessing their own salary
   (req, res, next) => {
-    
-    
-    next();
+    const allowedRoles = ["admin", "superadmin", "hr", "accounts", "manager"];
+    const isOwnSalary = req.user._id.toString() === req.params.employeeId;
+    if (allowedRoles.includes(req.user.role) || isOwnSalary) {
+      return next();
+    }
+    return res.status(403).json({ message: "Access denied" });
   },
   getActiveSalaryStructure
 );

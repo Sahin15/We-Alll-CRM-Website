@@ -7,9 +7,11 @@ import {
   updateUserProfile,
   updateUser,
   updateUserStatus,
+  updateEmployeeStatus,
   requestPasswordReset,
   resetPassword,
   changePassword,
+  getNextEmployeeIdSequence,
 } from "../controllers/userController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
@@ -33,9 +35,11 @@ router.get("/", protect, getUsers);
 router.get("/employees", protect, async (req, res) => {
   try {
     const User = (await import("../models/userModel.js")).default;
-    const employees = await User.find({ role: { $in: ['employee', 'hod', 'hr', 'accounts'] } })
+    // Get all users except superadmin, sorted by name
+    const employees = await User.find({ role: { $ne: 'superadmin' } })
       .select('-password')
       .populate('department', 'name')
+      .populate('reportingManager', 'name')
       .sort({ name: 1 });
     res.json(employees);
   } catch (error) {
@@ -141,6 +145,9 @@ router.post("/reset-password/:token", resetPassword);
 // Change password route (for authenticated users to change their own password)
 router.put("/change-password", protect, changePassword);
 
+// Generate next employee ID sequence
+router.post("/next-employee-id-sequence", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), getNextEmployeeIdSequence);
+
 // Clear broken profile picture
 router.patch("/clear-broken-profile-picture", protect, async (req, res) => {
   try {
@@ -161,6 +168,7 @@ router.get("/:id/documents", protect, authorizeRoles("admin", "superadmin", "hr"
     // Get both personal and official documents for the user
     const documents = await Document.find({ userId })
       .populate('uploadedBy', 'name email')
+      .populate('verifiedBy', 'name email')
       .sort({ createdAt: -1 });
 
     // Transform documents to include proper URL and uploadedAt field
@@ -181,13 +189,13 @@ router.get("/:id/documents", protect, authorizeRoles("admin", "superadmin", "hr"
 router.get("/:id", protect, getUserById);
 router.put("/profile", protect, updateUserProfile);
 router.put("/:id/profile", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), updateUser);
-router.put("/:id", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), updateUser);
 router.put(
   "/:id/status",
   protect,
-  authorizeRoles("admin", "superadmin", "manager"),
-  updateUserStatus
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  updateEmployeeStatus
 );
+router.put("/:id", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), updateUser);
 router.delete(
   "/:id",
   protect,

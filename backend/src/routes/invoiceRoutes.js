@@ -20,7 +20,7 @@ const router = express.Router();
 router.post(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"),
   createInvoice
 );
 
@@ -28,7 +28,7 @@ router.post(
 router.get(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"),
   getAllInvoices
 );
 
@@ -60,7 +60,7 @@ router.get(
 router.put(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"),
   updateInvoice
 );
 
@@ -68,7 +68,7 @@ router.put(
 router.patch(
   "/:id/status",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"),
   updateInvoiceStatus
 );
 
@@ -76,7 +76,7 @@ router.patch(
 router.post(
   "/:id/send",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"),
   sendInvoice
 );
 
@@ -84,7 +84,7 @@ router.post(
 router.get(
   "/:id/pdf",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "client"),
+  authorizeRoles("admin", "superadmin", "accounts", "client", "hod"),
   generateInvoicePDF
 );
 
@@ -97,4 +97,3 @@ router.delete(
 );
 
 export default router;
-

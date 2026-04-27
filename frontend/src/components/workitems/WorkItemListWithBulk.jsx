@@ -41,7 +41,8 @@ const WorkItemListWithBulk = ({ workItems, onViewItem, onBulkAction, emptyMessag
   };
 
   const isOverdue = (workItem) => {
-    return workItem.dueDate && 
+    return workItem.status !== 'Done' &&
+      workItem.dueDate && 
       new Date(workItem.dueDate) < new Date() && 
       workItem.status !== 'Done';
   };

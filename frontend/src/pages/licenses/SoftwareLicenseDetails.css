@@ -1,0 +1,83 @@
+.software-license-details-page {
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 0;
+}
+
+.card {
+  border: 1px solid #dee2e6;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+  border-bottom: 1px solid #dee2e6;
+  padding: 1rem;
+}
+
+.card-header h5 {
+  font-weight: 700;
+  color: #333;
+  margin: 0;
+}
+
+.card-body {
+  padding: 1.5rem;
+}
+
+.label {
+  font-weight: 600;
+  color: #666;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.25rem;
+}
+
+.value {
+  color: #333;
+  font-size: 1rem;
+  margin-bottom: 1rem;
+}
+
+.license-key {
+  font-family: "Courier New", monospace;
+  background-color: #f8f9fa;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  word-break: break-all;
+}
+
+.d-grid {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.d-grid .btn {
+  padding: 0.625rem 1rem;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .page-title {
+    font-size: 1.5rem;
+  }
+
+  .card-body {
+    padding: 1rem;
+  }
+
+  .label {
+    font-size: 0.75rem;
+  }
+
+  .value {
+    font-size: 0.875rem;
+  }
+}

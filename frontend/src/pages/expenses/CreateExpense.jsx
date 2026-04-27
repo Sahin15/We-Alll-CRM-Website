@@ -5,16 +5,7 @@ import { useNavigate } from "react-router-dom";
 import toast from "../../utils/toast";
 import { expenseApi } from "../../api/expenseApi";
 import api from "../../services/api";
-
-const EXPENSE_CATEGORIES = [
-  { value: "travel", label: "Travel" },
-  { value: "food", label: "Food & Meals" },
-  { value: "accommodation", label: "Accommodation" },
-  { value: "office_supplies", label: "Office Supplies" },
-  { value: "client_meeting", label: "Client Meeting" },
-  { value: "training", label: "Training" },
-  { value: "other", label: "Other" },
-];
+import { EXPENSE_PURPOSES_ARRAY, EXPENSE_TYPES_ARRAY } from "../../utils/expenseConstants";
 
 const PAYMENT_METHODS = [
   { value: "cash", label: "Cash" },
@@ -33,7 +24,8 @@ const CreateExpense = () => {
   const [receiptPreview, setReceiptPreview] = useState(null);
   const [receiptUrl, setReceiptUrl] = useState(null);
   const [formData, setFormData] = useState({
-    category: "",
+    expensePurpose: "",
+    expenseType: "",
     amount: "",
     date: new Date().toISOString().split("T")[0],
     description: "",
@@ -120,7 +112,7 @@ const CreateExpense = () => {
     e.preventDefault();
 
     // Validation
-    if (!formData.category || !formData.amount || !formData.date || !formData.description || !formData.paymentMethod) {
+    if (!formData.expensePurpose || !formData.expenseType || !formData.amount || !formData.date || !formData.description || !formData.paymentMethod) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -179,29 +171,55 @@ const CreateExpense = () => {
           <Card className="border-0 shadow-sm">
             <Card.Body className="p-4">
               <Form onSubmit={handleSubmit}>
-                {/* Category and Amount Row */}
+                {/* Purpose and Type Row */}
                 <Row>
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>
-                        Category <span className="text-danger">*</span>
+                        Expense Purpose <span className="text-danger">*</span>
                       </Form.Label>
                       <Form.Select
-                        name="category"
-                        value={formData.category}
+                        name="expensePurpose"
+                        value={formData.expensePurpose}
                         onChange={handleInputChange}
                         required
                       >
-                        <option value="">Select Category</option>
-                        {EXPENSE_CATEGORIES.map((cat) => (
-                          <option key={cat.value} value={cat.value}>
-                            {cat.label}
+                        <option value="">Select Purpose</option>
+                        {EXPENSE_PURPOSES_ARRAY.map((purpose) => (
+                          <option key={purpose.value} value={purpose.value}>
+                            {purpose.label}
                           </option>
                         ))}
                       </Form.Select>
+                      <small className="text-muted">Why was this expense made?</small>
                     </Form.Group>
                   </Col>
 
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>
+                        Expense Type <span className="text-danger">*</span>
+                      </Form.Label>
+                      <Form.Select
+                        name="expenseType"
+                        value={formData.expenseType}
+                        onChange={handleInputChange}
+                        required
+                      >
+                        <option value="">Select Type</option>
+                        {EXPENSE_TYPES_ARRAY.map((type) => (
+                          <option key={type.value} value={type.value}>
+                            {type.label}
+                          </option>
+                        ))}
+                      </Form.Select>
+                      <small className="text-muted">What was spent on?</small>
+                    </Form.Group>
+                  </Col>
+                </Row>
+
+                {/* Amount and Date Row */}
+                <Row>
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>
@@ -222,10 +240,7 @@ const CreateExpense = () => {
                       </div>
                     </Form.Group>
                   </Col>
-                </Row>
 
-                {/* Date and Payment Method Row */}
-                <Row>
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>
@@ -240,28 +255,27 @@ const CreateExpense = () => {
                       />
                     </Form.Group>
                   </Col>
-
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>
-                        Payment Method <span className="text-danger">*</span>
-                      </Form.Label>
-                      <Form.Select
-                        name="paymentMethod"
-                        value={formData.paymentMethod}
-                        onChange={handleInputChange}
-                        required
-                      >
-                        <option value="">Select Payment Method</option>
-                        {PAYMENT_METHODS.map((method) => (
-                          <option key={method.value} value={method.value}>
-                            {method.label}
-                          </option>
-                        ))}
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
                 </Row>
+
+                {/* Payment Method */}
+                <Form.Group className="mb-3">
+                  <Form.Label>
+                    Payment Method <span className="text-danger">*</span>
+                  </Form.Label>
+                  <Form.Select
+                    name="paymentMethod"
+                    value={formData.paymentMethod}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    <option value="">Select Payment Method</option>
+                    {PAYMENT_METHODS.map((method) => (
+                      <option key={method.value} value={method.value}>
+                        {method.label}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
 
                 {/* Description */}
                 <Form.Group className="mb-3">

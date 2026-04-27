@@ -18,10 +18,9 @@ class SalaryPreviewService {
    * @param {Object} additionalData - Additional earnings/deductions
    * @returns {Object} Generated salary preview
    */
-  async generatePreview(employeeId, month, year, additionalData = {}) {
+  async generatePreview(employeeId, month, year, additionalData = {}, workingDaysOverride = null) {
     try {
-      // Use the model's static method for generation
-      const preview = await SalaryPreview.generatePreview(employeeId, month, year, additionalData);
+      const preview = await SalaryPreview.generatePreview(employeeId, month, year, additionalData, workingDaysOverride);
       
       // Populate employee details with department
       await preview.populate({
@@ -48,7 +47,7 @@ class SalaryPreviewService {
    * @param {Object} commonAdditionalData - Common additional data for all employees
    * @returns {Object} Bulk generation results
    */
-  async bulkGeneratePreviews(employeeIds, month, year, commonAdditionalData = {}) {
+  async bulkGeneratePreviews(employeeIds, month, year, commonAdditionalData = {}, workingDaysOverride = null) {
     try {
       const results = {
         success: [],
@@ -58,7 +57,6 @@ class SalaryPreviewService {
 
       for (const employeeId of employeeIds) {
         try {
-          // Check if preview already exists
           const existingPreview = await SalaryPreview.findOne({
             employee: employeeId,
             month,
@@ -73,8 +71,7 @@ class SalaryPreviewService {
             continue;
           }
 
-          // Generate preview
-          const preview = await this.generatePreview(employeeId, month, year, commonAdditionalData);
+          const preview = await this.generatePreview(employeeId, month, year, commonAdditionalData, workingDaysOverride);
           
           results.success.push({
             employeeId,

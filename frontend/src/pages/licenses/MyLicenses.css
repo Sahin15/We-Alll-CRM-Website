@@ -1,0 +1,159 @@
+.my-licenses-page {
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  font-size: 1rem;
+  color: #666;
+  margin-bottom: 0;
+}
+
+.filters-section {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.filters-section .form-label {
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 0.5rem;
+}
+
+.filters-section .form-select {
+  border-color: #ddd;
+  border-radius: 0.375rem;
+}
+
+.filters-section .form-select:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.licenses-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.license-card {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+
+.license-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.card-header {
+  padding: 1.5rem;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.card-header h5 {
+  font-weight: 700;
+  color: #333;
+  margin: 0;
+  flex: 1;
+}
+
+.card-body {
+  padding: 1.5rem;
+  flex: 1;
+}
+
+.info-row {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+}
+
+.info-row:last-child {
+  margin-bottom: 0;
+}
+
+.label {
+  font-weight: 600;
+  color: #666;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.25rem;
+}
+
+.value {
+  color: #333;
+  font-size: 1rem;
+  word-break: break-word;
+}
+
+.installation-path {
+  font-family: "Courier New", monospace;
+  background-color: #f8f9fa;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.card-footer {
+  padding: 1rem 1.5rem;
+  background-color: #f8f9fa;
+  border-top: 1px solid #dee2e6;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.card-footer .btn {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.pagination-section {
+  display: flex;
+  justify-content: center;
+  margin-top: 2rem;
+  padding: 1rem;
+}
+
+.pagination-section .pagination {
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .page-title {
+    font-size: 1.5rem;
+  }
+
+  .licenses-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card-header {
+    flex-direction: column;
+  }
+
+  .card-header h5 {
+    flex: none;
+  }
+}

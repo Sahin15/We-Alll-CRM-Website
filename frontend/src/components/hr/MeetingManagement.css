@@ -1,0 +1,396 @@
+/* ============================================
+   MEETING MANAGEMENT MOBILE RESPONSIVE STYLES
+   ============================================ */
+
+/* Desktop - Default */
+.meeting-management-header {
+  position: relative;
+}
+
+.meeting-management-button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+/* Desktop table styles */
+.meeting-table-responsive {
+  max-height: 350px;
+  overflow-y: auto;
+  display: block;
+  width: 100%;
+}
+
+.meeting-table-responsive table {
+  font-size: 1rem;
+  width: 100%;
+  display: table;
+}
+
+.meeting-table-responsive thead {
+  display: table-header-group;
+}
+
+.meeting-table-responsive tbody {
+  display: table-row-group;
+}
+
+.meeting-table-responsive tr {
+  display: table-row;
+}
+
+.meeting-table-responsive th,
+.meeting-table-responsive td {
+  padding: 12px !important;
+  white-space: normal !important;
+  vertical-align: middle;
+  display: table-cell;
+}
+
+.meeting-table-responsive .meeting-title-cell {
+  white-space: normal !important;
+  max-width: 250px;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+}
+
+.meeting-table-responsive .hide-on-mobile {
+  display: table-cell !important;
+}
+
+.meeting-table-responsive .organizer-column {
+  display: table-cell !important;
+}
+
+/* ============================================
+   MOBILE STYLES (max-width: 575.98px)
+   ============================================ */
+
+@media (max-width: 575.98px) {
+  /* Header adjustments */
+  .meeting-management-header {
+    padding: 12px !important;
+    min-height: 60px;
+  }
+
+  .meeting-management-header h5 {
+    font-size: 1.1rem !important;
+    margin-bottom: 0;
+  }
+
+  .meeting-management-button {
+    position: static !important;
+    width: 100%;
+    margin-top: 12px;
+    font-size: 0.875rem;
+    padding: 8px 12px !important;
+  }
+
+  /* Statistics cards */
+  .meeting-stats-card {
+    margin-bottom: 10px;
+  }
+
+  .meeting-stats-card .card-body {
+    padding: 12px !important;
+  }
+
+  .meeting-stats-card h3 {
+    font-size: 1.5rem !important;
+  }
+
+  .meeting-stats-card small {
+    font-size: 0.75rem !important;
+  }
+
+  /* Filters */
+  .meeting-filters {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .meeting-filters .form-control,
+  .meeting-filters .form-select,
+  .meeting-filters .input-group {
+    width: 100% !important;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+
+  /* Table responsive */
+  .meeting-table-responsive {
+    max-height: 400px !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .meeting-table-responsive table {
+    font-size: 0.85rem;
+    display: table !important;
+    width: 100% !important;
+  }
+
+  .meeting-table-responsive thead {
+    display: table-header-group !important;
+  }
+
+  .meeting-table-responsive tbody {
+    display: table-row-group !important;
+  }
+
+  .meeting-table-responsive tr {
+    display: table-row !important;
+  }
+
+  .meeting-table-responsive th,
+  .meeting-table-responsive td {
+    padding: 8px 6px !important;
+    white-space: normal !important;
+    display: table-cell !important;
+  }
+
+  /* Hide less important columns on mobile */
+  .meeting-table-responsive .hide-on-mobile {
+    display: none !important;
+  }
+
+  /* Meeting title column */
+  .meeting-table-responsive .meeting-title-cell {
+    white-space: normal !important;
+    max-width: 100% !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+
+  .meeting-table-responsive .meeting-title-cell .fw-bold {
+    font-size: 0.9rem;
+  }
+
+  .meeting-table-responsive .meeting-title-cell small {
+    font-size: 0.7rem;
+  }
+
+  /* Badges */
+  .meeting-table-responsive .badge {
+    font-size: 0.65rem;
+    padding: 3px 6px;
+    white-space: nowrap;
+  }
+
+  /* Action buttons */
+  .meeting-table-responsive .btn-sm {
+    padding: 4px 8px;
+    font-size: 0.7rem;
+  }
+
+  /* Modal adjustments */
+  .modal-body {
+    padding: 12px !important;
+  }
+
+  .modal-body .form-group {
+    margin-bottom: 12px !important;
+  }
+
+  .modal-body .form-label {
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+  }
+
+  .modal-body .form-control,
+  .modal-body .form-select {
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 10px 12px;
+  }
+
+  .modal-body textarea {
+    min-height: 80px;
+  }
+
+  /* Attendees multi-select */
+  .modal-body select[multiple] {
+    min-height: 120px !important;
+    font-size: 14px;
+  }
+
+  /* Modal footer buttons */
+  .modal-footer {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .modal-footer .btn {
+    width: 100%;
+    font-size: 0.9rem;
+  }
+
+  /* Show All button */
+  .meeting-show-all-button {
+    padding: 12px !important;
+    font-size: 0.9rem;
+  }
+
+  /* Empty state */
+  .meeting-empty-state {
+    padding: 30px 16px !important;
+  }
+
+  .meeting-empty-state .fs-1 {
+    font-size: 2.5rem !important;
+  }
+
+  .meeting-empty-state p {
+    font-size: 0.9rem;
+  }
+}
+
+/* ============================================
+   TABLET STYLES (576px - 767.98px)
+   ============================================ */
+
+@media (min-width: 576px) and (max-width: 767.98px) {
+  .meeting-management-button {
+    position: static !important;
+    width: auto;
+    margin-top: 12px;
+  }
+
+  .meeting-table-responsive {
+    max-height: 450px !important;
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .meeting-table-responsive table {
+    font-size: 0.9rem;
+    display: table !important;
+    width: 100% !important;
+  }
+
+  .meeting-table-responsive thead {
+    display: table-header-group !important;
+  }
+
+  .meeting-table-responsive tbody {
+    display: table-row-group !important;
+  }
+
+  .meeting-table-responsive tr {
+    display: table-row !important;
+  }
+
+  .meeting-table-responsive th,
+  .meeting-table-responsive td {
+    padding: 10px 8px !important;
+    white-space: normal !important;
+    display: table-cell !important;
+  }
+
+  /* Hide organizer column on tablet */
+  .meeting-table-responsive .organizer-column {
+    display: none !important;
+  }
+}
+
+/* ============================================
+   LANDSCAPE ORIENTATION (Mobile)
+   ============================================ */
+
+@media (max-width: 767.98px) and (orientation: landscape) {
+  .meeting-management-header {
+    padding: 8px !important;
+    min-height: 50px;
+  }
+
+  .meeting-management-header h5 {
+    font-size: 1rem !important;
+  }
+
+  .meeting-management-button {
+    margin-top: 8px;
+    padding: 6px 10px !important;
+    font-size: 0.8rem;
+  }
+
+  .meeting-table-responsive {
+    max-height: 300px !important;
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .meeting-table-responsive table {
+    font-size: 0.8rem;
+    display: table !important;
+    width: 100% !important;
+  }
+
+  .meeting-table-responsive thead {
+    display: table-header-group !important;
+  }
+
+  .meeting-table-responsive tbody {
+    display: table-row-group !important;
+  }
+
+  .meeting-table-responsive tr {
+    display: table-row !important;
+  }
+
+  .meeting-table-responsive th,
+  .meeting-table-responsive td {
+    padding: 6px 4px !important;
+    white-space: normal !important;
+    display: table-cell !important;
+  }
+}
+
+/* ============================================
+   TOUCH DEVICE OPTIMIZATIONS
+   ============================================ */
+
+@media (hover: none) and (pointer: coarse) {
+  /* Larger touch targets */
+  .meeting-table-responsive .btn-sm {
+    min-width: 40px;
+    min-height: 40px;
+    padding: 8px 12px !important;
+  }
+
+  /* Remove hover effects on touch devices */
+  .meeting-table-responsive table tbody tr:hover {
+    background-color: transparent !important;
+  }
+
+  /* Active state for touch feedback */
+  .meeting-table-responsive table tbody tr:active {
+    background-color: rgba(0, 0, 0, 0.02) !important;
+  }
+}
+
+/* ============================================
+   PRINT STYLES
+   ============================================ */
+
+@media print {
+  .meeting-management-button,
+  .meeting-filters,
+  .modal,
+  .btn {
+    display: none !important;
+  }
+
+  .meeting-table-responsive {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .meeting-table-responsive table {
+    font-size: 10pt;
+  }
+
+  .meeting-table-responsive th,
+  .meeting-table-responsive td {
+    padding: 4px;
+  }
+}

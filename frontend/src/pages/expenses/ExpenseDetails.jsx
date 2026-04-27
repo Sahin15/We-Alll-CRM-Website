@@ -6,6 +6,7 @@ import toast from "../../utils/toast";
 import { expenseApi, bulkApproveExpenses, bulkRejectExpenses } from "../../api/expenseApi";
 import { useAuth } from "../../context/AuthContext";
 import { formatDate, formatCurrency } from "../../utils/helpers";
+import { getPurposeLabel, getTypeLabel, getPurposeColor, getTypeColor } from "../../utils/expenseConstants";
 
 const ExpenseDetails = () => {
   const { id } = useParams();
@@ -101,19 +102,6 @@ const ExpenseDetails = () => {
       style: "currency",
       currency: "INR",
     }).format(amount);
-  };
-
-  const getCategoryBadge = (category) => {
-    const colors = {
-      travel: "primary",
-      food: "success",
-      accommodation: "info",
-      office_supplies: "warning",
-      client_meeting: "danger",
-      training: "secondary",
-      other: "light",
-    };
-    return colors[category] || "light";
   };
 
   const getStatusBadge = (status) => {
@@ -216,9 +204,16 @@ const ExpenseDetails = () => {
                     <Badge bg={getStatusBadge(expense.status)} className="me-2 p-2">
                       {expense.status.charAt(0).toUpperCase() + expense.status.slice(1)}
                     </Badge>
-                    <Badge bg={getCategoryBadge(expense.category)} className="p-2">
-                      {expense.category.replace(/_/g, " ")}
-                    </Badge>
+                    {expense.expensePurpose && (
+                      <Badge bg={getPurposeColor(expense.expensePurpose)} className="me-2 p-2">
+                        {getPurposeLabel(expense.expensePurpose)}
+                      </Badge>
+                    )}
+                    {expense.expenseType && (
+                      <Badge bg={getTypeColor(expense.expenseType)} className="p-2">
+                        {getTypeLabel(expense.expenseType)}
+                      </Badge>
+                    )}
                   </Col>
                 </Row>
               </div>

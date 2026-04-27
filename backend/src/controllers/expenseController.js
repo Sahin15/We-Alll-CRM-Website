@@ -8,13 +8,13 @@ import { getCurrentFinancialYear, getFinancialYearForDate, getFinancialYearDateR
 // Create a new expense
 export const createExpense = async (req, res) => {
   try {
-    const { category, amount, currency, date, description, merchant, project, client, paymentMethod, notes, tags, receiptUrl, receiptFileName } = req.body;
+    const { expensePurpose, expenseType, amount, currency, date, description, merchant, project, client, paymentMethod, notes, tags, receiptUrl, receiptFileName } = req.body;
 
     // Validation
-    if (!category || !amount || !date || !description || !paymentMethod) {
+    if (!expensePurpose || !expenseType || !amount || !date || !description || !paymentMethod) {
       return res.status(400).json({
         success: false,
-        message: "Please provide all required fields",
+        message: "Please provide all required fields: expensePurpose, expenseType, amount, date, description, paymentMethod",
       });
     }
 
@@ -43,7 +43,8 @@ export const createExpense = async (req, res) => {
 
     const expense = await Expense.create({
       employee: req.user._id,
-      category,
+      expensePurpose,
+      expenseType,
       amount,
       currency: currency || "INR",
       date: expenseDate,
@@ -75,8 +76,8 @@ export const createExpense = async (req, res) => {
           `${submitterName} submitted an expense of ₹${amount} for review`,
           {
             type: 'expense_submitted',
-            data: { expenseId: expense._id.toString(), amount, category },
-            actionUrl: '/expenses/manage',
+            data: { expenseId: expense._id.toString(), amount, expensePurpose, expenseType },
+            actionUrl: '/expenses/approvals',
             senderId: req.user._id,
           }
         );
@@ -103,12 +104,13 @@ export const createExpense = async (req, res) => {
 // Get my expenses (employee's own expenses)
 export const getMyExpenses = async (req, res) => {
   try {
-    const { status, category, startDate, endDate, page = 1, limit = 10 } = req.query;
+    const { status, expensePurpose, expenseType, startDate, endDate, page = 1, limit = 10 } = req.query;
 
     const query = { employee: req.user._id };
 
     if (status) query.status = status;
-    if (category) query.category = category;
+    if (expensePurpose) query.expensePurpose = expensePurpose;
+    if (expenseType) query.expenseType = expenseType;
 
     if (startDate || endDate) {
       query.date = {};
@@ -153,12 +155,13 @@ export const getMyExpenses = async (req, res) => {
 // Get all expenses (admin/hr only)
 export const getAllExpenses = async (req, res) => {
   try {
-    const { status, category, employee, startDate, endDate, page = 1, limit = 10 } = req.query;
+    const { status, expensePurpose, expenseType, employee, startDate, endDate, page = 1, limit = 10 } = req.query;
 
     const query = {};
 
     if (status) query.status = status;
-    if (category) query.category = category;
+    if (expensePurpose) query.expensePurpose = expensePurpose;
+    if (expenseType) query.expenseType = expenseType;
     if (employee) query.employee = employee;
 
     if (startDate || endDate) {
@@ -247,7 +250,7 @@ export const getExpenseById = async (req, res) => {
 export const updateExpense = async (req, res) => {
   try {
     const { id } = req.params;
-    const { category, amount, currency, date, description, merchant, project, client, paymentMethod, notes, tags } = req.body;
+    const { expensePurpose, expenseType, amount, currency, date, description, merchant, project, client, paymentMethod, notes, tags } = req.body;
 
     const expense = await Expense.findById(id);
 
@@ -275,7 +278,8 @@ export const updateExpense = async (req, res) => {
     }
 
     // Update fields
-    if (category) expense.category = category;
+    if (expensePurpose) expense.expensePurpose = expensePurpose;
+    if (expenseType) expense.expenseType = expenseType;
     if (amount) {
       if (amount <= 0) {
         return res.status(400).json({
@@ -466,7 +470,7 @@ export const approveExpense = async (req, res) => {
         {
           type: 'expense_approval',
           data: { expenseId: expense._id.toString(), amount: expense.amount },
-          actionUrl: '/expenses',
+          actionUrl: '/expenses/my-expenses',
           senderId: req.user._id,
         }
       );
@@ -548,7 +552,7 @@ export const rejectExpense = async (req, res) => {
         {
           type: 'expense_rejection',
           data: { expenseId: expense._id.toString(), reason },
-          actionUrl: '/expenses',
+          actionUrl: '/expenses/my-expenses',
           senderId: req.user._id,
         }
       );
@@ -623,7 +627,7 @@ export const markAsReimbursed = async (req, res) => {
         {
           type: 'expense_reimbursed',
           data: { expenseId: expense._id.toString(), amount: expense.amount },
-          actionUrl: '/expenses',
+          actionUrl: '/expenses/my-expenses',
           senderId: req.user._id,
         }
       );
@@ -755,7 +759,6 @@ export const searchExpenses = async (req, res) => {
         { description: { $regex: query, $options: "i" } },
         { merchant: { $regex: query, $options: "i" } },
         { notes: { $regex: query, $options: "i" } },
-        { category: { $regex: query, $options: "i" } },
       ];
 
       // Add employee ID match if we found matching users
@@ -772,7 +775,8 @@ export const searchExpenses = async (req, res) => {
       
       
       if (filters.status) andConditions.push({ status: filters.status });
-      if (filters.category) andConditions.push({ category: filters.category });
+      if (filters.expensePurpose) andConditions.push({ expensePurpose: filters.expensePurpose });
+      if (filters.expenseType) andConditions.push({ expenseType: filters.expenseType });
       
       if (filters.minAmount || filters.maxAmount) {
         const amountCondition = {};
@@ -844,7 +848,8 @@ export const exportExpenses = async (req, res) => {
 
     if (filters) {
       if (filters.status) query.status = filters.status;
-      if (filters.category) query.category = filters.category;
+      if (filters.expensePurpose) query.expensePurpose = filters.expensePurpose;
+      if (filters.expenseType) query.expenseType = filters.expenseType;
       if (filters.startDate || filters.endDate) {
         query.date = {};
         if (filters.startDate) query.date.$gte = new Date(filters.startDate);
@@ -1149,30 +1154,51 @@ function generateExcelWorkbook(expenses, filters) {
 
 // Generate Summary Report - High level overview
 function generateSummaryReport(expenses) {
-  const categoryTotals = {};
+  const purposeTotals = {};
+  const typeTotals = {};
   const statusTotals = {};
 
   expenses.forEach(expense => {
-    const category = formatCategoryName(expense.category);
+    const purpose = expense.expensePurpose || 'N/A';
+    const type = expense.expenseType || 'N/A';
     const status = formatStatus(expense.status);
 
-    categoryTotals[category] = (categoryTotals[category] || 0) + expense.amount;
+    purposeTotals[purpose] = (purposeTotals[purpose] || 0) + expense.amount;
+    typeTotals[type] = (typeTotals[type] || 0) + expense.amount;
     statusTotals[status] = (statusTotals[status] || 0) + expense.amount;
   });
 
   const data = [
     {
-      "Category": "CATEGORY BREAKDOWN",
+      "Category": "PURPOSE BREAKDOWN",
       "Total Amount (₹)": "",
       "Count": "",
       "Average (₹)": "",
     },
   ];
 
-  Object.entries(categoryTotals).forEach(([category, total]) => {
-    const count = expenses.filter(e => formatCategoryName(e.category) === category).length;
+  Object.entries(purposeTotals).forEach(([purpose, total]) => {
+    const count = expenses.filter(e => (e.expensePurpose || 'N/A') === purpose).length;
     data.push({
-      "Category": category,
+      "Category": purpose,
+      "Total Amount (₹)": total.toFixed(2),
+      "Count": count,
+      "Average (₹)": (total / count).toFixed(2),
+    });
+  });
+
+  data.push({ "Category": "", "Total Amount (₹)": "", "Count": "", "Average (₹)": "" });
+  data.push({
+    "Category": "TYPE BREAKDOWN",
+    "Total Amount (₹)": "",
+    "Count": "",
+    "Average (₹)": "",
+  });
+
+  Object.entries(typeTotals).forEach(([type, total]) => {
+    const count = expenses.filter(e => (e.expenseType || 'N/A') === type).length;
+    data.push({
+      "Category": type,
       "Total Amount (₹)": total.toFixed(2),
       "Count": count,
       "Average (₹)": (total / count).toFixed(2),
@@ -1206,7 +1232,8 @@ function generateDetailedReport(expenses) {
     "Employee Name": expense.employee?.name || "N/A",
     "Email": expense.employee?.email || "N/A",
     "Department": expense.employee?.department || "N/A",
-    "Category": formatCategoryName(expense.category),
+    "Expense Purpose": expense.expensePurpose || "N/A",
+    "Expense Type": expense.expenseType || "N/A",
     "Amount (₹)": expense.amount,
     "Expense Date": formatDate(expense.date),
     "Description": expense.description || "",
@@ -1223,16 +1250,16 @@ function generateDetailedReport(expenses) {
   }));
 }
 
-// Generate Category Report - Breakdown by category
+// Generate Category Report - Breakdown by purpose and type
 function generateCategoryReport(expenses) {
   const categoryMap = {};
 
   expenses.forEach(expense => {
-    const category = formatCategoryName(expense.category);
-    if (!categoryMap[category]) {
-      categoryMap[category] = [];
+    const key = `${expense.expensePurpose || 'N/A'} - ${expense.expenseType || 'N/A'}`;
+    if (!categoryMap[key]) {
+      categoryMap[key] = [];
     }
-    categoryMap[category].push(expense);
+    categoryMap[key].push(expense);
   });
 
   const data = [];
@@ -1242,7 +1269,7 @@ function generateCategoryReport(expenses) {
     const pending = items.filter(e => e.status === "pending").reduce((sum, e) => sum + e.amount, 0);
 
     data.push({
-      "Category": category,
+      "Purpose - Type": category,
       "Total Amount (₹)": total.toFixed(2),
       "Approved (₹)": approved.toFixed(2),
       "Pending (₹)": pending.toFixed(2),
@@ -1256,7 +1283,7 @@ function generateCategoryReport(expenses) {
   const grandPending = expenses.filter(e => e.status === "pending").reduce((sum, e) => sum + e.amount, 0);
 
   data.push({
-    "Category": "TOTAL",
+    "Purpose - Type": "TOTAL",
     "Total Amount (₹)": grandTotal.toFixed(2),
     "Approved (₹)": grandApproved.toFixed(2),
     "Pending (₹)": grandPending.toFixed(2),
@@ -1380,7 +1407,7 @@ function formatDate(date) {
 // Get expense analytics (admin/hr only)
 export const getExpenseAnalytics = async (req, res) => {
   try {
-    const { startDate, endDate, groupBy = "category" } = req.query;
+    const { startDate, endDate, groupBy = "expensePurpose" } = req.query;
 
     
     
@@ -1403,8 +1430,10 @@ export const getExpenseAnalytics = async (req, res) => {
     }
 
     let groupField;
-    if (groupBy === "category") {
-      groupField = "$category";
+    if (groupBy === "expensePurpose") {
+      groupField = "$expensePurpose";
+    } else if (groupBy === "expenseType") {
+      groupField = "$expenseType";
     } else if (groupBy === "status") {
       groupField = "$status";
     } else if (groupBy === "employee") {
@@ -1452,7 +1481,6 @@ export const getExpenseAnalytics = async (req, res) => {
           ...item,
           departmentName: item.departmentName || 'Unknown Department'
         }));
-
       
 
       return res.status(200).json({
@@ -1461,9 +1489,8 @@ export const getExpenseAnalytics = async (req, res) => {
         groupBy,
       });
     } else {
-      groupField = "$category";
+      groupField = "$expensePurpose";
     }
-
     
     
 
@@ -1482,11 +1509,21 @@ export const getExpenseAnalytics = async (req, res) => {
       { $sort: { total: -1 } },
     ]);
 
-    
+    // Filter out null _id values and map category to type for backward compatibility
+    const filteredAnalytics = analytics
+      .filter(item => item._id !== null && item._id !== undefined)
+      .map(item => {
+        // If groupBy is expenseType but _id is null, try to use category field
+        if ((groupBy === "expenseType" || groupBy === "expensePurpose") && !item._id) {
+          return null;
+        }
+        return item;
+      })
+      .filter(item => item !== null);
 
     // Populate employee names if grouped by employee
     if (groupBy === "employee") {
-      for (let item of analytics) {
+      for (let item of filteredAnalytics) {
         const employee = await User.findById(item._id, "name email");
         item.employeeName = employee?.name || "Unknown";
         item.employeeEmail = employee?.email || "";
@@ -1495,7 +1532,7 @@ export const getExpenseAnalytics = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      analytics,
+      analytics: filteredAnalytics,
       groupBy,
     });
   } catch (error) {
@@ -1560,7 +1597,7 @@ export const getMonthlyTrends = async (req, res) => {
   }
 };
 
-// Get budget tracking
+// Get budget tracking (now by Purpose and Type)
 export const getBudgetTracking = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
@@ -1584,7 +1621,10 @@ export const getBudgetTracking = async (req, res) => {
       { $match: query },
       {
         $group: {
-          _id: "$category",
+          _id: {
+            purpose: "$expensePurpose",
+            type: "$expenseType"
+          },
           spent: { $sum: "$amount" },
           count: { $sum: 1 },
           approved: {
@@ -1615,19 +1655,40 @@ export const getBudgetTracking = async (req, res) => {
   }
 };
 
-// Get category statistics
+// Get category statistics (now returns Purpose and Type stats)
 export const getCategoryStats = async (req, res) => {
   try {
     const userId = req.user._id;
     const isAdmin = req.user.role === "admin" || req.user.role === "hr" || req.user.role === "superadmin" || req.user.role === "manager";
+    const { financialYear, startDate, endDate } = req.query;
 
-    const query = isAdmin ? {} : { employee: userId };
+    let query = isAdmin ? {} : { employee: userId };
 
+    // Apply date range filter
+    if (startDate || endDate || financialYear) {
+      query.date = {};
+      
+      if (startDate && endDate) {
+        // Use provided date range
+        query.date.$gte = new Date(startDate);
+        query.date.$lte = new Date(endDate);
+      } else if (financialYear) {
+        // Use financial year date range
+        const { startDate: fyStart, endDate: fyEnd } = getFinancialYearDateRange(financialYear);
+        query.date.$gte = fyStart;
+        query.date.$lte = fyEnd;
+      }
+    }
+
+    // Get stats grouped by Purpose and Type combination
     const categoryStats = await Expense.aggregate([
       { $match: query },
       {
         $group: {
-          _id: "$category",
+          _id: {
+            purpose: "$expensePurpose",
+            type: "$expenseType"
+          },
           total: { $sum: "$amount" },
           count: { $sum: 1 },
           average: { $avg: "$amount" },
@@ -1845,7 +1906,7 @@ export const setBulkBudgets = async (req, res) => {
   }
 };
 
-// Get budget tracking with actual budgets
+// Get budget tracking with actual budgets (now by Purpose and Type)
 export const getBudgetTrackingWithLimits = async (req, res) => {
   try {
     const { startDate, endDate, financialYear } = req.query;
@@ -1884,15 +1945,24 @@ export const getBudgetTrackingWithLimits = async (req, res) => {
     const allBudgets = await Budget.find({ isActive: true, financialYear: currentFY });
     const budgetMap = {};
     allBudgets.forEach(b => {
-      budgetMap[b.category] = b.limit;
+      // Support both old category format and new Purpose/Type format
+      if (b.expensePurpose && b.expenseType) {
+        const key = `${b.expensePurpose}|${b.expenseType}`;
+        budgetMap[key] = b.limit;
+      } else if (b.category) {
+        budgetMap[b.category] = b.limit;
+      }
     });
 
-    // Get spending by category
+    // Get spending by Purpose and Type
     const categorySpending = await Expense.aggregate([
       { $match: query },
       {
         $group: {
-          _id: "$category",
+          _id: {
+            purpose: "$expensePurpose",
+            type: "$expenseType"
+          },
           spent: { $sum: "$amount" },
           count: { $sum: 1 },
           approved: {
@@ -1917,19 +1987,20 @@ export const getBudgetTrackingWithLimits = async (req, res) => {
       },
     ]);
 
-    // Create a map of spending by category
+    // Create a map of spending by Purpose-Type combination
     const spendingMap = {};
     categorySpending.forEach(cat => {
-      spendingMap[cat._id] = cat;
+      const key = `${cat._id.purpose}|${cat._id.type}`;
+      spendingMap[key] = cat;
     });
 
-    // Create enriched budgets for ALL categories that have budgets set
+    // Create enriched budgets for ALL Purpose-Type combinations that have budgets set
     const enrichedBudgets = [];
     
-    // Add all categories that have budgets (even if no spending)
-    Object.keys(budgetMap).forEach(category => {
-      const spending = spendingMap[category] || {
-        _id: category,
+    // Add all combinations that have budgets (even if no spending)
+    Object.keys(budgetMap).forEach(key => {
+      const spending = spendingMap[key] || {
+        _id: { purpose: key.split('|')[0], type: key.split('|')[1] },
         spent: 0,
         count: 0,
         approved: 0,
@@ -1940,14 +2011,15 @@ export const getBudgetTrackingWithLimits = async (req, res) => {
       
       enrichedBudgets.push({
         ...spending,
-        limit: budgetMap[category],
-        isOverBudget: spending.spent > budgetMap[category],
+        limit: budgetMap[key],
+        isOverBudget: spending.spent > budgetMap[key],
       });
     });
 
-    // Add categories with spending but no budget (if any)
+    // Add combinations with spending but no budget (if any)
     categorySpending.forEach(cat => {
-      if (!budgetMap[cat._id]) {
+      const key = `${cat._id.purpose}|${cat._id.type}`;
+      if (!budgetMap[key]) {
         enrichedBudgets.push({
           ...cat,
           limit: 0,
@@ -1994,6 +2066,122 @@ export const getFinancialYears = async (req, res) => {
     });
   } catch (error) {
     
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+
+// Get available expense purposes
+export const getExpensePurposes = async (req, res) => {
+  try {
+    const purposes = [
+      { value: "internal_office", label: "Internal Office" },
+      { value: "existing_client", label: "Existing Client" },
+      { value: "prospective_client", label: "Prospective Client" },
+      { value: "seminar", label: "Seminar" },
+      { value: "expo", label: "Expo" },
+      { value: "vendor_meeting", label: "Vendor Meeting" },
+      { value: "recruitment", label: "Recruitment" },
+      { value: "training", label: "Training" },
+      { value: "marketing_activity", label: "Marketing Activity" },
+      { value: "team_activity", label: "Team Activity" },
+      { value: "travel_visit", label: "Travel Visit" },
+    ];
+
+    res.status(200).json({
+      success: true,
+      purposes,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+// Get available expense types
+export const getExpenseTypes = async (req, res) => {
+  try {
+    const types = [
+      { value: "food", label: "Food" },
+      { value: "travel", label: "Travel" },
+      { value: "hotel", label: "Hotel" },
+      { value: "transport", label: "Transport" },
+      { value: "materials", label: "Materials" },
+      { value: "entry_fee", label: "Entry Fee" },
+      { value: "gift", label: "Gift" },
+      { value: "printing", label: "Printing" },
+      { value: "miscellaneous", label: "Miscellaneous" },
+    ];
+
+    res.status(200).json({
+      success: true,
+      types,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+// Get Purpose-Type matrix analytics
+export const getPurposeTypeMatrix = async (req, res) => {
+  try {
+    const { startDate, endDate, financialYear } = req.query;
+
+    if (req.user.role !== "admin" && req.user.role !== "hr" && req.user.role !== "superadmin" && req.user.role !== "manager") {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized",
+      });
+    }
+
+    let query = {};
+
+    if (startDate || endDate || financialYear) {
+      query.date = {};
+      
+      if (startDate && endDate) {
+        query.date.$gte = new Date(startDate);
+        query.date.$lte = new Date(endDate);
+      } else if (financialYear) {
+        const { startDate: fyStart, endDate: fyEnd } = getFinancialYearDateRange(financialYear);
+        query.date.$gte = fyStart;
+        query.date.$lte = fyEnd;
+      }
+    }
+
+    // Get all Purpose-Type combinations with spending
+    const matrix = await Expense.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: {
+            purpose: "$expensePurpose",
+            type: "$expenseType"
+          },
+          total: { $sum: "$amount" },
+          count: { $sum: 1 },
+          average: { $avg: "$amount" },
+        },
+      },
+      { $sort: { total: -1 } },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      matrix,
+    });
+  } catch (error) {
     res.status(500).json({
       success: false,
       message: "Server error",

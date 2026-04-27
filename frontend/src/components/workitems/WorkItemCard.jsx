@@ -14,11 +14,11 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   
-  const isOverdue = workItem.isOverdue || (
+  const isOverdue = workItem.status !== 'Done' && (workItem.isOverdue || (
     workItem.dueDate && 
     new Date(workItem.dueDate) < new Date() && 
     workItem.status !== 'Done'
-  );
+  ));
   
   const isDueToday = workItem.isDueToday || (
     workItem.dueDate && 

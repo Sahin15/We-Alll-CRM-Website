@@ -17,7 +17,7 @@
 
 .workload-overview-card .card-header h5 {
   font-weight: 600;
-  font-size: 1.1rem;
+  font-size: 1.1rem !important;
 }
 
 .workload-overview-card .card-body {
@@ -140,3 +140,4 @@
     transform: rotate(360deg);
   }
 }
+

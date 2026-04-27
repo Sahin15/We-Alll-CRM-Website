@@ -10,9 +10,11 @@ import {
 } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
 import { useAuth } from "../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const currentYear = new Date().getFullYear();
 
   // Calculate margin based on sidebar state
@@ -102,7 +104,7 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
               >
                 © {currentYear} We Alll. All rights reserved.
                 <span className="ms-2 text-white-50">
-                  V 4.7.7
+                  V 4.9.0
                 </span>
               </div>
             </Col>
@@ -112,17 +114,13 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
             <Col md={6} className="text-center text-md-start mb-2 mb-md-0">
               <div
                 className="d-flex gap-3 justify-content-center justify-content-md-start"
-                style={{ lineHeight: "1.6" }}
+                style={{ lineHeight: "1.6", paddingLeft: isMobile ? "0" : "60px" }}
               >
                 <a
                   href="/privacy-policy"
                   className="text-white text-decoration-none footer-link"
                   style={{ fontSize: "0.75rem", padding: "2px 0" }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    // TODO: Navigate to privacy policy page
-                    console.log("Navigate to Privacy Policy");
-                  }}
+                  onClick={(e) => { e.preventDefault(); }}
                 >
                   Privacy Policy
                 </a>
@@ -131,11 +129,7 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
                   href="/terms-of-service"
                   className="text-white text-decoration-none footer-link"
                   style={{ fontSize: "0.75rem", padding: "2px 0" }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    // TODO: Navigate to terms page
-                    console.log("Navigate to Terms of Service");
-                  }}
+                  onClick={(e) => { e.preventDefault(); }}
                 >
                   Terms of Service
                 </a>
@@ -144,11 +138,7 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
                   href="/support"
                   className="text-white text-decoration-none footer-link"
                   style={{ fontSize: "0.75rem", padding: "2px 0" }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    // TODO: Navigate to support page
-                    console.log("Navigate to Support");
-                  }}
+                  onClick={(e) => { e.preventDefault(); navigate("/support"); }}
                 >
                   Support
                 </a>

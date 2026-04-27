@@ -181,7 +181,7 @@ const Login = () => {
           }
           
           .welcome-title {
-            font-size: 1.6rem;
+            font-size: 1.6rem !important;
             font-weight: 400;
             margin-bottom: 1rem;
             opacity: 0;
@@ -192,7 +192,7 @@ const Login = () => {
           }
           
           .user-name {
-            font-size: 3.2rem;
+            font-size: 3.2rem !important;
             font-weight: 700;
             margin: 0.5rem 0 1rem;
             background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF6B6B 100%);
@@ -436,12 +436,12 @@ const Login = () => {
             }
           }
           
-          @media (max-width: 768px) {
+          @media (max-width: 575.98px) {
             .welcome-title {
               font-size: 1.3rem;
             }
             .user-name {
-              font-size: 2.5rem;
+              font-size: 2.5rem !important;
             }
             .motivational-text {
               font-size: 1rem;
@@ -733,7 +733,7 @@ const Login = () => {
         }
         
         .form-header h2 {
-          font-size: 1.4rem;
+          font-size: 1.4rem !important;
           font-weight: 600;
           color: #1a1a1a;
           margin: 0 0 0.3rem;
@@ -1075,7 +1075,7 @@ const Login = () => {
           }
           
           .form-header h2 {
-            font-size: 1.2rem;
+            font-size: 1.2rem !important;
           }
           
           .form-header p {

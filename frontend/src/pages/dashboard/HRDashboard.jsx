@@ -50,6 +50,7 @@ import { getPendingOvertimeEntries } from "../../api/overtimeApi";
 import { getPendingWFHRequests } from "../../api/wfhApi";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
 import toast from "../../utils/toast";
+import TodoWidget from "../../components/common/TodoWidget";
 
 const HRDashboard = () => {
   const { user } = useAuth();
@@ -145,9 +146,12 @@ const HRDashboard = () => {
       }
 
       setStats({
-        // Include all employee-level roles in employee count
+        // Only count active employees (exclude inactive, terminated, offboarded)
         employees:
-          usersRes.data?.filter((u) => u.role === "employee" || u.role === "hod" || u.role === "hr" || u.role === "manager").length || 0,
+          usersRes.data?.filter((u) => 
+            (u.role === "employee" || u.role === "hod" || u.role === "hr" || u.role === "manager") &&
+            u.status === "active"
+          ).length || 0,
         pendingLeaves: leaveRes.data?.length || 0,
         presentToday: todayPresentCount,
         departments: departmentRes.data?.length || 0,
@@ -217,8 +221,11 @@ const HRDashboard = () => {
   const handleEmployeesCardClick = async () => {
     try {
       const response = await userApi.getAllUsers();
-      // Include all employee-level roles
-      const employees = response.data.filter(u => u.role === 'employee' || u.role === 'hod' || u.role === 'hr' || u.role === 'manager');
+      // Only show active employees — inactive/terminated/offboarded don't appear here
+      const employees = response.data.filter(u => 
+        (u.role === 'employee' || u.role === 'hod' || u.role === 'hr' || u.role === 'manager') &&
+        u.status === 'active'
+      );
       
       // Fetch today's attendance to show status
       const today = new Date().toISOString().split('T')[0];
@@ -430,7 +437,7 @@ const HRDashboard = () => {
         <Col lg={3} md={6}>
           <div onClick={handleEmployeesCardClick} style={{ cursor: 'pointer', height: '100%' }}>
             <StatCard
-              title="Total Employees"
+              title="Active Employees"
               value={stats.employees}
               icon={<FaUsers />}
               bgColor="primary"
@@ -534,6 +541,13 @@ const HRDashboard = () => {
         </Col>
       </Row>
 
+      {/* My To-Do List */}
+      <Row className="mb-4">
+        <Col>
+          <TodoWidget />
+        </Col>
+      </Row>
+
       {/* Leave Management - Most Actionable */}
       <Row className="mb-4">
         <Col>
@@ -619,7 +633,7 @@ const HRDashboard = () => {
       {/* Employees Modal */}
       <Modal show={showEmployeesModal} onHide={() => setShowEmployeesModal(false)} size="lg" centered>
         <Modal.Header closeButton>
-          <Modal.Title><FaUsers className="me-2 text-primary" />All Employees ({employeesList.length})</Modal.Title>
+          <Modal.Title><FaUsers className="me-2 text-primary" />Active Employees ({employeesList.length})</Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ maxHeight: '500px', overflowY: 'auto' }}>
           <Table responsive hover>

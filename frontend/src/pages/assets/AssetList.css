@@ -1,0 +1,361 @@
+.asset-list-container {
+  padding: 2rem;
+  background-color: #f5f5f5;
+  min-height: 100vh;
+}
+
+.asset-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.asset-list-header h1 {
+  margin: 0;
+  font-size: 2rem !important;
+  color: #333;
+}
+
+.asset-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+  background: white;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.filter-group label {
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  color: #555;
+}
+
+.asset-list-container .form-control {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.asset-list-container .form-control:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.asset-table-wrapper {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow-x: auto;
+  margin-bottom: 2rem;
+}
+
+.asset-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.asset-table thead {
+  background-color: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.asset-table th {
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+}
+
+.asset-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.asset-table tbody tr {
+  transition: background-color 0.2s;
+  cursor: pointer;
+}
+
+.asset-table tbody tr:hover {
+  background-color: #f0f7ff;
+}
+
+.asset-id {
+  font-weight: 600;
+  color: #007bff;
+  min-width: 80px;
+}
+
+.asset-name {
+  font-weight: 500;
+  color: #333;
+  min-width: 120px;
+}
+
+.asset-category {
+  text-transform: capitalize;
+  color: #666;
+  min-width: 100px;
+}
+
+.asset-status {
+  min-width: 90px;
+}
+
+.asset-assigned {
+  color: #666;
+  min-width: 100px;
+}
+
+.asset-date {
+  color: #999;
+  font-size: 0.8rem;
+  min-width: 90px;
+}
+
+.actions {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+  min-width: 120px;
+  position: relative;
+}
+
+.action-menu {
+  position: relative;
+  display: inline-block;
+}
+
+.action-menu-btn {
+  padding: 0.4rem 0.8rem;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.action-menu-btn:hover {
+  background-color: #0056b3;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.action-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 0.25rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  min-width: 160px;
+  display: none;
+  margin-top: 0.25rem;
+}
+
+.action-dropdown.show {
+  display: block;
+}
+
+.action-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 0.6rem 1rem;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: #333;
+  transition: background-color 0.2s;
+  font-weight: 500;
+}
+
+.action-dropdown-item:hover {
+  background-color: #f8f9fa;
+}
+
+.action-dropdown-item.danger {
+  color: #dc3545;
+}
+
+.action-dropdown-item.success {
+  color: #28a745;
+}
+
+.action-dropdown-item.warning {
+  color: #ffc107;
+}
+
+.action-dropdown-item.info {
+  color: #17a2b8;
+}
+
+.asset-list-container .btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.asset-list-container .btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.asset-list-container .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.asset-list-container .btn-primary {
+  background-color: #007bff;
+  color: white;
+}
+
+.asset-list-container .btn-primary:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.asset-list-container .btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.asset-list-container .btn-secondary:hover:not(:disabled) {
+  background-color: #545b62;
+}
+
+.asset-list-container .btn-success {
+  background-color: #28a745;
+  color: white;
+}
+
+.asset-list-container .btn-success:hover:not(:disabled) {
+  background-color: #218838;
+}
+
+.asset-list-container .btn-danger {
+  background-color: #dc3545;
+  color: white;
+}
+
+.asset-list-container .btn-danger:hover:not(:disabled) {
+  background-color: #c82333;
+}
+
+.asset-list-container .btn-warning {
+  background-color: #ffc107;
+  color: #333;
+}
+
+.asset-list-container .btn-warning:hover:not(:disabled) {
+  background-color: #e0a800;
+}
+
+.asset-list-container .btn-info {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.asset-list-container .btn-info:hover:not(:disabled) {
+  background-color: #138496;
+}
+
+.asset-list-container .btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+.asset-list-container .alert {
+  padding: 1rem;
+  border-radius: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.asset-list-container .alert-danger {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.loading,
+.no-data {
+  padding: 2rem;
+  text-align: center;
+  color: #666;
+  font-size: 1rem;
+}
+
+.asset-list-container .pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 2rem;
+}
+
+.page-info {
+  padding: 0 1rem;
+  color: #666;
+  font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+  .asset-list-container {
+    padding: 1rem;
+  }
+
+  .asset-list-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  .asset-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .asset-table {
+    font-size: 0.75rem;
+  }
+
+  .asset-table th,
+  .asset-table td {
+    padding: 0.5rem;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .btn-sm {
+    width: 100%;
+  }
+}
+
+

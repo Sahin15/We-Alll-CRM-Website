@@ -887,9 +887,17 @@ const DepartmentList = () => {
                 onChange={handleChange}
               >
                 <option value="">Select Department Head</option>
-                {users.map((user) => (
-                  <option key={user._id} value={user._id}>
-                    {user.name} ({user.email}) - {user.role}
+                {(editMode && currentDepartment
+                  ? users.filter(u => {
+                      const userDeptId = u.department?._id?.toString() || u.department?.toString();
+                      return userDeptId === currentDepartment._id.toString();
+                    })
+                  : users.filter(u =>
+                      ["employee", "hod", "hr", "manager"].includes(u.role)
+                    )
+                ).map((u) => (
+                  <option key={u._id} value={u._id}>
+                    {u.name}
                   </option>
                 ))}
               </Form.Select>

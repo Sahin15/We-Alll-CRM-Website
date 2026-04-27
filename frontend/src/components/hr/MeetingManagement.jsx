@@ -25,6 +25,7 @@ import {
 import toast from "../../utils/toast";
 import api from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
+import "./MeetingManagement.css";
 
 const MeetingManagement = () => {
   const { user } = useAuth();
@@ -257,49 +258,52 @@ const MeetingManagement = () => {
   return (
     <>
       <Card className="border-0 shadow-sm mb-4">
-        <Card.Header className="bg-white py-3">
-          <div className="d-flex justify-content-between align-items-center">
-            <h5 className="mb-0">
+        <Card.Header className="bg-white py-3 position-relative meeting-management-header">
+          <div className="d-flex align-items-center">
+            <h5 className="mb-0 flex-grow-1">
               <FaCalendarAlt className="me-2 text-primary" />
               Meeting Management
             </h5>
-            <div className="d-flex align-items-center gap-2">
-              <Button variant="primary" size="sm" onClick={handleCreateMeeting}>
-                <FaPlus className="me-2" />
-                Schedule Meeting
-              </Button>
-            </div>
           </div>
+          <Button 
+            variant="primary" 
+            size="sm" 
+            onClick={handleCreateMeeting}
+            className="meeting-management-button"
+          >
+            <FaPlus className="me-2" />
+            Schedule Meeting
+          </Button>
         </Card.Header>
         <Card.Body>
           {/* Statistics */}
           <Row className="mb-4">
-            <Col md={3}>
-              <Card className="border-0 bg-primary bg-opacity-10">
+            <Col xs={6} md={3} className="mb-3">
+              <Card className="border-0 bg-primary bg-opacity-10 meeting-stats-card">
                 <Card.Body className="text-center">
                   <h3 className="mb-0 text-primary">{stats.scheduled}</h3>
                   <small className="text-muted">Scheduled</small>
                 </Card.Body>
               </Card>
             </Col>
-            <Col md={3}>
-              <Card className="border-0 bg-warning bg-opacity-10">
+            <Col xs={6} md={3} className="mb-3">
+              <Card className="border-0 bg-warning bg-opacity-10 meeting-stats-card">
                 <Card.Body className="text-center">
                   <h3 className="mb-0 text-warning">{stats.ongoing}</h3>
                   <small className="text-muted">Ongoing</small>
                 </Card.Body>
               </Card>
             </Col>
-            <Col md={3}>
-              <Card className="border-0 bg-success bg-opacity-10">
+            <Col xs={6} md={3} className="mb-3">
+              <Card className="border-0 bg-success bg-opacity-10 meeting-stats-card">
                 <Card.Body className="text-center">
                   <h3 className="mb-0 text-success">{stats.completed}</h3>
                   <small className="text-muted">Completed</small>
                 </Card.Body>
               </Card>
             </Col>
-            <Col md={3}>
-              <Card className="border-0 bg-info bg-opacity-10">
+            <Col xs={6} md={3} className="mb-3">
+              <Card className="border-0 bg-info bg-opacity-10 meeting-stats-card">
                 <Card.Body className="text-center">
                   <h3 className="mb-0 text-info">{stats.total}</h3>
                   <small className="text-muted">Total Meetings</small>
@@ -309,8 +313,8 @@ const MeetingManagement = () => {
           </Row>
 
           {/* Filters */}
-          <Row className="mb-3">
-            <Col md={4}>
+          <Row className="mb-3 meeting-filters">
+            <Col xs={12} md={4} className="mb-2 mb-md-0">
               <InputGroup>
                 <InputGroup.Text>
                   <FaSearch />
@@ -323,7 +327,7 @@ const MeetingManagement = () => {
                 />
               </InputGroup>
             </Col>
-            <Col md={3}>
+            <Col xs={12} sm={6} md={3} className="mb-2 mb-md-0">
               <Form.Select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -335,7 +339,7 @@ const MeetingManagement = () => {
                 <option value="cancelled">Cancelled</option>
               </Form.Select>
             </Col>
-            <Col md={2}>
+            <Col xs={12} sm={6} md={2} className="mb-2 mb-md-0">
               <Form.Select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
@@ -348,7 +352,7 @@ const MeetingManagement = () => {
                 <option value="other">Other</option>
               </Form.Select>
             </Col>
-            <Col md={3}>
+            <Col xs={12} md={3} className="mb-2 mb-md-0">
               <Form.Control
                 type="date"
                 value={dateFilter}
@@ -359,15 +363,15 @@ const MeetingManagement = () => {
 
           {/* Meetings Table */}
           {filteredMeetings.length > 0 ? (
-            <div className="table-responsive" style={{ maxHeight: showAll ? 'none' : '350px', overflowY: 'auto' }}>
+            <div className="table-responsive meeting-table-responsive" style={{ maxHeight: showAll ? 'none' : '350px', overflowY: 'auto' }}>
               <Table hover>
                 <thead className="bg-light">
                   <tr>
                     <th>Meeting</th>
-                    <th>Organizer</th>
+                    <th className="hide-on-mobile organizer-column">Organizer</th>
                     <th>Date & Time</th>
-                    <th>Attendees</th>
-                    <th>Type</th>
+                    <th className="hide-on-mobile">Attendees</th>
+                    <th className="hide-on-mobile">Type</th>
                     <th>Status</th>
                     <th>Actions</th>
                   </tr>
@@ -375,7 +379,7 @@ const MeetingManagement = () => {
                 <tbody>
                   {filteredMeetings.map((meeting) => (
                     <tr key={meeting._id}>
-                      <td>
+                      <td className="meeting-title-cell">
                         <div>
                           <div className="fw-bold">{meeting.title}</div>
                           <small className="text-muted">
@@ -387,7 +391,7 @@ const MeetingManagement = () => {
                               <small>
                                 <FaVideo className="text-primary me-1" />
                                 <a href={meeting.meetingLink} target="_blank" rel="noopener noreferrer">
-                                  Join Link
+                                  Join
                                 </a>
                               </small>
                             </div>
@@ -402,7 +406,7 @@ const MeetingManagement = () => {
                           )}
                         </div>
                       </td>
-                      <td>
+                      <td className="hide-on-mobile organizer-column">
                         <div className="d-flex align-items-center">
                           <FaUser className="text-muted me-2" />
                           <div>
@@ -420,10 +424,10 @@ const MeetingManagement = () => {
                           </small>
                         </div>
                       </td>
-                      <td>
+                      <td className="hide-on-mobile">
                         <Badge bg="secondary">{meeting.attendees?.length || 0} people</Badge>
                       </td>
-                      <td>{getTypeBadge(meeting.type)}</td>
+                      <td className="hide-on-mobile">{getTypeBadge(meeting.type)}</td>
                       <td>{getStatusBadge(meeting.status)}</td>
                       <td>
                         <Button
@@ -443,7 +447,7 @@ const MeetingManagement = () => {
 
           {/* Show All / Show Less Button */}
           {filteredMeetings.length > 5 && (
-            <div className="text-center mt-3 pt-3 border-top">
+            <div className="text-center mt-3 pt-3 border-top meeting-show-all-button">
               <Button 
                 variant="link" 
                 className="text-decoration-none"
@@ -465,7 +469,7 @@ const MeetingManagement = () => {
           )}
 
           {filteredMeetings.length === 0 && (
-            <Alert variant="info" className="text-center">
+            <Alert variant="info" className="text-center meeting-empty-state">
               <FaCalendarAlt className="fs-1 mb-3 opacity-25" />
               <p className="mb-0">No meetings found</p>
               <small>Schedule a new meeting or adjust your filters</small>

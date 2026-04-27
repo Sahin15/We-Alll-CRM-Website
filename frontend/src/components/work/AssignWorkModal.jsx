@@ -213,20 +213,27 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
           setUsers(teamMembers);
           setAllUsers(teamMembers);
         } else {
-          // Load only team members for this project (not all users)
+          // Load team members for this project
           try {
             setLoadingData(true);
             const usersRes = await userApi.getAllUsers({ limit: 1000 });
-            const allUsers = Array.isArray(usersRes) ? usersRes : (usersRes.data || usersRes.users || []);
+            const allFetchedUsers = Array.isArray(usersRes) ? usersRes : (usersRes.data || usersRes.users || []);
             
-            // Filter to show only team members
-            const teamMembers = allUsers.filter(u => {
-              const userId = u._id ? u._id.toString() : u.toString();
-              return teamMemberIds.includes(userId);
-            });
+            let teamMembers = [];
+            if (teamMemberIds.length > 0) {
+              // Filter to project team members
+              teamMembers = allFetchedUsers.filter(u => {
+                const userId = u._id ? u._id.toString() : u.toString();
+                return teamMemberIds.includes(userId);
+              });
+            }
+            // If still empty, show all users as fallback so assignment is always possible
+            if (teamMembers.length === 0) {
+              teamMembers = allFetchedUsers;
+            }
             
             setUsers(teamMembers);
-            setAllUsers(allUsers); // Store for future use
+            setAllUsers(allFetchedUsers);
           } catch (error) {
             console.error('Error loading team members:', error);
             setUsers([]);
@@ -411,8 +418,8 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
 
   return (
     <Modal 
-      show={show} 
-      onHide={handleClose} 
+      show={show}
+      onHide={handleClose}
       size="lg"
       centered
     >
@@ -445,7 +452,7 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                 <Form.Label>Description</Form.Label>
                 <Form.Control
                   as="textarea"
-                  rows={6}
+                  rows={4}
                   placeholder="Enter work item description"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -459,7 +466,7 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
               </Form.Group>
             </Col>
 
-            <Col md={6} className="mb-3">
+            <Col md={8} className="mb-3">
               <Form.Group>
                 <Form.Label>Project *</Form.Label>
                 <Form.Select
@@ -479,10 +486,10 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
               </Form.Group>
             </Col>
 
-            <Col md={6} className="mb-3">
+            <Col md={4} className="mb-3">
               <Form.Group>
                 <Form.Label>Assignment Mode</Form.Label>
-                <div className="d-flex gap-3">
+                <div className="d-flex flex-column gap-2 pt-1">
                   <Form.Check
                     type="radio"
                     id="single-assignee"
@@ -513,7 +520,7 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
               </Form.Group>
             </Col>
 
-            <Col md={6} className="mb-3">
+            <Col md={12} className="mb-3">
               <Form.Group>
                 <Form.Label>
                   {formData.assignmentMode === 'single' ? 'Assign To' : 'Assign To (Multiple)'} 
@@ -549,11 +556,9 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                       ))}
                     </Form.Select>
                     {selectedUserForWorkload && formData.dueDate && (
-                      <div className="mt-2 p-2 bg-light rounded">
-                        <small className="text-muted">
-                          Pending work on {new Date(formData.dueDate + 'T00:00:00').toLocaleDateString('en-GB')}: 
-                          <strong className="ms-1 text-primary">{pendingWorkCount} item(s)</strong>
-                        </small>
+                      <div className="workload-info">
+                        Pending work on {new Date(formData.dueDate + 'T00:00:00').toLocaleDateString('en-GB')}: 
+                        <strong className="ms-1">{pendingWorkCount} item(s)</strong>
                       </div>
                     )}
                     {selectedUserForWorkload && (
@@ -566,7 +571,7 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                   </div>
                 ) : (
                   <div>
-                    <div className="border rounded p-3 mb-3" style={{ minHeight: '50px', maxHeight: '250px', overflowY: 'auto', backgroundColor: '#f8f9fa' }}>
+                    <div className="assignee-list mb-3" style={{ minHeight: '50px', maxHeight: '180px', overflowY: 'auto' }}>
                       {formData.assignedToMultiple.length === 0 ? (
                         <small className="text-muted d-block text-center py-2">No team members selected</small>
                       ) : (
@@ -630,11 +635,6 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                 )}
                 
                 {loadingData && <Form.Text className="text-muted">Loading users...</Form.Text>}
-                {formData.project && users.length === 0 && !loadingData && formData.visibility !== 'draft' && (
-                  <Form.Text className="text-danger">
-                    This project has no team members. Add team members first.
-                  </Form.Text>
-                )}
                 {formData.visibility === 'draft' && (
                   <Form.Text className="text-info">
                     Optional: You can assign team members now or later when you activate this work.

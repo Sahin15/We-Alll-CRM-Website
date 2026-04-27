@@ -126,6 +126,53 @@ body {
    4. TYPOGRAPHY RESPONSIVE SCALING
    ============================================ */
 
+/* Desktop - Bootstrap 5 default sizes */
+@media (min-width: 768px) {
+  h1, .h1 { font-size: 2.5rem !important; }
+  h2, .h2 { font-size: 2rem !important; }
+  h3, .h3 { font-size: 1.75rem !important; }
+  h4, .h4 { font-size: 1.5rem !important; }
+  h5, .h5 { font-size: 1.25rem !important; }
+  h6, .h6 { font-size: 1rem !important; }
+  
+  body, p, .text-body {
+    font-size: 1rem;
+  }
+  
+  small, .small, .text-small {
+    font-size: 0.875rem !important;
+  }
+  
+  /* Stat card numbers - larger on desktop */
+  .stat-card h3 {
+    font-size: 1.75rem !important;
+  }
+}
+
+/* Tablet - Intermediate sizing */
+@media (min-width: 576px) and (max-width: 767.98px) {
+  h1, .h1 { font-size: 2.5rem !important; }
+  h2, .h2 { font-size: 2rem !important; }
+  h3, .h3 { font-size: 1.75rem !important; }
+  h4, .h4 { font-size: 1.5rem !important; }
+  h5, .h5 { font-size: 1.25rem !important; }
+  h6, .h6 { font-size: 1rem !important; }
+  
+  body, p, .text-body {
+    font-size: 1rem;
+  }
+  
+  small, .small, .text-small {
+    font-size: 0.875rem !important;
+  }
+  
+  /* Stat card numbers - larger on tablet */
+  .stat-card h3 {
+    font-size: 1.75rem !important;
+  }
+}
+
+/* Mobile - Scale down */
 @media (max-width: 575.98px) {
   h1, .h1 { font-size: var(--mobile-h1) !important; }
   h2, .h2 { font-size: var(--mobile-h2) !important; }
@@ -140,6 +187,11 @@ body {
   
   small, .small, .text-small {
     font-size: var(--mobile-small) !important;
+  }
+  
+  /* Stat card numbers - smaller on mobile */
+  .stat-card h3 {
+    font-size: 1.5rem !important;
   }
 }
 
@@ -276,6 +328,25 @@ body {
    8. MODAL RESPONSIVE STYLES
    ============================================ */
 
+/* Desktop - use Bootstrap default sizes */
+@media (min-width: 576px) {
+  .modal-dialog {
+    max-width: 500px;
+  }
+  
+  .modal-dialog.modal-sm {
+    max-width: 300px;
+  }
+  
+  .modal-dialog.modal-lg {
+    max-width: 800px;
+  }
+  
+  .modal-dialog.modal-xl {
+    max-width: 1140px;
+  }
+}
+
 @media (max-width: 575.98px) {
   .modal-dialog {
     margin: 10px;
@@ -347,29 +418,38 @@ body {
    10. TABLE RESPONSIVE STYLES
    ============================================ */
 
+/* Apply table styles to all screen sizes */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 1rem;
+}
+
+.table {
+  font-size: 1rem;
+}
+
+.table th,
+.table td {
+  padding: 8px !important;
+}
+
+.table th {
+  white-space: nowrap;
+}
+
+.table td {
+  white-space: normal;
+}
+
+/* Action buttons in tables */
+.table .btn-sm {
+  padding: 4px 8px;
+  font-size: 0.75rem;
+}
+
 @media (max-width: 767.98px) {
-  /* Horizontal scroll for tables */
-  .table-responsive {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    margin-bottom: 1rem;
-  }
-  
-  .table {
-    font-size: 0.8rem;
-  }
-  
-  .table th,
-  .table td {
-    padding: 8px;
-    white-space: nowrap;
-  }
-  
-  /* Action buttons in tables */
-  .table .btn-sm {
-    padding: 4px 8px;
-    font-size: 0.75rem;
-  }
+  /* Mobile-specific adjustments */
 }
 
 /* ============================================
@@ -686,5 +766,41 @@ body {
   .main-content {
     margin-left: 0 !important;
     padding: 0 !important;
+  }
+}
+
+/* ============================================
+   26. DESKTOP FONT-SIZE ENFORCEMENT
+   Ensures correct sizes on all desktop/laptop
+   screens regardless of OS display scaling.
+   These rules must come LAST to win cascade.
+   ============================================ */
+
+@media (min-width: 576px) {
+  /* Bootstrap 5 default heading sizes */
+  h1, .h1 { font-size: 2.5rem !important; }
+  h2, .h2 { font-size: 2rem !important; }
+  h3, .h3 { font-size: 1.75rem !important; }
+  h4, .h4 { font-size: 1.5rem !important; }
+  h5, .h5 { font-size: 1.25rem !important; }
+  h6, .h6 { font-size: 1rem !important; }
+
+  /* Body text - never shrink on desktop */
+  body, p, .text-body {
+    font-size: 1rem !important;
+  }
+
+  /* Stat card numbers */
+  .stat-card h3 {
+    font-size: 1.75rem !important;
+  }
+
+  /* Card body text - never shrink on desktop */
+  .card-body p {
+    font-size: 1rem !important;
+  }
+
+  .card-body h3 {
+    font-size: 1.75rem !important;
   }
 }

@@ -251,7 +251,7 @@ const SubscriptionManagement = () => {
     {
       key: "startDate",
       label: "Start Date",
-      render: (value) => new Date(value).toLocaleDateString(),
+      render: (value) => new Date(value).toLocaleDateString("en-GB"),
     },
     {
       key: "status",

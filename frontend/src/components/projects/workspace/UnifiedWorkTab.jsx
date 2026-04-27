@@ -30,6 +30,8 @@ const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedWorkItem, setSelectedWorkItem] = useState(null);
   const [showAddSlotModal, setShowAddSlotModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [workItemToEdit, setWorkItemToEdit] = useState(null);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -245,6 +247,12 @@ const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
     setViewMode(mode);
   };
 
+  const handleEdit = (workItem) => {
+    setWorkItemToEdit(workItem);
+    setShowEditModal(true);
+    setShowDetailsModal(false);
+  };
+
   const getStatusBadge = (status) => {
     const variants = {
       'To Do': 'secondary',
@@ -287,6 +295,18 @@ const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
     project.assignedUsers?.some(u => (u._id || u) === user?._id);
 
   const canDeleteWork = ['admin', 'superadmin', 'hr', 'manager'].includes(user?.role);
+
+  // Helper function to check if user can edit a work item
+  const canEditWorkItem = (workItem) => {
+    const userId = user?._id?.toString();
+    const isCreator = workItem.createdBy?._id?.toString() === userId;
+    const isAssigned = workItem.assignedTo?._id?.toString() === userId;
+    const isAssignedMultiple = workItem.assignedToMultiple?.some(id => (id._id || id).toString() === userId);
+    const isProjectHead = project?.projectHead?._id?.toString() === userId;
+    const isAdmin = ['admin', 'superadmin', 'hod', 'manager'].includes(user?.role);
+    
+    return isCreator || isAssigned || isAssignedMultiple || isProjectHead || isAdmin;
+  };
 
   // Get slot color scheme for visual differentiation
   const getSlotColor = (slotNumber) => {
@@ -433,6 +453,11 @@ const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
                                         >
                                           {item.title}
                                         </span>
+                                        {item.isEdited && (
+                                          <Badge bg="warning" style={{ fontSize: '0.7rem', padding: '2px 6px', marginLeft: '8px' }} title="This work item has been edited">
+                                            ✏️ Edited
+                                          </Badge>
+                                        )}
                                       </div>
                                     </td>
                                     <td style={{ padding: '12px 20px' }}>{getAssigneeDisplay(item)}</td>
@@ -518,11 +543,12 @@ const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
                                         >
                                           <FaEye />
                                         </Button>
-                                        {canManageWork && (
+                                        {canEditWorkItem(item) && (
                                           <Button
                                             variant="outline-primary"
                                             size="sm"
-                                            onClick={() => handleOpenModal(item)}
+                                            onClick={() => handleEdit(item)}
+                                            title="Edit work item"
                                           >
                                             <FaEdit />
                                           </Button>
@@ -661,6 +687,11 @@ const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
                                 >
                                   {item.title}
                                 </span>
+                                {item.isEdited && (
+                                  <Badge bg="warning" style={{ fontSize: '0.7rem', padding: '2px 6px', marginLeft: '8px' }} title="This work item has been edited">
+                                    ✏️ Edited
+                                  </Badge>
+                                )}
                               </div>
                             </td>
                             <td style={{ padding: '12px 20px' }}>{getAssigneeDisplay(item)}</td>
@@ -732,11 +763,12 @@ const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
                                 >
                                   <FaEye />
                                 </Button>
-                                {canManageWork && (
+                                {canEditWorkItem(item) && (
                                   <Button
                                     variant="outline-primary"
                                     size="sm"
-                                    onClick={() => handleOpenModal(item)}
+                                    onClick={() => handleEdit(item)}
+                                    title="Edit work item"
                                   >
                                     <FaEdit />
                                   </Button>
@@ -806,19 +838,26 @@ const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
                         <tr key={item._id}>
                           <td className="fw-bold">{index + 1}</td>
                           <td>
-                            <span 
-                              onClick={() => handleViewDetails(item)}
-                              style={{ 
-                                cursor: 'pointer',
-                                color: '#2d3748',
-                                fontWeight: '500',
-                                transition: 'opacity 0.2s ease'
-                              }}
-                              onMouseEnter={(e) => e.target.style.opacity = '0.7'}
-                              onMouseLeave={(e) => e.target.style.opacity = '1'}
-                            >
-                              {item.title}
-                            </span>
+                            <div className="d-flex align-items-center gap-2">
+                              <span 
+                                onClick={() => handleViewDetails(item)}
+                                style={{ 
+                                  cursor: 'pointer',
+                                  color: '#2d3748',
+                                  fontWeight: '500',
+                                  transition: 'opacity 0.2s ease'
+                                }}
+                                onMouseEnter={(e) => e.target.style.opacity = '0.7'}
+                                onMouseLeave={(e) => e.target.style.opacity = '1'}
+                              >
+                                {item.title}
+                              </span>
+                              {item.isEdited && (
+                                <Badge bg="warning" style={{ fontSize: '0.7rem', padding: '2px 6px' }} title="This work item has been edited">
+                                  ✏️ Edited
+                                </Badge>
+                              )}
+                            </div>
                           </td>
                           <td>
                             {item.slotInfo ? (
@@ -912,11 +951,12 @@ const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
                               >
                                 <FaEye />
                               </Button>
-                              {canManageWork && (
+                              {canEditWorkItem(item) && (
                                 <Button
                                   variant="outline-primary"
                                   size="sm"
-                                  onClick={() => handleOpenModal(item)}
+                                  onClick={() => handleEdit(item)}
+                                  title="Edit work item"
                                 >
                                   <FaEdit />
                                 </Button>
@@ -949,19 +989,26 @@ const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
                       <tr key={item._id}>
                         <td className="fw-bold">{index + 1}</td>
                         <td>
-                          <span 
-                            onClick={() => handleViewDetails(item)}
-                            style={{ 
-                              cursor: 'pointer',
-                              color: '#2d3748',
-                              fontWeight: '500',
-                              transition: 'opacity 0.2s ease'
-                            }}
-                            onMouseEnter={(e) => e.target.style.opacity = '0.7'}
-                            onMouseLeave={(e) => e.target.style.opacity = '1'}
-                          >
-                            {item.title}
-                          </span>
+                          <div className="d-flex align-items-center gap-2">
+                            <span 
+                              onClick={() => handleViewDetails(item)}
+                              style={{ 
+                                cursor: 'pointer',
+                                color: '#2d3748',
+                                fontWeight: '500',
+                                transition: 'opacity 0.2s ease'
+                              }}
+                              onMouseEnter={(e) => e.target.style.opacity = '0.7'}
+                              onMouseLeave={(e) => e.target.style.opacity = '1'}
+                            >
+                              {item.title}
+                            </span>
+                            {item.isEdited && (
+                              <Badge bg="warning" style={{ fontSize: '0.7rem', padding: '2px 6px' }} title="This work item has been edited">
+                                ✏️ Edited
+                              </Badge>
+                            )}
+                          </div>
                         </td>
                         <td>{getAssigneeDisplay(item)}</td>
                         <td>
@@ -1046,11 +1093,12 @@ const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
                             >
                               <FaEye />
                             </Button>
-                            {canManageWork && (
+                            {canEditWorkItem(item) && (
                               <Button
                                 variant="outline-primary"
                                 size="sm"
-                                onClick={() => handleOpenModal(item)}
+                                onClick={() => handleEdit(item)}
+                                title="Edit work item"
                               >
                                 <FaEdit />
                               </Button>
@@ -1084,6 +1132,23 @@ const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
         project={project}
         onSuccess={async () => {
           await loadData();
+          if (onRefresh) onRefresh();
+        }}
+      />
+
+      {/* Edit Work Item Modal */}
+      <EditWorkItemModal
+        show={showEditModal}
+        onHide={() => {
+          setShowEditModal(false);
+          setWorkItemToEdit(null);
+        }}
+        workItem={workItemToEdit}
+        project={project}
+        onSuccess={async () => {
+          await loadData();
+          setShowDetailsModal(false);
+          setSelectedWorkItem(null);
           if (onRefresh) onRefresh();
         }}
       />
@@ -1140,6 +1205,7 @@ const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
           onRefresh={loadData}
           onAddComment={handleAddComment}
           currentUser={user}
+          onEdit={handleEdit}
         />
       )}
     </div>

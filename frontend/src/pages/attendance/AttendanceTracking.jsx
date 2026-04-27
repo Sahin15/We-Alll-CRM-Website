@@ -1,17 +1,21 @@
 import { useState, useEffect } from "react";
 import { Container, Row, Col, Card, Table, Badge, Form, Button, Dropdown, Modal } from "react-bootstrap";
+import { FaDownload } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { attendanceApi } from "../../api/attendanceApi";
 import { userApi } from "../../api/userApi";
+import holidayApi from "../../api/holidayApi";
 import { useAuth } from "../../context/AuthContext";
 import {
   formatDate,
   formatTime,
   formatDateTime,
   getStatusVariant,
+  formatHours,
 } from "../../utils/helpers";
 import { formatWorkHours } from "../../utils/attendanceHelpers";
 import EmployeeAttendanceDetails from "../../components/attendance/EmployeeAttendanceDetails";
+import AttendanceCalendar from "../../components/attendance/AttendanceCalendar";
 import "../../styles/pages-mobile.css";
 import "../../styles/table-mobile.css";
 
@@ -22,14 +26,15 @@ const AttendanceTracking = () => {
   const dropdownStyles = `
     .attendance-dropdown-container {
       position: relative !important;
-      z-index: 9999 !important;
+      z-index: 10000 !important;
+      overflow: visible !important;
     }
     .attendance-dropdown {
       position: absolute !important;
       top: 100% !important;
       left: 0 !important;
       right: 0 !important;
-      z-index: 9999 !important;
+      z-index: 10001 !important;
       background: white !important;
       border: 1px solid #dee2e6 !important;
       border-radius: 0.375rem !important;
@@ -37,6 +42,14 @@ const AttendanceTracking = () => {
       max-height: 300px !important;
       overflow-y: auto !important;
       margin-top: 0.25rem !important;
+      min-width: 100% !important;
+      word-wrap: break-word !important;
+      white-space: normal !important;
+    }
+    .attendance-dropdown-item {
+      word-wrap: break-word !important;
+      white-space: normal !important;
+      overflow-wrap: break-word !important;
     }
     .attendance-dropdown-item:hover {
       background-color: #f8f9fa !important;
@@ -64,10 +77,15 @@ const AttendanceTracking = () => {
       font-weight: 600;
       border-bottom: 2px solid #dee2e6;
       white-space: nowrap;
+      font-size: 1rem;
+      padding: 8px !important;
     }
     
     .table td {
       vertical-align: middle;
+      font-size: 1rem;
+      white-space: normal;
+      padding: 8px !important;
     }
     
     .table tbody tr:hover {
@@ -124,14 +142,65 @@ const AttendanceTracking = () => {
   `;
   const [attendances, setAttendances] = useState([]);
   const [users, setUsers] = useState([]);
+  const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   
-  // Get today's date
+  // Helper function to format date to IST (YYYY-MM-DD)
+  const formatDateToIST = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  
+  // Get today's date in IST format
   const getTodayDate = () => {
-    const now = new Date();
-    return now.toISOString().split('T')[0];
+    return formatDateToIST(new Date());
+  };
+
+  // Helper function to check if a date is Sunday
+  const isSunday = (date) => {
+    const d = new Date(date);
+    return d.getDay() === 0;
+  };
+
+  // Helper function to check if a date is a holiday
+  const isHoliday = (date) => {
+    const dateStr = formatDateToIST(new Date(date));
+    return holidays.some(holiday => {
+      const holidayDate = formatDateToIST(new Date(holiday.date));
+      return holidayDate === dateStr;
+    });
+  };
+
+  // Helper function to get holiday name
+  const getHolidayName = (date) => {
+    const dateStr = formatDateToIST(new Date(date));
+    const holiday = holidays.find(h => {
+      const holidayDate = formatDateToIST(new Date(h.date));
+      return holidayDate === dateStr;
+    });
+    return holiday ? holiday.name : null;
+  };
+
+  // Helper function to get day name
+  const getDayName = (date) => {
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const d = new Date(date);
+    return days[d.getDay()];
+  };
+
+  // Helper function to get day color
+  const getDayColor = (date) => {
+    if (isSunday(date)) {
+      return '#dc3545'; // Red for Sunday
+    }
+    if (isHoliday(date)) {
+      return '#ffc107'; // Yellow for Holiday
+    }
+    return '#28a745'; // Green for normal working days
   };
 
   const [filters, setFilters] = useState({
@@ -165,6 +234,9 @@ const AttendanceTracking = () => {
   const [showEditHistoryModal, setShowEditHistoryModal] = useState(false);
   const [selectedEditHistory, setSelectedEditHistory] = useState(null);
   
+  // View toggle state (table by default)
+  const [viewMode, setViewMode] = useState('table');
+  
   // Filter users based on search term
   const filteredUsers = users.filter(user => 
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -174,7 +246,18 @@ const AttendanceTracking = () => {
   useEffect(() => {
     fetchUsers();
     fetchAttendances();
+    fetchHolidays();
   }, []);
+
+  const fetchHolidays = async () => {
+    try {
+      const response = await holidayApi.getHolidays();
+      setHolidays(response.data || []);
+    } catch (error) {
+      console.error("Error fetching holidays:", error);
+      // Don't show error toast for holidays, it's not critical
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -220,7 +303,6 @@ const AttendanceTracking = () => {
   const handleFilterChange = async (e) => {
     const { name, value } = e.target;
     const newFilters = { ...filters, [name]: value };
-    setFilters(newFilters);
     
     // Reset active filter when manually changing dates
     if (name === 'startDate' || name === 'endDate') {
@@ -240,8 +322,8 @@ const AttendanceTracking = () => {
           const now = new Date();
           const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
           const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-          const startDate = firstDay.toISOString().split('T')[0];
-          const endDate = lastDay.toISOString().split('T')[0];
+          const startDate = formatDateToIST(firstDay);
+          const endDate = formatDateToIST(lastDay);
           
           params.startDate = startDate;
           params.endDate = endDate;
@@ -249,7 +331,6 @@ const AttendanceTracking = () => {
           // Update filters to show the month dates
           newFilters.startDate = startDate;
           newFilters.endDate = endDate;
-          setFilters(newFilters);
           setActiveFilter('month');
         } else {
           // No employee selected - show today's data for all
@@ -259,7 +340,6 @@ const AttendanceTracking = () => {
           
           newFilters.startDate = today;
           newFilters.endDate = today;
-          setFilters(newFilters);
           setActiveFilter('today');
         }
         
@@ -267,11 +347,16 @@ const AttendanceTracking = () => {
 
         const response = await attendanceApi.getAllAttendance(params);
         setAttendances(response.data);
+        setFilters(newFilters);
       } catch (error) {
+        console.error('Error in handleFilterChange:', error);
         toast.error("Failed to fetch attendance records");
       } finally {
         setLoading(false);
       }
+    } else {
+      // For other filter changes, just update the state
+      setFilters(newFilters);
     }
   };
 
@@ -299,27 +384,27 @@ const AttendanceTracking = () => {
 
     switch (type) {
       case 'today':
-        startDate = endDate = now.toISOString().split('T')[0];
+        startDate = endDate = formatDateToIST(now);
         break;
       case 'week':
         const weekStart = new Date(now);
         weekStart.setDate(now.getDate() - now.getDay()); // Sunday
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekStart.getDate() + 6); // Saturday
-        startDate = weekStart.toISOString().split('T')[0];
-        endDate = weekEnd.toISOString().split('T')[0];
+        startDate = formatDateToIST(weekStart);
+        endDate = formatDateToIST(weekEnd);
         break;
       case 'month':
         const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
         const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-        startDate = firstDay.toISOString().split('T')[0];
-        endDate = lastDay.toISOString().split('T')[0];
+        startDate = formatDateToIST(firstDay);
+        endDate = formatDateToIST(lastDay);
         break;
       case 'lastMonth':
         const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-        startDate = lastMonth.toISOString().split('T')[0];
-        endDate = lastMonthEnd.toISOString().split('T')[0];
+        startDate = formatDateToIST(lastMonth);
+        endDate = formatDateToIST(lastMonthEnd);
         break;
       default:
         return;
@@ -388,6 +473,32 @@ const AttendanceTracking = () => {
     const totalBreakMinutes = attendances.reduce((sum, a) => sum + (a.totalBreakTime || 0), 0);
     const totalBreaks = attendances.reduce((sum, a) => sum + (a.breaks?.length || 0), 0);
     const totalDays = attendances.length;
+    
+    // Calculate working days (exclude on-leave days)
+    const workingDays = totalDays - onLeave;
+    
+    // Calculate expected working hours based on day of week
+    // Monday-Friday: 8 hours, Saturday: 6 hours, Sunday: 0 hours
+    let expectedHours = 0;
+    attendances.forEach((a) => {
+      if (a.status === 'present' || a.status === 'late') {
+        const date = new Date(a.date);
+        const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+        if (dayOfWeek === 6) { // Saturday
+          expectedHours += 6;
+        } else if (dayOfWeek !== 0) { // Not Sunday
+          expectedHours += 8;
+        }
+      } else if (a.status === 'half-day') {
+        const date = new Date(a.date);
+        const dayOfWeek = date.getDay();
+        if (dayOfWeek === 6) { // Saturday half-day
+          expectedHours += 3;
+        } else if (dayOfWeek !== 0) { // Not Sunday
+          expectedHours += 4;
+        }
+      }
+    });
 
     return {
       employeeName: selectedEmployee?.name || "Unknown",
@@ -401,13 +512,13 @@ const AttendanceTracking = () => {
       totalBreakTime: Math.floor(totalBreakMinutes),
       totalBreaks,
       totalDays,
-      avgHoursPerDay: totalDays > 0 ? (totalHours / totalDays).toFixed(2) : 0,
+      avgHoursPerDay: workingDays > 0 ? (totalHours / workingDays).toFixed(2) : 0,
     };
   };
 
   const stats = calculateStats();
 
-  // Calculate absent employees (not clocked in today)
+  // Calculate absent employees (not clocked in today) — only active employees count as absent
   const getAbsentEmployees = () => {
     // Only show for today's date AND when no specific employee is selected
     const today = getTodayDate();
@@ -418,8 +529,10 @@ const AttendanceTracking = () => {
     // Get list of employees who clocked in today
     const clockedInEmployeeIds = attendances.map(a => a.employee?._id || a.employee);
     
-    // Find employees who haven't clocked in
-    const absentEmployees = users.filter(user => !clockedInEmployeeIds.includes(user._id));
+    // Find active employees who haven't clocked in (inactive/terminated/offboarded don't count as absent)
+    const absentEmployees = users.filter(user => 
+      user.status === 'active' && !clockedInEmployeeIds.includes(user._id)
+    );
     
     return absentEmployees;
   };
@@ -439,24 +552,23 @@ const AttendanceTracking = () => {
   const handleEditAttendance = (attendance) => {
     setEditingAttendance(attendance);
     
-    // Format dates for datetime-local input - CONVERT TO IST
+    // Format dates for datetime-local input
+    // The datetime-local input expects the value in the browser's local timezone
     const formatDateTimeLocal = (date) => {
       if (!date) return '';
+      
+      // Create a new date object from the ISO string
       const d = new Date(date);
       
-      // Convert UTC date to IST string (YYYY-MM-DDTHH:MM)
-      const istDateString = d.toLocaleString('en-CA', { 
-        timeZone: 'Asia/Kolkata',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      });
+      // Get the local date/time components
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
       
-      // Format: "YYYY-MM-DD HH:MM" -> "YYYY-MM-DDTHH:MM"
-      return istDateString.replace(' ', 'T');
+      // Return in the format expected by datetime-local input (YYYY-MM-DDTHH:MM)
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
     };
     
     setEditForm({
@@ -517,6 +629,370 @@ const AttendanceTracking = () => {
     return ['hr', 'admin', 'superadmin', 'hod'].includes(user?.role);
   };
 
+  // Handle PDF export for attendance records
+  const handleExportPDF = () => {
+    try {
+      if (attendances.length === 0) {
+        toast.error("No attendance records to export");
+        return;
+      }
+
+      // Calculate statistics
+      const stats = {
+        present: attendances.filter(a => a.status === 'present').length,
+        late: attendances.filter(a => a.status === 'late').length,
+        halfDay: attendances.filter(a => a.status === 'half-day').length,
+        absent: attendances.filter(a => a.status === 'absent').length,
+        onLeave: attendances.filter(a => a.status === 'on-leave').length,
+        totalHours: attendances.reduce((sum, a) => sum + (a.workHours || 0), 0),
+        overtime: attendances.reduce((sum, a) => sum + (a.overtime || 0), 0),
+      };
+
+      // Calculate expected average hours and additional stats
+      let totalExpected = 0;
+      let workingDays = 0;
+      let totalBreakMinutes = 0;
+      
+      attendances.forEach((a) => {
+        // Calculate break time
+        if (a.breaks && Array.isArray(a.breaks)) {
+          a.breaks.forEach(b => {
+            if (b.startTime && b.endTime) {
+              const start = new Date(b.startTime);
+              const end = new Date(b.endTime);
+              totalBreakMinutes += Math.round((end - start) / (1000 * 60));
+            }
+          });
+        }
+        
+        // Calculate expected hours
+        if (a.status === 'present' || a.status === 'late') {
+          const date = new Date(a.date);
+          const dayOfWeek = date.getDay();
+          if (dayOfWeek === 6) {
+            totalExpected += 6;
+          } else if (dayOfWeek !== 0) {
+            totalExpected += 8;
+          }
+          workingDays += 1;
+        } else if (a.status === 'half-day') {
+          const date = new Date(a.date);
+          const dayOfWeek = date.getDay();
+          if (dayOfWeek === 6) {
+            totalExpected += 3;
+          } else if (dayOfWeek !== 0) {
+            totalExpected += 4;
+          }
+          workingDays += 1;
+        }
+      });
+      
+      const expectedAvgHours = workingDays > 0 ? totalExpected / workingDays : 0;
+      const daysWorked = stats.present + stats.late + stats.halfDay;
+      const actualAvgHours = workingDays > 0 ? parseFloat(stats.totalHours) / workingDays : 0;
+      
+      // Format hours as HH.MM
+      const formatHoursDisplay = (decimalHours) => {
+        const hours = Math.floor(decimalHours);
+        const minutes = Math.round((decimalHours - hours) * 60);
+        return `${hours}.${String(minutes).padStart(2, '0')}`;
+      };
+      
+      const formatBreakTime = (minutes) => {
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return `${hours}h ${mins}m`;
+      };
+
+      // Format date as DD/MM/YYYY
+      const formatDateDDMMYYYY = (date) => {
+        const d = new Date(date);
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        return `${day}/${month}/${year}`;
+      };
+
+      const currentDate = formatDateDDMMYYYY(new Date());
+      const startDateFormatted = formatDateDDMMYYYY(filters.startDate);
+      const endDateFormatted = formatDateDDMMYYYY(filters.endDate);
+
+      // Create printable HTML
+      const printWindow = window.open('', '_blank');
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Attendance Report</title>
+          <style>
+            body { 
+              font-family: Arial, sans-serif; 
+              padding: 20px; 
+              margin: 0;
+              background-color: #f5f5f5;
+            }
+            .container {
+              max-width: 1200px;
+              margin: 0 auto;
+              background-color: white;
+              padding: 30px;
+              border-radius: 8px;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 30px;
+              border-bottom: 3px solid #007bff;
+              padding-bottom: 20px;
+            }
+            .logo {
+              width: 120px;
+              height: auto;
+            }
+            .header-info {
+              flex: 1;
+              margin-left: 30px;
+            }
+            .header-info h1 {
+              margin: 0;
+              color: #007bff;
+              font-size: 28px;
+            }
+            .header-info p {
+              margin: 5px 0;
+              color: #666;
+              font-size: 14px;
+            }
+            .employee-info {
+              background-color: #f8f9fa;
+              padding: 15px;
+              border-radius: 5px;
+              margin-bottom: 20px;
+              border-left: 4px solid #007bff;
+            }
+            .employee-info p {
+              margin: 8px 0;
+              font-size: 14px;
+            }
+            .employee-info strong {
+              color: #333;
+            }
+            .stats {
+              display: grid;
+              grid-template-columns: repeat(5, 1fr);
+              gap: 15px;
+              margin: 20px 0;
+            }
+            .stat-card {
+              border: 1px solid #ddd;
+              padding: 15px;
+              border-radius: 5px;
+              text-align: center;
+              background-color: #f9f9f9;
+            }
+            .stat-value {
+              font-size: 24px;
+              font-weight: bold;
+              margin: 10px 0;
+              color: #007bff;
+            }
+            .stat-label {
+              color: #666;
+              font-size: 12px;
+              font-weight: 600;
+            }
+            .summary-section {
+              margin: 30px 0;
+            }
+            .summary-section h3 {
+              color: #333;
+              border-bottom: 2px solid #007bff;
+              padding-bottom: 10px;
+              margin-bottom: 15px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 15px;
+            }
+            th, td {
+              border: 1px solid #ddd;
+              padding: 10px;
+              text-align: left;
+              font-size: 13px;
+            }
+            th {
+              background-color: #007bff;
+              color: white;
+              font-weight: bold;
+            }
+            tr:nth-child(even) {
+              background-color: #f9f9f9;
+            }
+            tr:hover {
+              background-color: #f0f0f0;
+            }
+            .status-present { color: #28a745; font-weight: bold; }
+            .status-late { color: #ffc107; font-weight: bold; }
+            .status-halfday { color: #17a2b8; font-weight: bold; }
+            .status-absent { color: #dc3545; font-weight: bold; }
+            .status-on-leave { color: #6c757d; font-weight: bold; }
+            .footer {
+              margin-top: 30px;
+              padding-top: 20px;
+              border-top: 1px solid #ddd;
+              text-align: center;
+              color: #999;
+              font-size: 12px;
+            }
+            @media print {
+              body { background-color: white; }
+              .container { box-shadow: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <!-- Header with Logo -->
+            <div class="header">
+              <img src="/We Alll.png" alt="We Alll" class="logo" />
+              <div class="header-info">
+                <h1>Attendance Report</h1>
+                <p><strong>Period:</strong> ${startDateFormatted} to ${endDateFormatted}</p>
+                <p><strong>Generated on:</strong> ${currentDate}</p>
+              </div>
+            </div>
+
+            <!-- Employee Information Section -->
+            ${filters.employee && attendances.length > 0 ? `
+            <div class="employee-info">
+              <p><strong>Employee Name:</strong> ${attendances[0]?.employee?.name || 'N/A'}</p>
+              <p><strong>Email:</strong> ${attendances[0]?.employee?.email || 'N/A'}</p>
+              <p><strong>Department:</strong> ${attendances[0]?.employee?.department?.name || 'N/A'}</p>
+            </div>
+            ` : ''}
+
+            <!-- Statistics -->
+            <div class="summary-section">
+              <h3>Summary Statistics</h3>
+              <div class="stats">
+                <div class="stat-card">
+                  <div class="stat-label">Present</div>
+                  <div class="stat-value" style="color: #28a745;">${stats.present}</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Late</div>
+                  <div class="stat-value" style="color: #ffc107;">${stats.late}</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Half Day</div>
+                  <div class="stat-value" style="color: #17a2b8;">${stats.halfDay}</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Absent</div>
+                  <div class="stat-value" style="color: #dc3545;">${stats.absent}</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">On Leave</div>
+                  <div class="stat-value" style="color: #6c757d;">${stats.onLeave}</div>
+                </div>
+              </div>
+              <div class="stats">
+                <div class="stat-card">
+                  <div class="stat-label">Total Hours</div>
+                  <div class="stat-value">${formatHoursDisplay(stats.totalHours)}</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Avg Hours/Day</div>
+                  <div class="stat-value">${formatHoursDisplay(actualAvgHours)}</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Expected Avg/Day</div>
+                  <div class="stat-value">${formatHoursDisplay(expectedAvgHours)}</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Days Worked</div>
+                  <div class="stat-value">${daysWorked}</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Total Break Time</div>
+                  <div class="stat-value">${formatBreakTime(totalBreakMinutes)}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Attendance Records Table -->
+            <div class="summary-section">
+              <h3>Detailed Attendance Records</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    ${!filters.employee ? '<th>Employee</th>' : ''}
+                    <th>Clock In</th>
+                    <th>Clock Out</th>
+                    <th>Break Time</th>
+                    <th>Work Hours</th>
+                    <th>Overtime</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${attendances.map((a) => {
+                    let breakTime = '-';
+                    if (a.breaks && Array.isArray(a.breaks)) {
+                      let breakMinutes = 0;
+                      a.breaks.forEach(b => {
+                        if (b.startTime && b.endTime) {
+                          const start = new Date(b.startTime);
+                          const end = new Date(b.endTime);
+                          breakMinutes += Math.round((end - start) / (1000 * 60));
+                        }
+                      });
+                      if (breakMinutes > 0) {
+                        breakTime = formatBreakTime(breakMinutes);
+                      }
+                    }
+                    
+                    const clockIn = a.status === 'on-leave' ? 'On Leave' : (a.clockIn ? formatTime(a.clockIn) : '-');
+                    const clockOut = a.status === 'on-leave' ? 'On Leave' : (a.clockOut ? formatTime(a.clockOut) : '-');
+                    const workHours = a.status === 'on-leave' ? '-' : formatHours(a.workHours || 0);
+                    
+                    const dateDisplay = formatDateDDMMYYYY(a.date);
+                    const employeeCell = !filters.employee ? '<td>' + (a.employee?.name || 'N/A') + '</td>' : '';
+                    
+                    return '<tr><td>' + dateDisplay + '</td>' + employeeCell + '<td>' + clockIn + '</td><td>' + clockOut + '</td><td>' + (a.status === 'on-leave' ? '-' : breakTime) + '</td><td>' + workHours + '</td><td>' + formatHours(a.overtime || 0) + '</td><td class="status-' + a.status.replace('-', '') + '">' + a.status + '</td></tr>';
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer">
+              <p>This is an official attendance report generated from We Alll Office Management System.</p>
+              <p>For any queries, please contact the HR department.</p>
+            </div>
+          </div>
+
+          <script>
+            window.print();
+          </script>
+        </body>
+        </html>
+      `;
+
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      
+      toast.success("Attendance report opened for printing/export!");
+    } catch (error) {
+      console.error('PDF export error:', error);
+      toast.error("Failed to export attendance to PDF");
+    }
+  };
+
   return (
     <>
       <style>{dropdownStyles}</style>
@@ -563,11 +1039,11 @@ const AttendanceTracking = () => {
                 </Col>
               </Row>
               <hr />
-              <Row className="g-3" style={{ position: 'relative', zIndex: 1 }}>
-                <Col md={3} style={{ position: 'relative', zIndex: 10 }}>
-                  <Form.Group style={{ position: 'relative', zIndex: 10 }}>
+              <Row className="g-3" style={{ position: 'relative', overflow: 'visible' }}>
+                <Col md={3} style={{ position: 'relative', overflow: 'visible' }}>
+                  <Form.Group style={{ position: 'relative', overflow: 'visible' }}>
                     <Form.Label>Employee</Form.Label>
-                    <div className="position-relative attendance-dropdown-container">
+                    <div className="position-relative attendance-dropdown-container" style={{ overflow: 'visible' }}>
                       <Form.Control
                         type="text"
                         placeholder={
@@ -590,7 +1066,6 @@ const AttendanceTracking = () => {
                               transition: 'background-color 0.2s ease'
                             }}
                             onClick={() => {
-                              setFilters({ ...filters, employee: '' });
                               setSearchTerm("");
                               setShowDropdown(false);
                               handleFilterChange({ target: { name: 'employee', value: '' } });
@@ -608,7 +1083,6 @@ const AttendanceTracking = () => {
                                   transition: 'background-color 0.2s ease'
                                 }}
                                 onClick={() => {
-                                  setFilters({ ...filters, employee: user._id });
                                   setSearchTerm("");
                                   setShowDropdown(false);
                                   handleFilterChange({ target: { name: 'employee', value: user._id } });
@@ -636,7 +1110,6 @@ const AttendanceTracking = () => {
                           type="button"
                           className="btn btn-link btn-sm p-0 ms-1 text-decoration-none"
                           onClick={() => {
-                            setFilters({ ...filters, employee: '' });
                             setSearchTerm("");
                             handleFilterChange({ target: { name: 'employee', value: '' } });
                           }}
@@ -690,7 +1163,7 @@ const AttendanceTracking = () => {
                   </Form.Group>
                 </Col>
 
-                <Col md={3} className="d-flex align-items-end gap-2">
+                <Col md={3} className="d-flex align-items-end gap-2" style={{ position: 'relative', zIndex: 1 }}>
                   <button
                     className="btn btn-secondary flex-fill"
                     onClick={async () => {
@@ -848,19 +1321,19 @@ const AttendanceTracking = () => {
                   </Col>
                   <Col xs={6} md={2}>
                     <div className="p-2">
-                      <h5 className="text-success mb-0">{stats.totalHours}</h5>
+                      <h5 className="text-success mb-0">{formatHours(parseFloat(stats.totalHours))}</h5>
                       <small className="text-muted">Total Hours</small>
                     </div>
                   </Col>
                   <Col xs={6} md={2}>
                     <div className="p-2">
-                      <h5 className="text-info mb-0">{stats.avgHoursPerDay}</h5>
+                      <h5 className="text-info mb-0">{formatHours(parseFloat(stats.avgHoursPerDay))}</h5>
                       <small className="text-muted">Avg Hours/Day</small>
                     </div>
                   </Col>
                   <Col xs={6} md={2}>
                     <div className="p-2">
-                      <h5 className="text-warning mb-0">{formatWorkHours(parseFloat(stats.totalOvertime))}</h5>
+                      <h5 className="text-warning mb-0">{formatHours(parseFloat(stats.totalOvertime))}</h5>
                       <small className="text-muted">Total Overtime</small>
                     </div>
                   </Col>
@@ -893,18 +1366,82 @@ const AttendanceTracking = () => {
         </Row>
       )}
 
-      <Row>
-        <Col>
-          <Card>
-            <Card.Body>
-              {loading ? (
-                <div className="text-center py-5">
-                  <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
+      {/* View Toggle Button */}
+      {filters.employee && (
+        <Row className="mb-3">
+          <Col>
+            <Card className="border-primary shadow-sm">
+              <Card.Body className="p-3">
+                <div className="d-flex gap-3 align-items-center justify-content-between flex-wrap">
+                  <span className="text-primary fw-bold">📊 View Mode:</span>
+                  <div className="btn-group" role="group" aria-label="View mode toggle">
+                    <button
+                      type="button"
+                      className={`btn btn-sm fw-semibold ${viewMode === 'table' ? 'btn-primary' : 'btn-outline-primary'}`}
+                      onClick={() => setViewMode('table')}
+                      title="Switch to Table View"
+                      aria-pressed={viewMode === 'table'}
+                    >
+                      📊 Table View
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn btn-sm fw-semibold ${viewMode === 'calendar' ? 'btn-primary' : 'btn-outline-primary'}`}
+                      onClick={() => setViewMode('calendar')}
+                      title="Switch to Calendar View"
+                      aria-pressed={viewMode === 'calendar'}
+                    >
+                      📅 Calendar View
+                    </button>
                   </div>
                 </div>
-              ) : (
-                <Table responsive hover>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
+      )}
+
+      {/* Attendance Calendar View */}
+      {filters.employee && viewMode === 'calendar' && (
+        <Row className="mb-4">
+          <Col>
+            <AttendanceCalendar
+              attendances={attendances}
+              selectedMonth={new Date(filters.startDate).getMonth()}
+              selectedYear={new Date(filters.startDate).getFullYear()}
+              employeeName={users.find(u => u._id === filters.employee)?.name}
+            />
+          </Col>
+        </Row>
+      )}
+
+      {/* Attendance Table View */}
+      {(!filters.employee || viewMode === 'table') && (
+        <Row>
+          <Col>
+            <Card>
+              <Card.Header className="d-flex justify-content-between align-items-center bg-white border-bottom">
+                <h6 className="mb-0 fw-semibold">Attendance Records</h6>
+                <Button
+                  variant="success"
+                  size="sm"
+                  onClick={handleExportPDF}
+                  disabled={attendances.length === 0}
+                  className="d-flex align-items-center gap-2"
+                >
+                  <FaDownload />
+                  Export PDF
+                </Button>
+              </Card.Header>
+              <Card.Body>
+                {loading ? (
+                  <div className="text-center py-5">
+                    <div className="spinner-border text-primary" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                  </div>
+                ) : (
+                  <Table responsive hover>
                   <thead>
                     <tr>
                       {!filters.employee && <th>Employee</th>}
@@ -959,8 +1496,17 @@ const AttendanceTracking = () => {
                                 </td>
                               )}
                               <td>
-                                <div className="d-flex align-items-center gap-2">
+                                <div className="d-flex align-items-center gap-2 flex-wrap">
                                   <span>{formatDate(attendance.date)}</span>
+                                  {isWFH && !!filters.employee && (
+                                    <span
+                                      className="wfh-indicator"
+                                      title={`Work From Home${wfhReason ? ': ' + wfhReason : ''}`}
+                                      style={{ cursor: 'default' }}
+                                    >
+                                      🏠
+                                    </span>
+                                  )}
                                   {isEdited && (
                                     <span 
                                       className="edit-indicator"
@@ -982,9 +1528,17 @@ const AttendanceTracking = () => {
                                   )}
                                 </div>
                               </td>
-                              <td>{formatTime(attendance.clockIn)}</td>
                               <td>
-                                {attendance.clockOut
+                                {attendance.status === 'on-leave' ? (
+                                  <Badge bg="primary">On Leave</Badge>
+                                ) : (
+                                  formatTime(attendance.clockIn)
+                                )}
+                              </td>
+                              <td>
+                                {attendance.status === 'on-leave' ? (
+                                  <Badge bg="primary">On Leave</Badge>
+                                ) : attendance.clockOut
                                   ? formatTime(attendance.clockOut)
                                   : isOnBreak 
                                   ? <Badge bg="warning" className="pulse-badge">On Break</Badge>
@@ -1030,11 +1584,11 @@ const AttendanceTracking = () => {
                                 )}
                               </td>
                               <td>
-                                <strong>{formatWorkHours(attendance.workHours || 0)}</strong>
+                                <strong>{formatHours(attendance.workHours || 0)}</strong>
                               </td>
                               <td>
                                 {attendance.overtime > 0 ? (
-                                  <Badge bg="warning">{formatWorkHours(attendance.overtime)}</Badge>
+                                  <Badge bg="warning">{formatHours(attendance.overtime)}</Badge>
                                 ) : (
                                   <span className="text-muted">-</span>
                                 )}
@@ -1095,6 +1649,7 @@ const AttendanceTracking = () => {
           </Card>
         </Col>
       </Row>
+      )}
 
       {/* Absent Employees (Not Clocked In Today) */}
       {absentEmployees.length > 0 && (

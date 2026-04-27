@@ -1,0 +1,13 @@
+/* ============================================
+   PROFILE TABS - DESKTOP ONLY
+   ============================================ */
+
+/* Make tabs fill entire width */
+.nav-tabs {
+  width: 100% !important;
+}
+
+.nav-tabs .nav-link {
+  flex: 1 !important;
+  text-align: center !important;
+}

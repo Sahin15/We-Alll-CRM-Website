@@ -47,7 +47,7 @@ router.post("/bulk-generate",
   authorizeRoles("hr", "admin", "superadmin", "manager"),
   async (req, res) => {
     try {
-      const { employeeIds, month, year, additionalData } = req.body;
+      const { employeeIds, month, year, additionalData, workingDaysOverride } = req.body;
 
       if (!employeeIds || !Array.isArray(employeeIds) || !month || !year) {
         return res.status(400).json({
@@ -59,7 +59,8 @@ router.post("/bulk-generate",
         employeeIds,
         month,
         year,
-        additionalData
+        additionalData,
+        workingDaysOverride  // pass override to service
       );
 
       res.status(200).json({
@@ -67,11 +68,65 @@ router.post("/bulk-generate",
         ...results
       });
     } catch (error) {
-      
       res.status(500).json({
         message: "Failed to generate previews",
         error: error.message
       });
+    }
+  }
+);
+
+// Get working days info for a month (used for mid-month preview confirmation)
+router.get("/working-days-info",
+  protect,
+  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  async (req, res) => {
+    try {
+      const month = parseInt(req.query.month);
+      const year = parseInt(req.query.year);
+
+      if (!month || !year) {
+        return res.status(400).json({ message: "month and year are required" });
+      }
+
+      const WorkingDaysCalculator = (await import("../services/workingDaysCalculator.js")).default;
+      const calc = new WorkingDaysCalculator();
+
+      const now = new Date();
+      const isCurrentMonth = month === (now.getMonth() + 1) && year === now.getFullYear();
+
+      let result;
+      if (isCurrentMonth) {
+        // Calculate only up to today
+        result = await calc.calculateWorkingDays(month, year);
+        // Adjust to count only days up to today
+        const todayDay = now.getDate();
+        const totalDaysInMonth = new Date(year, month, 0).getDate();
+
+        // Recalculate weekends and holidays up to today
+        const weekendInfo = calc.calculateWeekends(month, year, "6-day");
+        const weekendsUpToToday = weekendInfo.sundays.filter(d => d.getDate() <= todayDay).length;
+        const holidaysUpToToday = (result.holidayDates || []).filter(d => new Date(d).getDate() <= todayDay).length;
+        const workingDaysUpToToday = todayDay - weekendsUpToToday - holidaysUpToToday;
+
+        result = {
+          ...result,
+          totalDays: todayDay,
+          weekends: weekendsUpToToday,
+          holidays: holidaysUpToToday,
+          workingDays: Math.max(0, workingDaysUpToToday),
+          totalDaysInMonth,
+          isPartialMonth: true
+        };
+      } else {
+        result = await calc.calculateWorkingDays(month, year);
+        result.isPartialMonth = false;
+      }
+
+      res.status(200).json(result);
+    } catch (error) {
+      console.error("Error getting working days info:", error);
+      res.status(500).json({ message: "Server error", error: error.message });
     }
   }
 );

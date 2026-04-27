@@ -105,6 +105,29 @@ export const createClient = async (req, res) => {
         priority: 'medium',
         startDate: new Date(),
         createdBy: req.user.id,
+        // Enable slot system with 20 slots per month
+        slotConfiguration: {
+          totalSlots: 20,
+          slotType: 'generic',
+          allowDynamicSlots: true,
+          slotNamingPattern: 'Slot {number}',
+          autoCreateSlots: true,
+          enableSlotSystem: true
+        },
+        progressTracking: {
+          calculationMethod: 'slot-based',
+          completedSlots: 0,
+          totalSlots: 20,
+          progressPercentage: 0,
+          lastProgressUpdate: new Date(),
+          progressHistory: []
+        },
+        slotManagement: {
+          allowSlotReassignment: true,
+          requireApprovalForSlotChanges: false,
+          slotCompletionRequiresApproval: false,
+          autoReleaseOnWorkItemDeletion: true
+        }
       };
 
       const project = await Project.create(projectData);
@@ -302,25 +325,66 @@ export const getEmployeeClients = async (req, res) => {
     
     if (userRole === 'hod') {
       // HoD can see clients assigned to their department
-      const user = await User.findById(userId).select('headOfDepartment isHeadOfDepartment');
+      const user = await User.findById(userId).select('headOfDepartment isHeadOfDepartment').populate('headOfDepartment', 'type');
       
       if (user.isHeadOfDepartment && user.headOfDepartment) {
         // Check if this is an administrative department
-        const department = await Department.findById(user.headOfDepartment).select('type');
+        const department = user.headOfDepartment;
         
-        if (department && department.type === 'administrative') {
+        if (department.type === 'administrative') {
           // Administrative department HoDs can see all clients
           logger.info(`📋 Administrative HoD - access to all clients`);
           const allClients = await Client.find().select('_id').lean();
           clientIds = allClients.map(client => client._id.toString());
         } else {
-          // Operational department HoDs see only clients assigned to their department
-          const departmentClients = await Client.find({
-            assignedDepartments: user.headOfDepartment
-          }).select('_id').lean();
+          // Operational department HoDs see ONLY clients from projects they're personally assigned to
+          // (same as regular employees — project-based access, not department-based)
           
-          clientIds = departmentClients.map(client => client._id.toString());
-          logger.info(`📋 Operational HoD department clients: [${clientIds.join(', ')}]`);
+          // Get projects directly assigned to HoD
+          const userProjects = await Project.find({
+            $or: [
+              { assignedUsers: userId },
+              { projectHead: userId },
+              { 'teamMembers.user': userId },
+              { createdBy: userId }
+            ]
+          })
+          .select('client')
+          .populate('client', '_id')
+          .lean();
+          
+          const projectClientIds = userProjects
+            .filter(project => project.client)
+            .map(project => project.client._id.toString());
+          
+          logger.info(`📋 HoD project clients: [${projectClientIds.join(', ')}]`);
+          
+          // Get projects from work items assigned to HoD
+          const userWorkItems = await WorkItem.find({
+            $or: [
+              { assignedTo: userId },
+              { assignedToMultiple: userId }
+            ]
+          })
+          .select('project')
+          .populate({
+            path: 'project',
+            select: 'client',
+            populate: {
+              path: 'client',
+              select: '_id'
+            }
+          })
+          .lean();
+          
+          const workItemClientIds = userWorkItems
+            .filter(workItem => workItem.project && workItem.project.client)
+            .map(workItem => workItem.project.client._id.toString());
+          
+          logger.info(`📋 HoD work item clients: [${workItemClientIds.join(', ')}]`);
+          
+          // Only project-based clients — no department-level client access
+          clientIds = [...new Set([...projectClientIds, ...workItemClientIds])];
         }
       }
     } else if (userRole === 'employee') {
@@ -333,7 +397,11 @@ export const getEmployeeClients = async (req, res) => {
         const allClients = await Client.find().select('_id').lean();
         clientIds = allClients.map(client => client._id.toString());
       } else {
-        // Regular employees can see clients from projects they're assigned to
+        // Regular employees can see clients from:
+        // 1. Projects they're directly assigned to
+        // 2. Projects from work items assigned to them
+        
+        // Get projects directly assigned to employee
         const userProjects = await Project.find({
           $or: [
             { assignedUsers: userId },
@@ -346,13 +414,38 @@ export const getEmployeeClients = async (req, res) => {
         .populate('client', '_id')
         .lean();
         
-        clientIds = [...new Set(
-          userProjects
-            .filter(project => project.client)
-            .map(project => project.client._id.toString())
-        )];
+        // Get projects from work items assigned to employee
+        const userWorkItems = await WorkItem.find({
+          $or: [
+            { assignedTo: userId },
+            { assignedToMultiple: userId }
+          ]
+        })
+        .select('project')
+        .populate({
+          path: 'project',
+          select: 'client',
+          populate: {
+            path: 'client',
+            select: '_id'
+          }
+        })
+        .lean();
         
-        logger.info(`📋 Employee project clients: [${clientIds.join(', ')}]`);
+        // Combine clients from both sources
+        const projectClientIds = userProjects
+          .filter(project => project.client)
+          .map(project => project.client._id.toString());
+        
+        const workItemClientIds = userWorkItems
+          .filter(workItem => workItem.project && workItem.project.client)
+          .map(workItem => workItem.project.client._id.toString());
+        
+        clientIds = [...new Set([...projectClientIds, ...workItemClientIds])];
+        
+        logger.info(`📋 Employee project clients: [${projectClientIds.join(', ')}]`);
+        logger.info(`📋 Employee work item clients: [${workItemClientIds.join(', ')}]`);
+        logger.info(`📋 Combined unique clients: [${clientIds.join(', ')}]`);
       }
     }
     

@@ -1,0 +1,167 @@
+.license-expiry-alerts-page {
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 0;
+}
+
+.filters-section {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.filters-section .form-label {
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 0.5rem;
+}
+
+.filters-section .form-select {
+  border-color: #ddd;
+  border-radius: 0.375rem;
+}
+
+.filters-section .form-select:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.alerts-container {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.alert-card {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-left: 5px solid;
+  overflow: hidden;
+}
+
+.alert-card.alert-expired {
+  border-left-color: #721c24;
+  background-color: #fff5f5;
+}
+
+.alert-card.alert-critical {
+  border-left-color: #dc3545;
+  background-color: #fff5f5;
+}
+
+.alert-card.alert-warning {
+  border-left-color: #ffc107;
+  background-color: #fffbf0;
+}
+
+.alert-card.alert-info {
+  border-left-color: #17a2b8;
+  background-color: #f0f8fb;
+}
+
+.alert-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.5rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.alert-title h5 {
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 0.25rem;
+}
+
+.alert-title .vendor {
+  font-size: 0.875rem;
+  color: #666;
+  margin-bottom: 0;
+}
+
+.alert-status {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.alert-body {
+  padding: 1.5rem;
+}
+
+.label {
+  font-weight: 600;
+  color: #666;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.25rem;
+}
+
+.value {
+  color: #333;
+  font-size: 1rem;
+  margin-bottom: 0;
+}
+
+.days-expired {
+  color: #721c24;
+  font-weight: 700;
+}
+
+.days-critical {
+  color: #dc3545;
+  font-weight: 700;
+}
+
+.days-warning {
+  color: #ff6b6b;
+  font-weight: 700;
+}
+
+.days-info {
+  color: #17a2b8;
+  font-weight: 700;
+}
+
+.alert-footer {
+  padding: 1rem 1.5rem;
+  background-color: #f8f9fa;
+  border-top: 1px solid #dee2e6;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.alert-footer .btn {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+  .page-title {
+    font-size: 1.5rem;
+  }
+
+  .alert-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .alert-body {
+    padding: 1rem;
+  }
+
+  .label {
+    font-size: 0.75rem;
+  }
+
+  .value {
+    font-size: 0.875rem;
+  }
+}

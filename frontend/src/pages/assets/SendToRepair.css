@@ -1,0 +1,189 @@
+.send-to-repair-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.send-to-repair-header {
+  margin-bottom: 30px;
+}
+
+.send-to-repair-header h1 {
+  font-size: 28px !important;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.send-to-repair-header p {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+}
+
+.send-to-repair-form {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.form-section {
+  padding: 24px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.form-section:last-of-type {
+  border-bottom: none;
+}
+
+.form-section h2 {
+  font-size: 16px !important;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #333;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-group label {
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: #333;
+}
+
+.send-to-repair-container .form-control {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.send-to-repair-container .form-control:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.send-to-repair-container .form-control:disabled {
+  background-color: #f5f5f5;
+  color: #666;
+  cursor: not-allowed;
+}
+
+.send-to-repair-container textarea.form-control {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.form-actions {
+  padding: 24px;
+  background-color: #f9f9f9;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  border-top: 1px solid #e0e0e0;
+}
+
+.send-to-repair-container .btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.send-to-repair-container .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.send-to-repair-container .btn-primary {
+  background-color: #007bff;
+  color: white;
+}
+
+.send-to-repair-container .btn-primary:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.send-to-repair-container .btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.send-to-repair-container .btn-secondary:hover:not(:disabled) {
+  background-color: #545b62;
+}
+
+.send-to-repair-container .alert {
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.send-to-repair-container .alert-danger {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.send-to-repair-container .alert-success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+  font-size: 16px;
+}
+
+@media (max-width: 768px) {
+  .send-to-repair-container {
+    padding: 12px;
+  }
+
+  .form-section {
+    padding: 16px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-actions {
+    flex-direction: column-reverse;
+  }
+
+  .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+

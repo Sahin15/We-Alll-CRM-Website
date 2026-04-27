@@ -2,6 +2,8 @@
 @import './styles/dashboard-common.css';
 /* Import responsive utilities */
 @import './styles/responsive.css';
+/* Import modal mobile styles */
+@import './styles/modal-mobile.css';
 /* Import mobile polish and optimizations */
 @import './styles/polish-mobile.css';
 

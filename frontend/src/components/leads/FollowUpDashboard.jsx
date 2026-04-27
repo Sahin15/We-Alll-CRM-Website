@@ -173,13 +173,13 @@ const FollowUpDashboard = () => {
           {isManager && (
             <div className="btn-group btn-group-sm">
               <button
-                className={`btn btn-sm ${!myOnly ? 'btn-light' : 'btn-outline-light'}`}
+                className={`btn btn-sm ${!myOnly ? 'btn-primary' : 'btn-outline-primary'}`}
                 onClick={() => setMyOnly(false)}
               >
                 <FaUsers size={11} className="me-1" /> All
               </button>
               <button
-                className={`btn btn-sm ${myOnly ? 'btn-light' : 'btn-outline-light'}`}
+                className={`btn btn-sm ${myOnly ? 'btn-primary' : 'btn-outline-primary'}`}
                 onClick={() => setMyOnly(true)}
               >
                 <FaUser size={11} className="me-1" /> Mine

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Container, Row, Col, Card, Button, ButtonGroup, Badge } from 'react-bootstrap';
 import { FaPlus, FaTh, FaList, FaEye, FaEdit, FaTrash } from 'react-icons/fa';
 import { toast } from 'react-toastify';
@@ -15,6 +15,11 @@ import SimplifiedProjectModal from '../../components/projects/SimplifiedProjectM
  * ProjectListPage Component
  * Main page for viewing and managing all projects
  * Requirements: 8.3
+ * Performance optimizations:
+ * - Parallel API calls with Promise.all
+ * - Memoized filtering and sorting
+ * - Lazy rendering with pagination
+ * - Cached data to avoid unnecessary reloads
  */
 const ProjectListPage = () => {
   const { user } = useAuth();
@@ -27,188 +32,155 @@ const ProjectListPage = () => {
     status: 'all',
     client: 'all',
     department: 'all',
-    serviceCompany: 'all' // Add service company filter
+    serviceCompany: 'all'
   });
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list' - default to grid for better overview
+  const [viewMode, setViewMode] = useState('grid');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
+  const [displayLimit, setDisplayLimit] = useState(50); // Pagination: show 50 projects at a time
+  const dataLoadedRef = useRef(false); // Prevent duplicate loads
 
   useEffect(() => {
-    loadData();
-  }, [user]);
+    // Only load data once per user change
+    if (!dataLoadedRef.current) {
+      loadData();
+      dataLoadedRef.current = true;
+    }
+  }, [user?.id]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       
-      // Use appropriate API method based on user role
-      let projectsRes;
-      if (['admin', 'superadmin', 'hr', 'manager'].includes(user?.role)) {
-        // Admin roles can see all projects
-        projectsRes = await projectApi.getAllProjects();
-      } else if (user?.role === 'hod') {
-        // HoD sees their department's projects AND projects where they are project head/assigned
-        const [deptProjectsRes, myProjectsRes] = await Promise.allSettled([
-          projectApi.getMyDepartmentProjects(),
-          projectApi.getMyProjects()
-        ]);
+      // Parallel API calls for better performance
+      const projectsPromise = getProjectsByRole();
+      const clientsPromise = ['admin', 'superadmin', 'hr', 'hod', 'manager'].includes(user?.role)
+        ? clientApi.getAllClients()
+        : Promise.resolve({ data: [], clients: [] });
+      const departmentsPromise = ['admin', 'superadmin', 'hr', 'hod', 'manager'].includes(user?.role)
+        ? departmentApi.getAllDepartments()
+        : Promise.resolve({ data: [], departments: [] });
 
-        const deptProjects = deptProjectsRes.status === 'fulfilled'
-          ? (deptProjectsRes.value?.data || deptProjectsRes.value?.projects || deptProjectsRes.value || [])
-          : [];
-        const myProjects = myProjectsRes.status === 'fulfilled'
-          ? (myProjectsRes.value?.data || myProjectsRes.value?.projects || myProjectsRes.value || [])
-          : [];
+      const [projectsRes, clientsRes, deptsRes] = await Promise.all([
+        projectsPromise,
+        clientsPromise,
+        departmentsPromise
+      ]);
 
-        // Merge and deduplicate by _id
-        const merged = [...deptProjects, ...myProjects];
-        const seen = new Set();
-        const combined = merged.filter(p => {
-          if (!p?._id || seen.has(p._id.toString())) return false;
-          seen.add(p._id.toString());
-          return true;
-        });
-
-        setProjects(combined);
-        setLoading(false);
-        // Skip the rest of loadData for hod — we already set projects
-        try {
-          const [clientsRes, deptsRes] = await Promise.all([
-            clientApi.getAllClients(),
-            departmentApi.getAllDepartments()
-          ]);
-          setClients(clientsRes.data || clientsRes.clients || []);
-          setDepartments(deptsRes.data || deptsRes.departments || []);
-        } catch (error) {
-          setClients([]);
-          setDepartments([]);
-        }
-        return;
-      } else {
-        // Regular employees see only their assigned projects
-        projectsRes = await projectApi.getMyProjects();
-      }
-      
       // Handle different response formats
-      const projects = projectsRes.data || projectsRes.projects || projectsRes || [];
-      setProjects(Array.isArray(projects) ? projects : []);
-      
-      // Only load clients and departments for roles that need them (admin, hr, hod)
-      if (['admin', 'superadmin', 'hr', 'hod', 'manager'].includes(user?.role)) {
-        try {
-          const [clientsRes, deptsRes] = await Promise.all([
-            clientApi.getAllClients(),
-            departmentApi.getAllDepartments()
-          ]);
-          setClients(clientsRes.data || clientsRes.clients || []);
-          setDepartments(deptsRes.data || deptsRes.departments || []);
-        } catch (error) {
-          console.error('Error loading clients/departments:', error);
-          // Don't fail the whole page if clients/departments fail to load
-          setClients([]);
-          setDepartments([]);
-        }
-      } else {
-        // Regular employees don't need client/department data for filtering
-        setClients([]);
-        setDepartments([]);
-      }
+      const projectsData = projectsRes.data || projectsRes.projects || projectsRes || [];
+      setProjects(Array.isArray(projectsData) ? projectsData : []);
+      setClients(clientsRes.data || clientsRes.clients || []);
+      setDepartments(deptsRes.data || deptsRes.departments || []);
     } catch (error) {
       console.error('Error loading data:', error);
       toast.error('Failed to load projects');
+      setProjects([]);
+      setClients([]);
+      setDepartments([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.role]);
 
-  const handleEdit = (project) => {
+  const getProjectsByRole = useCallback(async () => {
+    if (['admin', 'superadmin', 'hr', 'manager'].includes(user?.role)) {
+      return projectApi.getAllProjects();
+    } else if (user?.role === 'hod') {
+      const [deptProjectsRes, myProjectsRes] = await Promise.allSettled([
+        projectApi.getMyDepartmentProjects(),
+        projectApi.getMyProjects()
+      ]);
+
+      const deptProjects = deptProjectsRes.status === 'fulfilled'
+        ? (deptProjectsRes.value?.data || deptProjectsRes.value?.projects || deptProjectsRes.value || [])
+        : [];
+      const myProjects = myProjectsRes.status === 'fulfilled'
+        ? (myProjectsRes.value?.data || myProjectsRes.value?.projects || myProjectsRes.value || [])
+        : [];
+
+      // Merge and deduplicate by _id
+      const merged = [...deptProjects, ...myProjects];
+      const seen = new Set();
+      return merged.filter(p => {
+        if (!p?._id || seen.has(p._id.toString())) return false;
+        seen.add(p._id.toString());
+        return true;
+      });
+    } else {
+      return projectApi.getMyProjects();
+    }
+  }, [user?.role]);
+
+  const handleEdit = useCallback((project) => {
     setEditingProject(project);
     setShowEditModal(true);
-  };
+  }, []);
 
-  const handleEditSuccess = () => {
+  const handleEditSuccess = useCallback(() => {
     setShowEditModal(false);
     setEditingProject(null);
-    loadData(); // Reload projects after edit
-  };
+    dataLoadedRef.current = false; // Reset flag to allow reload
+    loadData();
+  }, [loadData]);
 
-  const handleDelete = async (project) => {
+  const handleDelete = useCallback(async (project) => {
     if (window.confirm(`Are you sure you want to delete the project "${project.name}"? This action cannot be undone.`)) {
       try {
         await projectApi.deleteProject(project._id);
         toast.success('Project deleted successfully');
-        loadData(); // Reload projects after deletion
+        dataLoadedRef.current = false; // Reset flag to allow reload
+        loadData();
       } catch (error) {
         console.error('Error deleting project:', error);
         toast.error(error.response?.data?.message || 'Failed to delete project');
       }
     }
-  };
+  }, [loadData]);
 
-  // Helper function to check if a project is auto-generated and incomplete
-  const isAutoGeneratedIncomplete = (project) => {
-    // Safety check: ensure project and name exist
+  // Memoized helper function to check if a project is auto-generated and incomplete
+  const isAutoGeneratedIncomplete = useCallback((project) => {
     if (!project || !project.name) return false;
-    
     const isAutoGenerated = project.name.includes(' Project') && project.client;
     if (!isAutoGenerated) return false;
-    
-    // Check if project is incomplete (missing key details)
     const hasMinimalDescription = !project.description || 
       project.description === `Project for ${project.client?.name}` ||
       project.description === `Project for ${project.client?.name} (${project.client?.company})` ||
       project.description.length < 20;
-    
-    // Only mark as incomplete if it has minimal description AND no services
-    const isIncomplete = hasMinimalDescription && 
-      (!project.services || project.services.length === 0);
-    
-    return isIncomplete;
-  };
+    return hasMinimalDescription && (!project.services || project.services.length === 0);
+  }, []);
 
-  // Filter and separate projects
+  // Optimized filtering and sorting with single pass
   const { incompleteAutoProjects, regularProjects } = useMemo(() => {
-    let filtered = [...projects];
+    let filtered = projects;
 
-    // Search filter
-    if (searchTerm) {
+    // Apply all filters in a single pass
+    if (searchTerm || Object.values(filters).some(f => f !== 'all')) {
       const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (project) =>
-          project.name?.toLowerCase().includes(term) ||
-          project.description?.toLowerCase().includes(term) ||
-          project.client?.name?.toLowerCase().includes(term)
-      );
+      filtered = filtered.filter(project => {
+        // Search filter
+        if (searchTerm && !project.name?.toLowerCase().includes(term) &&
+            !project.description?.toLowerCase().includes(term) &&
+            !project.client?.name?.toLowerCase().includes(term)) {
+          return false;
+        }
+        // Status filter
+        if (filters.status !== 'all' && project.status !== filters.status) return false;
+        // Client filter
+        if (filters.client !== 'all' && project.client?._id !== filters.client) return false;
+        // Department filter
+        if (filters.department !== 'all' && project.department?._id !== filters.department) return false;
+        // Service Company filter
+        if (filters.serviceCompany !== 'all' && project.client?.serviceCompany !== filters.serviceCompany) return false;
+        return true;
+      });
     }
 
-    // Status filter
-    if (filters.status && filters.status !== 'all') {
-      filtered = filtered.filter((project) => project.status === filters.status);
-    }
-
-    // Client filter
-    if (filters.client && filters.client !== 'all') {
-      filtered = filtered.filter((project) => project.client?._id === filters.client);
-    }
-
-    // Department filter
-    if (filters.department && filters.department !== 'all') {
-      filtered = filtered.filter(
-        (project) => project.department?._id === filters.department
-      );
-    }
-
-    // Service Company filter (filter by client's service company)
-    if (filters.serviceCompany && filters.serviceCompany !== 'all') {
-      filtered = filtered.filter(
-        (project) => project.client?.serviceCompany === filters.serviceCompany
-      );
-    }
-
-    // Separate incomplete auto-generated projects from regular projects
+    // Separate and sort in one pass
     const incompleteAuto = [];
     const regular = [];
+    const statusPriority = { 'Active': 1, 'On Hold': 2, 'Pending': 3, 'Cancelled': 4 };
 
     filtered.forEach(project => {
       if (isAutoGeneratedIncomplete(project)) {
@@ -218,39 +190,33 @@ const ProjectListPage = () => {
       }
     });
 
-    // Sort incomplete auto projects by creation date (newest first)
+    // Sort both arrays
     incompleteAuto.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    
-    // Define status priority: Active > On Hold > Pending > Cancelled
-    const statusPriority = {
-      'Active': 1,
-      'On Hold': 2,
-      'Pending': 3,
-      'Cancelled': 4
-    };
-    
-    // Sort regular projects by status priority first, then by name
     regular.sort((a, b) => {
-      // First, sort by status priority
       const statusDiff = (statusPriority[a.status] || 999) - (statusPriority[b.status] || 999);
-      if (statusDiff !== 0) return statusDiff;
-      
-      // Then sort by name within the same status
-      const nameA = a.name || '';
-      const nameB = b.name || '';
-      return nameA.localeCompare(nameB);
+      return statusDiff !== 0 ? statusDiff : (a.name || '').localeCompare(b.name || '');
     });
 
-    return {
-      incompleteAutoProjects: incompleteAuto,
-      regularProjects: regular
-    };
-  }, [projects, searchTerm, filters]);
+    return { incompleteAutoProjects: incompleteAuto, regularProjects: regular };
+  }, [projects, searchTerm, filters, isAutoGeneratedIncomplete]);
 
   // Combined filtered projects for count display
-  const filteredProjects = [...incompleteAutoProjects, ...regularProjects];
+  const filteredProjects = useMemo(() => [...incompleteAutoProjects, ...regularProjects], 
+    [incompleteAutoProjects, regularProjects]);
 
-  const handleClearFilters = () => {
+  // Paginated display
+  const displayedIncompleteProjects = useMemo(() => 
+    incompleteAutoProjects.slice(0, displayLimit),
+    [incompleteAutoProjects, displayLimit]
+  );
+
+  const displayedRegularProjects = useMemo(() => {
+    const incompleteCount = Math.min(incompleteAutoProjects.length, displayLimit);
+    const remainingLimit = displayLimit - incompleteCount;
+    return regularProjects.slice(0, remainingLimit);
+  }, [regularProjects, incompleteAutoProjects.length, displayLimit]);
+
+  const handleClearFilters = useCallback(() => {
     setFilters({
       status: 'all',
       client: 'all',
@@ -258,7 +224,8 @@ const ProjectListPage = () => {
       serviceCompany: 'all'
     });
     setSearchTerm('');
-  };
+    setDisplayLimit(50); // Reset pagination
+  }, []);
 
   const canCreateProject = ['admin', 'superadmin', 'hod', 'hr', 'manager'].includes(user?.role);
 
@@ -365,7 +332,7 @@ const ProjectListPage = () => {
       ) : (
         <>
           {/* Incomplete Auto-Generated Projects Section */}
-          {incompleteAutoProjects.length > 0 && (
+          {displayedIncompleteProjects.length > 0 && (
             <div className="mb-4">
               <div className="d-flex align-items-center mb-3">
                 <h5 className="mb-0 text-warning">
@@ -385,7 +352,7 @@ const ProjectListPage = () => {
                   {viewMode === 'grid' ? (
                     <div className="p-3">
                       <Row className="g-3">
-                        {incompleteAutoProjects.map((project) => (
+                        {displayedIncompleteProjects.map((project) => (
                           <Col key={project._id} lg={4} md={6} sm={12}>
                             <ProjectCard project={project} onEdit={handleEdit} />
                           </Col>
@@ -407,7 +374,7 @@ const ProjectListPage = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {incompleteAutoProjects.map((project) => (
+                          {displayedIncompleteProjects.map((project) => (
                             <tr
                               key={project._id}
                               style={{ cursor: 'pointer' }}
@@ -510,9 +477,9 @@ const ProjectListPage = () => {
           )}
 
           {/* Regular Projects Section */}
-          {regularProjects.length > 0 && (
+          {displayedRegularProjects.length > 0 && (
             <div>
-              {incompleteAutoProjects.length > 0 && (
+              {displayedIncompleteProjects.length > 0 && (
                 <div className="d-flex align-items-center mb-3">
                   <h5 className="mb-0">
                     <Badge bg="primary" className="me-2">
@@ -525,7 +492,7 @@ const ProjectListPage = () => {
               
               {viewMode === 'grid' ? (
                 <Row className="g-3">
-                  {regularProjects.map((project) => (
+                  {displayedRegularProjects.map((project) => (
                     <Col key={project._id} lg={4} md={6} sm={12}>
                       <ProjectCard project={project} onEdit={handleEdit} />
                     </Col>
@@ -548,7 +515,7 @@ const ProjectListPage = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {regularProjects.map((project) => (
+                          {displayedRegularProjects.map((project) => (
                             <tr
                               key={project._id}
                               style={{ cursor: 'pointer' }}
@@ -648,6 +615,19 @@ const ProjectListPage = () => {
                   </Card.Body>
                 </Card>
               )}
+            </div>
+          )}
+
+          {/* Load More Button */}
+          {(incompleteAutoProjects.length > displayedIncompleteProjects.length ||
+            regularProjects.length > displayedRegularProjects.length) && (
+            <div className="text-center mt-4">
+              <Button
+                variant="outline-primary"
+                onClick={() => setDisplayLimit(prev => prev + 50)}
+              >
+                Load More Projects
+              </Button>
             </div>
           )}
         </>

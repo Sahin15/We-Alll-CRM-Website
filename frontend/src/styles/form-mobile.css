@@ -67,7 +67,7 @@
   
   /* Section headings */
   form h6 {
-    font-size: 1rem;
+    font-size: 1rem !important;
     margin-top: 24px;
     margin-bottom: 16px;
     padding-bottom: 8px;
@@ -332,19 +332,73 @@
    ============================================ */
 
 @media (max-width: 575.98px) {
-  /* Page header with back button */
-  .d-flex.justify-content-between.align-items-center {
+  /* Page header with back button - ONLY for form pages */
+  form .d-flex.justify-content-between.align-items-center,
+  .form-page .d-flex.justify-content-between.align-items-center {
     flex-direction: column !important;
     align-items: flex-start !important;
     gap: 12px;
   }
   
-  .d-flex.align-items-center {
+  form .d-flex.align-items-center {
     width: 100%;
+  }
+  
+  /* Keep card headers horizontal - ALL card headers */
+  .card-header {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .card-header .d-flex {
+    flex-direction: row !important;
+    align-items: center !important;
+  }
+
+  .card-header .d-flex.justify-content-between {
+    width: 100%;
+    justify-content: space-between !important;
+  }
+
+  .card-header .d-flex.justify-content-between.align-items-center {
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 12px;
+    width: 100%;
+  }
+
+  .card-header .d-flex.justify-content-between.align-items-center > div:last-child {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .card-header h5,
+  .card-header h4,
+  .card-header h3 {
+    flex: 0 1 auto;
+    margin-bottom: 0 !important;
+    white-space: nowrap;
+  }
+
+  .card-header .btn-group,
+  .card-header .btn,
+  .card-header .badge,
+  .card-header > div:last-child {
+    margin-left: auto;
+    flex-shrink: 0;
   }
   
   .d-flex.align-items-center .btn {
     margin-right: 12px !important;
+  }
+  
+  /* Ensure badge stays with buttons */
+  .card-header .badge {
+    white-space: nowrap;
   }
   
   /* Form title */
@@ -353,7 +407,7 @@
   }
   
   form h2 svg {
-    font-size: 1.25rem;
+    font-size: 1.25rem !important;
   }
   
   form p.text-muted {
@@ -621,3 +675,4 @@
     border: 1px solid #ddd;
   }
 }
+

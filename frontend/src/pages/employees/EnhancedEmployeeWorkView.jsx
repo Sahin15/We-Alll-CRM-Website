@@ -32,6 +32,7 @@ import { useAuth } from '../../context/AuthContext';
 import workCalendarApi from '../../api/workCalendarApi';
 import workItemApi from '../../api/workItemApi';
 import projectApi from '../../api/projectApi';
+import clientApi from '../../api/clientApi';
 import EmployeeWorkCalendar from '../../components/calendar/EmployeeWorkCalendar';
 import EmployeeWorkLogsTab from '../../components/worklog/EmployeeWorkLogsTab';
 import moment from 'moment';
@@ -51,6 +52,7 @@ const EnhancedEmployeeWorkView = () => {
   const [workSummary, setWorkSummary] = useState(null);
   const [recentWork, setRecentWork] = useState([]);
   const [employeeProjects, setEmployeeProjects] = useState([]);
+  const [employeeClients, setEmployeeClients] = useState([]);
 
   const currentEmployeeId = userId || user?.id || user?._id;
   const isOwnProfile = currentEmployeeId === (user?.id || user?._id);
@@ -104,6 +106,18 @@ const EnhancedEmployeeWorkView = () => {
         projectsData = await projectApi.getProjectsForEmployee(currentEmployeeId);
       }
 
+      // Load clients for the employee
+      let clientsData = [];
+      try {
+        const clientsResponse = isOwnProfile 
+          ? await clientApi.getMyClients()
+          : await clientApi.getMyClients(); // Note: Backend will filter based on user context
+        clientsData = clientsResponse.data || clientsResponse;
+      } catch (error) {
+        console.error('Error loading clients:', error);
+        clientsData = [];
+      }
+
       const calendarData = calendarResponse.data?.data || calendarResponse.data;
       const workItemsData = workItemsResponse.data?.data || workItemsResponse.data;
 
@@ -111,6 +125,7 @@ const EnhancedEmployeeWorkView = () => {
       setWorkSummary(calendarData.analytics);
       setRecentWork(Array.isArray(workItemsData) ? workItemsData : []);
       setEmployeeProjects(Array.isArray(projectsData) ? projectsData : []);
+      setEmployeeClients(Array.isArray(clientsData) ? clientsData : []);
 
     } catch (error) {
       console.error('Error loading employee work data:', error);
@@ -1207,6 +1222,58 @@ const EnhancedEmployeeWorkView = () => {
                           <div className="text-center py-3">
                             <FaClock className="text-muted mb-2" size={24} />
                             <p className="text-muted mb-0 small">No recent activity</p>
+                          </div>
+                        )}
+                      </Card.Body>
+                    </Card>
+
+                    {/* Clients Overview */}
+                    <Card className="sidebar-card mb-4">
+                      <Card.Header className="bg-info text-white">
+                        <h6 className="mb-0">
+                          <FaUser className="me-2" />
+                          Clients
+                        </h6>
+                      </Card.Header>
+                      <Card.Body>
+                        <div className="text-center mb-3">
+                          <div className="display-4 text-info fw-bold">{employeeClients.length}</div>
+                          <small className="text-muted">Total Clients</small>
+                        </div>
+                        
+                        {employeeClients.length > 0 ? (
+                          <div>
+                            {employeeClients.slice(0, 5).map(client => {
+                              // Count projects for this client
+                              const clientProjects = employeeProjects.filter(p => 
+                                p.client?._id === client._id || p.client === client._id
+                              );
+                              return (
+                                <div key={client._id} className="d-flex justify-content-between align-items-start mb-2 p-2 bg-light rounded">
+                                  <div className="flex-grow-1 min-width-0">
+                                    <div className="small fw-semibold text-truncate">{client.name}</div>
+                                    <small className="text-muted d-block">
+                                      {clientProjects.length} project{clientProjects.length !== 1 ? 's' : ''}
+                                    </small>
+                                  </div>
+                                  {client.isVip && (
+                                    <Badge bg="warning" className="ms-2 small">VIP</Badge>
+                                  )}
+                                </div>
+                              );
+                            })}
+                            {employeeClients.length > 5 && (
+                              <div className="text-center mt-2">
+                                <small className="text-muted">
+                                  +{employeeClients.length - 5} more client{employeeClients.length - 5 !== 1 ? 's' : ''}
+                                </small>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-center py-3">
+                            <FaUser className="text-muted mb-2" size={24} />
+                            <p className="text-muted mb-0 small">No clients assigned yet</p>
                           </div>
                         )}
                       </Card.Body>

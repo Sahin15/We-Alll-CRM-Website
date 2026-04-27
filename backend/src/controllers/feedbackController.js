@@ -73,9 +73,35 @@ export const createFeedback = async (req, res) => {
       await feedback.populate('employee', 'name email');
     }
 
+    // Send notification to all admins/HR about new feedback
+    try {
+      const User = (await import("../models/userModel.js")).default;
+      const Notification = (await import("../models/notificationModel.js")).default;
+      const admins = await User.find({ role: { $in: ['admin', 'superadmin', 'hr'] } }).select('_id');
+      const submitterName = isAnonymousBool ? 'Anonymous' : (feedback.employee?.name || 'An employee');
+      const categoryLabel = category.replace(/_/g, ' ');
+
+      const notifDocs = admins.map(admin => ({
+        recipient: admin._id,
+        sender: isAnonymousBool ? null : employee,
+        title: `New Feedback: ${title}`,
+        body: `${submitterName} submitted a ${priority || 'medium'} priority ${categoryLabel}. Click to review.`,
+        type: 'feedback_submitted',
+        data: { feedbackId: feedback._id },
+        link: '/employee/announcements?tab=feedback',
+      }));
+
+      if (notifDocs.length > 0) {
+        await Notification.insertMany(notifDocs);
+      }
+    } catch (notifError) {
+      console.error('Failed to send feedback notification:', notifError.message);
+      // Don't fail the request if notification fails
+    }
+
     // Add hasUserUpvoted property
     const feedbackObj = feedback.toObject({ virtuals: true });
-    feedbackObj.hasUserUpvoted = false; // New feedback, user hasn't upvoted yet
+    feedbackObj.hasUserUpvoted = false;
 
     res.status(201).json({
       message: "Feedback submitted successfully",

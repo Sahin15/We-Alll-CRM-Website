@@ -1,17 +1,21 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Container, Row, Col, Card, Button, Badge, Form, Alert, Spinner, Table, Tabs, Tab, Modal } from "react-bootstrap";
-import { FaCheck, FaTimes, FaMoneyBillWave, FaCheckSquare } from "react-icons/fa";
+import { FaCheck, FaTimes, FaMoneyBillWave } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import { getAllExpenses, markAsReimbursed, bulkApproveExpenses, bulkRejectExpenses } from "../../api/expenseApi";
 import toast from "../../utils/toast";
 import { formatDate, formatCurrency } from "../../utils/helpers";
+import { getTypeColor } from "../../utils/expenseConstants";
 
 const ExpenseManagement = () => {
+  const navigate = useNavigate();
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   const [filters, setFilters] = useState({
     status: "all",
-    category: "all",
+    expensePurpose: "all",
+    expenseType: "all",
     startDate: "",
     endDate: "",
   });
@@ -40,8 +44,12 @@ const ExpenseManagement = () => {
         params.status = filters.status;
       }
 
-      if (filters.category !== "all") {
-        params.category = filters.category;
+      if (filters.expensePurpose !== "all") {
+        params.expensePurpose = filters.expensePurpose;
+      }
+
+      if (filters.expenseType !== "all") {
+        params.expenseType = filters.expenseType;
       }
 
       if (filters.startDate) {
@@ -148,29 +156,6 @@ const ExpenseManagement = () => {
     }
   };
 
-  const getCategoryBadge = (category) => {
-    const colors = {
-      travel: "primary",
-      food: "success",
-      accommodation: "info",
-      office_supplies: "warning",
-      client_meeting: "danger",
-      training: "secondary",
-      other: "light",
-    };
-    return colors[category] || "light";
-  };
-
-  const getStatusBadge = (status) => {
-    const colors = {
-      pending: "warning",
-      approved: "info",
-      rejected: "danger",
-      reimbursed: "success",
-    };
-    return colors[status] || "light";
-  };
-
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters((prev) => ({
@@ -178,6 +163,10 @@ const ExpenseManagement = () => {
       [name]: value,
     }));
     setPage(1);
+  };
+
+  const handleRowClick = (expenseId) => {
+    navigate(`/expenses/details/${expenseId}`);
   };
 
   if (loading && expenses.length === 0) {
@@ -204,26 +193,51 @@ const ExpenseManagement = () => {
       {/* Filters */}
       <Card className="mb-4 p-3">
         <Row>
-          <Col md={3}>
+          <Col md={2}>
             <Form.Group>
-              <Form.Label>Category</Form.Label>
+              <Form.Label>Purpose</Form.Label>
               <Form.Select
-                name="category"
-                value={filters.category}
+                name="expensePurpose"
+                value={filters.expensePurpose}
                 onChange={handleFilterChange}
               >
-                <option value="all">All Categories</option>
-                <option value="travel">Travel</option>
-                <option value="food">Food</option>
-                <option value="accommodation">Accommodation</option>
-                <option value="office_supplies">Office Supplies</option>
-                <option value="client_meeting">Client Meeting</option>
+                <option value="all">All Purposes</option>
+                <option value="internal_office">Internal Office</option>
+                <option value="existing_client">Existing Client</option>
+                <option value="prospective_client">Prospective Client</option>
+                <option value="seminar">Seminar</option>
+                <option value="expo">Expo</option>
+                <option value="vendor_meeting">Vendor Meeting</option>
+                <option value="recruitment">Recruitment</option>
                 <option value="training">Training</option>
-                <option value="other">Other</option>
+                <option value="marketing_activity">Marketing Activity</option>
+                <option value="team_activity">Team Activity</option>
+                <option value="travel_visit">Travel Visit</option>
               </Form.Select>
             </Form.Group>
           </Col>
-          <Col md={3}>
+          <Col md={2}>
+            <Form.Group>
+              <Form.Label>Type</Form.Label>
+              <Form.Select
+                name="expenseType"
+                value={filters.expenseType}
+                onChange={handleFilterChange}
+              >
+                <option value="all">All Types</option>
+                <option value="food">Food</option>
+                <option value="travel">Travel</option>
+                <option value="hotel">Hotel</option>
+                <option value="transport">Transport</option>
+                <option value="materials">Materials</option>
+                <option value="entry_fee">Entry Fee</option>
+                <option value="gift">Gift</option>
+                <option value="printing">Printing</option>
+                <option value="miscellaneous">Miscellaneous</option>
+              </Form.Select>
+            </Form.Group>
+          </Col>
+          <Col md={2}>
             <Form.Group>
               <Form.Label>Start Date</Form.Label>
               <Form.Control
@@ -234,7 +248,7 @@ const ExpenseManagement = () => {
               />
             </Form.Group>
           </Col>
-          <Col md={3}>
+          <Col md={2}>
             <Form.Group>
               <Form.Label>End Date</Form.Label>
               <Form.Control
@@ -245,14 +259,15 @@ const ExpenseManagement = () => {
               />
             </Form.Group>
           </Col>
-          <Col md={3} className="d-flex align-items-end">
+          <Col md={2} className="d-flex align-items-end">
             <Button
               variant="outline-secondary"
               className="w-100"
               onClick={() => {
                 setFilters({
                   status: "all",
-                  category: "all",
+                  expensePurpose: "all",
+                  expenseType: "all",
                   startDate: "",
                   endDate: "",
                 });
@@ -339,7 +354,8 @@ const ExpenseManagement = () => {
                     />
                   </th>
                   <th>Employee</th>
-                  <th>Category</th>
+                  <th>Purpose</th>
+                  <th>Type</th>
                   <th>Amount</th>
                   <th>Date</th>
                   <th>Status</th>
@@ -349,37 +365,47 @@ const ExpenseManagement = () => {
               </thead>
               <tbody>
                 {expenses.map((expense) => (
-                  <tr key={expense._id}>
-                    <td>
+                  <tr 
+                    key={expense._id}
+                    className="expense-row"
+                  >
+                    <td onClick={(e) => e.stopPropagation()}>
                       <Form.Check
                         type="checkbox"
                         checked={selectedExpenses.has(expense._id)}
                         onChange={() => handleSelectExpense(expense._id)}
                       />
                     </td>
-                    <td>
+                    <td onClick={() => handleRowClick(expense._id)}>
                       <strong>{expense.employee?.name}</strong>
                       <br />
                       <small className="text-muted">{expense.employee?.email}</small>
                     </td>
-                    <td>
-                      <Badge bg={getCategoryBadge(expense.category)}>
-                        {expense.category.replace(/_/g, " ")}
+                    <td onClick={() => handleRowClick(expense._id)}>
+                      <Badge bg="secondary">
+                        {expense.expensePurpose || "N/A"}
                       </Badge>
                     </td>
-                    <td>
+                    <td onClick={() => handleRowClick(expense._id)}>
+                      <Badge bg={getTypeColor(expense.expenseType || expense.category)}>
+                        {(expense.expenseType || expense.category || "N/A").replace(/_/g, " ")}
+                      </Badge>
+                    </td>
+                    <td onClick={() => handleRowClick(expense._id)}>
                       <strong>{formatCurrency(expense.amount)}</strong>
                     </td>
-                    <td>{formatDate(expense.date)}</td>
-                    <td>
-                      <Badge bg={getStatusBadge(expense.status)}>
+                    <td onClick={() => handleRowClick(expense._id)}>
+                      {formatDate(expense.date)}
+                    </td>
+                    <td onClick={() => handleRowClick(expense._id)}>
+                      <Badge bg={expense.status === "pending" ? "warning" : expense.status === "approved" ? "info" : expense.status === "rejected" ? "danger" : "success"}>
                         {expense.status}
                       </Badge>
                     </td>
-                    <td>
+                    <td onClick={() => handleRowClick(expense._id)}>
                       <small>{expense.description.substring(0, 30)}...</small>
                     </td>
-                    <td>
+                    <td onClick={(e) => e.stopPropagation()}>
                       {expense.status === "approved" && (
                         <Button
                           variant="success"

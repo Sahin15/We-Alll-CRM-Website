@@ -1172,10 +1172,26 @@ export const addTeamMember = async (req, res) => {
     const { projectId } = req.params;
     const { userId, role } = req.body;
 
+    // Check if user is authenticated
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated",
+      });
+    }
+
     if (!userId) {
       return res.status(400).json({
         success: false,
         message: "User ID is required",
+      });
+    }
+
+    // Validate userId is a valid MongoDB ObjectId
+    if (!userId.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid User ID format",
       });
     }
 
@@ -1185,6 +1201,11 @@ export const addTeamMember = async (req, res) => {
         success: false,
         message: "Project not found",
       });
+    }
+
+    // Ensure teamMembers array exists
+    if (!project.teamMembers) {
+      project.teamMembers = [];
     }
 
     const user = await User.findById(userId);
@@ -1197,13 +1218,26 @@ export const addTeamMember = async (req, res) => {
 
     // Check if user is already a team member
     const existingMember = project.teamMembers.find(
-      (member) => member.user.toString() === userId
+      (member) => (member.user?._id || member.user).toString() === userId.toString()
     );
 
     if (existingMember) {
       return res.status(400).json({
         success: false,
         message: "User is already a team member",
+      });
+    }
+
+    // Also check if already in assignedUsers
+    const userIdString = userId.toString();
+    const isAlreadyAssigned = project.assignedUsers?.some(
+      (id) => (id?._id || id).toString() === userIdString
+    );
+    
+    if (isAlreadyAssigned) {
+      return res.status(400).json({
+        success: false,
+        message: "User is already assigned to this project",
       });
     }
 
@@ -1216,15 +1250,38 @@ export const addTeamMember = async (req, res) => {
     });
 
     // Also add to assignedUsers for backward compatibility
-    const userIdString = userId.toString();
-    const isAlreadyAssigned = project.assignedUsers.some(
-      (id) => id.toString() === userIdString
-    );
+    if (!project.assignedUsers) {
+      project.assignedUsers = [];
+    }
+    
     if (!isAlreadyAssigned) {
       project.assignedUsers.push(userId);
     }
 
-    await project.save();
+    // Validate before saving
+    const validationError = project.validateSync();
+    if (validationError) {
+      console.error("Validation error:", validationError);
+      const errorMessages = Object.values(validationError.errors)
+        .map(err => err.message)
+        .join(', ');
+      return res.status(400).json({
+        success: false,
+        message: "Validation error: " + errorMessages,
+        details: validationError.errors,
+      });
+    }
+
+    try {
+      await project.save();
+    } catch (saveError) {
+      console.error("Save error:", saveError);
+      return res.status(400).json({
+        success: false,
+        message: "Error saving project: " + saveError.message,
+        details: saveError,
+      });
+    }
 
     // Update user's assignedProjects array
     await User.findByIdAndUpdate(userId, {
@@ -1242,6 +1299,13 @@ export const addTeamMember = async (req, res) => {
       data: updatedProject,
     });
   } catch (error) {
+    console.error("Error in addTeamMember:", {
+      message: error.message,
+      stack: error.stack,
+      projectId: req.params.projectId,
+      userId: req.body.userId,
+      reqUser: req.user?._id
+    });
     
     res.status(500).json({
       success: false,

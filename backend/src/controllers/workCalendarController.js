@@ -4639,6 +4639,7 @@ export const getSlotById = async (req, res) => {
     const slot = await Slot.findById(slotId)
       .populate('project', 'name client')
       .populate('assignedTo', 'name email')
+      .populate('assignedToMultiple', 'name email')
       .populate('createdBy', 'name email');
 
     if (!slot) {
@@ -4699,6 +4700,7 @@ export const updateSlot = async (req, res) => {
     const updatedSlot = await Slot.findById(slotId)
       .populate('project', 'name client')
       .populate('assignedTo', 'name email')
+      .populate('assignedToMultiple', 'name email')
       .populate('createdBy', 'name email');
 
     res.json({

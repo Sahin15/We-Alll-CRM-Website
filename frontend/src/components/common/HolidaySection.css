@@ -44,7 +44,7 @@
   }
   
   .holiday-card h6 {
-    font-size: 0.9rem;
+    font-size: 0.9rem !important;
   }
 }
 

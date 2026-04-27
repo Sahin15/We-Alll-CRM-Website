@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Container, Row, Col, Card, Button, Form, Alert, Spinner, Table, Badge, Modal } from "react-bootstrap";
-import { FaArrowLeft, FaEdit, FaSave, FaTimes, FaPlus } from "react-icons/fa";
+import { Container, Row, Col, Card, Button, Form, Alert, Spinner, Table, Badge } from "react-bootstrap";
+import { FaArrowLeft, FaDownload } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { getAllBudgets, setBudget, setBulkBudgets, getFinancialYears } from "../../api/expenseApi";
+import { getFinancialYears, getCategoryStats } from "../../api/expenseApi";
 import { useAuth } from "../../context/AuthContext";
 import toast from "../../utils/toast";
-import { formatDate } from "../../utils/helpers";
+import { getPurposeLabel, getTypeLabel } from "../../utils/expenseConstants";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import "./ExpenseManagement.css";
 
 const BudgetManagement = () => {
@@ -13,12 +14,12 @@ const BudgetManagement = () => {
   const { user } = useAuth();
   
   // Role-based access control
-  if (!user || (user.role !== "admin" && user.role !== "superadmin")) {
+  if (!user || (user.role !== "admin" && user.role !== "superadmin" && user.role !== "hr" && user.role !== "manager")) {
     return (
       <Container className="py-5 text-center">
         <Alert variant="danger">
           <h4>Access Denied</h4>
-          <p>You don't have permission to access Budget Management. Only Admin and Super Admin can manage budgets.</p>
+          <p>You don't have permission to access Expense Tracking. Only Admin, Super Admin, HR, and Managers can view expense reports.</p>
           <Button variant="outline-secondary" onClick={() => navigate(-1)}>
             <FaArrowLeft className="me-2" />
             Go Back
@@ -28,28 +29,13 @@ const BudgetManagement = () => {
     );
   }
 
-  const [budgets, setBudgets] = useState([]);
+  const [categoryExpenses, setCategoryExpenses] = useState([]);
   const [financialYears, setFinancialYears] = useState([]);
   const [selectedFinancialYear, setSelectedFinancialYear] = useState("");
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({
-    category: "",
-    limit: "",
-    description: "",
-  });
+  const [chartData, setChartData] = useState([]);
 
-  const CATEGORIES = [
-    { value: "travel", label: "Travel" },
-    { value: "food", label: "Food & Meals" },
-    { value: "accommodation", label: "Accommodation" },
-    { value: "office_supplies", label: "Office Supplies" },
-    { value: "client_meeting", label: "Client Meeting" },
-    { value: "training", label: "Training" },
-    { value: "other", label: "Other" },
-  ];
+  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8", "#82CA9D", "#FFC658"];
 
   useEffect(() => {
     fetchFinancialYears();
@@ -57,7 +43,7 @@ const BudgetManagement = () => {
 
   useEffect(() => {
     if (selectedFinancialYear) {
-      fetchBudgets();
+      fetchExpenseData();
     }
   }, [selectedFinancialYear]);
 
@@ -72,85 +58,40 @@ const BudgetManagement = () => {
     }
   };
 
-  const fetchBudgets = async () => {
+  const fetchExpenseData = async () => {
     try {
       setLoading(true);
-      const response = await getAllBudgets({ financialYear: selectedFinancialYear });
-      setBudgets(response.budgets || []);
+      
+      // Get category-wise expense statistics
+      const response = await getCategoryStats({ financialYear: selectedFinancialYear });
+      const stats = response.categoryStats || [];
+      
+      // Transform data for display
+      setCategoryExpenses(stats);
+      
+      // Prepare chart data
+      const chartData = stats.map(stat => ({
+        name: `${getPurposeLabel(stat._id.purpose)} - ${getTypeLabel(stat._id.type)}`,
+        total: stat.total || 0,
+        count: stat.count || 0,
+        average: stat.count > 0 ? (stat.total / stat.count).toFixed(2) : 0
+      }));
+      
+      setChartData(chartData);
     } catch (error) {
-      console.error("Error fetching budgets:", error);
-      toast.error("Failed to load budgets");
+      console.error("Error fetching expense data:", error);
+      toast.error("Failed to load expense data");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOpenModal = (budget = null) => {
-    if (budget) {
-      setEditingId(budget._id);
-      setFormData({
-        category: budget.category,
-        limit: budget.limit,
-        description: budget.description,
-      });
-    } else {
-      setEditingId(null);
-      setFormData({
-        category: "",
-        limit: "",
-        description: "",
-      });
-    }
-    setShowModal(true);
+  const getTotalExpenses = () => {
+    return categoryExpenses.reduce((sum, cat) => sum + (cat.total || 0), 0);
   };
 
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setEditingId(null);
-    setFormData({
-      category: "",
-      limit: "",
-      description: "",
-    });
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleSaveBudget = async () => {
-    try {
-      if (!formData.category || !formData.limit) {
-        toast.warning("Please fill in all required fields");
-        return;
-      }
-
-      if (parseFloat(formData.limit) < 0) {
-        toast.warning("Budget limit cannot be negative");
-        return;
-      }
-
-      setSubmitting(true);
-      await setBudget({
-        category: formData.category,
-        limit: parseFloat(formData.limit),
-        description: formData.description,
-        financialYear: selectedFinancialYear,
-      });
-
-      toast.success(`Budget for ${formData.category} updated successfully`);
-      handleCloseModal();
-      fetchBudgets();
-    } catch (error) {
-      console.error("Error saving budget:", error);
-      toast.error(error.response?.data?.message || "Failed to save budget");
-    } finally {
-      setSubmitting(false);
-    }
+  const getTotalCount = () => {
+    return categoryExpenses.reduce((sum, cat) => sum + (cat.count || 0), 0);
   };
 
   const formatCurrency = (amount) => {
@@ -160,9 +101,34 @@ const BudgetManagement = () => {
     }).format(amount);
   };
 
-  const getCategoryLabel = (category) => {
-    const cat = CATEGORIES.find((c) => c.value === category);
-    return cat ? cat.label : category;
+  const handleExportData = () => {
+    try {
+      // Create CSV content
+      let csvContent = "Purpose,Type,Total Expenses,Number of Expenses,Average Expense\n";
+      
+      categoryExpenses.forEach(cat => {
+        const avg = cat.count > 0 ? (cat.total / cat.count).toFixed(2) : 0;
+        csvContent += `"${getPurposeLabel(cat._id.purpose)}","${getTypeLabel(cat._id.type)}",${cat.total},${cat.count},${avg}\n`;
+      });
+      
+      csvContent += `\nTotal,${getTotalExpenses()},${getTotalCount()},${getTotalCount() > 0 ? (getTotalExpenses() / getTotalCount()).toFixed(2) : 0}\n`;
+      
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `expense-tracking-${selectedFinancialYear}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast.success("Expense data exported successfully");
+    } catch (error) {
+      console.error("Error exporting data:", error);
+      toast.error("Failed to export data");
+    }
   };
 
   if (loading) {
@@ -189,7 +155,7 @@ const BudgetManagement = () => {
             <FaArrowLeft className="me-2" />
             Back
           </Button>
-          <h2 className="mb-0">Budget Management</h2>
+          <h2 className="mb-0">Expense Tracking</h2>
         </div>
         <div className="d-flex align-items-end gap-3">
           <div>
@@ -208,156 +174,140 @@ const BudgetManagement = () => {
           </div>
           <Button
             variant="primary"
-            onClick={() => handleOpenModal()}
+            onClick={handleExportData}
+            disabled={categoryExpenses.length === 0}
           >
-            <FaPlus className="me-2" />
-            Add Budget
+            <FaDownload className="me-2" />
+            Export CSV
           </Button>
         </div>
       </div>
 
       {/* Info Alert */}
       <Alert variant="info" className="mb-4">
-        <strong>Budget Management:</strong> Set spending limits for each expense category for the financial year (April to March). 
-        These limits will be used to track and alert when expenses exceed the budget. 
+        <strong>Expense Tracking:</strong> View total expenses by category for the financial year (April to March). 
+        This helps understand spending patterns before allocating budgets.
         <br />
         <small><strong>Current Financial Year:</strong> {selectedFinancialYear}</small>
       </Alert>
 
-      {/* Budgets Table */}
+      {/* Summary Cards */}
+      <Row className="mb-4">
+        <Col md={4}>
+          <Card className="shadow-sm">
+            <Card.Body>
+              <h6 className="text-muted mb-3">Total Expenses</h6>
+              <h3 className="mb-0">{formatCurrency(getTotalExpenses())}</h3>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={4}>
+          <Card className="shadow-sm">
+            <Card.Body>
+              <h6 className="text-muted mb-3">Total Transactions</h6>
+              <h3 className="mb-0">{getTotalCount()}</h3>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={4}>
+          <Card className="shadow-sm">
+            <Card.Body>
+              <h6 className="text-muted mb-3">Average Expense</h6>
+              <h3 className="mb-0">
+                {getTotalCount() > 0 ? formatCurrency(getTotalExpenses() / getTotalCount()) : "₹0"}
+              </h3>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Chart */}
+      {chartData.length > 0 && (
+        <Card className="shadow-sm mb-4">
+          <Card.Header className="bg-light">
+            <h6 className="mb-0">Expenses by Category</h6>
+          </Card.Header>
+          <Card.Body>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
+                <YAxis />
+                <Tooltip formatter={(value) => formatCurrency(value)} />
+                <Legend />
+                <Bar dataKey="total" fill="#0088FE" name="Total Expenses" />
+              </BarChart>
+            </ResponsiveContainer>
+          </Card.Body>
+        </Card>
+      )}
+
+      {/* Category Breakdown Table */}
       <Card className="shadow-sm">
         <Card.Header className="bg-light">
-          <h6 className="mb-0">Category Budgets</h6>
+          <h6 className="mb-0">Category Breakdown</h6>
         </Card.Header>
         <Card.Body>
-          {budgets.length === 0 ? (
+          {categoryExpenses.length === 0 ? (
             <Alert variant="info" className="mb-0">
-              No budgets configured yet. Click "Add Budget" to create one.
+              No expenses recorded for the selected financial year.
             </Alert>
           ) : (
             <div className="table-responsive">
               <Table hover className="mb-0">
                 <thead className="table-light">
                   <tr>
-                    <th>Category</th>
-                    <th>Budget Limit</th>
-                    <th>Description</th>
-                    <th>Last Updated</th>
-                    <th>Updated By</th>
-                    <th>Actions</th>
+                    <th>Purpose</th>
+                    <th>Type</th>
+                    <th className="text-end">Total Expenses</th>
+                    <th className="text-end">Number of Expenses</th>
+                    <th className="text-end">Average Expense</th>
+                    <th className="text-end">% of Total</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {budgets.map((budget) => (
-                    <tr key={budget._id}>
-                      <td>
-                        <Badge bg="primary">
-                          {getCategoryLabel(budget.category)}
-                        </Badge>
-                      </td>
-                      <td>
-                        <strong>{formatCurrency(budget.limit)}</strong>
-                      </td>
-                      <td>
-                        <small>{budget.description || "-"}</small>
-                      </td>
-                      <td>
-                        <small>
-                          {formatDate(budget.updatedAt)}
-                        </small>
-                      </td>
-                      <td>
-                        <small>{budget.updatedBy?.name || "-"}</small>
-                      </td>
-                      <td>
-                        <Button
-                          variant="outline-primary"
-                          size="sm"
-                          onClick={() => handleOpenModal(budget)}
-                          title="Edit Budget"
-                        >
-                          <FaEdit />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
+                  {categoryExpenses.map((cat, index) => {
+                    const percentage = getTotalExpenses() > 0 ? ((cat.total / getTotalExpenses()) * 100).toFixed(1) : 0;
+                    const average = cat.count > 0 ? (cat.total / cat.count).toFixed(2) : 0;
+                    
+                    return (
+                      <tr key={`${cat._id.purpose}-${cat._id.type}`}>
+                        <td>
+                          <Badge bg="primary" style={{ backgroundColor: COLORS[index % COLORS.length] }}>
+                            {getPurposeLabel(cat._id.purpose)}
+                          </Badge>
+                        </td>
+                        <td>
+                          <Badge bg="secondary">
+                            {getTypeLabel(cat._id.type)}
+                          </Badge>
+                        </td>
+                        <td className="text-end">
+                          <strong>{formatCurrency(cat.total)}</strong>
+                        </td>
+                        <td className="text-end">{cat.count}</td>
+                        <td className="text-end">{formatCurrency(average)}</td>
+                        <td className="text-end">
+                          <Badge bg="light" text="dark">{percentage}%</Badge>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr className="table-light fw-bold">
+                    <td colSpan="2">TOTAL</td>
+                    <td className="text-end">{formatCurrency(getTotalExpenses())}</td>
+                    <td className="text-end">{getTotalCount()}</td>
+                    <td className="text-end">
+                      {getTotalCount() > 0 ? formatCurrency(getTotalExpenses() / getTotalCount()) : "₹0"}
+                    </td>
+                    <td className="text-end">100%</td>
+                  </tr>
                 </tbody>
               </Table>
             </div>
           )}
         </Card.Body>
       </Card>
-
-      {/* Budget Form Modal */}
-      <Modal show={showModal} onHide={handleCloseModal} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>
-            {editingId ? "Edit Budget" : "Add New Budget"}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>Category *</Form.Label>
-              <Form.Select
-                name="category"
-                value={formData.category}
-                onChange={handleInputChange}
-                disabled={editingId !== null}
-              >
-                <option value="">Select a category</option>
-                {CATEGORIES.map((cat) => (
-                  <option key={cat.value} value={cat.value}>
-                    {cat.label}
-                  </option>
-                ))}
-              </Form.Select>
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Budget Limit (₹) *</Form.Label>
-              <Form.Control
-                type="number"
-                name="limit"
-                value={formData.limit}
-                onChange={handleInputChange}
-                placeholder="Enter budget limit"
-                min="0"
-                step="100"
-              />
-              <Form.Text className="text-muted">
-                Maximum amount that can be spent in this category
-              </Form.Text>
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Description</Form.Label>
-              <Form.Control
-                as="textarea"
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                placeholder="Enter budget description (optional)"
-                rows={3}
-              />
-            </Form.Group>
-          </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseModal}>
-            <FaTimes className="me-2" />
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleSaveBudget}
-            disabled={submitting}
-          >
-            <FaSave className="me-2" />
-            {submitting ? "Saving..." : "Save Budget"}
-          </Button>
-        </Modal.Footer>
-      </Modal>
     </Container>
   );
 };

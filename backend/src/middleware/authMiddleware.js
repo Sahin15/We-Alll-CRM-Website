@@ -21,7 +21,14 @@ export const protect = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({ message: "User not found" });
     }
-    
+
+    // Block terminated and offboarded employees from accessing the system
+    if (user.status === "terminated" || user.status === "offboarded") {
+      return res.status(403).json({
+        message: "Your account has been deactivated. Please contact HR.",
+      });
+    }
+
     // Set both _id and id for compatibility
     req.user = user;
     req.user.id = user._id.toString();
@@ -44,7 +51,7 @@ export const protect = async (req, res, next) => {
 };
 
 // Authorize middleware - check user role
-export const authorize = (...roles) => {
+export const authorizeRoles = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ message: "Not authenticated" });
@@ -59,4 +66,7 @@ export const authorize = (...roles) => {
     next();
   };
 };
+
+// Alias for backward compatibility
+export const authorize = authorizeRoles;
 

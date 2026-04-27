@@ -172,14 +172,46 @@ export const updateSalaryStructure = async (req, res) => {
       return res.status(404).json({ message: "Salary structure not found" });
     }
 
-    // Only allow updating draft structures
-    if (structure.status !== "draft") {
+    // Allow updating draft and active structures
+    // For active structures, we'll create a new version instead of modifying the current one
+    if (structure.status === "superseded") {
       return res.status(400).json({
-        message: "Cannot update active or superseded salary structures. Create a new revision instead.",
+        message: "Cannot update superseded salary structures.",
       });
     }
 
-    // Update fields
+    // If updating an active structure, create a new one instead
+    if (structure.status === "active") {
+      // Create a new structure with the updated values
+      const newStructure = new SalaryStructure({
+        employee: structure.employee,
+        effectiveFrom: req.body.effectiveFrom || structure.effectiveFrom,
+        basicSalary: req.body.basicSalary || structure.basicSalary,
+        hra: req.body.hra !== undefined ? req.body.hra : structure.hra,
+        specialAllowance: req.body.specialAllowance !== undefined ? req.body.specialAllowance : structure.specialAllowance,
+        transportAllowance: req.body.transportAllowance !== undefined ? req.body.transportAllowance : structure.transportAllowance,
+        medicalAllowance: req.body.medicalAllowance !== undefined ? req.body.medicalAllowance : structure.medicalAllowance,
+        otherAllowances: req.body.otherAllowances || structure.otherAllowances,
+        providentFund: req.body.providentFund !== undefined ? req.body.providentFund : structure.providentFund,
+        professionalTax: req.body.professionalTax !== undefined ? req.body.professionalTax : structure.professionalTax,
+        tds: req.body.tds !== undefined ? req.body.tds : structure.tds,
+        esi: req.body.esi !== undefined ? req.body.esi : structure.esi,
+        otherDeductions: req.body.otherDeductions || structure.otherDeductions,
+        notes: req.body.notes || structure.notes,
+        createdBy: req.user.id,
+        status: "draft", // New structure starts as draft
+      });
+
+      await newStructure.save();
+      await newStructure.populate("employee", "name email employeeId designation department");
+
+      return res.status(200).json({
+        message: "New salary structure version created. Please activate it to replace the current active structure.",
+        salaryStructure: newStructure,
+      });
+    }
+
+    // For draft structures, update directly
     Object.keys(req.body).forEach((key) => {
       if (req.body[key] !== undefined && key !== "employee") {
         structure[key] = req.body[key];

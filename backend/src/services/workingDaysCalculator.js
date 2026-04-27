@@ -108,28 +108,15 @@ class WorkingDaysCalculator {
    */
   async getHolidaysInMonth(month, year, departmentId = null) {
     try {
-      const startDate = new Date(year, month - 1, 1);
-      const endDate = new Date(year, month, 0);
+      // Use full day range to avoid timezone issues
+      // Start: first day of month at 00:00:00 UTC
+      // End: last day of month at 23:59:59 UTC
+      const startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
+      const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59));
 
-      // Build query for holidays
-      const query = {
-        date: {
-          $gte: startDate,
-          $lte: endDate
-        }
-      };
-
-      // If department specified, include department-specific holidays
-      if (departmentId) {
-        query.$or = [
-          { department: null }, // Company-wide holidays
-          { department: departmentId } // Department-specific holidays
-        ];
-      } else {
-        query.department = null; // Only company-wide holidays
-      }
-
-      const holidays = await Holiday.find(query).sort({ date: 1 });
+      const holidays = await Holiday.find({
+        date: { $gte: startDate, $lte: endDate }
+      }).sort({ date: 1 });
 
       const publicHolidays = [];
       const companyHolidays = [];
@@ -154,13 +141,7 @@ class WorkingDaysCalculator {
       };
     } catch (error) {
       console.error("Error getting holidays:", error);
-      // Return empty result on error to prevent calculation failure
-      return {
-        count: 0,
-        dates: [],
-        publicHolidays: [],
-        companyHolidays: []
-      };
+      return { count: 0, dates: [], publicHolidays: [], companyHolidays: [] };
     }
   }
 
@@ -208,26 +189,7 @@ class WorkingDaysCalculator {
    */
   async getWorkingDays(month, year, departmentId = null) {
     try {
-      // Try to get from cache first
-      const cached = await WorkingDaysCalendar.findOne({
-        month,
-        year,
-        department: departmentId
-      });
-
-      if (cached) {
-        return {
-          totalDays: cached.totalDays,
-          weekends: cached.weekends,
-          holidays: cached.holidays,
-          workingDays: cached.workingDays,
-          holidayDates: cached.holidayDates,
-          breakdown: cached.breakdown,
-          workPattern: cached.workPattern
-        };
-      }
-
-      // Calculate if not cached
+      // Always recalculate to ensure holidays are fresh
       return await this.calculateWorkingDays(month, year, departmentId);
     } catch (error) {
       console.error("Error getting working days:", error);

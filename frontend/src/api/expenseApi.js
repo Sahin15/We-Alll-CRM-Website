@@ -115,8 +115,8 @@ export const getBudgetTracking = async (params) => {
 };
 
 // Get category statistics
-export const getCategoryStats = async () => {
-  const response = await api.get("/expenses/category/stats");
+export const getCategoryStats = async (params = {}) => {
+  const response = await api.get("/expenses/category/stats", { params });
   return response.data;
 };
 

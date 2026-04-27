@@ -458,6 +458,44 @@ projectSchema.methods.recalculateSlotProgress = async function() {
   return this.save();
 };
 
+// Post-save middleware to automatically create slots for new projects
+projectSchema.post('save', async function(doc) {
+  try {
+    // Only create slots if:
+    // 1. Slot system is enabled
+    // 2. This is a new document (isNew flag)
+    // 3. autoCreateSlots is true
+    if (doc.slotConfiguration?.enableSlotSystem && 
+        doc.slotConfiguration?.autoCreateSlots && 
+        this.isNew) {
+      
+      // Import slot management service
+      const slotManagementService = (await import('../services/slotManagementService.js')).default;
+      
+      try {
+        // Create slots for current month
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1;
+        
+        await slotManagementService.createMonthlySlotsForProject(
+          doc._id,
+          year,
+          month,
+          {
+            count: doc.slotConfiguration.totalSlots || 20,
+            createdBy: doc.projectHead || doc.createdBy
+          }
+        );
+      } catch (slotError) {
+        // Log error but don't fail project creation
+      }
+    }
+  } catch (error) {
+    // Silently fail - don't interrupt project creation
+  }
+});
+
 // Ensure virtuals are included in JSON
 projectSchema.set('toJSON', { virtuals: true });
 projectSchema.set('toObject', { virtuals: true });

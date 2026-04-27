@@ -328,7 +328,7 @@
 }
 /* Comment System Styles */
 .comments-list {
-  max-height: 400px;
+  max-height: 500px;
   overflow-y: auto;
   padding-right: 8px;
 }
@@ -571,9 +571,102 @@
 
 /* Activity Timeline Styles */
 .activity-timeline {
-  max-height: 600px;
+  max-height: 800px;
   overflow-y: auto;
   padding-right: 8px;
+}
+
+/* Work Item Modal Backdrop */
+.work-item-modal-backdrop {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 9998 !important;
+}
+
+/* Work Item Modal Custom Styling */
+.work-item-modal {
+  max-width: 90vw !important;
+  width: 90vw !important;
+  margin: 0 auto !important;
+  height: auto !important;
+}
+
+.work-item-modal-content {
+  max-width: 90vw !important;
+  width: 90vw !important;
+  max-height: 90vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  height: auto !important;
+}
+
+/* Target the modal dialog directly */
+.modal-dialog.work-item-modal {
+  max-width: 90vw !important;
+  width: 90vw !important;
+  margin: 0 auto !important;
+  height: auto !important;
+}
+
+.modal-content.work-item-modal-content {
+  max-height: 90vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  width: 90vw !important;
+}
+
+.modal-content.work-item-modal-content .modal-body {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  max-height: calc(90vh - 120px) !important;
+}
+
+/* Override Bootstrap modal defaults globally for this modal */
+.work-item-modal .modal-dialog {
+  max-width: 90vw !important;
+  width: 90vw !important;
+}
+
+.work-item-modal-content {
+  max-width: 90vw !important;
+  width: 90vw !important;
+}
+
+/* Force wide modal on all screen sizes for work item modal */
+@media (min-width: 576px) {
+  .modal-dialog.work-item-modal,
+  .work-item-modal .modal-dialog {
+    max-width: 90vw !important;
+    width: 90vw !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+  
+  .modal-content.work-item-modal-content {
+    max-width: 90vw !important;
+    width: 90vw !important;
+    max-height: 90vh !important;
+  }
+}
+
+/* Desktop override - ensure modal is wide on desktop */
+@media (min-width: 1200px) {
+  .work-item-modal,
+  .work-item-modal .modal-dialog,
+  .modal-dialog.work-item-modal {
+    max-width: 90vw !important;
+    width: 90vw !important;
+  }
+  
+  .work-item-modal-content,
+  .modal-content.work-item-modal-content {
+    max-height: 90vh !important;
+    max-width: 90vw !important;
+    width: 90vw !important;
+  }
 }
 
 .activity-timeline::-webkit-scrollbar {

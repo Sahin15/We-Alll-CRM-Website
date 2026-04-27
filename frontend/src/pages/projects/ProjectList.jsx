@@ -161,6 +161,7 @@ const ProjectList = () => {
     const active = projects.filter(p => p.status === 'In Progress' || p.status === 'Active').length;
     const completed = projects.filter(p => p.status === 'Completed').length;
     const onHold = projects.filter(p => p.status === 'On Hold').length;
+    const cancelled = projects.filter(p => p.status === 'Cancelled').length;
     
     // Calculate overdue projects
     const today = new Date();
@@ -169,7 +170,7 @@ const ProjectList = () => {
       return new Date(p.endDate) < today;
     }).length;
 
-    return { total, active, completed, onHold, overdue };
+    return { total, active, completed, onHold, cancelled, overdue };
   }, [projects]);
 
   // Filter and sort projects
@@ -366,6 +367,23 @@ const ProjectList = () => {
               </div>
               <h3 className="mb-1 fw-bold text-warning">{stats.onHold}</h3>
               <small className="text-muted">On Hold</small>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col lg={2} md={4} sm={6}>
+          <Card 
+            className={`border-0 shadow-sm h-100 ${filterStatus === 'Cancelled' ? 'border-danger border-3' : ''}`}
+            style={{ borderLeft: '4px solid #dc3545', cursor: 'pointer', transition: 'all 0.2s' }}
+            onClick={() => setFilterStatus('Cancelled')}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            <Card.Body className="text-center py-3">
+              <div className="mb-2">
+                <FaTrash style={{ fontSize: '2rem', color: '#dc3545' }} />
+              </div>
+              <h3 className="mb-1 fw-bold text-danger">{stats.cancelled}</h3>
+              <small className="text-muted">Cancelled</small>
             </Card.Body>
           </Card>
         </Col>

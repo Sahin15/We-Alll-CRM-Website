@@ -9,16 +9,21 @@ import {
   FaCheckCircle, FaSave, FaMapMarkerAlt,
   FaIdCard, FaBriefcase, FaUser, FaHome,
   FaFileUpload, FaDownload, FaEye, FaEyeSlash, FaTrash, FaPlus, FaFileAlt,
-  FaUniversity, FaArrowLeft, FaMoneyBillWave
+  FaUniversity, FaArrowLeft, FaMoneyBillWave, FaCheck, FaTimes, FaClock
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate, useParams } from "react-router-dom";
 import ProfilePictureUpload from "../profile/ProfilePictureUpload";
 import ProfilePictureDisplay from "../profile/ProfilePictureDisplay";
 import EmployeeSalaryInfo from "../salary/EmployeeSalaryInfo";
+import DocumentVerificationModal from "./DocumentVerificationModal";
 import api from "../../services/api";
 import { salaryStructureApi } from "../../api/salaryApi";
+import { documentApi } from "../../api/documentApi";
 import toast from "../../utils/toast";
+import { generateNewEmployeeId } from "../../utils/employeeIdGenerator";
+import StatusBadge from "./StatusBadge";
+import StatusChangeModal from "./StatusChangeModal";
 import "../../styles/pages-mobile.css";
 import "../../styles/modal-mobile.css";
 
@@ -63,6 +68,14 @@ const EmployeeProfileManagement = () => {
 
   const [salaryStructure, setSalaryStructure] = useState(null);
   const [showSalary, setShowSalary] = useState(false);
+
+  // Document verification states
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [selectedDocumentForVerification, setSelectedDocumentForVerification] = useState(null);
+  const [verificationLoading, setVerificationLoading] = useState(false);
+
+  // Status change modal state
+  const [showStatusModal, setShowStatusModal] = useState(false);
 
   // Common designations list
   const commonDesignations = [
@@ -288,6 +301,7 @@ const EmployeeProfileManagement = () => {
         updateData = {
           name: document.getElementById('personal-name')?.value || user?.name,
           phone: document.getElementById('personal-phone')?.value || user?.phone,
+          personalEmail: document.getElementById('personal-personalEmail')?.value || user?.personalEmail || '',
           dateOfBirth: document.getElementById('personal-dob')?.value || user?.dateOfBirth,
           gender: document.getElementById('personal-gender')?.value || user?.gender,
           bloodGroup: document.getElementById('personal-bloodGroup')?.value || user?.bloodGroup,
@@ -338,7 +352,6 @@ const EmployeeProfileManagement = () => {
           funBadge: document.getElementById('job-funBadge')?.value || user?.funBadge,
           reportingManager: document.getElementById('job-reportingManager')?.value || null,
           workLocation: document.getElementById('job-workLocation')?.value || user?.workLocation,
-          status: document.getElementById('job-status')?.value || user?.status,
         };
 
         // Add internship details if employment type is intern
@@ -429,6 +442,37 @@ const EmployeeProfileManagement = () => {
     }
   };
 
+  const handleGenerateEmployeeId = async () => {
+    try {
+      const joiningDate = document.getElementById('job-joiningDate')?.value;
+      const employmentType = document.getElementById('job-employmentType')?.value;
+
+      if (!joiningDate) {
+        toast.error('Please set the joining date first');
+        return;
+      }
+
+      if (employmentType !== 'full-time') {
+        toast.error('Only permanent (full-time) employees can be assigned an employee ID');
+        return;
+      }
+
+      // Generate the employee ID
+      const generatedId = await generateNewEmployeeId(joiningDate, employmentType);
+      
+      // Set the generated ID in the input field
+      const employeeIdInput = document.getElementById('job-employeeId');
+      if (employeeIdInput) {
+        employeeIdInput.value = generatedId;
+      }
+
+      toast.success(`Employee ID generated: ${generatedId}`);
+    } catch (error) {
+      console.error('Error generating employee ID:', error);
+      toast.error(error.message || 'Failed to generate employee ID');
+    }
+  };
+
   const handleDocumentUpload = async () => {
     try {
       if (!documentForm.file || !documentForm.category) {
@@ -475,6 +519,17 @@ const EmployeeProfileManagement = () => {
 
   const handleDocumentView = async (doc) => {
     try {
+      // If the document path is an S3 URL, use it directly
+      if (doc.path && doc.path.startsWith('https://')) {
+        setViewingDocument({
+          ...doc,
+          url: doc.path
+        });
+        setShowDocumentViewer(true);
+        return;
+      }
+
+      // Otherwise, download from the API endpoint
       const response = await api.get(`/users/documents/${doc._id}/download`, {
         responseType: 'blob'
       });
@@ -497,7 +552,8 @@ const EmployeeProfileManagement = () => {
       } else if (error.response?.status === 403) {
         errorMessage = 'Access denied to view this document.';
       } else if (error.response?.status === 404) {
-        errorMessage = 'Document file not found on server. The file may have been uploaded on a different machine or deleted. Please ask the employee to re-upload this document.';
+        // Use detailed error message from backend if available
+        errorMessage = error.response?.data?.details || error.response?.data?.message || 'Document file not found on server. Please ask the employee to re-upload this document.';
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       }
@@ -508,6 +564,19 @@ const EmployeeProfileManagement = () => {
 
   const handleDocumentDownload = async (doc) => {
     try {
+      // If the document path is an S3 URL, download directly from S3
+      if (doc.path && doc.path.startsWith('https://')) {
+        const link = window.document.createElement('a');
+        link.href = doc.path;
+        link.setAttribute('download', doc.originalName);
+        window.document.body.appendChild(link);
+        link.click();
+        link.remove();
+        toast.success('Document downloaded successfully');
+        return;
+      }
+
+      // Otherwise, download from the API endpoint
       const response = await api.get(`/users/documents/${doc._id}/download`, {
         responseType: 'blob'
       });
@@ -531,7 +600,7 @@ const EmployeeProfileManagement = () => {
       } else if (error.response?.status === 403) {
         errorMessage = 'Access denied to download this document.';
       } else if (error.response?.status === 404) {
-        errorMessage = 'Document file not found on server. The file may have been uploaded on a different machine or deleted. Please ask the employee to re-upload this document.';
+        errorMessage = 'Document file not found on server. Please ask the employee to re-upload this document.';
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       }
@@ -546,6 +615,53 @@ const EmployeeProfileManagement = () => {
     }
     setViewingDocument(null);
     setShowDocumentViewer(false);
+  };
+
+  const handleApproveDocument = async (documentId) => {
+    setVerificationLoading(true);
+    try {
+      await documentApi.approveDocument(documentId);
+      toast.success('Document approved successfully');
+      
+      // Refresh documents before closing modal
+      await fetchDocuments();
+      
+      setShowVerificationModal(false);
+      setSelectedDocumentForVerification(null);
+    } catch (error) {
+      console.error('Error approving document:', error);
+      toast.error(error.response?.data?.message || 'Failed to approve document');
+    } finally {
+      setVerificationLoading(false);
+    }
+  };
+
+  const handleRejectDocument = async (documentId, reason) => {
+    setVerificationLoading(true);
+    try {
+      await documentApi.rejectDocument(documentId, reason);
+      toast.success('Document rejected successfully');
+      
+      // Refresh documents before closing modal
+      await fetchDocuments();
+      
+      setShowVerificationModal(false);
+      setSelectedDocumentForVerification(null);
+    } catch (error) {
+      console.error('Error rejecting document:', error);
+      toast.error(error.response?.data?.message || 'Failed to reject document');
+    } finally {
+      setVerificationLoading(false);
+    }
+  };
+
+  const getVerificationStatusBadge = (status) => {
+    const statusConfig = {
+      pending: { bg: 'warning', icon: <FaClock />, text: 'Pending' },
+      approved: { bg: 'success', icon: <FaCheck />, text: 'Approved' },
+      rejected: { bg: 'danger', icon: <FaTimes />, text: 'Rejected' }
+    };
+    return statusConfig[status] || statusConfig.pending;
   };
 
   const getRoleBadge = (role, funBadge) => {
@@ -695,47 +811,65 @@ const EmployeeProfileManagement = () => {
               
               {typeDocs.length > 0 ? (
                 <div className="small">
-                  {typeDocs.map((doc, index) => (
-                    <div key={doc._id} className="d-flex justify-content-between align-items-center py-2 px-2 mb-1 bg-light rounded border">
-                      <div className="flex-grow-1 me-2">
-                        <div className="fw-semibold text-truncate">{doc.originalName}</div>
-                        <small className="text-muted">
-                          {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString('en-GB') : 'Unknown date'}
-                        </small>
-                      </div>
-                      <div className="d-flex gap-1 flex-shrink-0">
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          className="px-2 py-1"
-                          onClick={() => handleDocumentView(doc)}
-                          title="View Document"
-                        >
-                          <FaEye />
-                        </Button>
-                        <Button
-                          variant="outline-success"
-                          size="sm"
-                          className="px-2 py-1"
-                          onClick={() => handleDocumentDownload(doc)}
-                          title="Download Document"
-                        >
-                          <FaDownload />
-                        </Button>
-                        {canEdit && (
+                  {typeDocs.map((doc, index) => {
+                    const verificationStatus = getVerificationStatusBadge(doc.verificationStatus || 'pending');
+                    return (
+                      <div key={doc._id} className="d-flex justify-content-between align-items-start py-2 px-2 mb-1 bg-light rounded border">
+                        <div className="flex-grow-1 me-2">
+                          <div className="fw-semibold text-truncate">{doc.originalName}</div>
+                          <small className="text-muted d-block">
+                            {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString('en-GB') : 'Unknown date'}
+                          </small>
+                          <div className="mt-1">
+                            <Badge bg={verificationStatus.bg} className="me-2">
+                              {verificationStatus.icon} {verificationStatus.text}
+                            </Badge>
+                            {doc.verificationStatus === 'approved' && doc.verifiedBy && (
+                              <small className="text-muted d-block mt-1">
+                                Approved by {doc.verifiedBy?.name || 'Unknown'}
+                              </small>
+                            )}
+                            {doc.verificationStatus === 'rejected' && doc.rejectionReason && (
+                              <small className="text-danger d-block mt-1">
+                                Reason: {doc.rejectionReason}
+                              </small>
+                            )}
+                          </div>
+                        </div>
+                        <div className="d-flex gap-1 flex-shrink-0">
                           <Button
-                            variant="outline-danger"
+                            variant="primary"
                             size="sm"
                             className="px-2 py-1"
-                            onClick={() => handleDocumentDelete(doc._id)}
-                            title="Delete Document"
+                            onClick={() => handleDocumentView(doc)}
+                            title="View Document"
                           >
-                            <FaTrash />
+                            <FaEye />
                           </Button>
-                        )}
+                          <Button
+                            variant="outline-success"
+                            size="sm"
+                            className="px-2 py-1"
+                            onClick={() => handleDocumentDownload(doc)}
+                            title="Download Document"
+                          >
+                            <FaDownload />
+                          </Button>
+                          {canEdit && (
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              className="px-2 py-1"
+                              onClick={() => handleDocumentDelete(doc._id)}
+                              title="Delete Document"
+                            >
+                              <FaTrash />
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <small className="text-muted">No documents uploaded</small>
@@ -897,11 +1031,28 @@ const EmployeeProfileManagement = () => {
                       </Col>
                       <Col md={6} className="mb-3">
                         <Form.Group>
-                          <Form.Label>Email Address</Form.Label>
+                          <Form.Label>Office Email</Form.Label>
                           <div className="form-control-plaintext border rounded p-2 bg-light">
                             {user?.email || '—'}
                           </div>
-                          <Form.Text className="text-muted">Email cannot be changed</Form.Text>
+                          <Form.Text className="text-muted">Office email cannot be changed</Form.Text>
+                        </Form.Group>
+                      </Col>
+                      <Col md={6} className="mb-3">
+                        <Form.Group>
+                          <Form.Label>Personal Email</Form.Label>
+                          {editMode.personal ? (
+                            <Form.Control
+                              type="email"
+                              defaultValue={user?.personalEmail || ''}
+                              placeholder="personal@gmail.com"
+                              id="personal-personalEmail"
+                            />
+                          ) : (
+                            <div className="form-control-plaintext border rounded p-2 bg-light">
+                              {user?.personalEmail || '—'}
+                            </div>
+                          )}
                         </Form.Group>
                       </Col>
                       <Col md={6} className="mb-3">
@@ -1375,12 +1526,41 @@ const EmployeeProfileManagement = () => {
                         <Form.Group>
                           <Form.Label>Employee ID</Form.Label>
                           {editMode.job ? (
-                            <Form.Control
-                              type="text"
-                              defaultValue={user?.employeeId || ''}
-                              placeholder="Enter employee ID"
-                              id="job-employeeId"
-                            />
+                            <div className="d-flex gap-2 align-items-end">
+                              <div style={{ flex: 1 }}>
+                                <Form.Control
+                                  type="text"
+                                  defaultValue={user?.employeeId || ''}
+                                  placeholder="Enter employee ID"
+                                  id="job-employeeId"
+                                />
+                              </div>
+                              <Button
+                                variant="primary"
+                                onClick={() => handleGenerateEmployeeId()}
+                                disabled={
+                                  !user?.joiningDate || 
+                                  currentEmploymentType !== 'full-time' ||
+                                  !!user?.employeeId
+                                }
+                                title={
+                                  user?.employeeId
+                                    ? 'Employee already has an ID'
+                                    : !user?.joiningDate 
+                                    ? 'Set joining date first' 
+                                    : currentEmploymentType !== 'full-time'
+                                    ? 'Only permanent employees can get employee ID'
+                                    : 'Generate employee ID'
+                                }
+                                style={{ 
+                                  whiteSpace: 'nowrap',
+                                  padding: '0.5rem 1rem',
+                                  minWidth: '100px'
+                                }}
+                              >
+                                Generate
+                              </Button>
+                            </div>
                           ) : (
                             <div className="form-control-plaintext border rounded p-2 bg-light">
                               {user?.employeeId || '—'}
@@ -1602,23 +1782,18 @@ const EmployeeProfileManagement = () => {
                       <Col md={6} className="mb-3">
                         <Form.Group>
                           <Form.Label>Employee Status</Form.Label>
-                          {editMode.job ? (
-                            <Form.Select
-                              defaultValue={user?.status || 'active'}
-                              id="job-status"
-                            >
-                              <option value="active">Active</option>
-                              <option value="inactive">Inactive</option>
-                              <option value="on-leave">On Leave</option>
-                              <option value="terminated">Terminated</option>
-                            </Form.Select>
-                          ) : (
-                            <div className="form-control-plaintext border rounded p-2 bg-light">
-                              <Badge bg={user?.status === 'active' ? 'success' : 'secondary'} className="px-2 py-1">
-                                {user?.status ? user.status.charAt(0).toUpperCase() + user.status.slice(1).replace('-', ' ') : 'Active'}
-                              </Badge>
-                            </div>
-                          )}
+                          <div className="d-flex align-items-center gap-2">
+                            <StatusBadge status={user?.status} />
+                            {canEdit && (
+                              <Button
+                                variant="outline-secondary"
+                                size="sm"
+                                onClick={() => setShowStatusModal(true)}
+                              >
+                                Change Status
+                              </Button>
+                            )}
+                          </div>
                         </Form.Group>
                       </Col>
                       <Col md={6} className="mb-3">
@@ -2133,51 +2308,101 @@ const EmployeeProfileManagement = () => {
                                     <th>File Name</th>
                                     <th>Upload Date</th>
                                     <th>Size</th>
+                                    <th>Verification Status</th>
                                     <th>Actions</th>
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {documents.map((doc) => (
-                                    <tr key={doc._id}>
-                                      <td>
-                                        <Badge bg={getDocumentBadgeColor(doc.category)}>
-                                          {formatDocumentType(doc.category)}
-                                        </Badge>
-                                      </td>
-                                      <td>{doc.originalName}</td>
-                                      <td>{new Date(doc.uploadedAt).toLocaleDateString('en-GB')}</td>
-                                      <td>{formatFileSize(doc.fileSize)}</td>
-                                      <td>
-                                        <Button
-                                          variant="primary"
-                                          size="sm"
-                                          className="me-2"
-                                          onClick={() => handleDocumentView(doc)}
-                                          title="View Document"
-                                        >
-                                          <FaEye />
-                                        </Button>
-                                        <Button
-                                          variant="outline-success"
-                                          size="sm"
-                                          className="me-2"
-                                          onClick={() => handleDocumentDownload(doc)}
-                                          title="Download Document"
-                                        >
-                                          <FaDownload />
-                                        </Button>
-                                        {canEdit && (
+                                  {documents.map((doc) => {
+                                    const verificationStatus = getVerificationStatusBadge(doc.verificationStatus || 'pending');
+                                    return (
+                                      <tr key={doc._id}>
+                                        <td>
+                                          <Badge bg={getDocumentBadgeColor(doc.category)}>
+                                            {formatDocumentType(doc.category)}
+                                          </Badge>
+                                        </td>
+                                        <td>{doc.originalName}</td>
+                                        <td>{new Date(doc.uploadedAt).toLocaleDateString('en-GB')}</td>
+                                        <td>{formatFileSize(doc.fileSize)}</td>
+                                        <td>
+                                          <div>
+                                            <Badge bg={verificationStatus.bg} className="mb-2">
+                                              {verificationStatus.icon} {verificationStatus.text}
+                                            </Badge>
+                                            {doc.verificationStatus === 'approved' && doc.verifiedBy && (
+                                              <div className="small text-muted">
+                                                Approved by {doc.verifiedBy?.name || 'Unknown'} on {new Date(doc.verificationDate).toLocaleDateString('en-GB')}
+                                              </div>
+                                            )}
+                                            {doc.verificationStatus === 'rejected' && doc.rejectionReason && (
+                                              <div className="small text-danger">
+                                                Reason: {doc.rejectionReason}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </td>
+                                        <td>
                                           <Button
-                                            variant="outline-danger"
+                                            variant="primary"
                                             size="sm"
-                                            onClick={() => handleDocumentDelete(doc._id)}
+                                            className="me-2"
+                                            onClick={() => handleDocumentView(doc)}
+                                            title="View Document"
                                           >
-                                            <FaTrash />
+                                            <FaEye />
                                           </Button>
-                                        )}
-                                      </td>
-                                    </tr>
-                                  ))}
+                                          <Button
+                                            variant="outline-success"
+                                            size="sm"
+                                            className="me-2"
+                                            onClick={() => handleDocumentDownload(doc)}
+                                            title="Download Document"
+                                          >
+                                            <FaDownload />
+                                          </Button>
+                                          {canEdit && doc.verificationStatus === 'pending' && (
+                                            <>
+                                              <Button
+                                                variant="success"
+                                                size="sm"
+                                                className="me-2"
+                                                onClick={() => {
+                                                  setSelectedDocumentForVerification(doc);
+                                                  setShowVerificationModal(true);
+                                                }}
+                                                title="Approve Document"
+                                              >
+                                                <FaCheck />
+                                              </Button>
+                                              <Button
+                                                variant="danger"
+                                                size="sm"
+                                                className="me-2"
+                                                onClick={() => {
+                                                  setSelectedDocumentForVerification(doc);
+                                                  setShowVerificationModal(true);
+                                                }}
+                                                title="Reject Document"
+                                              >
+                                                <FaTimes />
+                                              </Button>
+                                            </>
+                                          )}
+                                          {canEdit && (
+                                            <Button
+                                              variant="outline-danger"
+                                              size="sm"
+                                              onClick={() => handleDocumentDelete(doc._id)}
+                                              title="Delete Document"
+                                            >
+                                              <FaTrash />
+                                            </Button>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
                                 </tbody>
                               </Table>
                             ) : (
@@ -2287,6 +2512,24 @@ const EmployeeProfileManagement = () => {
         </Modal.Footer>
       </Modal>
 
+      {/* Status Change Modal */}
+      {showStatusModal && (
+        <StatusChangeModal
+          show={showStatusModal}
+          onHide={() => setShowStatusModal(false)}
+          employee={{ _id: user?._id, name: user?.name, status: user?.status }}
+          onSuccess={(updatedUser, projectsAffected) => {
+            setShowStatusModal(false);
+            fetchUserProfile();
+            let msg = `Status changed to ${updatedUser.status}`;
+            if (projectsAffected > 0) {
+              msg += `. Removed from ${projectsAffected} project(s).`;
+            }
+            toast.success(msg);
+          }}
+        />
+      )}
+
       {/* Password Reset Modal */}
       <Modal show={showPasswordModal} onHide={() => setShowPasswordModal(false)} centered>
         <Modal.Header closeButton>
@@ -2380,6 +2623,19 @@ const EmployeeProfileManagement = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Document Verification Modal */}
+      <DocumentVerificationModal
+        show={showVerificationModal}
+        onHide={() => {
+          setShowVerificationModal(false);
+          setSelectedDocumentForVerification(null);
+        }}
+        document={selectedDocumentForVerification}
+        onApprove={handleApproveDocument}
+        onReject={handleRejectDocument}
+        loading={verificationLoading}
+      />
     </Container>
   );
 };

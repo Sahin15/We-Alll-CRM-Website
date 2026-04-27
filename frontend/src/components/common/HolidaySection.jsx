@@ -162,7 +162,7 @@ const HolidaySection = () => {
             {currentYearHolidays.length} holidays this year
           </small>
         </div>
-        <div className="me-2">
+        <div className="d-flex align-items-center gap-2">
           <Button
             variant="outline-primary"
             size="sm"
@@ -174,7 +174,6 @@ const HolidaySection = () => {
             <Button
               variant="primary"
               size="sm"
-              className="ms-2"
               onClick={() => navigate(user.role === 'hr' ? '/hr/holidays' : '/admin/holidays')}
             >
               <FaCog className="me-1" />

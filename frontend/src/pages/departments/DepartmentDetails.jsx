@@ -46,13 +46,8 @@ const DepartmentDetails = () => {
         departmentApi.getDepartmentAnalytics(id),
       ]);
 
-      console.log('🔍 Department API Response:', deptRes);
-      console.log('🔍 Analytics API Response:', analyticsRes);
-      console.log('🔍 Analytics Data:', analyticsRes.data);
-      console.log('🔍 Employees:', analyticsRes.data?.employees);
-      console.log('🔍 Employees Length:', analyticsRes.data?.employees?.length);
-
-      const dept = deptRes.data;
+      // getDepartmentById already returns response.data, so deptRes IS the department
+      const dept = deptRes.data || deptRes;
 
       // Employees can only view their own department
       if (isEmployee && user.department !== id) {
@@ -69,10 +64,7 @@ const DepartmentDetails = () => {
       }
 
       setDepartment(dept);
-      setAnalytics(analyticsRes.data);
-      
-      console.log('✅ State set - Analytics:', analyticsRes.data);
-      console.log('✅ State set - Employees count:', analyticsRes.data?.employees?.length);
+      setAnalytics(analyticsRes.data || analyticsRes);
     } catch (error) {
       console.error('❌ Error fetching department data:', error);
       toast.error("Failed to fetch department details");

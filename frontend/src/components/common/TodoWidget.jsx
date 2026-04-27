@@ -33,7 +33,7 @@ const TodoWidget = ({ isCollapsed = false }) => {
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState("pending");
   const [showModal, setShowModal] = useState(false);
   const [editingTodo, setEditingTodo] = useState(null);
   const [formData, setFormData] = useState({
@@ -154,12 +154,21 @@ const TodoWidget = ({ isCollapsed = false }) => {
     return new Date(dueDate) < new Date() && new Date(dueDate).toDateString() !== new Date().toDateString();
   };
 
-  const filteredTodos = todos.filter((todo) => {
-    if (filter === "all") return true;
-    if (filter === "pending") return todo.status === "pending";
-    if (filter === "completed") return todo.status === "completed";
-    return true;
-  });
+  const filteredTodos = todos
+    .filter((todo) => {
+      if (filter === "all") return true;
+      if (filter === "pending") return todo.status === "pending";
+      if (filter === "completed") return todo.status === "completed";
+      return true;
+    })
+    .sort((a, b) => {
+      // Todos without due date go to the bottom
+      if (!a.dueDate && !b.dueDate) return 0;
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      // Sort by closest due date first
+      return new Date(a.dueDate) - new Date(b.dueDate);
+    });
 
   if (isCollapsed) {
     return (

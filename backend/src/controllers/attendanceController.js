@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Attendance from "../models/attendanceModel.js";
 import User from "../models/userModel.js";
 import WorkLog from "../models/workLogModel.js";
@@ -258,6 +259,14 @@ export const getAllAttendance = async (req, res) => {
     // Handle employee filtering with role-based restrictions
     if (employee) {
       // Specific employee selected - ALWAYS filter by this employee ID
+      // Convert string to ObjectId for proper MongoDB comparison
+      let employeeObjectId;
+      try {
+        employeeObjectId = new mongoose.Types.ObjectId(employee);
+      } catch (err) {
+        return res.status(400).json({ error: "Invalid employee ID format" });
+      }
+      
       if (req.user.role === 'hod' && req.user.department) {
         // HoD can only view their department employees + themselves
         const departmentEmployees = await User.find({
@@ -269,14 +278,14 @@ export const getAllAttendance = async (req, res) => {
         
         // Check if the requested employee is in the allowed list
         if (allowedEmployeeIds.includes(employee)) {
-          filter.employee = employee; // Filter by specific employee
+          filter.employee = employeeObjectId; // Filter by specific employee (as ObjectId)
         } else {
           // Employee not in HoD's department - return empty results
           return res.status(200).json([]);
         }
       } else {
         // Admin/HR/SuperAdmin can view any employee
-        filter.employee = employee; // Filter by specific employee
+        filter.employee = employeeObjectId; // Filter by specific employee (as ObjectId)
       }
     } else {
       // No specific employee selected - show all based on role
@@ -327,10 +336,18 @@ export const getAllAttendance = async (req, res) => {
     try {
       attendance = await Attendance.find(filter)
         .select('employee date clockIn clockOut breaks totalBreakTime status workHours overtime isManuallyModified originalStatus modificationHistory')
-        .populate("employee", "name email department")
+        .populate({
+          path: "employee",
+          select: "name email department",
+          populate: {
+            path: "department",
+            select: "name"
+          }
+        })
         .populate("approvedBy", "name")
         .populate("modificationHistory.modifiedBy", "name email role")
         .sort({ date: -1 })
+        .limit(5000) // Add limit to prevent loading too much data
         .lean();
     } catch (dbError) {
       
@@ -372,28 +389,41 @@ export const getAllAttendance = async (req, res) => {
       wfhFilter.employee = filter.employee;
     }
     
-    // Apply same date filter
+    // Apply a broad date filter for WFH — use a wider window to avoid IST/UTC boundary issues
+    // We'll do precise matching via the IST date string map below
     if (filter.date) {
-      wfhFilter.date = filter.date;
+      // Widen the range by 1 day on each side to handle timezone offsets
+      const gte = filter.date.$gte ? new Date(filter.date.$gte.getTime() - 24 * 60 * 60 * 1000) : undefined;
+      const lte = filter.date.$lte ? new Date(filter.date.$lte.getTime() + 24 * 60 * 60 * 1000) : undefined;
+      wfhFilter.date = {};
+      if (gte) wfhFilter.date.$gte = gte;
+      if (lte) wfhFilter.date.$lte = lte;
     }
     
     const wfhRequests = await WFHRequest.find(wfhFilter)
       .select('employee date reason')
+      .limit(5000)
       .lean();
+
+    // Helper: convert any Date to IST date string "YYYY-MM-DD"
+    const toISTDateStr = (d) => {
+      const ist = new Date(new Date(d).getTime() + 5.5 * 60 * 60 * 1000);
+      return ist.toISOString().split('T')[0];
+    };
     
-    // Create a map of WFH requests by employee and date
+    // Create a map of WFH requests keyed by employeeId + IST date string
     const wfhMap = new Map();
     for (const wfh of wfhRequests) {
       const employeeId = wfh.employee.toString();
-      const dateStr = new Date(wfh.date).toDateString();
+      const dateStr = toISTDateStr(wfh.date);
       const key = `${employeeId}-${dateStr}`;
       wfhMap.set(key, wfh);
     }
     
-    // Attach WFH data to attendance records
+    // Attach WFH data to attendance records using IST date string matching
     const attendanceWithWFH = uniqueAttendance.map(record => {
       const employeeId = (record.employee?._id || record.employee).toString();
-      const dateStr = new Date(record.date).toDateString();
+      const dateStr = toISTDateStr(record.date);
       const key = `${employeeId}-${dateStr}`;
       
       const wfhData = wfhMap.get(key);
@@ -447,26 +477,36 @@ export const getMyAttendance = async (req, res) => {
       status: 'approved' 
     };
     
-    // Apply same date filter if exists
+    // Apply same date filter if exists — widen by 1 day to handle IST/UTC boundary
     if (startDate && endDate) {
       const dateRangeFilter = buildDateRangeQuery(startDate, endDate, 'date');
-      Object.assign(wfhFilter, dateRangeFilter);
+      const gte = dateRangeFilter.date?.$gte ? new Date(dateRangeFilter.date.$gte.getTime() - 24 * 60 * 60 * 1000) : undefined;
+      const lte = dateRangeFilter.date?.$lte ? new Date(dateRangeFilter.date.$lte.getTime() + 24 * 60 * 60 * 1000) : undefined;
+      wfhFilter.date = {};
+      if (gte) wfhFilter.date.$gte = gte;
+      if (lte) wfhFilter.date.$lte = lte;
     }
     
     const wfhRequests = await WFHRequest.find(wfhFilter)
       .select('employee date reason')
       .lean();
+
+    // Helper: convert any Date to IST date string "YYYY-MM-DD"
+    const toISTDateStr = (d) => {
+      const ist = new Date(new Date(d).getTime() + 5.5 * 60 * 60 * 1000);
+      return ist.toISOString().split('T')[0];
+    };
     
-    // Create a map of WFH requests by date
+    // Create a map of WFH requests by IST date string
     const wfhMap = new Map();
     for (const wfh of wfhRequests) {
-      const dateStr = new Date(wfh.date).toDateString();
+      const dateStr = toISTDateStr(wfh.date);
       wfhMap.set(dateStr, wfh);
     }
     
-    // Attach WFH data to attendance records and ensure status field is always present
+    // Attach WFH data to attendance records using IST date string matching
     const attendanceWithWFH = attendance.map(record => {
-      const dateStr = new Date(record.date).toDateString();
+      const dateStr = toISTDateStr(record.date);
       const wfhData = wfhMap.get(dateStr);
       const status = record.status || 'present';
       
@@ -489,7 +529,14 @@ export const getMyAttendance = async (req, res) => {
 export const getAttendanceById = async (req, res) => {
   try {
     const attendance = await Attendance.findById(req.params.id)
-      .populate("employee", "name email department position")
+      .populate({
+        path: "employee",
+        select: "name email department position",
+        populate: {
+          path: "department",
+          select: "name"
+        }
+      })
       .populate("approvedBy", "name email");
 
     if (!attendance) {
@@ -833,14 +880,27 @@ export const getAttendanceReport = async (req, res) => {
 
     let filter = {};
 
-    if (employeeId) filter.employee = employeeId;
+    if (employeeId) {
+      try {
+        filter.employee = new mongoose.Types.ObjectId(employeeId);
+      } catch (err) {
+        return res.status(400).json({ error: "Invalid employee ID format" });
+      }
+    }
     if (startDate && endDate) {
       const dateRangeFilter = buildDateRangeQuery(startDate, endDate, 'date');
       Object.assign(filter, dateRangeFilter);
     }
 
     const attendance = await Attendance.find(filter)
-      .populate("employee", "name email department position")
+      .populate({
+        path: "employee",
+        select: "name email department position",
+        populate: {
+          path: "department",
+          select: "name"
+        }
+      })
       .populate("approvedBy", "name email")
       .sort({ date: -1 });
 
@@ -1305,6 +1365,62 @@ export const downloadAttendancePDF = async (req, res) => {
       totalOvertime: attendances.reduce((sum, a) => sum + (a.overtime || 0), 0).toFixed(2),
     };
 
+    // Calculate expected average hours and additional stats
+    let totalExpected = 0;
+    let workingDays = 0;
+    let totalBreakMinutes = 0;
+    
+    attendances.forEach((a) => {
+      // Calculate break time
+      if (a.breaks && Array.isArray(a.breaks)) {
+        a.breaks.forEach(b => {
+          if (b.startTime && b.endTime) {
+            const start = new Date(b.startTime);
+            const end = new Date(b.endTime);
+            totalBreakMinutes += Math.round((end - start) / (1000 * 60));
+          }
+        });
+      }
+      
+      // Calculate expected hours
+      if (a.status === 'present' || a.status === 'late') {
+        const date = new Date(a.date);
+        const dayOfWeek = date.getDay();
+        if (dayOfWeek === 6) {
+          totalExpected += 6;
+        } else if (dayOfWeek !== 0) {
+          totalExpected += 8;
+        }
+        workingDays += 1;
+      } else if (a.status === 'half-day') {
+        const date = new Date(a.date);
+        const dayOfWeek = date.getDay();
+        if (dayOfWeek === 6) {
+          totalExpected += 3;
+        } else if (dayOfWeek !== 0) {
+          totalExpected += 4;
+        }
+        workingDays += 1;
+      }
+    });
+    
+    const expectedAvgHours = workingDays > 0 ? totalExpected / workingDays : 0;
+    const daysWorked = stats.present + stats.late + stats.halfDay;
+    const actualAvgHours = workingDays > 0 ? parseFloat(stats.totalHours) / workingDays : 0;
+    
+    // Format hours as HH.MM (e.g., 1.30 = 1 hour 30 minutes)
+    const formatHours = (decimalHours) => {
+      const hours = Math.floor(decimalHours);
+      const minutes = Math.round((decimalHours - hours) * 60);
+      return `${hours}.${String(minutes).padStart(2, '0')}`;
+    };
+    
+    const formatBreakTime = (minutes) => {
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      return `${hours}h ${mins}m`;
+    };
+
     // Generate HTML for PDF
     const html = `
       <!DOCTYPE html>
@@ -1334,7 +1450,7 @@ export const downloadAttendancePDF = async (req, res) => {
           .info-section { margin: 20px 0; }
           .info-row { display: flex; margin: 10px 0; }
           .info-label { font-weight: bold; width: 150px; }
-          .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 30px 0; }
+          .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin: 30px 0; }
           .stat-card { border: 1px solid #ddd; padding: 15px; border-radius: 5px; text-align: center; }
           .stat-card h3 { margin: 0; font-size: 32px; }
           .stat-card p { margin: 5px 0; color: #666; }
@@ -1410,6 +1526,26 @@ export const downloadAttendancePDF = async (req, res) => {
             <h3>${stats.totalHours}</h3>
             <p>Total Hours</p>
           </div>
+          <div class="stat-card">
+            <h3>${formatHours(actualAvgHours)}</h3>
+            <p>Avg Hours/Day</p>
+          </div>
+          <div class="stat-card">
+            <h3>${formatHours(expectedAvgHours)}</h3>
+            <p>Expected Avg/Day</p>
+          </div>
+          <div class="stat-card">
+            <h3>${daysWorked}</h3>
+            <p>Days Worked</p>
+          </div>
+          <div class="stat-card">
+            <h3>${formatBreakTime(totalBreakMinutes)}</h3>
+            <p>Total Break Time</p>
+          </div>
+          <div class="stat-card">
+            <h3>${stats.totalOvertime}</h3>
+            <p>Overtime</p>
+          </div>
         </div>
 
         <h2>Detailed Records</h2>
@@ -1419,13 +1555,30 @@ export const downloadAttendancePDF = async (req, res) => {
               <th>Date</th>
               <th>Clock In</th>
               <th>Clock Out</th>
+              <th>Break Time</th>
               <th>Work Hours</th>
               <th>Overtime</th>
               <th>Status</th>
             </tr>
           </thead>
           <tbody>
-            ${attendances.map(att => `
+            ${attendances.map(att => {
+              let breakTime = '-';
+              if (att.breaks && Array.isArray(att.breaks)) {
+                let breakMinutes = 0;
+                att.breaks.forEach(b => {
+                  if (b.startTime && b.endTime) {
+                    const start = new Date(b.startTime);
+                    const end = new Date(b.endTime);
+                    breakMinutes += Math.round((end - start) / (1000 * 60));
+                  }
+                });
+                if (breakMinutes > 0) {
+                  breakTime = formatBreakTime(breakMinutes);
+                }
+              }
+              
+              return `
               <tr>
                 <td>${(() => {
                   const date = new Date(att.date);
@@ -1434,23 +1587,25 @@ export const downloadAttendancePDF = async (req, res) => {
                   const year = String(date.getFullYear()).slice(-2);
                   return `${day}/${month}/${year}`;
                 })()}</td>
-                <td>${att.clockIn ? (() => {
+                <td>${att.status === 'on-leave' ? 'On Leave' : (att.clockIn ? (() => {
                   const time = new Date(att.clockIn);
                   const hours = String(time.getHours()).padStart(2, '0');
                   const minutes = String(time.getMinutes()).padStart(2, '0');
                   return `${hours}:${minutes}`;
-                })() : '-'}</td>
-                <td>${att.clockOut ? (() => {
+                })() : '-')}</td>
+                <td>${att.status === 'on-leave' ? 'On Leave' : (att.clockOut ? (() => {
                   const time = new Date(att.clockOut);
                   const hours = String(time.getHours()).padStart(2, '0');
                   const minutes = String(time.getMinutes()).padStart(2, '0');
                   return `${hours}:${minutes}`;
-                })() : '-'}</td>
-                <td>${att.workHours || 0} hrs</td>
+                })() : '-')}</td>
+                <td>${att.status === 'on-leave' ? '-' : breakTime}</td>
+                <td>${att.status === 'on-leave' ? '-' : (att.workHours || 0)} hrs</td>
                 <td>${att.overtime || 0} hrs</td>
                 <td><span class="status-badge status-${att.status}">${att.status}</span></td>
               </tr>
-            `).join('')}
+            `;
+            }).join('')}
           </tbody>
         </table>
 
@@ -2309,7 +2464,14 @@ export const approveOvertimeEntry = async (req, res) => {
   try {
     const { attendanceId, entryId } = req.params;
 
-    const attendance = await Attendance.findById(attendanceId).populate('employee', 'name email department');
+    const attendance = await Attendance.findById(attendanceId).populate({
+      path: 'employee',
+      select: 'name email department',
+      populate: {
+        path: 'department',
+        select: 'name'
+      }
+    });
 
     if (!attendance) {
       return res.status(404).json({
@@ -2360,7 +2522,14 @@ export const rejectOvertimeEntry = async (req, res) => {
       });
     }
 
-    const attendance = await Attendance.findById(attendanceId).populate('employee', 'name email department');
+    const attendance = await Attendance.findById(attendanceId).populate({
+      path: 'employee',
+      select: 'name email department',
+      populate: {
+        path: 'department',
+        select: 'name'
+      }
+    });
 
     if (!attendance) {
       return res.status(404).json({

@@ -118,11 +118,39 @@ export const getStatusVariant = (status) => {
     suspended: "danger",
     present: "success",
     absent: "danger",
-    "half-day": "orange", // Changed from warning to orange for distinction
+    "half-day": "info",
     late: "warning",
-    "on-leave": "danger", // Changed from info to danger for better visual distinction from WFH
+    "on-leave": "primary",
+    "no-data": "secondary",
   };
   return variants[statusLower] || "secondary";
+};
+
+// Get status color for calendar and table views (consistent styling)
+export const getStatusColor = (status) => {
+  const statusLower = status?.toLowerCase();
+  const colors = {
+    present: { bg: 'success', text: 'white' },
+    late: { bg: 'warning', text: 'dark' },
+    'half-day': { bg: 'info', text: 'white' },
+    absent: { bg: 'danger', text: 'white' },
+    'on-leave': { bg: 'primary', text: 'white' },
+    'no-data': { bg: 'secondary', text: 'white' },
+  };
+  return colors[statusLower] || { bg: 'danger', text: 'white' };
+};
+
+// Format hours in HH.MM format (1.30 for 1 hour 30 minutes, not 1.50)
+// Example: 1.5 hours = 1 hour 30 minutes = 1.30
+export const formatHours = (decimalHours) => {
+  if (!decimalHours && decimalHours !== 0) return "0.00";
+  
+  const hours = Math.floor(decimalHours);
+  const minutes = Math.round((decimalHours - hours) * 60);
+  
+  // Minutes are shown as actual minutes (0-59), not as decimal
+  // 30 minutes = .30, 45 minutes = .45, 15 minutes = .15
+  return `${hours}.${String(minutes).padStart(2, '0')}`;
 };
 
 // Validate email
@@ -141,6 +169,7 @@ export const isValidPhone = (phone) => {
 export default {
   formatDate,
   formatDateTime,
+  formatHours,
   capitalizeFirst,
   formatCurrency,
   getInitials,
@@ -149,6 +178,7 @@ export default {
   hasPermission,
   daysBetween,
   getStatusVariant,
+  getStatusColor,
   isValidEmail,
   isValidPhone,
 };

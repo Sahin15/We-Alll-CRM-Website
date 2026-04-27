@@ -283,6 +283,11 @@ const CalendarTab = ({ project, onRefresh }) => {
           onUpdate={handleUpdateStatus}
           onRefresh={loadWorkItems}
           currentUser={user}
+          onEdit={() => {
+            // For now, just close the modal
+            // Edit functionality can be added later if needed
+            setShowModal(false);
+          }}
         />
       )}
     </div>

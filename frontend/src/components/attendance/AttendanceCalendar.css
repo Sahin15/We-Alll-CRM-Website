@@ -1,0 +1,212 @@
+.attendance-calendar {
+  width: 100%;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.calendar-day-header {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  padding: 12px 8px;
+  text-align: center;
+  font-weight: 600;
+  color: #495057;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.calendar-day {
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 8px;
+  min-height: 100px;
+  display: flex;
+  flex-direction: column;
+  background-color: #fff;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.calendar-day:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.calendar-day.empty {
+  background-color: #f8f9fa;
+  border: none;
+  cursor: default;
+}
+
+.calendar-day.empty:hover {
+  box-shadow: none;
+  transform: none;
+}
+
+.calendar-day.weekend {
+  background-color: #f0f0f0;
+}
+
+/* Status-specific styling */
+.calendar-day.status-present {
+  border-left: 4px solid #28a745;
+  background-color: #f0fff4;
+}
+
+.calendar-day.status-late {
+  border-left: 4px solid #ffc107;
+  background-color: #fffbf0;
+}
+
+.calendar-day.status-half-day {
+  border-left: 4px solid #17a2b8;
+  background-color: #f0f7ff;
+}
+
+.calendar-day.status-absent {
+  border-left: 4px solid #dc3545;
+  background-color: #fff5f5;
+}
+
+.calendar-day.status-on-leave {
+  border-left: 4px solid #6c757d;
+  background-color: #f5f5f5;
+}
+
+.calendar-day.status-holiday {
+  border-left: 4px solid #6f42c1;
+  background-color: #f3e5ff;
+}
+
+.calendar-day.status-weekend {
+  border-left: 4px solid #e9ecef;
+  background-color: #f8f9fa;
+}
+
+.day-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 6px;
+}
+
+.day-number {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: #495057;
+}
+
+.day-status {
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.day-status .badge {
+  font-size: 0.75rem;
+  padding: 4px 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.status-icon {
+  font-size: 1rem;
+}
+
+.status-label {
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.day-details {
+  text-align: center;
+  font-size: 0.75rem;
+  color: #6c757d;
+  border-top: 1px solid #e9ecef;
+  padding-top: 4px;
+}
+
+.day-holiday-name {
+  text-align: center;
+  font-size: 0.7rem;
+  color: #6f42c1;
+  border-top: 1px solid #e9ecef;
+  padding-top: 4px;
+  font-weight: 600;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .calendar-grid {
+    gap: 4px;
+  }
+
+  .calendar-day {
+    min-height: 80px;
+    padding: 6px;
+  }
+
+  .calendar-day-header {
+    padding: 8px 4px;
+    font-size: 0.8rem;
+  }
+
+  .day-number {
+    font-size: 0.95rem;
+  }
+
+  .day-status .badge {
+    font-size: 0.65rem;
+    padding: 3px 4px;
+  }
+
+  .status-icon {
+    font-size: 0.9rem;
+  }
+
+  .status-label {
+    font-size: 0.6rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .calendar-grid {
+    gap: 2px;
+  }
+
+  .calendar-day {
+    min-height: 70px;
+    padding: 4px;
+  }
+
+  .calendar-day-header {
+    padding: 6px 2px;
+    font-size: 0.7rem;
+  }
+
+  .day-number {
+    font-size: 0.85rem;
+  }
+
+  .day-status .badge {
+    font-size: 0.6rem;
+    padding: 2px 3px;
+  }
+
+  .status-icon {
+    font-size: 0.8rem;
+  }
+
+  .status-label {
+    font-size: 0.55rem;
+  }
+}

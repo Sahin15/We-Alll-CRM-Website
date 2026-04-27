@@ -134,6 +134,16 @@ const ClientList = () => {
     }
   }, [clients, searchParams, setSearchParams]);
 
+  const normalizeStatus = (status) => {
+    if (!status) return "Active";
+    // Normalize status to proper case
+    const normalized = status.toLowerCase();
+    if (normalized === "active") return "Active";
+    if (normalized === "on hold") return "On Hold";
+    if (normalized === "lost") return "Lost";
+    return status;
+  };
+
   const applyFilters = () => {
     let filtered = [...clients];
 
@@ -156,8 +166,8 @@ const ClientList = () => {
     // Sort clients: Active first, then On Hold, then Lost
     filtered.sort((a, b) => {
       const statusOrder = { "Active": 0, "On Hold": 1, "Lost": 2 };
-      const aOrder = statusOrder[a.status] ?? 3;
-      const bOrder = statusOrder[b.status] ?? 3;
+      const aOrder = statusOrder[normalizeStatus(a.status)] ?? 3;
+      const bOrder = statusOrder[normalizeStatus(b.status)] ?? 3;
       
       if (aOrder !== bOrder) {
         return aOrder - bOrder;
@@ -838,13 +848,13 @@ const ClientList = () => {
                                 </Badge>
                                 <Badge 
                                   bg={
-                                    client.status === "Active" ? "success" : 
-                                    client.status === "On Hold" ? "warning" : 
-                                    client.status === "Lost" ? "danger" : "secondary"
+                                    normalizeStatus(client.status) === "Active" ? "success" : 
+                                    normalizeStatus(client.status) === "On Hold" ? "warning" : 
+                                    normalizeStatus(client.status) === "Lost" ? "danger" : "secondary"
                                   } 
                                   className="rounded-pill px-2 py-1"
                                 >
-                                  {client.status || "Active"}
+                                  {normalizeStatus(client.status)}
                                 </Badge>
                               </div>
                             </div>
@@ -1032,13 +1042,13 @@ const ClientList = () => {
                           <td className="py-3">
                             <Badge 
                               bg={
-                                client.status === "Active" ? "success" : 
-                                client.status === "On Hold" ? "warning" : 
-                                client.status === "Lost" ? "danger" : "secondary"
+                                normalizeStatus(client.status) === "Active" ? "success" : 
+                                normalizeStatus(client.status) === "On Hold" ? "warning" : 
+                                normalizeStatus(client.status) === "Lost" ? "danger" : "secondary"
                               } 
                               className="rounded-pill"
                             >
-                              {client.status || "Active"}
+                              {normalizeStatus(client.status)}
                             </Badge>
                           </td>
                           <td className="py-3">

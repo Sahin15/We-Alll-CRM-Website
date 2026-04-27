@@ -44,7 +44,7 @@
 }
 
 .admin-work-overview .text-center h3 {
-  font-size: 2.5rem;
+  font-size: 2.5rem !important;
   font-weight: 700;
   margin-bottom: 0.5rem;
 }
@@ -295,7 +295,7 @@
   }
   
   .admin-work-overview .text-center h3 {
-    font-size: 2rem;
+    font-size: 2rem !important;
   }
   
   .admin-work-overview .table-responsive {
@@ -305,7 +305,7 @@
 
 @media (max-width: 576px) {
   .admin-work-overview .text-center h3 {
-    font-size: 1.75rem;
+    font-size: 1.75rem !important;
   }
   
   .admin-work-overview .card-body {

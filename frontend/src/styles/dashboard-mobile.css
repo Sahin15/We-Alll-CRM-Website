@@ -76,7 +76,18 @@
   .stat-card .card-body {
     padding: 16px !important;
   }
-  
+
+  .stat-card h3 {
+    font-size: 1.75rem !important;
+  }
+}
+
+/* Desktop adjustments */
+@media (min-width: 768px) {
+  .stat-card .card-body {
+    padding: 16px !important;
+  }
+
   .stat-card h3 {
     font-size: 1.75rem !important;
   }
@@ -446,12 +457,12 @@
    ============================================ */
 
 @media (max-width: 575.98px) {
-  /* Stack button groups */
-  .d-flex.gap-2:has(.btn) {
+  /* Stack button groups - but NOT header action buttons */
+  .d-flex.gap-2:has(.btn):not(.action-buttons):not(.header-controls):not(.view-toggle-section) {
     flex-direction: column !important;
   }
   
-  .d-flex.gap-2:has(.btn) .btn {
+  .d-flex.gap-2:has(.btn):not(.action-buttons):not(.header-controls):not(.view-toggle-section) .btn {
     width: 100% !important;
   }
   

@@ -4,13 +4,9 @@ import mongoose from "mongoose";
 mongoose.set('strictQuery', false);
 
 const connectDB = async () => {
-  try {
-    const conn = await mongoose.connect(process.env.MONGO_URI);
-    
-  } catch (error) {
-    
-    process.exit(1); // Stop the server if DB connection fails
-  }
+  // Connection is now handled in server.js
+  // This function is kept for backward compatibility but does nothing
+  return;
 };
 
 export default connectDB;

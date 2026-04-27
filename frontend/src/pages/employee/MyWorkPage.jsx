@@ -62,10 +62,13 @@ const MyWorkPage = () => {
     let inProgressItems = [];
 
     workItems.forEach((item) => {
-      const dueDate = new Date(item.dueDate);
-      dueDate.setHours(0, 0, 0, 0);
-      const itemMonth = dueDate.getMonth();
-      const itemYear = dueDate.getFullYear();
+      // Skip soft-deleted items (safety net)
+      if (item.isDeleted) return;
+
+      const dueDate = item.dueDate ? new Date(item.dueDate) : null;
+      if (dueDate) dueDate.setHours(0, 0, 0, 0);
+      const itemMonth = dueDate ? dueDate.getMonth() : -1;
+      const itemYear = dueDate ? dueDate.getFullYear() : -1;
 
       // Count items this month
       if (itemMonth === currentMonth && itemYear === currentYear) {
@@ -77,8 +80,8 @@ const MyWorkPage = () => {
         completedThisMonth++;
       }
 
-      // Count due today
-      if (dueDate.getTime() === today.getTime() && item.status !== 'Done') {
+      // Count due today — only non-Done items
+      if (dueDate && dueDate.getTime() === today.getTime() && item.status !== 'Done') {
         dueToday++;
         dueTodayItems.push(item);
       }
@@ -89,8 +92,8 @@ const MyWorkPage = () => {
         inProgressItems.push(item);
       }
 
-      // Count overdue
-      if (dueDate < today && item.status !== 'Done') {
+      // Count overdue — use backend-computed flag; Done items are NEVER overdue
+      if (item.status !== 'Done' && item.isOverdue === true) {
         overdue++;
         overdueItems.push(item);
       }
@@ -102,9 +105,9 @@ const MyWorkPage = () => {
       inProgress,
       overdue,
       completedThisMonth,
-      overdueItems: overdueItems.slice(0, 3), // Top 3 overdue
-      dueTodayItems: dueTodayItems.slice(0, 3), // Top 3 due today
-      inProgressItems: inProgressItems.slice(0, 3), // Top 3 in progress
+      overdueItems: overdueItems.slice(0, 3),
+      dueTodayItems: dueTodayItems.slice(0, 3),
+      inProgressItems: inProgressItems.slice(0, 3),
     };
   }, [workItems]);
 

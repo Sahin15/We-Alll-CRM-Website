@@ -25,25 +25,25 @@ const router = express.Router();
 router.post(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"),
   createPayment
 );
 router.put(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"),
   updatePayment
 );
 router.delete(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"),
   deletePayment
 );
 router.post(
   "/:id/partial",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"),
   recordPartialPayment
 );
 
@@ -51,7 +51,7 @@ router.post(
 router.get(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"),
   getAllPayments
 );
 
@@ -59,7 +59,7 @@ router.get(
 router.get(
   "/pending-verification",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"),
   getPendingPayments
 );
 router.post(
@@ -81,13 +81,13 @@ router.get(
 router.get(
   "/overdue",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"),
   getOverduePayments
 );
 router.get(
   "/stats",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"),
   getPaymentStats
 );
 router.get(
@@ -113,15 +113,14 @@ router.get(
 router.put(
   "/:id/verify",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"),
   verifyPayment
 );
 router.put(
   "/:id/reject",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"),
   rejectPayment
 );
 
 export default router;
-

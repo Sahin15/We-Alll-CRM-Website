@@ -131,18 +131,49 @@ export const updateDepartment = async (req, res) => {
   try {
     const { name, description, head, status } = req.body;
 
+    // Get the current department to check if head is changing
+    const existingDepartment = await Department.findById(req.params.id);
+    if (!existingDepartment) {
+      return res.status(404).json({ message: "Department not found" });
+    }
+
+    const oldHeadId = existingDepartment.head?.toString();
+    const newHeadId = head?.toString();
+
+    // If head is changing, update user roles
+    if (oldHeadId !== newHeadId) {
+      // Demote old head back to employee (only if they don't head another dept)
+      if (oldHeadId) {
+        const otherDeptWithSameHead = await Department.findOne({
+          _id: { $ne: req.params.id },
+          head: oldHeadId,
+        });
+        if (!otherDeptWithSameHead) {
+          await User.findByIdAndUpdate(oldHeadId, {
+            role: "employee",
+            isHeadOfDepartment: false,
+            headOfDepartment: null,
+          });
+        }
+      }
+      // Promote new head to hod
+      if (newHeadId) {
+        await User.findByIdAndUpdate(newHeadId, {
+          role: "hod",
+          isHeadOfDepartment: true,
+          headOfDepartment: req.params.id,
+        });
+      }
+    }
+
     const department = await Department.findByIdAndUpdate(
       req.params.id,
       { name, description, head, status },
       { new: true, runValidators: true }
     );
 
-    if (!department) {
-      return res.status(404).json({ message: "Department not found" });
-    }
+    clearDepartmentCache();
 
-    clearDepartmentCache(); // Clear cache when department is updated
-    
     res.status(200).json({
       message: "Department updated successfully",
       department,
@@ -470,6 +501,7 @@ export const assignHoD = async (req, res) => {
       if (previousHead) {
         previousHead.isHeadOfDepartment = false;
         previousHead.headOfDepartment = null;
+        previousHead.role = "employee";
         await previousHead.save();
       }
     }
@@ -480,9 +512,10 @@ export const assignHoD = async (req, res) => {
     department.headAssignedAt = new Date();
     await department.save();
 
-    // Update user
+    // Update user — promote to hod
     user.isHeadOfDepartment = true;
     user.headOfDepartment = departmentId;
+    user.role = "hod";
     await user.save();
 
     const updatedDepartment = await Department.findById(departmentId)

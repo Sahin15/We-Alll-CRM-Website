@@ -334,9 +334,24 @@ export const batchImport = async (req, res) => {
     const duplicates = [];
     const errors = [];
 
+    // Normalize phone: strip spaces, dashes, +91 prefix, keep digits only
+    const normalizePhone = (phone) => {
+      if (!phone) return "";
+      const digits = String(phone).replace(/[\s\-\+\(\)]/g, "");
+      // Strip country code 91 if 12 digits starting with 91
+      if (digits.length === 12 && digits.startsWith("91")) return digits.slice(2);
+      if (digits.length === 11 && digits.startsWith("0")) return digits.slice(1);
+      return digits;
+    };
+
     for (const row of records) {
       try {
-        const existing = await RawData.findOne({ phone: row.phone });
+        const normalizedPhone = normalizePhone(row.phone);
+        if (!normalizedPhone) { skipped++; continue; }
+
+        // Check duplicate by normalized phone
+        const allWithPhone = await RawData.find({});
+        const existing = allWithPhone.find(r => normalizePhone(r.phone) === normalizedPhone);
 
         if (existing) {
           duplicates.push({ phone: row.phone, name: row.name, existingId: existing._id });
@@ -354,6 +369,7 @@ export const batchImport = async (req, res) => {
 
         await RawData.create({
           ...row,
+          phone: normalizedPhone,
           batchId,
           status: "New",
           assignedCaller: assignToCallerId || null,

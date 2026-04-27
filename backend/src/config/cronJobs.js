@@ -519,6 +519,64 @@ const sendMeetingReminders = async () => {
   }
 };
 
+// Cron job: Create monthly slots for all projects on the 1st of each month
+const createMonthlySlotsForAllProjects = async () => {
+  try {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+
+    // Get all projects with slot system enabled
+    const projects = await Project.find({
+      'slotConfiguration.enableSlotSystem': true
+    }).select('_id name projectHead createdBy');
+
+    if (projects.length === 0) {
+      return;
+    }
+
+    const slotManagementService = (await import('../services/slotManagementService.js')).default;
+    let successCount = 0;
+    let failureCount = 0;
+
+    for (const project of projects) {
+      try {
+        // Check if slots already exist for this month
+        const existingSlots = await Slot.countDocuments({
+          project: project._id,
+          period: {
+            year,
+            month
+          }
+        });
+
+        if (existingSlots > 0) {
+          // Slots already created for this month
+          continue;
+        }
+
+        // Create slots for this month
+        const result = await slotManagementService.createMonthlySlotsForProject(
+          project._id,
+          year,
+          month,
+          {
+            count: 20, // Fixed 20 slots per month
+            createdBy: project.projectHead || project.createdBy
+          }
+        );
+
+        successCount++;
+      } catch (error) {
+        failureCount++;
+      }
+    }
+
+  } catch (error) {
+    
+  }
+};
+
 // Cron job: Send project deadline approaching reminders
 const sendProjectDeadlineReminders = async () => {
   try {
@@ -647,5 +705,71 @@ export const initializeCronJobs = () => {
     sendProjectDeadlineReminders();
   });
 
+  // Run on the 1st of every month at 12:01 AM: Create monthly slots for all projects
+  cron.schedule("1 0 1 * *", () => {
+    createMonthlySlotsForAllProjects();
+  });
+
+  // Run daily at 1 AM: Auto-reactivate inactive employees whose reactivation date has passed
+  cron.schedule("0 1 * * *", () => {
+    checkReactivationDates();
+  });
+
   
+};
+
+// Cron job: Auto-reactivate inactive employees whose reactivation date has passed
+const checkReactivationDates = async () => {
+  try {
+    const now = new Date();
+    const eligibleUsers = await User.find({
+      status: "inactive",
+      reactivationDate: { $lte: now, $ne: null },
+    });
+
+    for (const user of eligibleUsers) {
+      try {
+        user.status = "active";
+        user.reactivationDate = null;
+        user.statusChangedAt = now;
+        user.statusChangedBy = null; // system action
+        await user.save();
+
+        // Notify the reactivated employee
+        await NotificationService.sendToUser(
+          user._id,
+          "✅ Account Reactivated",
+          "Your account has been automatically reactivated. You can now log in.",
+          {
+            type: "general",
+            data: {},
+            actionUrl: "/dashboard",
+          }
+        );
+
+        // Notify all HR/Admin users
+        const hrAdmins = await User.find({
+          role: { $in: ["hr", "admin", "superadmin"] },
+          status: "active",
+        }).select("_id");
+
+        for (const admin of hrAdmins) {
+          await NotificationService.sendToUser(
+            admin._id,
+            "👤 Employee Reactivated",
+            `${user.name} (${user.employeeId || user.email}) has been automatically reactivated.`,
+            {
+              type: "general",
+              data: { userId: user._id.toString() },
+              actionUrl: `/employees/${user._id}/profile`,
+            }
+          );
+        }
+      } catch (err) {
+        console.error(`checkReactivationDates: failed to reactivate user ${user._id}: ${err.message}`);
+      }
+    }
+  } catch (err) {
+    console.error(`checkReactivationDates: error querying users: ${err.message}`);
+  }
 };

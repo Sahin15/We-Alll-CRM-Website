@@ -11,7 +11,40 @@ const expenseSchema = new mongoose.Schema(
     category: {
       type: String,
       enum: ["travel", "food", "accommodation", "office_supplies", "client_meeting", "training", "other"],
-      required: [true, "Category is required"],
+      default: null,
+      // Deprecated: Use expensePurpose and expenseType instead
+    },
+    expensePurpose: {
+      type: String,
+      enum: [
+        "internal_office",
+        "existing_client",
+        "prospective_client",
+        "seminar",
+        "expo",
+        "vendor_meeting",
+        "recruitment",
+        "training",
+        "marketing_activity",
+        "team_activity",
+        "travel_visit"
+      ],
+      required: [true, "Expense purpose is required"],
+    },
+    expenseType: {
+      type: String,
+      enum: [
+        "food",
+        "travel",
+        "hotel",
+        "transport",
+        "materials",
+        "entry_fee",
+        "gift",
+        "printing",
+        "miscellaneous"
+      ],
+      required: [true, "Expense type is required"],
     },
     amount: {
       type: Number,
@@ -140,6 +173,9 @@ expenseSchema.index({ employee: 1, date: -1 });
 expenseSchema.index({ status: 1, createdAt: -1 });
 expenseSchema.index({ project: 1 });
 expenseSchema.index({ category: 1 });
+expenseSchema.index({ expensePurpose: 1 });
+expenseSchema.index({ expenseType: 1 });
+expenseSchema.index({ expensePurpose: 1, expenseType: 1 });
 
 const Expense = mongoose.model("Expense", expenseSchema);
 

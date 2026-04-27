@@ -204,19 +204,22 @@ const ProjectDetails = () => {
           return false;
         }
         
-        // Include only if from same department
-        if (projectDeptId) {
-          const userDeptId = u.department?._id || u.department;
-          const matches = userDeptId === projectDeptId;
-          if (!matches) {
-            // console.log(`User ${u.name} excluded: dept ${userDeptId} !== ${projectDeptId}`);
-          }
-          return matches;
-        }
-        
-        // If no department on project, still only show employees/HoDs
+        // Allow all employees/HoDs (removed department restriction)
         return true;
       });
+      
+      // Sort: same department first, then others
+      if (projectDeptId) {
+        available.sort((a, b) => {
+          const aDeptId = a.department?._id || a.department;
+          const bDeptId = b.department?._id || b.department;
+          
+          const aMatch = aDeptId === projectDeptId ? 0 : 1;
+          const bMatch = bDeptId === projectDeptId ? 0 : 1;
+          
+          return aMatch - bMatch;
+        });
+      }
       
       setAvailableMembers(available);
       // console.log('Filtered available members:', available.map(u => ({ name: u.name, dept: u.department })));
@@ -319,21 +322,29 @@ const ProjectDetails = () => {
       
       const projectDeptId = project?.department?._id || project?.department;
       
-      // Filter users from the same department (employees and HoDs only)
+      // Filter users (employees and HoDs only)
       const available = allUsers.filter(u => {
         // Only include employees and HoDs
         if (u.role !== 'employee' && u.role !== 'hod') {
           return false;
         }
         
-        // Include only if from same department
-        if (projectDeptId) {
-          const userDeptId = u.department?._id || u.department;
-          return userDeptId === projectDeptId;
-        }
-        
+        // Allow all employees/HoDs (removed department restriction)
         return true;
       });
+      
+      // Sort: same department first, then others
+      if (projectDeptId) {
+        available.sort((a, b) => {
+          const aDeptId = a.department?._id || a.department;
+          const bDeptId = b.department?._id || b.department;
+          
+          const aMatch = aDeptId === projectDeptId ? 0 : 1;
+          const bMatch = bDeptId === projectDeptId ? 0 : 1;
+          
+          return aMatch - bMatch;
+        });
+      }
       
       setAvailableUsers(available);
     } catch (error) {

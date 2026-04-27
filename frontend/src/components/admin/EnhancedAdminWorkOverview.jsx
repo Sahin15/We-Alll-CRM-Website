@@ -2388,6 +2388,11 @@ const EnhancedAdminWorkOverview = () => {
             }
           }}
           currentUser={user}
+          onEdit={() => {
+            // For now, just close the modal
+            // Edit functionality can be added later if needed
+            setShowDetailsModal(false);
+          }}
         />
       )}
     </Container>

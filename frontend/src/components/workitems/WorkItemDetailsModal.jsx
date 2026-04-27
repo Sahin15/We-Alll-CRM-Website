@@ -133,34 +133,12 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
     });
   };
 
-  // Reset comments when modal opens/closes
+  // Set comments only when modal first opens for a work item
   React.useEffect(() => {
     if (show && workItem?.comments) {
-      console.log('Modal opened, setting initial comments:', workItem.comments.length);
       setComments(workItem.comments);
     }
-  }, [show, workItem?._id]);
-
-  // Update comments when workItem changes, but be smart about it
-  React.useEffect(() => {
-    if (workItem?.comments && show) {
-      console.log('WorkItem comments changed:', {
-        newCount: workItem.comments.length,
-        currentCount: comments.length,
-        workItemId: workItem._id
-      });
-      
-      // Always update when modal first opens (comments is empty)
-      // Or when we have more comments (new comment added)
-      // But don't update when we have fewer comments (likely due to local deletion)
-      if (comments.length === 0 || workItem.comments.length > comments.length) {
-        console.log('Updating comments from workItem');
-        setComments(workItem.comments);
-      } else {
-        console.log('Skipping comments update to preserve local changes');
-      }
-    }
-  }, [workItem?.comments, workItem?._id, show]);
+  }, [show, workItem?._id]); // ONLY reset on open or different work item — never on comment changes
 
   // Fetch all team members for mentions (project members + HR/Manager/Admin/SuperAdmin)
   useEffect(() => {
@@ -315,18 +293,28 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
     if (!newComment.trim()) return;
 
     setCommentLoading(true);
+    const commentText = newComment.trim();
     try {
-      // Call the API to add comment
-      if (onAddComment) {
-        await onAddComment(workItem._id, newComment.trim());
-        setNewComment('');
-        toast.success('Comment added successfully');
-        
-        // Refresh the work item data to get updated comments
-        if (onRefresh) {
-          onRefresh();
-        }
+      await workItemApi.addComment(workItem._id, commentText);
+      setNewComment('');
+
+      // Fetch fresh work item and update comments directly
+      const updated = await workItemApi.getWorkItemById(workItem._id);
+      const updatedItem = updated?.data || updated;
+      if (updatedItem?.comments) {
+        setComments(updatedItem.comments);
+      } else {
+        // Fallback optimistic
+        setComments(prev => [...prev, {
+          _id: `temp-${Date.now()}`,
+          user: { _id: currentUser?._id, name: currentUser?.name },
+          text: commentText,
+          createdAt: new Date().toISOString(),
+          isSystemComment: false
+        }]);
       }
+
+      toast.success('Comment added successfully');
     } catch (error) {
       console.error('Error adding comment:', error);
       toast.error(error.response?.data?.message || 'Failed to add comment');
@@ -411,7 +399,8 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
     }
   };
 
-  const isOverdue = workItem.dueDate && 
+  const isOverdue = workItem.status !== 'Done' &&
+    workItem.dueDate && 
     new Date(workItem.dueDate) < new Date() && 
     workItem.status !== 'Done';
 
@@ -453,7 +442,7 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
               {/* Activity Timeline - Shows status changes and comments chronologically */}
               <div className="activity-timeline">
                 {(() => {
-                  // Combine status history and comments into a single timeline
+                  // Combine status history, edit history, and comments into a single timeline
                   const activities = [];
                   
                   // Add status changes from history
@@ -467,6 +456,32 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                         toStatus: history.toStatus,
                         comment: history.comment
                       });
+                    });
+                  }
+                  
+                  // Add edit history
+                  if (workItem.editHistory && workItem.editHistory.length > 0) {
+                    console.log('Raw editHistory from API:', JSON.stringify(workItem.editHistory, null, 2));
+                    workItem.editHistory.forEach((edit, idx) => {
+                      // Only add edit entries that have actual changes
+                      if (edit.fieldsChanged && edit.fieldsChanged.length > 0) {
+                        // Use stored editorName and editorEmail directly
+                        const userName = edit.editorName || edit.editorEmail || 'Unknown User';
+                        console.log(`Edit ${idx} - Using editorName: "${edit.editorName}", editorEmail: "${edit.editorEmail}", final: "${userName}"`);
+                        
+                        activities.push({
+                          type: 'edit',
+                          timestamp: edit.editedAt,
+                          user: {
+                            name: userName,
+                            email: edit.editorEmail,
+                            _id: edit.editedBy?._id || edit.editedBy
+                          },
+                          fieldsChanged: edit.fieldsChanged,
+                          changes: edit.changes,
+                          reason: edit.reason
+                        });
+                      }
                     });
                   }
                   
@@ -509,6 +524,8 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                           <div className="timeline-marker">
                             {activity.type === 'status' ? (
                               <div className="marker-icon status-change">🔄</div>
+                            ) : activity.type === 'edit' ? (
+                              <div className="marker-icon edit">✏️</div>
                             ) : activity.type === 'comment' ? (
                               <div className="marker-icon comment">💬</div>
                             ) : (
@@ -533,11 +550,11 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                                     fontWeight: '600'
                                   }}
                                 >
-                                  {(activity.user?.name || 'U').charAt(0).toUpperCase()}
+                                  {(activity.user?.name || activity.user?.email || 'U').charAt(0).toUpperCase()}
                                 </div>
                                 <div>
                                   <strong style={{ fontSize: '0.9rem' }}>
-                                    {activity.user?.name || 'Unknown User'}
+                                    {activity.user?.name || activity.user?.email || 'Unknown User'}
                                   </strong>
                                   <div style={{ fontSize: '0.75rem', color: '#6c757d' }}>
                                     {formatDate(activity.timestamp)}
@@ -579,6 +596,94 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                                       borderLeft: '3px solid #667eea'
                                     }}>
                                       {activity.comment}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              {activity.type === 'edit' && (
+                                <div className="edit-info">
+                                  <div className="mb-2">
+                                    <strong style={{ fontSize: '0.9rem', color: '#d97706' }}>
+                                      Edited {activity.fieldsChanged?.length || 0} field(s)
+                                    </strong>
+                                  </div>
+                                  {activity.fieldsChanged && activity.fieldsChanged.length > 0 && (
+                                    <div className="mb-2">
+                                      <div style={{ fontSize: '0.85rem', color: '#6c757d', marginBottom: '8px' }}>
+                                        <strong>Changes:</strong>
+                                      </div>
+                                      {activity.fieldsChanged.map((field, idx) => {
+                                        const change = activity.changes?.[field];
+                                        
+                                        // Helper function to format field values for display
+                                        const formatFieldValue = (value, fieldName) => {
+                                          if (!value) return '-';
+                                          
+                                          // Format dates
+                                          if (fieldName.toLowerCase().includes('date') || fieldName.toLowerCase().includes('at')) {
+                                            try {
+                                              const date = new Date(value);
+                                              if (!isNaN(date.getTime())) {
+                                                return date.toLocaleDateString('en-US', { 
+                                                  year: 'numeric', 
+                                                  month: 'short', 
+                                                  day: 'numeric'
+                                                });
+                                              }
+                                            } catch (e) {
+                                              // Fall through to default
+                                            }
+                                          }
+                                          
+                                          // Truncate long strings
+                                          const str = String(value);
+                                          return str.length > 50 ? str.substring(0, 50) + '...' : str;
+                                        };
+                                        
+                                        // Skip if old and new values are the same
+                                        const oldFormatted = formatFieldValue(change?.oldValue, field);
+                                        const newFormatted = formatFieldValue(change?.newValue, field);
+                                        
+                                        if (oldFormatted === newFormatted) {
+                                          return null;
+                                        }
+                                        
+                                        return (
+                                          <div key={idx} style={{
+                                            fontSize: '0.85rem',
+                                            padding: '8px',
+                                            background: '#fef3c7',
+                                            borderRadius: '4px',
+                                            marginBottom: '6px',
+                                            borderLeft: '3px solid #d97706'
+                                          }}>
+                                            <div style={{ fontWeight: '600', color: '#92400e' }}>
+                                              {field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')}
+                                            </div>
+                                            {change && (
+                                              <div style={{ color: '#78350f', marginTop: '4px' }}>
+                                                <div>
+                                                  <span style={{ color: '#991b1b' }}>From:</span> {oldFormatted}
+                                                </div>
+                                                <div>
+                                                  <span style={{ color: '#15803d' }}>To:</span> {newFormatted}
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      }).filter(Boolean)}
+                                    </div>
+                                  )}
+                                  {activity.reason && (
+                                    <div className="mt-2 p-2" style={{
+                                      background: '#f0fdf4',
+                                      borderRadius: '6px',
+                                      fontSize: '0.9rem',
+                                      borderLeft: '3px solid #22c55e',
+                                      color: '#166534'
+                                    }}>
+                                      <strong>Reason:</strong> {activity.reason}
                                     </div>
                                   )}
                                 </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Nav } from "react-bootstrap";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   FaTachometerAlt,
   FaUsers,
@@ -26,12 +26,15 @@ import {
   FaHandshake,
   FaPlus,
   FaPhone,
+  FaLaptop,
+  FaFileCode,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import "./Sidebar.css";
 
 const Sidebar = ({ collapsed, toggleSidebar }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [expandedGroups, setExpandedGroups] = useState({});
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 991);
@@ -58,11 +61,20 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
     }
   }, [location.pathname]);
 
-  const toggleGroup = (groupId) => {
+  const toggleGroup = (groupId, defaultPath) => {
     setExpandedGroups(prev => ({
       ...prev,
       [groupId]: !prev[groupId]
     }));
+  };
+
+  const handleGroupClick = (groupId, defaultPath, navigate) => {
+    // If there's a default path (like dashboard), navigate to it
+    if (defaultPath) {
+      navigate(defaultPath);
+    }
+    // Toggle the group expansion
+    toggleGroup(groupId);
   };
 
   // Auto-close sidebar on mobile when a link is clicked
@@ -131,46 +143,47 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       id: "billing",
       icon: <FaMoneyBillWave />,
       label: "Billing & Finance",
-      roles: ["admin", "superadmin", "accounts", "manager"],
-      excludeDepartments: ["Sales", "HR"], // Sales and HR department employees should not see this
-      onlyForRoles: ["admin", "superadmin", "accounts", "manager"], // Only these roles can see it, regardless of department
+      roles: ["admin", "superadmin", "accounts", "manager", "hod"],
+      excludeDepartments: ["HR"], // HR department employees should not see this
+      onlyForRoles: ["admin", "superadmin", "accounts", "manager"], // hod handled separately via department check
+      hodDepartments: ["Sales"], // Only HoDs of these departments can see this
       isGroup: true,
       children: [
         {
           path: "/admin/billing",
           icon: <FaFileInvoiceDollar />,
           label: "Overview",
-          roles: ["admin", "superadmin", "accounts", "manager"],
+          roles: ["admin", "superadmin", "accounts", "manager", "hod"],
         },
         {
           path: "/admin/services",
           icon: <FaBoxes />,
           label: "Services",
-          roles: ["admin", "superadmin", "accounts", "manager"],
+          roles: ["admin", "superadmin", "accounts", "manager", "hod"],
         },
         {
           path: "/admin/plans",
           icon: <FaClipboardList />,
           label: "Plans",
-          roles: ["admin", "superadmin", "accounts", "manager"],
+          roles: ["admin", "superadmin", "accounts", "manager", "hod"],
         },
         {
           path: "/admin/subscriptions",
           icon: <FaReceipt />,
           label: "Subscriptions",
-          roles: ["admin", "superadmin", "accounts", "manager"],
+          roles: ["admin", "superadmin", "accounts", "manager", "hod"],
         },
         {
           path: "/admin/invoices",
           icon: <FaFileInvoiceDollar />,
           label: "Invoices",
-          roles: ["admin", "superadmin", "accounts", "manager"],
+          roles: ["admin", "superadmin", "accounts", "manager", "hod"],
         },
         {
           path: "/admin/payments",
           icon: <FaCreditCard />,
           label: "Payments",
-          roles: ["admin", "superadmin", "accounts", "manager"],
+          roles: ["admin", "superadmin", "accounts", "manager", "hod"],
         },
       ],
     },
@@ -179,6 +192,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       icon: <FaTasks />,
       label: "Work Management",
       roles: ["employee", "admin", "superadmin", "hr", "hod", "manager"],
+      defaultPath: "/employee/my-work",
       isGroup: true,
       children: [
         {
@@ -212,6 +226,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       icon: <FaClipboardList />,
       label: "Daily Work Log",
       roles: ["employee", "admin", "superadmin", "hr", "hod", "manager"],
+      defaultPath: "/worklog/today",
       isGroup: true,
       children: [
         {
@@ -241,6 +256,18 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       roles: ["admin", "superadmin", "hr", "employee", "hod", "manager"],
     },
     {
+      path: "/assets/management",
+      icon: <FaLaptop />,
+      label: "Assets",
+      roles: ["admin", "superadmin", "hr", "manager", "employee", "hod"],
+    },
+    {
+      path: "/licenses/management",
+      icon: <FaFileCode />,
+      label: "Software Licenses",
+      roles: ["admin", "superadmin", "hr", "manager", "employee", "hod"],
+    },
+    {
       id: "company",
       icon: <FaHandshake />,
       label: "Company",
@@ -262,20 +289,13 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
         {
           path: "/employee/announcements",
           icon: <FaBullhorn />,
-          label: "Announcements",
+          label: "News & Alerts",
           roles: ["employee", "hod", "admin", "superadmin", "hr", "manager"],
         },
         {
           path: "/policies",
           icon: <FaShieldAlt />,
           label: "Policy Management",
-          roles: ["admin", "superadmin", "hr", "manager"],
-          onlyForRoles: ["admin", "superadmin", "hr", "manager"],
-        },
-        {
-          path: "/announcements",
-          icon: <FaBullhorn />,
-          label: "Announcement Management",
           roles: ["admin", "superadmin", "hr", "manager"],
           onlyForRoles: ["admin", "superadmin", "hr", "manager"],
         },
@@ -422,14 +442,29 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       label: "My Profile",
       roles: ["superadmin", "admin", "hr", "accounts", "employee", "client", "hod", "manager"],
     },
+    {
+      path: "/admin/support-management",
+      icon: <FaPhone />,
+      label: "Support Contacts",
+      roles: ["admin", "superadmin"],
+      onlyForRoles: ["admin", "superadmin"],
+    },
   ];
 
   const filteredMenu = menuItems.filter((item) => {
     // Helper function to check if user has access
     const hasAccess = (menuItem) => {
       // If onlyForRoles is specified, ONLY those roles can see it
+      // Exception: hod role is checked separately via hodDepartments
       if (menuItem.onlyForRoles && menuItem.onlyForRoles.length > 0) {
-        return menuItem.onlyForRoles.includes(user?.role);
+        if (menuItem.onlyForRoles.includes(user?.role)) return true;
+        // Allow hod if their department is in hodDepartments
+        if (user?.role === 'hod' && menuItem.hodDepartments?.length > 0) {
+          return menuItem.hodDepartments.some(
+            d => d.toLowerCase() === user?.department?.name?.toLowerCase()
+          );
+        }
+        return false;
       }
       
       // Check role-based access
@@ -519,7 +554,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
                 <div key={item.id} className="sidebar-group">
                   <div
                     className={`sidebar-link sidebar-group-header ${hasActiveChild ? 'active' : ''}`}
-                    onClick={() => !collapsed && toggleGroup(item.id)}
+                    onClick={() => !collapsed && handleGroupClick(item.id, item.defaultPath, navigate)}
                     style={{ cursor: collapsed ? 'default' : 'pointer' }}
                   >
                     <span className="sidebar-icon">{item.icon}</span>

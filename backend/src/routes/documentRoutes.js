@@ -8,7 +8,10 @@ import {
   getOfficialDocuments,
   downloadDocument,
   deleteDocument,
-  getAllDocuments
+  getAllDocuments,
+  approveDocument,
+  rejectDocument,
+  getDocumentsForVerification
 } from '../controllers/documentController.js';
 
 const router = express.Router();
@@ -28,5 +31,10 @@ router.delete('/:documentId', protect, deleteDocument);
 
 // Admin routes
 router.get('/all', protect, getAllDocuments);
+
+// Document verification routes (for HR/Admin)
+router.get('/verification/pending', protect, getDocumentsForVerification);
+router.put('/:documentId/approve', protect, approveDocument);
+router.put('/:documentId/reject', protect, rejectDocument);
 
 export default router;

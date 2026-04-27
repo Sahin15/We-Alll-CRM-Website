@@ -916,7 +916,7 @@ const MyLeaves = () => {
         }
 
         .leave-type-card h6 {
-          font-size: 0.95rem;
+          font-size: 0.95rem !important;
           font-weight: 600;
           margin-bottom: 0.25rem;
         }

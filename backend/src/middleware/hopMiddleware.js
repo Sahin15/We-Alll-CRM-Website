@@ -130,7 +130,7 @@ export const canManageProject = async (req, res, next) => {
 
     // Check if user is a team member (for team management operations)
     const isTeamMember = project.assignedUsers?.some(assignedUser => 
-      assignedUser.toString() === userId.toString()
+      (assignedUser?._id || assignedUser).toString() === userId.toString()
     ) || project.teamMembers?.some(member => 
       (member.user?._id || member.user).toString() === userId.toString()
     );
@@ -147,6 +147,7 @@ export const canManageProject = async (req, res, next) => {
       message: "Access denied. You don't have permission to manage this project.",
     });
   } catch (error) {
+    console.error("Error in canManageProject:", error);
     
     res.status(500).json({
       success: false,

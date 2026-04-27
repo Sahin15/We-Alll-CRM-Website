@@ -204,7 +204,7 @@ salaryPreviewSchema.set('toJSON', { virtuals: true });
 salaryPreviewSchema.set('toObject', { virtuals: true });
 
 // Static method to generate preview for employee
-salaryPreviewSchema.statics.generatePreview = async function(employeeId, month, year, additionalData = {}) {
+salaryPreviewSchema.statics.generatePreview = async function(employeeId, month, year, additionalData = {}, workingDaysOverride = null) {
   try {
     // Check if preview already exists
     const existingPreview = await this.findOne({
@@ -217,14 +217,12 @@ salaryPreviewSchema.statics.generatePreview = async function(employeeId, month, 
       throw new Error("Preview already exists for this month");
     }
 
-    // Import required services
     const WorkingDaysCalculator = (await import("../services/workingDaysCalculator.js")).default;
     const LeaveImpactCalculator = (await import("../services/leaveImpactCalculator.js")).default;
     
     const workingDaysCalc = new WorkingDaysCalculator();
     const leaveImpactCalc = new LeaveImpactCalculator();
 
-    // Get employee and salary structure
     const User = mongoose.model("User");
     const SalaryStructure = mongoose.model("SalaryStructure");
     
@@ -238,8 +236,20 @@ salaryPreviewSchema.statics.generatePreview = async function(employeeId, month, 
       throw new Error("No active salary structure found");
     }
 
-    // Calculate working days
-    const workingDaysResult = await workingDaysCalc.calculateWorkingDays(month, year, employee.department?._id);
+    // Use override if provided (mid-month generation), otherwise calculate normally
+    let workingDaysResult;
+    if (workingDaysOverride && workingDaysOverride.workingDays > 0) {
+      workingDaysResult = {
+        totalDays: workingDaysOverride.totalDays,
+        workingDays: workingDaysOverride.workingDays,
+        holidays: workingDaysOverride.holidays || 0,
+        weekends: workingDaysOverride.totalDays - workingDaysOverride.workingDays - (workingDaysOverride.holidays || 0),
+        holidayDates: [],
+        isPartialMonth: true
+      };
+    } else {
+      workingDaysResult = await workingDaysCalc.calculateWorkingDays(month, year, employee.department?._id);
+    }
     
     // Calculate leave impact
     const leaveImpactResult = await leaveImpactCalc.calculateLeaveDeduction(employeeId, month, year, salaryStructure);

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Dropdown, Badge, Button, ListGroup, Spinner } from 'react-bootstrap';
+import { Dropdown, Badge, Button, ListGroup, Spinner, Modal, Card } from 'react-bootstrap';
 import { FaBell, FaCheck, FaTrash, FaEye, FaCheckDouble, FaTimes } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
@@ -19,6 +19,7 @@ const NotificationBell = () => {
   } = useNotifications();
 
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showAllModal, setShowAllModal] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   useEffect(() => {
@@ -96,6 +97,7 @@ const NotificationBell = () => {
       'work_log_reminder': '📝',
       'announcement': '📢',
       'general': '📬',
+      'feedback_submitted': '💬',
     };
     return iconMap[type] || '📬';
   };
@@ -113,59 +115,86 @@ const NotificationBell = () => {
   };
 
   const handleNotificationClick = async (notification) => {
-    console.log('[NotificationBell] Notification clicked:', notification._id, notification.title);
-    console.log('[NotificationBell] Is read:', notification.isRead);
-    
-    if (!notification.isRead) {
-      console.log('[NotificationBell] Marking notification as read...');
-      await markAsRead(notification._id);
-      console.log('[NotificationBell] ✅ Notification marked as read');
-    }
-    
-    // Close dropdown on mobile after clicking a notification
-    if (isMobile) {
-      setShowDropdown(false);
-    }
-    
-    // Navigate to link if provided
-    if (notification.link) {
-      try {
-        navigate(notification.link);
-        return;
-      } catch (error) {
-        console.warn('Navigation failed for link:', notification.link);
-      }
-    }
-    
-    // Fallback: Navigate based on notification type and data
-    if (notification.type === 'work_item_assigned' || 
-        notification.type === 'work_item_due_soon' || 
-        notification.type === 'work_item_overdue' ||
-        notification.type === 'work_item_review' ||
-        notification.type === 'work_item_status_change' ||
-        notification.type === 'work_item_completed') {
-      if (notification.data?.workItemId) {
-        navigate(`/my-work`); // Redirect to work list for now
-      }
-    } else if (notification.type === 'slot_assigned' || 
-               notification.type === 'slot_deadline_approaching' ||
-               notification.type === 'slot_overdue' ||
-               notification.type === 'slot_comment_added') {
-      navigate(`/my-work`); // Redirect to work list for now
-    } else if (notification.type === 'client_won' || notification.type === 'client_onboarding') {
-      if (notification.data?.clientId) {
-        navigate(`/clients`); // Redirect to clients list for now
-      }
-    } else if (notification.type === 'announcement' || notification.type === 'urgent') {
-      navigate('/employee/announcements');
-    } else if (notification.data?.projectId) {
-      navigate(`/projects/${notification.data.projectId}`);
-    } else if (notification.data?.leaveId) {
-      navigate(`/employee/leaves`);
+    // Close UI immediately
+    setShowDropdown(false);
+    setShowAllModal(false);
+
+    // Mark as read + delete in background (for bell dropdown clicks — one-click dismiss)
+    if (!notification.isRead) markAsRead(notification._id);
+    deleteNotification(notification._id);
+
+    // Determine destination
+    let destination = null;
+    const adminOnlyRoutes = ['/expenses/manage', '/expenses/management'];
+    if (notification.actionUrl && !adminOnlyRoutes.includes(notification.actionUrl)) {
+      destination = notification.actionUrl;
+    } else if (notification.link) {
+      destination = notification.link;
     } else {
-      // Default fallback - go to dashboard
-      navigate('/dashboard');
+      const type = notification.type;
+      if (['work_item_assigned','work_item_due_soon','work_item_overdue','work_item_review','work_item_status_change','work_item_completed','work_assigned','work_reassigned','task_assigned'].includes(type)) {
+        destination = '/my-work';
+      } else if (['slot_assigned','slot_deadline_approaching','slot_overdue','slot_comment_added'].includes(type)) {
+        destination = '/my-work';
+      } else if (['expense_submitted','expense_approval','expense_rejection','expense_reimbursed'].includes(type)) {
+        destination = '/expenses/my-expenses';
+      } else if (['leave_request','leave_approval','leave_rejection'].includes(type)) {
+        destination = '/leaves/my-leaves';
+      } else if (['meeting_scheduled','meeting_updated','meeting_cancelled','meeting_reminder_15min','meeting_reminder_1hour'].includes(type)) {
+        destination = '/meetings';
+      } else if (['wfh_request_submitted','wfh_request_approved','wfh_request_rejected'].includes(type)) {
+        destination = '/leaves/my-leaves';
+      } else if (['attendance_alert','attendance_auto_clockout'].includes(type)) {
+        destination = '/attendance/my-attendance';
+      } else if (['announcement','urgent'].includes(type)) {
+        destination = '/employee/announcements';
+      } else if (type === 'feedback_submitted') {
+        destination = '/employee/announcements?tab=feedback';
+      } else if (notification.data?.projectId) {
+        destination = `/projects/${notification.data.projectId}`;
+      } else {
+        destination = '/employee/announcements';
+      }
     }
+    if (destination) navigate(destination);
+  };
+
+  // View only — navigate without deleting (used in "All Notifications" modal View button)
+  const handleViewNotification = (notification) => {
+    setShowAllModal(false);
+    if (!notification.isRead) markAsRead(notification._id);
+
+    const adminOnlyRoutes = ['/expenses/manage', '/expenses/management'];
+    let destination = null;
+    if (notification.actionUrl && !adminOnlyRoutes.includes(notification.actionUrl)) {
+      destination = notification.actionUrl;
+    } else if (notification.link) {
+      destination = notification.link;
+    } else {
+      const type = notification.type;
+      if (['work_item_assigned','work_item_due_soon','work_item_overdue','work_item_review','work_item_status_change','work_item_completed','work_assigned','work_reassigned','task_assigned'].includes(type)) {
+        destination = '/my-work';
+      } else if (['expense_submitted','expense_approval','expense_rejection','expense_reimbursed'].includes(type)) {
+        destination = '/expenses/my-expenses';
+      } else if (['leave_request','leave_approval','leave_rejection'].includes(type)) {
+        destination = '/leaves/my-leaves';
+      } else if (['meeting_scheduled','meeting_updated','meeting_cancelled','meeting_reminder_15min','meeting_reminder_1hour'].includes(type)) {
+        destination = '/meetings';
+      } else if (['wfh_request_submitted','wfh_request_approved','wfh_request_rejected'].includes(type)) {
+        destination = '/leaves/my-leaves';
+      } else if (['attendance_alert','attendance_auto_clockout'].includes(type)) {
+        destination = '/attendance/my-attendance';
+      } else if (['announcement','urgent'].includes(type)) {
+        destination = '/employee/announcements';
+      } else if (type === 'feedback_submitted') {
+        destination = '/employee/announcements?tab=feedback';
+      } else if (notification.data?.projectId) {
+        destination = `/projects/${notification.data.projectId}`;
+      } else {
+        destination = '/employee/announcements';
+      }
+    }
+    if (destination) navigate(destination);
   };
 
   // Only show unread notifications in the bell dropdown
@@ -337,8 +366,8 @@ const NotificationBell = () => {
               size="sm"
               className="text-decoration-none"
               onClick={() => {
-                navigate('/employee/announcements');
-                if (isMobile) setShowDropdown(false);
+                setShowDropdown(false);
+                setShowAllModal(true);
               }}
             >
               <FaEye className="me-1" />
@@ -353,13 +382,90 @@ const NotificationBell = () => {
       {isMobile && showDropdown && (
         <div 
           className="position-fixed top-0 start-0 w-100 h-100"
-          style={{ 
-            backgroundColor: 'rgba(0, 0, 0, 0.3)', 
-            zIndex: 9998 
-          }}
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)', zIndex: 9998 }}
           onClick={() => setShowDropdown(false)}
         />
       )}
+
+      {/* All Notifications Modal */}
+      <Modal show={showAllModal} onHide={() => setShowAllModal(false)} size="lg" centered scrollable>
+        <Modal.Header closeButton className="bg-dark text-white">
+          <Modal.Title className="d-flex align-items-center gap-2">
+            <FaBell />
+            All Notifications
+            {unreadCount > 0 && <Badge bg="danger" pill>{unreadCount} unread</Badge>}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-0">
+          {notifications.length === 0 ? (
+            <div className="text-center py-5 text-muted">
+              <FaBell size={48} className="mb-3 opacity-25" />
+              <p className="mb-0">No notifications</p>
+            </div>
+          ) : (
+            <ListGroup variant="flush">
+              {notifications.map((notification) => (
+                <ListGroup.Item
+                  key={notification._id}
+                  className={`border-bottom ${!notification.isRead ? 'bg-light' : ''}`}
+                >
+                  <div className="d-flex align-items-start gap-3 py-1">
+                    <span style={{ fontSize: '1.4rem', lineHeight: 1, flexShrink: 0 }}>
+                      {getNotificationIcon(notification.type)}
+                    </span>
+                    <div className="flex-grow-1 min-width-0">
+                      <div className="d-flex justify-content-between align-items-start">
+                        <h6 className="mb-1 fw-semibold text-truncate pe-2">{notification.title}</h6>
+                        <small className="text-muted flex-shrink-0">
+                          {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                        </small>
+                      </div>
+                      <p className="mb-2 text-muted small">{notification.body}</p>
+                      <div className="d-flex align-items-center gap-2">
+                        {!notification.isRead && <Badge bg="primary" pill style={{ fontSize: '0.65rem' }}>New</Badge>}
+                        {/* View button — navigates to the relevant page */}
+                        <Button
+                          size="sm"
+                          variant="outline-primary"
+                          style={{ fontSize: '0.75rem', padding: '2px 10px' }}
+                          onClick={() => handleViewNotification(notification)}
+                        >
+                          <FaEye className="me-1" />View
+                        </Button>
+                        {/* Remove button — deletes permanently */}
+                        <Button
+                          size="sm"
+                          variant="outline-danger"
+                          style={{ fontSize: '0.75rem', padding: '2px 10px' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteNotification(notification._id);
+                          }}
+                        >
+                          <FaTrash className="me-1" />Remove
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </ListGroup.Item>
+              ))}
+            </ListGroup>
+          )}
+        </Modal.Body>
+        <Modal.Footer className="justify-content-between">
+          <small className="text-muted">
+            <strong>View</strong> — navigate to the page &nbsp;|&nbsp; <strong>Remove</strong> — delete permanently
+          </small>
+          <div className="d-flex gap-2">
+            {unreadCount > 0 && (
+              <Button variant="outline-primary" size="sm" onClick={markAllAsRead}>
+                <FaCheckDouble className="me-1" />Mark All Read
+              </Button>
+            )}
+            <Button variant="secondary" size="sm" onClick={() => setShowAllModal(false)}>Close</Button>
+          </div>
+        </Modal.Footer>
+      </Modal>
     </>
   );
 };

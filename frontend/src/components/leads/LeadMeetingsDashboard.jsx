@@ -21,6 +21,8 @@ const LeadMeetingsDashboard = () => {
   const [viewingMeeting, setViewingMeeting] = useState(null);
   const [editingMeeting, setEditingMeeting] = useState(null);
   const [selectedLead, setSelectedLead] = useState("");
+  const [leadSearch, setLeadSearch] = useState("");
+  const [showLeadDropdown, setShowLeadDropdown] = useState(false);
   const [filterStatus, setFilterStatus] = useState("");
   const [filterType, setFilterType] = useState("");
   const [formData, setFormData] = useState({
@@ -63,6 +65,8 @@ const LeadMeetingsDashboard = () => {
     if (meeting) {
       setEditingMeeting(meeting);
       setSelectedLead(meeting.leadId);
+      const matchedLead = leads.find(l => l._id === meeting.leadId);
+      setLeadSearch(matchedLead ? `${matchedLead.fullName}${matchedLead.companyName ? ` (${matchedLead.companyName})` : ''}` : '');
       setFormData({
         title: meeting.title,
         scheduledDate: meeting.scheduledDate?.split("T")[0] || "",
@@ -76,6 +80,8 @@ const LeadMeetingsDashboard = () => {
     } else {
       setEditingMeeting(null);
       setSelectedLead(leadId);
+      const matchedLead = leadId ? leads.find(l => l._id === leadId) : null;
+      setLeadSearch(matchedLead ? `${matchedLead.fullName}${matchedLead.companyName ? ` (${matchedLead.companyName})` : ''}` : '');
       setFormData({
         title: "",
         scheduledDate: "",
@@ -87,6 +93,7 @@ const LeadMeetingsDashboard = () => {
         notes: "",
       });
     }
+    setShowLeadDropdown(false);
     setShowModal(true);
   };
 
@@ -506,18 +513,82 @@ const LeadMeetingsDashboard = () => {
           <Form>
             <Form.Group className="mb-3">
               <Form.Label>Select Lead *</Form.Label>
-              <Form.Select 
-                value={selectedLead} 
-                onChange={(e) => setSelectedLead(e.target.value)}
-                disabled={!!editingMeeting}
-              >
-                <option value="">Choose a lead...</option>
-                {leads.map(lead => (
-                  <option key={lead._id} value={lead._id}>
-                    {lead.fullName} {lead.companyName ? `(${lead.companyName})` : ""}
-                  </option>
-                ))}
-              </Form.Select>
+              {editingMeeting ? (
+                <Form.Control
+                  type="text"
+                  value={leads.find(l => l._id === selectedLead)
+                    ? `${leads.find(l => l._id === selectedLead).fullName}${leads.find(l => l._id === selectedLead).companyName ? ` (${leads.find(l => l._id === selectedLead).companyName})` : ''}`
+                    : selectedLead}
+                  disabled
+                />
+              ) : (
+                <div style={{ position: 'relative' }}>
+                  <Form.Control
+                    type="text"
+                    placeholder="Search lead by name or company..."
+                    value={leadSearch}
+                    onChange={(e) => {
+                      setLeadSearch(e.target.value);
+                      setShowLeadDropdown(true);
+                      if (!e.target.value) setSelectedLead("");
+                    }}
+                    onFocus={() => setShowLeadDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowLeadDropdown(false), 200)}
+                    autoComplete="off"
+                  />
+                  {selectedLead && (
+                    <span style={{
+                      position: 'absolute', right: '10px', top: '50%',
+                      transform: 'translateY(-50%)', color: '#28a745', fontSize: '0.8rem'
+                    }}>✓</span>
+                  )}
+                  {showLeadDropdown && (
+                    <div style={{
+                      position: 'absolute', top: '100%', left: 0, right: 0,
+                      background: '#fff', border: '1px solid #ced4da', borderRadius: '0 0 4px 4px',
+                      maxHeight: '220px', overflowY: 'auto', zIndex: 9999,
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                    }}>
+                      {leads
+                        .filter(lead => {
+                          const q = leadSearch.toLowerCase();
+                          return !q ||
+                            lead.fullName?.toLowerCase().includes(q) ||
+                            lead.companyName?.toLowerCase().includes(q);
+                        })
+                        .map(lead => (
+                          <div
+                            key={lead._id}
+                            onMouseDown={() => {
+                              setSelectedLead(lead._id);
+                              setLeadSearch(`${lead.fullName}${lead.companyName ? ` (${lead.companyName})` : ''}`);
+                              setShowLeadDropdown(false);
+                            }}
+                            style={{
+                              padding: '8px 12px', cursor: 'pointer',
+                              background: selectedLead === lead._id ? '#e8f4fd' : 'transparent',
+                              borderBottom: '1px solid #f0f0f0',
+                              fontSize: '0.9rem'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#f8f9fa'}
+                            onMouseLeave={e => e.currentTarget.style.background = selectedLead === lead._id ? '#e8f4fd' : 'transparent'}
+                          >
+                            <strong>{lead.fullName}</strong>
+                            {lead.companyName && <span className="text-muted ms-1">({lead.companyName})</span>}
+                          </div>
+                        ))}
+                      {leads.filter(lead => {
+                        const q = leadSearch.toLowerCase();
+                        return !q || lead.fullName?.toLowerCase().includes(q) || lead.companyName?.toLowerCase().includes(q);
+                      }).length === 0 && (
+                        <div style={{ padding: '10px 12px', color: '#6c757d', fontSize: '0.9rem' }}>
+                          No leads found
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </Form.Group>
 
             <Form.Group className="mb-3">
