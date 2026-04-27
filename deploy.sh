@@ -12,10 +12,10 @@ cd ..
 
 # Copy built files to server web directory
 echo "📁 Copying files to web directory..."
-sudo mkdir -p /var/www/wealll-crm
-sudo cp -r frontend/dist/* /var/www/wealll-crm/
-sudo chown -R www-data:www-data /var/www/wealll-crm/
-sudo chmod -R 755 /var/www/wealll-crm/
+sudo mkdir -p /var/www/html
+sudo cp -r frontend/dist/* /var/www/html/
+sudo chown -R www-data:www-data /var/www/html/
+sudo chmod -R 755 /var/www/html/
 
 # Install backend dependencies
 echo "⚙️ Installing backend dependencies..."
