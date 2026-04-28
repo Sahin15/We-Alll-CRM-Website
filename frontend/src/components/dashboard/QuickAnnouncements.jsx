@@ -87,14 +87,14 @@ const QuickAnnouncements = ({ onAnnouncementClick }) => {
                 backgroundColor: announcement.isPinned ? 'rgba(255, 193, 7, 0.05)' : 'transparent'
               }}
             >
-              <div className="d-flex justify-content-between align-items-start mb-2">
-                <h6 className="mb-0">
-                  {announcement.isPinned && <span className="me-2">📌</span>}
-                  {announcement.title}
-                </h6>
+              <div className="mb-1">
                 {getTypeBadge(announcement.type)}
               </div>
-              <p className="text-muted mb-2 small">
+              <h6 className="mb-1" style={{ fontSize: '0.9rem', lineHeight: '1.4', wordBreak: 'break-word' }}>
+                {announcement.isPinned && <span className="me-1">📌</span>}
+                {announcement.title}
+              </h6>
+              <p className="text-muted mb-2 small" style={{ wordBreak: 'break-word' }}>
                 {announcement.content?.substring(0, 100)}
                 {announcement.content?.length > 100 ? '...' : ''}
               </p>
