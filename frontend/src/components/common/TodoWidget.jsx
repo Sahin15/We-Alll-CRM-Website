@@ -192,16 +192,16 @@ const TodoWidget = ({ isCollapsed = false }) => {
     <>
       <Card className="todo-widget shadow-sm">
         <Card.Header className="bg-gradient-primary text-white">
-          <div className="d-flex justify-content-between align-items-center">
-            <div className="d-flex align-items-center">
-              <FaTasks className="me-2" size={18} />
-              <strong>My To-Do List</strong>
+          <div className="d-flex justify-content-between align-items-center gap-2">
+            <div className="d-flex align-items-center" style={{ minWidth: 0 }}>
+              <FaTasks className="me-2 flex-shrink-0" size={18} />
+              <strong className="text-nowrap">My To-Do List</strong>
             </div>
             <Button
               size="sm"
               variant="light"
               onClick={() => handleOpenModal()}
-              className="btn-add-todo"
+              className="btn-add-todo flex-shrink-0"
             >
               <FaPlus size={12} /> Add
             </Button>

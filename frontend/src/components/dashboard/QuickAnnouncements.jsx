@@ -57,14 +57,15 @@ const QuickAnnouncements = ({ onAnnouncementClick }) => {
   return (
     <Card className="dashboard-card border-0 shadow-sm h-100">
       <Card.Body>
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <h5 className="mb-0">
-            <FaBullhorn className="me-2 text-warning" />
+        <div className="d-flex justify-content-between align-items-center mb-3 gap-2">
+          <h5 className="mb-0 text-nowrap" style={{ minWidth: 0 }}>
+            <FaBullhorn className="me-2 text-warning flex-shrink-0" />
             Announcements
           </h5>
           <Button 
             size="sm" 
             variant="outline-primary"
+            className="flex-shrink-0"
             onClick={() => navigate('/employee/announcements')}
           >
             <FaEye className="me-1" />View All
@@ -87,20 +88,22 @@ const QuickAnnouncements = ({ onAnnouncementClick }) => {
                 backgroundColor: announcement.isPinned ? 'rgba(255, 193, 7, 0.05)' : 'transparent'
               }}
             >
-              <div className="mb-1">
-                {getTypeBadge(announcement.type)}
+              <div className="d-flex justify-content-between align-items-start gap-2 mb-1">
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  {getTypeBadge(announcement.type)}
+                  <h6 className="mb-1 mt-1" style={{ fontSize: '0.9rem', lineHeight: '1.4', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                    {announcement.isPinned && <span className="me-1">📌</span>}
+                    {announcement.title}
+                  </h6>
+                  <p className="text-muted mb-1 small" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                    {announcement.content?.substring(0, 80)}
+                    {announcement.content?.length > 80 ? '...' : ''}
+                  </p>
+                </div>
               </div>
-              <h6 className="mb-1" style={{ fontSize: '0.9rem', lineHeight: '1.4', wordBreak: 'break-word' }}>
-                {announcement.isPinned && <span className="me-1">📌</span>}
-                {announcement.title}
-              </h6>
-              <p className="text-muted mb-2 small" style={{ wordBreak: 'break-word' }}>
-                {announcement.content?.substring(0, 100)}
-                {announcement.content?.length > 100 ? '...' : ''}
-              </p>
               <div className="d-flex justify-content-between align-items-center">
                 <small className="text-muted">{formatDate(announcement.createdAt)}</small>
-                <Button size="sm" variant="link" className="p-0">
+                <Button size="sm" variant="link" className="p-0 flex-shrink-0" onClick={(e) => { e.stopPropagation(); handleAnnouncementClick(announcement); }}>
                   <FaEye className="me-1" />View
                 </Button>
               </div>
