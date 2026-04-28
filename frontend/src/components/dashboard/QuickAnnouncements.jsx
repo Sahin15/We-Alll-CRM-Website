@@ -55,17 +55,17 @@ const QuickAnnouncements = ({ onAnnouncementClick }) => {
   };
 
   return (
-    <Card className="dashboard-card border-0 shadow-sm h-100">
-      <Card.Body>
-        <div className="d-flex justify-content-between align-items-center mb-3 gap-2">
-          <h5 className="mb-0 text-nowrap" style={{ minWidth: 0 }}>
-            <FaBullhorn className="me-2 text-warning flex-shrink-0" />
+    <Card className="dashboard-card border-0 shadow-sm h-100" style={{ overflow: 'hidden' }}>
+      <Card.Body className="p-3">
+        <div className="d-flex justify-content-between align-items-center mb-3" style={{ gap: '8px' }}>
+          <h5 className="mb-0 d-flex align-items-center" style={{ whiteSpace: 'nowrap', fontSize: '1rem' }}>
+            <FaBullhorn className="me-2 text-warning" style={{ flexShrink: 0 }} />
             Announcements
           </h5>
           <Button 
             size="sm" 
             variant="outline-primary"
-            className="flex-shrink-0"
+            style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
             onClick={() => navigate('/employee/announcements')}
           >
             <FaEye className="me-1" />View All
@@ -77,38 +77,60 @@ const QuickAnnouncements = ({ onAnnouncementClick }) => {
             <Spinner animation="border" size="sm" />
           </div>
         ) : (
-          <ListGroup variant="flush" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+          <ListGroup variant="flush" style={{ maxHeight: '400px', overflowY: 'auto', overflowX: 'hidden' }}>
             {displayAnnouncements.slice(0, 5).map((announcement) => (
-            <ListGroup.Item 
-              key={announcement._id || announcement.id} 
-              className="px-0 py-3 border-bottom cursor-pointer"
-              onClick={() => handleAnnouncementClick(announcement)}
-              style={{ 
-                transition: 'all 0.2s ease',
-                backgroundColor: announcement.isPinned ? 'rgba(255, 193, 7, 0.05)' : 'transparent'
-              }}
-            >
-              <div className="d-flex justify-content-between align-items-start gap-2 mb-1">
-                <div style={{ minWidth: 0, flex: 1 }}>
+              <ListGroup.Item 
+                key={announcement._id || announcement.id} 
+                className="px-0 py-2 border-bottom cursor-pointer"
+                onClick={() => handleAnnouncementClick(announcement)}
+                style={{ 
+                  transition: 'all 0.2s ease',
+                  backgroundColor: announcement.isPinned ? 'rgba(255, 193, 7, 0.05)' : 'transparent',
+                  overflow: 'hidden'
+                }}
+              >
+                {/* Badge row */}
+                <div className="mb-1">
                   {getTypeBadge(announcement.type)}
-                  <h6 className="mb-1 mt-1" style={{ fontSize: '0.9rem', lineHeight: '1.4', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
-                    {announcement.isPinned && <span className="me-1">📌</span>}
-                    {announcement.title}
-                  </h6>
-                  <p className="text-muted mb-1 small" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
-                    {announcement.content?.substring(0, 80)}
-                    {announcement.content?.length > 80 ? '...' : ''}
-                  </p>
                 </div>
-              </div>
-              <div className="d-flex justify-content-between align-items-center">
-                <small className="text-muted">{formatDate(announcement.createdAt)}</small>
-                <Button size="sm" variant="link" className="p-0 flex-shrink-0" onClick={(e) => { e.stopPropagation(); handleAnnouncementClick(announcement); }}>
-                  <FaEye className="me-1" />View
-                </Button>
-              </div>
-            </ListGroup.Item>
-          ))}
+                {/* Title */}
+                <div className="mb-1" style={{ 
+                  fontSize: '0.88rem', 
+                  fontWeight: 600, 
+                  lineHeight: '1.4',
+                  wordBreak: 'break-word',
+                  overflowWrap: 'anywhere',
+                  paddingRight: '4px'
+                }}>
+                  {announcement.isPinned && <span className="me-1">📌</span>}
+                  {announcement.title}
+                </div>
+                {/* Content preview */}
+                <p className="text-muted mb-2 small" style={{ 
+                  wordBreak: 'break-word', 
+                  overflowWrap: 'anywhere',
+                  lineHeight: '1.4',
+                  margin: 0,
+                  marginBottom: '6px'
+                }}>
+                  {announcement.content?.substring(0, 80)}
+                  {announcement.content?.length > 80 ? '...' : ''}
+                </p>
+                {/* Date + View row */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <small className="text-muted">{formatDate(announcement.createdAt)}</small>
+                  <Button 
+                    size="sm" 
+                    variant="link" 
+                    className="p-0"
+                    style={{ flexShrink: 0, fontSize: '0.8rem' }}
+                    onClick={(e) => { e.stopPropagation(); handleAnnouncementClick(announcement); }}
+                  >
+                    <FaEye className="me-1" />View
+                  </Button>
+                </div>
+              </ListGroup.Item>
+            ))}
           </ListGroup>
         )}
         
