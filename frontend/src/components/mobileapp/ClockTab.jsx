@@ -366,20 +366,69 @@ export default function ClockTab() {
         </div>
 
         {/* Break history */}
-        {attendance?.breaks?.length > 0 && (
-          <div style={{ marginTop: '20px' }}>
-            <p style={{ fontSize: '0.8rem', fontWeight: '600', color: '#6B7280', marginBottom: '8px', textTransform: 'uppercase' }}>Break History</p>
-            {attendance.breaks.map((b, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#F9FAFB', borderRadius: '8px', marginBottom: '6px', fontSize: '0.8rem', color: '#6B7280' }}>
-                <span>Break {i + 1}</span>
-                <span>
-                  {b.startTime ? new Date(b.startTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                  {b.endTime ? ` → ${new Date(b.endTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : ' → ongoing'}
-                </span>
+        {attendance?.breaks?.length > 0 && (() => {
+          const completedBreaks = attendance.breaks.filter(b => b.startTime && b.endTime);
+          const totalBreakSecs = completedBreaks.reduce((acc, b) =>
+            acc + Math.floor((new Date(b.endTime) - new Date(b.startTime)) / 1000), 0);
+          const ongoingBreak = attendance.breaks.find(b => b.startTime && !b.endTime);
+
+          return (
+            <div style={{ marginTop: '20px' }}>
+              {/* Summary row */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <p style={{ fontSize: '0.8rem', fontWeight: '600', color: '#6B7280', margin: 0, textTransform: 'uppercase' }}>Break History</p>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {/* Break count badge */}
+                  <div style={{
+                    background: '#FEF3C7', borderRadius: '20px', padding: '3px 10px',
+                    fontSize: '0.75rem', fontWeight: '700', color: '#92400E',
+                    display: 'flex', alignItems: 'center', gap: '4px',
+                  }}>
+                    <FaPause size={9} />
+                    {attendance.breaks.length} {attendance.breaks.length === 1 ? 'break' : 'breaks'}
+                  </div>
+                  {/* Total break time badge */}
+                  <div style={{
+                    background: '#FEE2E2', borderRadius: '20px', padding: '3px 10px',
+                    fontSize: '0.75rem', fontWeight: '700', color: '#991B1B',
+                    display: 'flex', alignItems: 'center', gap: '4px',
+                  }}>
+                    <FaClock size={9} />
+                    {ongoingBreak
+                      ? `${formatDuration(totalBreakSecs + breakSeconds)}`
+                      : formatDuration(totalBreakSecs)}
+                  </div>
+                </div>
               </div>
-            ))}
-          </div>
-        )}
+
+              {/* Individual break rows */}
+              {attendance.breaks.map((b, i) => {
+                const durSecs = b.startTime && b.endTime
+                  ? Math.floor((new Date(b.endTime) - new Date(b.startTime)) / 1000)
+                  : null;
+                return (
+                  <div key={i} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '8px 12px', background: '#F9FAFB', borderRadius: '8px',
+                    marginBottom: '6px', fontSize: '0.8rem', color: '#6B7280',
+                    border: !b.endTime ? '1px dashed #F59E0B' : '1px solid transparent',
+                  }}>
+                    <span style={{ fontWeight: '600', color: '#374151' }}>Break {i + 1}</span>
+                    <span>
+                      {b.startTime ? new Date(b.startTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                      {b.endTime ? ` → ${new Date(b.endTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : ' → ongoing'}
+                    </span>
+                    {durSecs !== null && (
+                      <span style={{ fontWeight: '700', color: '#D97706', minWidth: '48px', textAlign: 'right' }}>
+                        {formatDuration(durSecs)}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Confirmation Modal */}
