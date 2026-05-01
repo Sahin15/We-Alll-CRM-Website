@@ -106,7 +106,7 @@ export default function SettingsSheet({ onClose }) {
             {/* App info */}
             <div style={{ padding: '20px 20px 0', textAlign: 'center' }}>
               <div style={{ fontSize: '0.75rem', color: '#9CA3AF' }}>WeAlll Office App</div>
-              <div style={{ fontSize: '0.7rem', color: '#D1D5DB', marginTop: '2px' }}>v4.9.0</div>
+              <div style={{ fontSize: '0.7rem', color: '#D1D5DB', marginTop: '2px' }}>v4.9.3</div>
             </div>
           </div>
         )}
