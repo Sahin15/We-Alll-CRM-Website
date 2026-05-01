@@ -229,14 +229,10 @@ const AppRoutes = () => {
         }
       />
 
-      {/* Work Mobile App Route - outside MainLayout */}
+      {/* Work Mobile App Route - outside MainLayout, handles its own auth */}
       <Route
         path="/mobileapp"
-        element={
-          <ProtectedRoute>
-            <MobileAppShell />
-          </ProtectedRoute>
-        }
+        element={<MobileAppShell />}
       />
       
 
