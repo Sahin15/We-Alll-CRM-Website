@@ -480,6 +480,26 @@ const EmployeeList = () => {
             .action-btn:hover {
               transform: translateY(-1px);
             }
+            .action-btn.btn-primary {
+              background: #6366F1 !important;
+              border-color: #6366F1 !important;
+              color: #fff !important;
+            }
+            .action-btn.btn-primary:hover {
+              background: #4F46E5 !important;
+              border-color: #4F46E5 !important;
+              box-shadow: 0 4px 12px rgba(99,102,241,0.35) !important;
+            }
+            .action-btn.btn-outline-primary {
+              color: #6366F1 !important;
+              border-color: #6366F1 !important;
+              background: transparent !important;
+            }
+            .action-btn.btn-outline-primary:hover {
+              background: #6366F1 !important;
+              color: #fff !important;
+              box-shadow: 0 4px 12px rgba(99,102,241,0.25) !important;
+            }
             
             /* Smart Dropdown System - Auto-adjusts based on available space */
             .smart-dropdown-menu {
