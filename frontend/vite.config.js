@@ -7,31 +7,14 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "prompt",
-      manifest: {
-        name: "We Alll Office",
-        short_name: "We Alll",
-        start_url: "/mobileapp",
-        scope: "/mobileapp",
-        display: "standalone",
-        theme_color: "#6366F1",
-        background_color: "#ffffff",
-        icons: [
-          {
-            src: "/Wealll_mini.png",
-            sizes: "192x192",
-            type: "image/png",
-            purpose: "any maskable",
-          },
-          {
-            src: "/Wealll_mini.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "any maskable",
-          },
-        ],
-      },
+      // We manage manifests manually (manifest.json + manifest-pwa.json)
+      // so disable the auto-injected manifest to avoid conflicts
+      manifest: false,
+      injectRegister: "auto",
       workbox: {
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
+        // Cache both PWA scopes
+        navigateFallbackDenylist: [],
         runtimeCaching: [
           {
             urlPattern: /\/api\//,

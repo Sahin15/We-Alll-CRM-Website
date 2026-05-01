@@ -49,7 +49,25 @@ const Login = () => {
         // Show welcome animation before navigating
         setShowWelcome(true);
         setTimeout(() => {
-          navigate("/dashboard");
+          // If running as an installed PWA, redirect to the correct shell
+          // based on which manifest was active when the app was installed.
+          // We detect this by checking the current URL path (the browser
+          // launches the PWA at its start_url, so window.location reflects it).
+          const isStandalone =
+            window.matchMedia('(display-mode: standalone)').matches ||
+            window.navigator.standalone === true;
+
+          if (isStandalone) {
+            // Check which PWA we're in by looking at the manifest link
+            const manifestHref = document.querySelector('link[rel="manifest"]')?.getAttribute('href') || '';
+            if (manifestHref.includes('manifest-pwa')) {
+              navigate("/app");
+            } else {
+              navigate("/mobileapp");
+            }
+          } else {
+            navigate("/dashboard");
+          }
         }, 4000); // 4 seconds welcome animation
       } else {
         setError(result.error);

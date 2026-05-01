@@ -1,12 +1,12 @@
 {
-  "name": "We Alll Office",
-  "short_name": "WeAlll",
-  "description": "We Alll Office mobile app",
-  "start_url": "/mobileapp",
-  "scope": "/mobileapp",
+  "name": "We Alll Office - Tasks",
+  "short_name": "WeAlll Tasks",
+  "description": "We Alll Office task and follow-up manager",
+  "start_url": "/app",
+  "scope": "/app",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "theme_color": "#10B981",
+  "theme_color": "#6366F1",
   "background_color": "#ffffff",
   "icons": [
     {
@@ -33,10 +33,10 @@
   ],
   "shortcuts": [
     {
-      "name": "Dashboard",
-      "short_name": "Dashboard",
-      "description": "View your dashboard",
-      "url": "/mobileapp",
+      "name": "Tasks",
+      "short_name": "Tasks",
+      "description": "View your tasks",
+      "url": "/app",
       "icons": [
         {
           "src": "/favicon.ico",
