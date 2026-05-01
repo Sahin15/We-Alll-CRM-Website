@@ -1,35 +1,39 @@
 #!/bin/bash
+# ============================================
+# We Alll Office - Deploy Script
+# Run on server: bash deploy.sh
+# ============================================
 
-# CRM Website Deployment Script
+set -e  # Stop on any error
+
 echo "🚀 Starting deployment..."
 
-# Build frontend for production
-echo "📦 Building frontend..."
+# 1. Pull latest code
+echo "📥 Pulling latest code from GitHub..."
+git pull origin main
+
+# 2. Install backend dependencies
+echo "📦 Installing backend dependencies..."
+cd backend
+npm install --production
+cd ..
+
+# 3. Build frontend
+echo "🔨 Building frontend..."
 cd frontend
 npm install
 npm run build
 cd ..
 
-# Copy built files to server web directory
-echo "📁 Copying files to web directory..."
-sudo mkdir -p /var/www/html
-sudo cp -r frontend/dist/* /var/www/html/
-sudo chown -R www-data:www-data /var/www/html/
-sudo chmod -R 755 /var/www/html/
+# 4. Restart backend
+echo "🔄 Restarting backend..."
+pm2 restart all
+pm2 save
 
-# Install backend dependencies
-echo "⚙️ Installing backend dependencies..."
-cd backend
-npm install --production
-cd ..
+# 5. Reload nginx
+echo "🌐 Reloading nginx..."
+systemctl reload nginx
 
-# Restart services
-echo "🔄 Restarting services..."
-pm2 restart crm-backend || pm2 start backend/src/server.js --name "crm-backend"
-
-# Reload Nginx
-echo "🌐 Reloading Nginx..."
-sudo nginx -t && sudo systemctl reload nginx
-
+echo ""
 echo "✅ Deployment complete!"
-echo "🌍 Website: https://wealll.cloud"
+echo "🌍 Site is live at https://wealll.cloud"
