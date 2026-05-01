@@ -10,7 +10,8 @@ export default defineConfig({
       manifest: {
         name: "We Alll Office",
         short_name: "We Alll",
-        start_url: "/app",
+        start_url: "/mobileapp",
+        scope: "/mobileapp",
         display: "standalone",
         theme_color: "#6366F1",
         background_color: "#ffffff",

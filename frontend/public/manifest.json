@@ -2,8 +2,8 @@
   "name": "We Alll Office",
   "short_name": "We Alll",
   "description": "Internal office management system",
-  "start_url": "/app",
-  "scope": "/",
+  "start_url": "/mobileapp",
+  "scope": "/mobileapp",
   "display": "standalone",
   "orientation": "portrait-primary",
   "theme_color": "#6366F1",
@@ -36,7 +36,7 @@
       "name": "Dashboard",
       "short_name": "Dashboard",
       "description": "View your dashboard",
-      "url": "/dashboard",
+      "url": "/mobileapp",
       "icons": [
         {
           "src": "/favicon.ico",
