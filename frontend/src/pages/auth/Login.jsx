@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Form, Alert } from "react-bootstrap";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
@@ -15,6 +15,27 @@ const Login = () => {
 
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Where to go after login:
+  // 1. If redirected here from a protected route (e.g. /mobileapp), go back there
+  // 2. If running as installed PWA standalone, go to the correct shell
+  // 3. Otherwise go to /dashboard
+  const getRedirectPath = () => {
+    const from = location.state?.from;
+    if (from && from !== '/login') return from;
+
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true;
+
+    if (isStandalone) {
+      const manifestHref = document.querySelector('link[rel="manifest"]')?.getAttribute('href') || '';
+      return manifestHref.includes('manifest-pwa') ? '/app' : '/mobileapp';
+    }
+
+    return '/dashboard';
+  };
 
   // Get motivational messages
   const getMotivationalMessage = () => {
@@ -49,25 +70,7 @@ const Login = () => {
         // Show welcome animation before navigating
         setShowWelcome(true);
         setTimeout(() => {
-          // If running as an installed PWA, redirect to the correct shell
-          // based on which manifest was active when the app was installed.
-          // We detect this by checking the current URL path (the browser
-          // launches the PWA at its start_url, so window.location reflects it).
-          const isStandalone =
-            window.matchMedia('(display-mode: standalone)').matches ||
-            window.navigator.standalone === true;
-
-          if (isStandalone) {
-            // Check which PWA we're in by looking at the manifest link
-            const manifestHref = document.querySelector('link[rel="manifest"]')?.getAttribute('href') || '';
-            if (manifestHref.includes('manifest-pwa')) {
-              navigate("/app");
-            } else {
-              navigate("/mobileapp");
-            }
-          } else {
-            navigate("/dashboard");
-          }
+          navigate(getRedirectPath());
         }, 4000); // 4 seconds welcome animation
       } else {
         setError(result.error);
