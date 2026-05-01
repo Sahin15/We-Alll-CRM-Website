@@ -97,6 +97,7 @@ const ClientList = () => {
     whatsappnumber: "",
     company: "",
     ownername: "",
+    gstNumber: "",
     address: "",
     industry: "",
     website: "",
@@ -248,6 +249,7 @@ const ClientList = () => {
         whatsappnumber: client.whatsappnumber || "",
         company: client.company || "",
         ownername: client.ownername || "",
+        gstNumber: client.gstNumber || "",
         address: client.address || "",
         industry: client.industry || "",
         website: client.website || "",
@@ -275,6 +277,7 @@ const ClientList = () => {
         whatsappnumber: "",
         company: "",
         ownername: "",
+        gstNumber: "",
         address: "",
         industry: "",
         website: "",
@@ -306,6 +309,7 @@ const ClientList = () => {
       whatsappnumber: "",
       company: "",
       ownername: "",
+      gstNumber: "",
       address: "",
       industry: "",
       website: "",
@@ -1253,6 +1257,37 @@ const ClientList = () => {
                     value={formData.ownername}
                     onChange={handleChange}
                     placeholder="Enter owner name"
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>GST Number <small className="text-muted">(Optional)</small></Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="gstNumber"
+                    value={formData.gstNumber}
+                    onChange={handleChange}
+                    placeholder="e.g. 22AAAAA0000A1Z5"
+                    maxLength={15}
+                  />
+                  <Form.Text className="text-muted">
+                    15-digit GST Identification Number
+                  </Form.Text>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Address</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    placeholder="Enter address"
                   />
                 </Form.Group>
               </Col>

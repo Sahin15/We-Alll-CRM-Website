@@ -27,6 +27,7 @@ export const ROLES = {
   CLIENT: "client",
   EMPLOYEE: "employee",
   HOD: "hod",
+  MANAGER: "manager",
 };
 
 // Leave Types

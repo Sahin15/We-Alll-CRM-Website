@@ -2,12 +2,28 @@
    PROFILE TABS - DESKTOP ONLY
    ============================================ */
 
-/* Make tabs fill entire width */
+/* Make tabs fill entire width on desktop */
 .nav-tabs {
   width: 100% !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  scrollbar-width: none !important;
+}
+
+.nav-tabs::-webkit-scrollbar {
+  display: none !important;
 }
 
 .nav-tabs .nav-link {
-  flex: 1 !important;
+  flex-shrink: 0 !important;
+  white-space: nowrap !important;
   text-align: center !important;
+}
+
+@media (min-width: 768px) {
+  .nav-tabs .nav-link {
+    flex: 1 !important;
+  }
 }

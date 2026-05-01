@@ -29,7 +29,10 @@ import toast from "../../utils/toast";
 import { todoApi } from "../../api/todoApi";
 import { formatDate } from "../../utils/helpers";
 
+import { useNavigate } from "react-router-dom";
+
 const TodoWidget = ({ isCollapsed = false }) => {
+  const navigate = useNavigate();
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -197,14 +200,34 @@ const TodoWidget = ({ isCollapsed = false }) => {
               <FaTasks className="me-2 flex-shrink-0" size={18} />
               <strong className="text-nowrap">My To-Do List</strong>
             </div>
-            <Button
-              size="sm"
-              variant="light"
-              onClick={() => handleOpenModal()}
-              className="btn-add-todo flex-shrink-0"
-            >
-              <FaPlus size={12} /> Add
-            </Button>
+            <div className="d-flex align-items-center gap-2">
+              <button
+                onClick={() => navigate('/app')}
+                title="Open mobile app"
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  color: '#fff',
+                  border: '1px solid rgba(255,255,255,0.4)',
+                  borderRadius: '20px',
+                  padding: '2px 10px',
+                  fontSize: '0.72rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
+              >
+                📱 App
+              </button>
+              <Button
+                size="sm"
+                variant="light"
+                onClick={() => handleOpenModal()}
+                className="btn-add-todo flex-shrink-0"
+              >
+                <FaPlus size={12} /> Add
+              </Button>
+            </div>
           </div>
         </Card.Header>
 

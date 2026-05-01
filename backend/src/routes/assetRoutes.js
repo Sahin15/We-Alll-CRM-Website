@@ -12,19 +12,19 @@ router.use(protect);
 // ============================================
 
 // Dashboard
-router.get("/dashboard", authorizeRoles("admin", "hr", "superadmin", "hod"), assetController.getDashboard);
+router.get("/dashboard", authorizeRoles("admin", "hr", "superadmin", "hod", "manager"), assetController.getDashboard);
 
 // My Assets (Employee)
 router.get("/my-assets", assetController.getMyAssets);
 
 // Warranty
-router.get("/warranty", authorizeRoles("admin", "hr", "superadmin", "hod"), assetController.getWarrantyAssets);
+router.get("/warranty", authorizeRoles("admin", "hr", "superadmin", "hod", "manager"), assetController.getWarrantyAssets);
 
 // History
-router.get("/history", authorizeRoles("admin", "hr", "superadmin", "hod"), assetController.getAssignmentHistory);
+router.get("/history", authorizeRoles("admin", "hr", "superadmin", "hod", "manager"), assetController.getAssignmentHistory);
 
 // Repair Operations
-router.get("/repairs", authorizeRoles("admin", "hr", "superadmin", "hod"), assetController.getAllRepairs);
+router.get("/repairs", authorizeRoles("admin", "hr", "superadmin", "hod", "manager"), assetController.getAllRepairs);
 router.post("/repairs", authorizeRoles("admin", "superadmin", "hr", "manager"), assetController.createRepair);
 router.put("/repairs/:repairId", authorizeRoles("admin", "superadmin", "hr", "manager"), assetController.updateRepair);
 router.post("/repairs/:repairId/complete", authorizeRoles("admin", "superadmin", "hr", "manager"), assetController.completeRepair);
@@ -32,7 +32,7 @@ router.post("/repairs/:repairId/complete", authorizeRoles("admin", "superadmin",
 // ============================================
 // ASSET CRUD - List all assets
 // ============================================
-router.get("/", authorizeRoles("admin", "hr", "superadmin", "hod"), assetController.getAllAssets);
+router.get("/", authorizeRoles("admin", "hr", "superadmin", "hod", "manager"), assetController.getAllAssets);
 router.post("/", authorizeRoles("admin", "superadmin", "hr", "manager"), assetController.createAsset);
 
 // ============================================
@@ -40,14 +40,14 @@ router.post("/", authorizeRoles("admin", "superadmin", "hr", "manager"), assetCo
 // ============================================
 
 // Get single asset by ID
-router.get("/:id", authorizeRoles("admin", "hr", "superadmin", "hod"), assetController.getAssetById);
+router.get("/:id", authorizeRoles("admin", "hr", "superadmin", "hod", "manager"), assetController.getAssetById);
 
 // Update/Delete asset
 router.put("/:id", authorizeRoles("admin", "superadmin", "hr", "manager"), assetController.updateAsset);
 router.delete("/:id", authorizeRoles("admin", "superadmin", "hr", "manager"), assetController.deleteAsset);
 
 // Asset history by ID
-router.get("/:id/history", authorizeRoles("admin", "hr", "superadmin", "hod"), assetController.getAssetHistory);
+router.get("/:id/history", authorizeRoles("admin", "hr", "superadmin", "hod", "manager"), assetController.getAssetHistory);
 
 // Assignment Operations
 router.post("/:id/assign", authorizeRoles("admin", "hr", "superadmin", "manager"), assetController.assignAsset);

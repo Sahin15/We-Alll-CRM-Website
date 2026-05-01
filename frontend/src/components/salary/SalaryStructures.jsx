@@ -25,8 +25,11 @@ import { salaryStructureApi } from "../../api/salaryApi";
 import SalaryStructureForm from "./SalaryStructureForm";
 import SalaryIncrementModal from "./SalaryIncrementModal";
 import api from "../../services/api";
+import { useAuth } from "../../context/AuthContext";
 
 const SalaryStructures = () => {
+  const { user } = useAuth();
+  const isAdminOrSuperAdmin = ['admin', 'superadmin'].includes(user?.role);
   const [structures, setStructures] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -44,6 +47,8 @@ const SalaryStructures = () => {
   const [showFormModal, setShowFormModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showIncrementModal, setShowIncrementModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [structureToDelete, setStructureToDelete] = useState(null);
   const [actionLoading, setActionLoading] = useState(null);
 
   useEffect(() => {
@@ -126,20 +131,25 @@ const SalaryStructures = () => {
     }
   };
 
+  const confirmDelete = (structure) => {
+    setStructureToDelete(structure);
+    setShowDeleteModal(true);
+  };
+
   const handleDelete = async (structureId) => {
-    if (window.confirm("Are you sure you want to delete this salary structure?")) {
-      try {
-        setActionLoading(structureId);
-        const response = await salaryStructureApi.delete(structureId);
-        toast.success("Salary structure deleted successfully");
-        fetchSalaryStructures();
-      } catch (error) {
-        console.error("Error deleting salary structure:", error);
-        const errorMessage = error.response?.data?.message || "Failed to delete salary structure";
-        toast.error(errorMessage);
-      } finally {
-        setActionLoading(null);
-      }
+    try {
+      setActionLoading(structureId);
+      await salaryStructureApi.delete(structureId);
+      toast.success("Salary structure deleted successfully");
+      setShowDeleteModal(false);
+      setStructureToDelete(null);
+      fetchSalaryStructures();
+    } catch (error) {
+      console.error("Error deleting salary structure:", error);
+      const errorMessage = error.response?.data?.message || "Failed to delete salary structure";
+      toast.error(errorMessage);
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -315,13 +325,28 @@ const SalaryStructures = () => {
                         <Button
                           variant="outline-danger"
                           size="sm"
-                          onClick={() => handleDelete(structure._id)}
+                          onClick={() => confirmDelete(structure)}
                           disabled={actionLoading === structure._id}
                           title="Delete structure"
                         >
                           <FaTrash />
                         </Button>
                       </>
+                    )}
+                    {structure.status !== "draft" && isAdminOrSuperAdmin && (
+                      <Button
+                        variant="outline-danger"
+                        size="sm"
+                        onClick={() => confirmDelete(structure)}
+                        disabled={actionLoading === structure._id}
+                        title="Delete structure (Admin only)"
+                      >
+                        {actionLoading === structure._id ? (
+                          <Spinner animation="border" size="sm" />
+                        ) : (
+                          <FaTrash />
+                        )}
+                      </Button>
                     )}
                   </div>
                 </td>
@@ -345,6 +370,54 @@ const SalaryStructures = () => {
           fetchSalaryStructures();
         }}
       />
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        show={showDeleteModal}
+        onHide={() => { setShowDeleteModal(false); setStructureToDelete(null); }}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Delete Salary Structure</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {structureToDelete && (
+            <div className="text-center py-2">
+              <FaTrash size={40} className="text-danger mb-3" />
+              <h5>Are you sure?</h5>
+              <p className="text-muted">
+                You are about to delete the salary structure for{" "}
+                <strong>{structureToDelete.employee?.name}</strong>.
+              </p>
+              {structureToDelete.status !== "draft" && (
+                <div className="alert alert-warning">
+                  <strong>Warning:</strong> This is an <strong>{structureToDelete.status}</strong> salary structure. Deleting it may affect payroll records.
+                </div>
+              )}
+              <p className="text-danger small">This action cannot be undone.</p>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="secondary"
+            onClick={() => { setShowDeleteModal(false); setStructureToDelete(null); }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => handleDelete(structureToDelete?._id)}
+            disabled={actionLoading === structureToDelete?._id}
+          >
+            {actionLoading === structureToDelete?._id ? (
+              <><Spinner animation="border" size="sm" className="me-1" /> Deleting...</>
+            ) : (
+              <><FaTrash className="me-1" /> Delete</>
+            )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       {/* Detail Modal */}
       {selectedStructure && (

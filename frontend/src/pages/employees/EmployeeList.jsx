@@ -741,17 +741,6 @@ const EmployeeList = () => {
                               >
                                 <FaClock size={12} />
                               </Button>
-                              {(currentUser?.role === "admin" || currentUser?.role === "superadmin") && employee.role !== "superadmin" && (
-                                <Button
-                                  variant="outline-danger"
-                                  size="sm"
-                                  onClick={() => handleDelete(employee._id)}
-                                  title="Delete Employee"
-                                  style={{ padding: '0.25rem 0.5rem' }}
-                                >
-                                  <FaTrash size={12} />
-                                </Button>
-                              )}
                             </div>
                           </td>
                         </tr>

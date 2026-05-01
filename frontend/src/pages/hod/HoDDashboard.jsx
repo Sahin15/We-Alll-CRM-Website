@@ -116,7 +116,9 @@ const HoDDashboard = () => {
         return;
       }
 
-      const departmentId = user.headOfDepartment;
+      const departmentId = typeof user.headOfDepartment === 'object' 
+        ? user.headOfDepartment._id 
+        : user.headOfDepartment;
 
       // Load all data in parallel
       const [statsRes, projectsRes, membersRes, deptRes, attendanceRes, leavesRes] = await Promise.all([

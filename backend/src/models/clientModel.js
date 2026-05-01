@@ -28,6 +28,12 @@ const clientSchema = new mongoose.Schema(
     ownername: {
       type: String,
     },
+    gstNumber: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      maxlength: 15,
+    },
     // Onboarding fields
     onboardingStatus: {
       type: String,

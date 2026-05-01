@@ -398,6 +398,7 @@ const MyProfile = () => {
         updateData = {
           name: document.getElementById('personal-name')?.value || user?.name,
           phone: document.getElementById('personal-phone')?.value || user?.phone,
+          personalEmail: document.getElementById('personal-personalEmail')?.value || user?.personalEmail,
           dateOfBirth: document.getElementById('personal-dob')?.value || user?.dateOfBirth,
           gender: document.getElementById('personal-gender')?.value || user?.gender,
           bloodGroup: document.getElementById('personal-bloodGroup')?.value || user?.bloodGroup,
@@ -525,7 +526,7 @@ const MyProfile = () => {
   const roleBadge = getRoleBadge(user?.role, user?.funBadge);
   const isHROrAdmin = ['hr', 'admin', 'superadmin'].includes(user?.role);
   const isAdmin = ['admin', 'superadmin'].includes(user?.role);
-  const isEmployee = ['employee', 'hod', 'hr'].includes(user?.role);
+  const isEmployee = ['employee', 'hod', 'hr', 'manager'].includes(user?.role);
 
   const openDocumentModal = (category = '', documentId = null) => {
     setDocumentType(category);
@@ -1347,6 +1348,24 @@ const MyProfile = () => {
                             {user?.phone || '—'}
                           </div>
                         )}
+                      </Form.Group>
+                    </Col>
+                    <Col md={6} className="mb-3">
+                      <Form.Group>
+                        <Form.Label>Personal Email</Form.Label>
+                        {editMode.personal ? (
+                          <Form.Control
+                            type="email"
+                            defaultValue={user?.personalEmail || ''}
+                            placeholder="your.personal@email.com"
+                            id="personal-personalEmail"
+                          />
+                        ) : (
+                          <div className="form-control-plaintext border rounded p-2 bg-light">
+                            {user?.personalEmail || '—'}
+                          </div>
+                        )}
+                        <Form.Text className="text-muted">Your personal email address</Form.Text>
                       </Form.Group>
                     </Col>
                     <Col md={6} className="mb-3">

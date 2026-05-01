@@ -467,6 +467,26 @@ const Navbar = ({ toggleSidebar }) => {
             <NotificationBell />
           </div>
 
+          {/* Work Mobile App Icon */}
+          <div className="me-1 me-md-2">
+            <button
+              onClick={() => navigate('/mobileapp')}
+              title="Work App - Clock In/Out, Work Log, Leave, Expenses"
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '6px',
+                color: '#10B981',
+                display: 'flex',
+                alignItems: 'center',
+                fontSize: '1.3rem',
+              }}
+            >
+              📱
+            </button>
+          </div>
+
           {/* User Dropdown */}
           <NavDropdown
             title={

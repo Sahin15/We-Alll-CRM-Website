@@ -674,7 +674,7 @@ const LeadList = () => {
       case "Proposal Sent":
         return "warning";
       case "Negotiation":
-        return "purple";
+        return "dark";
       case "Won":
         return "success";
       case "Lost":

@@ -55,7 +55,7 @@ const QuickAnnouncements = ({ onAnnouncementClick }) => {
   };
 
   return (
-    <Card className="dashboard-card border-0 shadow-sm h-100" style={{ overflow: 'hidden' }}>
+    <Card className="dashboard-card border-0 shadow-sm h-100">
       <Card.Body className="p-3">
         <div className="d-flex justify-content-between align-items-center mb-3" style={{ gap: '8px' }}>
           <h5 className="mb-0 d-flex align-items-center" style={{ whiteSpace: 'nowrap', fontSize: '1rem' }}>
@@ -81,12 +81,13 @@ const QuickAnnouncements = ({ onAnnouncementClick }) => {
             {displayAnnouncements.slice(0, 5).map((announcement) => (
               <ListGroup.Item 
                 key={announcement._id || announcement.id} 
-                className="px-0 py-2 border-bottom cursor-pointer"
+                className="py-2 border-bottom cursor-pointer"
                 onClick={() => handleAnnouncementClick(announcement)}
                 style={{ 
                   transition: 'all 0.2s ease',
                   backgroundColor: announcement.isPinned ? 'rgba(255, 193, 7, 0.05)' : 'transparent',
-                  overflow: 'hidden'
+                  paddingLeft: '2px',
+                  paddingRight: '2px',
                 }}
               >
                 {/* Badge row */}
@@ -100,13 +101,12 @@ const QuickAnnouncements = ({ onAnnouncementClick }) => {
                   lineHeight: '1.4',
                   wordBreak: 'break-word',
                   overflowWrap: 'anywhere',
-                  paddingRight: '4px'
                 }}>
                   {announcement.isPinned && <span className="me-1">📌</span>}
                   {announcement.title}
                 </div>
                 {/* Content preview */}
-                <p className="text-muted mb-2 small" style={{ 
+                <p className="text-muted small" style={{ 
                   wordBreak: 'break-word', 
                   overflowWrap: 'anywhere',
                   lineHeight: '1.4',

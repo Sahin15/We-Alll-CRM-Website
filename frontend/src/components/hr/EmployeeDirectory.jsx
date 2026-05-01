@@ -249,7 +249,7 @@ const EmployeeDirectory = () => {
                             overlay={<Tooltip>Manage Profile</Tooltip>}
                           >
                             <Button
-                              variant="outline-success"
+                              variant="outline-primary"
                               size="sm"
                               onClick={() => navigate(`/employees/${emp._id}/profile`)}
                               style={{ borderRadius: '8px' }}

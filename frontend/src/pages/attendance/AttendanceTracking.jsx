@@ -26,7 +26,7 @@ const AttendanceTracking = () => {
   const dropdownStyles = `
     .attendance-dropdown-container {
       position: relative !important;
-      z-index: 10000 !important;
+      z-index: 1050 !important;
       overflow: visible !important;
     }
     .attendance-dropdown {
@@ -34,7 +34,7 @@ const AttendanceTracking = () => {
       top: 100% !important;
       left: 0 !important;
       right: 0 !important;
-      z-index: 10001 !important;
+      z-index: 1060 !important;
       background: white !important;
       border: 1px solid #dee2e6 !important;
       border-radius: 0.375rem !important;
@@ -1549,6 +1549,7 @@ const AttendanceTracking = () => {
                                   <div 
                                     className="d-flex align-items-center gap-1"
                                     onClick={() => {
+                                      setShowDropdown(false); // close employee dropdown if open
                                       setSelectedBreakDetails({
                                         employeeName: attendance.employee?.name || "Unknown",
                                         date: attendance.date,

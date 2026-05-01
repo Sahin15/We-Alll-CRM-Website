@@ -1,4 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import PWAShell from "../pages/app/PWAShell";
+import MobileAppShell from "../pages/mobileapp/MobileAppShell";
 import { useAuth } from "../context/AuthContext";
 
 // Layouts
@@ -200,7 +202,7 @@ const AppRoutes = () => {
       case "client":
         return <ClientDashboard />;
       default:
-        // Employee dashboard with HoD/HoP sections if applicable
+        // Employee, HoD, Manager all use EmployeeDashboard (it has role-specific sections built in)
         return <EmployeeDashboard />;
     }
   };
@@ -216,6 +218,26 @@ const AppRoutes = () => {
       
       {/* Growth Summit 2026 Landing Page - Public Route */}
       <Route path="/growth-summit-2026" element={<GrowthSummitFinal />} />
+
+      {/* PWA Mobile App Route - outside MainLayout */}
+      <Route
+        path="/app"
+        element={
+          <ProtectedRoute>
+            <PWAShell />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Work Mobile App Route - outside MainLayout */}
+      <Route
+        path="/mobileapp"
+        element={
+          <ProtectedRoute>
+            <MobileAppShell />
+          </ProtectedRoute>
+        }
+      />
       
 
       

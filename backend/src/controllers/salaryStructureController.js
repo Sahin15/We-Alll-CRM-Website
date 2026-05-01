@@ -315,9 +315,8 @@ export const deleteSalaryStructure = async (req, res) => {
 
     
 
-    // Only allow deleting draft structures
-    if (structure.status !== "draft") {
-      
+    // Only allow deleting draft structures, unless user is admin/superadmin
+    if (structure.status !== "draft" && !['admin', 'superadmin'].includes(req.user?.role)) {
       return res.status(400).json({
         message: "Cannot delete active or superseded salary structures. Only draft structures can be deleted.",
       });
