@@ -286,16 +286,34 @@ const LeaveApprovalModal = ({ show, onHide, leave, onAction }) => {
         )}
 
         {/* Show approval/rejection info for already-processed leaves */}
-        {!isPending && leave.approvalComment && (
+        {!isPending && leave.status === 'approved' && leave.rejectionReason && (
           <div className="mb-4">
-            <h6 className="section-title mb-2">Approval Comment</h6>
-            <div className="p-3 bg-light rounded">{leave.approvalComment}</div>
+            <h6 className="section-title mb-2">✅ Approval Note</h6>
+            <div className="p-3 rounded" style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', color: '#065F46' }}>{leave.rejectionReason}</div>
           </div>
         )}
-        {!isPending && leave.rejectionReason && (
+        {!isPending && leave.status === 'rejected' && leave.rejectionReason && (
           <div className="mb-4">
-            <h6 className="section-title mb-2">Rejection Reason</h6>
-            <div className="p-3 bg-light rounded text-danger">{leave.rejectionReason}</div>
+            <h6 className="section-title mb-2">❌ Rejection Reason</h6>
+            <div className="p-3 rounded" style={{ background: '#FEF2F2', border: '1px solid #FECACA', color: '#991B1B' }}>{leave.rejectionReason}</div>
+          </div>
+        )}
+
+        {/* Approved / Reviewed by — shown for all non-pending leaves */}
+        {!isPending && (leave.approvedBy || leave.approvedDate) && (
+          <div className="mb-4 p-3 bg-light rounded d-flex align-items-center gap-2">
+            <FaUser className="text-muted flex-shrink-0" size={14} />
+            <div className="small text-muted">
+              <strong className="text-dark">
+                {leave.status === 'approved' ? 'Approved' : 'Reviewed'} by:
+              </strong>{' '}
+              {leave.approvedBy?.name || 'HR / Admin'}
+              {leave.approvedDate && (
+                <span className="ms-2 text-muted">
+                  on {formatDate(leave.approvedDate)}
+                </span>
+              )}
+            </div>
           </div>
         )}
 

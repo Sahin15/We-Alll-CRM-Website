@@ -88,9 +88,7 @@ const EmployeeDashboard = () => {
 
       // Fetch leads data
       try {
-        console.log('🔍 Attempting to fetch leads for user:', user);
         const leadsRes = await leadApi.getAllLeads();
-        console.log('✅ Leads fetched successfully:', leadsRes.data?.length);
         newStats.leads = leadsRes.data?.length || 0;
         setHasLeadAccess(true); // User has access to leads
       } catch (error) {
@@ -103,7 +101,6 @@ const EmployeeDashboard = () => {
         // Even if API call fails, check if user should have access based on role
         const hasRoleAccess = ['admin', 'superadmin', 'manager'].includes(user?.role);
         if (hasRoleAccess) {
-          console.log('✅ User has role-based lead access, showing widget anyway');
           setHasLeadAccess(true);
         } else {
           setHasLeadAccess(false);

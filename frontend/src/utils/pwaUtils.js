@@ -46,29 +46,36 @@ function parseDateOnly(isoString) {
 export function filterTodos(todos, filter, today) {
   const todayOnly = toDateOnly(today);
 
+  const sortByDueDate = (arr) => [...arr].sort((a, b) => {
+    if (!a.dueDate && !b.dueDate) return 0;
+    if (!a.dueDate) return 1;
+    if (!b.dueDate) return -1;
+    return parseDateOnly(a.dueDate) - parseDateOnly(b.dueDate);
+  });
+
   switch (filter) {
     case 'all':
-      return todos;
+      return sortByDueDate(todos);
 
     case 'completed':
-      return todos.filter((t) => t.status === 'completed');
+      return sortByDueDate(todos.filter((t) => t.status === 'completed'));
 
     case 'pending':
-      return todos.filter((t) => {
+      return sortByDueDate(todos.filter((t) => {
         if (t.status === 'completed') return false;
-        if (!t.dueDate) return true; // no due date → pending
+        if (!t.dueDate) return true;
         return parseDateOnly(t.dueDate) >= todayOnly;
-      });
+      }));
 
     case 'overdue':
-      return todos.filter((t) => {
+      return sortByDueDate(todos.filter((t) => {
         if (t.status === 'completed') return false;
-        if (!t.dueDate) return false; // no due date → not overdue
+        if (!t.dueDate) return false;
         return parseDateOnly(t.dueDate) < todayOnly;
-      });
+      }));
 
     default:
-      return todos;
+      return sortByDueDate(todos);
   }
 }
 

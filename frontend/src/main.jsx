@@ -15,11 +15,11 @@ initMobileDebug();
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' })
-      .then(registration => {
-        console.log('[SW] Service worker registered at app startup:', registration.scope);
+      .then(() => {
+        // Service worker registered
       })
-      .catch(error => {
-        console.warn('[SW] Service worker registration failed:', error.message);
+      .catch(() => {
+        // Registration failed silently
       });
   });
 }
@@ -40,7 +40,6 @@ try {
     </React.StrictMode>
   );
   
-  console.log("React app mounted successfully");
 } catch (error) {
   console.error("Failed to mount React app:", error);
   

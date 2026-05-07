@@ -214,19 +214,13 @@ const AdminDashboard = () => {
       let onLeaveToday = 0;
       
       try {
-        console.log('[ADMIN DASHBOARD] Fetching attendance for date:', today);
         const attendanceRes = await attendanceApi.getAllAttendance({ date: today });
-        console.log('[ADMIN DASHBOARD] Attendance API response:', attendanceRes);
-        console.log('[ADMIN DASHBOARD] Attendance data:', attendanceRes.data);
-        console.log('[ADMIN DASHBOARD] Attendance data type:', typeof attendanceRes.data);
         
         // Count all who clocked in (present, late, half-day) as "present today"
         presentToday = attendanceRes.data?.filter(a => 
           a.status === 'present' || a.status === 'late' || a.status === 'half-day'
         ).length || 0;
         lateToday = attendanceRes.data?.filter(a => a.status === 'late').length || 0;
-        
-        console.log('[ADMIN DASHBOARD] Calculated stats:', { presentToday, lateToday });
         
         const allLeavesRes = await leaveApi.getAllLeaves({ status: 'approved' });
         const todayDate = new Date(today);
@@ -236,7 +230,7 @@ const AdminDashboard = () => {
           return todayDate >= startDate && todayDate <= endDate;
         }).length || 0;
       } catch (err) {
-        console.log('Attendance/Leave data not available');
+        // Attendance/Leave data not available
       }
       
       let pendingLeaves = 0;
@@ -244,7 +238,7 @@ const AdminDashboard = () => {
         const leavesRes = await leaveApi.getAllLeaves({ status: 'pending' });
         pendingLeaves = leavesRes.data?.length || 0;
       } catch (err) {
-        console.log('Leave data not available');
+        // Leave data not available
       }
 
       // Calculate OFFICE health based on HR/operations factors
@@ -385,7 +379,7 @@ const AdminDashboard = () => {
           });
         });
       } catch (err) {
-        console.log('Could not fetch approved leaves for activity');
+        // Could not fetch approved leaves for activity
       }
 
       // Sort by time (most recent first) and take top 15
@@ -494,7 +488,6 @@ const AdminDashboard = () => {
         });
       }
       
-      console.log('Today attendance:', todayAttendance);
       setAttendanceList(todayAttendance);
       setShowAttendanceModal(true);
     } catch (error) {
@@ -523,7 +516,6 @@ const AdminDashboard = () => {
         });
       }
       
-      console.log('Pending approvals:', pendingLeaves);
       setApprovalsList(pendingLeaves);
       setShowApprovalsModal(true);
     } catch (error) {
@@ -533,7 +525,6 @@ const AdminDashboard = () => {
   };
 
   const handleChartClick = async (chartType, segment, index) => {
-    console.log('Chart clicked:', chartType, segment, index);
     
     if (chartType === 'projects') {
       try {
@@ -632,8 +623,6 @@ const AdminDashboard = () => {
       const response = await attendanceApi.getAllAttendance({ date: today });
       let lateEmployees = response.data?.filter(a => a.status === 'late') || [];
       
-      console.log('Raw late employees data:', lateEmployees); // Debug log
-      
       // The backend returns 'employee' field, not 'user'
       // If employee data is not populated, fetch it
       if (lateEmployees.length > 0 && !lateEmployees[0].employee?.name) {
@@ -651,7 +640,6 @@ const AdminDashboard = () => {
         });
       }
       
-      console.log('Processed late employees:', lateEmployees); // Debug log
       setLateList(lateEmployees);
       setShowLateModal(true);
     } catch (error) {

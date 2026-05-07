@@ -156,7 +156,6 @@ const ProjectDetails = () => {
 
       if (slotsResponse.success) {
         const fetchedSlots = slotsResponse.data?.slots || [];
-        console.log('[ProjectDetails] Received', fetchedSlots.length, 'slots from API');
         setSlots(fetchedSlots);
       }
     } catch (error) {

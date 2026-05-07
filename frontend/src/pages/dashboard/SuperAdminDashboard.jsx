@@ -590,7 +590,6 @@ const AdminDashboard = () => {
         });
       }
       
-      console.log('Processed late employees:', lateEmployees); // Debug log
       setLateList(lateEmployees);
       setShowLateModal(true);
     } catch (error) {

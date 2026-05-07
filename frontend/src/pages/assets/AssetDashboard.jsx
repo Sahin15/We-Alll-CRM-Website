@@ -69,53 +69,51 @@ const AssetDashboard = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="summary-cards">
+      <div className="summary-cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
         {summaryCards.map((card, index) => {
           const IconComponent = card.icon;
           const colorMap = {
-            primary: { border: '#007bff', bg: '#e7f3ff', text: '#007bff' },
-            info: { border: '#17a2b8', bg: '#e0f7fa', text: '#17a2b8' },
-            success: { border: '#28a745', bg: '#e8f5e9', text: '#28a745' },
-            warning: { border: '#ffc107', bg: '#fff8e1', text: '#ffc107' },
-            danger: { border: '#dc3545', bg: '#ffebee', text: '#dc3545' },
-            secondary: { border: '#6c757d', bg: '#f5f5f5', text: '#6c757d' },
+            primary: { border: '#4F46E5', bg: '#EEF2FF', text: '#4F46E5' },
+            info:    { border: '#0EA5E9', bg: '#E0F2FE', text: '#0EA5E9' },
+            success: { border: '#10B981', bg: '#ECFDF5', text: '#10B981' },
+            warning: { border: '#F59E0B', bg: '#FFFBEB', text: '#F59E0B' },
+            danger:  { border: '#EF4444', bg: '#FEF2F2', text: '#EF4444' },
+            secondary:{ border: '#6B7280', bg: '#F3F4F6', text: '#6B7280' },
           };
           const colors = colorMap[card.color];
-          
+
           return (
             <div
               key={index}
-              className="summary-card"
               onClick={() => navigate(card.path)}
-              style={{ 
-                cursor: 'pointer',
-                borderLeftColor: colors.border,
+              style={{
+                background: '#fff',
+                borderRadius: '14px',
+                borderLeft: `5px solid ${colors.border}`,
+                padding: '1.25rem 1.5rem',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.75rem',
+                gap: '1.1rem',
+                cursor: 'pointer',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.07)',
+                transition: 'all 0.25s ease',
               }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.12)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,0.07)'; }}
             >
-              <div 
-                style={{
-                  width: '50px',
-                  height: '50px',
-                  borderRadius: '50%',
-                  backgroundColor: colors.bg,
-                  color: colors.text,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '1.4rem',
-                  flexShrink: 0,
-                }}
-              >
+              <div style={{
+                width: '56px', height: '56px', borderRadius: '12px',
+                backgroundColor: colors.bg, color: colors.text,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '1.6rem', flexShrink: 0,
+              }}>
                 <IconComponent />
               </div>
               <div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#333', margin: 0 }}>
+                <div style={{ fontSize: '2.2rem', fontWeight: 800, color: '#111827', lineHeight: 1 }}>
                   {card.value}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#666', fontWeight: 500, margin: '0.25rem 0 0 0', textTransform: 'uppercase' }}>
+                <div style={{ fontSize: '0.75rem', color: '#6B7280', fontWeight: 600, marginTop: '5px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   {card.label}
                 </div>
               </div>
@@ -192,40 +190,53 @@ const AssetDashboard = () => {
       </div>
 
       {/* Category Summary */}
-      <div className="category-section">
-        <h2>Asset Distribution by Category</h2>
-        <div className="category-table-wrapper">
-          {byCategory.length === 0 ? (
-            <div className="no-data">No category data available</div>
-          ) : (
-            <table className="category-table">
-              <thead>
-                <tr>
-                  <th>Category</th>
-                  <th>Count</th>
-                  <th>Percentage</th>
-                </tr>
-              </thead>
-              <tbody>
-                {byCategory.map((cat, index) => {
-                  const percentage = ((cat.count / summary.total) * 100).toFixed(1);
-                  return (
-                    <tr key={index}>
-                      <td className="category-name">{cat._id}</td>
-                      <td className="category-count">{cat.count}</td>
-                      <td>
-                        <div className="progress-bar">
-                          <div className="progress-fill" style={{ width: `${percentage}%` }}></div>
-                          <span className="progress-text">{percentage}%</span>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
+      <div style={{ background: '#fff', borderRadius: '16px', padding: '1.5rem', marginBottom: '1.5rem', boxShadow: '0 2px 10px rgba(0,0,0,0.07)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#111827', margin: 0 }}>Asset Distribution by Category</h2>
+          <span style={{ fontSize: '0.78rem', color: '#6B7280', fontWeight: 500 }}>{byCategory.length} categories</span>
         </div>
+
+        {byCategory.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: '#9CA3AF' }}>No category data available</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {byCategory
+              .sort((a, b) => b.count - a.count)
+              .map((cat, index) => {
+                const percentage = summary.total > 0 ? ((cat.count / summary.total) * 100).toFixed(1) : 0;
+                const palette = [
+                  '#4F46E5', '#0EA5E9', '#10B981', '#F59E0B',
+                  '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6',
+                ];
+                const color = palette[index % palette.length];
+
+                return (
+                  <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    {/* Category name */}
+                    <div style={{ width: '130px', flexShrink: 0, fontSize: '0.85rem', fontWeight: 600, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {cat._id || 'Uncategorized'}
+                    </div>
+
+                    {/* Progress bar */}
+                    <div style={{ flex: 1, height: '10px', background: '#F3F4F6', borderRadius: '999px', overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%', width: `${percentage}%`,
+                        background: color, borderRadius: '999px',
+                        transition: 'width 0.6s ease',
+                        minWidth: percentage > 0 ? '6px' : '0',
+                      }} />
+                    </div>
+
+                    {/* Count + % */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#111827', minWidth: '20px', textAlign: 'right' }}>{cat.count}</span>
+                      <span style={{ fontSize: '0.75rem', color: '#9CA3AF', minWidth: '40px' }}>{percentage}%</span>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        )}
       </div>
 
       {/* Recent Activities */}

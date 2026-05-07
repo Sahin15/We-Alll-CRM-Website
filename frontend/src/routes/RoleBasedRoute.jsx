@@ -21,14 +21,6 @@ const RoleBasedRoute = ({ children, allowedRoles }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // Debug logging
-  console.log("RoleBasedRoute Debug:", {
-    allowedRoles,
-    userRole: user?.role,
-    hasAllowedRoles: !!allowedRoles,
-    isIncluded: allowedRoles ? allowedRoles.includes(user?.role) : "N/A"
-  });
-
   if (allowedRoles && !allowedRoles.includes(user?.role)) {
     console.warn("Access denied - user role not in allowed roles", {
       userRole: user?.role,

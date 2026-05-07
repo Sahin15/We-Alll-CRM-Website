@@ -306,6 +306,11 @@ export default function HomeTab() {
                 <div style={{ fontSize: '0.8rem', color: '#9CA3AF', marginTop: '4px' }}>
                   In: {new Date(attendance.clockIn).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                   {attendance.clockOut && ` · Out: ${new Date(attendance.clockOut).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`}
+                  {attendance.totalBreakTime > 0 && (
+                    <span style={{ color: '#D97706', fontWeight: '600' }}>
+                      {` · Breaks: ${(attendance.breaks || []).filter(b => b.startTime && b.endTime).length || Math.ceil(attendance.totalBreakTime / 30)} (${Math.round(attendance.totalBreakTime)}m)`}
+                    </span>
+                  )}
                 </div>
               )}
             </div>

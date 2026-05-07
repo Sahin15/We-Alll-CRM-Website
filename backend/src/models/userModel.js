@@ -453,18 +453,18 @@ userSchema.pre('remove', function(next) {
 });
 
 // Middleware to prevent superadmin role modification
-userSchema.pre('save', function(next) {
+userSchema.pre('save', async function(next) {
   if (this.isModified('role') && !this.isNew) {
-    // Get the original document
-    this.constructor.findById(this._id).then(original => {
+    try {
+      const original = await this.constructor.findById(this._id);
       if (original && original.role === 'superadmin' && this.role !== 'superadmin') {
-        throw new Error('Cannot modify superadmin role');
+        return next(new Error('Cannot modify superadmin role'));
       }
-      next();
-    }).catch(next);
-  } else {
-    next();
+    } catch (err) {
+      return next(err);
+    }
   }
+  next();
 });
 
 // Add indexes for faster queries (email index is already created by unique: true)

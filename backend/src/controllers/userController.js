@@ -139,14 +139,19 @@ export const getUsers = async (req, res) => {
       }
     }
     
-    // Status filter
-    if (status) query.status = status;
+    // Status filter — also exclude isActive:false users when filtering for active
+    if (status) {
+      query.status = status;
+      if (status === 'active') {
+        query.isActive = { $ne: false };
+      }
+    }
     
     logger.info('getUsers query:', query);
     
     // Optimized query with pagination and all necessary fields for display
     const users = await User.find(query)
-      .select('_id name email role department profilePicture designation status employeeId joiningDate hireDate phone')
+      .select('_id name email role department profilePicture designation status isActive employeeId joiningDate hireDate phone reactivationDate')
       .populate('department', 'name')
       .sort({ createdAt: -1 })
       .limit(parseInt(limit))
@@ -359,6 +364,15 @@ export const updateUser = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // IMPORTANT: Block status/isActive changes through this endpoint.
+    // Status must be changed via PUT /users/:id/status to ensure
+    // proper lifecycle management (project removal, audit trail, etc.)
+    delete updateData.status;
+    delete updateData.isActive;
+    delete updateData.statusChangedAt;
+    delete updateData.statusChangedBy;
+    delete updateData.reactivationDate;
+
     // Track old department for sync
     const oldDepartmentId = user.department ? user.department.toString() : null;
     const newDepartmentId = updateData.department ? updateData.department.toString() : null;
@@ -495,8 +509,9 @@ export const updateEmployeeStatus = async (req, res) => {
         });
       }
       user.reactivationDate = reactivationDateObj;
-    } else if (status === "active") {
-      // Clear reactivation date when activating
+    } else {
+      // No reactivation date provided — always clear it
+      // This prevents stale dates from a previous inactive period triggering auto-reactivation
       user.reactivationDate = null;
     }
 
@@ -513,8 +528,22 @@ export const updateEmployeeStatus = async (req, res) => {
     user.status = status;
     user.statusChangedAt = new Date();
     user.statusChangedBy = req.user._id;
+    // Always clear reactivationDate unless explicitly setting to inactive with a date
+    if (status !== "inactive") {
+      user.reactivationDate = null;
+    }
 
+    logger.info(`Saving user ${user._id} with new status: ${status} (was: ${oldStatus})`);
     await user.save();
+    
+    // Verify the save actually persisted by re-reading from DB
+    const savedUser = await User.findById(id).select('status statusChangedAt');
+    logger.info(`Verified saved status for ${user._id}: ${savedUser?.status}`);
+    
+    if (savedUser?.status !== status) {
+      logger.error(`Status save FAILED for ${user._id}: expected ${status}, got ${savedUser?.status}`);
+      return res.status(500).json({ message: "Status update failed to persist. Please try again." });
+    }
 
     res.status(200).json({
       message: "Employee status updated successfully",

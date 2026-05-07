@@ -12,7 +12,7 @@ import {
   Alert,
   ProgressBar,
 } from "react-bootstrap";
-import { FaPlus, FaTimes, FaInfoCircle, FaExclamationTriangle } from "react-icons/fa";
+import { FaPlus, FaTimes, FaInfoCircle, FaExclamationTriangle, FaEye } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { leaveApi } from "../../api/leaveApi";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
@@ -26,6 +26,7 @@ const MyLeaves = () => {
   const [showWFHModal, setShowWFHModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [leaveBalance, setLeaveBalance] = useState(null);
+  const [viewLeave, setViewLeave] = useState(null); // leave to view in detail modal
   const [formData, setFormData] = useState({
     leaveType: "personal",
     startDate: "",
@@ -270,15 +271,25 @@ const MyLeaves = () => {
                             </Badge>
                           </td>
                           <td>
-                            {leave.status === "pending" && (
+                            <div className="d-flex gap-1">
                               <Button
                                 size="sm"
-                                variant="outline-danger"
-                                onClick={() => handleCancel(leave._id)}
+                                variant="outline-primary"
+                                onClick={() => setViewLeave(leave)}
+                                title="View details"
                               >
-                                <FaTimes /> Cancel
+                                <FaEye />
                               </Button>
-                            )}
+                              {leave.status === "pending" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline-danger"
+                                  onClick={() => handleCancel(leave._id)}
+                                >
+                                  <FaTimes /> Cancel
+                                </Button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -446,10 +457,87 @@ const MyLeaves = () => {
         show={showWFHModal}
         onHide={() => setShowWFHModal(false)}
         onSuccess={() => {
-          // Optionally refresh data or show success message
           toast.success("WFH request submitted successfully!");
         }}
       />
+
+      {/* Leave Detail View Modal */}
+      <Modal show={!!viewLeave} onHide={() => setViewLeave(null)} centered size="md">
+        <Modal.Header closeButton style={{
+          background: viewLeave?.status === 'approved' ? 'linear-gradient(135deg,#10B981,#059669)' :
+                      viewLeave?.status === 'rejected' ? 'linear-gradient(135deg,#EF4444,#DC2626)' :
+                      viewLeave?.status === 'pending'  ? 'linear-gradient(135deg,#F59E0B,#D97706)' :
+                      'linear-gradient(135deg,#6B7280,#4B5563)',
+          color: '#fff', borderBottom: 'none',
+        }}>
+          <Modal.Title style={{ fontWeight: 700, fontSize: '1rem' }}>
+            Leave Request Details
+          </Modal.Title>
+        </Modal.Header>
+
+        {viewLeave && (
+          <Modal.Body style={{ padding: '20px 24px' }}>
+            {/* Status banner */}
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <Badge bg={getStatusVariant(viewLeave.status)} style={{ fontSize: '0.85rem', padding: '6px 16px', textTransform: 'capitalize' }}>
+                {viewLeave.status}
+              </Badge>
+            </div>
+
+            {/* Info grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+              {[
+                { label: 'Leave Type', value: LEAVE_TYPE_DETAILS[viewLeave.leaveType]?.name || viewLeave.leaveType },
+                { label: 'Duration', value: `${viewLeave.numberOfDays} day(s)` },
+                { label: 'Start Date', value: formatDate(viewLeave.startDate) },
+                { label: 'End Date', value: formatDate(viewLeave.endDate) },
+              ].map(item => (
+                <div key={item.label} style={{ background: '#F9FAFB', borderRadius: '10px', padding: '12px 14px', border: '1px solid #E5E7EB' }}>
+                  <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>{item.label}</div>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#111827' }}>{item.value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Reason */}
+            <div style={{ background: '#F9FAFB', borderRadius: '10px', padding: '12px 14px', border: '1px solid #E5E7EB', marginBottom: '12px' }}>
+              <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Your Reason</div>
+              <div style={{ fontSize: '0.88rem', color: '#374151', lineHeight: 1.5 }}>{viewLeave.reason}</div>
+            </div>
+
+            {/* Approval note (stored in rejectionReason for approved leaves) */}
+            {viewLeave.status === 'approved' && viewLeave.rejectionReason && (
+              <div style={{ background: '#ECFDF5', borderRadius: '10px', padding: '12px 14px', border: '1px solid #A7F3D0', marginBottom: '12px' }}>
+                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>✅ Approval Note</div>
+                <div style={{ fontSize: '0.88rem', color: '#065F46', lineHeight: 1.5 }}>{viewLeave.rejectionReason}</div>
+              </div>
+            )}
+
+            {/* Rejection reason */}
+            {viewLeave.status === 'rejected' && viewLeave.rejectionReason && (
+              <div style={{ background: '#FEF2F2', borderRadius: '10px', padding: '12px 14px', border: '1px solid #FECACA', marginBottom: '12px' }}>
+                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#DC2626', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>❌ Rejection Reason</div>
+                <div style={{ fontSize: '0.88rem', color: '#991B1B', lineHeight: 1.5 }}>{viewLeave.rejectionReason}</div>
+              </div>
+            )}
+
+            {/* Approved by */}
+            {viewLeave.status !== 'pending' && (viewLeave.approvedBy || viewLeave.approvedDate) && (
+              <div style={{ fontSize: '0.78rem', color: '#9CA3AF', textAlign: 'center', marginTop: '8px' }}>
+                {viewLeave.status === 'approved' ? 'Approved' : 'Reviewed'} by{' '}
+                <strong style={{ color: '#6B7280' }}>
+                  {viewLeave.approvedBy?.name || 'HR'}
+                </strong>
+                {viewLeave.approvedDate && ` on ${formatDate(viewLeave.approvedDate)}`}
+              </div>
+            )}
+          </Modal.Body>
+        )}
+
+        <Modal.Footer style={{ borderTop: '1px solid #F3F4F6', padding: '12px 24px' }}>
+          <Button variant="secondary" onClick={() => setViewLeave(null)}>Close</Button>
+        </Modal.Footer>
+      </Modal>
     </Container>
   );
 };

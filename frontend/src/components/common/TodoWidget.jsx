@@ -28,16 +28,24 @@ import {
 import toast from "../../utils/toast";
 import { todoApi } from "../../api/todoApi";
 import { formatDate } from "../../utils/helpers";
-
+import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 const TodoWidget = ({ isCollapsed = false }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // Show the 📱 App button only to admin, superadmin, manager, and Sales dept
+  const showAppButton =
+    ['admin', 'superadmin', 'manager'].includes(user?.role) ||
+    user?.department?.name?.toLowerCase() === 'sales' ||
+    user?.department?.toLowerCase?.() === 'sales';
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState("pending");
   const [showModal, setShowModal] = useState(false);
+  const [showAllModal, setShowAllModal] = useState(false);
   const [editingTodo, setEditingTodo] = useState(null);
   const [formData, setFormData] = useState({
     title: "",
@@ -47,17 +55,18 @@ const TodoWidget = ({ isCollapsed = false }) => {
   });
   const [stats, setStats] = useState({ total: 0, completed: 0, pending: 0, overdue: 0 });
 
+  // Fetch ALL todos once — filter client-side so tab switching is instant
   useEffect(() => {
     fetchTodos();
     fetchStats();
-  }, [filter]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchTodos = async () => {
     try {
       setLoading(true);
       setError(null);
-      const params = filter !== "all" ? { status: filter } : {};
-      const response = await todoApi.getMyTodos(params);
+      // Always fetch all todos — no status param — filter in UI
+      const response = await todoApi.getMyTodos({});
       setTodos(response.todos || []);
     } catch (error) {
       console.error("Failed to fetch todos:", error);
@@ -165,11 +174,10 @@ const TodoWidget = ({ isCollapsed = false }) => {
       return true;
     })
     .sort((a, b) => {
-      // Todos without due date go to the bottom
+      // Sort by closest due date first; no due date goes to bottom
       if (!a.dueDate && !b.dueDate) return 0;
       if (!a.dueDate) return 1;
       if (!b.dueDate) return -1;
-      // Sort by closest due date first
       return new Date(a.dueDate) - new Date(b.dueDate);
     });
 
@@ -193,183 +201,172 @@ const TodoWidget = ({ isCollapsed = false }) => {
 
   return (
     <>
-      <Card className="todo-widget shadow-sm">
-        <Card.Header className="bg-gradient-primary text-white">
-          <div className="d-flex justify-content-between align-items-center gap-2">
-            <div className="d-flex align-items-center" style={{ minWidth: 0 }}>
-              <FaTasks className="me-2 flex-shrink-0" size={18} />
-              <strong className="text-nowrap">My To-Do List</strong>
-            </div>
+      {/* Fixed-height preview card */}
+      <Card className="todo-widget shadow-sm" style={{ height: '320px', borderRadius: '16px', overflow: 'hidden', border: 'none' }}>
+        {/* Header */}
+        <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', padding: '14px 18px', flexShrink: 0 }}>
+          <div className="d-flex justify-content-between align-items-center">
             <div className="d-flex align-items-center gap-2">
+              <FaTasks size={15} color="#fff" />
+              <strong style={{ color: '#fff', fontSize: '0.95rem' }}>My To-Do List</strong>
+              {stats.pending > 0 && (
+                <span style={{ background: 'rgba(255,255,255,0.25)', color: '#fff', borderRadius: '10px', padding: '1px 8px', fontSize: '0.7rem', fontWeight: '700' }}>
+                  {stats.pending} pending
+                </span>
+              )}
+            </div>
+            <div className="d-flex gap-2">
+              {showAppButton && (
+                <button
+                  onClick={() => navigate('/app')}
+                  style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', border: '1px solid rgba(255,255,255,0.4)', borderRadius: '20px', padding: '2px 10px', fontSize: '0.72rem', fontWeight: '600', cursor: 'pointer' }}
+                >
+                  📱 App
+                </button>
+              )}
               <button
-                onClick={() => navigate('/app')}
-                title="Open mobile app"
-                style={{
-                  background: 'rgba(255,255,255,0.2)',
-                  color: '#fff',
-                  border: '1px solid rgba(255,255,255,0.4)',
-                  borderRadius: '20px',
-                  padding: '2px 10px',
-                  fontSize: '0.72rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
-                }}
-              >
-                📱 App
-              </button>
-              <Button
-                size="sm"
-                variant="light"
                 onClick={() => handleOpenModal()}
-                className="btn-add-todo flex-shrink-0"
+                style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', border: '1px solid rgba(255,255,255,0.4)', borderRadius: '20px', padding: '2px 10px', fontSize: '0.72rem', fontWeight: '600', cursor: 'pointer' }}
               >
-                <FaPlus size={12} /> Add
-              </Button>
+                + Add
+              </button>
             </div>
           </div>
-        </Card.Header>
+        </div>
 
-        <Card.Body className="p-0">
+        {/* Stats bar */}
+        <div style={{ display: 'flex', borderBottom: '1px solid #F3F4F6', flexShrink: 0 }}>
+          {[
+            { label: 'Total', value: stats.total, color: '#6366F1' },
+            { label: 'Pending', value: stats.pending, color: '#F59E0B' },
+            { label: 'Done', value: stats.completed, color: '#10B981' },
+            { label: 'Overdue', value: stats.overdue, color: '#EF4444' },
+          ].map(s => (
+            <div key={s.label} style={{ flex: 1, textAlign: 'center', padding: '8px 4px', borderRight: '1px solid #F3F4F6' }}>
+              <div style={{ fontSize: '1.1rem', fontWeight: '700', color: s.color, lineHeight: 1 }}>{s.value}</div>
+              <div style={{ fontSize: '0.62rem', color: '#9CA3AF', textTransform: 'uppercase', marginTop: '2px' }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Preview list — max 3 items */}
+        <div style={{ flex: 1, overflowY: 'hidden', padding: '4px 0' }}>
+          {loading ? (
+            <div className="d-flex justify-content-center align-items-center h-100">
+              <Spinner animation="border" size="sm" variant="primary" />
+            </div>
+          ) : filteredTodos.length === 0 ? (
+            <div className="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+              <FaTasks size={28} className="mb-2 opacity-25" />
+              <p className="mb-0 small">No pending todos</p>
+            </div>
+          ) : (
+            filteredTodos.slice(0, 3).map(todo => (
+              <div key={todo._id} style={{ padding: '9px 18px', borderBottom: '1px solid #F9FAFB', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <button
+                  onClick={() => handleToggle(todo._id)}
+                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', flexShrink: 0 }}
+                >
+                  {todo.status === 'completed'
+                    ? <FaCheckCircle color="#10B981" size={18} />
+                    : <FaCircle color="#D1D5DB" size={18} />}
+                </button>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: '600', color: todo.status === 'completed' ? '#9CA3AF' : '#111827', textDecoration: todo.status === 'completed' ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {todo.title}
+                  </div>
+                  {todo.dueDate && (
+                    <div style={{ fontSize: '0.7rem', color: isOverdue(todo.dueDate) ? '#EF4444' : '#9CA3AF', marginTop: '1px' }}>
+                      📅 {formatDate(todo.dueDate)}
+                    </div>
+                  )}
+                </div>
+                <span style={{ fontSize: '0.65rem', fontWeight: '700', padding: '2px 7px', borderRadius: '10px', background: getPriorityColor(todo.priority) === 'danger' ? '#FEE2E2' : getPriorityColor(todo.priority) === 'warning' ? '#FEF3C7' : '#DBEAFE', color: getPriorityColor(todo.priority) === 'danger' ? '#DC2626' : getPriorityColor(todo.priority) === 'warning' ? '#D97706' : '#2563EB', flexShrink: 0 }}>
+                  {todo.priority}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Footer — View All button */}
+        <div
+          style={{ padding: '10px 18px', borderTop: '1px solid #F3F4F6', textAlign: 'center', cursor: 'pointer', background: '#FAFAFA', flexShrink: 0 }}
+          onClick={() => setShowAllModal(true)}
+        >
+          <span style={{ fontSize: '0.78rem', color: '#6366F1', fontWeight: '600' }}>
+            View All Todos ({stats.total}) →
+          </span>
+        </div>
+      </Card>
+
+      {/* Full Todo Modal */}
+      <Modal show={showAllModal} onHide={() => setShowAllModal(false)} size="lg" centered>
+        <Modal.Header closeButton style={{ borderBottom: 'none', paddingBottom: 0 }}>
+          <Modal.Title className="fw-bold">My To-Do List</Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{ padding: '0 24px 24px' }}>
           {/* Stats */}
-          <div className="todo-stats p-3 border-bottom">
-            <Row className="g-2">
-              <Col xs={3}>
-                <div className="stat-item text-center">
-                  <div className="stat-value text-primary">{stats.total}</div>
-                  <div className="stat-label">Total</div>
-                </div>
-              </Col>
-              <Col xs={3}>
-                <div className="stat-item text-center">
-                  <div className="stat-value text-warning">{stats.pending}</div>
-                  <div className="stat-label">Pending</div>
-                </div>
-              </Col>
-              <Col xs={3}>
-                <div className="stat-item text-center">
-                  <div className="stat-value text-success">{stats.completed}</div>
-                  <div className="stat-label">Done</div>
-                </div>
-              </Col>
-              <Col xs={3}>
-                <div className="stat-item text-center">
-                  <div className="stat-value text-danger">{stats.overdue}</div>
-                  <div className="stat-label">Overdue</div>
-                </div>
-              </Col>
-            </Row>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', paddingTop: '8px' }}>
+            {[
+              { label: 'Total', value: stats.total, color: '#6366F1' },
+              { label: 'Pending', value: stats.pending, color: '#F59E0B' },
+              { label: 'Done', value: stats.completed, color: '#10B981' },
+              { label: 'Overdue', value: stats.overdue, color: '#EF4444' },
+            ].map(s => (
+              <div key={s.label} style={{ flex: 1, textAlign: 'center', padding: '10px', background: '#F9FAFB', borderRadius: '10px', border: '1px solid #F3F4F6' }}>
+                <div style={{ fontSize: '1.4rem', fontWeight: '700', color: s.color }}>{s.value}</div>
+                <div style={{ fontSize: '0.7rem', color: '#9CA3AF', textTransform: 'uppercase' }}>{s.label}</div>
+              </div>
+            ))}
           </div>
 
-          {/* Filter */}
-          <div className="todo-filter p-2 border-bottom bg-light">
-            <div className="btn-group btn-group-sm w-100" role="group">
-              <button
-                type="button"
-                className={`btn ${filter === "all" ? "btn-primary" : "btn-outline-primary"}`}
-                onClick={() => setFilter("all")}
-              >
-                All
-              </button>
-              <button
-                type="button"
-                className={`btn ${filter === "pending" ? "btn-primary" : "btn-outline-primary"}`}
-                onClick={() => setFilter("pending")}
-              >
-                Pending
-              </button>
-              <button
-                type="button"
-                className={`btn ${filter === "completed" ? "btn-primary" : "btn-outline-primary"}`}
-                onClick={() => setFilter("completed")}
-              >
-                Completed
-              </button>
+          {/* Filter + Add */}
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <div className="d-flex gap-2">
+              {['pending', 'all', 'completed'].map(f => (
+                <button key={f} onClick={() => setFilter(f)} style={{ padding: '5px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: '600', background: filter === f ? '#6366F1' : '#F3F4F6', color: filter === f ? '#fff' : '#6B7280' }}>
+                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                </button>
+              ))}
             </div>
+            <button onClick={() => handleOpenModal()} style={{ padding: '5px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: '600', background: '#6366F1', color: '#fff' }}>
+              + Add Todo
+            </button>
           </div>
 
-          {/* Todo List */}
-          <div className="todo-list" style={{ maxHeight: "400px", overflowY: "auto" }}>
-            {error && (
-              <div className="alert alert-warning m-3 mb-0">
-                <small>{error}</small>
-              </div>
-            )}
+          {/* Full list */}
+          <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
             {loading ? (
-              <div className="text-center py-4">
-                <Spinner animation="border" size="sm" variant="primary" />
-              </div>
+              <div className="text-center py-4"><Spinner animation="border" size="sm" variant="primary" /></div>
             ) : filteredTodos.length === 0 ? (
-              <div className="text-center py-4 text-muted">
-                <FaTasks size={32} className="mb-2 opacity-50" />
-                <p className="mb-0">No todos yet</p>
-                <small>Click "Add" to create one</small>
+              <div className="text-center py-5 text-muted">
+                <FaTasks size={36} className="mb-2 opacity-25" />
+                <p>No todos found</p>
               </div>
             ) : (
               <ListGroup variant="flush">
-                {filteredTodos.map((todo) => (
-                  <ListGroup.Item
-                    key={todo._id}
-                    className={`todo-item ${todo.status === "completed" ? "completed" : ""}`}
-                  >
+                {filteredTodos.map(todo => (
+                  <ListGroup.Item key={todo._id} className={`todo-item ${todo.status === 'completed' ? 'completed' : ''}`}>
                     <div className="d-flex align-items-start">
                       <div className="todo-checkbox me-2">
-                        <Button
-                          variant="link"
-                          size="sm"
-                          className="p-0 text-decoration-none"
-                          onClick={() => handleToggle(todo._id)}
-                        >
-                          {todo.status === "completed" ? (
-                            <FaCheckCircle className="text-success" size={20} />
-                          ) : (
-                            <FaCircle className="text-muted" size={20} />
-                          )}
+                        <Button variant="link" size="sm" className="p-0 text-decoration-none" onClick={() => handleToggle(todo._id)}>
+                          {todo.status === 'completed' ? <FaCheckCircle className="text-success" size={20} /> : <FaCircle className="text-muted" size={20} />}
                         </Button>
                       </div>
-
                       <div className="flex-grow-1">
                         <div className="todo-title">{todo.title}</div>
-                        {todo.description && (
-                          <div className="todo-description text-muted small">
-                            {todo.description}
-                          </div>
-                        )}
+                        {todo.description && <div className="todo-description text-muted small">{todo.description}</div>}
                         <div className="todo-meta mt-1">
-                          <Badge bg={getPriorityColor(todo.priority)} className="me-1">
-                            <FaFlag size={10} /> {todo.priority}
-                          </Badge>
-                          {todo.dueDate && (
-                            <Badge
-                              bg={isOverdue(todo.dueDate) ? "danger" : "secondary"}
-                              className="me-1"
-                            >
-                              <FaCalendar size={10} /> {formatDate(todo.dueDate)}
-                            </Badge>
-                          )}
+                          <Badge bg={getPriorityColor(todo.priority)} className="me-1"><FaFlag size={10} /> {todo.priority}</Badge>
+                          {todo.dueDate && <Badge bg={isOverdue(todo.dueDate) ? 'danger' : 'secondary'} className="me-1"><FaCalendar size={10} /> {formatDate(todo.dueDate)}</Badge>}
                         </div>
                       </div>
-
                       <Dropdown align="end">
-                        <Dropdown.Toggle
-                          variant="link"
-                          size="sm"
-                          className="text-muted p-0"
-                          style={{ boxShadow: "none" }}
-                        >
-                          <FaEllipsisV />
-                        </Dropdown.Toggle>
+                        <Dropdown.Toggle variant="link" size="sm" className="text-muted p-0" style={{ boxShadow: 'none' }}><FaEllipsisV /></Dropdown.Toggle>
                         <Dropdown.Menu>
-                          <Dropdown.Item onClick={() => handleOpenModal(todo)}>
-                            <FaEdit className="me-2" /> Edit
-                          </Dropdown.Item>
-                          <Dropdown.Item
-                            onClick={() => handleDelete(todo._id)}
-                            className="text-danger"
-                          >
-                            <FaTrash className="me-2" /> Delete
-                          </Dropdown.Item>
+                          <Dropdown.Item onClick={() => handleOpenModal(todo)}><FaEdit className="me-2" /> Edit</Dropdown.Item>
+                          <Dropdown.Item onClick={() => handleDelete(todo._id)} className="text-danger"><FaTrash className="me-2" /> Delete</Dropdown.Item>
                         </Dropdown.Menu>
                       </Dropdown>
                     </div>
@@ -378,8 +375,8 @@ const TodoWidget = ({ isCollapsed = false }) => {
               </ListGroup>
             )}
           </div>
-        </Card.Body>
-      </Card>
+        </Modal.Body>
+      </Modal>
 
       {/* Add/Edit Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} centered>

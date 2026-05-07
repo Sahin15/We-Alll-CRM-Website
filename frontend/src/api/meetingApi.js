@@ -7,6 +7,7 @@ export const meetingApi = {
   createMeeting: (data) => api.post("/meetings", data),
   updateMeeting: (id, data) => api.put(`/meetings/${id}`, data),
   deleteMeeting: (id) => api.delete(`/meetings/${id}`),
+  completeMeeting: (id) => api.patch(`/meetings/${id}/complete`),
   respondToMeeting: (id, response) => api.post(`/meetings/${id}/respond`, { response }),
 };
 

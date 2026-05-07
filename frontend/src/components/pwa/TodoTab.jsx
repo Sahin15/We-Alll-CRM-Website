@@ -21,21 +21,34 @@ export default function TodoTab() {
   const [showForm, setShowForm] = useState(false);
   const [editingTodo, setEditingTodo] = useState(null);
 
-  const fetchTodos = useCallback(async () => {
-    setLoading(true);
+  const fetchTodos = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
-      const data = await todoApi.getMyTodos();
+      // Add cache-busting param so service worker doesn't serve stale data
+      const data = await todoApi.getMyTodos({ _t: Date.now() });
       setTodos(data.todos || []);
     } catch (err) {
-      setError('Failed to load tasks. Please try again.');
+      if (!silent) setError('Failed to load tasks. Please try again.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     fetchTodos();
+
+    // Re-fetch silently when app becomes visible (user switches back from website)
+    const handleVisibility = () => { if (!document.hidden) fetchTodos(true); };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    // Poll every 30s silently to stay in sync
+    const poll = setInterval(() => fetchTodos(true), 30000);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(poll);
+    };
   }, [fetchTodos]);
 
   const handleToggle = async (id) => {

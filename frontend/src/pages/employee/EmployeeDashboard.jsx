@@ -70,6 +70,49 @@ const WORK_HOURS = {
 
 // ============================================
 
+// Reusable meeting row for the modal
+const MeetingRow = ({ meeting, user, onEdit, onComplete, showDate }) => {
+  const statusColor = meeting.status === 'completed' ? '#10B981' : meeting.status === 'cancelled' ? '#EF4444' : meeting.status === 'ongoing' ? '#F59E0B' : '#6366F1';
+  const isOrganizer = meeting.organizer?._id === user?._id || meeting.organizer === user?._id;
+  const meetingDate = new Date(meeting.date);
+  const isToday = meetingDate.toDateString() === new Date().toDateString();
+
+  return (
+    <div style={{ padding: '12px 4px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+      <div style={{ width: '4px', minHeight: '48px', borderRadius: '4px', background: statusColor, flexShrink: 0, marginTop: '2px' }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: '600', fontSize: '0.9rem', color: '#111827', marginBottom: '3px' }}>{meeting.title}</div>
+        {showDate && (
+          <div style={{ fontSize: '0.75rem', color: '#6B7280', marginBottom: '2px' }}>
+            📅 {meetingDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+            {isToday && <span style={{ marginLeft: '6px', background: '#DBEAFE', color: '#1D4ED8', borderRadius: '10px', padding: '1px 7px', fontSize: '0.65rem', fontWeight: '700' }}>Today</span>}
+          </div>
+        )}
+        <div style={{ fontSize: '0.78rem', color: '#6B7280' }}>
+          🕐 {meeting.startTime} – {meeting.endTime}
+          {meeting.location && <span className="ms-2">📍 {meeting.location}</span>}
+        </div>
+        {meeting.meetingLink && (
+          <a href={meeting.meetingLink} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem', color: '#6366F1', fontWeight: '600', display: 'inline-block', marginTop: '3px' }}>
+            Join Meeting →
+          </a>
+        )}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
+        <span style={{ fontSize: '0.68rem', fontWeight: '700', padding: '2px 8px', borderRadius: '10px', background: statusColor + '20', color: statusColor, textTransform: 'capitalize' }}>
+          {meeting.status}
+        </span>
+        {isOrganizer && meeting.status === 'scheduled' && (
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <button onClick={() => onEdit(meeting)} title="Edit" style={{ background: '#F3F4F6', border: 'none', borderRadius: '6px', padding: '3px 7px', cursor: 'pointer', color: '#6B7280', fontSize: '0.72rem' }}>✏️</button>
+            <button onClick={() => onComplete(meeting._id)} title="Mark Complete" style={{ background: '#ECFDF5', border: 'none', borderRadius: '6px', padding: '3px 7px', cursor: 'pointer', color: '#10B981', fontSize: '0.72rem' }}>✓</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const EmployeeDashboard = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -101,6 +144,11 @@ const EmployeeDashboard = () => {
   };
   const [recentTasks, setRecentTasks] = useState([]);
   const [todaysMeetings, setTodaysMeetings] = useState([]);
+  const [allMeetings, setAllMeetings] = useState([]);
+  const [showAllMeetings, setShowAllMeetings] = useState(false);
+  const [allMeetingsLoading, setAllMeetingsLoading] = useState(false);
+  const [showMeetingsModal, setShowMeetingsModal] = useState(false);
+  const [meetingsModalTab, setMeetingsModalTab] = useState('today'); // 'today' | 'all'
   const [recentActivities, setRecentActivities] = useState([]);
   const [policies, setPolicies] = useState([]);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
@@ -483,9 +531,33 @@ const EmployeeDashboard = () => {
       await api.patch(`/meetings/${meetingId}/complete`);
       toast.success("Meeting marked as completed");
       fetchDashboardData();
+      // Also refresh all meetings if that view is open
+      if (showAllMeetings) fetchAllMeetings();
     } catch (error) {
       console.error("Error completing meeting:", error);
       toast.error(error.response?.data?.message || "Failed to complete meeting");
+    }
+  };
+
+  const fetchAllMeetings = async () => {
+    setAllMeetingsLoading(true);
+    try {
+      const res = await api.get('/meetings');
+      const raw = res.data?.meetings || res.data || [];
+      const userId = user?._id || user?.id;
+      // Only show meetings where user is organizer or attendee, sorted newest first
+      const myMeetings = raw
+        .filter(m => {
+          const isOrganizer = m.organizer?._id === userId || m.organizer === userId;
+          const isAttendee = m.attendees?.some(a => (a._id || a) === userId);
+          return isOrganizer || isAttendee;
+        })
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+      setAllMeetings(myMeetings);
+    } catch (err) {
+      console.error('Error fetching all meetings:', err);
+    } finally {
+      setAllMeetingsLoading(false);
     }
   };
 
@@ -1188,80 +1260,67 @@ const EmployeeDashboard = () => {
       {/* Today's Schedule */}
       <Row className="mb-4">
         <Col xs={12} md={6} className="mb-3">
-          <Card className="dashboard-card content-card border-0 shadow-sm h-100">
-            <Card.Body className="d-flex flex-column">
-              <h5 className="mb-3">Today's Meetings</h5>
-              
-              {todaysMeetings.length > 0 ? (
-                <div className="list-group list-group-flush flex-grow-1" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                  {todaysMeetings.map((meeting) => {
-                    const meetingTime = `${meeting.startTime} - ${meeting.endTime}`;
-                    const statusColor = meeting.status === 'completed' ? 'success' : 
-                                       meeting.status === 'ongoing' ? 'warning' : 
-                                       meeting.status === 'cancelled' ? 'danger' : 'primary';
-                    const isOrganizer = meeting.organizer?._id === user?._id;
-                    
+          <Card className="dashboard-card border-0 shadow-sm" style={{ height: '320px', borderRadius: '16px', overflow: 'hidden' }}>
+            <Card.Body className="d-flex flex-column p-0">
+              {/* Fixed header */}
+              <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid #F3F4F6', flexShrink: 0 }}>
+                <div className="d-flex justify-content-between align-items-center">
+                  <div className="d-flex align-items-center gap-2">
+                    <FaCalendarAlt size={15} color="#6366F1" />
+                    <h6 className="mb-0 fw-bold">Today's Meetings</h6>
+                    {todaysMeetings.length > 0 && (
+                      <Badge bg="primary" pill style={{ fontSize: '0.7rem' }}>{todaysMeetings.length}</Badge>
+                    )}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline-primary"
+                    style={{ fontSize: '0.72rem', padding: '3px 10px', borderRadius: '20px' }}
+                    onClick={() => {
+                      setShowMeetingsModal(true);
+                      setMeetingsModalTab('today');
+                      if (allMeetings.length === 0) fetchAllMeetings();
+                    }}
+                  >
+                    View All
+                  </Button>
+                </div>
+              </div>
+
+              {/* Preview — max 3 items, fixed scroll area */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
+                {todaysMeetings.length === 0 ? (
+                  <div className="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                    <FaCalendarAlt size={32} className="mb-2 opacity-25" />
+                    <p className="mb-0 small">No meetings today</p>
+                  </div>
+                ) : (
+                  todaysMeetings.slice(0, 3).map((meeting) => {
+                    const statusColor = meeting.status === 'completed' ? '#10B981' : meeting.status === 'cancelled' ? '#EF4444' : '#6366F1';
                     return (
-                      <div key={meeting._id} className="list-group-item px-0">
-                        <div className="d-flex justify-content-between align-items-start">
-                          <div className="flex-grow-1">
-                            <h6 className="mb-1">{meeting.title}</h6>
-                            <small className="text-muted">
-                              <FaClock className="me-1" />
-                              {meetingTime}
-                            </small>
-                            {meeting.location && (
-                              <small className="text-muted ms-2">
-                                📍 {meeting.location}
-                              </small>
-                            )}
-                            {meeting.meetingLink && (
-                              <div className="mt-1">
-                                <a href={meeting.meetingLink} target="_blank" rel="noopener noreferrer" className="small">
-                                  Join Meeting →
-                                </a>
-                              </div>
-                            )}
-                          </div>
-                          <div className="d-flex gap-1 align-items-center">
-                            <Badge bg={statusColor} className="ms-2">
-                              {meeting.status}
-                            </Badge>
-                            {isOrganizer && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  variant="outline-secondary"
-                                  onClick={() => handleEditMeeting(meeting)}
-                                  title="Edit"
-                                >
-                                  <FaEdit size={12} />
-                                </Button>
-                                {meeting.status === 'scheduled' && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline-success"
-                                    onClick={() => handleCompleteMeeting(meeting._id)}
-                                    title="Mark Complete"
-                                  >
-                                    <FaCheckCircle size={12} />
-                                  </Button>
-                                )}
-                              </>
-                            )}
+                      <div key={meeting._id} style={{ padding: '10px 20px', borderBottom: '1px solid #F9FAFB', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                        <div style={{ width: '4px', height: '40px', borderRadius: '4px', background: statusColor, flexShrink: 0, marginTop: '2px' }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: '600', fontSize: '0.85rem', color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{meeting.title}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '2px' }}>
+                            <FaClock size={10} className="me-1" />{meeting.startTime} – {meeting.endTime}
+                            {meeting.meetingLink && <a href={meeting.meetingLink} target="_blank" rel="noopener noreferrer" className="ms-2" style={{ color: '#6366F1', fontSize: '0.72rem' }}>Join →</a>}
                           </div>
                         </div>
+                        <Badge style={{ fontSize: '0.65rem', background: statusColor }}>{meeting.status}</Badge>
                       </div>
                     );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-5 text-muted flex-grow-1 d-flex flex-column justify-content-center">
-                  <FaCalendarAlt className="fs-1 mb-3 opacity-25" />
-                  <p className="mb-0">No meetings scheduled for today</p>
-                  <small>Your meetings will appear here</small>
-                </div>
-              )}
+                  })
+                )}
+                {todaysMeetings.length > 3 && (
+                  <div
+                    style={{ padding: '10px 20px', textAlign: 'center', fontSize: '0.78rem', color: '#6366F1', cursor: 'pointer', fontWeight: '600' }}
+                    onClick={() => { setShowMeetingsModal(true); setMeetingsModalTab('today'); }}
+                  >
+                    +{todaysMeetings.length - 3} more meetings
+                  </div>
+                )}
+              </div>
             </Card.Body>
           </Card>
         </Col>
@@ -1270,6 +1329,57 @@ const EmployeeDashboard = () => {
           <TodoWidget />
         </Col>
       </Row>
+
+      {/* Meetings Full Modal */}
+      <Modal show={showMeetingsModal} onHide={() => setShowMeetingsModal(false)} size="lg" centered>
+        <Modal.Header closeButton style={{ borderBottom: 'none', paddingBottom: 0 }}>
+          <Modal.Title className="fw-bold">Meetings</Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{ padding: '0 24px 24px' }}>
+          {/* Tabs */}
+          <div className="d-flex gap-2 mb-3 pt-2">
+            {['today', 'all'].map(tab => (
+              <button
+                key={tab}
+                onClick={() => { setMeetingsModalTab(tab); if (tab === 'all' && allMeetings.length === 0) fetchAllMeetings(); }}
+                style={{
+                  padding: '6px 16px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: '600',
+                  background: meetingsModalTab === tab ? '#6366F1' : '#F3F4F6',
+                  color: meetingsModalTab === tab ? '#fff' : '#6B7280',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {tab === 'today' ? `📅 Today (${todaysMeetings.length})` : `📋 All Meetings`}
+              </button>
+            ))}
+          </div>
+
+          {/* Content */}
+          <div style={{ maxHeight: '480px', overflowY: 'auto' }}>
+            {meetingsModalTab === 'today' ? (
+              todaysMeetings.length === 0 ? (
+                <div className="text-center py-5 text-muted">
+                  <FaCalendarAlt size={40} className="mb-3 opacity-25" />
+                  <p>No meetings scheduled for today</p>
+                </div>
+              ) : (
+                todaysMeetings.map(meeting => <MeetingRow key={meeting._id} meeting={meeting} user={user} onEdit={handleEditMeeting} onComplete={handleCompleteMeeting} showDate={false} />)
+              )
+            ) : (
+              allMeetingsLoading ? (
+                <div className="text-center py-5"><Spinner animation="border" variant="primary" /></div>
+              ) : allMeetings.length === 0 ? (
+                <div className="text-center py-5 text-muted">
+                  <FaCalendarAlt size={40} className="mb-3 opacity-25" />
+                  <p>No meetings found</p>
+                </div>
+              ) : (
+                allMeetings.map(meeting => <MeetingRow key={meeting._id} meeting={meeting} user={user} onEdit={handleEditMeeting} onComplete={handleCompleteMeeting} showDate={true} />)
+              )
+            )}
+          </div>
+        </Modal.Body>
+      </Modal>
 
       {/* Announcements */}
       <Row className="mb-4">

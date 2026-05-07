@@ -10,7 +10,6 @@ import { workOnLeaveDayApi } from "../../api/workOnLeaveDayApi";
 import ConfirmModal from "../../components/common/ConfirmModal";
 
 const MyAttendance = () => {
-  console.log('[MY-ATTENDANCE] Component loaded!');
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [todayAttendance, setTodayAttendance] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -56,15 +55,11 @@ const MyAttendance = () => {
       setLoading(true);
       const response = await api.get("/attendance/my-attendance");
       
-      console.log('[ATTENDANCE] Raw response data:', response.data);
-      
       // Format the attendance records
       const formattedRecords = response.data.map(record => {
-        console.log(`[ATTENDANCE] Processing record for ${new Date(record.date).toLocaleDateString()}: status=${record.status}, clockIn=${record.clockIn}, clockOut=${record.clockOut}`);
         
         // For leave days, show "-" for all time-related fields
         if (record.status === 'on-leave') {
-          console.log(`[ATTENDANCE] Leave day detected - setting all times to "-"`);
           return {
             date: record.date,
             clockIn: "-",
@@ -185,21 +180,15 @@ const MyAttendance = () => {
   };
 
   const handleClockOutClick = () => {
-    console.log('[CLOCK-OUT] Button clicked');
-    console.log('[CLOCK-OUT] Current status:', getCurrentStatus());
-    console.log('[CLOCK-OUT] Today attendance:', todayAttendance);
     setShowClockOutConfirm(true);
   };
 
   const handleClockOut = async () => {
-    console.log('[CLOCK-OUT] Confirming clock out');
     setShowClockOutConfirm(false);
     
     try {
       setClockingIn(true);
-      console.log('[CLOCK-OUT] Calling API...');
       await attendanceApi.clockOut("End of day");
-      console.log('[CLOCK-OUT] API call successful');
       toast.success("Clocked out successfully!");
       await fetchTodayAttendance();
       await fetchAttendance();
@@ -485,8 +474,6 @@ const MyAttendance = () => {
                     variant="danger"
                     size="lg"
                     onClick={(e) => {
-                      console.log('[BUTTON] Clock Out clicked!', e);
-                      alert('Clock Out button was clicked!');
                       handleClockOutClick();
                     }}
                     disabled={clockingIn}

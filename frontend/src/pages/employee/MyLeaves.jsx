@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Container, Row, Col, Card, Button, Table, Badge, Modal, Form, ProgressBar, Alert, Nav } from "react-bootstrap";
-import { FaPlus, FaCalendarAlt, FaUmbrellaBeach, FaHospital, FaPlane, FaExclamationTriangle, FaInfoCircle, FaHome } from "react-icons/fa";
+import { FaPlus, FaCalendarAlt, FaUmbrellaBeach, FaHospital, FaPlane, FaExclamationTriangle, FaInfoCircle, FaHome, FaEye, FaClock, FaFileAlt } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
 import { leaveApi } from "../../api/leaveApi";
@@ -20,6 +20,7 @@ const MyLeaves = () => {
   const [showModal, setShowModal] = useState(false);
   const [showWFHModal, setShowWFHModal] = useState(false);
   const [leaveBalance, setLeaveBalance] = useState(null);
+  const [viewLeave, setViewLeave] = useState(null);
   const [formData, setFormData] = useState({
     leaveType: "personal",
     startDate: "",
@@ -503,15 +504,25 @@ const MyLeaves = () => {
                             </Badge>
                           </td>
                           <td>
-                            {leave.status === "pending" && (
+                            <div className="d-flex gap-1 flex-wrap">
                               <Button
                                 size="sm"
-                                variant="outline-danger"
-                                onClick={() => handleCancel(leave._id)}
+                                variant="outline-primary"
+                                onClick={() => setViewLeave(leave)}
+                                title="View details"
                               >
-                                Cancel
+                                <FaEye size={12} />
                               </Button>
-                            )}
+                              {leave.status === "pending" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline-danger"
+                                  onClick={() => handleCancel(leave._id)}
+                                >
+                                  Cancel
+                                </Button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -652,15 +663,25 @@ const MyLeaves = () => {
                                 )}
                               </td>
                               <td>
-                                {request.status === 'pending' && new Date(request.date) >= new Date() && (
+                                <div className="d-flex gap-1">
                                   <Button
                                     size="sm"
-                                    variant="outline-danger"
-                                    onClick={() => handleCancelWFH(request._id)}
+                                    variant="outline-primary"
+                                    onClick={() => setViewLeave({ ...request, _wfh: true })}
+                                    title="View details"
                                   >
-                                    Cancel
+                                    <FaEye size={12} />
                                   </Button>
-                                )}
+                                  {request.status === 'pending' && new Date(request.date) >= new Date() && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline-danger"
+                                      onClick={() => handleCancelWFH(request._id)}
+                                    >
+                                      Cancel
+                                    </Button>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           ))
@@ -937,8 +958,158 @@ const MyLeaves = () => {
           toast.success('WFH request submitted successfully!');
         }}
       />
+
+      {/* Leave / WFH Detail View Modal — HR style */}
+      <Modal show={!!viewLeave} onHide={() => setViewLeave(null)} centered size="lg">
+        <Modal.Header closeButton className="border-0 pb-0">
+          <Modal.Title className="d-flex align-items-center gap-2">
+            <FaCalendarAlt className="text-primary" />
+            {viewLeave?._wfh ? 'Work From Home Request Details' : 'Leave Request Details'}
+            {viewLeave && (
+              <Badge
+                bg={viewLeave.status === 'approved' ? 'success' : viewLeave.status === 'rejected' ? 'danger' : viewLeave.status === 'cancelled' ? 'secondary' : 'warning'}
+                className="ms-2 text-capitalize"
+              >
+                {viewLeave.status}
+              </Badge>
+            )}
+          </Modal.Title>
+        </Modal.Header>
+
+        {viewLeave && (
+          <Modal.Body className="pt-2">
+
+            {/* Details grid */}
+            <div className="leave-details-section mb-4">
+              <h6 className="section-title mb-3">
+                {viewLeave._wfh ? 'WFH Details' : 'Leave Details'}
+              </h6>
+              <Row className="g-3">
+                {viewLeave._wfh ? (
+                  <>
+                    <Col md={6}>
+                      <div className="detail-card p-3 border rounded">
+                        <div className="d-flex align-items-center gap-2 mb-2">
+                          <FaCalendarAlt className="text-primary" />
+                          <span className="fw-bold">WFH Date</span>
+                        </div>
+                        <div className="detail-value">{formatDate(viewLeave.date)}</div>
+                      </div>
+                    </Col>
+                    <Col md={6}>
+                      <div className="detail-card p-3 border rounded">
+                        <div className="d-flex align-items-center gap-2 mb-2">
+                          <FaClock className="text-info" />
+                          <span className="fw-bold">Applied On</span>
+                        </div>
+                        <div className="detail-value">{formatDate(viewLeave.createdAt)}</div>
+                      </div>
+                    </Col>
+                  </>
+                ) : (
+                  <>
+                    <Col md={6}>
+                      <div className="detail-card p-3 border rounded">
+                        <div className="d-flex align-items-center gap-2 mb-2">
+                          <FaCalendarAlt className="text-primary" />
+                          <span className="fw-bold">Start Date</span>
+                        </div>
+                        <div className="detail-value">{formatDate(viewLeave.startDate)}</div>
+                      </div>
+                    </Col>
+                    <Col md={6}>
+                      <div className="detail-card p-3 border rounded">
+                        <div className="d-flex align-items-center gap-2 mb-2">
+                          <FaCalendarAlt className="text-primary" />
+                          <span className="fw-bold">End Date</span>
+                        </div>
+                        <div className="detail-value">{formatDate(viewLeave.endDate)}</div>
+                      </div>
+                    </Col>
+                    <Col md={6}>
+                      <div className="detail-card p-3 border rounded">
+                        <div className="d-flex align-items-center gap-2 mb-2">
+                          <FaClock className="text-info" />
+                          <span className="fw-bold">Duration</span>
+                        </div>
+                        <div className="detail-value text-primary">{viewLeave.numberOfDays} day(s)</div>
+                      </div>
+                    </Col>
+                    <Col md={6}>
+                      <div className="detail-card p-3 border rounded">
+                        <div className="d-flex align-items-center gap-2 mb-2">
+                          <FaClock className="text-info" />
+                          <span className="fw-bold">Leave Type</span>
+                        </div>
+                        <div className="detail-value">
+                          <Badge bg={
+                            viewLeave.leaveType === 'personal' ? 'primary' :
+                            viewLeave.leaveType === 'medical' ? 'danger' :
+                            viewLeave.leaveType === 'vacation' ? 'success' :
+                            viewLeave.leaveType === 'half_day' ? 'warning' : 'secondary'
+                          } className="text-capitalize">
+                            {LEAVE_TYPE_DETAILS[viewLeave.leaveType]?.name || viewLeave.leaveType}
+                          </Badge>
+                        </div>
+                      </div>
+                    </Col>
+                  </>
+                )}
+              </Row>
+            </div>
+
+            {/* Reason */}
+            <div className="reason-section mb-4">
+              <h6 className="section-title mb-3">
+                <FaFileAlt className="me-2" />
+                {viewLeave._wfh ? 'Reason for WFH' : 'Reason for Leave'}
+              </h6>
+              <div className="reason-content p-3 bg-light rounded">
+                {viewLeave.reason}
+              </div>
+            </div>
+
+            {/* Approval note (leave only) */}
+            {!viewLeave._wfh && viewLeave.status === 'approved' && viewLeave.rejectionReason && (
+              <div className="mb-4">
+                <h6 className="section-title mb-2">✅ Approval Note</h6>
+                <div className="p-3 rounded" style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', color: '#065F46' }}>
+                  {viewLeave.rejectionReason}
+                </div>
+              </div>
+            )}
+
+            {/* Rejection reason */}
+            {viewLeave.status === 'rejected' && viewLeave.rejectionReason && (
+              <div className="mb-4">
+                <h6 className="section-title mb-2">❌ Rejection Reason</h6>
+                <div className="p-3 rounded" style={{ background: '#FEF2F2', border: '1px solid #FECACA', color: '#991B1B' }}>
+                  {viewLeave.rejectionReason}
+                </div>
+              </div>
+            )}
+
+            {/* Reviewed by */}
+            {(viewLeave.approvedBy || viewLeave.approvedDate) && viewLeave.status !== 'pending' && (
+              <div className="p-3 bg-light rounded text-muted small">
+                {viewLeave.status === 'approved' ? '✅ Approved' : '❌ Reviewed'} by{' '}
+                <strong>
+                  {viewLeave.approvedBy?.name || (typeof viewLeave.approvedBy === 'string' ? 'HR' : 'HR')}
+                </strong>
+                {viewLeave.approvedDate &&
+                  ` on ${formatDate(viewLeave.approvedDate)}`}
+              </div>
+            )}
+          </Modal.Body>
+        )}
+
+        <Modal.Footer className="border-0 pt-0">
+          <Button variant="outline-secondary" onClick={() => setViewLeave(null)}>Close</Button>
+        </Modal.Footer>
+      </Modal>
     </Container>
   );
 };
 
 export default MyLeaves;
+

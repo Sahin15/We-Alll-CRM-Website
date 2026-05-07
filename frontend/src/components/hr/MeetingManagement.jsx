@@ -20,7 +20,8 @@ import {
   FaUser,
   FaClock,
   FaVideo,
-  FaMapMarkerAlt
+  FaMapMarkerAlt,
+  FaCheckCircle
 } from "react-icons/fa";
 import toast from "../../utils/toast";
 import api from "../../services/api";
@@ -37,6 +38,7 @@ const MeetingManagement = () => {
   const [modalMode, setModalMode] = useState("create"); // 'create' or 'view'
   const [selectedMeeting, setSelectedMeeting] = useState(null);
   const [processing, setProcessing] = useState(false);
+  const [confirmMeeting, setConfirmMeeting] = useState(null); // meeting to confirm complete
 
   // Form state
   const [formData, setFormData] = useState({
@@ -172,6 +174,26 @@ const MeetingManagement = () => {
     setSelectedMeeting(meeting);
     setModalMode("view");
     setShowModal(true);
+  };
+
+  const handleCompleteMeeting = (meeting) => {
+    setConfirmMeeting(meeting);
+  };
+
+  const confirmComplete = async () => {
+    if (!confirmMeeting) return;
+    setProcessing(true);
+    try {
+      await api.patch(`/meetings/${confirmMeeting._id}/complete`);
+      toast.success("Meeting marked as completed");
+      setConfirmMeeting(null);
+      setShowModal(false);
+      fetchMeetings();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to complete meeting");
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -430,13 +452,30 @@ const MeetingManagement = () => {
                       <td className="hide-on-mobile">{getTypeBadge(meeting.type)}</td>
                       <td>{getStatusBadge(meeting.status)}</td>
                       <td>
-                        <Button
-                          size="sm"
-                          variant="outline-primary"
-                          onClick={() => handleViewMeeting(meeting)}
-                        >
-                          <FaEye />
-                        </Button>
+                        <div className="d-flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline-primary"
+                            onClick={() => handleViewMeeting(meeting)}
+                            title="View meeting details"
+                          >
+                            <FaEye />
+                          </Button>
+                          {/* Mark as Done — only organizer, only when scheduled */}
+                          {meeting.status === "scheduled" &&
+                            (meeting.organizer?._id === user?._id ||
+                              meeting.organizer === user?._id) && (
+                            <Button
+                              size="sm"
+                              variant="outline-success"
+                              onClick={() => handleCompleteMeeting(meeting)}
+                              disabled={processing}
+                              title="Mark meeting as completed"
+                            >
+                              <FaCheckCircle />
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -480,12 +519,18 @@ const MeetingManagement = () => {
 
       {/* Create/View Meeting Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>
+        <Modal.Header closeButton style={{
+          background: modalMode === 'view' ? 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' : '#fff',
+          color: modalMode === 'view' ? '#fff' : 'inherit',
+          borderBottom: 'none',
+          borderRadius: '8px 8px 0 0',
+          padding: '16px 24px',
+        }}>
+          <Modal.Title style={{ fontWeight: '700', fontSize: '1rem' }}>
             {modalMode === "create" ? "Schedule New Meeting" : "Meeting Details"}
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body style={{ padding: '20px 24px' }}>
           {modalMode === "create" ? (
             <Form onSubmit={handleSubmit}>
               <Form.Group className="mb-3">
@@ -611,84 +656,159 @@ const MeetingManagement = () => {
           ) : (
             selectedMeeting && (
               <>
-                <Row className="mb-3">
-                  <Col md={12}>
-                    <h5>{selectedMeeting.title}</h5>
-                    <p className="text-muted">{selectedMeeting.description}</p>
-                  </Col>
-                </Row>
+                {/* Header banner */}
+                <div style={{
+                  background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+                  borderRadius: '12px',
+                  padding: '20px 24px',
+                  marginBottom: '20px',
+                  color: '#fff',
+                }}>
+                  <div className="d-flex justify-content-between align-items-start">
+                    <div style={{ flex: 1 }}>
+                      <h5 style={{ fontWeight: '700', margin: '0 0 6px', fontSize: '1.1rem' }}>
+                        {selectedMeeting.title}
+                      </h5>
+                      {selectedMeeting.description && (
+                        <p style={{ margin: 0, opacity: 0.85, fontSize: '0.85rem', lineHeight: '1.5' }}>
+                          {selectedMeeting.description}
+                        </p>
+                      )}
+                    </div>
+                    <div className="ms-3 flex-shrink-0">
+                      {getStatusBadge(selectedMeeting.status)}
+                    </div>
+                  </div>
+                </div>
 
-                <Row className="mb-3">
+                {/* Info grid */}
+                <Row className="g-3 mb-3">
+                  {/* Organizer */}
                   <Col md={6}>
-                    <strong>Organizer:</strong>
-                    <p>{selectedMeeting.organizer?.name}</p>
-                  </Col>
-                  <Col md={6}>
-                    <strong>Type:</strong>
-                    <p>{getTypeBadge(selectedMeeting.type)}</p>
-                  </Col>
-                </Row>
-
-                <Row className="mb-3">
-                  <Col md={4}>
-                    <strong>Date:</strong>
-                    <p>{formatDate(selectedMeeting.date)}</p>
-                  </Col>
-                  <Col md={4}>
-                    <strong>Start Time:</strong>
-                    <p>{formatTime(selectedMeeting.startTime)}</p>
-                  </Col>
-                  <Col md={4}>
-                    <strong>End Time:</strong>
-                    <p>{formatTime(selectedMeeting.endTime)}</p>
-                  </Col>
-                </Row>
-
-                {selectedMeeting.location && (
-                  <Row className="mb-3">
-                    <Col md={12}>
-                      <strong>Location:</strong>
-                      <p>
-                        <FaMapMarkerAlt className="me-2 text-primary" />
-                        {selectedMeeting.location}
-                      </p>
-                    </Col>
-                  </Row>
-                )}
-
-                {selectedMeeting.meetingLink && (
-                  <Row className="mb-3">
-                    <Col md={12}>
-                      <strong>Meeting Link:</strong>
-                      <p>
-                        <FaVideo className="me-2 text-primary" />
-                        <a href={selectedMeeting.meetingLink} target="_blank" rel="noopener noreferrer">
-                          {selectedMeeting.meetingLink}
-                        </a>
-                      </p>
-                    </Col>
-                  </Row>
-                )}
-
-                <Row className="mb-3">
-                  <Col md={12}>
-                    <strong>Attendees ({selectedMeeting.attendees?.length}):</strong>
-                    <div className="mt-2">
-                      {selectedMeeting.attendees?.map((attendee) => (
-                        <Badge key={attendee._id} bg="secondary" className="me-2 mb-2">
-                          {attendee.name}
-                        </Badge>
-                      ))}
+                    <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '14px 16px', border: '1px solid #E2E8F0', height: '100%' }}>
+                      <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+                        <FaUser className="me-1" /> Organizer
+                      </div>
+                      <div style={{ fontWeight: '600', color: '#1E293B', fontSize: '0.95rem' }}>
+                        {selectedMeeting.organizer?.name}
+                      </div>
+                      {selectedMeeting.organizer?.email && (
+                        <div style={{ fontSize: '0.78rem', color: '#64748B', marginTop: '2px' }}>
+                          {selectedMeeting.organizer.email}
+                        </div>
+                      )}
                     </div>
                   </Col>
+
+                  {/* Type */}
+                  <Col md={6}>
+                    <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '14px 16px', border: '1px solid #E2E8F0', height: '100%' }}>
+                      <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+                        Meeting Type
+                      </div>
+                      <div>{getTypeBadge(selectedMeeting.type)}</div>
+                    </div>
+                  </Col>
+
+                  {/* Date */}
+                  <Col md={4}>
+                    <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '14px 16px', border: '1px solid #E2E8F0', height: '100%' }}>
+                      <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+                        <FaCalendarAlt className="me-1" /> Date
+                      </div>
+                      <div style={{ fontWeight: '600', color: '#1E293B', fontSize: '0.95rem' }}>
+                        {formatDate(selectedMeeting.date)}
+                      </div>
+                    </div>
+                  </Col>
+
+                  {/* Start Time */}
+                  <Col md={4}>
+                    <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '14px 16px', border: '1px solid #E2E8F0', height: '100%' }}>
+                      <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+                        <FaClock className="me-1" /> Start Time
+                      </div>
+                      <div style={{ fontWeight: '600', color: '#1E293B', fontSize: '0.95rem' }}>
+                        {formatTime(selectedMeeting.startTime)}
+                      </div>
+                    </div>
+                  </Col>
+
+                  {/* End Time */}
+                  <Col md={4}>
+                    <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '14px 16px', border: '1px solid #E2E8F0', height: '100%' }}>
+                      <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+                        <FaClock className="me-1" /> End Time
+                      </div>
+                      <div style={{ fontWeight: '600', color: '#1E293B', fontSize: '0.95rem' }}>
+                        {formatTime(selectedMeeting.endTime)}
+                      </div>
+                    </div>
+                  </Col>
+
+                  {/* Location */}
+                  {selectedMeeting.location && (
+                    <Col md={selectedMeeting.meetingLink ? 6 : 12}>
+                      <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '14px 16px', border: '1px solid #E2E8F0', height: '100%' }}>
+                        <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+                          <FaMapMarkerAlt className="me-1" /> Location
+                        </div>
+                        <div style={{ fontWeight: '600', color: '#1E293B', fontSize: '0.95rem' }}>
+                          {selectedMeeting.location}
+                        </div>
+                      </div>
+                    </Col>
+                  )}
+
+                  {/* Meeting Link */}
+                  {selectedMeeting.meetingLink && (
+                    <Col md={selectedMeeting.location ? 6 : 12}>
+                      <div style={{ background: '#EFF6FF', borderRadius: '10px', padding: '14px 16px', border: '1px solid #BFDBFE', height: '100%' }}>
+                        <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#3B82F6', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+                          <FaVideo className="me-1" /> Meeting Link
+                        </div>
+                        <a
+                          href={selectedMeeting.meetingLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ fontWeight: '600', color: '#2563EB', fontSize: '0.88rem', wordBreak: 'break-all', textDecoration: 'none' }}
+                        >
+                          🔗 Join Meeting
+                        </a>
+                      </div>
+                    </Col>
+                  )}
                 </Row>
 
-                <Row>
-                  <Col md={12}>
-                    <strong>Status:</strong>
-                    <p>{getStatusBadge(selectedMeeting.status)}</p>
-                  </Col>
-                </Row>
+                {/* Attendees */}
+                <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '14px 16px', border: '1px solid #E2E8F0' }}>
+                  <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
+                    Attendees ({selectedMeeting.attendees?.length || 0})
+                  </div>
+                  <div className="d-flex flex-wrap gap-2">
+                    {selectedMeeting.attendees?.length > 0 ? (
+                      selectedMeeting.attendees.map((attendee) => (
+                        <div key={attendee._id} style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '6px',
+                          background: '#fff', border: '1px solid #E2E8F0', borderRadius: '20px',
+                          padding: '4px 12px', fontSize: '0.82rem', fontWeight: '500', color: '#374151',
+                        }}>
+                          <div style={{
+                            width: '22px', height: '22px', borderRadius: '50%',
+                            background: 'linear-gradient(135deg, #4F46E5, #7C3AED)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: '#fff', fontSize: '0.65rem', fontWeight: '700', flexShrink: 0,
+                          }}>
+                            {attendee.name?.charAt(0).toUpperCase()}
+                          </div>
+                          {attendee.name}
+                        </div>
+                      ))
+                    ) : (
+                      <span style={{ color: '#94A3B8', fontSize: '0.85rem' }}>No attendees</span>
+                    )}
+                  </div>
+                </div>
               </>
             )
           )}
@@ -697,6 +817,20 @@ const MeetingManagement = () => {
           <Button variant="secondary" onClick={() => setShowModal(false)} disabled={processing}>
             Close
           </Button>
+          {/* Mark as Done button in view modal — organizer only, scheduled only */}
+          {modalMode === "view" &&
+            selectedMeeting?.status === "scheduled" &&
+            (selectedMeeting?.organizer?._id === user?._id ||
+              selectedMeeting?.organizer === user?._id) && (
+            <Button
+              variant="success"
+              onClick={() => handleCompleteMeeting(selectedMeeting)}
+              disabled={processing}
+            >
+              <FaCheckCircle className="me-2" />
+              Mark as Completed
+            </Button>
+          )}
           {modalMode === "create" && (
             <Button variant="primary" onClick={handleSubmit} disabled={processing}>
               {processing ? (
@@ -713,6 +847,67 @@ const MeetingManagement = () => {
             </Button>
           )}
         </Modal.Footer>
+      </Modal>
+
+      {/* Mark as Completed — Confirmation Modal */}
+      <Modal show={!!confirmMeeting} onHide={() => setConfirmMeeting(null)} centered size="sm">
+        <Modal.Body style={{ padding: '32px 28px', textAlign: 'center' }}>
+          {/* Icon */}
+          <div style={{
+            width: '64px', height: '64px', borderRadius: '50%',
+            background: 'linear-gradient(135deg, #10B981, #059669)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 20px',
+            boxShadow: '0 8px 24px rgba(16,185,129,0.3)',
+          }}>
+            <FaCheckCircle size={28} color="#fff" />
+          </div>
+
+          <h6 style={{ fontWeight: '700', color: '#111827', marginBottom: '8px', fontSize: '1.05rem' }}>
+            Mark as Completed?
+          </h6>
+          <p style={{ color: '#6B7280', fontSize: '0.88rem', margin: '0 0 24px', lineHeight: '1.5' }}>
+            <strong style={{ color: '#374151' }}>"{confirmMeeting?.title}"</strong>
+            <br />
+            This will mark the meeting as done and cannot be undone.
+          </p>
+
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              onClick={() => setConfirmMeeting(null)}
+              disabled={processing}
+              style={{
+                flex: 1, padding: '11px', borderRadius: '10px',
+                border: '1.5px solid #E5E7EB', background: '#fff',
+                color: '#374151', fontWeight: '600', cursor: 'pointer',
+                fontSize: '0.9rem', transition: 'all 0.2s',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmComplete}
+              disabled={processing}
+              style={{
+                flex: 1, padding: '11px', borderRadius: '10px',
+                border: 'none',
+                background: processing ? '#6EE7B7' : 'linear-gradient(135deg, #10B981, #059669)',
+                color: '#fff', fontWeight: '700', cursor: processing ? 'not-allowed' : 'pointer',
+                fontSize: '0.9rem', transition: 'all 0.2s',
+                boxShadow: processing ? 'none' : '0 4px 12px rgba(16,185,129,0.35)',
+              }}
+            >
+              {processing ? (
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                  <Spinner animation="border" size="sm" />
+                  Saving...
+                </span>
+              ) : (
+                '✓ Mark Done'
+              )}
+            </button>
+          </div>
+        </Modal.Body>
       </Modal>
     </>
   );

@@ -256,16 +256,25 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       roles: ["admin", "superadmin", "hr", "employee", "hod", "manager"],
     },
     {
-      path: "/assets/management",
+      id: "resources",
       icon: <FaLaptop />,
-      label: "Assets",
+      label: "Resources",
       roles: ["admin", "superadmin", "hr", "manager", "employee", "hod"],
-    },
-    {
-      path: "/licenses/management",
-      icon: <FaFileCode />,
-      label: "Software Licenses",
-      roles: ["admin", "superadmin", "hr", "manager", "employee", "hod"],
+      isGroup: true,
+      children: [
+        {
+          path: "/assets/management",
+          icon: <FaLaptop />,
+          label: "Assets",
+          roles: ["admin", "superadmin", "hr", "manager", "employee", "hod"],
+        },
+        {
+          path: "/licenses/management",
+          icon: <FaFileCode />,
+          label: "Software Licenses",
+          roles: ["admin", "superadmin", "hr", "manager", "employee", "hod"],
+        },
+      ],
     },
     {
       id: "company",

@@ -30,14 +30,31 @@ export default function TodoTab() {
   const [form, setForm] = useState({ title: '', description: '', priority: 'medium', dueDate: '' });
   const [titleError, setTitleError] = useState('');
 
-  const fetchTodos = useCallback(async () => {
-    setLoading(true);
-    try { const data = await todoApi.getMyTodos(); setTodos(data.todos || []); }
-    catch { setTodos([]); }
-    finally { setLoading(false); }
+  const fetchTodos = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      // Add cache-busting param so service worker doesn't serve stale data
+      const data = await todoApi.getMyTodos({ _t: Date.now() });
+      setTodos(data.todos || []);
+    } catch { setTodos([]); }
+    finally { if (!silent) setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchTodos(); }, [fetchTodos]);
+  useEffect(() => {
+    fetchTodos();
+
+    // Re-fetch silently when app becomes visible (user switches back from website)
+    const handleVisibility = () => { if (!document.hidden) fetchTodos(true); };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    // Poll every 30s to stay in sync
+    const poll = setInterval(() => fetchTodos(true), 30000);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(poll);
+    };
+  }, [fetchTodos]);
 
   const openForm = (todo = null) => {
     if (todo) { setEditingTodo(todo); setForm({ title: todo.title, description: todo.description || '', priority: todo.priority, dueDate: todo.dueDate ? todo.dueDate.slice(0,10) : '' }); }
@@ -68,12 +85,19 @@ export default function TodoTab() {
     catch { setTodos(prev); toast.error('Failed to delete'); }
   };
 
-  const filtered = todos.filter(t => {
-    if (filter === 'completed') return t.status === 'completed';
-    if (filter === 'pending') return t.status !== 'completed' && !isOverdue(t.dueDate);
-    if (filter === 'overdue') return t.status !== 'completed' && isOverdue(t.dueDate);
-    return true;
-  });
+  const filtered = todos
+    .filter(t => {
+      if (filter === 'completed') return t.status === 'completed';
+      if (filter === 'pending') return t.status !== 'completed' && !isOverdue(t.dueDate);
+      if (filter === 'overdue') return t.status !== 'completed' && isOverdue(t.dueDate);
+      return true;
+    })
+    .sort((a, b) => {
+      if (!a.dueDate && !b.dueDate) return 0;
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      return new Date(a.dueDate) - new Date(b.dueDate);
+    });
 
   if (loading) return (
     <div style={{ textAlign: 'center', padding: '60px 0', color: '#6B7280' }}>

@@ -96,8 +96,6 @@ const LeadDetails = () => {
     try {
       const response = await leadApi.getLeadById(id);
       setLead(response.data);
-      console.log("Lead fetched with phoneDesignation:", response.data.phoneDesignation);
-      console.log("Lead fetched with contacts:", response.data.contacts);
     } catch (error) {
       toast.error("Failed to fetch lead details");
     } finally {

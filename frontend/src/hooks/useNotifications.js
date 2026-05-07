@@ -14,13 +14,11 @@ const useNotifications = () => {
     try {
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
-        console.log('[NOTIFICATIONS] Notification permission denied');
         return;
       }
 
       const messagingInstance = await getMessagingInstance();
       if (!messagingInstance) {
-        console.log('[NOTIFICATIONS] Firebase Messaging not available');
         return;
       }
 
@@ -33,9 +31,6 @@ const useNotifications = () => {
           deviceName: navigator.userAgent.split(' ').pop(),
           deviceType: 'web',
         });
-        console.log('[NOTIFICATIONS] ✅ Token registered with backend');
-      } else {
-        console.log('[NOTIFICATIONS] ⚠️  No FCM token available');
       }
     } catch (error) {
       console.error('[NOTIFICATIONS] Error registering token:', error);
@@ -46,18 +41,15 @@ const useNotifications = () => {
   const setupMessageListener = useCallback(async () => {
     const messagingInstance = await getMessagingInstance();
     if (!messagingInstance) {
-      console.log('[NOTIFICATIONS] Firebase Messaging not available');
       return;
     }
 
     onMessage(messagingInstance, payload => {
-      console.log('[NOTIFICATIONS] Foreground message received:', payload);
 
       const notificationId = payload.data?.notificationId;
       
       // Prevent duplicate notifications
       if (notificationId && shownNotificationIds.current.has(notificationId)) {
-        console.log('[NOTIFICATIONS] ⚠️  Notification already shown, skipping:', notificationId);
         return;
       }
 
@@ -91,13 +83,11 @@ const useNotifications = () => {
   // Fetch ONLY unread notifications on login/refresh
   const fetchUnreadNotifications = useCallback(async () => {
     try {
-      console.log('[NOTIFICATIONS] Fetching unread notifications...');
       const response = await api.get('/notifications/unread', {
         params: { limit: 50 },
       });
       
       const unreadNotifications = response.data.notifications || [];
-      console.log('[NOTIFICATIONS] Fetched', unreadNotifications.length, 'unread notifications');
       
       // Add to shown set to prevent re-showing
       unreadNotifications.forEach(n => {
@@ -116,7 +106,6 @@ const useNotifications = () => {
   // Fetch all notifications (for notification center/history)
   const fetchAllNotifications = useCallback(async () => {
     try {
-      console.log('[NOTIFICATIONS] Fetching all notifications...');
       const response = await api.get('/notifications/my-notifications', {
         params: { limit: 50, skip: 0 },
       });
@@ -130,13 +119,11 @@ const useNotifications = () => {
   // Mark notification as read
   const markAsRead = useCallback(async (notificationId) => {
     try {
-      console.log('[NOTIFICATIONS] Marking notification as read:', notificationId);
       await api.put(`/notifications/${notificationId}/read`);
       setNotifications(prev => {
         const updated = prev.map(n => 
           n._id === notificationId ? { ...n, isRead: true } : n
         );
-        console.log('[NOTIFICATIONS] Notification marked as read in state');
         return updated;
       });
       setUnreadCount(prev => Math.max(0, prev - 1));
@@ -185,10 +172,6 @@ const useNotifications = () => {
 
     const handleServiceWorkerMessage = (event) => {
       if (event.data?.type === 'NOTIFICATION_CLICK') {
-        console.log('[NOTIFICATIONS] Notification clicked from service worker');
-        console.log('[NOTIFICATIONS] Notification ID:', event.data.notificationId);
-        console.log('[NOTIFICATIONS] URL:', event.data.url);
-
         // Mark notification as read if we have the ID
         if (event.data.notificationId) {
           markAsRead(event.data.notificationId);
@@ -210,7 +193,6 @@ const useNotifications = () => {
   // Initialize on mount - fetch only unread notifications
   useEffect(() => {
     if (!isInitialized) {
-      console.log('[NOTIFICATIONS] Initializing notifications system...');
       fetchUnreadNotifications(); // Only fetch unread on login
       setupMessageListener();
       registerToken();

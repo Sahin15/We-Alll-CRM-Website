@@ -93,8 +93,8 @@ const HRDashboard = () => {
       // Get today's date in YYYY-MM-DD format
       const today = new Date().toISOString().split('T')[0];
       
-      // Fetch users data
-      const usersRes = await userApi.getAllUsers();
+      // Fetch users data — only active employees for accurate count
+      const usersRes = await userApi.getAllUsers({ status: 'active', limit: 1000 });
       // Fetch leave data
       const leaveRes = await leaveApi.getAllLeaves({ status: "pending" });
       // Fetch today's attendance data only
@@ -146,11 +146,11 @@ const HRDashboard = () => {
       }
 
       setStats({
-        // Only count active employees (exclude inactive, terminated, offboarded)
+        // usersRes already filtered to active employees only by the API
         employees:
           usersRes.data?.filter((u) => 
             (u.role === "employee" || u.role === "hod" || u.role === "hr" || u.role === "manager") &&
-            u.status === "active"
+            u.isActive !== false
           ).length || 0,
         pendingLeaves: leaveRes.data?.length || 0,
         presentToday: todayPresentCount,
@@ -220,11 +220,11 @@ const HRDashboard = () => {
   // Card click handlers
   const handleEmployeesCardClick = async () => {
     try {
-      const response = await userApi.getAllUsers();
-      // Only show active employees — inactive/terminated/offboarded don't appear here
-      const employees = response.data.filter(u => 
+      // Pass status=active directly to backend so only truly active employees are returned
+      const response = await userApi.getAllUsers({ status: 'active', limit: 1000 });
+      const employees = (response.data || []).filter(u => 
         (u.role === 'employee' || u.role === 'hod' || u.role === 'hr' || u.role === 'manager') &&
-        u.status === 'active'
+        u.isActive !== false
       );
       
       // Fetch today's attendance to show status

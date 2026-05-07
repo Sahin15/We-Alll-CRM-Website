@@ -27,7 +27,10 @@ const LeaveManagement = () => {
   const [leaves, setLeaves] = useState([]);
   const [displayedLeaves, setDisplayedLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('all-leaves');
+  const [activeTab, setActiveTab] = useState(
+    // HoD defaults to their own leaves; admin/hr/manager see all
+    (user?.role === 'hod') ? 'my-leaves' : 'all-leaves'
+  );
   const [filters, setFilters] = useState({
     status: 'all',
     leaveType: 'all',
@@ -93,7 +96,13 @@ const LeaveManagement = () => {
       
       if (filters.status !== 'all') params.status = filters.status;
       if (filters.leaveType !== 'all') params.leaveType = filters.leaveType;
-      response = await leaveApi.getAllLeaves(params);
+
+      // "My Leaves" tab — only fetch the logged-in user's own leaves
+      if (activeTab === 'my-leaves') {
+        response = await leaveApi.getMyLeaves();
+      } else {
+        response = await leaveApi.getAllLeaves(params);
+      }
       
       setLeaves(response.data);
       
@@ -352,6 +361,14 @@ const LeaveManagement = () => {
               <Row className="align-items-center">
                 <Col md={6}>
                   <Nav variant="pills">
+                    <Nav.Item>
+                      <Nav.Link 
+                        active={activeTab === 'my-leaves'}
+                        onClick={() => setActiveTab('my-leaves')}
+                      >
+                        My Leaves
+                      </Nav.Link>
+                    </Nav.Item>
                     <Nav.Item>
                       <Nav.Link 
                         active={activeTab === 'all-leaves'}

@@ -68,10 +68,21 @@ const EmployeeList = () => {
   const fetchEmployees = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/users");
+      // Fetch all employee-level users with a high limit to avoid pagination cutoff
+      const response = await api.get("/users", { params: { limit: 1000 } });
       // Filter only employees (including all employee-level roles)
+      // Exclude superadmin, admin, client, accounts roles
       const employeeData = response.data.filter(
-        (u) => u.role === "employee" || u.role === "hod" || u.role === "hr" || u.role === "manager"
+        (u) =>
+          (u.role === "employee" ||
+            u.role === "hod" ||
+            u.role === "hr" ||
+            u.role === "manager") &&
+          // Only include known statuses — exclude any with missing/unknown status
+          (u.status === "active" ||
+            u.status === "inactive" ||
+            u.status === "terminated" ||
+            u.status === "offboarded")
       );
       setEmployees(employeeData);
     } catch (error) {
@@ -120,9 +131,16 @@ const EmployeeList = () => {
   };
 
   // Three sections: active-only, inactive-only, and past members (terminated/offboarded)
-  const activeEmployees = filteredEmployees.filter((emp) => emp.status === "active");
-  const inactiveEmployees = filteredEmployees.filter((emp) => emp.status === "inactive");
-  const pastMembersSection = filteredEmployees.filter((emp) => emp.status === "terminated" || emp.status === "offboarded");
+  // Also check isActive flag — some users may have isActive:false but status still 'active'
+  const activeEmployees = filteredEmployees.filter(
+    (emp) => emp.status === "active" && emp.isActive !== false
+  );
+  const inactiveEmployees = filteredEmployees.filter(
+    (emp) => emp.status === "inactive" || emp.isActive === false
+  );
+  const pastMembersSection = filteredEmployees.filter(
+    (emp) => emp.status === "terminated" || emp.status === "offboarded"
+  );
 
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this employee?")) {

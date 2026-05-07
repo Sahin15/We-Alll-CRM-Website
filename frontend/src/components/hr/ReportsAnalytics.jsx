@@ -31,7 +31,6 @@ const ReportsAnalytics = () => {
 
       try {
         usersRes = await userApi.getAllUsers();
-        console.log('[ReportsAnalytics] Users fetched:', usersRes);
       } catch (error) {
         console.error('[ReportsAnalytics] Error fetching users:', error.message);
         toast.warning('Could not fetch user data');
@@ -39,7 +38,6 @@ const ReportsAnalytics = () => {
 
       try {
         leavesRes = await leaveApi.getAllLeaves({});
-        console.log('[ReportsAnalytics] Leaves fetched:', leavesRes);
       } catch (error) {
         console.error('[ReportsAnalytics] Error fetching leaves:', error.message);
         toast.warning('Could not fetch leave data');
@@ -69,7 +67,6 @@ const ReportsAnalytics = () => {
         try {
           attendanceRes = await attendanceApi.getAllAttendance(params);
           clearTimeout(timeoutId);
-          console.log('[ReportsAnalytics] Attendance fetched:', attendanceRes);
         } catch (timeoutError) {
           clearTimeout(timeoutId);
           if (timeoutError.code === 'ECONNABORTED') {
