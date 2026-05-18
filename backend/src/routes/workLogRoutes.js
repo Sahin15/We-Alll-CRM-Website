@@ -15,6 +15,8 @@ import {
   exportWorkLogs,
   getDepartmentWorkLogs,
   reviewDepartmentWorkLog,
+  raiseConcern,
+  raiseDepartmentConcern,
 } from "../controllers/workLogController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
@@ -47,6 +49,13 @@ router.put(
   reviewDepartmentWorkLog
 );
 
+router.put(
+  "/department/:id/raise-concern",
+  protect,
+  isHoD,
+  raiseDepartmentConcern
+);
+
 // Admin/HR/Manager routes
 router.get(
   "/all",
@@ -67,6 +76,13 @@ router.put(
   protect,
   authorizeRoles("admin", "superadmin", "hr", "manager"),
   reviewWorkLog
+);
+
+router.put(
+  "/:id/raise-concern",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  raiseConcern
 );
 
 router.put(

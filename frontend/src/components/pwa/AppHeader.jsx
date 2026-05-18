@@ -167,7 +167,7 @@ export default function AppHeader() {
     <>
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100 }}>
         <div style={{ height: '56px', background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)', display: 'flex', alignItems: 'center', padding: '0 16px', gap: '10px' }}>
-          <img src="/Wealll_mini.png" alt="We Alll logo" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
+          <img loading="lazy" src="/Wealll_mini.png" alt="We Alll logo" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
           <span style={{ color: '#ffffff', fontWeight: '700', fontSize: '1.1rem', letterSpacing: '0.01em', flex: 1 }}>WeAlll Office</span>
 
           {/* Notification Bell */}
@@ -183,7 +183,7 @@ export default function AppHeader() {
           {user && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {user.profilePicture ? (
-                <img src={user.profilePicture} alt={user.name} style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.6)', flexShrink: 0 }} />
+                <img loading="lazy" src={user.profilePicture} alt={user.name} style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.6)', flexShrink: 0 }} />
               ) : (
                 <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(255,255,255,0.25)', border: '2px solid rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '0.85rem', color: '#fff', flexShrink: 0 }}>
                   {user.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
@@ -203,3 +203,4 @@ export default function AppHeader() {
     </>
   );
 }
+

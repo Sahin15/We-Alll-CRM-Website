@@ -108,14 +108,7 @@ const assetSchema = new mongoose.Schema(
 // Indexes - removed duplicates since they're already defined in schema with index: true
 assetSchema.index({ category: 1 });
 
-// Auto-generate assetId before saving (only if not provided)
-assetSchema.pre('save', function (next) {
-  if (!this.isNew || this.assetId) return next();
-  
-  // Generate a temporary ID - will be replaced by controller
-  this.assetId = `AST${Date.now().toString().slice(-8)}`;
-  next();
-});
+
 
 // Soft delete middleware - exclude deleted assets from queries
 assetSchema.query.active = function () {

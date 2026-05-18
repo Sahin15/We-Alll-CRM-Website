@@ -1,0 +1,220 @@
+# We Alll Office CRM/ERP — Cursor Rules
+
+## Project Identity
+Full-stack MERN internal office management system. React 18 + Vite frontend, Express 5.1 + MongoDB backend. No Redux. No Tailwind. No Material UI.
+
+---
+
+## Architecture Rules
+
+### Module System
+- Both frontend and backend use ES Modules (`import`/`export`)
+- Backend imports MUST include `.js` extension: `import X from "./file.js"`
+- Frontend imports do NOT need extensions (Vite resolves them)
+
+### Backend Structure (MVC)
+```
+model → controller → route → registered in server.js
+```
+- One model per file in `backend/src/models/`
+- One controller per resource in `backend/src/controllers/`
+- One route file per resource in `backend/src/routes/`
+- All routes registered in `backend/src/server.js` with `apiLimiter`
+
+### Frontend Structure (Feature-based)
+```
+api module → page component → route guard → sidebar entry
+```
+- API calls: `frontend/src/api/{feature}Api.js`
+- Pages: `frontend/src/pages/{feature}/`
+- Components: `frontend/src/components/{feature}/`
+- Shared: `frontend/src/components/common/`
+
+---
+
+## Authorization Requirements
+
+### ALWAYS enforce at BOTH layers
+
+**Backend (route level):**
+```js
+router.METHOD("/path", protect, authorizeRoles("role1", "role2"), controllerFn);
+```
+
+**Frontend (route level):**
+```jsx
+<RoleBasedRoute allowedRoles={["admin", "hr"]}><Page /></RoleBasedRoute>
+```
+
+**Frontend (component level):**
+```jsx
+const canWrite = ['admin', 'superadmin', 'accounts'].includes(user?.role);
+{canWrite && <Button>Create</Button>}
+```
+
+### Role Hierarchy
+```
+superadmin > admin > hr > accounts > manager > hod > employee > client
+```
+
+### Critical Authorization Rules
+1. `manager` is NOT a PR approver in procurement
+2. Vendors: `admin, superadmin, accounts` ONLY
+3. Procurement dashboard/reports: `admin, superadmin, accounts` ONLY
+4. Employee: sees only own PRs in procurement
+5. HoD: approves only `pending_hod` stage PRs (not `pending_admin`)
+6. Work log review: admin/hr/manager can review; HoD reviews only their dept
+7. Superadmin: CANNOT be deleted or have role changed
+
+---
+
+## API Patterns
+
+### URL Convention
+```
+/api/{resource}              ← plural, kebab-case
+/api/{resource}/my-{resource} ← user-scoped
+/api/{resource}/:id/{action}  ← actions
+/api/procurement/{sub-resource} ← nested
+```
+
+### CRITICAL: Route Ordering
+Static routes MUST come before parameterized routes:
+```js
+router.get("/my-logs/export", ...);  // FIRST: static
+router.put("/my-logs/:id", ...);     // THEN: parameterized
+router.get("/my-logs", ...);         // THEN: static
+router.get("/:id", ...);             // LAST: catch-all param
+```
+
+### Response Format
+```js
+// Success: { success: true, data: {...}, message: "..." }
+// Error: { message: "Descriptive error message" }
+// List: { items: [...], pagination: { total, page, limit, pages } }
+```
+
+### Controller Pattern
+```js
+export const fn = async (req, res) => {
+  try {
+    // req.user set by protect middleware
+    // Validate → Query → Authorize → Mutate → Notify → Respond
+    res.status(200).json({ message: "Success", data: result });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+```
+
+---
+
+## Frontend/Backend Structure Conventions
+
+### State Management
+- **NO Redux, Zustand, or any state library**
+- Global state: 3 Context providers only (Auth, Notification, Company)
+- Feature data: local `useState` + API calls
+- `useAuth()` for user/role; `useNotifications()` for notifications
+
+### Two Axios Instances (important!)
+- `frontend/src/services/api.js` — primary (60s timeout)
+- `frontend/src/api/axios.js` — secondary (30s timeout)
+- Check which one the existing module uses before adding calls
+
+### Component Pattern
+```jsx
+const Page = () => {
+  const { user } = useAuth();
+  const canWrite = ['admin', 'superadmin'].includes(user?.role);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => { fetchItems(); }, []);
+  
+  return <Container fluid className="py-4">...</Container>;
+};
+export default Page;
+```
+
+### UI Library
+- Bootstrap 5.3 + React-Bootstrap 2.9 ONLY
+- Icons: `react-icons/fa` ONLY
+- No Tailwind, no MUI, no Ant Design
+
+---
+
+## Modularity Requirements
+
+### Adding a New Feature
+1. Backend: model → controller → route → `server.js` registration
+2. Frontend: `api/{name}Api.js` → `pages/{name}/` → `routes/index.jsx` → `Sidebar.jsx`
+3. Both layers must have authorization checks
+4. Add notification types to `notificationModel.js` enum before using
+
+### Notification System
+```js
+// ALWAYS use NotificationService, never create Notification docs directly
+await NotificationService.sendToUser(userId, title, body, {
+  type: "notification_type",  // Must exist in notificationModel enum
+  senderId: req.user._id,
+  actionUrl: "/path",
+  priority: "normal",
+  data: { id: doc._id.toString() }  // All values must be strings (FCM requirement)
+});
+```
+
+### IST Timezone (Backend)
+```js
+// ALWAYS use these utilities, never new Date() for business logic:
+import { getCurrentISTTime, getTodayMidnightIST, getTodayRangeIST } from "../utils/timezone.js";
+```
+
+---
+
+## Reuse/Component Guidelines
+
+### Reuse These Existing Patterns
+- Status badges: `getWorkLogStatusBadge()`, `PRStatusBadge`, `POStatusBadge`, `AssetStatusBadge`
+- Currency: `new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount)`
+- Date: `formatWorkLogDate()`, `formatWorkLogDateTime()` from `utils/workLogHelpers`
+- Loading: `<Spinner animation="border" variant="primary" />`
+- Confirm dialogs: `<ConfirmModal>` from `components/common/`
+- Toast: `toast.success()`, `toast.error()` from `react-toastify`
+
+### Management Page Tab Pattern
+```jsx
+// Default tab based on role:
+const [activeTab, setActiveTab] = useState(isEmployee ? 'my-items' : 'dashboard');
+// Hide admin tabs from employees:
+{!isEmployee && <Tab eventKey="dashboard">...</Tab>}
+```
+
+### Soft Delete Pattern
+```js
+// WorkItem and Asset use soft delete:
+isDeleted: Boolean, deletedAt: Date, deletedBy: ObjectId
+// Always query: { isDeleted: { $ne: true } }
+// Use: Model.findActive(query) static method
+```
+
+### Audit Log Pattern (Procurement)
+```js
+// Immutable — only push, never update:
+doc.auditLog.push({ previousStatus, newStatus, changedBy: req.user._id, timestamp: new Date() });
+```
+
+---
+
+## Do NOT
+
+- Do NOT add Redux, Zustand, or any state management library
+- Do NOT use Tailwind CSS
+- Do NOT use Material UI or Ant Design
+- Do NOT create Notification documents directly (use NotificationService)
+- Do NOT use `new Date()` for business logic in backend (use IST utilities)
+- Do NOT put parameterized routes before static routes
+- Do NOT hard-delete WorkItems or Assets (use soft delete)
+- Do NOT modify superadmin role or delete superadmin users
+- Do NOT use `console.log` in production code (use `logger.js`)
+- Do NOT add `employee` to procurement PO/GR/Invoice/Payment read access

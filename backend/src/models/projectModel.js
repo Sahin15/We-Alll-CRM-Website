@@ -298,6 +298,17 @@ const projectSchema = new mongoose.Schema(
         },
       },
     ],
+    credentials: [
+      {
+        platform: { type: String, required: true },
+        url: { type: String },
+        username: { type: String, required: true },
+        password: { type: String, required: true, select: false },
+        notes: { type: String },
+        addedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        addedAt: { type: Date, default: Date.now },
+      },
+    ],
     notes: {
       type: String,
     },

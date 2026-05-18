@@ -34,7 +34,7 @@ const workLogSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["draft", "submitted", "reviewed"],
+      enum: ["draft", "submitted", "reviewed", "concern_raised"],
       default: "submitted",
     },
     submittedAt: {
@@ -58,6 +58,19 @@ const workLogSchema = new mongoose.Schema(
     reviewNotes: {
       type: String,
       trim: true,
+    },
+    // Concern fields — set when reviewer raises a concern about log quality
+    concernNote: {
+      type: String,
+      trim: true,
+      maxlength: [500, "Concern note cannot exceed 500 characters"],
+    },
+    concernRaisedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    concernRaisedAt: {
+      type: Date,
     },
     editHistory: [
       {
@@ -105,6 +118,7 @@ workLogSchema.methods.canUserEdit = function (userId, userRole) {
   if (["admin", "superadmin", "hr", "manager"].includes(userRole)) {
     return true;
   }
+  // Employees can edit their own logs unless reviewed (concern_raised allows re-edit)
   return this.employee.toString() === userId.toString() && this.status !== "reviewed";
 };
 

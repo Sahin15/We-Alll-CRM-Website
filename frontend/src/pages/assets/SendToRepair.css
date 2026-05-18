@@ -1,7 +1,8 @@
 .send-to-repair-container {
   max-width: 900px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 1.5rem;
+  background-color: transparent;
 }
 
 .send-to-repair-header {

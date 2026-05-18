@@ -3,57 +3,58 @@
  * Handles validation and business logic for work item status transitions
  */
 
-// Valid status values
-export const VALID_STATUSES = ["To Do", "In Progress", "Done"];
+// Valid status values — 4-stage workflow + Cancelled
+export const VALID_STATUSES = ["To Do", "In Progress", "Review", "Done", "Cancelled"];
 
-// Status colors for UI (can be used by frontend)
+// Status colors for UI
 export const STATUS_COLORS = {
-  "To Do": "#6B7280",      // Gray
+  "To Do":       "#6B7280", // Gray
   "In Progress": "#3B82F6", // Blue
-  "Done": "#10B981",        // Green
+  "Review":      "#F59E0B", // Amber
+  "Done":        "#10B981", // Green
+  "Cancelled":   "#EF4444", // Red
 };
 
 // Status order for sorting
 export const STATUS_ORDER = {
-  "To Do": 1,
+  "To Do":       1,
   "In Progress": 2,
-  "Done": 3,
+  "Review":      3,
+  "Done":        4,
+  "Cancelled":   5,
 };
 
 /**
  * Validate if a status value is valid
- * @param {string} status - Status to validate
- * @returns {boolean} - True if valid
  */
 export const isValidStatus = (status) => {
   return VALID_STATUSES.includes(status);
 };
 
 /**
- * Validate status transition
- * @param {string} currentStatus - Current status
- * @param {string} newStatus - New status to transition to
- * @returns {Object} - { valid: boolean, message: string }
+ * Validate status transition.
+ * Rules:
+ *  - Cannot transition FROM "Cancelled" to anything (cancelled is terminal)
+ *  - Cannot transition FROM "Done" to "Cancelled" (use soft-delete instead)
+ *  - All other transitions are allowed (flexible workflow)
  */
 export const validateStatusTransition = (currentStatus, newStatus) => {
-  // Check if new status is valid
   if (!isValidStatus(newStatus)) {
     return {
       valid: false,
-      message: `Invalid status: ${newStatus}. Must be one of: ${VALID_STATUSES.join(", ")}`,
+      message: `Invalid status: "${newStatus}". Must be one of: ${VALID_STATUSES.join(", ")}`,
     };
   }
-  
-  // Allow idempotent requests (setting to same status is allowed)
-  // This prevents errors when users click the same button twice
-  
-  // All transitions are allowed (flexible workflow)
-  // You can add specific business rules here if needed
-  // For example:
-  // - Can't go from "Done" back to "To Do"
-  // - Must go through "Review" before "Done"
-  // etc.
-  
+
+  // Cancelled is a terminal state — cannot transition out of it
+  if (currentStatus === "Cancelled" && newStatus !== "Cancelled") {
+    return {
+      valid: false,
+      message: "A cancelled work item cannot be reactivated. Please create a new work item instead.",
+    };
+  }
+
+  // Allow idempotent requests (same status → same status is fine)
   return {
     valid: true,
     message: "Status transition is valid",
@@ -62,68 +63,61 @@ export const validateStatusTransition = (currentStatus, newStatus) => {
 
 /**
  * Get next suggested status based on current status
- * @param {string} currentStatus - Current status
- * @returns {string} - Suggested next status
  */
 export const getNextStatus = (currentStatus) => {
   const statusFlow = {
-    "To Do": "In Progress",
-    "In Progress": "Done",
-    "Done": "Done", // Already done
+    "To Do":       "In Progress",
+    "In Progress": "Review",
+    "Review":      "Done",
+    "Done":        "Done",
+    "Cancelled":   "Cancelled",
   };
-  
   return statusFlow[currentStatus] || "In Progress";
 };
 
 /**
  * Check if work item is complete
- * @param {string} status - Work item status
- * @returns {boolean} - True if complete
  */
-export const isComplete = (status) => {
-  return status === "Done";
-};
+export const isComplete = (status) => status === "Done";
+
+/**
+ * Check if work item is cancelled
+ */
+export const isCancelled = (status) => status === "Cancelled";
 
 /**
  * Check if work item is in progress
- * @param {string} status - Work item status
- * @returns {boolean} - True if in progress
  */
-export const isInProgress = (status) => {
-  return status === "In Progress";
-};
+export const isInProgress = (status) => status === "In Progress";
 
 /**
- * Get status badge variant for UI
- * @param {string} status - Work item status
- * @returns {string} - Bootstrap variant (success, primary, warning, secondary)
+ * Check if work item is active (not done, not cancelled)
+ */
+export const isActive = (status) => !["Done", "Cancelled"].includes(status);
+
+/**
+ * Get Bootstrap badge variant for UI
  */
 export const getStatusVariant = (status) => {
   const variants = {
-    "To Do": "secondary",
+    "To Do":       "secondary",
     "In Progress": "primary",
-    "Done": "success",
+    "Review":      "warning",
+    "Done":        "success",
+    "Cancelled":   "danger",
   };
-  
   return variants[status] || "secondary";
 };
 
 /**
  * Format status for display
- * @param {string} status - Work item status
- * @returns {string} - Formatted status
  */
-export const formatStatus = (status) => {
-  return status || "To Do";
-};
+export const formatStatus = (status) => status || "To Do";
 
 /**
  * Get all statuses
- * @returns {Array} - Array of all valid statuses
  */
-export const getAllStatuses = () => {
-  return [...VALID_STATUSES];
-};
+export const getAllStatuses = () => [...VALID_STATUSES];
 
 export default {
   VALID_STATUSES,
@@ -133,7 +127,9 @@ export default {
   validateStatusTransition,
   getNextStatus,
   isComplete,
+  isCancelled,
   isInProgress,
+  isActive,
   getStatusVariant,
   formatStatus,
   getAllStatuses,

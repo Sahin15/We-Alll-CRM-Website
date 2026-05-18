@@ -68,6 +68,20 @@ const budgetSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+
+    // Procurement budget tracking
+    procurementCommitted: {
+      type: Number,
+      default: 0,
+      min: 0,
+      // Sum of all issued (not yet paid) PO values for this budget
+    },
+    procurementSpent: {
+      type: Number,
+      default: 0,
+      min: 0,
+      // Sum of all paid procurement invoices for this budget
+    },
   },
   { timestamps: true }
 );

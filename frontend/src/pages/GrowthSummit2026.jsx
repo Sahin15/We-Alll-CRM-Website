@@ -109,8 +109,7 @@ const GrowthSummit2026 = () => {
         <div style={{ maxWidth: '600px' }}>
           {/* Growth Summit Logo */}
           <div style={{ marginBottom: '2rem' }}>
-            <img 
-              src="/growth summit logo.jpeg" 
+            <img loading="lazy" src="/growth summit logo.jpeg" 
               alt="Growth Summit 2026" 
               style={{
                 maxWidth: '200px',
@@ -159,8 +158,7 @@ const GrowthSummit2026 = () => {
               }}>
                 PRESENTED BY
               </span>
-              <img 
-                src="/We Alll.png" 
+              <img loading="lazy" src="/We Alll.png" 
                 alt="We All" 
                 style={{
                   maxWidth: '80px',
@@ -184,8 +182,7 @@ const GrowthSummit2026 = () => {
               }}>
                 ORGANISED BY
               </span>
-              <img 
-                src="/images/choicefoundation-logo.jpg" 
+              <img loading="lazy" src="/images/choicefoundation-logo.jpg" 
                 alt="Choice Foundation" 
                 style={{
                   maxWidth: '80px',

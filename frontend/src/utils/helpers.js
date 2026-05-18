@@ -112,7 +112,7 @@ export const getStatusVariant = (status) => {
     pending: "warning",
     approved: "success",
     rejected: "danger",
-    cancelled: "secondary",
+    cancelled: "danger",
     active: "success",
     inactive: "secondary",
     suspended: "danger",
@@ -122,6 +122,7 @@ export const getStatusVariant = (status) => {
     late: "warning",
     "on-leave": "primary",
     "no-data": "secondary",
+    weekend: "light",
   };
   return variants[statusLower] || "secondary";
 };
@@ -136,6 +137,12 @@ export const getStatusColor = (status) => {
     absent: { bg: 'danger', text: 'white' },
     'on-leave': { bg: 'primary', text: 'white' },
     'no-data': { bg: 'secondary', text: 'white' },
+    'weekend': { bg: 'light', text: 'muted' },
+    cancelled: { bg: 'danger', text: 'white' },
+    'to do': { bg: 'secondary', text: 'white' },
+    'in progress': { bg: 'primary', text: 'white' },
+    review: { bg: 'warning', text: 'dark' },
+    done: { bg: 'success', text: 'white' },
   };
   return colors[statusLower] || { bg: 'danger', text: 'white' };
 };

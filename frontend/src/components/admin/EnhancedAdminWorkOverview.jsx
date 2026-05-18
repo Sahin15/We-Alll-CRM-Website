@@ -415,8 +415,8 @@ const EnhancedAdminWorkOverview = () => {
     'completed': 'success',
     'Overdue': 'danger',
     'overdue': 'danger',
-    'Cancelled': 'dark',
-    'cancelled': 'dark'
+    'Cancelled': 'danger',
+    'cancelled': 'danger'
   };
 
   // Priority color mapping
@@ -815,7 +815,8 @@ const EnhancedAdminWorkOverview = () => {
       'To Do': 'scheduled',
       'In Progress': 'in-progress', 
       'Review': 'in-progress',
-      'Done': 'completed'
+      'Done': 'completed',
+      'Cancelled': 'cancelled'
     };
     return statusMap[workItemStatus] || 'scheduled';
   };

@@ -26,9 +26,18 @@ import { salarySlipApi } from "../../api/salaryApi";
 const SalarySlipList = () => {
   const [slips, setSlips] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Default to previous month — current month's slips are typically not generated yet
+  const getPrevMonth = () => {
+    const now = new Date();
+    const m = now.getMonth(); // 0-indexed = previous month as 1-indexed
+    return { month: m === 0 ? 12 : m, year: m === 0 ? now.getFullYear() - 1 : now.getFullYear() };
+  };
+  const prev = getPrevMonth();
+  
   const [filters, setFilters] = useState({
-    month: new Date().getMonth() + 1,
-    year: new Date().getFullYear(),
+    month: prev.month,
+    year: prev.year,
     status: "",
     employee: "",
   });

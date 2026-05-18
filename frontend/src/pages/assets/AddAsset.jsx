@@ -17,7 +17,7 @@ const AddAsset = () => {
 
   const [formData, setFormData] = useState({
     // Asset Information
-    name: '',
+    assetId: '',
     category: '',
     brand: '',
     model: '',
@@ -85,8 +85,8 @@ const AddAsset = () => {
   };
 
   const validateForm = () => {
-    if (!formData.name.trim()) {
-      setError('Asset name is required');
+    if (!formData.assetId.trim()) {
+      setError('Asset ID is required');
       return false;
     }
     if (!formData.category) {
@@ -149,14 +149,14 @@ const AddAsset = () => {
             <div className="form-section">
               <div className="form-grid">
                 <div className="form-group">
-                  <label htmlFor="name">Asset Name *</label>
+                  <label htmlFor="assetId">Asset ID *</label>
                   <input
                     type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
+                    id="assetId"
+                    name="assetId"
+                    value={formData.assetId}
                     onChange={handleInputChange}
-                    placeholder="e.g., Dell Laptop"
+                    placeholder="e.g., AST-2024-001"
                     className="form-control"
                     required
                   />

@@ -6,7 +6,7 @@ const StatusBadge = ({ status, customColors = {} }) => {
     inactive: "secondary",
     pending: "warning",
     suspended: "danger",
-    cancelled: "dark",
+    cancelled: "danger",
     completed: "success",
     "in progress": "primary",
     draft: "secondary",

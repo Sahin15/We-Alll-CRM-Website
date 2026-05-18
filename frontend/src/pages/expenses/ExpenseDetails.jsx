@@ -418,8 +418,7 @@ const ExpenseDetails = () => {
                   </Button>
                 </div>
               ) : (
-                <img
-                  src={expense.receiptUrl}
+                <img loading="lazy" src={expense.receiptUrl}
                   alt="Receipt"
                   style={{ width: '100%', maxHeight: '600px', objectFit: 'contain' }}
                 />
@@ -451,3 +450,4 @@ const ExpenseDetails = () => {
 };
 
 export default ExpenseDetails;
+

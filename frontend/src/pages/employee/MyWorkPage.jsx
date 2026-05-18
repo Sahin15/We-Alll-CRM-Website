@@ -57,6 +57,7 @@ const MyWorkPage = () => {
     let inProgress = 0;
     let overdue = 0;
     let completedThisMonth = 0;
+    let cancelledThisMonth = 0;
     let overdueItems = [];
     let dueTodayItems = [];
     let inProgressItems = [];
@@ -80,8 +81,13 @@ const MyWorkPage = () => {
         completedThisMonth++;
       }
 
-      // Count due today — only non-Done items
-      if (dueDate && dueDate.getTime() === today.getTime() && item.status !== 'Done') {
+      // Count cancelled this month
+      if (item.status === 'Cancelled' && itemMonth === currentMonth && itemYear === currentYear) {
+        cancelledThisMonth++;
+      }
+
+      // Count due today — only non-Done, non-Cancelled items
+      if (dueDate && dueDate.getTime() === today.getTime() && !['Done', 'Cancelled'].includes(item.status)) {
         dueToday++;
         dueTodayItems.push(item);
       }
@@ -92,8 +98,8 @@ const MyWorkPage = () => {
         inProgressItems.push(item);
       }
 
-      // Count overdue — use backend-computed flag; Done items are NEVER overdue
-      if (item.status !== 'Done' && item.isOverdue === true) {
+      // Count overdue — use backend-computed flag; Done/Cancelled items are NEVER overdue
+      if (!['Done', 'Cancelled'].includes(item.status) && item.isOverdue === true) {
         overdue++;
         overdueItems.push(item);
       }
@@ -105,6 +111,7 @@ const MyWorkPage = () => {
       inProgress,
       overdue,
       completedThisMonth,
+      cancelledThisMonth,
       overdueItems: overdueItems.slice(0, 3),
       dueTodayItems: dueTodayItems.slice(0, 3),
       inProgressItems: inProgressItems.slice(0, 3),
@@ -154,10 +161,10 @@ const MyWorkPage = () => {
       dateA.setHours(0, 0, 0, 0);
       dateB.setHours(0, 0, 0, 0);
       
-      const isAOverdue = dateA < today && a.status !== 'Done';
-      const isBOverdue = dateB < today && b.status !== 'Done';
-      const isADone = a.status === 'Done';
-      const isBDone = b.status === 'Done';
+      const isAOverdue = dateA < today && !['Done', 'Cancelled'].includes(a.status);
+      const isBOverdue = dateB < today && !['Done', 'Cancelled'].includes(b.status);
+      const isADone = ['Done', 'Cancelled'].includes(a.status);
+      const isBDone = ['Done', 'Cancelled'].includes(b.status);
       
       // Overdue items come first
       if (isAOverdue && !isBOverdue) return -1;
@@ -179,9 +186,9 @@ const MyWorkPage = () => {
     setShowModal(true);
   };
 
-  const handleUpdateStatus = async (itemId, newStatus, completedAt = null) => {
+  const handleUpdateStatus = async (itemId, newStatus, completedAt = null, cancellationReason = null) => {
     try {
-      await workItemApi.updateStatus(itemId, newStatus, completedAt);
+      await workItemApi.updateStatus(itemId, newStatus, completedAt, cancellationReason);
       loadWorkItems();
 
       // Update selected item if it's the one being updated
@@ -321,6 +328,17 @@ const MyWorkPage = () => {
             </Card.Body>
           </Card>
         </Col>
+        {statistics.cancelledThisMonth > 0 && (
+          <Col className="stat-col">
+            <Card className="stat-card" style={{ background: '#fff5f5', border: '2px solid #dc3545' }}>
+              <Card.Body className="p-3 text-center">
+                <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🚫</div>
+                <h3 className="stat-value mb-1" style={{ color: '#dc3545' }}>{statistics.cancelledThisMonth}</h3>
+                <p className="stat-label mb-0" style={{ color: '#dc3545', fontWeight: '600' }}>Cancelled</p>
+              </Card.Body>
+            </Card>
+          </Col>
+        )}
       </Row>
 
       {/* Alert Banners */}

@@ -1,7 +1,9 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { lazy, Suspense } from "react";
 import PWAShell from "../pages/app/PWAShell";
 import MobileAppShell from "../pages/mobileapp/MobileAppShell";
 import { useAuth } from "../context/AuthContext";
+import { RouteLoadingFallback } from "../components/RouteWrapper";
 
 // Layouts
 import MainLayout from "../components/layout/MainLayout";
@@ -20,14 +22,14 @@ import Register from "../pages/auth/Register";
 import ForgotPassword from "../pages/auth/ForgotPassword";
 import ResetPassword from "../pages/auth/ResetPassword";
 
-// Dashboard Pages
-import SuperAdminDashboard from "../pages/dashboard/SuperAdminDashboard";
-import AdminDashboard from "../pages/dashboard/AdminDashboard";
-import HRDashboard from "../pages/dashboard/HRDashboard";
-import AccountsDashboard from "../pages/dashboard/AccountsDashboard";
-import EmployeeDashboard from "../pages/employee/EmployeeDashboard";
-import ClientDashboard from "../pages/dashboard/ClientDashboard";
-import HoDDashboard from "../pages/hod/HoDDashboard";
+// Dashboard Pages - Lazy load for better performance
+const SuperAdminDashboard = lazy(() => import("../pages/dashboard/SuperAdminDashboard"));
+const AdminDashboard = lazy(() => import("../pages/dashboard/AdminDashboard"));
+const HRDashboard = lazy(() => import("../pages/dashboard/HRDashboard"));
+const AccountsDashboard = lazy(() => import("../pages/dashboard/AccountsDashboard"));
+const EmployeeDashboard = lazy(() => import("../pages/employee/EmployeeDashboard"));
+const ClientDashboard = lazy(() => import("../pages/dashboard/ClientDashboard"));
+const HoDDashboard = lazy(() => import("../pages/hod/HoDDashboard"));
 
 // Employee Pages
 import MyProjects from "../pages/employee/MyProjects";
@@ -249,7 +251,11 @@ const AppRoutes = () => {
         }
       >
         {/* Dashboard - Role-based */}
-        <Route path="/dashboard" element={getDashboardByRole()} />
+        <Route path="/dashboard" element={
+          <Suspense fallback={<RouteLoadingFallback />}>
+            {getDashboardByRole()}
+          </Suspense>
+        } />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
         {/* User Management - Admin/SuperAdmin */}

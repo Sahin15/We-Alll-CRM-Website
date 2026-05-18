@@ -857,7 +857,7 @@ const AttendanceTracking = () => {
           <div class="container">
             <!-- Header with Logo -->
             <div class="header">
-              <img src="/We Alll.png" alt="We Alll" class="logo" />
+              <img loading="lazy" src="/We Alll.png" alt="We Alll" class="logo" />
               <div class="header-info">
                 <h1>Attendance Report</h1>
                 <p><strong>Period:</strong> ${startDateFormatted} to ${endDateFormatted}</p>
@@ -2057,3 +2057,4 @@ const AttendanceTracking = () => {
 };
 
 export default AttendanceTracking;
+

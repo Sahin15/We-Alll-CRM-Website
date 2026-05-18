@@ -254,6 +254,14 @@ salaryPreviewSchema.statics.generatePreview = async function(employeeId, month, 
     // Calculate leave impact
     const leaveImpactResult = await leaveImpactCalc.calculateLeaveDeduction(employeeId, month, year, salaryStructure);
 
+    // Use effectiveWorkingDays so mid-month generation doesn't count future days as absent
+    const effectiveWorkingDays = leaveImpactResult.effectiveWorkingDays ?? workingDaysResult.workingDays;
+    const effectiveWorkingDaysResult = {
+      ...workingDaysResult,
+      workingDays: effectiveWorkingDays,
+      isPartialMonth: leaveImpactResult.isPartialMonth || false
+    };
+
     // Prepare salary breakdown
     const earnings = {
       basicSalary: salaryStructure.basicSalary,
@@ -306,7 +314,7 @@ salaryPreviewSchema.statics.generatePreview = async function(employeeId, month, 
       employee: employeeId,
       month,
       year,
-      workingDaysBreakdown: workingDaysResult,
+      workingDaysBreakdown: effectiveWorkingDaysResult,
       leaveImpact: leaveImpactResult,
       salaryBreakdown: {
         earnings,

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Table, Badge, Button, Dropdown } from 'react-bootstrap';
+import { Table, Badge, Button, Dropdown, Modal, Form } from 'react-bootstrap';
 import { FaEye, FaClock, FaExclamationTriangle, FaCalendarAlt, FaCheckCircle, FaEdit } from 'react-icons/fa';
 import { formatDate } from '../../utils/helpers';
 import AssigneeStatusDisplay from './AssigneeStatusDisplay';
@@ -7,13 +7,53 @@ import './WorkItemList.css';
 
 const StatusSelector = ({ status, onStatusChange, getStatusColor }) => {
   const [showMenu, setShowMenu] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState('');
   const wrapperRef = useRef(null);
   
-  const statuses = ['To Do', 'In Progress', 'Done'];
+  // Cancelled is a terminal state — cannot change from it
+  if (status === 'Cancelled') {
+    return (
+      <span className="status-badge-cancelled">
+        🚫 Cancelled
+      </span>
+    );
+  }
+
+  const statuses = ['To Do', 'In Progress', 'Done', 'Cancelled'];
   const statusEmojis = {
     'To Do': '📋',
     'In Progress': '⚙️',
-    'Done': '✅'
+    'Done': '✅',
+    'Cancelled': '🚫',
+  };
+
+  const handleSelectStatus = (newStatus) => {
+    if (newStatus === status) {
+      setShowMenu(false);
+      return;
+    }
+
+    if (newStatus === 'Cancelled') {
+      setShowMenu(false);
+      setCancellationReason('');
+      setShowCancelModal(true);
+      return;
+    }
+
+    onStatusChange(newStatus);
+    setShowMenu(false);
+  };
+
+  const handleConfirmCancellation = () => {
+    const trimmedReason = cancellationReason.trim();
+    if (trimmedReason.length < 25) {
+      return;
+    }
+
+    onStatusChange('Cancelled', trimmedReason);
+    setCancellationReason('');
+    setShowCancelModal(false);
   };
 
   // Close menu when clicking outside
@@ -50,19 +90,63 @@ const StatusSelector = ({ status, onStatusChange, getStatusColor }) => {
               key={s}
               className={`status-menu-item ${s === status ? 'active' : ''}`}
               onClick={() => {
-                if (s !== status) {
-                  onStatusChange(s);
-                }
-                setShowMenu(false);
+                handleSelectStatus(s);
               }}
             >
-              <span className="menu-emoji">{statusEmojis[s]}</span>
+              <span className="menu-emoji">{statusEmojis[s] || 'Cancel'}</span>
               <span className="menu-text">{s}</span>
               {s === status && <span className="menu-check">✓</span>}
             </button>
           ))}
         </div>
       )}
+
+      <Modal
+        show={showCancelModal}
+        onHide={() => setShowCancelModal(false)}
+        centered
+        backdrop="static"
+      >
+        <Modal.Header closeButton className="bg-danger text-white">
+          <Modal.Title style={{ fontSize: '1.1rem' }}>Confirm Work Cancellation</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="text-muted">
+            Please confirm this work should be cancelled and provide a reason.
+          </p>
+          <Form.Group>
+            <Form.Label className="fw-semibold">Cancellation Reason</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={4}
+              value={cancellationReason}
+              onChange={(e) => setCancellationReason(e.target.value)}
+              placeholder="Explain why this work is being cancelled..."
+              isInvalid={cancellationReason.trim().length > 0 && cancellationReason.trim().length < 25}
+            />
+            <Form.Control.Feedback type="invalid">
+              Please enter at least 25 characters.
+            </Form.Control.Feedback>
+            <div className="text-end mt-1">
+              <small className={cancellationReason.trim().length < 25 ? 'text-danger' : 'text-success'}>
+                {cancellationReason.trim().length}/25 characters
+              </small>
+            </div>
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="outline-secondary" onClick={() => setShowCancelModal(false)}>
+            Go Back
+          </Button>
+          <Button
+            variant="danger"
+            disabled={cancellationReason.trim().length < 25}
+            onClick={handleConfirmCancellation}
+          >
+            Confirm Cancellation
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };
@@ -104,6 +188,7 @@ const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, curren
       'In Progress': 'primary',
       'Review': 'warning',
       'Done': 'success',
+      'Cancelled': 'danger',
     };
     return colors[status] || 'secondary';
   };
@@ -126,16 +211,16 @@ const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, curren
   };
 
   const isOverdue = (workItem) => {
-    return workItem.status !== 'Done' &&
+    return !['Done', 'Cancelled'].includes(workItem.status) &&
       workItem.dueDate && 
       new Date(workItem.dueDate) < new Date() && 
-      workItem.status !== 'Done';
+      !['Done', 'Cancelled'].includes(workItem.status);
   };
 
   const isDueToday = (workItem) => {
     return workItem.dueDate && 
       new Date(workItem.dueDate).toDateString() === new Date().toDateString() &&
-      workItem.status !== 'Done';
+      !['Done', 'Cancelled'].includes(workItem.status);
   };
 
   const getDaysUntilDue = (dueDate) => {
@@ -174,11 +259,12 @@ const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, curren
             const daysUntilDue = getDaysUntilDue(item.dueDate);
             const overdueStatus = isOverdue(item);
             const dueTodayStatus = isDueToday(item);
+            const isCancelled = item.status === 'Cancelled';
             
             return (
               <tr 
                 key={item._id}
-                className={`modern-row ${overdueStatus ? 'row-overdue' : dueTodayStatus ? 'row-due-today' : ''}`}
+                className={`modern-row ${isCancelled ? 'row-cancelled' : overdueStatus ? 'row-overdue' : dueTodayStatus ? 'row-due-today' : ''}`}
                 onClick={() => onView(item)}
               >
                 {/* Work Item Column */}
@@ -187,18 +273,29 @@ const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, curren
                     <Badge 
                       bg={item.type === 'content' ? 'success' : 'primary'} 
                       className="type-badge"
+                      style={isCancelled ? { opacity: 0.5 } : {}}
                     >
                       {item.type === 'content' ? '📱' : '📋'}
                     </Badge>
                     <div className="work-info">
                       <div className="d-flex align-items-center gap-2">
-                        <div className="work-title">{item.title}</div>
-                        {item.isEdited && (
+                        <div className={`work-title${isCancelled ? ' work-title-cancelled' : ''}`}>{item.title}</div>
+                        {isCancelled && (
+                          <Badge bg="danger" style={{ fontSize: '0.7rem', padding: '2px 6px', flexShrink: 0 }}>
+                            🚫 Cancelled
+                          </Badge>
+                        )}
+                        {item.isEdited && !isCancelled && (
                           <Badge bg="warning" style={{ fontSize: '0.7rem', padding: '2px 6px' }} title="This work item has been edited">
                             ✏️ Edited
                           </Badge>
                         )}
                       </div>
+                      {isCancelled && item.cancellationReason && (
+                        <div className="cancelled-reason-preview">
+                          <span className="cancelled-reason-label">Reason:</span> {item.cancellationReason}
+                        </div>
+                      )}
                       <div className="work-meta">
                         {item.project?.name && (
                           <span className="meta-tag">
@@ -233,26 +330,28 @@ const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, curren
                 {/* Due Date Column */}
                 <td>
                   <div className="due-date-cell">
-                    <div className={`date-value ${overdueStatus ? 'text-danger' : dueTodayStatus ? 'text-warning' : ''}`}>
+                    <div className={`date-value ${isCancelled ? 'text-muted' : overdueStatus ? 'text-danger' : dueTodayStatus ? 'text-warning' : ''}`}>
                       <FaClock className="date-icon" />
                       {formatDate(item.dueDate)}
                     </div>
-                    <div className={`date-status ${overdueStatus ? 'text-danger' : dueTodayStatus ? 'text-warning' : 'text-muted'}`}>
-                      {overdueStatus ? (
-                        <>
-                          <FaExclamationTriangle className="me-1" />
-                          {Math.abs(daysUntilDue)}d overdue
-                        </>
-                      ) : dueTodayStatus ? (
-                        'Due today!'
-                      ) : daysUntilDue === 1 ? (
-                        'Tomorrow'
-                      ) : daysUntilDue > 0 ? (
-                        `${daysUntilDue}d left`
-                      ) : (
-                        'Past due'
-                      )}
-                    </div>
+                    {!isCancelled && (
+                      <div className={`date-status ${overdueStatus ? 'text-danger' : dueTodayStatus ? 'text-warning' : 'text-muted'}`}>
+                        {overdueStatus ? (
+                          <>
+                            <FaExclamationTriangle className="me-1" />
+                            {Math.abs(daysUntilDue)}d overdue
+                          </>
+                        ) : dueTodayStatus ? (
+                          'Due today!'
+                        ) : daysUntilDue === 1 ? (
+                          'Tomorrow'
+                        ) : daysUntilDue > 0 ? (
+                          `${daysUntilDue}d left`
+                        ) : (
+                          'Past due'
+                        )}
+                      </div>
+                    )}
                   </div>
                 </td>
 
@@ -263,7 +362,7 @@ const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, curren
                   ) : canEdit(item) && onStatusChange ? (
                     <StatusSelector
                       status={getUserStatus(item)}
-                      onStatusChange={(newStatus) => onStatusChange(item._id, newStatus)}
+                      onStatusChange={(newStatus, cancellationReason) => onStatusChange(item._id, newStatus, null, cancellationReason)}
                       getStatusColor={getStatusColor}
                     />
                   ) : (

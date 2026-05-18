@@ -94,8 +94,7 @@ const Login = () => {
         <div className="welcome-content">
           <div className="logo-animation">
             <div className="logo-full-container">
-              <img 
-                src="/We Alll Office Logo.png" 
+              <img loading="lazy" src="/We Alll Office Logo.png" 
                 alt="We Alll Office" 
                 className="logo-img-full"
               />
@@ -482,8 +481,7 @@ const Login = () => {
         {/* Logo Section */}
         <div className="logo-section">
           <div className="logo-full-container" style={{ width: '160px', height: '50px', margin: '0 auto 1rem' }}>
-            <img 
-              src="/We Alll Office Logo.png" 
+            <img loading="lazy" src="/We Alll Office Logo.png" 
               alt="We Alll Office" 
               className="logo-img-full"
             />
@@ -1141,3 +1139,4 @@ const Login = () => {
 };
 
 export default Login;
+

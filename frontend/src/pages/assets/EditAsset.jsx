@@ -15,7 +15,7 @@ const EditAsset = () => {
 
   const [formData, setFormData] = useState({
     // Asset Information
-    name: '',
+    assetId: '',
     category: '',
     brand: '',
     model: '',
@@ -72,7 +72,7 @@ const EditAsset = () => {
         const asset = response.data || response;
 
         setFormData({
-          name: asset.name || '',
+          assetId: asset.assetId || '',
           category: asset.category || '',
           brand: asset.brand || '',
           model: asset.model || '',
@@ -124,8 +124,8 @@ const EditAsset = () => {
   };
 
   const validateForm = () => {
-    if (!formData.name.trim()) {
-      setError('Asset name is required');
+    if (!formData.assetId.trim()) {
+      setError('Asset ID is required');
       return false;
     }
     if (!formData.category) {
@@ -189,14 +189,14 @@ const EditAsset = () => {
           <h2>Asset Information</h2>
           <div className="form-grid">
             <div className="form-group">
-              <label htmlFor="name">Asset Name *</label>
+              <label htmlFor="assetId">Asset ID *</label>
               <input
                 type="text"
-                id="name"
-                name="name"
-                value={formData.name}
+                id="assetId"
+                name="assetId"
+                value={formData.assetId}
                 onChange={handleInputChange}
-                placeholder="e.g., Dell Laptop"
+                placeholder="e.g., AST-2024-001"
                 className="form-control"
                 required
               />

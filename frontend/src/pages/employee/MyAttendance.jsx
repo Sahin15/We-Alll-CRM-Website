@@ -290,6 +290,7 @@ const MyAttendance = () => {
       
       const isToday = date.toDateString() === today.toDateString();
       const isFuture = date > today;
+      const isSunday = date.getDay() === 0;
       
       days.push(
         <div
@@ -297,6 +298,7 @@ const MyAttendance = () => {
           className={`p-2 border rounded text-center ${
             isToday ? 'bg-primary text-white' : 
             isFuture ? 'bg-light text-muted' :
+            isSunday ? 'bg-secondary bg-opacity-10 text-muted' :
             record ? 
               record.status === 'present' ? 'bg-success bg-opacity-10' :
               record.status === 'late' ? 'bg-warning bg-opacity-10' :
@@ -306,7 +308,10 @@ const MyAttendance = () => {
           style={{ minHeight: '60px' }}
         >
           <div className="fw-bold">{day}</div>
-          {record && (
+          {isSunday && !isToday && (
+            <div className="small text-muted">🌴 Weekend</div>
+          )}
+          {!isSunday && record && (
             <div className="small">
               <div>{record.clockIn}</div>
               <div>{record.hours}</div>

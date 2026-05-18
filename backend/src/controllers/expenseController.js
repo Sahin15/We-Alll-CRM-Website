@@ -4,1019 +4,728 @@ import Budget from "../models/budgetModel.js";
 import XLSX from "xlsx";
 import NotificationService from "../services/notificationService.js";
 import { getCurrentFinancialYear, getFinancialYearForDate, getFinancialYearDateRange, getFinancialYears as getFinancialYearsUtil } from "../utils/financialYear.js";
+import { formatDate, formatDateTime, formatCurrency, formatCurrencyWithSymbol } from "../utils/dateFormatter.js";
+import { asyncHandler, sendSuccess, sendError, sendValidationError, sendPaginatedSuccess } from "../middleware/errorHandler.js";
+import { validatePositiveAmount, validateNotFutureDate, validateRequiredFields, validatePendingStatus } from "../utils/validators.js";
 
 // Create a new expense
-export const createExpense = async (req, res) => {
-  try {
-    const { expensePurpose, expenseType, amount, currency, date, description, merchant, project, client, paymentMethod, notes, tags, receiptUrl, receiptFileName } = req.body;
+export const createExpense = asyncHandler(async (req, res) => {
+  const { expensePurpose, expenseType, amount, currency, date, description, merchant, project, client, paymentMethod, notes, tags, receiptUrl, receiptFileName } = req.body;
 
-    // Validation
-    if (!expensePurpose || !expenseType || !amount || !date || !description || !paymentMethod) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide all required fields: expensePurpose, expenseType, amount, date, description, paymentMethod",
-      });
-    }
-
-    if (amount <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Amount must be greater than 0",
-      });
-    }
-
-    // Check if receipt is required for amounts >= 500
-    if (amount >= 500 && !receiptUrl) {
-      return res.status(400).json({
-        success: false,
-        message: "Receipt is required for expenses of ₹500 or more",
-      });
-    }
-
-    const expenseDate = new Date(date);
-    if (expenseDate > new Date()) {
-      return res.status(400).json({
-        success: false,
-        message: "Expense date cannot be in the future",
-      });
-    }
-
-    const expense = await Expense.create({
-      employee: req.user._id,
-      expensePurpose,
-      expenseType,
-      amount,
-      currency: currency || "INR",
-      date: expenseDate,
-      description,
-      merchant: merchant || null,
-      project: project || null,
-      client: client || null,
-      paymentMethod,
-      notes: notes || null,
-      tags: tags || [],
-      receiptUrl: receiptUrl || null,
-      receiptFileName: receiptFileName || null,
-    });
-
-    // Populate references
-    await expense.populate("employee", "name email");
-    if (project) await expense.populate("project", "name");
-    if (client) await expense.populate("client", "name");
-
-    // Notify admins/hr that a new expense was submitted for review
-    try {
-      const submitter = await User.findById(req.user._id).select('name');
-      const submitterName = submitter?.name || 'Employee';
-      const reviewers = await User.find({ role: { $in: ['admin', 'hr', 'superadmin'] } }).select('_id');
-      for (const reviewer of reviewers) {
-        await NotificationService.sendToUser(
-          reviewer._id,
-          '🧾 Expense Submitted for Review',
-          `${submitterName} submitted an expense of ₹${amount} for review`,
-          {
-            type: 'expense_submitted',
-            data: { expenseId: expense._id.toString(), amount, expensePurpose, expenseType },
-            actionUrl: '/expenses/approvals',
-            senderId: req.user._id,
-          }
-        );
-      }
-    } catch (notificationError) {
-      
-    }
-
-    res.status(201).json({
-      success: true,
-      message: "Expense created successfully",
-      expense,
-    });
-  } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
+  // Validation
+  const requiredValidation = validateRequiredFields(
+    { expensePurpose, expenseType, amount, date, description, paymentMethod },
+    ['expensePurpose', 'expenseType', 'amount', 'date', 'description', 'paymentMethod']
+  );
+  if (!requiredValidation.valid) {
+    return sendValidationError(res, requiredValidation.message);
   }
-};
+
+  const amountValidation = validatePositiveAmount(amount);
+  if (!amountValidation.valid) {
+    return sendValidationError(res, amountValidation.message);
+  }
+
+  // Check if receipt is required for amounts >= 500
+  if (amount >= 500 && !receiptUrl) {
+    return sendValidationError(res, "Receipt is required for expenses of ₹500 or more");
+  }
+
+  const dateValidation = validateNotFutureDate(date);
+  if (!dateValidation.valid) {
+    return sendValidationError(res, dateValidation.message);
+  }
+
+  const expense = await Expense.create({
+    employee: req.user._id,
+    expensePurpose,
+    expenseType,
+    amount,
+    currency: currency || "INR",
+    date: new Date(date),
+    description,
+    merchant: merchant || null,
+    project: project || null,
+    client: client || null,
+    paymentMethod,
+    notes: notes || null,
+    tags: tags || [],
+    receiptUrl: receiptUrl || null,
+    receiptFileName: receiptFileName || null,
+  });
+
+  // Populate references
+  await expense.populate("employee", "name email");
+  if (project) await expense.populate("project", "name");
+  if (client) await expense.populate("client", "name");
+
+  // Notify admins/hr that a new expense was submitted for review
+  try {
+    const submitter = await User.findById(req.user._id).select('name');
+    const submitterName = submitter?.name || 'Employee';
+    const reviewers = await User.find({ role: { $in: ['admin', 'hr', 'superadmin'] } }).select('_id');
+    for (const reviewer of reviewers) {
+      await NotificationService.sendToUser(
+        reviewer._id,
+        '🧾 Expense Submitted for Review',
+        `${submitterName} submitted an expense of ${formatCurrencyWithSymbol(amount)} for review`,
+        {
+          type: 'expense_submitted',
+          data: { expenseId: expense._id.toString(), amount, expensePurpose, expenseType },
+          actionUrl: '/expenses/approvals',
+          senderId: req.user._id,
+        }
+      );
+    }
+  } catch (notificationError) {
+    // Silently fail notification
+  }
+
+  sendSuccess(res, expense, "Expense created successfully", 201);
+});
 
 // Get my expenses (employee's own expenses)
-export const getMyExpenses = async (req, res) => {
-  try {
-    const { status, expensePurpose, expenseType, startDate, endDate, page = 1, limit = 10 } = req.query;
+export const getMyExpenses = asyncHandler(async (req, res) => {
+  const { status, expensePurpose, expenseType, startDate, endDate, page = 1, limit = 10 } = req.query;
 
-    const query = { employee: req.user._id };
+  const query = { employee: req.user._id };
 
-    if (status) query.status = status;
-    if (expensePurpose) query.expensePurpose = expensePurpose;
-    if (expenseType) query.expenseType = expenseType;
+  if (status) query.status = status;
+  if (expensePurpose) query.expensePurpose = expensePurpose;
+  if (expenseType) query.expenseType = expenseType;
 
-    if (startDate || endDate) {
-      query.date = {};
-      if (startDate) query.date.$gte = new Date(startDate);
-      if (endDate) query.date.$lte = new Date(endDate);
-    }
-
-    const skip = (page - 1) * limit;
-
-    const expenses = await Expense.find(query)
-      .populate("employee", "name email")
-      .populate("project", "name")
-      .populate("client", "name")
-      .populate("approvedBy", "name")
-      .populate("rejectedBy", "name")
-      .sort({ date: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    const total = await Expense.countDocuments(query);
-
-    res.status(200).json({
-      success: true,
-      expenses,
-      pagination: {
-        total,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        pages: Math.ceil(total / limit),
-      },
-    });
-  } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
+  if (startDate || endDate) {
+    query.date = {};
+    if (startDate) query.date.$gte = new Date(startDate);
+    if (endDate) query.date.$lte = new Date(endDate);
   }
-};
+
+  const skip = (page - 1) * limit;
+
+  const expenses = await Expense.find(query)
+    .populate("employee", "name email")
+    .populate("project", "name")
+    .populate("client", "name")
+    .populate("approvedBy", "name")
+    .populate("rejectedBy", "name")
+    .sort({ date: -1 })
+    .skip(skip)
+    .limit(parseInt(limit));
+
+  const total = await Expense.countDocuments(query);
+
+  sendPaginatedSuccess(res, expenses, {
+    total,
+    page: parseInt(page),
+    limit: parseInt(limit),
+    pages: Math.ceil(total / limit),
+  });
+});
 
 // Get all expenses (admin/hr only)
-export const getAllExpenses = async (req, res) => {
-  try {
-    const { status, expensePurpose, expenseType, employee, startDate, endDate, page = 1, limit = 10 } = req.query;
+export const getAllExpenses = asyncHandler(async (req, res) => {
+  const { status, expensePurpose, expenseType, employee, startDate, endDate, page = 1, limit = 10 } = req.query;
 
-    const query = {};
+  const query = {};
 
-    if (status) query.status = status;
-    if (expensePurpose) query.expensePurpose = expensePurpose;
-    if (expenseType) query.expenseType = expenseType;
-    if (employee) query.employee = employee;
+  if (status) query.status = status;
+  if (expensePurpose) query.expensePurpose = expensePurpose;
+  if (expenseType) query.expenseType = expenseType;
+  if (employee) query.employee = employee;
 
-    if (startDate || endDate) {
-      query.date = {};
-      if (startDate) query.date.$gte = new Date(startDate);
-      if (endDate) query.date.$lte = new Date(endDate);
-    }
-
-    const skip = (page - 1) * limit;
-
-    const expenses = await Expense.find(query)
-      .populate("employee", "name email department")
-      .populate("project", "name")
-      .populate("client", "name")
-      .populate("approvedBy", "name")
-      .populate("rejectedBy", "name")
-      .sort({ date: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    const total = await Expense.countDocuments(query);
-
-    res.status(200).json({
-      success: true,
-      expenses,
-      pagination: {
-        total,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        pages: Math.ceil(total / limit),
-      },
-    });
-  } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
+  if (startDate || endDate) {
+    query.date = {};
+    if (startDate) query.date.$gte = new Date(startDate);
+    if (endDate) query.date.$lte = new Date(endDate);
   }
-};
+
+  const skip = (page - 1) * limit;
+
+  const expenses = await Expense.find(query)
+    .populate("employee", "name email department")
+    .populate("project", "name")
+    .populate("client", "name")
+    .populate("approvedBy", "name")
+    .populate("rejectedBy", "name")
+    .sort({ date: -1 })
+    .skip(skip)
+    .limit(parseInt(limit));
+
+  const total = await Expense.countDocuments(query);
+
+  sendPaginatedSuccess(res, expenses, {
+    total,
+    page: parseInt(page),
+    limit: parseInt(limit),
+    pages: Math.ceil(total / limit),
+  });
+});
 
 // Get expense by ID
-export const getExpenseById = async (req, res) => {
-  try {
-    const { id } = req.params;
+export const getExpenseById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
 
-    const expense = await Expense.findById(id)
-      .populate("employee", "name email department")
-      .populate("project", "name")
-      .populate("client", "name")
-      .populate("approvedBy", "name")
-      .populate("rejectedBy", "name")
-      .populate("reimbursedBy", "name");
+  const expense = await Expense.findById(id)
+    .populate("employee", "name email department")
+    .populate("project", "name")
+    .populate("client", "name")
+    .populate("approvedBy", "name")
+    .populate("rejectedBy", "name")
+    .populate("reimbursedBy", "name");
 
-    if (!expense) {
-      return res.status(404).json({
-        success: false,
-        message: "Expense not found",
-      });
-    }
-
-    // Check authorization
-    if (expense.employee._id.toString() !== req.user._id.toString() && req.user.role !== "admin" && req.user.role !== "hr" && req.user.role !== "superadmin") {
-      return res.status(403).json({
-        success: false,
-        message: "Not authorized to view this expense",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      expense,
-    });
-  } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
+  if (!expense) {
+    return sendError(res, "Expense not found", 404);
   }
-};
+
+  // Check authorization
+  if (expense.employee._id.toString() !== req.user._id.toString() && req.user.role !== "admin" && req.user.role !== "hr" && req.user.role !== "superadmin") {
+    return sendError(res, "Not authorized to view this expense", 403);
+  }
+
+  sendSuccess(res, expense);
+});
 
 // Update expense (only pending expenses)
-export const updateExpense = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { expensePurpose, expenseType, amount, currency, date, description, merchant, project, client, paymentMethod, notes, tags } = req.body;
+export const updateExpense = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { expensePurpose, expenseType, amount, currency, date, description, merchant, project, client, paymentMethod, notes, tags } = req.body;
 
-    const expense = await Expense.findById(id);
+  const expense = await Expense.findById(id);
 
-    if (!expense) {
-      return res.status(404).json({
-        success: false,
-        message: "Expense not found",
-      });
-    }
-
-    // Check authorization
-    if (expense.employee.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: "Not authorized to update this expense",
-      });
-    }
-
-    // Only allow updating pending expenses
-    if (expense.status !== "pending") {
-      return res.status(400).json({
-        success: false,
-        message: "Can only update pending expenses",
-      });
-    }
-
-    // Update fields
-    if (expensePurpose) expense.expensePurpose = expensePurpose;
-    if (expenseType) expense.expenseType = expenseType;
-    if (amount) {
-      if (amount <= 0) {
-        return res.status(400).json({
-          success: false,
-          message: "Amount must be greater than 0",
-        });
-      }
-      expense.amount = amount;
-    }
-    if (currency) expense.currency = currency;
-    if (date) {
-      const expenseDate = new Date(date);
-      if (expenseDate > new Date()) {
-        return res.status(400).json({
-          success: false,
-          message: "Expense date cannot be in the future",
-        });
-      }
-      expense.date = expenseDate;
-    }
-    if (description) expense.description = description;
-    if (merchant) expense.merchant = merchant;
-    if (project) expense.project = project;
-    if (client) expense.client = client;
-    if (paymentMethod) expense.paymentMethod = paymentMethod;
-    if (notes) expense.notes = notes;
-    if (tags) expense.tags = tags;
-
-    await expense.save();
-
-    await expense.populate("employee", "name email");
-    if (project) await expense.populate("project", "name");
-    if (client) await expense.populate("client", "name");
-
-    res.status(200).json({
-      success: true,
-      message: "Expense updated successfully",
-      expense,
-    });
-  } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
+  if (!expense) {
+    return sendError(res, "Expense not found", 404);
   }
-};
+
+  // Check authorization
+  if (expense.employee.toString() !== req.user._id.toString()) {
+    return sendError(res, "Not authorized to update this expense", 403);
+  }
+
+  // Only allow updating pending expenses
+  const statusValidation = validatePendingStatus(expense, "Expense");
+  if (!statusValidation.valid) {
+    return sendValidationError(res, statusValidation.message);
+  }
+
+  // Update fields
+  if (expensePurpose) expense.expensePurpose = expensePurpose;
+  if (expenseType) expense.expenseType = expenseType;
+  if (amount) {
+    const amountValidation = validatePositiveAmount(amount);
+    if (!amountValidation.valid) {
+      return sendValidationError(res, amountValidation.message);
+    }
+    expense.amount = amount;
+  }
+  if (currency) expense.currency = currency;
+  if (date) {
+    const dateValidation = validateNotFutureDate(date);
+    if (!dateValidation.valid) {
+      return sendValidationError(res, dateValidation.message);
+    }
+    expense.date = new Date(date);
+  }
+  if (description) expense.description = description;
+  if (merchant) expense.merchant = merchant;
+  if (project) expense.project = project;
+  if (client) expense.client = client;
+  if (paymentMethod) expense.paymentMethod = paymentMethod;
+  if (notes) expense.notes = notes;
+  if (tags) expense.tags = tags;
+
+  await expense.save();
+
+  await expense.populate("employee", "name email");
+  if (project) await expense.populate("project", "name");
+  if (client) await expense.populate("client", "name");
+
+  sendSuccess(res, expense, "Expense updated successfully");
+});
 
 // Delete expense (only pending expenses)
-export const deleteExpense = async (req, res) => {
-  try {
-    const { id } = req.params;
+export const deleteExpense = asyncHandler(async (req, res) => {
+  const { id } = req.params;
 
-    const expense = await Expense.findById(id);
+  const expense = await Expense.findById(id);
 
-    if (!expense) {
-      return res.status(404).json({
-        success: false,
-        message: "Expense not found",
-      });
-    }
-
-    // Check authorization
-    if (expense.employee.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: "Not authorized to delete this expense",
-      });
-    }
-
-    // Only allow deleting pending expenses
-    if (expense.status !== "pending") {
-      return res.status(400).json({
-        success: false,
-        message: "Can only delete pending expenses",
-      });
-    }
-
-    await Expense.findByIdAndDelete(id);
-
-    res.status(200).json({
-      success: true,
-      message: "Expense deleted successfully",
-    });
-  } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
+  if (!expense) {
+    return sendError(res, "Expense not found", 404);
   }
-};
+
+  // Check authorization
+  if (expense.employee.toString() !== req.user._id.toString()) {
+    return sendError(res, "Not authorized to delete this expense", 403);
+  }
+
+  // Only allow deleting pending expenses
+  const statusValidation = validatePendingStatus(expense, "Expense");
+  if (!statusValidation.valid) {
+    return sendValidationError(res, statusValidation.message);
+  }
+
+  await Expense.findByIdAndDelete(id);
+
+  sendSuccess(res, null, "Expense deleted successfully");
+});
 
 // Get expense statistics
-export const getExpenseStats = async (req, res) => {
-  try {
-    const userId = req.user._id;
+export const getExpenseStats = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
 
-    // Always filter by user ID for personal stats
-    const query = { employee: userId };
+  // Always filter by user ID for personal stats
+  const query = { employee: userId };
 
-    const [total, pending, approved, rejected, reimbursed] = await Promise.all([
-      Expense.countDocuments(query),
-      Expense.countDocuments({ ...query, status: "pending" }),
-      Expense.countDocuments({ ...query, status: "approved" }),
-      Expense.countDocuments({ ...query, status: "rejected" }),
-      Expense.countDocuments({ ...query, status: "reimbursed" }),
-    ]);
+  const [total, pending, approved, rejected, reimbursed] = await Promise.all([
+    Expense.countDocuments(query),
+    Expense.countDocuments({ ...query, status: "pending" }),
+    Expense.countDocuments({ ...query, status: "approved" }),
+    Expense.countDocuments({ ...query, status: "rejected" }),
+    Expense.countDocuments({ ...query, status: "reimbursed" }),
+  ]);
 
-    const totalAmount = await Expense.aggregate([
-      { $match: query },
-      { $group: { _id: null, total: { $sum: "$amount" } } },
-    ]);
+  const totalAmount = await Expense.aggregate([
+    { $match: query },
+    { $group: { _id: null, total: { $sum: "$amount" } } },
+  ]);
 
-    const approvedAmount = await Expense.aggregate([
-      { $match: { ...query, status: "approved" } },
-      { $group: { _id: null, total: { $sum: "$amount" } } },
-    ]);
+  const approvedAmount = await Expense.aggregate([
+    { $match: { ...query, status: "approved" } },
+    { $group: { _id: null, total: { $sum: "$amount" } } },
+  ]);
 
-    res.status(200).json({
-      success: true,
-      stats: {
-        total,
-        pending,
-        approved,
-        rejected,
-        reimbursed,
-        totalAmount: totalAmount[0]?.total || 0,
-        approvedAmount: approvedAmount[0]?.total || 0,
-      },
-    });
-  } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
-  }
-};
+  sendSuccess(res, {
+    total,
+    pending,
+    approved,
+    rejected,
+    reimbursed,
+    totalAmount: totalAmount[0]?.total || 0,
+    approvedAmount: approvedAmount[0]?.total || 0,
+  });
+});
 
 // Approve expense (admin/hr only)
-export const approveExpense = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { comments } = req.body;
+export const approveExpense = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { comments } = req.body;
 
-    // Check authorization
-    if (req.user.role !== "admin" && req.user.role !== "hr" && req.user.role !== "superadmin") {
-      return res.status(403).json({
-        success: false,
-        message: "Not authorized to approve expenses",
-      });
-    }
-
-    const expense = await Expense.findById(id);
-
-    if (!expense) {
-      return res.status(404).json({
-        success: false,
-        message: "Expense not found",
-      });
-    }
-
-    // Only allow approving pending expenses
-    if (expense.status !== "pending") {
-      return res.status(400).json({
-        success: false,
-        message: "Can only approve pending expenses",
-      });
-    }
-
-    expense.status = "approved";
-    expense.approvedBy = req.user._id;
-    expense.approvalDate = new Date();
-    if (comments) expense.approvalComments = comments;
-
-    await expense.save();
-
-    // Send notification to employee
-    try {
-      await NotificationService.sendToUser(
-        expense.employee,
-        '💰 Expense Approved',
-        `Your expense of ₹${expense.amount} has been approved`,
-        {
-          type: 'expense_approval',
-          data: { expenseId: expense._id.toString(), amount: expense.amount },
-          actionUrl: '/expenses/my-expenses',
-          senderId: req.user._id,
-        }
-      );
-    } catch (notificationError) {
-      
-    }
-
-    await expense.populate("employee", "name email");
-    await expense.populate("approvedBy", "name");
-    if (expense.project) await expense.populate("project", "name");
-    if (expense.client) await expense.populate("client", "name");
-
-    res.status(200).json({
-      success: true,
-      message: "Expense approved successfully",
-      expense,
-    });
-  } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
+  // Check authorization
+  if (req.user.role !== "admin" && req.user.role !== "hr" && req.user.role !== "superadmin") {
+    return sendError(res, "Not authorized to approve expenses", 403);
   }
-};
+
+  const expense = await Expense.findById(id);
+
+  if (!expense) {
+    return sendError(res, "Expense not found", 404);
+  }
+
+  // Only allow approving pending expenses
+  const statusValidation = validatePendingStatus(expense, "Expense");
+  if (!statusValidation.valid) {
+    return sendValidationError(res, statusValidation.message);
+  }
+
+  expense.status = "approved";
+  expense.approvedBy = req.user._id;
+  expense.approvalDate = new Date();
+  if (comments) expense.approvalComments = comments;
+
+  await expense.save();
+
+  // Send notification to employee
+  try {
+    await NotificationService.sendToUser(
+      expense.employee,
+      '💰 Expense Approved',
+      `Your expense of ${formatCurrencyWithSymbol(expense.amount)} has been approved`,
+      {
+        type: 'expense_approval',
+        data: { expenseId: expense._id.toString(), amount: expense.amount },
+        actionUrl: '/expenses/my-expenses',
+        senderId: req.user._id,
+      }
+    );
+  } catch (notificationError) {
+    // Silently fail notification
+  }
+
+  await expense.populate("employee", "name email");
+  await expense.populate("approvedBy", "name");
+  if (expense.project) await expense.populate("project", "name");
+  if (expense.client) await expense.populate("client", "name");
+
+  sendSuccess(res, expense, "Expense approved successfully");
+});
 
 // Reject expense (admin/hr only)
-export const rejectExpense = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { reason } = req.body;
+export const rejectExpense = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { reason } = req.body;
 
-    // Check authorization
-    if (req.user.role !== "admin" && req.user.role !== "hr" && req.user.role !== "superadmin") {
-      return res.status(403).json({
-        success: false,
-        message: "Not authorized to reject expenses",
-      });
-    }
-
-    if (!reason) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide a rejection reason",
-      });
-    }
-
-    const expense = await Expense.findById(id);
-
-    if (!expense) {
-      return res.status(404).json({
-        success: false,
-        message: "Expense not found",
-      });
-    }
-
-    // Only allow rejecting pending expenses
-    if (expense.status !== "pending") {
-      return res.status(400).json({
-        success: false,
-        message: "Can only reject pending expenses",
-      });
-    }
-
-    expense.status = "rejected";
-    expense.rejectedBy = req.user._id;
-    expense.rejectionDate = new Date();
-    expense.rejectionReason = reason;
-
-    await expense.save();
-
-    // Send notification to employee
-    try {
-      await NotificationService.sendToUser(
-        expense.employee,
-        '❌ Expense Rejected',
-        `Your expense of ₹${expense.amount} has been rejected`,
-        {
-          type: 'expense_rejection',
-          data: { expenseId: expense._id.toString(), reason },
-          actionUrl: '/expenses/my-expenses',
-          senderId: req.user._id,
-        }
-      );
-    } catch (notificationError) {
-      
-    }
-
-    await expense.populate("employee", "name email");
-    await expense.populate("rejectedBy", "name");
-    if (expense.project) await expense.populate("project", "name");
-    if (expense.client) await expense.populate("client", "name");
-
-    res.status(200).json({
-      success: true,
-      message: "Expense rejected successfully",
-      expense,
-    });
-  } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
+  // Check authorization
+  if (req.user.role !== "admin" && req.user.role !== "hr" && req.user.role !== "superadmin") {
+    return sendError(res, "Not authorized to reject expenses", 403);
   }
-};
+
+  if (!reason) {
+    return sendValidationError(res, "Please provide a rejection reason");
+  }
+
+  const expense = await Expense.findById(id);
+
+  if (!expense) {
+    return sendError(res, "Expense not found", 404);
+  }
+
+  // Only allow rejecting pending expenses
+  const statusValidation = validatePendingStatus(expense, "Expense");
+  if (!statusValidation.valid) {
+    return sendValidationError(res, statusValidation.message);
+  }
+
+  expense.status = "rejected";
+  expense.rejectedBy = req.user._id;
+  expense.rejectionDate = new Date();
+  expense.rejectionReason = reason;
+
+  await expense.save();
+
+  // Send notification to employee
+  try {
+    await NotificationService.sendToUser(
+      expense.employee,
+      '❌ Expense Rejected',
+      `Your expense of ${formatCurrencyWithSymbol(expense.amount)} has been rejected`,
+      {
+        type: 'expense_rejection',
+        data: { expenseId: expense._id.toString(), reason },
+        actionUrl: '/expenses/my-expenses',
+        senderId: req.user._id,
+      }
+    );
+  } catch (notificationError) {
+    // Silently fail notification
+  }
+
+  await expense.populate("employee", "name email");
+  await expense.populate("rejectedBy", "name");
+  if (expense.project) await expense.populate("project", "name");
+  if (expense.client) await expense.populate("client", "name");
+
+  sendSuccess(res, expense, "Expense rejected successfully");
+});
 
 // Mark expense as reimbursed (admin/hr only)
-export const markAsReimbursed = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { reimbursementDate, method } = req.body;
+export const markAsReimbursed = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { reimbursementDate, method } = req.body;
 
-    // Check authorization
-    if (req.user.role !== "admin" && req.user.role !== "hr" && req.user.role !== "superadmin") {
-      return res.status(403).json({
-        success: false,
-        message: "Not authorized to mark expenses as reimbursed",
-      });
-    }
-
-    const expense = await Expense.findById(id);
-
-    if (!expense) {
-      return res.status(404).json({
-        success: false,
-        message: "Expense not found",
-      });
-    }
-
-    // Only allow marking approved expenses as reimbursed
-    if (expense.status !== "approved") {
-      return res.status(400).json({
-        success: false,
-        message: "Can only mark approved expenses as reimbursed",
-      });
-    }
-
-    expense.status = "reimbursed";
-    expense.reimbursedBy = req.user._id;
-    expense.reimbursementDate = reimbursementDate ? new Date(reimbursementDate) : new Date();
-    if (method) expense.reimbursementMethod = method;
-
-    await expense.save();
-
-    // Notify employee that their expense has been reimbursed
-    try {
-      await NotificationService.sendToUser(
-        expense.employee,
-        '💸 Expense Reimbursed',
-        `Your expense of ₹${expense.amount} has been reimbursed`,
-        {
-          type: 'expense_reimbursed',
-          data: { expenseId: expense._id.toString(), amount: expense.amount },
-          actionUrl: '/expenses/my-expenses',
-          senderId: req.user._id,
-        }
-      );
-    } catch (notificationError) {
-      
-    }
-
-    await expense.populate("employee", "name email");
-    await expense.populate("reimbursedBy", "name");
-    if (expense.project) await expense.populate("project", "name");
-    if (expense.client) await expense.populate("client", "name");
-
-    res.status(200).json({
-      success: true,
-      message: "Expense marked as reimbursed successfully",
-      expense,
-    });
-  } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
+  // Check authorization
+  if (req.user.role !== "admin" && req.user.role !== "hr" && req.user.role !== "superadmin") {
+    return sendError(res, "Not authorized to mark expenses as reimbursed", 403);
   }
-};
+
+  const expense = await Expense.findById(id);
+
+  if (!expense) {
+    return sendError(res, "Expense not found", 404);
+  }
+
+  // Only allow marking approved expenses as reimbursed
+  if (expense.status !== "approved") {
+    return sendValidationError(res, "Can only mark approved expenses as reimbursed");
+  }
+
+  expense.status = "reimbursed";
+  expense.reimbursedBy = req.user._id;
+  expense.reimbursementDate = reimbursementDate ? new Date(reimbursementDate) : new Date();
+  if (method) expense.reimbursementMethod = method;
+
+  await expense.save();
+
+  // Notify employee that their expense has been reimbursed
+  try {
+    await NotificationService.sendToUser(
+      expense.employee,
+      '💸 Expense Reimbursed',
+      `Your expense of ${formatCurrencyWithSymbol(expense.amount)} has been reimbursed`,
+      {
+        type: 'expense_reimbursed',
+        data: { expenseId: expense._id.toString(), amount: expense.amount },
+        actionUrl: '/expenses/my-expenses',
+        senderId: req.user._id,
+      }
+    );
+  } catch (notificationError) {
+    // Silently fail notification
+  }
+
+  await expense.populate("employee", "name email");
+  await expense.populate("reimbursedBy", "name");
+  if (expense.project) await expense.populate("project", "name");
+  if (expense.client) await expense.populate("client", "name");
+
+  sendSuccess(res, expense, "Expense marked as reimbursed successfully");
+});
 
 // Get reimbursement tracking (admin/hr only)
-export const getReimbursementTracking = async (req, res) => {
-  try {
-    const { startDate, endDate, employee, page = 1, limit = 10 } = req.query;
+export const getReimbursementTracking = asyncHandler(async (req, res) => {
+  const { startDate, endDate, employee, page = 1, limit = 10 } = req.query;
 
-    if (req.user.role !== "admin" && req.user.role !== "hr" && req.user.role !== "superadmin") {
-      return res.status(403).json({
-        success: false,
-        message: "Not authorized",
-      });
-    }
-
-    const query = { status: "reimbursed" };
-
-    if (employee) query.employee = employee;
-
-    if (startDate || endDate) {
-      query.reimbursementDate = {};
-      if (startDate) query.reimbursementDate.$gte = new Date(startDate);
-      if (endDate) query.reimbursementDate.$lte = new Date(endDate);
-    }
-
-    const skip = (page - 1) * limit;
-
-    const expenses = await Expense.find(query)
-      .populate("employee", "name email department")
-      .populate("reimbursedBy", "name")
-      .sort({ reimbursementDate: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    const total = await Expense.countDocuments(query);
-
-    const totalReimbursed = await Expense.aggregate([
-      { $match: query },
-      { $group: { _id: null, total: { $sum: "$amount" } } },
-    ]);
-
-    res.status(200).json({
-      success: true,
-      expenses,
-      totalReimbursed: totalReimbursed[0]?.total || 0,
-      pagination: {
-        total,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        pages: Math.ceil(total / limit),
-      },
-    });
-  } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
+  if (req.user.role !== "admin" && req.user.role !== "hr" && req.user.role !== "superadmin") {
+    return sendError(res, "Not authorized", 403);
   }
-};
+
+  const query = { status: "reimbursed" };
+
+  if (employee) query.employee = employee;
+
+  if (startDate || endDate) {
+    query.reimbursementDate = {};
+    if (startDate) query.reimbursementDate.$gte = new Date(startDate);
+    if (endDate) query.reimbursementDate.$lte = new Date(endDate);
+  }
+
+  const skip = (page - 1) * limit;
+
+  const expenses = await Expense.find(query)
+    .populate("employee", "name email department")
+    .populate("reimbursedBy", "name")
+    .sort({ reimbursementDate: -1 })
+    .skip(skip)
+    .limit(parseInt(limit));
+
+  const total = await Expense.countDocuments(query);
+
+  const totalReimbursed = await Expense.aggregate([
+    { $match: query },
+    { $group: { _id: null, total: { $sum: "$amount" } } },
+  ]);
+  sendPaginatedSuccess(res, expenses, {
+    total,
+    page: parseInt(page),
+    limit: parseInt(limit),
+    pages: Math.ceil(total / limit),
+    totalReimbursed: totalReimbursed[0]?.total || 0,
+  });
+});
 
 // Search expenses (advanced search)
-export const searchExpenses = async (req, res) => {
-  try {
-    const { query, filters = {}, page = 1, limit = 10 } = req.body;
-    const userId = req.user._id;
-    const isAdmin = req.user.role === "admin" || req.user.role === "hr" || req.user.role === "superadmin" || req.user.role === "manager";
+export const searchExpenses = asyncHandler(async (req, res) => {
+  const { query, filters = {}, page = 1, limit = 10 } = req.body;
+  const userId = req.user._id;
+  const isAdmin = req.user.role === "admin" || req.user.role === "hr" || req.user.role === "superadmin" || req.user.role === "manager";
 
-    
-    
-    
-    
-    
-
-    // Build the search query with proper $and logic
-    const andConditions = [];
-    
-    // Add role-based filter
-    if (!isAdmin) {
-      andConditions.push({ employee: userId });
-    }
-
-    // Text search - if query is provided, search in multiple fields
-    if (query && query.trim()) {
-      
-      
-      // First, try to find employees matching the search query
-      const matchingUsers = await User.find({
-        $or: [
-          { name: { $regex: query, $options: "i" } },
-          { email: { $regex: query, $options: "i" } }
-        ]
-      }).select("_id name email");
-      
-      
-      if (matchingUsers.length > 0) {
-        // Users found
-      }
-      
-      const matchingUserIds = matchingUsers.map(user => user._id);
-
-      // Search in expense fields AND employee names
-      const textSearchConditions = [
-        { description: { $regex: query, $options: "i" } },
-        { merchant: { $regex: query, $options: "i" } },
-        { notes: { $regex: query, $options: "i" } },
-      ];
-
-      // Add employee ID match if we found matching users
-      if (matchingUserIds.length > 0) {
-        textSearchConditions.push({ employee: { $in: matchingUserIds } });
-        
-      }
-
-      andConditions.push({ $or: textSearchConditions });
-    }
-
-    // Apply filters
-    if (filters && Object.keys(filters).length > 0) {
-      
-      
-      if (filters.status) andConditions.push({ status: filters.status });
-      if (filters.expensePurpose) andConditions.push({ expensePurpose: filters.expensePurpose });
-      if (filters.expenseType) andConditions.push({ expenseType: filters.expenseType });
-      
-      if (filters.minAmount || filters.maxAmount) {
-        const amountCondition = {};
-        if (filters.minAmount) amountCondition.$gte = filters.minAmount;
-        if (filters.maxAmount) amountCondition.$lte = filters.maxAmount;
-        andConditions.push({ amount: amountCondition });
-      }
-      
-      if (filters.startDate || filters.endDate) {
-        const dateCondition = {};
-        if (filters.startDate) dateCondition.$gte = new Date(filters.startDate);
-        if (filters.endDate) dateCondition.$lte = new Date(filters.endDate);
-        andConditions.push({ date: dateCondition });
-      }
-      
-      if (filters.paymentMethod) andConditions.push({ paymentMethod: filters.paymentMethod });
-    }
-
-    // Build final query
-    const searchQuery = andConditions.length > 0 ? { $and: andConditions } : {};
-
-    const skip = (page - 1) * limit;
-
-    const expenses = await Expense.find(searchQuery)
-      .populate("employee", "name email")
-      .populate("project", "name")
-      .populate("client", "name")
-      .sort({ date: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    const total = await Expense.countDocuments(searchQuery);
-
-    res.status(200).json({
-      success: true,
-      expenses,
-      pagination: {
-        total,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        pages: Math.ceil(total / limit),
-      },
-    });
-  } catch (error) {
-    
-    
-    
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
+  // Build the search query with proper $and logic
+  const andConditions = [];
+  
+  // Add role-based filter
+  if (!isAdmin) {
+    andConditions.push({ employee: userId });
   }
-};
+
+  // Text search - if query is provided, search in multiple fields
+  if (query && query.trim()) {
+    // First, try to find employees matching the search query
+    const matchingUsers = await User.find({
+      $or: [
+        { name: { $regex: query, $options: "i" } },
+        { email: { $regex: query, $options: "i" } }
+      ]
+    }).select("_id name email");
+    
+    const matchingUserIds = matchingUsers.map(user => user._id);
+
+    // Search in expense fields AND employee names
+    const textSearchConditions = [
+      { description: { $regex: query, $options: "i" } },
+      { merchant: { $regex: query, $options: "i" } },
+      { notes: { $regex: query, $options: "i" } },
+    ];
+
+    // Add employee ID match if we found matching users
+    if (matchingUserIds.length > 0) {
+      textSearchConditions.push({ employee: { $in: matchingUserIds } });
+    }
+
+    andConditions.push({ $or: textSearchConditions });
+  }
+
+  // Apply filters
+  if (filters && Object.keys(filters).length > 0) {
+    if (filters.status) andConditions.push({ status: filters.status });
+    if (filters.expensePurpose) andConditions.push({ expensePurpose: filters.expensePurpose });
+    if (filters.expenseType) andConditions.push({ expenseType: filters.expenseType });
+    
+    if (filters.minAmount || filters.maxAmount) {
+      const amountCondition = {};
+      if (filters.minAmount) amountCondition.$gte = filters.minAmount;
+      if (filters.maxAmount) amountCondition.$lte = filters.maxAmount;
+      andConditions.push({ amount: amountCondition });
+    }
+    
+    if (filters.startDate || filters.endDate) {
+      const dateCondition = {};
+      if (filters.startDate) dateCondition.$gte = new Date(filters.startDate);
+      if (filters.endDate) dateCondition.$lte = new Date(filters.endDate);
+      andConditions.push({ date: dateCondition });
+    }
+    
+    if (filters.paymentMethod) andConditions.push({ paymentMethod: filters.paymentMethod });
+  }
+
+  // Build final query
+  const searchQuery = andConditions.length > 0 ? { $and: andConditions } : {};
+
+  const skip = (page - 1) * limit;
+
+  const expenses = await Expense.find(searchQuery)
+    .populate("employee", "name email")
+    .populate("project", "name")
+    .populate("client", "name")
+    .sort({ date: -1 })
+    .skip(skip)
+    .limit(parseInt(limit));
+
+  const total = await Expense.countDocuments(searchQuery);
+
+  sendPaginatedSuccess(res, expenses, {
+    total,
+    page: parseInt(page),
+    limit: parseInt(limit),
+    pages: Math.ceil(total / limit),
+  });
+});
 
 // Export expenses (admin/hr only)
-export const exportExpenses = async (req, res) => {
-  try {
-    const { format, filters } = req.body;
+export const exportExpenses = asyncHandler(async (req, res) => {
+  const { format, filters } = req.body;
 
-    if (req.user.role !== "admin" && req.user.role !== "hr" && req.user.role !== "superadmin" && req.user.role !== "manager") {
-      return res.status(403).json({
-        success: false,
-        message: "Not authorized",
-      });
-    }
-
-    const query = {};
-
-    if (filters) {
-      if (filters.status) query.status = filters.status;
-      if (filters.expensePurpose) query.expensePurpose = filters.expensePurpose;
-      if (filters.expenseType) query.expenseType = filters.expenseType;
-      if (filters.startDate || filters.endDate) {
-        query.date = {};
-        if (filters.startDate) query.date.$gte = new Date(filters.startDate);
-        if (filters.endDate) query.date.$lte = new Date(filters.endDate);
-      }
-      if (filters.employee) query.employee = filters.employee;
-    }
-
-    const expenses = await Expense.find(query)
-      .populate("employee", "name email department")
-      .populate("project", "name")
-      .populate("client", "name")
-      .populate("approvedBy", "name")
-      .populate("rejectedBy", "name")
-      .populate("reimbursedBy", "name")
-      .sort({ date: -1 });
-
-    // Get report type from filters
-    const reportType = filters?.reportType || "detailed";
-
-    // Transform data based on report type
-    let transformedData = expenses;
-    if (reportType === "summary") {
-      transformedData = generateSummaryReport(expenses);
-    } else if (reportType === "detailed") {
-      transformedData = generateDetailedReport(expenses);
-    } else if (reportType === "category") {
-      transformedData = generateCategoryReport(expenses);
-    } else if (reportType === "status") {
-      transformedData = generateStatusReport(expenses);
-    } else if (reportType === "employee") {
-      transformedData = generateEmployeeReport(expenses);
-    }
-
-    if (format === "json") {
-      res.json({
-        success: true,
-        data: transformedData,
-        reportType: reportType,
-        exportDate: new Date(),
-        totalRecords: transformedData.length,
-        filters: filters || {},
-      });
-    } else if (format === "csv") {
-      // Use XLSX for professional Excel export
-      const workbook = generateExcelWorkbook(expenses, filters);
-      
-      // Generate buffer
-      const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "buffer" });
-      
-      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-      res.setHeader("Content-Disposition", `attachment; filename=expense_report_${new Date().getTime()}.xlsx`);
-      res.send(buffer);
-    } else {
-      res.status(400).json({
-        success: false,
-        message: "Invalid export format",
-      });
-    }
-  } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
+  if (req.user.role !== "admin" && req.user.role !== "hr" && req.user.role !== "superadmin" && req.user.role !== "manager") {
+    return sendError(res, "Not authorized", 403);
   }
-};
+
+  const query = {};
+
+  if (filters) {
+    if (filters.status) query.status = filters.status;
+    if (filters.expensePurpose) query.expensePurpose = filters.expensePurpose;
+    if (filters.expenseType) query.expenseType = filters.expenseType;
+    if (filters.startDate || filters.endDate) {
+      query.date = {};
+      if (filters.startDate) query.date.$gte = new Date(filters.startDate);
+      if (filters.endDate) query.date.$lte = new Date(filters.endDate);
+    }
+    if (filters.employee) query.employee = filters.employee;
+  }
+
+  const expenses = await Expense.find(query)
+    .populate("employee", "name email department")
+    .populate("project", "name")
+    .populate("client", "name")
+    .populate("approvedBy", "name")
+    .populate("rejectedBy", "name")
+    .populate("reimbursedBy", "name")
+    .sort({ date: -1 });
+
+  // Get report type from filters
+  const reportType = filters?.reportType || "detailed";
+
+  // Transform data based on report type
+  let transformedData = expenses;
+  if (reportType === "summary") {
+    transformedData = generateSummaryReport(expenses);
+  } else if (reportType === "detailed") {
+    transformedData = generateDetailedReport(expenses);
+  } else if (reportType === "category") {
+    transformedData = generateCategoryReport(expenses);
+  } else if (reportType === "status") {
+    transformedData = generateStatusReport(expenses);
+  } else if (reportType === "employee") {
+    transformedData = generateEmployeeReport(expenses);
+  }
+
+  if (format === "json") {
+    sendSuccess(res, {
+      data: transformedData,
+      reportType: reportType,
+      exportDate: new Date(),
+      totalRecords: transformedData.length,
+      filters: filters || {},
+    });
+  } else if (format === "csv") {
+    // Use XLSX for professional Excel export
+    const workbook = generateExcelWorkbook(expenses, filters);
+    
+    // Generate buffer
+    const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "buffer" });
+    
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename=expense_report_${new Date().getTime()}.xlsx`);
+    res.send(buffer);
+  } else {
+    sendValidationError(res, "Invalid export format");
+  }
+});
 
 // Bulk approve expenses (admin/hr only)
-export const bulkApproveExpenses = async (req, res) => {
-  try {
-    const { expenseIds, comments } = req.body;
+export const bulkApproveExpenses = asyncHandler(async (req, res) => {
+  const { expenseIds, comments } = req.body;
 
-    if (req.user.role !== "admin" && req.user.role !== "hr" && req.user.role !== "superadmin") {
-      return res.status(403).json({
-        success: false,
-        message: "Not authorized",
-      });
-    }
-
-    if (!expenseIds || !Array.isArray(expenseIds) || expenseIds.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide expense IDs",
-      });
-    }
-
-    const result = await Expense.updateMany(
-      { _id: { $in: expenseIds }, status: "pending" },
-      {
-        $set: {
-          status: "approved",
-          approvedBy: req.user._id,
-          approvalDate: new Date(),
-          approvalComments: comments || null,
-        },
-      }
-    );
-
-    res.status(200).json({
-      success: true,
-      message: `${result.modifiedCount} expenses approved successfully`,
-      modifiedCount: result.modifiedCount,
-    });
-  } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
+  if (req.user.role !== "admin" && req.user.role !== "hr" && req.user.role !== "superadmin") {
+    return sendError(res, "Not authorized", 403);
   }
-};
+
+  if (!expenseIds || !Array.isArray(expenseIds) || expenseIds.length === 0) {
+    return sendValidationError(res, "Please provide expense IDs");
+  }
+
+  const result = await Expense.updateMany(
+    { _id: { $in: expenseIds }, status: "pending" },
+    {
+      $set: {
+        status: "approved",
+        approvedBy: req.user._id,
+        approvalDate: new Date(),
+        approvalComments: comments || null,
+      },
+    }
+  );
+
+  sendSuccess(res, { modifiedCount: result.modifiedCount }, `${result.modifiedCount} expenses approved successfully`);
+});
 
 // Bulk reject expenses (admin/hr only)
-export const bulkRejectExpenses = async (req, res) => {
-  try {
-    const { expenseIds, reason } = req.body;
+export const bulkRejectExpenses = asyncHandler(async (req, res) => {
+  const { expenseIds, reason } = req.body;
 
-    if (req.user.role !== "admin" && req.user.role !== "hr" && req.user.role !== "superadmin") {
-      return res.status(403).json({
-        success: false,
-        message: "Not authorized",
-      });
-    }
-
-    if (!expenseIds || !Array.isArray(expenseIds) || expenseIds.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide expense IDs",
-      });
-    }
-
-    if (!reason) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide a rejection reason",
-      });
-    }
-
-    const result = await Expense.updateMany(
-      { _id: { $in: expenseIds }, status: "pending" },
-      {
-        $set: {
-          status: "rejected",
-          rejectedBy: req.user._id,
-          rejectionDate: new Date(),
-          rejectionReason: reason,
-        },
-      }
-    );
-
-    res.status(200).json({
-      success: true,
-      message: `${result.modifiedCount} expenses rejected successfully`,
-      modifiedCount: result.modifiedCount,
-    });
-  } catch (error) {
-    
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
+  if (req.user.role !== "admin" && req.user.role !== "hr" && req.user.role !== "superadmin") {
+    return sendError(res, "Not authorized", 403);
   }
-};
+
+  if (!expenseIds || !Array.isArray(expenseIds) || expenseIds.length === 0) {
+    return sendValidationError(res, "Please provide expense IDs");
+  }
+
+  if (!reason) {
+    return sendValidationError(res, "Please provide a rejection reason");
+  }
+
+  const result = await Expense.updateMany(
+    { _id: { $in: expenseIds }, status: "pending" },
+    {
+      $set: {
+        status: "rejected",
+        rejectedBy: req.user._id,
+        rejectionDate: new Date(),
+        rejectionReason: reason,
+      },
+    }
+  );
+
+  sendSuccess(res, { modifiedCount: result.modifiedCount }, `${result.modifiedCount} expenses rejected successfully`);
+});
 
 // Helper function to convert expenses to CSV
 // Generate professional Excel workbook
@@ -1392,16 +1101,6 @@ function formatStatus(status) {
     reimbursed: "Reimbursed",
   };
   return statusMap[status] || status;
-}
-
-// Helper function to format dates consistently
-function formatDate(date) {
-  if (!date) return "";
-  return new Date(date).toLocaleDateString("en-IN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
 }
 
 // Get expense analytics (admin/hr only)

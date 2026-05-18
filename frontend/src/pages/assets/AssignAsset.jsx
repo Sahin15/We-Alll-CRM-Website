@@ -251,8 +251,8 @@ const AssignAsset = () => {
                     // Ensure emp is an object with required properties
                     if (!emp || typeof emp !== 'object' || !emp._id) return null;
                     const empName = typeof emp.name === 'string' ? emp.name : String(emp.name || 'Unknown');
-                    const empEmail = typeof emp.email === 'string' ? emp.email : '';
-                    const displayText = empEmail ? `${empName} (${empEmail})` : empName;
+                    const empIdStr = typeof emp.employeeId === 'string' ? emp.employeeId : (emp.employeeId ? String(emp.employeeId) : '');
+                    const displayText = empIdStr ? `${empName} (${empIdStr})` : empName;
                     return (
                       <option key={emp._id} value={emp._id}>
                         {displayText}
@@ -270,8 +270,8 @@ const AssignAsset = () => {
                   <span>{typeof selectedEmployee.name === 'string' ? selectedEmployee.name : String(selectedEmployee.name || '-')}</span>
                 </div>
                 <div className="preview-item">
-                  <label>Email</label>
-                  <span>{typeof selectedEmployee.email === 'string' ? selectedEmployee.email : String(selectedEmployee.email || '-')}</span>
+                  <label>Employee ID</label>
+                  <span>{typeof selectedEmployee.employeeId === 'string' ? selectedEmployee.employeeId : String(selectedEmployee.employeeId || '-')}</span>
                 </div>
                 {typeof selectedEmployee.department === 'string' && selectedEmployee.department && (
                   <div className="preview-item">

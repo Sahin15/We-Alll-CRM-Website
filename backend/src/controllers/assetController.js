@@ -5,10 +5,16 @@ import User from '../models/userModel.js';
 
 const createAsset = async (req, res) => {
   try {
-    const { name, category, brand, model, serialNumber, purchaseDate, purchaseCost, vendorName, invoiceNumber, invoiceUrl, warrantyStartDate, warrantyEndDate, warrantyProvider, warrantyDocumentUrl, notes, condition } = req.body;
+    let { assetId, category, brand, model, serialNumber, purchaseDate, purchaseCost, vendorName, invoiceNumber, invoiceUrl, warrantyStartDate, warrantyEndDate, warrantyProvider, warrantyDocumentUrl, notes, condition } = req.body;
 
-    if (!name || !category) {
-      return res.status(400).json({ success: false, message: 'Name and category are required' });
+    if (!assetId || !category) {
+      return res.status(400).json({ success: false, message: 'Asset ID and category are required' });
+    }
+
+    // Check if assetId already exists
+    const existingAssetId = await Asset.findOne({ assetId, isDeleted: false });
+    if (existingAssetId) {
+      return res.status(400).json({ success: false, message: 'Asset ID already exists' });
     }
 
     if (serialNumber) {
@@ -18,26 +24,10 @@ const createAsset = async (req, res) => {
       }
     }
 
-    // Generate assetId
-    let assetId;
-    try {
-      const lastAsset = await Asset.findOne({}, { assetId: 1 }).sort({ createdAt: -1 }).lean();
-      let nextNumber = 1;
-      if (lastAsset && lastAsset.assetId) {
-        const match = lastAsset.assetId.match(/AST(\d+)/);
-        if (match) {
-          nextNumber = parseInt(match[1]) + 1;
-        }
-      }
-      assetId = `AST${String(nextNumber).padStart(4, '0')}`;
-    } catch (err) {
-      // Fallback to timestamp-based ID
-      assetId = `AST${Date.now().toString().slice(-8)}`;
-    }
-
     const asset = new Asset({
       assetId,
-      name, category, brand, model, serialNumber, purchaseDate, purchaseCost, vendorName, invoiceNumber, invoiceUrl, warrantyStartDate, warrantyEndDate, warrantyProvider, warrantyDocumentUrl, notes,
+      name: assetId, // Map name to assetId for database compatibility
+      category, brand, model, serialNumber, purchaseDate, purchaseCost, vendorName, invoiceNumber, invoiceUrl, warrantyStartDate, warrantyEndDate, warrantyProvider, warrantyDocumentUrl, notes,
       condition: condition || 'good',
       status: 'available',
       createdBy: req.user._id,
@@ -103,7 +93,7 @@ const getAssetById = async (req, res) => {
 
 const updateAsset = async (req, res) => {
   try {
-    const { name, category, brand, model, serialNumber, purchaseDate, purchaseCost, vendorName, invoiceNumber, invoiceUrl, warrantyStartDate, warrantyEndDate, warrantyProvider, warrantyDocumentUrl, notes, condition, status } = req.body;
+    const { assetId, category, brand, model, serialNumber, purchaseDate, purchaseCost, vendorName, invoiceNumber, invoiceUrl, warrantyStartDate, warrantyEndDate, warrantyProvider, warrantyDocumentUrl, notes, condition, status } = req.body;
     const asset = await Asset.findById(req.params.id);
 
     if (!asset || asset.isDeleted) {
@@ -117,7 +107,16 @@ const updateAsset = async (req, res) => {
       }
     }
 
-    if (name) asset.name = name;
+    if (assetId && assetId !== asset.assetId) {
+      const existingAssetId = await Asset.findOne({ assetId, isDeleted: false, _id: { $ne: req.params.id } });
+      if (existingAssetId) {
+        return res.status(400).json({ success: false, message: 'Asset ID already exists' });
+      }
+      asset.assetId = assetId;
+      asset.name = assetId;
+    }
+
+
     if (category) asset.category = category;
     if (brand) asset.brand = brand;
     if (model) asset.model = model;
@@ -547,11 +546,6 @@ const getDashboard = async (req, res) => {
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, 10);
 
-    const overdueReturns = await AssetAssignment.countDocuments({
-      status: 'active',
-      assignedDate: { $lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
-    });
-
     const longRunningRepairs = await AssetRepair.countDocuments({
       status: { $in: ['pending', 'in_progress'] },
       repairDate: { $lt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) },
@@ -563,7 +557,7 @@ const getDashboard = async (req, res) => {
         summary: { total, assigned, available, underRepair, lost, warrantyExpiringSoon },
         byCategory,
         recentActivities,
-        alerts: { overdueReturns, warrantiesExpiringThisMonth: warrantyExpiringSoon, longRunningRepairs },
+        alerts: { warrantiesExpiringThisMonth: warrantyExpiringSoon, longRunningRepairs },
       },
     });
   } catch (error) {

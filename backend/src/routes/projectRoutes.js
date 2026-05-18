@@ -26,6 +26,10 @@ import {
   getProjectTeam,
   getMyLeadingProjects,
   getMyDepartmentProjects,
+  getProjectCredentials,
+  addProjectCredential,
+  updateProjectCredential,
+  deleteProjectCredential,
 } from "../controllers/projectController.js";
 import {
   getProjectWorkspace,
@@ -206,7 +210,7 @@ router.get("/:id/workspace", protect, getProjectWorkspace);
 router.get("/:id/work-board", protect, getWorkBoard);
 router.get("/:id/team-workload", protect, getProjectTeamWorkload);
 
-export default router;
+
 
 
 // ============================================
@@ -270,3 +274,33 @@ router.get(
   protect,
   getWorkItemsGroupedBySlots
 );
+
+// ============================================
+// PROJECT CREDENTIALS ROUTES
+// ============================================
+
+router.get(
+  "/:id/credentials",
+  protect,
+  getProjectCredentials
+);
+
+router.post(
+  "/:id/credentials",
+  protect,
+  addProjectCredential
+);
+
+router.put(
+  "/:id/credentials/:credentialId",
+  protect,
+  updateProjectCredential
+);
+
+router.delete(
+  "/:id/credentials/:credentialId",
+  protect,
+  deleteProjectCredential
+);
+
+export default router;

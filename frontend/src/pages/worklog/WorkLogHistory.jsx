@@ -11,8 +11,9 @@ import {
   Spinner,
   Pagination,
   Modal,
+  Alert,
 } from "react-bootstrap";
-import { FaEye, FaEdit, FaDownload, FaSave } from "react-icons/fa";
+import { FaEye, FaEdit, FaDownload, FaSave, FaExclamationTriangle } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { workLogApi } from "../../api/workLogApi";
 import {
@@ -242,6 +243,7 @@ const WorkLogHistory = () => {
                       <option value="all">All</option>
                       <option value="submitted">Submitted</option>
                       <option value="reviewed">Reviewed</option>
+                      <option value="concern_raised">Concern Raised</option>
                     </Form.Select>
                   </Form.Group>
                 </Col>
@@ -292,7 +294,14 @@ const WorkLogHistory = () => {
                       </thead>
                       <tbody>
                         {workLogs.map((log) => (
-                          <tr key={log._id}>
+                          <tr
+                            key={log._id}
+                            style={
+                              log.status === "concern_raised"
+                                ? { background: "#fff3cd", borderLeft: "4px solid #ffc107" }
+                                : undefined
+                            }
+                          >
                             <td>{formatWorkLogDate(log.date)}</td>
                             <td>
                               <div style={{ maxWidth: "300px" }}>
@@ -300,9 +309,16 @@ const WorkLogHistory = () => {
                               </div>
                             </td>
                             <td>
-                              <Badge bg={getWorkLogStatusBadge(log.status)}>
-                                {log.status}
-                              </Badge>
+                              {log.status === "concern_raised" ? (
+                                <Badge bg="warning" text="dark" className="d-flex align-items-center gap-1" style={{ width: "fit-content" }}>
+                                  <FaExclamationTriangle size={10} />
+                                  Concern Raised
+                                </Badge>
+                              ) : (
+                                <Badge bg={getWorkLogStatusBadge(log.status)}>
+                                  {log.status}
+                                </Badge>
+                              )}
                               {log.isLateSubmission && (
                                 <Badge bg="warning" className="ms-1">
                                   Late
@@ -329,11 +345,13 @@ const WorkLogHistory = () => {
                               >
                                 <FaEye />
                               </Button>
-                              {log.status !== "reviewed" && (
+                              {/* Allow edit for submitted and concern_raised; not for reviewed */}
+                              {(log.status === "submitted" || log.status === "concern_raised") && (
                                 <Button
-                                  variant="outline-secondary"
+                                  variant={log.status === "concern_raised" ? "warning" : "outline-secondary"}
                                   size="sm"
                                   onClick={() => handleEdit(log)}
+                                  title={log.status === "concern_raised" ? "Concern raised — edit and resubmit" : "Edit"}
                                 >
                                   <FaEdit />
                                 </Button>
@@ -369,9 +387,33 @@ const WorkLogHistory = () => {
       {/* Edit Modal */}
       <Modal show={showEditModal} onHide={() => setShowEditModal(false)} size="lg" centered>
         <Modal.Header closeButton>
-          <Modal.Title>Edit Work Log</Modal.Title>
+          <Modal.Title>
+            {selectedLog?.status === "concern_raised" ? (
+              <span className="d-flex align-items-center gap-2">
+                <FaExclamationTriangle className="text-warning" />
+                Edit &amp; Resubmit Work Log
+              </span>
+            ) : (
+              "Edit Work Log"
+            )}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
+          {/* Show concern note if this is a concern_raised log */}
+          {selectedLog?.status === "concern_raised" && selectedLog?.concernNote && (
+            <Alert variant="warning" className="d-flex align-items-start gap-2">
+              <FaExclamationTriangle className="mt-1 flex-shrink-0" />
+              <div>
+                <strong>Concern raised by reviewer:</strong>
+                <br />
+                {selectedLog.concernNote}
+                <br />
+                <small className="text-muted mt-1 d-block">
+                  Please address this concern and resubmit your work log.
+                </small>
+              </div>
+            </Alert>
+          )}
           <Form>
             <Form.Group className="mb-3">
               <Form.Label>
@@ -401,12 +443,16 @@ const WorkLogHistory = () => {
             Cancel
           </Button>
           <Button
-            variant="primary"
+            variant={selectedLog?.status === "concern_raised" ? "warning" : "primary"}
             onClick={handleUpdateWorkLog}
             disabled={updating || charCount < 50}
           >
             <FaSave className="me-1" />
-            {updating ? "Updating..." : "Update Work Log"}
+            {updating
+              ? "Updating..."
+              : selectedLog?.status === "concern_raised"
+              ? "Resubmit Work Log"
+              : "Update Work Log"}
           </Button>
         </Modal.Footer>
       </Modal>

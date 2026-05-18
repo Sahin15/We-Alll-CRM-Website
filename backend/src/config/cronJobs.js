@@ -8,6 +8,7 @@ import Notification from "../models/notificationModel.js";
 import Slot from "../models/slotModel.js";
 import Attendance from "../models/attendanceModel.js";
 import Meeting from "../models/meetingModel.js";
+import ProcurementInvoice from "../models/procurementInvoiceModel.js";
 import { notifySlotDeadlineApproaching, notifySlotOverdue } from "../utils/slotNotifications.js";
 import NotificationService from "../services/notificationService.js";
 
@@ -668,11 +669,84 @@ const sendProjectDeadlineReminders = async () => {
   }
 };
 
+// Cron job: Notify admins/accounts of procurement invoices due within 7 days
+const checkProcurementInvoicesDueSoon = async () => {
+  try {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    sevenDaysLater.setHours(23, 59, 59, 999);
+
+    // Find invoices due within the next 7 days that are not yet paid
+    const dueInvoices = await ProcurementInvoice.find({
+      dueDate: { $gte: now, $lte: sevenDaysLater },
+      paymentStatus: { $ne: 'paid' },
+    })
+      .populate('vendor', 'name')
+      .populate('purchaseOrder', 'poNumber');
+
+    if (dueInvoices.length === 0) {
+      return;
+    }
+
+    // Find all users with admin, superadmin, or accounts roles
+    const recipients = await User.find({
+      role: { $in: ['admin', 'superadmin', 'accounts'] },
+      status: 'active',
+    }).select('_id');
+
+    if (recipients.length === 0) {
+      return;
+    }
+
+    const recipientIds = recipients.map((u) => u._id.toString());
+
+    for (const invoice of dueInvoices) {
+      const daysUntilDue = Math.ceil(
+        (new Date(invoice.dueDate) - new Date()) / (1000 * 60 * 60 * 24)
+      );
+      const vendorName = invoice.vendor?.name || 'Unknown Vendor';
+      const poNumber = invoice.purchaseOrder?.poNumber || '—';
+      const dueDateStr = new Date(invoice.dueDate).toLocaleDateString('en-IN');
+
+      const title = `⚠️ Procurement Invoice Due in ${daysUntilDue} Day${daysUntilDue !== 1 ? 's' : ''}`;
+      const body = `Invoice ${invoice.vendorInvoiceNumber} from ${vendorName} (PO: ${poNumber}) — ₹${invoice.outstandingBalance?.toLocaleString('en-IN') ?? invoice.invoiceAmount?.toLocaleString('en-IN')} outstanding — due on ${dueDateStr}.`;
+
+      await NotificationService.sendToMultiple(recipientIds, title, body, {
+        type: 'procurement_invoice_due',
+        data: {
+          invoiceId: invoice._id.toString(),
+          vendorInvoiceNumber: invoice.vendorInvoiceNumber,
+          vendorName,
+          poNumber,
+          dueDate: invoice.dueDate,
+          outstandingBalance: invoice.outstandingBalance,
+          paymentStatus: invoice.paymentStatus,
+        },
+        actionUrl: `/procurement/invoices/${invoice._id}`,
+        priority: daysUntilDue <= 2 ? 'high' : 'normal',
+      });
+    }
+
+    console.log(
+      `[CronJob] checkProcurementInvoicesDueSoon: notified ${recipients.length} user(s) about ${dueInvoices.length} invoice(s) due within 7 days.`
+    );
+  } catch (error) {
+    console.error('[CronJob] checkProcurementInvoicesDueSoon error:', error.message);
+  }
+};
+
 // Schedule cron jobs
 export const initializeCronJobs = () => {
   // Run daily at 9 AM: Check bills due soon (7 days and 3 days)
   cron.schedule("0 9 * * *", () => {
     checkBillsDueSoon();
+  });
+
+  // Run daily at 9 AM: Check procurement invoices due within 7 days
+  cron.schedule("0 9 * * *", () => {
+    checkProcurementInvoicesDueSoon();
   });
 
   // Run daily at 10 AM: Mark overdue bills/payments and notify

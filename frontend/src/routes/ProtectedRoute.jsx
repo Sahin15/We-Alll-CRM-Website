@@ -17,8 +17,7 @@ const ProtectedRoute = ({ children }) => {
       >
         <div className="text-center">
           {/* Logo */}
-          <img 
-            src="/We Alll Office Logo.png" 
+          <img loading="lazy" src="/We Alll Office Logo.png" 
             alt="We Alll Office" 
             style={{ 
               width: "200px", 
@@ -56,3 +55,4 @@ const ProtectedRoute = ({ children }) => {
 };
 
 export default ProtectedRoute;
+

@@ -6,6 +6,7 @@ import logger from '../utils/logger.js';
 import { optimizedProjectPopulate, buildTextSearch } from '../utils/queryOptimizer.js';
 import { canViewAllProjects } from '../utils/permissions.js';
 import NotificationService from "../services/notificationService.js";
+import { encrypt, decrypt } from "../utils/encryption.js";
 // Temporarily removed imports for debugging
 // import WorkItem from "../models/workItemModel.js";
 // import Slot from "../models/slotModel.js";
@@ -1463,5 +1464,162 @@ export const getMyDepartmentProjects = async (req, res) => {
       message: "Error fetching department projects",
       error: error.message,
     });
+  }
+};
+
+// ==========================================
+// Project Credentials Management
+// ==========================================
+
+export const getProjectCredentials = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const project = await Project.findById(id)
+      .select('+credentials.password')
+      .populate('projectHead', 'name email role')
+      .populate('assignedUsers', 'name email role')
+      .populate('teamMembers.user', 'name email role');
+      
+    if (!project) return res.status(404).json({ message: "Project not found" });
+
+    // Authorization: User must have access to project
+    const hasAccess = await userHasProjectAccess(req.user.id, req.user.role, project);
+    if (!hasAccess) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    // Determine if user can view password
+    let canViewPassword = false;
+    const user = await User.findById(req.user.id).populate("department");
+    if (['superadmin', 'admin'].includes(user.role)) {
+      canViewPassword = true;
+    } else if (user.role === 'manager' && user.department && user.department.name === 'Digital Marketing') {
+      canViewPassword = true;
+    }
+
+    // Decrypt passwords
+    const decryptedCredentials = project.credentials.map(cred => {
+      const credObj = cred.toObject();
+      credObj.password = canViewPassword ? decrypt(credObj.password) : "********";
+      return credObj;
+    });
+
+    // Compile access users
+    const accessUsersMap = new Map();
+    if (project.projectHead) {
+      accessUsersMap.set(project.projectHead._id.toString(), project.projectHead);
+    }
+    if (project.assignedUsers) {
+      project.assignedUsers.forEach(u => accessUsersMap.set(u._id.toString(), u));
+    }
+    if (project.teamMembers) {
+      project.teamMembers.forEach(tm => {
+        if (tm.user) accessUsersMap.set(tm.user._id.toString(), tm.user);
+      });
+    }
+    const accessUsers = Array.from(accessUsersMap.values());
+
+    res.status(200).json({ 
+      success: true, 
+      data: decryptedCredentials, 
+      canViewPassword,
+      accessUsers
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
+export const addProjectCredential = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { platform, url, username, password, notes } = req.body;
+
+    if (!platform || !username || !password) {
+      return res.status(400).json({ message: "Platform, username, and password are required" });
+    }
+
+    const project = await Project.findById(id);
+    if (!project) return res.status(404).json({ message: "Project not found" });
+
+    // Authorization
+    const hasAccess = await userHasProjectAccess(req.user.id, req.user.role, project);
+    if (!hasAccess) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const encryptedPassword = encrypt(password);
+    if (!encryptedPassword) {
+      return res.status(500).json({ message: "Encryption failed" });
+    }
+
+    project.credentials.push({
+      platform,
+      url,
+      username,
+      password: encryptedPassword,
+      notes,
+      addedBy: req.user._id
+    });
+
+    await project.save();
+
+    res.status(201).json({ success: true, message: "Credential added successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
+export const updateProjectCredential = async (req, res) => {
+  try {
+    const { id, credentialId } = req.params;
+    const { platform, url, username, password, notes } = req.body;
+
+    const project = await Project.findById(id).select('+credentials.password');
+    if (!project) return res.status(404).json({ message: "Project not found" });
+
+    const hasAccess = await userHasProjectAccess(req.user.id, req.user.role, project);
+    if (!hasAccess) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const credential = project.credentials.id(credentialId);
+    if (!credential) return res.status(404).json({ message: "Credential not found" });
+
+    if (platform) credential.platform = platform;
+    if (url !== undefined) credential.url = url;
+    if (username) credential.username = username;
+    if (password) {
+      const encryptedPassword = encrypt(password);
+      if (!encryptedPassword) return res.status(500).json({ message: "Encryption failed" });
+      credential.password = encryptedPassword;
+    }
+    if (notes !== undefined) credential.notes = notes;
+
+    await project.save();
+    res.status(200).json({ success: true, message: "Credential updated successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
+export const deleteProjectCredential = async (req, res) => {
+  try {
+    const { id, credentialId } = req.params;
+
+    const project = await Project.findById(id);
+    if (!project) return res.status(404).json({ message: "Project not found" });
+
+    const hasAccess = await userHasProjectAccess(req.user.id, req.user.role, project);
+    if (!hasAccess) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    project.credentials.pull(credentialId);
+    await project.save();
+
+    res.status(200).json({ success: true, message: "Credential deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };

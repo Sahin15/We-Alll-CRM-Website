@@ -9,6 +9,8 @@ import SimplifiedTeamTab from '../../components/projects/workspace/SimplifiedTea
 import UnifiedWorkTab from '../../components/projects/workspace/UnifiedWorkTab';
 import KanbanTab from '../../components/projects/workspace/KanbanTab';
 import SlotHistory from '../../components/projects/workspace/SlotHistory';
+import ProjectCredentials from '../../components/projects/ProjectCredentials';
+import { useAuth } from '../../context/AuthContext';
 
 /**
  * ProjectWorkspace Component
@@ -22,6 +24,17 @@ const ProjectWorkspace = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [refreshKey, setRefreshKey] = useState(0); // Add refresh key to force component updates
+  const { user } = useAuth();
+
+  const canEdit = ["admin", "superadmin", "hod"].includes(user?.role) || 
+                  (project?.projectHead?._id === user?._id) || 
+                  (project?.projectHead === user?._id);
+  
+  const isTeamMember = project?.teamMembers?.some(
+    member => member.user?._id === user?._id || member.user === user?._id
+  ) || project?.assignedUsers?.some(
+    userId => userId === user?._id || userId._id === user?._id
+  );
 
   useEffect(() => {
     loadProject();
@@ -165,6 +178,19 @@ const ProjectWorkspace = () => {
           }
         >
           <OverviewTab project={project} onRefresh={loadProject} />
+        </Tab>
+        
+        <Tab 
+          eventKey="credentials" 
+          title={
+            <span style={{ fontWeight: activeTab === 'credentials' ? '600' : '500' }}>
+              🔒 Credentials
+            </span>
+          }
+        >
+          <div className="mt-3">
+            <ProjectCredentials projectId={id} canEdit={canEdit || isTeamMember} />
+          </div>
         </Tab>
         
         <Tab 

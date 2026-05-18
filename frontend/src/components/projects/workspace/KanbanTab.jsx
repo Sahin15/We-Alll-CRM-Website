@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Row, Col, Card, Badge, Button } from 'react-bootstrap';
+import { Row, Col, Card, Badge, Button, Modal, Form } from 'react-bootstrap';
 import { FaEdit, FaTrash, FaEye } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../../context/AuthContext';
@@ -20,8 +20,11 @@ const KanbanTab = ({ project, onRefresh }) => {
   const [draggedItem, setDraggedItem] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedWorkItem, setSelectedWorkItem] = useState(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelTargetItem, setCancelTargetItem] = useState(null);
+  const [cancellationReason, setCancellationReason] = useState('');
 
-  const statuses = ['To Do', 'In Progress', 'Done'];
+  const statuses = ['To Do', 'In Progress', 'Done', 'Cancelled'];
   const isSlotBased = project.slotConfiguration?.enableSlotSystem;
 
   useEffect(() => {
@@ -89,6 +92,14 @@ const KanbanTab = ({ project, onRefresh }) => {
       return;
     }
 
+    if (newStatus === 'Cancelled') {
+      setCancelTargetItem(draggedItem);
+      setCancellationReason('');
+      setShowCancelModal(true);
+      setDraggedItem(null);
+      return;
+    }
+
     try {
       await workItemApi.updateStatus(draggedItem._id, newStatus);
       toast.success('Status updated successfully!');
@@ -112,9 +123,9 @@ const KanbanTab = ({ project, onRefresh }) => {
     }
   };
 
-  const handleUpdateStatus = async (itemId, newStatus, itemType) => {
+  const handleUpdateStatus = async (itemId, newStatus, backDate = null, cancellationReason = null) => {
     try {
-      await workItemApi.updateStatus(itemId, newStatus);
+      await workItemApi.updateStatus(itemId, newStatus, backDate, cancellationReason);
       toast.success('Status updated successfully!');
       loadData();
       if (onRefresh) onRefresh();
@@ -122,6 +133,26 @@ const KanbanTab = ({ project, onRefresh }) => {
       console.error('Error updating status:', error);
       toast.error(error.response?.data?.message || 'Failed to update status');
       throw error;
+    }
+  };
+
+  const handleConfirmCancellation = async () => {
+    const trimmedReason = cancellationReason.trim();
+    if (!cancelTargetItem || trimmedReason.length < 25) {
+      return;
+    }
+
+    try {
+      await workItemApi.updateStatus(cancelTargetItem._id, 'Cancelled', null, trimmedReason);
+      toast.success('Work cancelled successfully!');
+      setShowCancelModal(false);
+      setCancelTargetItem(null);
+      setCancellationReason('');
+      loadData();
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error('Error cancelling work item:', error);
+      toast.error(error.response?.data?.error?.message || error.response?.data?.message || 'Failed to cancel work item');
     }
   };
 
@@ -166,7 +197,8 @@ const KanbanTab = ({ project, onRefresh }) => {
       'available': 'secondary',
       'assigned': 'primary',
       'in-progress': 'warning',
-      'completed': 'success'
+      'completed': 'success',
+      'Cancelled': 'danger'
     };
     return variants[status] || 'secondary';
   };
@@ -426,6 +458,65 @@ const KanbanTab = ({ project, onRefresh }) => {
           }}
         />
       )}
+
+      <Modal
+        show={showCancelModal}
+        onHide={() => {
+          setShowCancelModal(false);
+          setCancelTargetItem(null);
+          setCancellationReason('');
+        }}
+        centered
+        backdrop="static"
+      >
+        <Modal.Header closeButton className="bg-danger text-white">
+          <Modal.Title style={{ fontSize: '1.1rem' }}>Confirm Work Cancellation</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="text-muted">
+            Are you sure you want to cancel <strong>{cancelTargetItem?.title}</strong>?
+            This requires a reason and cannot be changed back later.
+          </p>
+          <Form.Group>
+            <Form.Label className="fw-semibold">Cancellation Reason</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={4}
+              value={cancellationReason}
+              onChange={(e) => setCancellationReason(e.target.value)}
+              placeholder="Explain why this work is being cancelled..."
+              isInvalid={cancellationReason.trim().length > 0 && cancellationReason.trim().length < 25}
+            />
+            <Form.Control.Feedback type="invalid">
+              Please enter at least 25 characters.
+            </Form.Control.Feedback>
+            <div className="text-end mt-1">
+              <small className={cancellationReason.trim().length < 25 ? 'text-danger' : 'text-success'}>
+                {cancellationReason.trim().length}/25 characters
+              </small>
+            </div>
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="outline-secondary"
+            onClick={() => {
+              setShowCancelModal(false);
+              setCancelTargetItem(null);
+              setCancellationReason('');
+            }}
+          >
+            Go Back
+          </Button>
+          <Button
+            variant="danger"
+            disabled={cancellationReason.trim().length < 25}
+            onClick={handleConfirmCancellation}
+          >
+            Confirm Cancellation
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };

@@ -41,8 +41,7 @@ export default function MobileAppLogin() {
     }}>
       {/* Logo */}
       <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-        <img
-          src="/Wealll_mini.png"
+        <img loading="lazy" src="/Wealll_mini.png"
           alt="WeAlll Office"
           style={{ width: '72px', height: '72px', objectFit: 'contain', borderRadius: '18px', background: 'rgba(255,255,255,0.2)', padding: '10px', marginBottom: '12px' }}
         />
@@ -148,3 +147,4 @@ export default function MobileAppLogin() {
     </div>
   );
 }
+

@@ -612,8 +612,7 @@ const FileAttachments = ({
               <h6 className="mb-3">{previewFile.name}</h6>
               
               {previewFile.type.startsWith('image/') ? (
-                <img 
-                  src={previewFile.url} 
+                <img loading="lazy" src={previewFile.url} 
                   alt={previewFile.name}
                   style={{ maxWidth: '100%', maxHeight: '400px' }}
                   className="rounded"

@@ -43,8 +43,7 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
             <Col md={6} className="text-center text-md-start mb-2 mb-md-0">
               <div className="d-flex align-items-center justify-content-center justify-content-md-start">
                 <div className="logo-full-container">
-                  <img 
-                    src="/We Alll Office Logo.png" 
+                  <img loading="lazy" src="/We Alll Office Logo.png" 
                     alt="We Alll Office" 
                     className="logo-img-full"
                   />
@@ -483,3 +482,4 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
 };
 
 export default Footer;
+

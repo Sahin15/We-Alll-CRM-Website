@@ -723,8 +723,7 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
           {imageSrc && (
             <div className="crop-container" ref={cropContainerRef}>
               <div className="image-crop-wrapper">
-                <img
-                  ref={cropImageRef}
+                <img loading="lazy" ref={cropImageRef}
                   src={imageSrc}
                   alt="Crop preview"
                   className="crop-image"

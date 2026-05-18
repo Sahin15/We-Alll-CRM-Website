@@ -1,4 +1,5 @@
 import { Modal, Badge, Alert } from "react-bootstrap";
+import { FaExclamationTriangle } from "react-icons/fa";
 import {
   formatWorkLogDate,
   formatWorkLogDateTime,
@@ -100,6 +101,39 @@ const WorkLogViewModal = ({ show, onHide, workLog }) => {
                     <strong>Review Notes:</strong>
                     <br />
                     {workLog.reviewNotes}
+                  </p>
+                </>
+              )}
+            </Alert>
+          </div>
+        )}
+
+        {/* Concern Information */}
+        {workLog.status === "concern_raised" && (
+          <div className="mb-3">
+            <Alert variant="warning">
+              <h6 className="d-flex align-items-center gap-2">
+                <FaExclamationTriangle />
+                Concern Raised
+              </h6>
+              {workLog.concernRaisedBy && (
+                <p className="mb-1">
+                  <strong>Raised By:</strong> {workLog.concernRaisedBy?.name || "N/A"}
+                </p>
+              )}
+              {workLog.concernRaisedAt && (
+                <p className="mb-1">
+                  <strong>Raised At:</strong>{" "}
+                  {formatWorkLogDateTime(workLog.concernRaisedAt)}
+                </p>
+              )}
+              {workLog.concernNote && (
+                <>
+                  <hr />
+                  <p className="mb-0">
+                    <strong>Concern:</strong>
+                    <br />
+                    {workLog.concernNote}
                   </p>
                 </>
               )}

@@ -32,6 +32,8 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
   const [completionDate, setCompletionDate] = useState('');
   const [activating, setActivating] = useState(false);
   const [allTeamMembers, setAllTeamMembers] = useState([]);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState('');
 
   // Helper function to render mentions in text
   const renderMentions = (text) => {
@@ -251,14 +253,16 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
     const colors = {
       'To Do': 'secondary',
       'In Progress': 'primary',
+      'Review': 'warning',
       'Done': 'success',
+      'Cancelled': 'danger'
     };
     return colors[status] || 'secondary';
   };
 
-  const handleStatusUpdate = async (newStatus = status, backDate = null) => {
+  const handleStatusUpdate = async (newStatus = status, backDate = null, reason = null) => {
     const currentUserStatus = getUserStatus(workItem);
-    if (newStatus === currentUserStatus) {
+    if (newStatus === currentUserStatus && !reason) {
       return;
     }
 
@@ -266,13 +270,15 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
     setStatus(newStatus); // Update local state immediately for better UX
     
     try {
-      await onUpdate(workItem._id, newStatus, backDate);
+      await onUpdate(workItem._id, newStatus, backDate, reason);
       if (onRefresh) {
         onRefresh();
       }
-      // Reset completion date picker
+      // Reset state
       setShowCompletionDatePicker(false);
       setCompletionDate('');
+      setShowCancelModal(false);
+      setCancellationReason('');
     } catch (error) {
       console.error('Error updating status:', error);
       setStatus(workItem.status); // Revert on error
@@ -399,14 +405,14 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
     }
   };
 
-  const isOverdue = workItem.status !== 'Done' &&
+  const isOverdue = !['Done', 'Cancelled'].includes(workItem.status) &&
     workItem.dueDate && 
-    new Date(workItem.dueDate) < new Date() && 
-    workItem.status !== 'Done';
+    new Date(workItem.dueDate) < new Date();
 
   return (
+    <>
     <Modal show={show} onHide={onHide} size="lg" centered>
-      <Modal.Header closeButton style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', border: 'none' }}>
+      <Modal.Header closeButton style={{ background: workItem.status === 'Cancelled' ? 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', border: 'none' }}>
         <Modal.Title className="d-flex align-items-center w-100">
           <div className="d-flex align-items-center flex-grow-1">
             <Badge 
@@ -424,6 +430,30 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
       </Modal.Header>
 
       <Modal.Body style={{ padding: 0 }}>
+        {workItem.status === 'Cancelled' && (
+          <div style={{
+            background: 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)',
+            color: 'white',
+            padding: '14px 20px',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '12px',
+            borderBottom: '3px solid #a71d2a'
+          }}>
+            <span style={{ fontSize: '1.4rem', flexShrink: 0 }}>🚫</span>
+            <div>
+              <strong style={{ fontSize: '1rem', display: 'block', marginBottom: '4px' }}>
+                This work item has been CANCELLED
+              </strong>
+              {workItem.cancellationReason && (
+                <span style={{ fontSize: '0.9rem', opacity: 0.92 }}>
+                  <strong>Reason:</strong> {workItem.cancellationReason}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         {isOverdue && (
           <Alert variant="danger" className="m-3 mb-0" style={{ borderRadius: '8px' }}>
             <FaClock className="me-2" />
@@ -746,6 +776,12 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                     </Badge>
                   </div>
                 </div>
+
+                {workItem.status === 'Cancelled' && workItem.cancellationReason && (
+                  <Alert variant="danger" className="mt-2" style={{ borderRadius: '8px', fontSize: '0.9rem' }}>
+                    <strong>Cancellation Reason:</strong> {workItem.cancellationReason}
+                  </Alert>
+                )}
                 
                 {/* Activate Button for Draft/Scheduled Items */}
                 {(workItem.visibility === 'draft' || workItem.visibility === 'scheduled') && canEdit() && (
@@ -788,13 +824,13 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                   </div>
                 )}
                 
-                {canEdit() && (
+                {canEdit() && workItem.status !== 'Cancelled' && (
                   <>
                     <div className="mb-2">
                       <small className="text-muted">Change status to:</small>
                     </div>
                     <div className="d-flex gap-2 flex-wrap">
-                      {['To Do', 'In Progress', 'Done'].map((statusOption) => {
+                      {['To Do', 'In Progress', 'Done', 'Cancelled'].map((statusOption) => {
                         const userStatus = getUserStatus(workItem);
                         const isActive = userStatus === statusOption;
                         if (isActive) return null;
@@ -856,7 +892,11 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                             size="sm"
                             onClick={() => {
                               if (!loading) {
-                                handleStatusUpdate(statusOption);
+                                if (statusOption === 'Cancelled') {
+                                  setShowCancelModal(true);
+                                } else {
+                                  handleStatusUpdate(statusOption);
+                                }
                               }
                             }}
                             disabled={loading}
@@ -929,7 +969,7 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                   </>
                 )}
                 
-                {!canEdit() && (
+                {!canEdit() && workItem.status !== 'Cancelled' && (
                   <small className="text-muted d-block mt-2">
                     You don't have permission to change the status
                   </small>
@@ -1274,12 +1314,71 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
         </Tabs>
       </Modal.Body>
 
-      <Modal.Footer style={{ background: '#f8f9fa', borderTop: '2px solid #e9ecef' }}>
-        <Button variant="secondary" onClick={onHide} style={{ borderRadius: '6px', padding: '8px 20px' }}>
+      <Modal.Footer className="border-0 pb-4 pt-0">
+        <Button variant="secondary" onClick={onHide} style={{ borderRadius: '20px', padding: '8px 24px' }}>
           Close
         </Button>
       </Modal.Footer>
+
     </Modal>
+
+    {/* Cancellation Confirmation Modal */}
+    <Modal
+      show={showCancelModal}
+      onHide={() => setShowCancelModal(false)}
+      centered
+      backdrop="static"
+      size="md"
+    >
+      <Modal.Header closeButton style={{ background: '#dc3545', color: 'white' }}>
+        <Modal.Title style={{ fontSize: '1.1rem' }}>Confirm Work Cancellation</Modal.Title>
+      </Modal.Header>
+      <Modal.Body className="p-4">
+        <p className="text-muted mb-4">
+          Are you sure you want to cancel <strong>{workItem.title}</strong>?
+          This action will be logged and requires a valid reason.
+        </p>
+
+        <Form.Group className="mb-3">
+          <Form.Label className="fw-bold small text-uppercase text-muted">Cancellation Reason (Min 25 chars)</Form.Label>
+          <Form.Control
+            as="textarea"
+            rows={4}
+            placeholder="Explain why this work is being cancelled..."
+            value={cancellationReason}
+            onChange={(e) => setCancellationReason(e.target.value)}
+            style={{ borderRadius: '8px', resize: 'none' }}
+            isInvalid={cancellationReason.trim().length > 0 && cancellationReason.trim().length < 25}
+          />
+          <Form.Control.Feedback type="invalid">
+            Please provide at least 25 characters. Currently: {cancellationReason.trim().length} characters.
+          </Form.Control.Feedback>
+          <div className="text-end mt-1">
+            <small className={cancellationReason.trim().length < 25 ? "text-danger" : "text-success"}>
+              {cancellationReason.trim().length}/25 characters
+            </small>
+          </div>
+        </Form.Group>
+      </Modal.Body>
+      <Modal.Footer className="border-0 p-4 pt-0">
+        <Button
+          variant="outline-secondary"
+          onClick={() => setShowCancelModal(false)}
+          style={{ borderRadius: '20px', padding: '8px 20px' }}
+        >
+          Go Back
+        </Button>
+        <Button
+          variant="danger"
+          disabled={loading || cancellationReason.trim().length < 25}
+          onClick={() => handleStatusUpdate('Cancelled', null, cancellationReason.trim())}
+          style={{ borderRadius: '20px', padding: '8px 24px', fontWeight: '600' }}
+        >
+          {loading ? 'Processing...' : 'Confirm Cancellation'}
+        </Button>
+      </Modal.Footer>
+    </Modal>
+    </>
   );
 };
 

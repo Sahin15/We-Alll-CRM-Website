@@ -180,9 +180,9 @@ const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
     }
   };
 
-  const handleUpdateStatus = async (itemId, newStatus, itemType) => {
+  const handleUpdateStatus = async (itemId, newStatus, backDate = null, cancellationReason = null) => {
     try {
-      await workItemApi.updateStatus(itemId, newStatus);
+      await workItemApi.updateStatus(itemId, newStatus, backDate, cancellationReason);
       toast.success('Status updated successfully!');
       loadData();
       if (onRefresh) onRefresh();
@@ -262,7 +262,8 @@ const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
       'available': 'secondary',
       'assigned': 'primary',
       'in-progress': 'warning',
-      'completed': 'success'
+      'completed': 'success',
+      'Cancelled': 'danger'
     };
     return variants[status] || 'secondary';
   };

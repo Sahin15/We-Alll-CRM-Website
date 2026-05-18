@@ -35,8 +35,374 @@ import projectApi from '../../api/projectApi';
 import clientApi from '../../api/clientApi';
 import EmployeeWorkCalendar from '../../components/calendar/EmployeeWorkCalendar';
 import EmployeeWorkLogsTab from '../../components/worklog/EmployeeWorkLogsTab';
+import WorkItemDetailsModal from '../../components/workitems/WorkItemDetailsModal';
 import moment from 'moment';
 import './EnhancedEmployeeWorkView.css';
+
+/**
+ * Work Assignments Tab with date range filters
+ */
+const WorkAssignmentsTab = ({ recentWork, getStatusColor, getPriorityColor, onViewDetails }) => {
+  const [dateFilter, setDateFilter] = useState('this_month');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+
+  // Compute date range from the selected filter
+  const getDateRange = () => {
+    const now = moment();
+    switch (dateFilter) {
+      case 'this_week':
+        return { start: now.clone().startOf('isoWeek'), end: now.clone().endOf('isoWeek') };
+      case 'this_month':
+        return { start: now.clone().startOf('month'), end: now.clone().endOf('month') };
+      case 'last_month': {
+        const lastMonth = now.clone().subtract(1, 'month');
+        return { start: lastMonth.startOf('month'), end: lastMonth.clone().endOf('month') };
+      }
+      case 'custom':
+        return {
+          start: customStart ? moment(customStart).startOf('day') : null,
+          end: customEnd ? moment(customEnd).endOf('day') : null,
+        };
+      default:
+        return { start: null, end: null };
+    }
+  };
+
+  const { start, end } = getDateRange();
+
+  // Filter work items by dueDate within the selected range
+  const filteredWork = recentWork.filter(work => {
+    if (!work.dueDate) return dateFilter === 'all';
+    if (!start && !end) return true;
+    const due = moment(work.dueDate);
+    if (start && end) return due.isBetween(start, end, 'day', '[]');
+    if (start) return due.isSameOrAfter(start, 'day');
+    if (end) return due.isSameOrBefore(end, 'day');
+    return true;
+  });
+
+  const FILTERS = [
+    { key: 'this_week', label: 'This Week' },
+    { key: 'this_month', label: 'This Month' },
+    { key: 'last_month', label: 'Last Month' },
+    { key: 'custom', label: 'Custom' },
+    { key: 'all', label: 'All' },
+  ];
+
+  return (
+    <Row>
+      <Col lg={8}>
+        <div className="mb-3">
+          <h5>Work Assignments</h5>
+          <p className="text-muted">Detailed view of all work items and assignments</p>
+        </div>
+
+        {/* ── Date Filter Bar ── */}
+        <Card className="border-0 shadow-sm mb-3">
+          <Card.Body className="py-2 px-3">
+            <div className="d-flex flex-wrap align-items-center gap-2">
+              <span className="text-muted small fw-semibold me-1">Filter by due date:</span>
+              {FILTERS.map(f => (
+                <Button
+                  key={f.key}
+                  size="sm"
+                  variant={dateFilter === f.key ? 'primary' : 'outline-secondary'}
+                  onClick={() => setDateFilter(f.key)}
+                  style={{ borderRadius: '20px', padding: '3px 14px' }}
+                >
+                  {f.label}
+                </Button>
+              ))}
+            </div>
+
+            {/* Custom date pickers — only shown when Custom is selected */}
+            {dateFilter === 'custom' && (
+              <div className="d-flex flex-wrap align-items-center gap-2 mt-2 pt-2 border-top">
+                <span className="text-muted small">From:</span>
+                <input
+                  type="date"
+                  className="form-control form-control-sm"
+                  style={{ width: '150px' }}
+                  value={customStart}
+                  onChange={e => setCustomStart(e.target.value)}
+                />
+                <span className="text-muted small">To:</span>
+                <input
+                  type="date"
+                  className="form-control form-control-sm"
+                  style={{ width: '150px' }}
+                  value={customEnd}
+                  onChange={e => setCustomEnd(e.target.value)}
+                />
+                {(customStart || customEnd) && (
+                  <Button
+                    size="sm"
+                    variant="outline-secondary"
+                    style={{ borderRadius: '20px' }}
+                    onClick={() => { setCustomStart(''); setCustomEnd(''); }}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+            )}
+          </Card.Body>
+        </Card>
+
+        {/* ── Results count ── */}
+        <div className="mb-2">
+          <small className="text-muted">
+            Showing <strong>{filteredWork.length}</strong> of {recentWork.length} assignments
+            {start && end && (
+              <span> — {start.format('MMM D')} to {end.format('MMM D, YYYY')}</span>
+            )}
+          </small>
+        </div>
+
+        {filteredWork.length > 0 ? (
+          <div className="table-responsive">
+            <table className="table table-hover">
+              <thead className="table-light">
+                <tr>
+                  <th>Title</th>
+                  <th>Project</th>
+                  <th>Status</th>
+                  <th>Priority</th>
+                  <th>Due Date</th>
+                  <th>Progress</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredWork.map(work => {
+                  const isCancelled = work.status === 'Cancelled';
+                  return (
+                    <tr 
+                      key={work._id}
+                      style={isCancelled ? {
+                        background: 'linear-gradient(90deg, #fff5f5 0%, #fafafa 100%)',
+                        borderLeft: '4px solid #dc3545',
+                        opacity: 0.85
+                      } : {}}
+                    >
+                      <td>
+                        <div>
+                          <div className="d-flex align-items-center gap-2">
+                            <strong style={isCancelled ? { textDecoration: 'line-through', color: '#9ca3af' } : {}}>
+                              {work.title}
+                            </strong>
+                            {isCancelled && (
+                              <Badge 
+                                bg="danger" 
+                                style={{ fontSize: '0.7rem', padding: '2px 6px', flexShrink: 0, cursor: 'help' }}
+                                title={work.cancellationReason || 'No reason provided'}
+                              >
+                                🚫
+                              </Badge>
+                            )}
+                            {work.slotAssignment?.slotNumber && (
+                              <Badge bg="info" className="small">
+                                Slot {work.slotAssignment.slotNumber}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="small text-muted">{work.type}</div>
+                        </div>
+                      </td>
+                      <td>{work.project?.name || 'No Project'}</td>
+                      <td>
+                        <Badge bg={getStatusColor(work.status)}>
+                          {work.status}
+                        </Badge>
+                      </td>
+                      <td>
+                        <Badge bg={getPriorityColor(work.priority)}>
+                          {work.priority}
+                        </Badge>
+                      </td>
+                      <td>
+                        <div style={isCancelled ? { opacity: 0.6 } : {}}>
+                          {moment(work.dueDate).format('MMM DD, YYYY')}
+                          <div className="small text-muted">
+                            {!isCancelled && moment(work.dueDate).fromNow()}
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ width: '150px' }}>
+                        <div className="d-flex align-items-center gap-2" style={{ width: '100%' }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <ProgressBar
+                              now={work.status === 'Done' ? 100 :
+                                   work.status === 'In Progress' ? 50 :
+                                   work.status === 'Review' ? 75 :
+                                   work.status === 'Cancelled' ? 0 : 0}
+                              size="sm"
+                              variant={work.status === 'Done' ? 'success' : work.status === 'Cancelled' ? 'danger' : 'primary'}
+                              style={{ width: '100%' }}
+                            />
+                          </div>
+                          <small className="text-muted" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
+                            {work.status === 'Done' ? '100%' :
+                             work.status === 'In Progress' ? '50%' :
+                             work.status === 'Review' ? '75%' : '0%'}
+                          </small>
+                        </div>
+                      </td>
+                      <td>
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          onClick={() => onViewDetails(work)}
+                          style={{ borderRadius: '4px', padding: '4px 8px', fontSize: '0.85rem' }}
+                          title="View work item details"
+                        >
+                          View
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <Alert variant="info">
+            <FaTasks className="me-2" />
+            {recentWork.length === 0
+              ? 'No work assignments found for this employee.'
+              : 'No assignments found for the selected date range.'}
+          </Alert>
+        )}
+      </Col>
+
+      {/* Assignments Sidebar — stats reflect the filtered set */}
+      <Col lg={4}>
+        {/* Work Statistics */}
+        <Card className="border-0 shadow-sm mb-4">
+          <Card.Header className="bg-light">
+            <h6 className="mb-0">Work Statistics</h6>
+          </Card.Header>
+          <Card.Body>
+            <div className="d-flex justify-content-between mb-2">
+              <span>Total Assignments:</span>
+              <strong>{filteredWork.length}</strong>
+            </div>
+            <div className="d-flex justify-content-between mb-2">
+              <span>Completed:</span>
+              <strong className="text-success">
+                {filteredWork.filter(w => w.status === 'Done').length}
+              </strong>
+            </div>
+            <div className="d-flex justify-content-between mb-2">
+              <span>In Progress:</span>
+              <strong className="text-primary">
+                {filteredWork.filter(w => w.status === 'In Progress').length}
+              </strong>
+            </div>
+            <div className="d-flex justify-content-between">
+              <span>Pending:</span>
+              <strong className="text-warning">
+                {filteredWork.filter(w => w.status === 'To Do').length}
+              </strong>
+            </div>
+          </Card.Body>
+        </Card>
+
+        {/* Priority Breakdown */}
+        <Card className="border-0 shadow-sm mb-4">
+          <Card.Header className="bg-light">
+            <h6 className="mb-0">Priority Breakdown</h6>
+          </Card.Header>
+          <Card.Body>
+            <div className="d-flex justify-content-between mb-2">
+              <span className="text-danger">Urgent:</span>
+              <Badge bg="danger">
+                {filteredWork.filter(w => w.priority === 'urgent').length}
+              </Badge>
+            </div>
+            <div className="d-flex justify-content-between mb-2">
+              <span className="text-warning">High:</span>
+              <Badge bg="warning">
+                {filteredWork.filter(w => w.priority === 'high').length}
+              </Badge>
+            </div>
+            <div className="d-flex justify-content-between mb-2">
+              <span className="text-info">Medium:</span>
+              <Badge bg="info">
+                {filteredWork.filter(w => w.priority === 'medium').length}
+              </Badge>
+            </div>
+            <div className="d-flex justify-content-between">
+              <span className="text-muted">Low:</span>
+              <Badge bg="light" text="dark">
+                {filteredWork.filter(w => w.priority === 'low').length}
+              </Badge>
+            </div>
+          </Card.Body>
+        </Card>
+
+        {/* Upcoming Deadlines (from filtered set) */}
+        <Card className="border-0 shadow-sm mb-4">
+          <Card.Header className="bg-light">
+            <h6 className="mb-0">Upcoming Deadlines</h6>
+          </Card.Header>
+          <Card.Body>
+            {filteredWork
+              .filter(w => !['Done', 'Cancelled'].includes(w.status))
+              .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+              .slice(0, 5)
+              .map(work => (
+                <div key={work._id} className="d-flex justify-content-between align-items-center mb-2">
+                  <div className="flex-grow-1">
+                    <div className="small fw-semibold">{work.title}</div>
+                    <small className="text-muted">{work.project?.name || 'No Project'}</small>
+                  </div>
+                  <div className="text-end">
+                    <small className={`fw-bold ${moment(work.dueDate).isBefore(moment()) ? 'text-danger' : 'text-muted'}`}>
+                      {moment(work.dueDate).format('MMM DD')}
+                    </small>
+                  </div>
+                </div>
+              ))}
+            {filteredWork.filter(w => !['Done', 'Cancelled'].includes(w.status)).length === 0 && (
+              <small className="text-muted">No pending deadlines in this range</small>
+            )}
+          </Card.Body>
+        </Card>
+
+        {/* Status Quick Filters */}
+        <Card className="border-0 shadow-sm">
+          <Card.Header className="bg-light">
+            <h6 className="mb-0">Status Summary</h6>
+          </Card.Header>
+          <Card.Body>
+            <div className="d-grid gap-2">
+              <div className="d-flex justify-content-between align-items-center p-2 rounded bg-danger bg-opacity-10">
+                <span className="small text-danger fw-semibold">Overdue</span>
+                <Badge bg="danger">
+                  {filteredWork.filter(w => moment(w.dueDate).isBefore(moment(), 'day') && !['Done', 'Cancelled'].includes(w.status)).length}
+                </Badge>
+              </div>
+              <div className="d-flex justify-content-between align-items-center p-2 rounded bg-warning bg-opacity-10">
+                <span className="small text-warning fw-semibold">Due Today</span>
+                <Badge bg="warning" text="dark">
+                  {filteredWork.filter(w => moment(w.dueDate).isSame(moment(), 'day') && !['Done', 'Cancelled'].includes(w.status)).length}
+                </Badge>
+              </div>
+              <div className="d-flex justify-content-between align-items-center p-2 rounded bg-info bg-opacity-10">
+                <span className="small text-info fw-semibold">In Review</span>
+                <Badge bg="info">
+                  {filteredWork.filter(w => w.status === 'Review').length}
+                </Badge>
+              </div>
+            </div>
+          </Card.Body>
+        </Card>
+      </Col>
+    </Row>
+  );
+};
 
 /**
  * Enhanced Employee Work View Page
@@ -53,6 +419,8 @@ const EnhancedEmployeeWorkView = () => {
   const [recentWork, setRecentWork] = useState([]);
   const [employeeProjects, setEmployeeProjects] = useState([]);
   const [employeeClients, setEmployeeClients] = useState([]);
+  const [selectedWorkItem, setSelectedWorkItem] = useState(null);
+  const [showWorkDetailsModal, setShowWorkDetailsModal] = useState(false);
 
   const currentEmployeeId = userId || user?.id || user?._id;
   const isOwnProfile = currentEmployeeId === (user?.id || user?._id);
@@ -140,6 +508,7 @@ const EnhancedEmployeeWorkView = () => {
       'In Progress': 'primary',
       'Review': 'warning',
       'Done': 'success',
+      'Cancelled': 'danger',
       'Blocked': 'danger'
     };
     return colors[status] || 'secondary';
@@ -153,6 +522,24 @@ const EnhancedEmployeeWorkView = () => {
       'urgent': 'danger'
     };
     return colors[priority] || 'secondary';
+  };
+
+  const handleViewWorkDetails = (workItem) => {
+    setSelectedWorkItem(workItem);
+    setShowWorkDetailsModal(true);
+  };
+
+  const handleUpdateWorkStatus = async (itemId, newStatus, completedAt = null, cancellationReason = null) => {
+    try {
+      await workItemApi.updateStatus(itemId, newStatus, completedAt, cancellationReason);
+      loadEmployeeWorkData();
+      if (selectedWorkItem && selectedWorkItem._id === itemId) {
+        setSelectedWorkItem({ ...selectedWorkItem, status: newStatus, cancellationReason });
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error(error.response?.data?.error?.message || 'Failed to update status');
+    }
   };
 
   if (loading) {
@@ -559,208 +946,12 @@ const EnhancedEmployeeWorkView = () => {
 
               {/* Work Assignments Tab */}
               <Tab.Pane eventKey="assignments">
-                <Row>
-                  <Col lg={8}>
-                    <div className="mb-3">
-                      <h5>Work Assignments</h5>
-                      <p className="text-muted">Detailed view of all work items and assignments</p>
-                    </div>
-                    
-                    {recentWork.length > 0 ? (
-                      <div className="table-responsive">
-                        <table className="table table-hover">
-                          <thead className="table-light">
-                            <tr>
-                              <th>Title</th>
-                              <th>Project</th>
-                              <th>Status</th>
-                              <th>Priority</th>
-                              <th>Due Date</th>
-                              <th>Progress</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {recentWork.map(work => (
-                              <tr key={work._id}>
-                                <td>
-                                  <div>
-                                    <div className="d-flex align-items-center gap-2">
-                                      <strong>{work.title}</strong>
-                                      {work.slotAssignment?.slotNumber && (
-                                        <Badge bg="info" className="small">
-                                          Slot {work.slotAssignment.slotNumber}
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    <div className="small text-muted">{work.type}</div>
-                                  </div>
-                                </td>
-                                <td>{work.project?.name || 'No Project'}</td>
-                                <td>
-                                  <Badge bg={getStatusColor(work.status)}>
-                                    {work.status}
-                                  </Badge>
-                                </td>
-                                <td>
-                                  <Badge bg={getPriorityColor(work.priority)}>
-                                    {work.priority}
-                                  </Badge>
-                                </td>
-                                <td>
-                                  <div>
-                                    {moment(work.dueDate).format('MMM DD, YYYY')}
-                                    <div className="small text-muted">
-                                      {moment(work.dueDate).fromNow()}
-                                    </div>
-                                  </div>
-                                </td>
-                                <td>
-                                  <div className="d-flex align-items-center">
-                                    <div className="flex-grow-1 me-2">
-                                      <ProgressBar 
-                                        now={work.status === 'Done' ? 100 : 
-                                             work.status === 'In Progress' ? 50 : 
-                                             work.status === 'Review' ? 75 : 0}
-                                        size="sm"
-                                        variant={work.status === 'Done' ? 'success' : 'primary'}
-                                      />
-                                    </div>
-                                    <small className="text-muted">
-                                      {work.status === 'Done' ? '100%' : 
-                                       work.status === 'In Progress' ? '50%' : 
-                                       work.status === 'Review' ? '75%' : '0%'}
-                                    </small>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <Alert variant="info">
-                        <FaTasks className="me-2" />
-                        No work assignments found for this employee.
-                      </Alert>
-                    )}
-                  </Col>
-
-                  {/* Assignments Sidebar */}
-                  <Col lg={4}>
-                    {/* Work Statistics */}
-                    <Card className="border-0 shadow-sm mb-4">
-                      <Card.Header className="bg-light">
-                        <h6 className="mb-0">Work Statistics</h6>
-                      </Card.Header>
-                      <Card.Body>
-                        <div className="d-flex justify-content-between mb-2">
-                          <span>Total Assignments:</span>
-                          <strong>{recentWork.length}</strong>
-                        </div>
-                        <div className="d-flex justify-content-between mb-2">
-                          <span>Completed:</span>
-                          <strong className="text-success">
-                            {recentWork.filter(w => w.status === 'Done').length}
-                          </strong>
-                        </div>
-                        <div className="d-flex justify-content-between mb-2">
-                          <span>In Progress:</span>
-                          <strong className="text-primary">
-                            {recentWork.filter(w => w.status === 'In Progress').length}
-                          </strong>
-                        </div>
-                        <div className="d-flex justify-content-between">
-                          <span>Pending:</span>
-                          <strong className="text-warning">
-                            {recentWork.filter(w => w.status === 'To Do').length}
-                          </strong>
-                        </div>
-                      </Card.Body>
-                    </Card>
-
-                    {/* Priority Breakdown */}
-                    <Card className="border-0 shadow-sm mb-4">
-                      <Card.Header className="bg-light">
-                        <h6 className="mb-0">Priority Breakdown</h6>
-                      </Card.Header>
-                      <Card.Body>
-                        <div className="d-flex justify-content-between mb-2">
-                          <span className="text-danger">Urgent:</span>
-                          <Badge bg="danger">
-                            {recentWork.filter(w => w.priority === 'urgent').length}
-                          </Badge>
-                        </div>
-                        <div className="d-flex justify-content-between mb-2">
-                          <span className="text-warning">High:</span>
-                          <Badge bg="warning">
-                            {recentWork.filter(w => w.priority === 'high').length}
-                          </Badge>
-                        </div>
-                        <div className="d-flex justify-content-between mb-2">
-                          <span className="text-info">Medium:</span>
-                          <Badge bg="info">
-                            {recentWork.filter(w => w.priority === 'medium').length}
-                          </Badge>
-                        </div>
-                        <div className="d-flex justify-content-between">
-                          <span className="text-muted">Low:</span>
-                          <Badge bg="light" text="dark">
-                            {recentWork.filter(w => w.priority === 'low').length}
-                          </Badge>
-                        </div>
-                      </Card.Body>
-                    </Card>
-
-                    {/* Upcoming Deadlines */}
-                    <Card className="border-0 shadow-sm mb-4">
-                      <Card.Header className="bg-light">
-                        <h6 className="mb-0">Upcoming Deadlines</h6>
-                      </Card.Header>
-                      <Card.Body>
-                        {recentWork
-                          .filter(w => w.status !== 'Done')
-                          .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
-                          .slice(0, 5)
-                          .map(work => (
-                            <div key={work._id} className="d-flex justify-content-between align-items-center mb-2">
-                              <div className="flex-grow-1">
-                                <div className="small fw-semibold">{work.title}</div>
-                                <small className="text-muted">{work.project?.name || 'No Project'}</small>
-                              </div>
-                              <div className="text-end">
-                                <small className={`fw-bold ${moment(work.dueDate).isBefore(moment()) ? 'text-danger' : 'text-muted'}`}>
-                                  {moment(work.dueDate).format('MMM DD')}
-                                </small>
-                              </div>
-                            </div>
-                          ))}
-                        {recentWork.filter(w => w.status !== 'Done').length === 0 && (
-                          <small className="text-muted">No pending deadlines</small>
-                        )}
-                      </Card.Body>
-                    </Card>
-
-                    {/* Quick Filters */}
-                    <Card className="border-0 shadow-sm">
-                      <Card.Header className="bg-light">
-                        <h6 className="mb-0">Quick Filters</h6>
-                      </Card.Header>
-                      <Card.Body>
-                        <div className="d-grid gap-2">
-                          <Button variant="outline-danger" size="sm">
-                            Overdue ({recentWork.filter(w => moment(w.dueDate).isBefore(moment()) && w.status !== 'Done').length})
-                          </Button>
-                          <Button variant="outline-warning" size="sm">
-                            Due Today ({recentWork.filter(w => moment(w.dueDate).isSame(moment(), 'day') && w.status !== 'Done').length})
-                          </Button>
-                          <Button variant="outline-info" size="sm">
-                            This Week ({recentWork.filter(w => moment(w.dueDate).isSame(moment(), 'week') && w.status !== 'Done').length})
-                          </Button>
-                        </div>
-                      </Card.Body>
-                    </Card>
-                  </Col>
-                </Row>
+                <WorkAssignmentsTab
+                  recentWork={recentWork}
+                  getStatusColor={getStatusColor}
+                  getPriorityColor={getPriorityColor}
+                  onViewDetails={handleViewWorkDetails}
+                />
               </Tab.Pane>
 
               {/* Calendar Tab */}
@@ -847,7 +1038,7 @@ const EnhancedEmployeeWorkView = () => {
                         <div className="d-flex justify-content-between">
                           <span>Remaining:</span>
                           <strong className="text-warning">
-                            {recentWork.filter(w => moment(w.dueDate).isSame(moment(), 'week') && w.status !== 'Done').length}
+                            {recentWork.filter(w => moment(w.dueDate).isSame(moment(), 'week') && !['Done', 'Cancelled'].includes(w.status)).length}
                           </strong>
                         </div>
                       </Card.Body>
@@ -1357,6 +1548,21 @@ const EnhancedEmployeeWorkView = () => {
           </Card.Body>
         </Card>
       </Tab.Container>
+
+      {/* Work Item Details Modal */}
+      {selectedWorkItem && (
+        <WorkItemDetailsModal
+          show={showWorkDetailsModal}
+          onHide={() => {
+            setShowWorkDetailsModal(false);
+            setSelectedWorkItem(null);
+          }}
+          workItem={selectedWorkItem}
+          onUpdate={handleUpdateWorkStatus}
+          onRefresh={loadEmployeeWorkData}
+          currentUser={user}
+        />
+      )}
     </Container>
   );
 };

@@ -53,6 +53,7 @@ class LeaveImpactCalculator {
       // Only count absences up to today if generating for current month
       const today = new Date();
       const effectiveEnd = monthEnd < today ? monthEnd : today;
+      const isPartialMonth = effectiveEnd < monthEnd;
 
       const attendanceRecords = await Attendance.find({
         employee: employeeId,
@@ -67,13 +68,23 @@ class LeaveImpactCalculator {
       // Count absent days: working days with no attendance AND no approved leave
       let absentDays = 0;
       const absentDates = [];
+      let effectiveWorkingDays = 0; // Working days up to effectiveEnd (may be less than full month)
+
+      // Build a set of Saturday dates that are non-working (from workingDaysResult)
+      // For 5-day work pattern, all Saturdays are off; for 6-day, none are.
+      const nonWorkingSaturdayDates = new Set(
+        (workingDaysResult.breakdown?.saturdays || []).map(d => new Date(d).toDateString())
+      );
 
       for (let d = new Date(monthStart); d <= effectiveEnd; d.setDate(d.getDate() + 1)) {
         const dayOfWeek = d.getDay();
         const dateStr = d.toDateString();
 
-        // Skip weekends (Sunday = 0, Saturday = 6 for 5-day; Sunday only for 6-day)
-        if (dayOfWeek === 0) continue; // Always skip Sunday
+        // Skip Sundays (always off)
+        if (dayOfWeek === 0) continue;
+
+        // Skip Saturdays that are non-working days (respects 5-day vs 6-day work pattern)
+        if (dayOfWeek === 6 && nonWorkingSaturdayDates.has(dateStr)) continue;
 
         // Skip holidays
         const isHoliday = workingDaysResult.holidayDates?.some(
@@ -83,6 +94,9 @@ class LeaveImpactCalculator {
 
         // Skip if covered by approved leave
         if (approvedLeaveDates.has(dateStr)) continue;
+
+        // This is a working day within the effective period
+        effectiveWorkingDays++;
 
         // If no attendance record for this working day = absent
         if (!attendanceDates.has(dateStr)) {
@@ -142,6 +156,8 @@ class LeaveImpactCalculator {
         deductionAmount: totalDeductionAmount,
         leaveBreakdown,
         workingDays: actualWorkingDays,
+        effectiveWorkingDays, // Working days up to effectiveEnd (used for daysWorked display)
+        isPartialMonth,       // True if salary generated before month ended
         absentDays,
         calculationMethod: "approved_leave_paid_absent_deducted"
       };

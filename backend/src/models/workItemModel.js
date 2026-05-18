@@ -49,11 +49,11 @@ const workItemSchema = new mongoose.Schema(
       required: true,
     },
     
-    // Status Management (Unified 4-stage workflow)
+    // Status Management (Unified 4-stage workflow + Cancelled)
     status: {
       type: String,
       required: true,
-      enum: ["To Do", "In Progress", "Review", "Done"],
+      enum: ["To Do", "In Progress", "Review", "Done", "Cancelled"],
       default: "To Do",
       index: true,
     },
@@ -67,7 +67,7 @@ const workItemSchema = new mongoose.Schema(
       },
       status: {
         type: String,
-        enum: ["To Do", "In Progress", "Review", "Done"],
+        enum: ["To Do", "In Progress", "Review", "Done", "Cancelled"],
         default: "To Do",
       },
       updatedAt: {
@@ -284,7 +284,7 @@ const workItemSchema = new mongoose.Schema(
     statusHistory: [{
       status: {
         type: String,
-        enum: ["To Do", "In Progress", "Review", "Done"],
+        enum: ["To Do", "In Progress", "Review", "Done", "Cancelled"],
       },
       changedBy: {
         type: mongoose.Schema.Types.ObjectId,
@@ -466,6 +466,13 @@ const workItemSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    
+    // Cancellation
+    cancellationReason: {
+      type: String,
+      trim: true,
+      minlength: [25, "Cancellation reason must be at least 25 characters"],
+    },
   },
   {
     timestamps: true, // Adds createdAt and updatedAt
@@ -538,7 +545,7 @@ workItemSchema.virtual("slotDisplayInfo").get(function () {
 
 // Virtual for checking if work item is overdue
 workItemSchema.virtual("isOverdue").get(function () {
-  if (!this.dueDate || this.status === "Done") {
+  if (!this.dueDate || this.status === "Done" || this.status === "Cancelled") {
     return false;
   }
   const today = new Date();
@@ -550,7 +557,7 @@ workItemSchema.virtual("isOverdue").get(function () {
 
 // Virtual for checking if due today
 workItemSchema.virtual("isDueToday").get(function () {
-  if (!this.dueDate || this.status === "Done") {
+  if (!this.dueDate || this.status === "Done" || this.status === "Cancelled") {
     return false;
   }
   const today = new Date();
@@ -598,12 +605,38 @@ workItemSchema.pre("save", async function (next) {
             }
           }
         } catch (error) {
-          
           // Don't fail the work item save if slot completion fails
         }
       }
-    } 
-    // Clear completedAt if status changes from "Done" to something else
+    }
+    // Handle Cancelled status — release slot, clear completedAt
+    else if (this.status === "Cancelled") {
+      // Clear completedAt if it was set
+      this.completedAt = undefined;
+
+      // Release slot if assigned
+      if (this.hasAssignedSlot && this.slotIntegration?.releaseSlotOnDeletion) {
+        try {
+          const Slot = mongoose.model('Slot');
+          const slot = await Slot.findById(this.slotAssignment.assignedSlot);
+          if (slot) {
+            await slot.releaseSlot(this.modifiedBy || this.createdBy, 'Work item cancelled');
+          }
+          // Clear slot assignment
+          this.slotAssignment = {
+            assignedSlot: null,
+            slotNumber: null,
+            slotIdentifier: null,
+            slotType: null,
+            assignedAt: null,
+            assignedBy: null,
+          };
+        } catch (error) {
+          // Don't fail the save if slot release fails
+        }
+      }
+    }
+    // Clear completedAt if status changes from "Done" to something else (not Cancelled)
     else if (this.status !== "Done" && this.completedAt) {
       this.completedAt = undefined;
     }
@@ -850,20 +883,20 @@ workItemSchema.methods.releaseSlot = async function(releasedBy, reason = '') {
 
 // Instance method to validate status transition
 workItemSchema.methods.canTransitionTo = function (newStatus) {
-  const validStatuses = ["To Do", "In Progress", "Review", "Done"];
-  
-  // Check if new status is valid
+  const validStatuses = ["To Do", "In Progress", "Review", "Done", "Cancelled"];
+
   if (!validStatuses.includes(newStatus)) {
-    return { valid: false, message: `Invalid status: ${newStatus}` };
+    return { valid: false, message: `Invalid status: "${newStatus}"` };
   }
-  
-  // Check slot-specific constraints
-  if (newStatus === "Done" && this.slotIntegration?.requireSlotApprovalForCompletion) {
-    // Additional validation could be added here for slot approval requirements
+
+  // Cancelled is terminal — cannot transition out
+  if (this.status === "Cancelled" && newStatus !== "Cancelled") {
+    return {
+      valid: false,
+      message: "A cancelled work item cannot be reactivated. Please create a new work item instead.",
+    };
   }
-  
-  // All transitions are allowed (flexible workflow)
-  // But we can add business rules here if needed
+
   return { valid: true };
 };
 

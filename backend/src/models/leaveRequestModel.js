@@ -70,9 +70,14 @@ const leaveRequestSchema = new mongoose.Schema(
 // Calculate number of days before saving
 leaveRequestSchema.pre("save", function (next) {
   if (this.startDate && this.endDate) {
-    const diffTime = Math.abs(this.endDate - this.startDate);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-    this.numberOfDays = diffDays;
+    // Half-day leave is always exactly 0.5 days regardless of date range
+    if (this.leaveType === 'half_day') {
+      this.numberOfDays = 0.5;
+    } else {
+      const diffTime = Math.abs(this.endDate - this.startDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      this.numberOfDays = diffDays;
+    }
   }
   next();
 });
@@ -200,18 +205,21 @@ leaveRequestSchema.statics.getLeaveBalance = async function(employeeId, year = n
     personal: 0,
     medical: 0,
     vacation: 0,
-    unpaid: 0
+    unpaid: 0,
+    half_day: 0
   };
 
   let totalPaidLeavesUsed = 0;
 
   approvedLeaves.forEach(leave => {
+    // Always use 0.5 for half_day regardless of stored value (old records may have numberOfDays=1)
+    const days = leave.leaveType === 'half_day' ? 0.5 : (leave.numberOfDays || 0);
     if (usedByCategory.hasOwnProperty(leave.leaveType)) {
-      usedByCategory[leave.leaveType] += leave.numberOfDays;
+      usedByCategory[leave.leaveType] += days;
       
       // Count only paid leaves against the 24 total (exclude unpaid)
       if (leave.leaveType !== 'unpaid') {
-        totalPaidLeavesUsed += leave.numberOfDays;
+        totalPaidLeavesUsed += days;
       }
     }
   });
@@ -240,6 +248,11 @@ leaveRequestSchema.statics.getLeaveBalance = async function(employeeId, year = n
       total: 0, // No limit
       used: usedByCategory.unpaid, 
       remaining: 0 // Always 0 as no limit
+    },
+    half_day: {
+      total: 0, // No fixed limit — deducted from earned balance at 0.5/day
+      used: usedByCategory.half_day,
+      remaining: 0
     },
     
     // Main earned leave tracking

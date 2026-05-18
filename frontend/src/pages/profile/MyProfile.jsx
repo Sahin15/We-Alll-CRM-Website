@@ -2909,8 +2909,7 @@ const MyProfile = () => {
           {viewingDocument && (
             <div className="document-viewer" style={{ minHeight: '500px', maxHeight: '70vh', overflow: 'auto' }}>
               {viewingDocument.mimetype?.includes('image') ? (
-                <img 
-                  src={viewingDocument.url} 
+                <img loading="lazy" src={viewingDocument.url} 
                   alt={viewingDocument.originalName}
                   className="w-100 h-auto"
                   style={{ maxHeight: '70vh', objectFit: 'contain' }}
@@ -2977,3 +2976,4 @@ const MyProfile = () => {
 };
 
 export default MyProfile;
+

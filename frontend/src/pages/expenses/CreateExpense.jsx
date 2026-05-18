@@ -379,8 +379,7 @@ const CreateExpense = () => {
                         <div className="d-flex align-items-center justify-content-between">
                           <div className="d-flex align-items-center">
                             {receiptPreview ? (
-                              <img
-                                src={receiptPreview}
+                              <img loading="lazy" src={receiptPreview}
                                 alt="Receipt preview"
                                 style={{ width: '60px', height: '60px', objectFit: 'cover' }}
                                 className="rounded me-3"
@@ -447,3 +446,4 @@ const CreateExpense = () => {
 };
 
 export default CreateExpense;
+

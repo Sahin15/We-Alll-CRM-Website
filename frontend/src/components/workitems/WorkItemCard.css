@@ -153,3 +153,26 @@
     background: linear-gradient(135deg, #4a5568 0%, #718096 100%);
   }
 }
+
+/* Cancelled Work Item Card */
+.work-item-card-cancelled {
+  border-left: 4px solid #dc3545 !important;
+  background: linear-gradient(135deg, #fff5f5 0%, #fafafa 100%) !important;
+  opacity: 0.85;
+}
+
+.work-item-card-cancelled::before {
+  background: linear-gradient(90deg, #dc3545 0%, #c82333 100%) !important;
+  opacity: 1 !important;
+}
+
+.work-item-card-cancelled h6 {
+  text-decoration: line-through;
+  color: #9ca3af !important;
+}
+
+.work-item-card-cancelled:hover {
+  opacity: 1;
+  border-color: #dc3545 !important;
+  box-shadow: 0 8px 25px rgba(220, 53, 69, 0.2) !important;
+}

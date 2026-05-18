@@ -23,9 +23,17 @@ import { salarySlipApi } from "../../api/salaryApi";
 import api from "../../services/api";
 
 const GenerateSalarySlips = () => {
+  // Default to previous month — current month's slips are typically not generated yet
+  const getPrevMonth = () => {
+    const now = new Date();
+    const m = now.getMonth(); // 0-indexed = previous month as 1-indexed
+    return { month: m === 0 ? 12 : m, year: m === 0 ? now.getFullYear() - 1 : now.getFullYear() };
+  };
+  const prev = getPrevMonth();
+
   const [formData, setFormData] = useState({
-    month: new Date().getMonth() + 1,
-    year: new Date().getFullYear(),
+    month: prev.month,
+    year: prev.year,
     paymentDate: "",
   });
   const [employees, setEmployees] = useState([]);

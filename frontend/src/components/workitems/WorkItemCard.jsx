@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Badge, Button, Dropdown } from 'react-bootstrap';
+import { Card, Badge, Button, Dropdown, Modal, Form } from 'react-bootstrap';
 import { FaCalendar, FaTasks, FaClock, FaUser, FaEllipsisV } from 'react-icons/fa';
 import { formatDate } from '../../utils/helpers';
 import {
@@ -13,18 +13,22 @@ import './WorkItemCard.css';
 const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState('');
+  const [pendingStatus, setPendingStatus] = useState(null);
   
-  const isOverdue = workItem.status !== 'Done' && (workItem.isOverdue || (
+  const isTerminal = ['Done', 'Cancelled'].includes(workItem.status);
+  const isOverdue = !isTerminal && (workItem.isOverdue || (
     workItem.dueDate && 
     new Date(workItem.dueDate) < new Date() && 
-    workItem.status !== 'Done'
+    !isTerminal
   ));
   
-  const isDueToday = workItem.isDueToday || (
+  const isDueToday = !isTerminal && (workItem.isDueToday || (
     workItem.dueDate && 
     new Date(workItem.dueDate).toDateString() === new Date().toDateString() &&
-    workItem.status !== 'Done'
-  );
+    !isTerminal
+  ));
 
   // Helper function to check if current user can edit (supports multiple assignees)
   const canEdit = () => {
@@ -67,6 +71,7 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
       'In Progress': 'primary',
       'Review': 'warning',
       'Done': 'success',
+      'Cancelled': 'danger',
     };
     return colors[status] || 'secondary';
   };
@@ -83,20 +88,44 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
   
   const handleStatusUpdate = async (newStatus) => {
     if (newStatus === workItem.status || !onStatusChange) return;
+
+    if (newStatus === 'Cancelled') {
+      setPendingStatus('Cancelled');
+      setCancellationReason('');
+      setShowCancelModal(true);
+      return;
+    }
     
     setIsUpdating(true);
     try {
-      await onStatusChange(workItem._id, newStatus, workItem.type);
+      await onStatusChange(workItem._id, newStatus, null, null);
     } catch (error) {
       console.error('Error updating status:', error);
     } finally {
       setIsUpdating(false);
     }
   };
+
+  const handleConfirmCancellation = async () => {
+    const trimmed = cancellationReason.trim();
+    if (trimmed.length < 25) return;
+    setShowCancelModal(false);
+    setIsUpdating(true);
+    try {
+      await onStatusChange(workItem._id, 'Cancelled', null, trimmed);
+    } catch (error) {
+      console.error('Error cancelling work item:', error);
+    } finally {
+      setIsUpdating(false);
+      setCancellationReason('');
+      setPendingStatus(null);
+    }
+  };
   
   return (
+    <>
     <Card 
-      className={`h-100 work-item-card ${isOverdue ? 'border-danger' : isDueToday ? 'border-warning' : ''}`}
+      className={`h-100 work-item-card ${isOverdue ? 'border-danger' : isDueToday ? 'border-warning' : ''} ${isTerminal && workItem.status === 'Cancelled' ? 'work-item-card-cancelled' : ''}`}
       style={{ cursor: 'pointer', transition: 'all 0.2s' }}
       onClick={handleClick}
       onKeyDown={(e) => handleKeyboardNavigation(e, handleClick, handleClick)}
@@ -143,8 +172,8 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
           </div>
           
           <div className="d-flex align-items-center gap-2">
-            {/* Interactive Status Badge */}
-            {canEdit() && isHovered && !isUpdating ? (
+            {/* Interactive Status Badge — hide dropdown for cancelled (terminal state) */}
+            {canEdit() && isHovered && !isUpdating && workItem.status !== 'Cancelled' ? (
               <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
                 <Dropdown.Toggle
                   as={Badge}
@@ -162,7 +191,7 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
                 </Dropdown.Toggle>
 
                 <Dropdown.Menu className="status-dropdown-menu">
-                  {['To Do', 'In Progress', 'Done'].map((status) => (
+                  {['To Do', 'In Progress', 'Done', 'Cancelled'].map((status) => (
                     <Dropdown.Item
                       key={status}
                       onClick={(e) => {
@@ -208,6 +237,21 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
         </div>
 
         <h6 className="mb-2">{workItem.title}</h6>
+        
+        {/* Cancellation reason shown on card */}
+        {workItem.status === 'Cancelled' && workItem.cancellationReason && (
+          <div style={{
+            background: '#fff5f5',
+            border: '1px solid #f5c6cb',
+            borderRadius: '6px',
+            padding: '8px 10px',
+            marginBottom: '8px',
+            fontSize: '0.8rem',
+            color: '#721c24'
+          }}>
+            <strong>🚫 Cancelled:</strong> {workItem.cancellationReason}
+          </div>
+        )}
         
         {workItem.description && (
           <p className="text-muted small mb-2" style={{
@@ -264,6 +308,65 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
         )}
       </Card.Body>
     </Card>
+    
+    {/* Cancellation Confirmation Modal */}
+    <Modal
+      show={showCancelModal}
+      onHide={() => { setShowCancelModal(false); setCancellationReason(''); setPendingStatus(null); }}
+      centered
+      backdrop="static"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <Modal.Header closeButton style={{ background: '#dc3545', color: 'white' }}>
+        <Modal.Title style={{ fontSize: '1.1rem' }}>Confirm Work Cancellation</Modal.Title>
+      </Modal.Header>
+      <Modal.Body className="p-4">
+        <p className="text-muted mb-4">
+          Are you sure you want to cancel <strong>{workItem.title}</strong>?
+          This action is permanent and cannot be undone.
+        </p>
+        <Form.Group>
+          <Form.Label className="fw-bold small text-uppercase text-muted">
+            Cancellation Reason <span className="text-danger">*</span> (Min 25 chars)
+          </Form.Label>
+          <Form.Control
+            as="textarea"
+            rows={4}
+            placeholder="Explain why this work is being cancelled..."
+            value={cancellationReason}
+            onChange={(e) => setCancellationReason(e.target.value)}
+            style={{ borderRadius: '8px', resize: 'none' }}
+            isInvalid={cancellationReason.trim().length > 0 && cancellationReason.trim().length < 25}
+          />
+          <Form.Control.Feedback type="invalid">
+            Please provide at least 25 characters.
+          </Form.Control.Feedback>
+          <div className="text-end mt-1">
+            <small className={cancellationReason.trim().length < 25 ? 'text-danger' : 'text-success'}>
+              {cancellationReason.trim().length}/25 characters
+            </small>
+          </div>
+        </Form.Group>
+      </Modal.Body>
+      <Modal.Footer className="border-0 p-4 pt-0">
+        <Button
+          variant="outline-secondary"
+          onClick={() => { setShowCancelModal(false); setCancellationReason(''); setPendingStatus(null); }}
+          style={{ borderRadius: '20px', padding: '8px 20px' }}
+        >
+          Go Back
+        </Button>
+        <Button
+          variant="danger"
+          disabled={isUpdating || cancellationReason.trim().length < 25}
+          onClick={handleConfirmCancellation}
+          style={{ borderRadius: '20px', padding: '8px 24px', fontWeight: '600' }}
+        >
+          {isUpdating ? 'Processing...' : 'Confirm Cancellation'}
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  </>
   );
 };
 

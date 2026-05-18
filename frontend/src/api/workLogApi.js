@@ -114,6 +114,18 @@ export const reviewDepartmentWorkLog = async (id, reviewNotes, status) => {
   return response.data;
 };
 
+// Raise concern on a work log (Admin/HR/Manager)
+export const raiseConcern = async (id, concernNote) => {
+  const response = await api.put(`/worklogs/${id}/raise-concern`, { concernNote });
+  return response.data;
+};
+
+// Raise concern on a department work log (HoD)
+export const raiseDepartmentConcern = async (id, concernNote) => {
+  const response = await api.put(`/worklogs/department/${id}/raise-concern`, { concernNote });
+  return response.data;
+};
+
 export const workLogApi = {
   submitWorkLog,
   saveDraft,
@@ -131,4 +143,6 @@ export const workLogApi = {
   exportMyWorkLogs,
   getDepartmentWorkLogs,
   reviewDepartmentWorkLog,
+  raiseConcern,
+  raiseDepartmentConcern,
 };

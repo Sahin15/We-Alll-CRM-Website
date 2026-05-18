@@ -17,10 +17,12 @@ const MySalaryPreview = () => {
   const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
-    // Set current month and year as default
+    // Default to previous month — current month's preview is typically not generated yet
     const now = new Date();
-    setSelectedMonth(now.getMonth() + 1);
-    setSelectedYear(now.getFullYear());
+    const prevMonth = now.getMonth(); // 0-indexed getMonth() gives previous month as 1-indexed value
+    const prevYear = prevMonth === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    setSelectedMonth(prevMonth === 0 ? 12 : prevMonth);
+    setSelectedYear(prevYear);
     setShowPreview(true);
   }, []);
 

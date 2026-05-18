@@ -2584,8 +2584,7 @@ const EmployeeProfileManagement = () => {
           {viewingDocument && (
             <div className="text-center">
               {viewingDocument.mimetype?.startsWith('image/') ? (
-                <img 
-                  src={viewingDocument.url} 
+                <img loading="lazy" src={viewingDocument.url} 
                   alt={viewingDocument.originalName}
                   style={{ maxWidth: '100%', height: 'auto' }}
                 />

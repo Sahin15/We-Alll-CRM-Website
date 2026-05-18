@@ -212,8 +212,7 @@ const LeaveApprovalModal = ({ show, onHide, leave, onAction }) => {
                     </div>
                     {isImage && (
                       <div className="attachment-preview">
-                        <img 
-                          src={attachment} 
+                        <img loading="lazy" src={attachment} 
                           alt={fileName}
                           className="img-fluid rounded"
                           style={{ maxHeight: '100px', objectFit: 'cover' }}

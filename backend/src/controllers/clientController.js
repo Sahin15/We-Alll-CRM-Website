@@ -231,7 +231,7 @@ export const createClient = async (req, res) => {
 // Get all clients (optimized but backward compatible)
 export const getClients = async (req, res) => {
   try {
-    const { search, status, industry } = req.query;
+    const { search, status, industry, page = 1, limit = 50 } = req.query;
     
     let query = {};
     
@@ -248,18 +248,37 @@ export const getClients = async (req, res) => {
     
     logger.info('getClients query:', query);
     
-    // Optimized query WITHOUT pagination (backward compatible)
+    // Parse pagination parameters
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 50)); // Max 100 per page
+    const skip = (pageNum - 1) * limitNum;
+    
+    // Get total count for pagination
+    const total = await Client.countDocuments(query);
+    
+    // Optimized query WITH pagination
     const clients = await Client.find(query)
       .select('name email phone whatsappnumber company ownername address industry website targetAudience audienceGender previousChallenges legalGuidelines yearlyTurnover expectations serviceCompany status isVip vipLevel vipSince createdAt assignedDepartments')
       .populate('createdBy', 'name email')
       .populate('assignedDepartments', 'name')
       .sort({ isVip: -1, vipLevel: 1, createdAt: -1 }) // VIP clients first
+      .skip(skip)
+      .limit(limitNum)
       .lean();
     
-    logger.success(`Found ${clients.length} clients`);
+    logger.success(`Found ${clients.length} clients (page ${pageNum}/${Math.ceil(total / limitNum)})`);
     
-    // Return simple array (backward compatible)
-    res.status(200).json(clients);
+    // Return with pagination metadata
+    res.status(200).json({
+      data: clients,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum),
+        hasMore: pageNum < Math.ceil(total / limitNum)
+      }
+    });
   } catch (error) {
     logger.error("Error fetching clients:", error);
     res.status(500).json({ message: "Server error" });

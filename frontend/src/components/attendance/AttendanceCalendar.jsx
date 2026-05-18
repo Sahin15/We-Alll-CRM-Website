@@ -147,10 +147,12 @@ const AttendanceCalendar = ({ attendances, selectedMonth, selectedYear, employee
         return match;
       });
 
-      // Determine status - holiday takes precedence
+      // Determine status - holiday takes precedence, then weekend
       let status;
       if (isHoliday) {
         status = 'holiday';
+      } else if (date.getDay() === 0) {
+        status = 'weekend'; // Sunday — always a day off
       } else if (attendance) {
         status = attendance.status;
       } else if (isFutureDate) {
@@ -190,6 +192,8 @@ const AttendanceCalendar = ({ attendances, selectedMonth, selectedYear, employee
         return 'Holiday';
       case 'no-data':
         return 'No Data';
+      case 'weekend':
+        return 'Weekend';
       default:
         return 'Absent';
     }
@@ -211,6 +215,8 @@ const AttendanceCalendar = ({ attendances, selectedMonth, selectedYear, employee
         return '🎉';
       case 'no-data':
         return '?';
+      case 'weekend':
+        return '🌴';
       default:
         return '✕';
     }
@@ -293,31 +299,22 @@ const AttendanceCalendar = ({ attendances, selectedMonth, selectedYear, employee
                 <div>
                   <h5 className="text-primary mb-0">
                     {(() => {
-                      // Calculate expected average (Mon-Fri: 8h, Sat: 6h)
+                      // Expected average: based only on days where employee actually clocked out (workHours > 0)
                       let totalExpected = 0;
-                      let workingDays = 0;
+                      let daysWithHours = 0;
                       attendances.forEach((a) => {
-                        if (a.status === 'present' || a.status === 'late') {
-                          const date = new Date(a.date);
-                          const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
-                          if (dayOfWeek === 6) { // Saturday
-                            totalExpected += 6;
-                          } else if (dayOfWeek !== 0) { // Not Sunday
-                            totalExpected += 8;
-                          }
-                          workingDays += 1;
-                        } else if (a.status === 'half-day') {
+                        if (a.workHours && a.workHours > 0) {
                           const date = new Date(a.date);
                           const dayOfWeek = date.getDay();
-                          if (dayOfWeek === 6) { // Saturday half-day
-                            totalExpected += 3;
-                          } else if (dayOfWeek !== 0) { // Not Sunday
-                            totalExpected += 4;
+                          if (a.status === 'half-day') {
+                            totalExpected += dayOfWeek === 6 ? 3 : 4;
+                          } else {
+                            totalExpected += dayOfWeek === 6 ? 6 : 8;
                           }
-                          workingDays += 1;
+                          daysWithHours += 1;
                         }
                       });
-                      return workingDays > 0 ? formatHours(totalExpected / workingDays) : '0.00';
+                      return daysWithHours > 0 ? formatHours(totalExpected / daysWithHours) : '0.00';
                     })()}
                   </h5>
                   <small className="text-muted">Expected Avg/Day</small>
@@ -327,16 +324,16 @@ const AttendanceCalendar = ({ attendances, selectedMonth, selectedYear, employee
                 <div>
                   <h5 className="text-success mb-0">
                     {(() => {
-                      // Calculate achieved average
+                      // Achieved average = total work hours / days where employee actually clocked out
                       let totalHours = 0;
-                      let workingDays = 0;
+                      let daysWithHours = 0;
                       attendances.forEach((a) => {
-                        if (a.status !== 'on-leave' && a.status !== 'absent') {
-                          totalHours += a.workHours || 0;
-                          workingDays += 1;
+                        if (a.workHours && a.workHours > 0) {
+                          totalHours += a.workHours;
+                          daysWithHours += 1;
                         }
                       });
-                      return workingDays > 0 ? formatHours(totalHours / workingDays) : '0.00';
+                      return daysWithHours > 0 ? formatHours(totalHours / daysWithHours) : '0.00';
                     })()}
                   </h5>
                   <small className="text-muted">Achieved Avg/Day</small>
@@ -344,68 +341,47 @@ const AttendanceCalendar = ({ attendances, selectedMonth, selectedYear, employee
               </Col>
               <Col xs={6} md={3}>
                 <div>
+                  {/* Difference: achieved avg - expected avg, using days with actual hours */}
                   <h5 className={`mb-0 ${(() => {
                     let totalExpected = 0;
                     let totalHours = 0;
-                    let workingDays = 0;
+                    let daysWithHours = 0;
                     attendances.forEach((a) => {
-                      if (a.status === 'present' || a.status === 'late') {
+                      if (a.workHours && a.workHours > 0) {
                         const date = new Date(a.date);
                         const dayOfWeek = date.getDay();
-                        if (dayOfWeek === 6) {
-                          totalExpected += 6;
-                        } else if (dayOfWeek !== 0) {
-                          totalExpected += 8;
+                        if (a.status === 'half-day') {
+                          totalExpected += dayOfWeek === 6 ? 3 : 4;
+                        } else {
+                          totalExpected += dayOfWeek === 6 ? 6 : 8;
                         }
-                        workingDays += 1;
-                      } else if (a.status === 'half-day') {
-                        const date = new Date(a.date);
-                        const dayOfWeek = date.getDay();
-                        if (dayOfWeek === 6) {
-                          totalExpected += 3;
-                        } else if (dayOfWeek !== 0) {
-                          totalExpected += 4;
-                        }
-                        workingDays += 1;
-                      }
-                      if (a.status !== 'on-leave' && a.status !== 'absent') {
-                        totalHours += a.workHours || 0;
+                        totalHours += a.workHours;
+                        daysWithHours += 1;
                       }
                     });
-                    const expectedAvg = workingDays > 0 ? totalExpected / workingDays : 0;
-                    const achievedAvg = workingDays > 0 ? totalHours / workingDays : 0;
+                    const expectedAvg = daysWithHours > 0 ? totalExpected / daysWithHours : 0;
+                    const achievedAvg = daysWithHours > 0 ? totalHours / daysWithHours : 0;
                     return achievedAvg >= expectedAvg ? 'text-success' : 'text-danger';
                   })()}`}>
                     {(() => {
                       let totalExpected = 0;
                       let totalHours = 0;
-                      let workingDays = 0;
+                      let daysWithHours = 0;
                       attendances.forEach((a) => {
-                        if (a.status === 'present' || a.status === 'late') {
+                        if (a.workHours && a.workHours > 0) {
                           const date = new Date(a.date);
                           const dayOfWeek = date.getDay();
-                          if (dayOfWeek === 6) {
-                            totalExpected += 6;
-                          } else if (dayOfWeek !== 0) {
-                            totalExpected += 8;
+                          if (a.status === 'half-day') {
+                            totalExpected += dayOfWeek === 6 ? 3 : 4;
+                          } else {
+                            totalExpected += dayOfWeek === 6 ? 6 : 8;
                           }
-                          workingDays += 1;
-                        } else if (a.status === 'half-day') {
-                          const date = new Date(a.date);
-                          const dayOfWeek = date.getDay();
-                          if (dayOfWeek === 6) {
-                            totalExpected += 3;
-                          } else if (dayOfWeek !== 0) {
-                            totalExpected += 4;
-                          }
-                          workingDays += 1;
-                        }
-                        if (a.status !== 'on-leave' && a.status !== 'absent') {
-                          totalHours += a.workHours || 0;
+                          totalHours += a.workHours;
+                          daysWithHours += 1;
                         }
                       });
-                      const expectedAvg = workingDays > 0 ? totalExpected / workingDays : 0;
-                      const achievedAvg = workingDays > 0 ? totalHours / workingDays : 0;
+                      const expectedAvg = daysWithHours > 0 ? totalExpected / daysWithHours : 0;
+                      const achievedAvg = daysWithHours > 0 ? totalHours / daysWithHours : 0;
                       return formatHours(achievedAvg - expectedAvg);
                     })()}
                   </h5>
@@ -511,6 +487,11 @@ const AttendanceCalendar = ({ attendances, selectedMonth, selectedYear, employee
               <Col xs={6} sm={4} md={3} className="mb-2">
                 <small>
                   <Badge bg="light" text="muted">? No Data</Badge> - Future date
+                </small>
+              </Col>
+              <Col xs={6} sm={4} md={3} className="mb-2">
+                <small>
+                  <Badge bg="light" text="muted">🌴 Weekend</Badge> - Sunday (day off)
                 </small>
               </Col>
             </Row>

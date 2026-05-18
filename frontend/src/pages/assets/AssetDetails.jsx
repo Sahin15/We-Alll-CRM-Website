@@ -155,8 +155,7 @@ const AssetDetails = () => {
     <div className="asset-details-container">
       <div className="asset-details-header">
         <div className="header-left">
-          <h1>{asset.name}</h1>
-          <p className="asset-id">{asset.assetId}</p>
+          <h1>Asset ID: {asset.assetId}</h1>
         </div>
         <div className="header-right">
           <AssetStatusBadge status={asset.status} />

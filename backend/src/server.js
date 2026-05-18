@@ -63,6 +63,14 @@ import assetRoutes from "./routes/assetRoutes.js";
 import softwareLicenseRoutes from "./routes/softwareLicenseRoutes.js";
 import supportRoutes from "./routes/supportRoutes.js";
 import importantPersonRoutes from "./routes/importantPersonRoutes.js";
+// Procurement routes
+import purchaseRequestRoutes from "./routes/purchaseRequestRoutes.js";
+import purchaseOrderRoutes from "./routes/purchaseOrderRoutes.js";
+import goodsReceiptRoutes from "./routes/goodsReceiptRoutes.js";
+import vendorRoutes from "./routes/vendorRoutes.js";
+import procurementInvoiceRoutes from "./routes/procurementInvoiceRoutes.js";
+import procurementPaymentRoutes from "./routes/procurementPaymentRoutes.js";
+import procurementDashboardRoutes from "./routes/procurementDashboardRoutes.js";
 // Legacy routes removed - use workItemRoutes instead
 // Old: taskRoutes, slotRoutes, workRoutes → New: workItemRoutes
 import { initializeCronJobs } from "./config/cronJobs.js";
@@ -130,6 +138,31 @@ app.use((req, res, next) => {
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     console.log('[SW] Service worker requested - cache headers set');
+  }
+  next();
+});
+
+// HTTP Cache Headers for API responses
+app.use((req, res, next) => {
+  // Cache GET requests for read-only endpoints
+  if (req.method === 'GET') {
+    // Cache list endpoints for 5 minutes
+    if (req.path.includes('/list') || req.path.includes('/get')) {
+      res.setHeader('Cache-Control', 'public, max-age=300'); // 5 minutes
+    }
+    // Cache dashboard/stats endpoints for 10 minutes
+    else if (req.path.includes('/dashboard') || req.path.includes('/stats')) {
+      res.setHeader('Cache-Control', 'public, max-age=600'); // 10 minutes
+    }
+    // Cache other GET requests for 1 minute
+    else {
+      res.setHeader('Cache-Control', 'public, max-age=60'); // 1 minute
+    }
+    // Add ETag support for conditional requests
+    res.setHeader('Vary', 'Accept-Encoding');
+  } else {
+    // Don't cache POST, PUT, DELETE requests
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   }
   next();
 });
@@ -284,6 +317,15 @@ app.use("/api/assets", apiLimiter, assetRoutes);
 app.use("/api/software-licenses", apiLimiter, softwareLicenseRoutes);
 app.use("/api/support-contacts", apiLimiter, supportRoutes);
 app.use("/api/important-persons", apiLimiter, importantPersonRoutes);
+
+// Procurement routes
+app.use("/api/procurement/purchase-requests", apiLimiter, purchaseRequestRoutes);
+app.use("/api/procurement/purchase-orders", apiLimiter, purchaseOrderRoutes);
+app.use("/api/procurement/goods-receipts", apiLimiter, goodsReceiptRoutes);
+app.use("/api/procurement/vendors", apiLimiter, vendorRoutes);
+app.use("/api/procurement/invoices", apiLimiter, procurementInvoiceRoutes);
+app.use("/api/procurement/payments", apiLimiter, procurementPaymentRoutes);
+app.use("/api/procurement", apiLimiter, procurementDashboardRoutes);
 
 // Diagnostic endpoint to check server status and timezone
 app.get("/api/diagnostic", (req, res) => {

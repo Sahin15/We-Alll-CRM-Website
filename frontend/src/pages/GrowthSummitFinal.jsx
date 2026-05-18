@@ -458,8 +458,7 @@ const GrowthSummitFinal = () => {
           marginBottom: '1rem',
           textAlign: 'center'
         }}>
-          <img 
-            src="/growth-summit-logo.jpeg" 
+          <img loading="lazy" src="/growth-summit-logo.jpeg" 
             alt="Growth Summit 2026" 
             style={{
               maxWidth: '280px',
@@ -499,8 +498,7 @@ const GrowthSummitFinal = () => {
               }}>
                 Presented By
               </span>
-              <img 
-                src="/images/we-all-logo.png" 
+              <img loading="lazy" src="/images/we-all-logo.png" 
                 alt="We Alll" 
                 style={{
                   width: '80px',
@@ -530,8 +528,7 @@ const GrowthSummitFinal = () => {
               }}>
                 Organised By
               </span>
-              <img 
-                src="/images/choicefoundation-logo.jpg" 
+              <img loading="lazy" src="/images/choicefoundation-logo.jpg" 
                 alt="Choice Foundation" 
                 style={{
                   width: '80px',
@@ -632,8 +629,7 @@ const GrowthSummitFinal = () => {
             alignItems: 'center',
             gap: '0.2rem'
           }}>
-            <img 
-              src="/images/amit-santra-photo.jpg" 
+            <img loading="lazy" src="/images/amit-santra-photo.jpg" 
               alt="Amit Santra" 
               style={{
                 width: '70px',

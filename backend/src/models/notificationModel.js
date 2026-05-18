@@ -80,8 +80,17 @@ const notificationSchema = new mongoose.Schema(
         'attendance_auto_clockout',
         // Other
         'work_log_reminder',
+        'work_log_concern',
         'announcement',
         'general',
+        // Procurement
+        'procurement_pr_submitted',
+        'procurement_pr_hod_approved',
+        'procurement_pr_approved',
+        'procurement_pr_rejected',
+        'procurement_po_issued',
+        'procurement_gr_recorded',
+        'procurement_invoice_due',
       ],
       default: 'general',
     },

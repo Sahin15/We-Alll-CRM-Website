@@ -9,6 +9,7 @@ import CreateLeaveModal from '../../components/leaves/CreateLeaveModal';
 import LeaveRequestCard from '../../components/leaves/LeaveRequestCard';
 import LeaveApprovalModal from '../../components/leaves/LeaveApprovalModal';
 import WFHManagementPanel from '../../components/wfh/WFHManagementPanel';
+import LeaveBalanceOverview from '../../components/leaves/LeaveBalanceOverview';
 import { toast } from 'react-toastify';
 import './LeaveManagement.css';
 
@@ -358,78 +359,81 @@ const LeaveManagement = () => {
         <Col>
           <Card className="border-0 shadow-sm">
             <Card.Body className="py-3">
-              <Row className="align-items-center">
-                <Col md={6}>
-                  <Nav variant="pills">
+              <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <Nav variant="pills" className="flex-nowrap">
+                  <Nav.Item>
+                    <Nav.Link 
+                      active={activeTab === 'my-leaves'}
+                      onClick={() => setActiveTab('my-leaves')}
+                    >
+                      My Leaves
+                    </Nav.Link>
+                  </Nav.Item>
+                  <Nav.Item>
+                    <Nav.Link 
+                      active={activeTab === 'all-leaves'}
+                      onClick={() => setActiveTab('all-leaves')}
+                    >
+                      All Leave Requests
+                    </Nav.Link>
+                  </Nav.Item>
+                  <Nav.Item>
+                    <Nav.Link 
+                      active={activeTab === 'wfh-requests'}
+                      onClick={() => setActiveTab('wfh-requests')}
+                    >
+                      WFH Requests
+                    </Nav.Link>
+                  </Nav.Item>
+                  {isAdmin && (
                     <Nav.Item>
-                      <Nav.Link 
-                        active={activeTab === 'my-leaves'}
-                        onClick={() => setActiveTab('my-leaves')}
+                      <Nav.Link
+                        active={activeTab === 'leave-balance'}
+                        onClick={() => setActiveTab('leave-balance')}
                       >
-                        My Leaves
+                        <FaUsers className="me-1" />
+                        Leave Balance
                       </Nav.Link>
                     </Nav.Item>
-                    <Nav.Item>
-                      <Nav.Link 
-                        active={activeTab === 'all-leaves'}
-                        onClick={() => setActiveTab('all-leaves')}
-                      >
-                        All Leave Requests
-                      </Nav.Link>
-                    </Nav.Item>
-                    <Nav.Item>
-                      <Nav.Link 
-                        active={activeTab === 'wfh-requests'}
-                        onClick={() => setActiveTab('wfh-requests')}
-                      >
-                        WFH Requests
-                      </Nav.Link>
-                    </Nav.Item>
-                  </Nav>
-                </Col>
-                
-                <Col md={6}>
-                  <Row className="g-2">
-                    <Col md={4}>
-                      <Form.Select
-                        size="sm"
-                        value={filters.status}
-                        onChange={(e) => setFilters({...filters, status: e.target.value})}
-                      >
-                        <option value="all">All Status</option>
-                        <option value="pending">Pending</option>
-                        <option value="approved">Approved</option>
-                        <option value="rejected">Rejected</option>
-                        <option value="cancelled">Cancelled</option>
-                      </Form.Select>
-                    </Col>
-                    <Col md={4}>
-                      <Form.Select
-                        size="sm"
-                        value={filters.leaveType}
-                        onChange={(e) => setFilters({...filters, leaveType: e.target.value})}
-                      >
-                        <option value="all">All Types</option>
-                        {Object.entries(LEAVE_TYPE_DETAILS).map(([type, details]) => (
-                          <option key={type} value={type}>{details.name}</option>
-                        ))}
-                      </Form.Select>
-                    </Col>
-                    <Col md={4}>
-                      <InputGroup size="sm">
-                        <InputGroup.Text>
-                          <FaSearch />
-                        </InputGroup.Text>
-                        <Form.Control
-                          placeholder="Search employees..."
-                          value={filters.search}
-                          onChange={(e) => setFilters({...filters, search: e.target.value})}
-                        />
-                      </InputGroup>
-                    </Col>
-                  </Row>
-                </Col>
-              </Row>
+                  )}
+                </Nav>
+
+                <div className="d-flex gap-2 flex-wrap">
+                  <Form.Select
+                    size="sm"
+                    style={{ width: 'auto' }}
+                    value={filters.status}
+                    onChange={(e) => setFilters({...filters, status: e.target.value})}
+                  >
+                    <option value="all">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="cancelled">Cancelled</option>
+                  </Form.Select>
+                  <Form.Select
+                    size="sm"
+                    style={{ width: 'auto' }}
+                    value={filters.leaveType}
+                    onChange={(e) => setFilters({...filters, leaveType: e.target.value})}
+                  >
+                    <option value="all">All Types</option>
+                    {Object.entries(LEAVE_TYPE_DETAILS).map(([type, details]) => (
+                      <option key={type} value={type}>{details.name}</option>
+                    ))}
+                  </Form.Select>
+                  <InputGroup size="sm" style={{ width: 'auto' }}>
+                    <InputGroup.Text>
+                      <FaSearch />
+                    </InputGroup.Text>
+                    <Form.Control
+                      placeholder="Search employees..."
+                      value={filters.search}
+                      onChange={(e) => setFilters({...filters, search: e.target.value})}
+                    />
+                  </InputGroup>
+                </div>
+              </div>
             </Card.Body>
           </Card>
         </Col>
@@ -438,7 +442,9 @@ const LeaveManagement = () => {
       {/* Leave Requests */}
       <Row>
         <Col>
-          {activeTab === 'wfh-requests' ? (
+          {activeTab === 'leave-balance' ? (
+            <LeaveBalanceOverview />
+          ) : activeTab === 'wfh-requests' ? (
             <WFHManagementPanel />
           ) : loading ? (
             <Card className="border-0 shadow-sm">

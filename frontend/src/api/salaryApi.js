@@ -81,6 +81,12 @@ export const salarySlipApi = {
   // Get payroll summary
   getPayrollSummary: (params) => api.get("/salary-slips/reports/payroll-summary", { params }),
 
+  // Recalculate a single salary slip (fix mid-month generation issue)
+  recalculate: (id) => api.put(`/salary-slips/${id}/recalculate`),
+
+  // Bulk recalculate salary slips for a month (fix mid-month generation issue)
+  bulkRecalculate: (data) => api.post("/salary-slips/bulk-recalculate", data),
+
   // Get overall stats (total slips, structures, templates)
   getOverallStats: () => api.get("/salary-slips/stats/overview"),
 };
@@ -118,6 +124,9 @@ export const salaryPreviewApi = {
 
   // Bulk generate previews
   bulkGenerate: (data) => api.post('/salary-preview/bulk-generate', data),
+
+  // Bulk recalculate previews for a month (fix mid-month generation issue)
+  bulkRecalculate: (data) => api.post('/salary-preview/bulk-recalculate', data),
 
   // Make corrections
   makeCorrections: (previewId, corrections) => api.put(`/salary-preview/${previewId}/corrections`, corrections),

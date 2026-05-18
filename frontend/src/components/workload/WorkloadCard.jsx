@@ -58,8 +58,7 @@ const WorkloadCard = ({
         <div className="d-flex justify-content-between align-items-start mb-3">
           <div className="d-flex align-items-center gap-2">
             {employee?.avatar ? (
-              <img 
-                src={employee.avatar} 
+              <img loading="lazy" src={employee.avatar} 
                 alt={employee.name}
                 className="rounded-circle"
                 style={{ width: '40px', height: '40px', objectFit: 'cover' }}
@@ -145,3 +144,4 @@ const WorkloadCard = ({
 };
 
 export default WorkloadCard;
+

@@ -14,7 +14,9 @@ import {
   downloadSalarySlipPDF,
   sendSalarySlipEmail,
   sendBulkSalarySlipEmails,
-  getOverallStats
+  getOverallStats,
+  recalculateSalarySlip,
+  bulkRecalculateSalarySlips
 } from "../controllers/salarySlipController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
@@ -40,6 +42,20 @@ router.post(
   protect,
   authorizeRoles("admin", "superadmin", "hr", "accounts", "manager"),
   bulkGenerateSalarySlips
+);
+
+router.put(
+  "/:id/recalculate",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr", "accounts", "manager"),
+  recalculateSalarySlip
+);
+
+router.post(
+  "/bulk-recalculate",
+  protect,
+  authorizeRoles("admin", "superadmin", "hr", "accounts", "manager"),
+  bulkRecalculateSalarySlips
 );
 
 router.post(

@@ -32,6 +32,22 @@ import WorkLogViewModal from "../../components/worklog/WorkLogViewModal";
 import WorkLogReviewModal from "../../components/worklog/WorkLogReviewModal";
 import "../../styles/worklog.css";
 
+/**
+ * Detect low-effort / padding work logs on the frontend.
+ */
+const isLowQualityWorkLog = (text) => {
+  if (!text) return false;
+  const trimmed = text.trim();
+  const meaningfulChars = (trimmed.match(/[a-zA-Z0-9]/g) || []).length;
+  const totalChars = trimmed.length;
+  if (totalChars > 0 && meaningfulChars / totalChars < 0.3) return true;
+  if (/^[\s.…\-_*]+$/.test(trimmed)) return true;
+  if (/^(.)\1{9,}$/.test(trimmed)) return true;
+  const words = trimmed.split(/\s+/).filter((w) => /[a-zA-Z]{2,}/.test(w));
+  if (totalChars >= 50 && words.length < 3) return true;
+  return false;
+};
+
 const WorkLogManagement = () => {
   const [workLogs, setWorkLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -355,6 +371,7 @@ const WorkLogManagement = () => {
                       <option value="all">All</option>
                       <option value="submitted">Submitted</option>
                       <option value="reviewed">Reviewed</option>
+                      <option value="concern_raised">Concern Raised</option>
                     </Form.Select>
                   </Form.Group>
                 </Col>
@@ -417,7 +434,14 @@ const WorkLogManagement = () => {
                       </thead>
                       <tbody>
                         {workLogs.map((log) => (
-                          <tr key={log._id}>
+                          <tr
+                            key={log._id}
+                            style={
+                              log.status === "concern_raised"
+                                ? { background: "#fff3cd" }
+                                : undefined
+                            }
+                          >
                             <td>
                               <div>
                                 <strong>{log.employee?.name || "N/A"}</strong>
@@ -432,10 +456,17 @@ const WorkLogManagement = () => {
                               <div style={{ maxWidth: "300px" }}>
                                 {truncateWorkLog(log.workLog, 80)}
                               </div>
+                              {/* Quality warning badge */}
+                              {isLowQualityWorkLog(log.workLog) && (
+                                <Badge bg="warning" text="dark" className="mt-1 d-flex align-items-center gap-1" style={{ width: "fit-content" }}>
+                                  <FaExclamationTriangle size={10} />
+                                  Low quality
+                                </Badge>
+                              )}
                             </td>
                             <td>
                               <Badge bg={getWorkLogStatusBadge(log.status)}>
-                                {log.status}
+                                {log.status === "concern_raised" ? "Concern Raised" : log.status}
                               </Badge>
                               {log.isLateSubmission && (
                                 <Badge bg="warning" className="ms-1">
@@ -460,12 +491,14 @@ const WorkLogManagement = () => {
                                 </Button>
                                 {log.status !== "reviewed" && (
                                   <Button
-                                    variant="outline-success"
+                                    variant={log.status === "concern_raised" ? "outline-warning" : "outline-success"}
                                     size="sm"
                                     onClick={() => handleReview(log)}
-                                    title="Review"
+                                    title={log.status === "concern_raised" ? "Concern Raised — Review Again" : "Review"}
                                   >
-                                    <FaCheckCircle />
+                                    {log.status === "concern_raised"
+                                      ? <FaExclamationTriangle />
+                                      : <FaCheckCircle />}
                                   </Button>
                                 )}
                               </div>

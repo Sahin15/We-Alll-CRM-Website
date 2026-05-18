@@ -131,7 +131,6 @@ router.get("/working-days-info",
   }
 );
 
-export default router;
 // Get employee's own salary preview
 router.get("/my-preview/:month/:year",
   protect,
@@ -149,6 +148,128 @@ router.get("/my-preview/:month/:year",
         message: "Salary preview not found",
         error: error.message
       });
+    }
+  }
+);
+
+// Bulk recalculate previews for a month — fixes inflated unpaid leave counts
+// caused by previews generated before the month ended.
+// MUST be defined before /:previewId routes to avoid Express matching "bulk-recalculate" as a previewId.
+router.post("/bulk-recalculate",
+  protect,
+  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  async (req, res) => {
+    try {
+      const { month, year } = req.body;
+
+      if (!month || !year) {
+        return res.status(400).json({ message: "Month and year are required" });
+      }
+
+      const SalaryPreview = (await import("../models/salaryPreviewModel.js")).default;
+      const SalaryStructure = (await import("../models/salaryStructureModel.js")).default;
+      const LeaveImpactCalculator = (await import("../services/leaveImpactCalculator.js")).default;
+      const WorkingDaysCalculator = (await import("../services/workingDaysCalculator.js")).default;
+
+      const leaveImpactCalc = new LeaveImpactCalculator();
+      const workingDaysCalc = new WorkingDaysCalculator();
+
+      const previews = await SalaryPreview.find({
+        month: parseInt(month),
+        year: parseInt(year),
+        status: { $nin: ["finalized"] }
+      }).populate({
+        path: "employee",
+        select: "name email employeeId designation department",
+        populate: { path: "department", select: "name" }
+      });
+
+      const results = { success: [], failed: [], skipped: [] };
+
+      for (const preview of previews) {
+        try {
+          const employeeId = preview.employee._id;
+
+          const salaryStructure = await SalaryStructure.getActiveStructure(employeeId);
+          if (!salaryStructure) {
+            results.skipped.push({
+              previewId: preview._id,
+              employee: preview.employee.name,
+              reason: "No active salary structure"
+            });
+            continue;
+          }
+
+          const workingDaysResult = await workingDaysCalc.calculateWorkingDays(
+            parseInt(month), parseInt(year), preview.employee.department?._id
+          );
+          const leaveImpactResult = await leaveImpactCalc.calculateLeaveDeduction(
+            employeeId, parseInt(month), parseInt(year), salaryStructure
+          );
+
+          const effectiveWorkingDays = leaveImpactResult.effectiveWorkingDays ?? workingDaysResult.workingDays;
+
+          const oldUnpaid = preview.leaveImpact.unpaidLeaves;
+          const oldNet = preview.salaryBreakdown.netSalary;
+
+          preview.workingDaysBreakdown = {
+            ...workingDaysResult,
+            workingDays: effectiveWorkingDays,
+            isPartialMonth: leaveImpactResult.isPartialMonth || false
+          };
+
+          preview.leaveImpact = leaveImpactResult;
+          preview.salaryBreakdown.deductions.lossOfPay = leaveImpactResult.deductionAmount;
+
+          const earnings = preview.salaryBreakdown.earnings;
+          const deductions = preview.salaryBreakdown.deductions;
+
+          const grossSalary = Object.values(earnings).reduce((sum, val) => {
+            if (Array.isArray(val)) return sum + val.reduce((s, i) => s + (i.amount || 0), 0);
+            return sum + (val || 0);
+          }, 0);
+
+          const totalDeductions = Object.values(deductions).reduce((sum, val) => {
+            if (Array.isArray(val)) return sum + val.reduce((s, i) => s + (i.amount || 0), 0);
+            return sum + (val || 0);
+          }, 0);
+
+          preview.salaryBreakdown.grossSalary = grossSalary;
+          preview.salaryBreakdown.totalDeductions = totalDeductions;
+          preview.salaryBreakdown.netSalary = grossSalary - totalDeductions;
+
+          await preview.save();
+
+          results.success.push({
+            previewId: preview._id,
+            employee: preview.employee.name,
+            employeeId: preview.employee.employeeId,
+            unpaidLeavesBefore: oldUnpaid,
+            unpaidLeavesAfter: leaveImpactResult.unpaidLeaves,
+            netSalaryBefore: oldNet,
+            netSalaryAfter: preview.salaryBreakdown.netSalary
+          });
+        } catch (err) {
+          results.failed.push({
+            previewId: preview._id,
+            employee: preview.employee?.name || "Unknown",
+            error: err.message
+          });
+        }
+      }
+
+      res.status(200).json({
+        message: `Recalculated ${results.success.length} salary previews`,
+        summary: {
+          total: previews.length,
+          success: results.success.length,
+          failed: results.failed.length,
+          skipped: results.skipped.length
+        },
+        results
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Server error", error: error.message });
     }
   }
 );
@@ -436,3 +557,5 @@ router.delete("/:previewId",
     }
   }
 );
+
+export default router;

@@ -72,12 +72,16 @@ export const workItemApi = {
    * @param {string} id - Work item ID
    * @param {string} status - New status
    * @param {string} completedAt - Optional completion date (for back dating)
+   * @param {string} cancellationReason - Required when status is 'Cancelled'
    * @returns {Promise} Updated work item
    */
-  updateStatus: async (id, status, completedAt = null) => {
+  updateStatus: async (id, status, completedAt = null, cancellationReason = null) => {
     const payload = { status };
     if (completedAt) {
       payload.completedAt = completedAt;
+    }
+    if (status === 'Cancelled' && cancellationReason) {
+      payload.cancellationReason = cancellationReason;
     }
     const response = await api.patch(`/work-items/${id}/status`, payload);
     return response.data;

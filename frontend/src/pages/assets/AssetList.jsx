@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import assetApi from '../../api/assetApi';
 import AssetStatusBadge from '../../components/assets/AssetStatusBadge';
 import useScrollToTop from '../../hooks/useScrollToTop';
+import { useAuth } from '../../context/AuthContext';
 import './AssetList.css';
 
 // Action Menu Component
-const ActionMenu = ({ asset, onView, onEdit, onAssign, onRepair, onHistory }) => {
+const ActionMenu = ({ asset, onView, onEdit, onAssign, onRepair, onHistory, onDelete, isAdmin }) => {
   const [showMenu, setShowMenu] = useState(false);
 
   const handleMenuClick = (e) => {
@@ -46,6 +47,11 @@ const ActionMenu = ({ asset, onView, onEdit, onAssign, onRepair, onHistory }) =>
           <button className="action-dropdown-item" onClick={(e) => handleAction(() => onHistory(asset._id), e)}>
             📋 History
           </button>
+          {isAdmin && (
+            <button className="action-dropdown-item danger" onClick={(e) => handleAction(() => onDelete(asset._id), e)}>
+              🗑️ Delete
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -58,6 +64,8 @@ const AssetList = () => {
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   // Filters
   const [search, setSearch] = useState('');
@@ -184,6 +192,18 @@ const AssetList = () => {
     navigate(`/assets/history?assetId=${id}`);
   };
 
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this asset?')) {
+      try {
+        await assetApi.deleteAsset(id);
+        fetchAssets();
+      } catch (err) {
+        console.error('Error deleting asset:', err);
+        setError('Failed to delete asset');
+      }
+    }
+  };
+
   return (
     <div className="asset-list-container">
       <div className="asset-list-header">
@@ -280,7 +300,6 @@ const AssetList = () => {
             <thead>
               <tr>
                 <th>Asset ID</th>
-                <th>Name</th>
                 <th>Category</th>
                 <th>Status</th>
                 <th>Assigned To</th>
@@ -292,7 +311,6 @@ const AssetList = () => {
               {assets.map((asset) => (
                 <tr key={asset._id} onClick={() => handleView(asset._id)}>
                   <td className="asset-id">{asset.assetId}</td>
-                  <td className="asset-name">{asset.name}</td>
                   <td className="asset-category">{asset.category}</td>
                   <td className="asset-status">
                     <AssetStatusBadge status={asset.status} />
@@ -302,7 +320,7 @@ const AssetList = () => {
                     {asset.warrantyEndDate ? new Date(asset.warrantyEndDate).toLocaleDateString() : '-'}
                   </td>
                   <td className="actions" onClick={(e) => e.stopPropagation()}>
-                    <ActionMenu asset={asset} onView={handleView} onEdit={handleEdit} onAssign={handleAssign} onRepair={handleRepair} onHistory={handleHistory} />
+                    <ActionMenu asset={asset} onView={handleView} onEdit={handleEdit} onAssign={handleAssign} onRepair={handleRepair} onHistory={handleHistory} onDelete={handleDelete} isAdmin={isAdmin} />
                   </td>
                 </tr>
               ))}

@@ -21,6 +21,12 @@ export const leaveApi = {
     const params = year ? { year } : {};
     return api.get(`/leaves/usage-summary/${employeeId}`, { params });
   },
+  getAllLeaveBalances: (year = null, month = null) => {
+    const params = {};
+    if (year) params.year = year;
+    if (month) params.month = month;
+    return api.get("/leaves/all-balances", { params });
+  },
   updateLeave: (id, data) => api.put(`/leaves/${id}`, data),
   cancelLeave: (id) => api.put(`/leaves/${id}/cancel`),
   approveLeave: (id, approvalComment = '') => api.put(`/leaves/${id}/approve`, { approvalComment }),

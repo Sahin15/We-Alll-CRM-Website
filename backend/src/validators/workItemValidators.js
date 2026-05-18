@@ -158,8 +158,16 @@ export const updateStatusValidation = [
     .trim()
     .notEmpty()
     .withMessage("Status is required")
-    .isIn(["To Do", "In Progress", "Review", "Done"])
+    .isIn(["To Do", "In Progress", "Review", "Done", "Cancelled"])
     .withMessage("Invalid status value"),
+    
+  body("cancellationReason")
+    .if(body("status").equals("Cancelled"))
+    .trim()
+    .notEmpty()
+    .withMessage("Cancellation reason is required when status is Cancelled")
+    .isLength({ min: 25 })
+    .withMessage("Cancellation reason must be at least 25 characters"),
 ];
 
 // Validation for bulk operations
@@ -199,7 +207,7 @@ export const bulkUpdateValidation = [
   body("updates.status")
     .optional()
     .trim()
-    .isIn(["To Do", "In Progress", "Review", "Done"])
+    .isIn(["To Do", "In Progress", "Review", "Done", "Cancelled"])
     .withMessage("Invalid status value"),
 
   body("updates.priority")
@@ -241,7 +249,7 @@ export const queryValidation = [
   query("status")
     .optional()
     .trim()
-    .isIn(["all", "To Do", "In Progress", "Review", "Done"])
+    .isIn(["all", "To Do", "In Progress", "Review", "Done", "Cancelled"])
     .withMessage("Invalid status filter"),
 
   query("type")

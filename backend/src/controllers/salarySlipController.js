@@ -144,8 +144,12 @@ const calculateAttendance = async (employeeId, month, year) => {
       salaryStructure
     );
 
-    // Calculate actual days worked
-    const daysWorked = workingDaysResult.workingDays - leaveImpactResult.unpaidLeaves;
+    // Use effectiveWorkingDays (days up to today/month-end) as the base for attendance display.
+    // This prevents future unworked days from being counted as absent when generating mid-month.
+    const effectiveWorkingDays = leaveImpactResult.effectiveWorkingDays ?? workingDaysResult.workingDays;
+
+    // Calculate actual days worked (out of effective working days, minus unpaid absences)
+    const daysWorked = effectiveWorkingDays - leaveImpactResult.unpaidLeaves;
 
     return {
       // Enhanced working days calculation
@@ -155,6 +159,8 @@ const calculateAttendance = async (employeeId, month, year) => {
         weekends: workingDaysResult.weekends,
         holidays: workingDaysResult.holidays,
         actualWorkingDays: workingDaysResult.workingDays,
+        effectiveWorkingDays,
+        isPartialMonth: leaveImpactResult.isPartialMonth || false,
         holidayDates: workingDaysResult.holidayDates || []
       },
       
@@ -166,7 +172,7 @@ const calculateAttendance = async (employeeId, month, year) => {
       },
       
       // Legacy fields for backward compatibility
-      totalWorkingDays: workingDaysResult.workingDays,
+      totalWorkingDays: effectiveWorkingDays,  // Only count days up to effectiveEnd
       daysWorked: Math.max(0, daysWorked),
       daysAbsent: leaveImpactResult.unpaidLeaves,
       paidLeaves: leaveImpactResult.paidLeaves,
@@ -1282,5 +1288,145 @@ export const getOverallStats = async (req, res) => {
     res.json({ totalSlips, totalStructures, totalTemplates });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+/**
+ * Recalculate an existing salary slip's attendance/leave data.
+ * Useful for fixing slips that were generated mid-month (before the month ended)
+ * and now show inflated unpaid leave counts.
+ * PUT /salary-slips/:id/recalculate
+ */
+export const recalculateSalarySlip = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const slip = await SalarySlip.findById(id).populate("salaryStructure");
+    if (!slip) {
+      return res.status(404).json({ message: "Salary slip not found" });
+    }
+
+    if (!["draft", "generated"].includes(slip.status)) {
+      return res.status(400).json({
+        message: "Cannot recalculate slips that have been sent or paid"
+      });
+    }
+
+    const salaryStructure = slip.salaryStructure;
+    if (!salaryStructure) {
+      return res.status(404).json({ message: "Salary structure not found for this slip" });
+    }
+
+    // Recalculate attendance using the fixed logic
+    const attendance = await calculateAttendance(slip.employee, slip.month, slip.year);
+    const lossOfPay = attendance.lossOfPayAmount || attendance.leaveImpactDetails.totalLeaveDeduction;
+
+    // Update attendance fields
+    slip.totalWorkingDays = attendance.totalWorkingDays;
+    slip.daysWorked = attendance.daysWorked;
+    slip.daysAbsent = attendance.daysAbsent;
+    slip.paidLeaves = attendance.paidLeaves;
+    slip.unpaidLeaves = attendance.unpaidLeaves;
+    slip.workingDaysCalculation = attendance.workingDaysCalculation;
+    slip.leaveImpactDetails = attendance.leaveImpactDetails;
+
+    // Update loss of pay deduction
+    slip.deductions.lossOfPay = Math.round(lossOfPay);
+
+    await slip.save();
+    await slip.populate("employee", "name email employeeId designation department");
+
+    res.status(200).json({
+      message: "Salary slip recalculated successfully",
+      salarySlip: slip,
+      changes: {
+        totalWorkingDays: slip.totalWorkingDays,
+        daysWorked: slip.daysWorked,
+        unpaidLeaves: slip.unpaidLeaves,
+        lossOfPay: slip.deductions.lossOfPay,
+        netSalary: slip.netSalary
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error",
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Bulk recalculate salary slips for a given month/year.
+ * Fixes all slips that were generated mid-month.
+ * POST /salary-slips/bulk-recalculate
+ */
+export const bulkRecalculateSalarySlips = async (req, res) => {
+  try {
+    const { month, year } = req.body;
+
+    if (!month || !year) {
+      return res.status(400).json({ message: "Month and year are required" });
+    }
+
+    const slips = await SalarySlip.find({
+      month,
+      year,
+      status: { $in: ["draft", "generated"] }
+    }).populate("salaryStructure");
+
+    const results = { success: [], failed: [], skipped: [] };
+
+    for (const slip of slips) {
+      try {
+        if (!slip.salaryStructure) {
+          results.skipped.push({ slipId: slip._id, reason: "No salary structure" });
+          continue;
+        }
+
+        const attendance = await calculateAttendance(slip.employee, slip.month, slip.year);
+        const lossOfPay = attendance.lossOfPayAmount || attendance.leaveImpactDetails.totalLeaveDeduction;
+
+        const oldUnpaid = slip.unpaidLeaves;
+        const oldNet = slip.netSalary;
+
+        slip.totalWorkingDays = attendance.totalWorkingDays;
+        slip.daysWorked = attendance.daysWorked;
+        slip.daysAbsent = attendance.daysAbsent;
+        slip.paidLeaves = attendance.paidLeaves;
+        slip.unpaidLeaves = attendance.unpaidLeaves;
+        slip.workingDaysCalculation = attendance.workingDaysCalculation;
+        slip.leaveImpactDetails = attendance.leaveImpactDetails;
+        slip.deductions.lossOfPay = Math.round(lossOfPay);
+
+        await slip.save();
+
+        results.success.push({
+          slipId: slip._id,
+          employee: slip.employee,
+          unpaidLeavesBefore: oldUnpaid,
+          unpaidLeavesAfter: slip.unpaidLeaves,
+          netSalaryBefore: oldNet,
+          netSalaryAfter: slip.netSalary
+        });
+      } catch (err) {
+        results.failed.push({ slipId: slip._id, error: err.message });
+      }
+    }
+
+    res.status(200).json({
+      message: `Recalculated ${results.success.length} salary slips`,
+      summary: {
+        total: slips.length,
+        success: results.success.length,
+        failed: results.failed.length,
+        skipped: results.skipped.length
+      },
+      results
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error",
+      error: error.message
+    });
   }
 };

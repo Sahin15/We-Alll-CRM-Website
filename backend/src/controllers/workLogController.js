@@ -1,10 +1,39 @@
-﻿import WorkLog from "../models/workLogModel.js";
+import WorkLog from "../models/workLogModel.js";
 import User from "../models/userModel.js";
 import Attendance from "../models/attendanceModel.js";
 import Department from "../models/departmentModel.js";
+import NotificationService from "../services/notificationService.js";
 import logger from "../utils/logger.js";
 import { getCurrentISTTime, getTodayMidnightIST, getTodayRangeIST } from "../utils/timezone.js";
 import * as XLSX from "xlsx";
+
+/**
+ * Detect low-effort / padding work logs.
+ * Returns true if the log looks like it was padded with spaces, dots, or repeated characters.
+ */
+export const isLowQualityWorkLog = (text) => {
+  if (!text) return false;
+  const trimmed = text.trim();
+
+  // Count meaningful characters (letters and digits)
+  const meaningfulChars = (trimmed.match(/[a-zA-Z0-9]/g) || []).length;
+  const totalChars = trimmed.length;
+
+  // If less than 30% of characters are letters/digits, it's likely padding
+  if (totalChars > 0 && meaningfulChars / totalChars < 0.3) return true;
+
+  // Check for excessive repetition of dots, dashes, underscores, spaces
+  if (/^[\s.�\-_*]+$/.test(trimmed)) return true;
+
+  // Check for repeated single characters (e.g. "aaaaaaa", "........")
+  if (/^(.)\1{9,}$/.test(trimmed)) return true;
+
+  // Check if meaningful word count is very low relative to length
+  const words = trimmed.split(/\s+/).filter(w => /[a-zA-Z]{2,}/.test(w));
+  if (totalChars >= 50 && words.length < 3) return true;
+
+  return false;
+};
 
 // Submit or update today's work log
 export const submitWorkLog = async (req, res) => {
@@ -200,7 +229,8 @@ export const getTodayWorkLog = async (req, res) => {
     const workLog = await WorkLog.findOne({
       employee,
       date: { $gte: todayStart, $lt: todayEnd },
-    }).populate("reviewedBy", "name email");
+    }).populate("reviewedBy", "name email")
+      .populate("concernRaisedBy", "name email");
 
     if (!workLog) {
       return res.status(404).json({
@@ -282,6 +312,7 @@ export const getMyWorkLogs = async (req, res) => {
           }
         })
         .populate("reviewedBy", "name email")
+        .populate("concernRaisedBy", "name email")
         .populate("editHistory.editedBy", "name email")
         .sort({ date: -1 })
         .skip(skip)
@@ -397,6 +428,7 @@ export const getAllWorkLogs = async (req, res) => {
           }
         })
         .populate("reviewedBy", "name email")
+        .populate("concernRaisedBy", "name email")
         .populate("editHistory.editedBy", "name email")
         .sort({ date: -1 })
         .skip(skip)
@@ -463,6 +495,7 @@ export const getEmployeeWorkLogs = async (req, res) => {
           }
         })
         .populate("reviewedBy", "name email")
+        .populate("concernRaisedBy", "name email")
         .populate("editHistory.editedBy", "name email")
         .sort({ date: -1 })
         .skip(skip)
@@ -635,7 +668,7 @@ export const updateMyWorkLog = async (req, res) => {
       });
     }
 
-    // Check if already reviewed
+    // Check if already reviewed (concern_raised allows re-editing)
     if (workLogDoc.status === "reviewed") {
       return res.status(400).json({
         message: "Cannot edit work log after it has been reviewed",
@@ -645,6 +678,12 @@ export const updateMyWorkLog = async (req, res) => {
     const oldWorkLog = workLogDoc.workLog;
     workLogDoc.workLog = newWorkLog.trim();
 
+    // If employee is resubmitting after a concern was raised, reset to submitted
+    if (workLogDoc.status === "concern_raised") {
+      workLogDoc.status = "submitted";
+      workLogDoc.submittedAt = getCurrentISTTime();
+    }
+
     // Add to edit history
     workLogDoc.editHistory.push({
       editedBy: employee._id,
@@ -653,7 +692,7 @@ export const updateMyWorkLog = async (req, res) => {
         oldWorkLog,
         newWorkLog: newWorkLog.trim(),
       },
-      reason: reason || "Updated work log",
+      reason: reason || (workLogDoc.status === "submitted" ? "Resubmitted after concern" : "Updated work log"),
     });
 
     await workLogDoc.save();
@@ -915,6 +954,7 @@ export const exportWorkLogs = async (req, res) => {
         }
       })
       .populate("reviewedBy", "name email")
+      .populate("concernRaisedBy", "name email")
       .sort({ date: -1 })
       .lean();
 
@@ -1074,6 +1114,7 @@ export const getDepartmentWorkLogs = async (req, res) => {
         select: "name email designation",
       })
       .populate("reviewedBy", "name email")
+      .populate("concernRaisedBy", "name email")
       .sort({ date: -1 })
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
@@ -1162,5 +1203,135 @@ export const reviewDepartmentWorkLog = async (req, res) => {
       message: "Server error",
       error: error.message,
     });
+  }
+};
+
+// Raise concern on a work log (Admin/HR/Manager)
+export const raiseConcern = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { concernNote } = req.body;
+    const reviewer = req.user;
+
+    if (!concernNote || concernNote.trim().length < 10) {
+      return res.status(400).json({
+        message: "Concern note must be at least 10 characters",
+      });
+    }
+
+    const workLog = await WorkLog.findById(id).populate("employee", "name email _id");
+
+    if (!workLog) {
+      return res.status(404).json({ message: "Work log not found" });
+    }
+
+    if (workLog.status === "reviewed") {
+      return res.status(400).json({ message: "Cannot raise concern on an already reviewed work log" });
+    }
+
+    workLog.status = "concern_raised";
+    workLog.concernNote = concernNote.trim();
+    workLog.concernRaisedBy = reviewer._id;
+    workLog.concernRaisedAt = getCurrentISTTime();
+
+    await workLog.save();
+
+    // Notify the employee
+    try {
+      await NotificationService.sendToUser(
+        workLog.employee._id,
+        "Work Log Concern Raised",
+        `Your work log for ${new Date(workLog.date).toLocaleDateString("en-IN")} has a concern: ${concernNote.trim().substring(0, 80)}${concernNote.trim().length > 80 ? "..." : ""}. Please review and resubmit.`,
+        {
+          type: "work_log_concern",
+          senderId: reviewer._id,
+          actionUrl: "/worklog/history",
+          priority: "high",
+          data: { workLogId: workLog._id.toString() },
+        }
+      );
+    } catch (notifErr) {
+      logger.error("Failed to send concern notification:", notifErr.message);
+    }
+
+    logger.info(`Concern raised by ${reviewer.name} on work log of ${workLog.employee.name}`);
+
+    res.status(200).json({
+      message: "Concern raised successfully. Employee has been notified.",
+      workLog,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Raise concern on a department work log (HoD)
+export const raiseDepartmentConcern = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { concernNote } = req.body;
+    const hodUserId = req.user._id;
+
+    if (!concernNote || concernNote.trim().length < 10) {
+      return res.status(400).json({
+        message: "Concern note must be at least 10 characters",
+      });
+    }
+
+    const workLog = await WorkLog.findById(id).populate("employee", "name email _id department");
+
+    if (!workLog) {
+      return res.status(404).json({ success: false, message: "Work log not found" });
+    }
+
+    // Verify HoD has access to this employee's work log
+    const department = await Department.findOne({ head: hodUserId, status: "active" });
+    if (!department) {
+      return res.status(403).json({ success: false, message: "Access denied. You are not a Head of Department." });
+    }
+
+    const employee = await User.findById(workLog.employee._id);
+    if (!employee || employee.department.toString() !== department._id.toString()) {
+      return res.status(403).json({ success: false, message: "Access denied. Employee is not in your department." });
+    }
+
+    if (workLog.status === "reviewed") {
+      return res.status(400).json({ success: false, message: "Cannot raise concern on an already reviewed work log" });
+    }
+
+    workLog.status = "concern_raised";
+    workLog.concernNote = concernNote.trim();
+    workLog.concernRaisedBy = hodUserId;
+    workLog.concernRaisedAt = getCurrentISTTime();
+
+    await workLog.save();
+
+    // Notify the employee
+    try {
+      await NotificationService.sendToUser(
+        workLog.employee._id,
+        "Work Log Concern Raised",
+        `Your work log for ${new Date(workLog.date).toLocaleDateString("en-IN")} has a concern: ${concernNote.trim().substring(0, 80)}${concernNote.trim().length > 80 ? "..." : ""}. Please review and resubmit.`,
+        {
+          type: "work_log_concern",
+          senderId: hodUserId,
+          actionUrl: "/worklog/history",
+          priority: "high",
+          data: { workLogId: workLog._id.toString() },
+        }
+      );
+    } catch (notifErr) {
+      logger.error("Failed to send concern notification:", notifErr.message);
+    }
+
+    logger.info(`Concern raised by HoD ${req.user.name} on work log of ${workLog.employee.name}`);
+
+    res.status(200).json({
+      success: true,
+      message: "Concern raised successfully. Employee has been notified.",
+      data: workLog,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };

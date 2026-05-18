@@ -34,8 +34,18 @@ import api from "../../services/api";
 
 const HRSalaryPreviewManagement = () => {
   const [activeTab, setActiveTab] = useState("overview");
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  // Default to previous month — current month's preview is typically not generated yet
+  const getPreviousMonth = () => {
+    const now = new Date();
+    const month = now.getMonth(); // getMonth() is 0-indexed, so this gives previous month (1-indexed)
+    const year = month === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    return { month: month === 0 ? 12 : month, year };
+  };
+  const prev = getPreviousMonth();
+
+  const [selectedMonth, setSelectedMonth] = useState(prev.month);
+  const [selectedYear, setSelectedYear] = useState(prev.year);
   const [previews, setPreviews] = useState([]);
   const [statistics, setStatistics] = useState(null);
   const [attentionPreviews, setAttentionPreviews] = useState([]);
@@ -56,7 +66,7 @@ const HRSalaryPreviewManagement = () => {
   const [showMidMonthModal, setShowMidMonthModal] = useState(false);
   const [midMonthData, setMidMonthData] = useState(null);
   const [midMonthOverride, setMidMonthOverride] = useState({ totalDays: 0, workingDays: 0, holidays: 0, weekends: 0 });
-  const [pendingGenerateAction, setPendingGenerateAction] = useState(null); // stores the action to execute after confirmation
+  const [pendingGenerateAction, setPendingGenerateAction] = useState(null);
 
   // Corrections form state
   const [corrections, setCorrections] = useState({

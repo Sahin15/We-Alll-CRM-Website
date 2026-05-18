@@ -25,7 +25,7 @@ const WorkBoardTab = ({ project, onRefresh }) => {
   });
   const [draggedItem, setDraggedItem] = useState(null);
 
-  const statuses = ['To Do', 'In Progress', 'Done'];
+  const statuses = ['To Do', 'In Progress', 'Done', 'Cancelled'];
 
   useEffect(() => {
     loadWorkItems();
@@ -44,7 +44,8 @@ const WorkBoardTab = ({ project, onRefresh }) => {
           ...(response.data.board['To Do'] || []),
           ...(response.data.board['In Progress'] || []),
           ...(response.data.board['Review'] || []),
-          ...(response.data.board['Done'] || [])
+          ...(response.data.board['Done'] || []),
+          ...(response.data.board['Cancelled'] || [])
         ];
         setWorkItems(allItems);
       } else {
@@ -98,8 +99,24 @@ const WorkBoardTab = ({ project, onRefresh }) => {
       return;
     }
 
+    let cancellationReason = null;
+    if (newStatus === 'Cancelled') {
+      const confirmed = window.confirm('Are you sure you want to cancel this work item?');
+      if (!confirmed) {
+        setDraggedItem(null);
+        return;
+      }
+
+      cancellationReason = window.prompt('Enter cancellation reason (at least 25 characters):')?.trim();
+      if (!cancellationReason || cancellationReason.length < 25) {
+        toast.error('Cancellation reason must be at least 25 characters');
+        setDraggedItem(null);
+        return;
+      }
+    }
+
     try {
-      await workItemApi.updateStatus(draggedItem._id, newStatus);
+      await workItemApi.updateStatus(draggedItem._id, newStatus, null, cancellationReason);
       toast.success('Status updated successfully!');
       loadWorkItems();
       if (onRefresh) {
@@ -118,9 +135,9 @@ const WorkBoardTab = ({ project, onRefresh }) => {
     setShowModal(true);
   };
 
-  const handleUpdateStatus = async (itemId, newStatus) => {
+  const handleUpdateStatus = async (itemId, newStatus, completedAt = null, cancellationReason = null) => {
     try {
-      await workItemApi.updateStatus(itemId, newStatus);
+      await workItemApi.updateStatus(itemId, newStatus, completedAt, cancellationReason);
       toast.success('Status updated successfully!');
       loadWorkItems();
       if (onRefresh) {
@@ -138,7 +155,8 @@ const WorkBoardTab = ({ project, onRefresh }) => {
       'To Do': 'secondary',
       'In Progress': 'primary',
       Review: 'warning',
-      Done: 'success'
+      Done: 'success',
+      Cancelled: 'danger'
     };
     return colors[status] || 'secondary';
   };

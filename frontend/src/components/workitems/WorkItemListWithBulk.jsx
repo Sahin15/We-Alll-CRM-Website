@@ -19,6 +19,7 @@ const WorkItemListWithBulk = ({ workItems, onViewItem, onBulkAction, emptyMessag
       'In Progress': 'primary',
       'Review': 'warning',
       'Done': 'success',
+      'Cancelled': 'danger',
     };
     return colors[status] || 'secondary';
   };
@@ -41,16 +42,16 @@ const WorkItemListWithBulk = ({ workItems, onViewItem, onBulkAction, emptyMessag
   };
 
   const isOverdue = (workItem) => {
-    return workItem.status !== 'Done' &&
+    return !['Done', 'Cancelled'].includes(workItem.status) &&
       workItem.dueDate && 
       new Date(workItem.dueDate) < new Date() && 
-      workItem.status !== 'Done';
+      !['Done', 'Cancelled'].includes(workItem.status);
   };
 
   const isDueToday = (workItem) => {
     return workItem.dueDate && 
       new Date(workItem.dueDate).toDateString() === new Date().toDateString() &&
-      workItem.status !== 'Done';
+      !['Done', 'Cancelled'].includes(workItem.status);
   };
 
   const getDaysUntilDue = (dueDate) => {

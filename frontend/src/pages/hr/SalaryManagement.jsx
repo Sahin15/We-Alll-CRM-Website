@@ -64,9 +64,11 @@ const SalaryManagement = () => {
     try {
       setLoading(true);
       
-      const currentDate = new Date();
-      const currentMonth = currentDate.getMonth() + 1;
-      const currentYear = currentDate.getFullYear();
+      // Use previous month — current month's slips are typically not generated yet
+      const now = new Date();
+      const prevMonthNum = now.getMonth(); // 0-indexed = previous month as 1-indexed
+      const currentMonth = prevMonthNum === 0 ? 12 : prevMonthNum;
+      const currentYear = prevMonthNum === 0 ? now.getFullYear() - 1 : now.getFullYear();
 
       const [payrollResponse, employeesResponse, overallResponse] = await Promise.all([
         salarySlipApi.getPayrollSummary({ month: currentMonth, year: currentYear }),
@@ -216,7 +218,7 @@ const SalaryManagement = () => {
                     stats.slipsGenerated
                   )}
                 </h3>
-                <small className="text-muted">This month</small>
+                <small className="text-muted">Last month</small>
               </div>
             </Card.Body>
           </Card>
@@ -239,7 +241,7 @@ const SalaryManagement = () => {
                     formatCurrency(stats.totalPayout)
                   )}
                 </h3>
-                <small className="text-muted">This month</small>
+                <small className="text-muted">Last month</small>
               </div>
             </Card.Body>
           </Card>

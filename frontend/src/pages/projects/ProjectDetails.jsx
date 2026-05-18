@@ -32,6 +32,7 @@ import { useAuth } from "../../context/AuthContext";
 import { userApi } from "../../api/userApi";
 import SlotProgressDisplay from "../../components/projects/SlotProgressDisplay";
 import SlotStatisticsCards from "../../components/projects/SlotStatisticsCards";
+import ProjectCredentials from "../../components/projects/ProjectCredentials";
 
 const ProjectDetails = () => {
   const { id } = useParams();
@@ -858,7 +859,14 @@ const ProjectDetails = () => {
           </Row>
         </Tab>
 
-
+        {/* Credentials Tab */}
+        <Tab eventKey="credentials" title="Credentials">
+          <Row>
+            <Col>
+              <ProjectCredentials projectId={id} canEdit={canEdit || isTeamMember} />
+            </Col>
+          </Row>
+        </Tab>
 
         {/* Team Tab */}
         <Tab

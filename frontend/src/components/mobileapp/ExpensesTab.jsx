@@ -172,7 +172,7 @@ export default function ExpensesTab() {
               </label>
             ) : (
               <div>
-                {receiptPreview && <img src={receiptPreview} alt="Receipt" style={{ width: '100%', maxHeight: '160px', objectFit: 'cover', borderRadius: '8px', marginBottom: '8px' }} />}
+                {receiptPreview && <img loading="lazy" src={receiptPreview} alt="Receipt" style={{ width: '100%', maxHeight: '160px', objectFit: 'cover', borderRadius: '8px', marginBottom: '8px' }} />}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: uploadingReceipt ? '#FEF3C7' : '#F0FDF4', borderRadius: '8px', border: `1px solid ${uploadingReceipt ? '#F59E0B' : '#10B981'}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: uploadingReceipt ? '#92400E' : '#065F46' }}>
                     <FaFileImage size={14} />
@@ -223,3 +223,4 @@ export default function ExpensesTab() {
     </div>
   );
 }
+

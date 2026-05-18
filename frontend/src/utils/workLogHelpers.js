@@ -39,6 +39,8 @@ export const getWorkLogStatusBadge = (status) => {
       return "success";
     case "draft":
       return "secondary";
+    case "concern_raised":
+      return "warning";
     default:
       return "secondary";
   }

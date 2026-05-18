@@ -906,7 +906,7 @@ const updateWorkItem = async (req, res) => {
 // @access  Private
 const updateWorkItemStatus = async (req, res) => {
   try {
-    const { status, completedAt } = req.body;
+    const { status, completedAt, cancellationReason } = req.body;
     
     if (!status) {
       return res.status(400).json({
@@ -950,6 +950,20 @@ const updateWorkItemStatus = async (req, res) => {
           field: "status",
         },
       });
+    }
+
+    // Validate cancellation reason if status is Cancelled
+    if (status === "Cancelled") {
+      if (!cancellationReason || cancellationReason.trim().length < 25) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "Cancellation reason must be at least 25 characters long",
+            field: "cancellationReason",
+          },
+        });
+      }
     }
     
     // If status is not changing, just return success (idempotent)
@@ -995,34 +1009,45 @@ const updateWorkItemStatus = async (req, res) => {
     
     // For multiple assignees, only update individual status, not global status
     if (workItem.assignedToMultiple && workItem.assignedToMultiple.length > 0) {
-      // Initialize assigneeStatuses if not exists
-      if (!workItem.assigneeStatuses) {
-        workItem.assigneeStatuses = [];
-      }
-      
-      // Update status for current user ONLY
-      const existingStatusIndex = workItem.assigneeStatuses.findIndex(
-        as => as.assigneeId.toString() === req.user._id.toString()
-      );
-      
-      if (existingStatusIndex >= 0) {
-        workItem.assigneeStatuses[existingStatusIndex].status = status;
-        workItem.assigneeStatuses[existingStatusIndex].updatedAt = new Date();
+      // Cancellation is always a global/project-level action — set global status regardless
+      if (status === "Cancelled") {
+        workItem.status = status;
+        workItem.cancellationReason = cancellationReason.trim();
       } else {
-        workItem.assigneeStatuses.push({
-          assigneeId: req.user._id,
-          status: status,
-          updatedAt: new Date(),
-        });
+        // Initialize assigneeStatuses if not exists
+        if (!workItem.assigneeStatuses) {
+          workItem.assigneeStatuses = [];
+        }
+
+        // Update status for current user ONLY
+        const existingStatusIndex = workItem.assigneeStatuses.findIndex(
+          as => as.assigneeId.toString() === req.user._id.toString()
+        );
+
+        if (existingStatusIndex >= 0) {
+          workItem.assigneeStatuses[existingStatusIndex].status = status;
+          workItem.assigneeStatuses[existingStatusIndex].updatedAt = new Date();
+        } else {
+          workItem.assigneeStatuses.push({
+            assigneeId: req.user._id,
+            status: status,
+            updatedAt: new Date(),
+          });
+        }
+        // DO NOT update global status for multiple assignees (except Cancelled above)
       }
-      // DO NOT update global status for multiple assignees
     } else {
       // For single assignee, update global status
       workItem.status = status;
-      
-      // Clear isOverdue flag when marking as Done
-      if (status === 'Done') {
+
+      // Clear isOverdue flag when marking as Done or Cancelled
+      if (status === 'Done' || status === 'Cancelled') {
         workItem.isOverdue = false;
+      }
+
+      // Save cancellation reason
+      if (status === 'Cancelled') {
+        workItem.cancellationReason = cancellationReason.trim();
       }
     }
     

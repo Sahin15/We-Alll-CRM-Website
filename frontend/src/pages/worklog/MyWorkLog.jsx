@@ -10,7 +10,7 @@ import {
   Badge,
   Spinner,
 } from "react-bootstrap";
-import { FaCheckCircle, FaClock, FaEdit, FaSave } from "react-icons/fa";
+import { FaCheckCircle, FaClock, FaEdit, FaSave, FaExclamationTriangle } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { workLogApi } from "../../api/workLogApi";
 import {
@@ -161,6 +161,7 @@ const MyWorkLog = () => {
   const isSubmitted = todayLog && todayLog.status === "submitted";
   const isReviewed = todayLog && todayLog.status === "reviewed";
   const isDraft = todayLog && todayLog.status === "draft";
+  const isConcernRaised = todayLog && todayLog.status === "concern_raised";
 
   return (
     <Container className="mt-4">
@@ -234,6 +235,30 @@ const MyWorkLog = () => {
                       </small>
                     </>
                   )}
+                </Alert>
+              )}
+
+              {isConcernRaised && (
+                <Alert variant="warning" className="d-flex align-items-start gap-2">
+                  <FaExclamationTriangle className="mt-1 flex-shrink-0 text-warning" size={20} />
+                  <div>
+                    <strong>⚠️ Concern raised about your work log</strong>
+                    <br />
+                    {todayLog.concernNote && (
+                      <span className="d-block mt-1">{todayLog.concernNote}</span>
+                    )}
+                    <small className="text-muted d-block mt-1">
+                      Please edit your work log and resubmit with proper details.
+                    </small>
+                    <Button
+                      variant="warning"
+                      size="sm"
+                      className="mt-2"
+                      onClick={handleEdit}
+                    >
+                      <FaEdit className="me-1" /> Edit &amp; Resubmit
+                    </Button>
+                  </div>
                 </Alert>
               )}
 

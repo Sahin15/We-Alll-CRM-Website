@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Container, Tabs, Tab, Card } from 'react-bootstrap';
+import React, { useState } from 'react';
 import { 
-  FaChartBar, FaBoxes, FaPlus, FaClipboardList, 
+  FaChartBar, FaBoxes, FaPlus, 
   FaCalendarAlt, FaLaptop, FaTools, FaHistory
 } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
@@ -13,138 +12,76 @@ import AssignmentHistory from './AssignmentHistory';
 import RepairLog from './RepairLog';
 import WarrantyTracker from './WarrantyTracker';
 import MyAssets from './MyAssets';
-import '../../styles/profile-tabs.css';
+import './PremiumAssetManagement.css';
 
 const AssetManagement = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('dashboard');
   useScrollToTop();
 
-  const isHROrAdmin = ['hr', 'admin', 'superadmin', 'manager'].includes(user?.role);
+  const isHROrAdmin = ['hr', 'admin', 'superadmin', 'manager', 'hod'].includes(user?.role);
   const isEmployee = user?.role === 'employee';
 
+  // Employees cannot access the admin dashboard endpoint, so default them to My Assets
+  const [activeTab, setActiveTab] = useState(isEmployee ? 'my-assets' : 'dashboard');
+
+  const tabs = [];
+
+  if (!isEmployee) {
+    tabs.push({ id: 'dashboard', label: 'Dashboard', icon: <FaChartBar /> });
+  }
+
+  if (isHROrAdmin) {
+    tabs.push({ id: 'all-assets', label: 'All Assets', icon: <FaBoxes /> });
+    tabs.push({ id: 'add-asset', label: 'Add Asset', icon: <FaPlus /> });
+  }
+
+  tabs.push({ id: 'my-assets', label: 'My Assets', icon: <FaLaptop /> });
+
+  if (!isEmployee) {
+    tabs.push({ id: 'assignment-history', label: 'Assignments', icon: <FaHistory /> });
+    tabs.push({ id: 'repair-log', label: 'Repairs', icon: <FaTools /> });
+    tabs.push({ id: 'warranty', label: 'Warranty', icon: <FaCalendarAlt /> });
+  }
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'dashboard': return <AssetDashboard />;
+      case 'all-assets': return <AssetList />;
+      case 'add-asset': return <AddAsset />;
+      case 'my-assets': return <MyAssets />;
+      case 'assignment-history': return <AssignmentHistory />;
+      case 'repair-log': return <RepairLog />;
+      case 'warranty': return <WarrantyTracker />;
+      default: return null;
+    }
+  };
+
   return (
-    <Container fluid className="py-4">
-      <Card className="border-0 shadow-sm">
-        <Card.Body className="p-0">
-          <Tabs
-            activeKey={activeTab}
-            onSelect={(k) => setActiveTab(k)}
-            className="nav-tabs-custom"
-            style={{ borderBottom: '2px solid #e9ecef' }}
+    <div className="premium-asset-container">
+      <div className="premium-header">
+        <div>
+          <h1>Asset Workspace</h1>
+          <p>Manage and track all company equipment and resources efficiently.</p>
+        </div>
+      </div>
+
+      <div className="premium-tabs-wrapper">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            className={`premium-tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
           >
-            {/* Dashboard Tab */}
-            <Tab 
-              eventKey="dashboard" 
-              title={
-                <span>
-                  <FaChartBar className="me-2" />
-                  Dashboard
-                </span>
-              }
-            >
-              <div className="p-4">
-                <AssetDashboard />
-              </div>
-            </Tab>
+            {tab.icon}
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-            {/* All Assets Tab - HR/Admin/Manager only */}
-            {isHROrAdmin && (
-              <Tab 
-                eventKey="all-assets" 
-                title={
-                  <span>
-                    <FaBoxes className="me-2" />
-                    All Assets
-                  </span>
-                }
-              >
-                <div className="p-4">
-                  <AssetList />
-                </div>
-              </Tab>
-            )}
-
-            {/* Add Asset Tab - HR/Admin/Manager only */}
-            {isHROrAdmin && (
-              <Tab 
-                eventKey="add-asset" 
-                title={
-                  <span>
-                    <FaPlus className="me-2" />
-                    Add Asset
-                  </span>
-                }
-              >
-                <div className="p-4">
-                  <AddAsset />
-                </div>
-              </Tab>
-            )}
-
-            {/* Assignment History Tab */}
-            <Tab 
-              eventKey="assignment-history" 
-              title={
-                <span>
-                  <FaHistory className="me-2" />
-                  Assignments
-                </span>
-              }
-            >
-              <div className="p-4">
-                <AssignmentHistory />
-              </div>
-            </Tab>
-
-            {/* Repair Log Tab */}
-            <Tab 
-              eventKey="repair-log" 
-              title={
-                <span>
-                  <FaTools className="me-2" />
-                  Repairs
-                </span>
-              }
-            >
-              <div className="p-4">
-                <RepairLog />
-              </div>
-            </Tab>
-
-            {/* Warranty Tracker Tab */}
-            <Tab 
-              eventKey="warranty" 
-              title={
-                <span>
-                  <FaCalendarAlt className="me-2" />
-                  Warranty
-                </span>
-              }
-            >
-              <div className="p-4">
-                <WarrantyTracker />
-              </div>
-            </Tab>
-
-            {/* My Assets Tab */}
-            <Tab 
-              eventKey="my-assets" 
-              title={
-                <span>
-                  <FaLaptop className="me-2" />
-                  My Assets
-                </span>
-              }
-            >
-              <div className="p-4">
-                <MyAssets />
-              </div>
-            </Tab>
-          </Tabs>
-        </Card.Body>
-      </Card>
-    </Container>
+      <div className="premium-content-area" key={activeTab}>
+        {renderContent()}
+      </div>
+    </div>
   );
 };
 

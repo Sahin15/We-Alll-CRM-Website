@@ -1,5 +1,6 @@
 import { BrowserRouter } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
+import { useEffect } from "react";
 import { AuthProvider } from "./context/AuthContext";
 import { CompanyProvider } from "./context/CompanyContext";
 import { NotificationProvider } from "./context/NotificationContext";
@@ -7,10 +8,16 @@ import AppRoutes from "./routes";
 import SkipToMain from "./components/common/SkipToMain";
 import NotificationInitializer from "./components/common/NotificationInitializer";
 import ErrorBoundary from "./components/common/ErrorBoundary";
+import { initializeIndexedDBCleanup } from "./utils/indexedDBCleanup";
 import "./styles/toast.css";
 import "./styles/accessibility.css";
 
 function App() {
+  useEffect(() => {
+    // Initialize IndexedDB cleanup on app load
+    initializeIndexedDBCleanup();
+  }, []);
+
   return (
     <ErrorBoundary>
       <BrowserRouter

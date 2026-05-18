@@ -28,6 +28,10 @@ import {
   FaPhone,
   FaLaptop,
   FaFileCode,
+  FaShoppingCart,
+  FaFileAlt,
+  FaCheckSquare,
+  FaBoxOpen,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import "./Sidebar.css";
@@ -273,6 +277,91 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           icon: <FaFileCode />,
           label: "Software Licenses",
           roles: ["admin", "superadmin", "hr", "manager", "employee", "hod"],
+        },
+      ],
+    },
+    {
+      id: "procurement",
+      icon: <FaShoppingCart />,
+      label: "Procurement",
+      roles: ["admin", "superadmin", "hr", "accounts", "employee", "hod", "manager"],
+      isGroup: true,
+      children: [
+        // Dashboard — admin/superadmin/accounts only (calls restricted analytics endpoints)
+        {
+          path: "/procurement",
+          icon: <FaChartBar />,
+          label: "Dashboard",
+          roles: ["admin", "superadmin", "accounts"],
+          onlyForRoles: ["admin", "superadmin", "accounts"],
+        },
+        // My Purchase Requests — ALL roles can raise and track their own PRs
+        {
+          path: "/procurement/purchase-requests/my",
+          icon: <FaFileAlt />,
+          label: "My Requests",
+          roles: ["admin", "superadmin", "hr", "accounts", "employee", "hod", "manager"],
+        },
+        // PR Approvals — HoD approves pending_hod; admin/accounts approve pending_admin
+        // manager is NOT an approver per the backend APPROVER_ROLES
+        {
+          path: "/procurement/purchase-requests/approvals",
+          icon: <FaCheckSquare />,
+          label: "PR Approvals",
+          roles: ["hod", "admin", "superadmin", "accounts"],
+          onlyForRoles: ["hod", "admin", "superadmin", "accounts"],
+        },
+        // Vendors — admin/superadmin/accounts only (write + read)
+        {
+          path: "/procurement/vendors",
+          icon: <FaBuilding />,
+          label: "Vendors",
+          roles: ["admin", "superadmin", "accounts"],
+          onlyForRoles: ["admin", "superadmin", "accounts"],
+        },
+        // Purchase Orders — admin/superadmin/accounts create; hr/hod/manager view only
+        // employee does NOT see POs (spec: employees only see their own PRs)
+        {
+          path: "/procurement/purchase-orders",
+          icon: <FaClipboardList />,
+          label: "Purchase Orders",
+          roles: ["admin", "superadmin", "accounts", "hr", "hod", "manager"],
+          onlyForRoles: ["admin", "superadmin", "accounts", "hr", "hod", "manager"],
+        },
+        // Goods Receipts — admin/superadmin/accounts/hr/manager can create; hod view only
+        // employee does NOT see GRs
+        {
+          path: "/procurement/goods-receipts",
+          icon: <FaBoxOpen />,
+          label: "Goods Receipts",
+          roles: ["admin", "superadmin", "accounts", "hr", "hod", "manager"],
+          onlyForRoles: ["admin", "superadmin", "accounts", "hr", "hod", "manager"],
+        },
+        // Invoices — admin/superadmin/accounts create; hr/hod/manager view only
+        // employee does NOT see invoices
+        {
+          path: "/procurement/invoices",
+          icon: <FaFileInvoiceDollar />,
+          label: "Invoices",
+          roles: ["admin", "superadmin", "accounts", "hr", "hod", "manager"],
+          onlyForRoles: ["admin", "superadmin", "accounts", "hr", "hod", "manager"],
+        },
+        // Payments — admin/superadmin/accounts create; hr/hod/manager view only
+        // employee does NOT see payments
+        {
+          path: "/procurement/payments",
+          icon: <FaMoneyBillWave />,
+          label: "Payments",
+          roles: ["admin", "superadmin", "accounts", "hr", "hod", "manager"],
+          onlyForRoles: ["admin", "superadmin", "accounts", "hr", "hod", "manager"],
+        },
+        // Reports — admin/superadmin/accounts only
+        {
+          path: "/procurement/reports",
+          icon: <FaChartBar />,
+          label: "Reports",
+          roles: ["admin", "superadmin", "accounts"],
+          onlyForRoles: ["admin", "superadmin", "accounts"],
         },
       ],
     },
@@ -533,8 +622,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
               {collapsed ? (
                 /* Collapsed: Show only mini logo */
                 <div className="logo-mini-container">
-                  <img 
-                    src="/Wealll_mini.png" 
+                  <img loading="lazy" src="/Wealll_mini.png" 
                     alt="We Alll Office" 
                     className="logo-img-mini"
                   />
@@ -542,8 +630,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
               ) : (
                 /* Expanded: Show full We Alll Office logo */
                 <div className="logo-full-container">
-                  <img 
-                    src="/We Alll Office Logo.png" 
+                  <img loading="lazy" src="/We Alll Office Logo.png" 
                     alt="We Alll Office" 
                     className="logo-img-full"
                   />
@@ -628,3 +715,4 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
 };
 
 export default Sidebar;
+

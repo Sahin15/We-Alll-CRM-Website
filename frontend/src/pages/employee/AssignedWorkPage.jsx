@@ -28,7 +28,8 @@ const AssignedWorkPage = () => {
     show: false,
     itemId: null,
     newStatus: null,
-    itemTitle: null
+    itemTitle: null,
+    cancellationReason: null
   });
 
   useEffect(() => {
@@ -92,10 +93,10 @@ const AssignedWorkPage = () => {
       dateA.setHours(0, 0, 0, 0);
       dateB.setHours(0, 0, 0, 0);
       
-      const isAOverdue = dateA < today && a.status !== 'Done';
-      const isBOverdue = dateB < today && b.status !== 'Done';
-      const isADone = a.status === 'Done';
-      const isBDone = b.status === 'Done';
+      const isAOverdue = dateA < today && !['Done', 'Cancelled'].includes(a.status);
+      const isBOverdue = dateB < today && !['Done', 'Cancelled'].includes(b.status);
+      const isADone = ['Done', 'Cancelled'].includes(a.status);
+      const isBDone = ['Done', 'Cancelled'].includes(b.status);
       
       // Overdue items come first
       if (isAOverdue && !isBOverdue) return -1;
@@ -123,24 +124,26 @@ const AssignedWorkPage = () => {
     setShowModal(false);
   };
 
-  const handleStatusChangeRequest = (itemId, newStatus, itemTitle) => {
+  const handleStatusChangeRequest = (itemId, newStatus, _completedAt = null, cancellationReason = null) => {
+    const item = workItems.find((workItem) => workItem._id === itemId);
     setConfirmationModal({
       show: true,
       itemId,
       newStatus,
-      itemTitle
+      itemTitle: item?.title || selectedItem?.title || 'this work item',
+      cancellationReason
     });
   };
 
   const handleConfirmStatusChange = async () => {
-    const { itemId, newStatus } = confirmationModal;
-    setConfirmationModal({ show: false, itemId: null, newStatus: null, itemTitle: null });
+    const { itemId, newStatus, cancellationReason } = confirmationModal;
+    setConfirmationModal({ show: false, itemId: null, newStatus: null, itemTitle: null, cancellationReason: null });
     
     try {
-      await workItemApi.updateStatus(itemId, newStatus);
+      await workItemApi.updateStatus(itemId, newStatus, null, cancellationReason);
       loadWorkItems();
       if (selectedItem && selectedItem._id === itemId) {
-        setSelectedItem({ ...selectedItem, status: newStatus });
+        setSelectedItem({ ...selectedItem, status: newStatus, cancellationReason });
       }
     } catch (error) {
       console.error('Error updating status:', error);
@@ -150,7 +153,7 @@ const AssignedWorkPage = () => {
   };
 
   const handleCancelStatusChange = () => {
-    setConfirmationModal({ show: false, itemId: null, newStatus: null, itemTitle: null });
+    setConfirmationModal({ show: false, itemId: null, newStatus: null, itemTitle: null, cancellationReason: null });
   };
 
   if (loading) {
@@ -298,23 +301,68 @@ const AssignedWorkPage = () => {
 
       {/* Status Change Confirmation Modal */}
       <Modal show={confirmationModal.show} onHide={handleCancelStatusChange} centered style={{ zIndex: 9999 }}>
-        <Modal.Header closeButton>
-          <Modal.Title>Confirm Status Change</Modal.Title>
+        <Modal.Header
+          closeButton
+          style={
+            confirmationModal.newStatus === 'Cancelled'
+              ? { background: '#dc3545', color: 'white' }
+              : {}
+          }
+        >
+          <Modal.Title>
+            {confirmationModal.newStatus === 'Cancelled' ? '🚫 Confirm Cancellation' : 'Confirm Status Change'}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p>
-            Are you sure you want to change the status of <strong>{confirmationModal.itemTitle}</strong> to <strong>{confirmationModal.newStatus}</strong>?
-          </p>
-          <p className="text-muted small mb-0">
-            This action will update the work item status for your team member.
-          </p>
+          {confirmationModal.newStatus === 'Cancelled' ? (
+            <>
+              <div style={{
+                background: '#fff5f5',
+                border: '1px solid #dc3545',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                marginBottom: '16px'
+              }}>
+                <strong style={{ color: '#dc3545' }}>⚠️ This action is permanent and cannot be undone.</strong>
+                <p className="mb-0 mt-1 text-muted small">
+                  A cancelled work item cannot be reactivated. A new work item must be created if needed.
+                </p>
+              </div>
+              <p>
+                You are cancelling <strong>{confirmationModal.itemTitle}</strong>.
+              </p>
+              {confirmationModal.cancellationReason && (
+                <div style={{
+                  background: '#f8f9fa',
+                  borderRadius: '6px',
+                  padding: '10px 14px',
+                  borderLeft: '3px solid #dc3545',
+                  fontSize: '0.9rem'
+                }}>
+                  <strong>Reason:</strong> {confirmationModal.cancellationReason}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <p>
+                Are you sure you want to change the status of <strong>{confirmationModal.itemTitle}</strong> to <strong>{confirmationModal.newStatus}</strong>?
+              </p>
+              <p className="text-muted small mb-0">
+                This action will update the work item status for your team member.
+              </p>
+            </>
+          )}
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={handleCancelStatusChange}>
-            Cancel
+            Go Back
           </Button>
-          <Button variant="primary" onClick={handleConfirmStatusChange}>
-            Confirm
+          <Button
+            variant={confirmationModal.newStatus === 'Cancelled' ? 'danger' : 'primary'}
+            onClick={handleConfirmStatusChange}
+          >
+            {confirmationModal.newStatus === 'Cancelled' ? 'Yes, Cancel Work' : 'Confirm'}
           </Button>
         </Modal.Footer>
       </Modal>

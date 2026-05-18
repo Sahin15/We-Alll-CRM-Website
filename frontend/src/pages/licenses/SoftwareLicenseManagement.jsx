@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Container, Tabs, Tab, Card } from 'react-bootstrap';
 import { 
   FaChartBar, FaFileCode, FaPlus, FaClipboardList, 
@@ -16,10 +16,13 @@ import '../../styles/profile-tabs.css';
 
 const SoftwareLicenseManagement = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('dashboard');
   useScrollToTop();
 
-  const isHROrAdmin = ['hr', 'admin', 'superadmin', 'manager'].includes(user?.role);
+  const isHROrAdmin = ['hr', 'admin', 'superadmin', 'manager', 'hod'].includes(user?.role);
+  const isEmployee = user?.role === 'employee';
+
+  // Employees cannot access the admin dashboard endpoint, so default them to My Licenses
+  const [activeTab, setActiveTab] = useState(isEmployee ? 'my-licenses' : 'dashboard');
 
   return (
     <Container fluid className="py-4">
@@ -31,20 +34,22 @@ const SoftwareLicenseManagement = () => {
             className="nav-tabs-custom"
             style={{ borderBottom: '2px solid #e9ecef' }}
           >
-            {/* Dashboard Tab */}
-            <Tab 
-              eventKey="dashboard" 
-              title={
-                <span>
-                  <FaChartBar className="me-2" />
-                  Dashboard
-                </span>
-              }
-            >
-              <div className="p-4">
-                <SoftwareLicenseDashboard />
-              </div>
-            </Tab>
+            {/* Dashboard Tab - HR/Admin/Manager/HoD only */}
+            {!isEmployee && (
+              <Tab 
+                eventKey="dashboard" 
+                title={
+                  <span>
+                    <FaChartBar className="me-2" />
+                    Dashboard
+                  </span>
+                }
+              >
+                <div className="p-4">
+                  <SoftwareLicenseDashboard />
+                </div>
+              </Tab>
+            )}
 
             {/* All Licenses Tab - HR/Admin/Manager only */}
             {isHROrAdmin && (
@@ -80,36 +85,6 @@ const SoftwareLicenseManagement = () => {
               </Tab>
             )}
 
-            {/* Expiry Alerts Tab */}
-            <Tab 
-              eventKey="expiry-alerts" 
-              title={
-                <span>
-                  <FaCalendarAlt className="me-2" />
-                  Expiry Alerts
-                </span>
-              }
-            >
-              <div className="p-4">
-                <LicenseExpiryAlerts />
-              </div>
-            </Tab>
-
-            {/* License History Tab */}
-            <Tab 
-              eventKey="history" 
-              title={
-                <span>
-                  <FaHistory className="me-2" />
-                  History
-                </span>
-              }
-            >
-              <div className="p-4">
-                <LicenseHistory />
-              </div>
-            </Tab>
-
             {/* My Licenses Tab */}
             <Tab 
               eventKey="my-licenses" 
@@ -124,6 +99,40 @@ const SoftwareLicenseManagement = () => {
                 <MyLicenses />
               </div>
             </Tab>
+
+            {/* Expiry Alerts Tab - HR/Admin/Manager/HoD only */}
+            {!isEmployee && (
+              <Tab 
+                eventKey="expiry-alerts" 
+                title={
+                  <span>
+                    <FaCalendarAlt className="me-2" />
+                    Expiry Alerts
+                  </span>
+                }
+              >
+                <div className="p-4">
+                  <LicenseExpiryAlerts />
+                </div>
+              </Tab>
+            )}
+
+            {/* License History Tab - HR/Admin/Manager/HoD only */}
+            {!isEmployee && (
+              <Tab 
+                eventKey="history" 
+                title={
+                  <span>
+                    <FaHistory className="me-2" />
+                    History
+                  </span>
+                }
+              >
+                <div className="p-4">
+                  <LicenseHistory />
+                </div>
+              </Tab>
+            )}
           </Tabs>
         </Card.Body>
       </Card>

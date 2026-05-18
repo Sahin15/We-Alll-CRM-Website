@@ -123,19 +123,10 @@ const AssetDashboard = () => {
       </div>
 
       {/* Alerts */}
-      {(alerts.overdueReturns > 0 || alerts.warrantiesExpiringThisMonth > 0 || alerts.longRunningRepairs > 0) && (
+      {(alerts.warrantiesExpiringThisMonth > 0 || alerts.longRunningRepairs > 0) && (
         <div className="alerts-section">
           <h2>Quick Alerts</h2>
           <div className="alerts-grid">
-            {alerts.overdueReturns > 0 && (
-              <div className="alert-item alert-warning">
-                <span className="alert-icon">⚠️</span>
-                <div>
-                  <div className="alert-title">{alerts.overdueReturns} Overdue Returns</div>
-                  <div className="alert-desc">Assets assigned for more than 90 days</div>
-                </div>
-              </div>
-            )}
             {alerts.warrantiesExpiringThisMonth > 0 && (
               <div className="alert-item alert-info">
                 <span className="alert-icon">📅</span>
