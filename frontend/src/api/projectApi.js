@@ -84,7 +84,7 @@ export const removeProjectHead = async (projectId) => {
 export const addTeamMember = async (projectId, userId, role) => {
   try {
     const response = await api.post(
-      `/projects/${projectId}/team-members`,
+      `/projects/${projectId}/team/add`,
       { userId, role }
     );
     return response.data;
@@ -96,7 +96,7 @@ export const addTeamMember = async (projectId, userId, role) => {
 export const removeTeamMember = async (projectId, userId) => {
   try {
     const response = await api.delete(
-      `/projects/${projectId}/team-members/${userId}`
+      `/projects/${projectId}/team/${userId}`
     );
     return response.data;
   } catch (error) {
