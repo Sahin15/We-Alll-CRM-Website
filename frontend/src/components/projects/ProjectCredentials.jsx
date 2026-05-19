@@ -176,27 +176,31 @@ const ProjectCredentials = ({ projectId, canEdit }) => {
                     </td>
                     <td>
                       {canViewPassword ? (
-                        <InputGroup size="sm" style={{ width: '200px' }}>
-                          <Form.Control
-                            type={visiblePasswords[cred._id] ? "text" : "password"}
-                            value={cred.password}
-                            readOnly
-                            className="bg-light"
-                          />
+                        <div className="d-flex align-items-center gap-2">
+                          <InputGroup size="sm" style={{ width: '180px' }}>
+                            <Form.Control
+                              type={visiblePasswords[cred._id] ? "text" : "password"}
+                              value={cred.password}
+                              readOnly
+                              className="bg-light"
+                            />
+                            <Button 
+                              variant="outline-secondary" 
+                              onClick={() => togglePasswordVisibility(cred._id)}
+                              title={visiblePasswords[cred._id] ? "Hide password" : "Show password"}
+                            >
+                              {visiblePasswords[cred._id] ? <FaEyeSlash /> : <FaEye />}
+                            </Button>
+                          </InputGroup>
                           <Button 
-                            variant="outline-secondary" 
-                            onClick={() => togglePasswordVisibility(cred._id)}
-                          >
-                            {visiblePasswords[cred._id] ? <FaEyeSlash /> : <FaEye />}
-                          </Button>
-                          <Button 
-                            variant="outline-secondary" 
+                            variant="outline-primary" 
+                            size="sm"
                             onClick={() => copyToClipboard(cred.password, 'Password')}
                             title="Copy Password"
                           >
-                            <FaCopy />
+                            <FaCopy /> Copy
                           </Button>
-                        </InputGroup>
+                        </div>
                       ) : (
                         <span className="text-muted">••••••••</span>
                       )}
