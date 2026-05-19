@@ -23,6 +23,10 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
   const [selectedUser, setSelectedUser] = useState('');
   const [memberRole, setMemberRole] = useState('');
   const [addingMember, setAddingMember] = useState(false);
+  
+  // Remove confirmation modal states
+  const [showRemoveConfirmModal, setShowRemoveConfirmModal] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState(null);
 
   // Check if user can manage team - updated to match backend logic
   const canManageTeam = 
@@ -219,13 +223,20 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
       return;
     }
 
-    if (!window.confirm('Are you sure you want to remove this team member?')) {
-      return;
-    }
+    // Find the member to get their name
+    const member = teamMembers.find(m => (m._id || m) === memberId);
+    setMemberToRemove({ memberId, name: member?.name || 'Team Member' });
+    setShowRemoveConfirmModal(true);
+  };
+
+  const confirmRemoveMember = async () => {
+    if (!memberToRemove) return;
 
     try {
-      await projectApi.removeTeamMember(currentProject._id, memberId);
+      await projectApi.removeTeamMember(currentProject._id, memberToRemove.memberId);
       toast.success('Team member removed successfully!');
+      setShowRemoveConfirmModal(false);
+      setMemberToRemove(null);
       
       // Refresh project data
       await refreshProjectData();
@@ -238,6 +249,8 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
     } catch (error) {
       console.error('Error removing team member:', error);
       toast.error('Failed to remove team member');
+      setShowRemoveConfirmModal(false);
+      setMemberToRemove(null);
     }
   };
 
@@ -473,6 +486,41 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
         defaultProject={currentProject}
         defaultAssignee={selectedMemberForWork?._id}
       />
+
+      {/* Remove Team Member Confirmation Modal */}
+      <Modal show={showRemoveConfirmModal} onHide={() => setShowRemoveConfirmModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Remove Team Member</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="text-center mb-3">
+            <FaTrash className="text-danger" style={{ fontSize: '2rem' }} />
+          </div>
+          <p className="text-center">
+            Are you sure you want to remove <strong>{memberToRemove?.name}</strong> from the team?
+          </p>
+          <p className="text-center text-muted small">
+            This action cannot be undone.
+          </p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button 
+            variant="secondary" 
+            onClick={() => {
+              setShowRemoveConfirmModal(false);
+              setMemberToRemove(null);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            variant="danger" 
+            onClick={confirmRemoveMember}
+          >
+            Remove
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };

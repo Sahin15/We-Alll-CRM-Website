@@ -25,6 +25,10 @@ const TeamTab = ({ project, onRefresh }) => {
   const [selectedUser, setSelectedUser] = useState('');
   const [addingMember, setAddingMember] = useState(false);
   
+  // Remove confirmation modal states
+  const [showRemoveConfirmModal, setShowRemoveConfirmModal] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState(null);
+  
   // Work assignment states
   const [showAssignWorkModal, setShowAssignWorkModal] = useState(false);
   const [selectedMemberForWork, setSelectedMemberForWork] = useState(null);
@@ -183,14 +187,21 @@ const TeamTab = ({ project, onRefresh }) => {
     }
   };
 
-  const handleRemoveMember = async (userId) => {
-    if (!window.confirm('Are you sure you want to remove this team member?')) {
-      return;
-    }
+  const handleRemoveMember = (userId) => {
+    // Find the member to get their name
+    const member = teamWorkload.find(m => m.user?._id === userId);
+    setMemberToRemove({ userId, name: member?.user?.name || 'Team Member' });
+    setShowRemoveConfirmModal(true);
+  };
+
+  const confirmRemoveMember = async () => {
+    if (!memberToRemove) return;
 
     try {
-      await projectApi.removeTeamMember(project._id, userId);
+      await projectApi.removeTeamMember(project._id, memberToRemove.userId);
       toast.success('Team member removed successfully!');
+      setShowRemoveConfirmModal(false);
+      setMemberToRemove(null);
       loadTeamWorkload();
       loadAvailableUsers();
       if (onRefresh) {
@@ -199,6 +210,8 @@ const TeamTab = ({ project, onRefresh }) => {
     } catch (error) {
       console.error('Error removing team member:', error);
       toast.error(error.response?.data?.message || 'Failed to remove team member');
+      setShowRemoveConfirmModal(false);
+      setMemberToRemove(null);
     }
   };
 
@@ -722,6 +735,41 @@ const TeamTab = ({ project, onRefresh }) => {
             </Button>
           </Modal.Footer>
         </Form>
+      </Modal>
+
+      {/* Remove Team Member Confirmation Modal */}
+      <Modal show={showRemoveConfirmModal} onHide={() => setShowRemoveConfirmModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Remove Team Member</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="text-center mb-3">
+            <FaExclamationTriangle className="text-warning" style={{ fontSize: '2rem' }} />
+          </div>
+          <p className="text-center">
+            Are you sure you want to remove <strong>{memberToRemove?.name}</strong> from the team?
+          </p>
+          <p className="text-center text-muted small">
+            This action cannot be undone.
+          </p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button 
+            variant="secondary" 
+            onClick={() => {
+              setShowRemoveConfirmModal(false);
+              setMemberToRemove(null);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            variant="danger" 
+            onClick={confirmRemoveMember}
+          >
+            Remove
+          </Button>
+        </Modal.Footer>
       </Modal>
     </div>
   );
