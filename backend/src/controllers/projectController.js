@@ -1491,9 +1491,19 @@ export const getProjectCredentials = async (req, res) => {
     // Determine if user can view password
     let canViewPassword = false;
     const user = await User.findById(req.user.id).populate("department");
+    
+    // Allow viewing password if:
+    // 1. User is superadmin or admin
+    // 2. User is project head
+    // 3. User is assigned to the project
+    // 4. User is a team member of the project
     if (['superadmin', 'admin'].includes(user.role)) {
       canViewPassword = true;
-    } else if (user.role === 'manager' && user.department && user.department.name === 'Digital Marketing') {
+    } else if (project.projectHead && project.projectHead._id.toString() === req.user.id) {
+      canViewPassword = true;
+    } else if (project.assignedUsers && project.assignedUsers.some(u => u._id.toString() === req.user.id)) {
+      canViewPassword = true;
+    } else if (project.teamMembers && project.teamMembers.some(tm => tm.user && tm.user._id.toString() === req.user.id)) {
       canViewPassword = true;
     }
 
