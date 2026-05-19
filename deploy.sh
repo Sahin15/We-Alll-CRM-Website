@@ -22,6 +22,7 @@ cd ..
 # 3. Build frontend
 echo "🔨 Building frontend..."
 cd frontend
+rm -rf node_modules dist
 npm install
 npm run build
 cd ..
