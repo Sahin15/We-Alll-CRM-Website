@@ -8,8 +8,9 @@ set -e  # Stop on any error
 
 echo "🚀 Starting deployment..."
 
-# 1. Pull latest code
+# 1. Stash any local changes and pull latest code
 echo "📥 Pulling latest code from GitHub..."
+git stash
 git pull origin main
 
 # 2. Install backend dependencies
