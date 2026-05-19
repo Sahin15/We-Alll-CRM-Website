@@ -142,7 +142,7 @@ export const listGRs = async (req, res) => {
       .populate('createdBy', 'name email')
       .sort({ createdAt: -1 });
 
-    res.json(grs);
+    res.json({ success: true, message: 'Goods receipts retrieved', data: grs });
   } catch (error) {
     console.error('listGRs error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });

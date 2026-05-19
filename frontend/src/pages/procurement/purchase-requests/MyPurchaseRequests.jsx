@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Container, Row, Col, Card, Table, Button, Badge, Form,
+  Container, Row, Col, Card, Table, Button, Form,
   Spinner, Alert, ButtonGroup,
 } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaPlus, FaEye, FaEdit, FaTrash } from 'react-icons/fa';
-import { useAuth } from '../../../context/AuthContext';
-import { getMyPRs, deletePR } from '../../../api/procurementApi';
+import { FaPlus, FaEye, FaEdit, FaTrash, FaPaperPlane } from 'react-icons/fa';
+import { getMyPRs, deletePR, submitPR } from '../../../api/procurementApi';
 import PRStatusBadge from '../../../components/procurement/PRStatusBadge';
 import ProcurementBreadcrumb from '../../../components/procurement/ProcurementBreadcrumb';
 
@@ -29,13 +28,12 @@ const STATUS_FILTERS = [
 
 export default function MyPurchaseRequests() {
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   const [prs, setPrs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
-  const [deletingId, setDeletingId] = useState(null);
+  const [actionId, setActionId] = useState(null);
 
   const fetchPRs = useCallback(async () => {
     setLoading(true);
@@ -44,10 +42,11 @@ export default function MyPurchaseRequests() {
       const params = {};
       if (statusFilter) params.status = statusFilter;
       const res = await getMyPRs(params);
-      setPrs(res.data?.data || res.data || []);
+      // Backend returns { success, data: [...] }
+      const raw = res.data;
+      setPrs(raw?.data ?? (Array.isArray(raw) ? raw : []));
     } catch (err) {
-      const msg = err.response?.data?.message || 'Failed to load purchase requests.';
-      setError(msg);
+      setError(err.response?.data?.message || 'Failed to load purchase requests.');
     } finally {
       setLoading(false);
     }
@@ -59,7 +58,7 @@ export default function MyPurchaseRequests() {
 
   const handleDelete = async (pr) => {
     if (!window.confirm(`Delete PR "${pr.prNumber}"? This cannot be undone.`)) return;
-    setDeletingId(pr._id);
+    setActionId(pr._id + '_del');
     try {
       await deletePR(pr._id);
       toast.success(`PR ${pr.prNumber} deleted.`);
@@ -67,7 +66,26 @@ export default function MyPurchaseRequests() {
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete PR.');
     } finally {
-      setDeletingId(null);
+      setActionId(null);
+    }
+  };
+
+  const handleSubmit = async (pr) => {
+    if (!window.confirm(`Submit PR "${pr.prNumber}" for approval?`)) return;
+    setActionId(pr._id + '_sub');
+    try {
+      await submitPR(pr._id, {});
+      toast.success(`PR ${pr.prNumber} submitted for approval.`);
+      fetchPRs();
+    } catch (err) {
+      const data = err.response?.data;
+      if (data?.budgetWarning) {
+        toast.warning(`Budget exceeded (available: ${formatCurrency(data.availableBudget)}). Open the PR to override.`);
+      } else {
+        toast.error(data?.message || 'Failed to submit PR.');
+      }
+    } finally {
+      setActionId(null);
     }
   };
 
@@ -77,17 +95,17 @@ export default function MyPurchaseRequests() {
         items={[
           { label: 'Home', href: '/' },
           { label: 'Procurement', href: '/procurement' },
-          { label: 'My Purchase Requests' },
+          { label: 'My Requests' },
         ]}
       />
 
       <div className="d-flex align-items-center justify-content-between mb-4">
         <div>
           <h4 className="mb-0 fw-bold">My Purchase Requests</h4>
-          <small className="text-muted">Manage your purchase requests</small>
+          <small className="text-muted">Create and track your purchase requests</small>
         </div>
         <Button variant="primary" onClick={() => navigate('/procurement/purchase-requests/create')}>
-          <FaPlus className="me-1" /> Create New PR
+          <FaPlus className="me-1" /> New Request
         </Button>
       </div>
 
@@ -96,20 +114,21 @@ export default function MyPurchaseRequests() {
         <Card.Body className="py-2">
           <Row className="align-items-center g-2">
             <Col xs="auto">
-              <Form.Label className="mb-0 fw-semibold">Filter by Status:</Form.Label>
+              <Form.Label className="mb-0 fw-semibold small">Status:</Form.Label>
             </Col>
             <Col xs="auto">
-              <ButtonGroup size="sm">
+              <div className="d-flex flex-wrap gap-1">
                 {STATUS_FILTERS.map((f) => (
                   <Button
                     key={f.value}
+                    size="sm"
                     variant={statusFilter === f.value ? 'primary' : 'outline-secondary'}
                     onClick={() => setStatusFilter(f.value)}
                   >
                     {f.label}
                   </Button>
                 ))}
-              </ButtonGroup>
+              </div>
             </Col>
           </Row>
         </Card.Body>
@@ -121,7 +140,7 @@ export default function MyPurchaseRequests() {
           {loading ? (
             <div className="text-center py-5">
               <Spinner animation="border" variant="primary" />
-              <p className="mt-2 text-muted">Loading purchase requests…</p>
+              <p className="mt-2 text-muted">Loading…</p>
             </div>
           ) : error ? (
             <Alert variant="danger" className="m-3">{error}</Alert>
@@ -139,7 +158,7 @@ export default function MyPurchaseRequests() {
                   <tr>
                     <th>PR Number</th>
                     <th>Title</th>
-                    <th>Category</th>
+                    <th>Department</th>
                     <th>Status</th>
                     <th className="text-end">Amount</th>
                     <th>Created</th>
@@ -150,30 +169,27 @@ export default function MyPurchaseRequests() {
                   {prs.map((pr) => (
                     <tr key={pr._id}>
                       <td>
-                        <span className="fw-semibold text-primary">{pr.prNumber}</span>
+                        <span
+                          className="fw-semibold text-primary"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => navigate(`/procurement/purchase-requests/${pr._id}`)}
+                        >
+                          {pr.prNumber}
+                        </span>
                       </td>
                       <td>
-                        <div className="fw-semibold">{pr.title || '—'}</div>
-                        {pr.priority && (
-                          <Badge
-                            bg={
-                              pr.priority === 'urgent' ? 'danger' :
-                              pr.priority === 'high' ? 'warning' :
-                              pr.priority === 'medium' ? 'info' : 'secondary'
-                            }
-                            text={pr.priority === 'high' || pr.priority === 'urgent' ? undefined : 'dark'}
-                            className="text-capitalize"
-                          >
-                            {pr.priority}
-                          </Badge>
-                        )}
+                        <div className="fw-semibold">{pr.title || pr.items?.[0]?.itemName || '—'}</div>
+                        <small className="text-muted">
+                          {pr.items?.length || 0} item{pr.items?.length !== 1 ? 's' : ''}
+                          {pr.priority && ` · ${pr.priority}`}
+                        </small>
                       </td>
-                      <td>{pr.category || '—'}</td>
+                      <td className="small">{pr.department?.name || '—'}</td>
                       <td><PRStatusBadge status={pr.status} /></td>
                       <td className="text-end fw-semibold">
-                        {formatCurrency(pr.estimatedTotalCost ?? pr.estimatedAmount)}
+                        {formatCurrency(pr.estimatedTotalCost)}
                       </td>
-                      <td>{formatDate(pr.createdAt)}</td>
+                      <td className="small">{formatDate(pr.createdAt)}</td>
                       <td className="text-center">
                         <ButtonGroup size="sm">
                           <Button
@@ -186,6 +202,16 @@ export default function MyPurchaseRequests() {
                           {pr.status === 'draft' && (
                             <>
                               <Button
+                                variant="outline-success"
+                                title="Submit for Approval"
+                                disabled={!!actionId}
+                                onClick={() => handleSubmit(pr)}
+                              >
+                                {actionId === pr._id + '_sub'
+                                  ? <Spinner size="sm" animation="border" />
+                                  : <FaPaperPlane />}
+                              </Button>
+                              <Button
                                 variant="outline-secondary"
                                 title="Edit"
                                 onClick={() => navigate(`/procurement/purchase-requests/${pr._id}/edit`)}
@@ -195,10 +221,12 @@ export default function MyPurchaseRequests() {
                               <Button
                                 variant="outline-danger"
                                 title="Delete"
-                                disabled={deletingId === pr._id}
+                                disabled={!!actionId}
                                 onClick={() => handleDelete(pr)}
                               >
-                                {deletingId === pr._id ? <Spinner size="sm" animation="border" /> : <FaTrash />}
+                                {actionId === pr._id + '_del'
+                                  ? <Spinner size="sm" animation="border" />
+                                  : <FaTrash />}
                               </Button>
                             </>
                           )}

@@ -14,14 +14,15 @@ import {
 const router = express.Router();
 
 const writeRoles = ['admin', 'superadmin', 'accounts'];
-const readRoles  = ['admin', 'superadmin', 'accounts', 'hr', 'hod', 'manager'];
+const readRoles  = ['admin', 'superadmin', 'accounts', 'hr', 'hod', 'manager', 'employee'];
 
+// IMPORTANT: Specific routes must come BEFORE parameterized routes
 router.post('/', protect, authorizeRoles(...writeRoles), createPO);
-router.get('/', protect, authorizeRoles(...readRoles), listPOs);
-router.get('/:id/pdf', protect, authorizeRoles(...readRoles), getPOPdf);
-router.get('/:id', protect, authorizeRoles(...readRoles), getPO);
-router.patch('/:id', protect, authorizeRoles(...writeRoles), updatePO);
 router.patch('/:id/issue', protect, authorizeRoles(...writeRoles), issuePO);
 router.patch('/:id/cancel', protect, authorizeRoles(...writeRoles), cancelPO);
+router.get('/:id/pdf', protect, authorizeRoles(...readRoles), getPOPdf);
+router.get('/', protect, authorizeRoles(...readRoles), listPOs);
+router.get('/:id', protect, authorizeRoles(...readRoles), getPO);
+router.patch('/:id', protect, authorizeRoles(...writeRoles), updatePO);
 
 export default router;

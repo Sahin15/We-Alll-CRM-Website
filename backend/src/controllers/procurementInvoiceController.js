@@ -87,7 +87,7 @@ export const listInvoices = async (req, res) => {
       .populate('createdBy', 'name email')
       .sort({ createdAt: -1 });
 
-    res.json(invoices);
+    res.json({ success: true, message: 'Invoices retrieved', data: invoices });
   } catch (error) {
     console.error('listInvoices error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });

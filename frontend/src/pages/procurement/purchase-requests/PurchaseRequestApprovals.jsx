@@ -199,9 +199,22 @@ export default function PurchaseRequestApprovals() {
     setLoading(true);
     setError(null);
     try {
-      const res = await listPRs({ status: statusFilter });
-      const raw = res.data;
-      setPrs(Array.isArray(raw) ? raw : raw?.data ?? raw?.purchaseRequests ?? []);
+      // Backend only supports a single status value — fetch both separately if needed
+      let allPRs = [];
+      if (statusFilter.includes(',')) {
+        const statuses = statusFilter.split(',');
+        const results = await Promise.all(statuses.map((s) => listPRs({ status: s.trim() })));
+        results.forEach((res) => {
+          const raw = res.data;
+          const items = raw?.data ?? (Array.isArray(raw) ? raw : []);
+          allPRs = [...allPRs, ...items];
+        });
+      } else {
+        const res = await listPRs({ status: statusFilter });
+        const raw = res.data;
+        allPRs = raw?.data ?? (Array.isArray(raw) ? raw : []);
+      }
+      setPrs(allPRs);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load pending approvals.');
     } finally {

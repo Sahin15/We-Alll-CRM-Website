@@ -116,7 +116,7 @@ export const listPayments = async (req, res) => {
       .populate('recordedBy', 'name email')
       .sort({ createdAt: -1 });
 
-    res.json(payments);
+    res.json({ success: true, message: 'Payments retrieved', data: payments });
   } catch (error) {
     console.error('listPayments error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });

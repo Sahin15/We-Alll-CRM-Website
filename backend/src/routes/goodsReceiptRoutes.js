@@ -5,8 +5,10 @@ import { createGR, listGRs, getGR } from '../controllers/goodsReceiptController.
 
 const router = express.Router();
 
-const writeRoles = ['admin', 'superadmin', 'accounts', 'hr', 'manager'];
-const readRoles  = ['admin', 'superadmin', 'accounts', 'hr', 'hod', 'manager'];
+// Goods Receipt - Only admin, superadmin, accounts, hr can create (warehouse/receiving staff)
+// Managers and HoD can view only
+const writeRoles = ['admin', 'superadmin', 'accounts', 'hr'];
+const readRoles  = ['admin', 'superadmin', 'accounts', 'hr', 'hod', 'manager', 'employee'];
 
 router.post('/', protect, authorizeRoles(...writeRoles), createGR);
 router.get('/', protect, authorizeRoles(...readRoles), listGRs);

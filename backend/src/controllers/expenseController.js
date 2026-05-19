@@ -55,7 +55,7 @@ export const createExpense = asyncHandler(async (req, res) => {
   });
 
   // Populate references
-  await expense.populate("employee", "name email");
+  await expense.populate("employee", "name email profilePicture");
   if (project) await expense.populate("project", "name");
   if (client) await expense.populate("client", "name");
 
@@ -103,7 +103,7 @@ export const getMyExpenses = asyncHandler(async (req, res) => {
   const skip = (page - 1) * limit;
 
   const expenses = await Expense.find(query)
-    .populate("employee", "name email")
+    .populate("employee", "name email profilePicture")
     .populate("project", "name")
     .populate("client", "name")
     .populate("approvedBy", "name")
@@ -166,7 +166,7 @@ export const getExpenseById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const expense = await Expense.findById(id)
-    .populate("employee", "name email department")
+    .populate("employee", "name email department profilePicture")
     .populate("project", "name")
     .populate("client", "name")
     .populate("approvedBy", "name")
@@ -490,7 +490,7 @@ export const getReimbursementTracking = asyncHandler(async (req, res) => {
   const skip = (page - 1) * limit;
 
   const expenses = await Expense.find(query)
-    .populate("employee", "name email department")
+    .populate("employee", "name email department profilePicture")
     .populate("reimbursedBy", "name")
     .sort({ reimbursementDate: -1 })
     .skip(skip)
@@ -581,7 +581,7 @@ export const searchExpenses = asyncHandler(async (req, res) => {
   const skip = (page - 1) * limit;
 
   const expenses = await Expense.find(searchQuery)
-    .populate("employee", "name email")
+    .populate("employee", "name email profilePicture")
     .populate("project", "name")
     .populate("client", "name")
     .sort({ date: -1 })

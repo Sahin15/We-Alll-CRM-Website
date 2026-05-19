@@ -128,7 +128,7 @@ export const listPOs = async (req, res) => {
       .populate('issuedBy', 'name email')
       .sort({ createdAt: -1 });
 
-    res.json(pos);
+    res.json({ success: true, message: 'Purchase orders retrieved', data: pos });
   } catch (error) {
     console.error('listPOs error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -266,12 +266,13 @@ export const issuePO = async (req, res) => {
 // PATCH /purchase-orders/:id/cancel — cancel PO
 export const cancelPO = async (req, res) => {
   try {
-    const { cancellationReason } = req.body;
+    const { cancellationReason, reason } = req.body;
+    const cancelNote = cancellationReason || reason;
     const po = await PurchaseOrder.findById(req.params.id);
     if (!po) return res.status(404).json({ message: 'Purchase order not found' });
 
-    if (po.status !== 'draft') {
-      return res.status(403).json({ message: 'Only draft purchase orders can be cancelled' });
+    if (!['draft', 'issued'].includes(po.status)) {
+      return res.status(403).json({ message: 'Only draft or issued purchase orders can be cancelled' });
     }
 
     // Release committed budget if applicable
@@ -294,7 +295,7 @@ export const cancelPO = async (req, res) => {
     po.status = 'cancelled';
     po.cancelledAt = new Date();
     po.cancelledBy = req.user._id;
-    if (cancellationReason) po.cancellationReason = cancellationReason;
+    if (cancelNote) po.cancellationReason = cancelNote;
 
     await po.save();
 

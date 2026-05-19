@@ -104,8 +104,8 @@ const ExpenseManagementConsolidated = () => {
     if (filters.endDate) params.endDate = filters.endDate;
 
     const response = await getAllExpenses(params);
-    setExpenses(response.expenses);
-    setPagination(response.pagination);
+    setExpenses(response.expenses ?? []);
+    setPagination(response.pagination ?? {});
     setSelectedExpenses(new Set());
   };
 
