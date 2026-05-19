@@ -186,6 +186,30 @@ import GrowthSummitFinal from "../pages/GrowthSummitFinal";
 import SupportPage from "../pages/support/SupportPage";
 import SupportManagement from "../pages/support/SupportManagement";
 
+// Procurement Pages
+import ProcurementDashboard from "../pages/procurement/ProcurementDashboard";
+import MyPurchaseRequests from "../pages/procurement/purchase-requests/MyPurchaseRequests";
+import CreatePurchaseRequest from "../pages/procurement/purchase-requests/CreatePurchaseRequest";
+import EditPurchaseRequest from "../pages/procurement/purchase-requests/EditPurchaseRequest";
+import PurchaseRequestDetails from "../pages/procurement/purchase-requests/PurchaseRequestDetails";
+import PurchaseRequestApprovals from "../pages/procurement/purchase-requests/PurchaseRequestApprovals";
+import PurchaseOrderList from "../pages/procurement/purchase-orders/PurchaseOrderList";
+import CreatePurchaseOrder from "../pages/procurement/purchase-orders/CreatePurchaseOrder";
+import PurchaseOrderDetails from "../pages/procurement/purchase-orders/PurchaseOrderDetails";
+import GoodsReceiptList from "../pages/procurement/goods-receipts/GoodsReceiptList";
+import CreateGoodsReceipt from "../pages/procurement/goods-receipts/CreateGoodsReceipt";
+import GoodsReceiptDetails from "../pages/procurement/goods-receipts/GoodsReceiptDetails";
+import VendorList from "../pages/procurement/vendors/VendorList";
+import CreateVendor from "../pages/procurement/vendors/CreateVendor";
+import EditVendor from "../pages/procurement/vendors/EditVendor";
+import VendorDetails from "../pages/procurement/vendors/VendorDetails";
+import ProcurementInvoiceList from "../pages/procurement/invoices/ProcurementInvoiceList";
+import CreateProcurementInvoice from "../pages/procurement/invoices/CreateProcurementInvoice";
+import ProcurementInvoiceDetails from "../pages/procurement/invoices/ProcurementInvoiceDetails";
+import ProcurementPaymentList from "../pages/procurement/payments/ProcurementPaymentList";
+import RecordPayment from "../pages/procurement/payments/RecordPayment";
+import ProcurementReports from "../pages/procurement/reports/ProcurementReports";
+
 const AppRoutes = () => {
   const { user } = useAuth();
 
@@ -1043,6 +1067,206 @@ const AppRoutes = () => {
           element={
             <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
               <SupportManagement />
+            </RoleBasedRoute>
+          }
+        />
+
+        {/* Procurement Management Routes */}
+        <Route
+          path="/procurement"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hod", "manager", "hr", "employee"]}>
+              <ProcurementDashboard />
+            </RoleBasedRoute>
+          }
+        />
+        
+        {/* Purchase Requests - All roles can view/create their own */}
+        <Route
+          path="/procurement/purchase-requests/create"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}>
+              <CreatePurchaseRequest />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/procurement/purchase-requests/approvals"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hod"]}>
+              <PurchaseRequestApprovals />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/procurement/purchase-requests/my"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}>
+              <MyPurchaseRequests />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/procurement/purchase-requests/:id/edit"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}>
+              <EditPurchaseRequest />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/procurement/purchase-requests/:id"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}>
+              <PurchaseRequestDetails />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/procurement/purchase-requests"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}>
+              <MyPurchaseRequests />
+            </RoleBasedRoute>
+          }
+        />
+
+        {/* Purchase Orders - Admin/Accounts can write; HR/HoD/Manager can read */}
+        <Route
+          path="/procurement/purchase-orders"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}>
+              <PurchaseOrderList />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/procurement/purchase-orders/create"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+              <CreatePurchaseOrder />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/procurement/purchase-orders/:id"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}>
+              <PurchaseOrderDetails />
+            </RoleBasedRoute>
+          }
+        />
+
+        {/* Goods Receipts - Admin/Accounts/HR can create, others read-only */}
+        <Route
+          path="/procurement/goods-receipts"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}>
+              <GoodsReceiptList />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/procurement/goods-receipts/create"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hr"]}>
+              <CreateGoodsReceipt />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/procurement/goods-receipts/:id"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}>
+              <GoodsReceiptDetails />
+            </RoleBasedRoute>
+          }
+        />
+
+        {/* Vendors - Admin/Accounts only */}
+        <Route
+          path="/procurement/vendors"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+              <VendorList />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/procurement/vendors/create"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+              <CreateVendor />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/procurement/vendors/:id"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+              <VendorDetails />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/procurement/vendors/:id/edit"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+              <EditVendor />
+            </RoleBasedRoute>
+          }
+        />
+
+        {/* Procurement Invoices - Admin/Accounts can write; HR/HoD/Manager can read */}
+        <Route
+          path="/procurement/invoices"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}>
+              <ProcurementInvoiceList />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/procurement/invoices/create"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+              <CreateProcurementInvoice />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/procurement/invoices/:id"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}>
+              <ProcurementInvoiceDetails />
+            </RoleBasedRoute>
+          }
+        />
+
+        {/* Procurement Payments - Admin/Accounts can write; HR/HoD/Manager can read */}
+        <Route
+          path="/procurement/payments"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}>
+              <ProcurementPaymentList />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/procurement/payments/record"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+              <RecordPayment />
+            </RoleBasedRoute>
+          }
+        />
+
+        {/* Procurement Reports - Admin/Accounts only */}
+        <Route
+          path="/procurement/reports"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+              <ProcurementReports />
             </RoleBasedRoute>
           }
         />

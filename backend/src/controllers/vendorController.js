@@ -83,7 +83,7 @@ export const listVendors = async (req, res) => {
         .sort({ name: 1 });
     }
 
-    res.json(vendors);
+    res.json({ success: true, message: 'Vendors retrieved', data: vendors });
   } catch (error) {
     console.error('listVendors error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });

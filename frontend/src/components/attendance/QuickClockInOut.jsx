@@ -75,7 +75,8 @@ const QuickClockInOut = ({ variant = "light", size = "sm", showLabel = true }) =
       const attendanceData = response.data.attendance || response.data;
       setTodayAttendance(attendanceData);
       setShowConfirm(false);
-      
+      // Write to session cache so BreakTimer picks it up instantly
+      try { sessionStorage.setItem("attendance_today_cache", JSON.stringify({ data: attendanceData, ts: Date.now() })); } catch {}
       // Trigger event for other components to update
       window.dispatchEvent(new CustomEvent('attendanceUpdate', { 
         detail: { type: 'clockIn', data: attendanceData } 
@@ -114,7 +115,8 @@ const QuickClockInOut = ({ variant = "light", size = "sm", showLabel = true }) =
       setTodayAttendance(attendanceData);
       setIsOnBreak(false);
       setShowConfirm(false);
-      
+      // Clear session cache so BreakTimer hides immediately
+      try { sessionStorage.removeItem("attendance_today_cache"); } catch {}
       // Trigger event for other components to update
       window.dispatchEvent(new CustomEvent('attendanceUpdate', { 
         detail: { type: 'clockOut', data: attendanceData } 

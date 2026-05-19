@@ -158,7 +158,8 @@ export default function PurchaseRequestDetails() {
   const canApprove =
     user?.role === 'hod' ||
     user?.role === 'admin' ||
-    user?.role === 'super_admin';
+    user?.role === 'superadmin' ||
+    user?.role === 'accounts';
 
   const fetchPR = useCallback(async () => {
     setLoading(true);

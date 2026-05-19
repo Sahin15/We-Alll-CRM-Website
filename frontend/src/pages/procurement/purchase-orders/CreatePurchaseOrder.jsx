@@ -17,7 +17,7 @@ const CATEGORIES = [
 
 const UOM_OPTIONS = ['Nos', 'Pcs', 'Kg', 'Litre', 'Box', 'Set', 'Pair', 'Meter', 'Hour', 'Month'];
 
-const PAYMENT_TERMS = ['Net 30', 'Net 60', 'Net 90', 'Immediate', 'Advance', 'Custom'];
+const PAYMENT_TERMS = ['Immediate', 'Net 15', 'Net 30', 'Net 45', 'Net 60'];
 
 const formatCurrency = (amount) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(amount ?? 0);

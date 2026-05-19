@@ -10,8 +10,9 @@ import {
 const router = express.Router();
 
 const writeRoles = ['admin', 'superadmin', 'accounts'];
-const readRoles  = ['admin', 'superadmin', 'accounts', 'hr', 'hod', 'manager'];
+const readRoles  = ['admin', 'superadmin', 'accounts', 'hr', 'hod', 'manager', 'employee'];
 
+// IMPORTANT: Specific routes must come BEFORE parameterized routes
 router.post('/', protect, authorizeRoles(...writeRoles), recordPayment);
 router.get('/', protect, authorizeRoles(...readRoles), listPayments);
 router.get('/:id', protect, authorizeRoles(...readRoles), getPayment);

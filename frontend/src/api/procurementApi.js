@@ -8,7 +8,7 @@ export const getMyPRs = (params) => api.get("/procurement/purchase-requests/my",
 export const getPR = (id) => api.get(`/procurement/purchase-requests/${id}`);
 export const updatePR = (id, data) => api.patch(`/procurement/purchase-requests/${id}`, data);
 export const deletePR = (id) => api.delete(`/procurement/purchase-requests/${id}`);
-export const submitPR = (id) => api.patch(`/procurement/purchase-requests/${id}/submit`);
+export const submitPR = (id, data = {}) => api.patch(`/procurement/purchase-requests/${id}/submit`, data);
 export const approvePR = (id, data) => api.patch(`/procurement/purchase-requests/${id}/approve`, data);
 export const rejectPR = (id, data) => api.patch(`/procurement/purchase-requests/${id}/reject`, data);
 

@@ -16,10 +16,11 @@ function currentFinancialYear() {
 // POST /purchase-requests — create draft PR
 export const createPR = async (req, res) => {
   try {
-    const { items, justification, department, project } = req.body;
+    const { items, justification, department, project, title, description, priority, requiredByDate } = req.body;
 
     // Validate required fields
     const errors = [];
+    if (!title) errors.push('title: required');
     if (!items || !Array.isArray(items) || items.length === 0) errors.push('items: at least one item is required');
     if (!justification) errors.push('justification: required');
     if (!department) errors.push('department: required');
@@ -41,6 +42,10 @@ export const createPR = async (req, res) => {
 
     const pr = await PurchaseRequest.create({
       prNumber,
+      title,
+      description: description || '',
+      priority: priority || 'medium',
+      requiredByDate: requiredByDate || null,
       requestedBy: req.user._id,
       department,
       project: project || null,
@@ -57,10 +62,22 @@ export const createPR = async (req, res) => {
       }],
     });
 
-    res.status(201).json({ message: 'Purchase request created', pr });
+    const populatedPR = await pr.populate('requestedBy', 'name email employeeId profilePicture')
+      .populate('department', 'name')
+      .populate('project', 'name');
+
+    res.status(201).json({ 
+      success: true,
+      message: 'Purchase request created', 
+      data: populatedPR 
+    });
   } catch (error) {
     console.error('createPR error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error', 
+      error: error.message 
+    });
   }
 };
 
@@ -89,14 +106,22 @@ export const listPRs = async (req, res) => {
     // admin, superadmin, accounts see all
 
     const prs = await PurchaseRequest.find(query)
-      .populate('requestedBy', 'name email employeeId')
+      .populate('requestedBy', 'name email employeeId profilePicture')
       .populate('department', 'name')
       .populate('project', 'name')
       .sort({ createdAt: -1 });
 
-    res.json(prs);
+    res.json({ 
+      success: true,
+      message: 'Purchase requests retrieved',
+      data: prs 
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error', 
+      error: error.message 
+    });
   }
 };
 
@@ -104,35 +129,52 @@ export const listPRs = async (req, res) => {
 export const getPR = async (req, res) => {
   try {
     const pr = await PurchaseRequest.findById(req.params.id)
-      .populate('requestedBy', 'name email employeeId department')
+      .populate('requestedBy', 'name email employeeId department profilePicture')
       .populate('department', 'name')
       .populate('project', 'name')
-      .populate('hodApproval.approver', 'name email')
-      .populate('adminApproval.approver', 'name email')
-      .populate('auditLog.changedBy', 'name email');
+      .populate('hodApproval.approver', 'name email profilePicture')
+      .populate('adminApproval.approver', 'name email profilePicture')
+      .populate('auditLog.changedBy', 'name email profilePicture');
 
-    if (!pr) return res.status(404).json({ message: 'Purchase request not found' });
+    if (!pr) return res.status(404).json({ 
+      success: false,
+      message: 'Purchase request not found' 
+    });
 
     // Access control
     const role = req.user.role;
     const userId = req.user._id.toString();
     if (role === 'employee' || role === 'hr' || role === 'manager') {
       if (pr.requestedBy._id.toString() !== userId) {
-        return res.status(403).json({ message: 'Access denied' });
+        return res.status(403).json({ 
+          success: false,
+          message: 'Access denied' 
+        });
       }
     } else if (role === 'hod') {
       const dept = await Department.findOne({ head: req.user._id });
       const prDeptId = pr.department._id?.toString() || pr.department.toString();
       if (!dept || dept._id.toString() !== prDeptId) {
         if (pr.requestedBy._id.toString() !== userId) {
-          return res.status(403).json({ message: 'Access denied' });
+          return res.status(403).json({ 
+            success: false,
+            message: 'Access denied' 
+          });
         }
       }
     }
 
-    res.json(pr);
+    res.json({ 
+      success: true,
+      message: 'Purchase request retrieved',
+      data: pr 
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error', 
+      error: error.message 
+    });
   }
 };
 
@@ -140,15 +182,28 @@ export const getPR = async (req, res) => {
 export const updatePR = async (req, res) => {
   try {
     const pr = await PurchaseRequest.findById(req.params.id);
-    if (!pr) return res.status(404).json({ message: 'Purchase request not found' });
+    if (!pr) return res.status(404).json({ 
+      success: false,
+      message: 'Purchase request not found' 
+    });
     if (pr.requestedBy.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Only the requestor can edit this PR' });
+      return res.status(403).json({ 
+        success: false,
+        message: 'Only the requestor can edit this PR' 
+      });
     }
     if (pr.status !== 'draft') {
-      return res.status(403).json({ message: 'Only draft PRs can be edited' });
+      return res.status(403).json({ 
+        success: false,
+        message: 'Only draft PRs can be edited' 
+      });
     }
 
-    const { items, justification, department, project } = req.body;
+    const { items, justification, department, project, title, description, priority, requiredByDate } = req.body;
+    if (title) pr.title = title;
+    if (description !== undefined) pr.description = description;
+    if (priority) pr.priority = priority;
+    if (requiredByDate !== undefined) pr.requiredByDate = requiredByDate || null;
     if (items) {
       pr.items = items;
       pr.estimatedTotalCost = items.reduce((sum, item) => sum + (item.quantity * item.estimatedUnitPrice), 0);
@@ -158,9 +213,21 @@ export const updatePR = async (req, res) => {
     if (project !== undefined) pr.project = project || null;
 
     await pr.save();
-    res.json({ message: 'Purchase request updated', pr });
+    const populatedPR = await pr.populate('requestedBy', 'name email employeeId profilePicture')
+      .populate('department', 'name')
+      .populate('project', 'name');
+
+    res.json({ 
+      success: true,
+      message: 'Purchase request updated', 
+      data: populatedPR 
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error', 
+      error: error.message 
+    });
   }
 };
 
@@ -168,17 +235,33 @@ export const updatePR = async (req, res) => {
 export const deletePR = async (req, res) => {
   try {
     const pr = await PurchaseRequest.findById(req.params.id);
-    if (!pr) return res.status(404).json({ message: 'Purchase request not found' });
+    if (!pr) return res.status(404).json({ 
+      success: false,
+      message: 'Purchase request not found' 
+    });
     if (pr.requestedBy.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Only the requestor can delete this PR' });
+      return res.status(403).json({ 
+        success: false,
+        message: 'Only the requestor can delete this PR' 
+      });
     }
     if (pr.status !== 'draft') {
-      return res.status(403).json({ message: 'Only draft PRs can be deleted' });
+      return res.status(403).json({ 
+        success: false,
+        message: 'Only draft PRs can be deleted' 
+      });
     }
     await PurchaseRequest.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Purchase request deleted' });
+    res.json({ 
+      success: true,
+      message: 'Purchase request deleted' 
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error', 
+      error: error.message 
+    });
   }
 };
 
@@ -187,12 +270,21 @@ export const submitPR = async (req, res) => {
   try {
     const { overrideAcknowledged } = req.body;
     const pr = await PurchaseRequest.findById(req.params.id).populate('department');
-    if (!pr) return res.status(404).json({ message: 'Purchase request not found' });
+    if (!pr) return res.status(404).json({ 
+      success: false,
+      message: 'Purchase request not found' 
+    });
     if (pr.requestedBy.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Only the requestor can submit this PR' });
+      return res.status(403).json({ 
+        success: false,
+        message: 'Only the requestor can submit this PR' 
+      });
     }
     if (pr.status !== 'draft') {
-      return res.status(400).json({ message: 'Only draft PRs can be submitted' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Only draft PRs can be submitted' 
+      });
     }
 
     // Budget check
@@ -208,6 +300,7 @@ export const submitPR = async (req, res) => {
     if (budgetResult.exceeded && !overrideAcknowledged) {
       await pr.save(); // save budget check result
       return res.status(200).json({
+        success: false,
         budgetWarning: true,
         message: `Estimated cost (₹${pr.estimatedTotalCost}) exceeds available budget (₹${budgetResult.available}). Set overrideAcknowledged: true to proceed.`,
         availableBudget: budgetResult.available,
@@ -252,10 +345,22 @@ export const submitPR = async (req, res) => {
       );
     }
 
-    res.json({ message: 'Purchase request submitted for approval', pr });
+    const populatedPR = await pr.populate('requestedBy', 'name email employeeId profilePicture')
+      .populate('department', 'name')
+      .populate('project', 'name');
+
+    res.json({ 
+      success: true,
+      message: 'Purchase request submitted for approval', 
+      data: populatedPR 
+    });
   } catch (error) {
     console.error('submitPR error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error', 
+      error: error.message 
+    });
   }
 };
 
@@ -264,7 +369,10 @@ export const approvePR = async (req, res) => {
   try {
     const { comments } = req.body;
     const pr = await PurchaseRequest.findById(req.params.id).populate('requestedBy', 'name email _id').populate('department');
-    if (!pr) return res.status(404).json({ message: 'Purchase request not found' });
+    if (!pr) return res.status(404).json({ 
+      success: false,
+      message: 'Purchase request not found' 
+    });
 
     const role = req.user.role;
     const previousStatus = pr.status;
@@ -285,7 +393,14 @@ export const approvePR = async (req, res) => {
           { type: 'procurement_pr_hod_approved', data: { prId: pr._id.toString(), prNumber: pr.prNumber }, actionUrl: `/procurement/purchase-requests/${pr._id}`, senderId: req.user._id }
         );
       }
-      return res.json({ message: 'PR approved by HoD, forwarded to Admin', pr });
+      const populatedPR = await pr.populate('requestedBy', 'name email employeeId profilePicture')
+        .populate('department', 'name')
+        .populate('project', 'name');
+      return res.json({ 
+        success: true,
+        message: 'PR approved by HoD, forwarded to Admin', 
+        data: populatedPR 
+      });
     }
 
     if (pr.status === 'pending_admin' && ['admin', 'superadmin', 'accounts'].includes(role)) {
@@ -301,12 +416,26 @@ export const approvePR = async (req, res) => {
         `Your PR ${pr.prNumber} has been approved`,
         { type: 'procurement_pr_approved', data: { prId: pr._id.toString(), prNumber: pr.prNumber }, actionUrl: `/procurement/purchase-requests/${pr._id}`, senderId: req.user._id }
       );
-      return res.json({ message: 'PR fully approved', pr });
+      const populatedPR = await pr.populate('requestedBy', 'name email employeeId profilePicture')
+        .populate('department', 'name')
+        .populate('project', 'name');
+      return res.json({ 
+        success: true,
+        message: 'PR fully approved', 
+        data: populatedPR 
+      });
     }
 
-    return res.status(403).json({ message: 'You are not authorised to approve this PR in its current status' });
+    return res.status(403).json({ 
+      success: false,
+      message: 'You are not authorised to approve this PR in its current status' 
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error', 
+      error: error.message 
+    });
   }
 };
 
@@ -315,11 +444,17 @@ export const rejectPR = async (req, res) => {
   try {
     const { comments } = req.body;
     if (!comments || !comments.trim()) {
-      return res.status(400).json({ message: 'Rejection reason (comments) is required' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Rejection reason (comments) is required' 
+      });
     }
 
     const pr = await PurchaseRequest.findById(req.params.id).populate('requestedBy', 'name email _id');
-    if (!pr) return res.status(404).json({ message: 'Purchase request not found' });
+    if (!pr) return res.status(404).json({ 
+      success: false,
+      message: 'Purchase request not found' 
+    });
 
     const role = req.user.role;
     const previousStatus = pr.status;
@@ -329,7 +464,10 @@ export const rejectPR = async (req, res) => {
       (pr.status === 'pending_admin' && ['admin', 'superadmin', 'accounts'].includes(role));
 
     if (!canReject) {
-      return res.status(403).json({ message: 'You are not authorised to reject this PR in its current status' });
+      return res.status(403).json({ 
+        success: false,
+        message: 'You are not authorised to reject this PR in its current status' 
+      });
     }
 
     if (pr.status === 'pending_hod') {
@@ -350,8 +488,20 @@ export const rejectPR = async (req, res) => {
       { type: 'procurement_pr_rejected', data: { prId: pr._id.toString(), prNumber: pr.prNumber, reason: comments }, actionUrl: `/procurement/purchase-requests/${pr._id}`, senderId: req.user._id }
     );
 
-    res.json({ message: 'Purchase request rejected', pr });
+    const populatedPR = await pr.populate('requestedBy', 'name email employeeId profilePicture')
+      .populate('department', 'name')
+      .populate('project', 'name');
+
+    res.json({ 
+      success: true,
+      message: 'Purchase request rejected', 
+      data: populatedPR 
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error', 
+      error: error.message 
+    });
   }
 };

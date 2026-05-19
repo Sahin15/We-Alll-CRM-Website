@@ -9,6 +9,26 @@ const purchaseRequestSchema = new mongoose.Schema(
       index: true,
       // Format: PR-YYYY-NNNN
     },
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 200,
+    },
+    description: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+    },
+    priority: {
+      type: String,
+      enum: ['low', 'medium', 'high', 'urgent'],
+      default: 'medium',
+    },
+    requiredByDate: {
+      type: Date,
+      default: null,
+    },
     requestedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

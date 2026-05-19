@@ -264,7 +264,7 @@ export default function PurchaseOrderList() {
                             </Button>
                           )}
 
-                          {canWrite && po.status === 'draft' && (
+                          {canWrite && ['draft', 'issued'].includes(po.status) && (
                             <Button
                               variant="outline-danger"
                               title="Cancel PO"

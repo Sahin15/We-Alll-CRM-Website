@@ -9,13 +9,22 @@ export const createExpense = async (data) => {
 // Get my expenses
 export const getMyExpenses = async (params) => {
   const response = await api.get("/expenses/my-expenses", { params });
-  return response.data;
+  const d = response.data;
+  // Backend returns { success, data: [...], pagination: {...} }
+  return {
+    expenses: d?.data ?? d?.expenses ?? [],
+    pagination: d?.pagination ?? {},
+  };
 };
 
 // Get all expenses (admin/hr only)
 export const getAllExpenses = async (params) => {
   const response = await api.get("/expenses", { params });
-  return response.data;
+  const d = response.data;
+  return {
+    expenses: d?.data ?? d?.expenses ?? [],
+    pagination: d?.pagination ?? {},
+  };
 };
 
 // Get expense by ID
@@ -65,13 +74,21 @@ export const markAsReimbursed = async (id, data) => {
 // Get reimbursement tracking (admin/hr only)
 export const getReimbursementTracking = async (params) => {
   const response = await api.get("/expenses/tracking/reimbursement", { params });
-  return response.data;
+  const d = response.data;
+  return {
+    expenses: d?.data ?? d?.expenses ?? [],
+    pagination: d?.pagination ?? {},
+  };
 };
 
 // Search expenses (advanced search)
 export const searchExpenses = async (data) => {
   const response = await api.post("/expenses/search/advanced", data);
-  return response.data;
+  const d = response.data;
+  return {
+    expenses: d?.data ?? d?.expenses ?? [],
+    pagination: d?.pagination ?? {},
+  };
 };
 
 // Export expenses (admin/hr only)

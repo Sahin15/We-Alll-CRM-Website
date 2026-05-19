@@ -11,13 +11,13 @@ import {
 
 const router = express.Router();
 
-const writeRoles = ['admin', 'superadmin', 'accounts'];
-const readRoles  = ['admin', 'superadmin', 'accounts'];
+// Vendor management - Only admin, superadmin, accounts can manage vendors
+const vendorRoles = ['admin', 'superadmin', 'accounts'];
 
-router.post('/', protect, authorizeRoles(...writeRoles), createVendor);
-router.get('/', protect, authorizeRoles(...readRoles), listVendors);
-router.get('/:id', protect, authorizeRoles(...readRoles), getVendor);
-router.patch('/:id', protect, authorizeRoles(...writeRoles), updateVendor);
-router.patch('/:id/deactivate', protect, authorizeRoles(...writeRoles), deactivateVendor);
+router.post('/', protect, authorizeRoles(...vendorRoles), createVendor);
+router.get('/', protect, authorizeRoles(...vendorRoles), listVendors);
+router.get('/:id', protect, authorizeRoles(...vendorRoles), getVendor);
+router.patch('/:id', protect, authorizeRoles(...vendorRoles), updateVendor);
+router.patch('/:id/deactivate', protect, authorizeRoles(...vendorRoles), deactivateVendor);
 
 export default router;

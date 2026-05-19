@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  Container, Row, Col, Card, Form, Button, Table, InputGroup,
+  Container, Row, Col, Card, Form, Button, Table, Spinner,
 } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { FaPlus, FaTrash, FaPaperPlane, FaSave } from 'react-icons/fa';
 import { useAuth } from '../../../context/AuthContext';
-import { createPR } from '../../../api/procurementApi';
+import { createPR, submitPR } from '../../../api/procurementApi';
+import api from '../../../services/api';
 import PRStatusBadge from '../../../components/procurement/PRStatusBadge';
 import BudgetWarningBanner from '../../../components/procurement/BudgetWarningBanner';
 import ProcurementBreadcrumb from '../../../components/procurement/ProcurementBreadcrumb';
@@ -35,22 +36,42 @@ export default function CreatePurchaseRequest() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  const [departments, setDepartments] = useState([]);
+  const [loadingDepts, setLoadingDepts] = useState(true);
+
   const [form, setForm] = useState({
     title: '',
     description: '',
-    category: 'IT Hardware',
     priority: 'medium',
     requiredByDate: '',
-    estimatedAmount: '',
-    department: user?.department || '',
+    department: '',
     justification: '',
   });
 
   const [lineItems, setLineItems] = useState([emptyLineItem()]);
   const [submitting, setSubmitting] = useState(false);
   const [budgetWarning, setBudgetWarning] = useState(null);
-  const [pendingSubmit, setPendingSubmit] = useState(false);
+  const [pendingPRId, setPendingPRId] = useState(null);
   const [validated, setValidated] = useState(false);
+
+  // Load departments for dropdown
+  useEffect(() => {
+    api.get('/departments')
+      .then((res) => {
+        const raw = res.data;
+        const depts = Array.isArray(raw) ? raw : raw?.data ?? raw?.departments ?? [];
+        setDepartments(depts);
+        // Auto-select user's department if available
+        if (user?.department) {
+          const match = depts.find(
+            (d) => d._id === user.department || d._id === user.department?._id
+          );
+          if (match) setForm((prev) => ({ ...prev, department: match._id }));
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingDepts(false));
+  }, [user]);
 
   // ── Computed total from line items ──────────────────────────────────────────
   const lineItemsTotal = lineItems.reduce(
@@ -83,16 +104,13 @@ export default function CreatePurchaseRequest() {
   };
 
   // ── Build payload ───────────────────────────────────────────────────────────
-  const buildPayload = (asDraft = false) => ({
+  const buildPayload = () => ({
     title: form.title,
     description: form.description,
-    category: form.category,
     priority: form.priority,
     requiredByDate: form.requiredByDate || undefined,
-    estimatedAmount: lineItemsTotal || parseFloat(form.estimatedAmount) || 0,
     department: form.department,
     justification: form.justification,
-    status: asDraft ? 'draft' : 'pending_hod',
     items: lineItems.map((item) => ({
       itemName: item.description,
       description: item.description,
@@ -101,7 +119,7 @@ export default function CreatePurchaseRequest() {
       unitOfMeasure: item.unitOfMeasure,
       category: item.category,
     })),
-    estimatedTotalCost: lineItemsTotal || parseFloat(form.estimatedAmount) || 0,
+    estimatedTotalCost: lineItemsTotal,
   });
 
   // ── Submit handlers ─────────────────────────────────────────────────────────
@@ -119,23 +137,39 @@ export default function CreatePurchaseRequest() {
   const doSubmit = async (asDraft = false, overrideAcknowledged = false) => {
     setSubmitting(true);
     try {
-      const payload = { ...buildPayload(asDraft), overrideAcknowledged };
+      // Step 1: Always create as draft first
+      const payload = buildPayload();
       const res = await createPR(payload);
-      const data = res.data;
+      const createdPR = res.data?.data || res.data?.pr || res.data;
+
+      if (!createdPR?._id) {
+        toast.error('Failed to create Purchase Request.');
+        return;
+      }
+
+      if (asDraft) {
+        toast.success('Purchase Request saved as draft.');
+        navigate('/procurement/purchase-requests/my');
+        return;
+      }
+
+      // Step 2: Submit for approval
+      const submitRes = await submitPR(createdPR._id, { overrideAcknowledged });
+      const submitData = submitRes.data;
 
       // Check if API returned a budget warning
-      if (data?.budgetWarning?.exceeded && !overrideAcknowledged) {
+      if (submitData?.budgetWarning) {
         setBudgetWarning({
-          available: data.budgetWarning.availableBudget,
-          requested: data.budgetWarning.estimatedCost,
+          available: submitData.availableBudget,
+          requested: submitData.estimatedCost,
           exceeded: true,
         });
-        setPendingSubmit(!asDraft);
+        setPendingPRId(createdPR._id);
         setSubmitting(false);
         return;
       }
 
-      toast.success(asDraft ? 'Purchase Request saved as draft.' : 'Purchase Request submitted for approval.');
+      toast.success('Purchase Request submitted for approval.');
       navigate('/procurement/purchase-requests/my');
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to create Purchase Request.';
@@ -145,14 +179,29 @@ export default function CreatePurchaseRequest() {
     }
   };
 
-  const handleBudgetOverride = () => {
+  const handleBudgetOverride = async () => {
+    if (!pendingPRId) return;
     setBudgetWarning(null);
-    doSubmit(!pendingSubmit, true);
+    setSubmitting(true);
+    try {
+      await submitPR(pendingPRId, { overrideAcknowledged: true });
+      toast.success('Purchase Request submitted for approval.');
+      navigate('/procurement/purchase-requests/my');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to submit PR.');
+    } finally {
+      setSubmitting(false);
+      setPendingPRId(null);
+    }
   };
 
   const handleBudgetCancel = () => {
     setBudgetWarning(null);
-    setPendingSubmit(false);
+    if (pendingPRId) {
+      toast.info('PR saved as draft. You can submit it later from My Requests.');
+      navigate('/procurement/purchase-requests/my');
+    }
+    setPendingPRId(null);
   };
 
   return (
@@ -161,7 +210,7 @@ export default function CreatePurchaseRequest() {
         items={[
           { label: 'Home', href: '/' },
           { label: 'Procurement', href: '/procurement' },
-          { label: 'Purchase Requests', href: '/procurement/purchase-requests/my' },
+          { label: 'My Requests', href: '/procurement/purchase-requests/my' },
           { label: 'Create New PR' },
         ]}
       />
@@ -185,6 +234,7 @@ export default function CreatePurchaseRequest() {
           <Card.Header className="bg-primary text-white fw-semibold">Basic Information</Card.Header>
           <Card.Body>
             <Row className="g-3">
+              {/* Title */}
               <Col md={8}>
                 <Form.Group>
                   <Form.Label>Title <span className="text-danger">*</span></Form.Label>
@@ -201,6 +251,7 @@ export default function CreatePurchaseRequest() {
                 </Form.Group>
               </Col>
 
+              {/* Priority */}
               <Col md={4}>
                 <Form.Group>
                   <Form.Label>Priority</Form.Label>
@@ -212,28 +263,42 @@ export default function CreatePurchaseRequest() {
                 </Form.Group>
               </Col>
 
+              {/* Department */}
               <Col md={6}>
                 <Form.Group>
-                  <Form.Label>Category</Form.Label>
-                  <Form.Select name="category" value={form.category} onChange={handleFormChange}>
-                    {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </Form.Select>
+                  <Form.Label>Department <span className="text-danger">*</span></Form.Label>
+                  {loadingDepts ? (
+                    <div className="d-flex align-items-center gap-2">
+                      <Spinner size="sm" animation="border" />
+                      <span className="text-muted small">Loading departments…</span>
+                    </div>
+                  ) : departments.length > 0 ? (
+                    <Form.Select
+                      name="department"
+                      value={form.department}
+                      onChange={handleFormChange}
+                      required
+                    >
+                      <option value="">— Select Department —</option>
+                      {departments.map((d) => (
+                        <option key={d._id} value={d._id}>{d.name}</option>
+                      ))}
+                    </Form.Select>
+                  ) : (
+                    <Form.Control
+                      type="text"
+                      name="department"
+                      value={form.department}
+                      onChange={handleFormChange}
+                      placeholder="Department name or ID"
+                      required
+                    />
+                  )}
+                  <Form.Control.Feedback type="invalid">Department is required.</Form.Control.Feedback>
                 </Form.Group>
               </Col>
 
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Department</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="department"
-                    value={form.department}
-                    onChange={handleFormChange}
-                    placeholder="Department name"
-                  />
-                </Form.Group>
-              </Col>
-
+              {/* Required By Date */}
               <Col md={6}>
                 <Form.Group>
                   <Form.Label>Required By Date</Form.Label>
@@ -247,27 +312,7 @@ export default function CreatePurchaseRequest() {
                 </Form.Group>
               </Col>
 
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Estimated Amount (INR)</Form.Label>
-                  <InputGroup>
-                    <InputGroup.Text>₹</InputGroup.Text>
-                    <Form.Control
-                      type="number"
-                      name="estimatedAmount"
-                      value={lineItemsTotal > 0 ? lineItemsTotal : form.estimatedAmount}
-                      onChange={handleFormChange}
-                      placeholder="0"
-                      min={0}
-                      readOnly={lineItemsTotal > 0}
-                    />
-                  </InputGroup>
-                  {lineItemsTotal > 0 && (
-                    <Form.Text className="text-muted">Auto-calculated from line items.</Form.Text>
-                  )}
-                </Form.Group>
-              </Col>
-
+              {/* Description */}
               <Col md={12}>
                 <Form.Group>
                   <Form.Label>Description</Form.Label>
@@ -277,12 +322,13 @@ export default function CreatePurchaseRequest() {
                     name="description"
                     value={form.description}
                     onChange={handleFormChange}
-                    placeholder="Optional description"
+                    placeholder="Optional additional details"
                     maxLength={500}
                   />
                 </Form.Group>
               </Col>
 
+              {/* Justification */}
               <Col md={12}>
                 <Form.Group>
                   <Form.Label>Justification <span className="text-danger">*</span></Form.Label>
@@ -306,7 +352,7 @@ export default function CreatePurchaseRequest() {
         {/* ── Line Items ── */}
         <Card className="mb-4 shadow-sm">
           <Card.Header className="bg-primary text-white fw-semibold d-flex justify-content-between align-items-center">
-            <span>Line Items</span>
+            <span>Line Items <span className="text-white-50 small">(at least one required)</span></span>
             <Button variant="light" size="sm" onClick={addLineItem}>
               <FaPlus className="me-1" /> Add Item
             </Button>
@@ -316,13 +362,13 @@ export default function CreatePurchaseRequest() {
               <Table bordered hover className="mb-0 align-middle">
                 <thead className="table-light">
                   <tr>
-                    <th style={{ minWidth: 200 }}>Description *</th>
-                    <th style={{ width: 90 }}>Qty *</th>
-                    <th style={{ width: 130 }}>Unit Price (₹) *</th>
+                    <th style={{ minWidth: 200 }}>Item Name / Description <span className="text-danger">*</span></th>
+                    <th style={{ width: 90 }}>Qty <span className="text-danger">*</span></th>
+                    <th style={{ width: 140 }}>Unit Price (₹) <span className="text-danger">*</span></th>
                     <th style={{ width: 110 }}>UoM</th>
-                    <th style={{ width: 150 }}>Category</th>
+                    <th style={{ width: 160 }}>Category</th>
                     <th style={{ width: 120 }}>Total</th>
-                    <th style={{ width: 60 }}></th>
+                    <th style={{ width: 50 }}></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -334,7 +380,7 @@ export default function CreatePurchaseRequest() {
                           type="text"
                           value={item.description}
                           onChange={(e) => handleLineItemChange(idx, 'description', e.target.value)}
-                          placeholder="Item description"
+                          placeholder="e.g. Dell Laptop, Office Chair"
                           required
                         />
                       </td>
@@ -355,6 +401,7 @@ export default function CreatePurchaseRequest() {
                           value={item.unitPrice}
                           onChange={(e) => handleLineItemChange(idx, 'unitPrice', e.target.value)}
                           min={0}
+                          step="0.01"
                           required
                         />
                       </td>
@@ -394,7 +441,7 @@ export default function CreatePurchaseRequest() {
                 </tbody>
                 <tfoot className="table-light">
                   <tr>
-                    <td colSpan={5} className="text-end fw-bold">Grand Total</td>
+                    <td colSpan={5} className="text-end fw-bold">Estimated Total</td>
                     <td className="text-end fw-bold text-primary">{formatCurrency(lineItemsTotal)}</td>
                     <td></td>
                   </tr>
@@ -418,9 +465,9 @@ export default function CreatePurchaseRequest() {
             disabled={submitting}
             onClick={(e) => {
               e.preventDefault();
-              const form = e.currentTarget.closest('form');
-              if (form) {
-                const syntheticEvent = { preventDefault: () => {}, currentTarget: form };
+              const formEl = e.currentTarget.closest('form');
+              if (formEl) {
+                const syntheticEvent = { preventDefault: () => {}, currentTarget: formEl };
                 handleSubmit(syntheticEvent, true);
               }
             }}
@@ -428,8 +475,10 @@ export default function CreatePurchaseRequest() {
             <FaSave className="me-1" /> Save as Draft
           </Button>
           <Button variant="primary" type="submit" disabled={submitting}>
-            <FaPaperPlane className="me-1" />
-            {submitting ? 'Submitting…' : 'Submit for Approval'}
+            {submitting
+              ? <><Spinner size="sm" animation="border" className="me-1" /> Submitting…</>
+              : <><FaPaperPlane className="me-1" /> Submit for Approval</>
+            }
           </Button>
         </div>
       </Form>
