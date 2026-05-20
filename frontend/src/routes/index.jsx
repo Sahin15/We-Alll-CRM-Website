@@ -53,6 +53,13 @@ import Policies from "../pages/employee/Policies";
 import Settings from "../pages/employee/Settings";
 // Removed old imports: MySlots, MyWork, MyTasks, MyProfileEnhanced
 import HRSettings from "../pages/hr/HRSettings";
+import OffersManagement from "../pages/hr/OffersManagement";
+import HiringDashboard from "../pages/hr/HiringDashboard";
+import HiringRequestsManagement from "../pages/hr/HiringRequestsManagement";
+import HiringRequestDetail from "../pages/hr/HiringRequestDetail";
+import ApplicantCVBank from "../pages/hr/ApplicantCVBank";
+import HoDHiringRequests from "../pages/hod/HoDHiringRequests";
+import HoDCreateHiringRequest from "../pages/hod/HoDCreateHiringRequest";
 import AdminSettings from "../pages/admin/AdminSettings";
 import HODSettings from "../pages/hod/HODSettings";
 
@@ -463,6 +470,62 @@ const AppRoutes = () => {
         />
         
         {/* Holiday Management Routes */}
+        <Route
+          path="/hr/offers"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <OffersManagement />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/hr/hiring"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <HiringDashboard />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/hr/hiring/requests"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <HiringRequestsManagement />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/hr/hiring/requests/:id"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <HiringRequestDetail />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/hr/hiring/applicants"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <ApplicantCVBank />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/hod/hiring/requests"
+          element={
+            <RoleBasedRoute allowedRoles={["hod"]}>
+              <HoDHiringRequests />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/hod/hiring/requests/new"
+          element={
+            <RoleBasedRoute allowedRoles={["hod"]}>
+              <HoDCreateHiringRequest />
+            </RoleBasedRoute>
+          }
+        />
         <Route
           path="/hr/holidays"
           element={

@@ -32,6 +32,7 @@ import {
   FaFileAlt,
   FaCheckSquare,
   FaBoxOpen,
+  FaUserPlus,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import "./Sidebar.css";
@@ -251,6 +252,12 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           label: "Department Review",
           roles: ["hod"],
         },
+        {
+          path: "/hod/hiring/requests",
+          icon: <FaUserPlus />,
+          label: "Hiring Requests",
+          roles: ["hod"],
+        },
       ],
     },
     {
@@ -417,6 +424,18 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           path: "/employees",
           icon: <FaUsers />,
           label: "Employees",
+          roles: ["admin", "superadmin", "hr", "manager"],
+        },
+        {
+          path: "/hr/hiring",
+          icon: <FaUserPlus />,
+          label: "Hiring",
+          roles: ["admin", "superadmin", "hr", "manager"],
+        },
+        {
+          path: "/hr/offers",
+          icon: <FaFileAlt />,
+          label: "Offer Letters",
           roles: ["admin", "superadmin", "hr", "manager"],
         },
         {

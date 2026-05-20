@@ -22,6 +22,7 @@ import {
   FaChartLine,
   FaMoneyBillWave,
   FaHome,
+  FaUserPlus,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import StatCard from "../../components/dashboard/StatCard";
@@ -48,6 +49,7 @@ import { departmentApi } from "../../api/departmentApi";
 import { leadApi } from "../../api/leadApi";
 import { getPendingOvertimeEntries } from "../../api/overtimeApi";
 import { getPendingWFHRequests } from "../../api/wfhApi";
+import { hiringRequestApi } from "../../api/hiringRequestApi";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
 import toast from "../../utils/toast";
 import TodoWidget from "../../components/common/TodoWidget";
@@ -64,6 +66,7 @@ const HRDashboard = () => {
     lateToday: 0,
     pendingOvertime: 0,
     pendingWFH: 0,
+    pendingHiring: 0,
   });
   const [loading, setLoading] = useState(true);
   const [pendingLeaves, setPendingLeaves] = useState([]);
@@ -145,6 +148,14 @@ const HRDashboard = () => {
         console.log('Could not fetch pending WFH requests:', error);
       }
 
+      let pendingHiringCount = 0;
+      try {
+        const hiringRes = await hiringRequestApi.pendingCount();
+        pendingHiringCount = hiringRes.data?.count || 0;
+      } catch (error) {
+        console.log('Could not fetch pending hiring requests:', error);
+      }
+
       setStats({
         // usersRes already filtered to active employees only by the API
         employees:
@@ -159,6 +170,7 @@ const HRDashboard = () => {
         lateToday: todayLateCount,
         pendingOvertime: pendingOvertimeCount,
         pendingWFH: pendingWFHCount,
+        pendingHiring: pendingHiringCount,
       });
 
       // Set pending leaves for table
@@ -395,6 +407,13 @@ const HRDashboard = () => {
           wfhSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       },
+    },
+    {
+      label: "Hiring Requests",
+      icon: <FaUserPlus />,
+      path: "/hr/hiring/requests",
+      variant: "primary",
+      badge: stats.pendingHiring > 0 ? stats.pendingHiring : null,
     },
     {
       label: "View Attendance",
