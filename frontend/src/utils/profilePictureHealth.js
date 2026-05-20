@@ -41,47 +41,20 @@ export const checkProfilePictureHealth = async () => {
 };
 
 /**
- * Automatically fix broken profile pictures
- * @param {Function} refreshUser - Function to refresh user data
- * @returns {Promise<boolean>} True if fix was applied
+ * Check profile picture health without modifying the database.
+ * Previously this auto-cleared URLs on transient failures, which removed valid uploads.
  */
-export const autoFixBrokenProfilePicture = async (refreshUser) => {
+export const autoFixBrokenProfilePicture = async () => {
   try {
     const health = await checkProfilePictureHealth();
-    
-    // Only fix if there's a profile picture, it's not accessible, AND there's a real error (not just a warning)
-    if (health.hasProfilePicture && !health.accessible && health.error && !health.warning) {
-      console.warn("Genuinely broken profile picture detected, clearing from database:", health.error);
-      
-      const token = localStorage.getItem("token");
-      if (!token) return false;
 
-      await axios.patch(
-        `${API_BASE_URL}/users/clear-broken-profile-picture`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      // Refresh user data
-      if (refreshUser) {
-        await refreshUser();
-      }
-
-      return true;
-    }
-
-    // Log but don't fix if it's just a warning or timeout
-    if (health.warning) {
-      console.log("Profile picture health warning (not fixing):", health.warning);
+    if (health.hasProfilePicture && !health.accessible && health.error) {
+      console.warn("Profile picture may be missing in storage:", health.error);
     }
 
     return false;
   } catch (error) {
-    console.error("Auto-fix failed:", error);
+    console.error("Profile picture health check failed:", error);
     return false;
   }
 };
@@ -92,7 +65,7 @@ export const autoFixBrokenProfilePicture = async (refreshUser) => {
  * @param {number} intervalMs - Check interval in milliseconds (default: 30 minutes)
  * @returns {Function} Cleanup function to stop the checks
  */
-export const startProfilePictureHealthMonitor = (refreshUser, intervalMs = 30 * 60 * 1000) => {
+export const startProfilePictureHealthMonitor = (_refreshUser, intervalMs = 30 * 60 * 1000) => {
   let isRunning = true;
   let checkCount = 0;
   
@@ -103,11 +76,7 @@ export const startProfilePictureHealthMonitor = (refreshUser, intervalMs = 30 * 
       // Only run health check after the first few minutes and limit frequency
       checkCount++;
       if (checkCount >= 3) {
-        const wasFixed = await autoFixBrokenProfilePicture(refreshUser);
-        // Only log if something was actually fixed
-        if (wasFixed) {
-          console.log("Profile picture auto-fixed");
-        }
+        await autoFixBrokenProfilePicture();
       }
     } catch (error) {
       // Only log actual errors, not routine checks

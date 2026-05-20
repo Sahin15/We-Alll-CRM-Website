@@ -3,6 +3,7 @@ import { Button, Spinner, Image, Modal } from "react-bootstrap";
 import { FaCamera, FaTrash, FaCrop, FaSave, FaTimes, FaEye } from "react-icons/fa";
 import toast from "../../utils/toast";
 import { useAuth } from "../../context/AuthContext";
+import { resolveProfilePictureUrl } from "../../utils/profilePictureUrl";
 import axios from "axios";
 import "./ProfilePictureUpload.css";
 
@@ -28,45 +29,12 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
   // Update preview when user profile picture changes
   useEffect(() => {
     if (user?.profilePicture) {
-      // Use the original URL first, only add cache-busting if needed
-      const imageUrl = user.profilePicture;
-      
-      // Verify image accessibility before setting preview
-      const img = document.createElement('img');
-      img.onload = () => {
-        console.log("Profile picture loaded successfully:", imageUrl);
-        setPreview(imageUrl);
-      };
-      img.onerror = () => {
-        console.warn("Profile picture failed to load, trying with cache-busting");
-        
-        // Try with cache-busting parameter
-        const cacheBustedUrl = imageUrl.includes('?') 
-          ? `${imageUrl}&t=${Date.now()}`
-          : `${imageUrl}?t=${Date.now()}`;
-        
-        const retryImg = document.createElement('img');
-        retryImg.onload = () => {
-          console.log("Profile picture loaded with cache-busting:", cacheBustedUrl);
-          setPreview(cacheBustedUrl);
-        };
-        retryImg.onerror = () => {
-          console.error("Profile picture completely failed to load, clearing preview");
-          setPreview(null);
-          // Only clear broken image after multiple failures
-          setTimeout(() => {
-            if (user.profilePicture === imageUrl) {
-              handleRemoveBrokenImage();
-            }
-          }, 5000); // Wait 5 seconds before clearing
-        };
-        retryImg.src = cacheBustedUrl;
-      };
-      img.src = imageUrl;
+      const imageUrl = resolveProfilePictureUrl(user.profilePicture);
+      setPreview(imageUrl);
     } else {
-      setPreview(null);
+      setPreview(currentImage ? resolveProfilePictureUrl(currentImage) : null);
     }
-  }, [user?.profilePicture]);
+  }, [user?.profilePicture, currentImage]);
 
   // Set initial crop when image loads
   useEffect(() => {
@@ -411,7 +379,7 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
       
       // Update preview immediately with the uploaded image URL
       if (response.data.imageUrl) {
-        setPreview(response.data.imageUrl);
+        setPreview(resolveProfilePictureUrl(response.data.imageUrl));
       }
       
       // Refresh user data from server with a delay to ensure DB is updated

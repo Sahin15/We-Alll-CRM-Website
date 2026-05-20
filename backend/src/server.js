@@ -75,6 +75,7 @@ import procurementDashboardRoutes from "./routes/procurementDashboardRoutes.js";
 // Old: taskRoutes, slotRoutes, workRoutes → New: workItemRoutes
 import { initializeCronJobs } from "./config/cronJobs.js";
 import { apiLimiter, sanitizeInput } from "./middleware/securityMiddleware.js";
+import { s3ProxyMiddleware } from "./middleware/s3ProxyMiddleware.js";
 import { auditMiddleware } from "./utils/auditLogger.js";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -88,9 +89,10 @@ dotenv.config();
 connectDB();
 
 const app = express();
+app.set("trust proxy", 1);
 
 // Security Middlewares
-app.use(helmet()); // Set security headers
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 
 // CORS Configuration - Mobile-friendly for iOS Safari
 const corsOptions = {
@@ -123,6 +125,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json({ limit: "10mb" })); // Limit payload size
 app.use(sanitizeInput); // Sanitize MongoDB queries
+app.use(s3ProxyMiddleware); // Serve profile pictures via /api/upload/profile-picture/:fileName
 app.use(auditMiddleware); // Audit logging for authenticated requests
 
 // Prevent search engine indexing (internal office use only)

@@ -142,12 +142,16 @@ export const uploadRawImageToS3 = async (
  */
 export const deleteImageFromS3 = async (imageUrl) => {
   try {
-    // Extract key from URL
-    const urlParts = imageUrl.split(".amazonaws.com/");
-    if (urlParts.length < 2) {
-      throw new Error("Invalid S3 URL");
+    const { extractProfilePictureKey } = await import("./s3ProxyUrl.js");
+    let key = extractProfilePictureKey(imageUrl);
+
+    if (!key) {
+      const urlParts = imageUrl.split(".amazonaws.com/");
+      if (urlParts.length < 2) {
+        throw new Error("Invalid S3 URL");
+      }
+      key = urlParts[1].split("?")[0];
     }
-    const key = urlParts[1];
 
     const deleteParams = {
       Bucket: AWS_CONFIG.bucketName,

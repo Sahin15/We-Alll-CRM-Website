@@ -14,6 +14,7 @@ import {
   ListGroup
 } from "react-bootstrap";
 import { useParams, useNavigate } from "react-router-dom";
+import { resolveProfilePictureUrl } from "../../utils/profilePictureUrl";
 import {
   FaUser,
   FaEnvelope,
@@ -148,7 +149,7 @@ const UserDetails = () => {
             <Col md={2} className="text-center">
               {user.profilePicture ? (
                 <Image
-                  src={user.profilePicture}
+                  src={resolveProfilePictureUrl(user.profilePicture)}
                   roundedCircle
                   width={120}
                   height={120}

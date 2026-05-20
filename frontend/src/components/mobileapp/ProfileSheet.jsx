@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { FaUser, FaEnvelope, FaPhone, FaBriefcase, FaBuilding, FaIdCard, FaCamera, FaTimes, FaEdit, FaSave } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
+import { resolveProfilePictureUrl } from '../../utils/profilePictureUrl';
 import api from '../../api/axios';
 
 export default function ProfileSheet({ onClose }) {
@@ -76,7 +77,7 @@ export default function ProfileSheet({ onClose }) {
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 20px 16px' }}>
           <div style={{ position: 'relative', marginBottom: '12px' }}>
             {user?.profilePicture ? (
-              <img loading="lazy" src={user.profilePicture} alt={user.name} style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '3px solid #10B981' }} />
+              <img loading="lazy" src={resolveProfilePictureUrl(user.profilePicture)} alt={user.name} style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '3px solid #10B981' }} />
             ) : (
               <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '1.8rem', color: '#fff', border: '3px solid #10B981' }}>
                 {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}

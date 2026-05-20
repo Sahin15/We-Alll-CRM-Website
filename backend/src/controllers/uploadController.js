@@ -1,4 +1,7 @@
+import { GetObjectCommand } from "@aws-sdk/client-s3";
+import s3Client, { AWS_CONFIG } from "../config/awsConfig.js";
 import { uploadImageToS3, uploadRawImageToS3, deleteImageFromS3 } from "../utils/imageUpload.js";
+import { extractProfilePictureKey } from "../utils/s3ProxyUrl.js";
 
 /**
  * Upload expense receipt
@@ -153,6 +156,42 @@ export const uploadProfilePicture = async (req, res) => {
     
     return res.status(500).json({
       message: "Failed to upload profile picture",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Serve profile picture via backend proxy (works when S3 bucket is private)
+ * GET /api/upload/profile-picture/:fileName
+ */
+export const serveProfilePicture = async (req, res) => {
+  try {
+    const { fileName } = req.params;
+    if (!fileName || fileName.includes("..") || fileName.includes("/")) {
+      return res.status(400).json({ message: "Invalid file name" });
+    }
+
+    const key = `profile-pictures/${fileName}`;
+    const command = new GetObjectCommand({
+      Bucket: AWS_CONFIG.bucketName,
+      Key: key,
+    });
+
+    const response = await s3Client.send(command);
+
+    res.setHeader("Content-Type", response.ContentType || "image/jpeg");
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+
+    const bytes = await response.Body.transformToByteArray();
+    res.send(Buffer.from(bytes));
+  } catch (error) {
+    if (error.name === "NoSuchKey" || error.$metadata?.httpStatusCode === 404) {
+      return res.status(404).json({ message: "Profile picture not found" });
+    }
+    return res.status(500).json({
+      message: "Failed to load profile picture",
       error: error.message,
     });
   }
@@ -421,43 +460,29 @@ export const checkProfilePictureHealth = async (req, res) => {
 
     if (user.profilePicture) {
       try {
-        // More lenient URL accessibility check with timeout
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-        
-        const response = await fetch(user.profilePicture, { 
-          method: 'HEAD',
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        result.accessible = response.ok;
-        
-        if (response.ok) {
-          result.fileSize = response.headers.get('content-length');
-          result.lastModified = response.headers.get('last-modified');
-          result.contentType = response.headers.get('content-type');
-          
+        const key = extractProfilePictureKey(user.profilePicture);
+        if (key) {
+          const response = await s3Client.send(
+            new GetObjectCommand({
+              Bucket: AWS_CONFIG.bucketName,
+              Key: key,
+            })
+          );
+          result.accessible = true;
+          result.contentType = response.ContentType;
+          result.fileSize = response.ContentLength;
         } else {
-          // Don't treat 4xx errors as critical failures
-          if (response.status >= 400 && response.status < 500) {
-            result.accessible = true; // Assume accessible but with client error
-            result.warning = `HTTP ${response.status}: ${response.statusText}`;
-          } else {
-            result.error = `HTTP ${response.status}: ${response.statusText}`;
-          }
-          
+          result.accessible = false;
+          result.error = "Unrecognized profile picture URL format";
         }
       } catch (error) {
-        // Don't treat network errors as critical failures
-        if (error.name === 'AbortError') {
-          result.warning = 'Health check timeout - assuming accessible';
-          result.accessible = true;
+        if (error.name === "NoSuchKey" || error.$metadata?.httpStatusCode === 404) {
+          result.accessible = false;
+          result.error = "Image not found in storage";
         } else {
           result.warning = error.message;
-          result.accessible = true; // Assume accessible unless proven otherwise
+          result.accessible = true;
         }
-        
       }
     }
 

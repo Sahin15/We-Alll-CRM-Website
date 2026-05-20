@@ -27,6 +27,7 @@ import {
   FaExclamationTriangle,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
+import { resolveProfilePictureUrl } from "../../utils/profilePictureUrl";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import CompanySwitcher from "../admin/CompanySwitcher";
@@ -495,7 +496,7 @@ const Navbar = ({ toggleSidebar }) => {
                   {user?.profilePicture && !imageLoadError ? (
                     <Image
                       key={user.profilePicture}
-                      src={user.profilePicture}
+                      src={resolveProfilePictureUrl(user.profilePicture)}
                       alt={user.name}
                       roundedCircle
                       width={42}

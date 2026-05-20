@@ -1,6 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Image, Modal, Button } from "react-bootstrap";
 import { FaUser, FaEye } from "react-icons/fa";
+import {
+  resolveProfilePictureUrl,
+  getProfilePictureProxyUrl,
+} from "../../utils/profilePictureUrl";
 import "./ProfilePictureUpload.css";
 
 const ProfilePictureDisplay = ({ 
@@ -13,8 +17,27 @@ const ProfilePictureDisplay = ({
 }) => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [useProxyFallback, setUseProxyFallback] = useState(false);
+
+  const imageSrc = useMemo(() => {
+    if (!profilePicture || profilePicture === "null") return null;
+    if (useProxyFallback) {
+      return getProfilePictureProxyUrl(profilePicture) || resolveProfilePictureUrl(profilePicture);
+    }
+    return resolveProfilePictureUrl(profilePicture);
+  }, [profilePicture, useProxyFallback]);
+
+  useEffect(() => {
+    setImageError(false);
+    setUseProxyFallback(false);
+  }, [profilePicture]);
 
   const handleImageError = () => {
+    if (!useProxyFallback && getProfilePictureProxyUrl(profilePicture)) {
+      setUseProxyFallback(true);
+      setImageError(false);
+      return;
+    }
     setImageError(true);
   };
 
@@ -23,7 +46,7 @@ const ProfilePictureDisplay = ({
   };
 
   const handleViewPicture = () => {
-    if (profilePicture && profilePicture !== 'null' && profilePicture !== null && !imageError) {
+    if (imageSrc && !imageError) {
       setShowViewModal(true);
     }
   };
@@ -43,9 +66,9 @@ const ProfilePictureDisplay = ({
               justifyContent: 'center'
             }}
           >
-            {profilePicture && profilePicture !== 'null' && profilePicture !== null && !imageError ? (
+            {imageSrc && !imageError ? (
               <Image
-                src={profilePicture}
+                src={imageSrc}
                 alt={`${userName}'s profile`}
                 roundedCircle
                 className="profile-picture-dynamic"
@@ -95,7 +118,7 @@ const ProfilePictureDisplay = ({
             )}
           </div>
 
-          {showViewButton && profilePicture && profilePicture !== 'null' && profilePicture !== null && !imageError && (
+          {showViewButton && imageSrc && !imageError && (
             <div className="profile-picture-actions mt-2">
               <Button
                 size="sm"
@@ -126,10 +149,10 @@ const ProfilePictureDisplay = ({
           </Modal.Title>
         </Modal.Header>
         <Modal.Body className="text-center p-4">
-          {profilePicture && profilePicture !== 'null' && profilePicture !== null && !imageError ? (
+          {imageSrc && !imageError ? (
             <div className="profile-view-container">
               <Image
-                src={profilePicture}
+                src={imageSrc}
                 alt={`${userName}'s Profile Picture`}
                 className="profile-view-image"
                 style={{

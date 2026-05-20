@@ -4,6 +4,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'react-toastify';
 import OfflineIndicator from './OfflineIndicator';
 import { useAuth } from '../../context/AuthContext';
+import { resolveProfilePictureUrl } from '../../utils/profilePictureUrl';
 import { useNotifications } from '../../context/NotificationContext';
 import { leadApi } from '../../api/leadApi';
 import { meetingApi } from '../../api/meetingApi';
@@ -183,7 +184,7 @@ export default function AppHeader() {
           {user && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {user.profilePicture ? (
-                <img loading="lazy" src={user.profilePicture} alt={user.name} style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.6)', flexShrink: 0 }} />
+                <img loading="lazy" src={resolveProfilePictureUrl(user.profilePicture)} alt={user.name} style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.6)', flexShrink: 0 }} />
               ) : (
                 <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(255,255,255,0.25)', border: '2px solid rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '0.85rem', color: '#fff', flexShrink: 0 }}>
                   {user.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}

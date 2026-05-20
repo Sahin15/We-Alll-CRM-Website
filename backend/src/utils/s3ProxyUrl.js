@@ -1,35 +1,51 @@
 /**
+ * Extract profile-pictures/{fileName} key from S3 or proxy URL
+ */
+export const extractProfilePictureKey = (url) => {
+  if (!url || typeof url !== "string") return null;
+
+  if (url.includes("/api/upload/profile-picture/")) {
+    const fileName = url.split("/api/upload/profile-picture/")[1]?.split("?")[0];
+    return fileName && !fileName.includes("/") && !fileName.includes("..")
+      ? `profile-pictures/${fileName}`
+      : null;
+  }
+
+  const urlParts = url.split(".amazonaws.com/");
+  if (urlParts.length < 2) return null;
+
+  const fullPath = decodeURIComponent(urlParts[1].split("?")[0]);
+  if (fullPath.startsWith("profile-pictures/")) {
+    return fullPath;
+  }
+  return null;
+};
+
+/**
  * Convert S3 URL to proxy URL for serving through backend
- * This is useful when S3 bucket is not publicly accessible
- * 
- * @param {string} s3Url - Full S3 URL
- * @param {string} apiBaseUrl - Backend API base URL (default: /api)
- * @returns {string} - Proxy URL
+ * @param {string} s3Url - Full S3 URL or existing proxy URL
+ * @param {string} apiBaseUrl - Backend API base URL (e.g. /api or http://host/api)
  */
 export const convertS3UrlToProxyUrl = (s3Url, apiBaseUrl = "/api") => {
   if (!s3Url) return null;
-  
-  // If it's already a proxy URL, return as is
-  if (s3Url.includes("/api/upload/profile-picture/")) {
-    return s3Url;
+
+  const base = apiBaseUrl.replace(/\/$/, "");
+
+  if (s3Url.includes("/upload/profile-picture/")) {
+    if (s3Url.startsWith("http://") || s3Url.startsWith("https://")) {
+      return s3Url;
+    }
+    const fileName = s3Url.split("/upload/profile-picture/")[1]?.split("?")[0];
+    return fileName ? `${base}/upload/profile-picture/${fileName}` : s3Url;
   }
-  
-  // Extract the file name from S3 URL
-  // Format: https://bucket.s3.region.amazonaws.com/profile-pictures/filename
-  const urlParts = s3Url.split(".amazonaws.com/");
-  if (urlParts.length < 2) {
-    return s3Url; // Return original if not a valid S3 URL
+
+  const key = extractProfilePictureKey(s3Url);
+  if (key) {
+    const fileName = key.replace("profile-pictures/", "");
+    return `${base}/upload/profile-picture/${fileName}`;
   }
-  
-  const fullPath = urlParts[1]; // e.g., "profile-pictures/1768313646964-8b5f35ca-d660-45ba-b0ec-3650f82b02f8.png"
-  const pathParts = fullPath.split("/");
-  
-  if (pathParts[0] === "profile-pictures" && pathParts[1]) {
-    const fileName = pathParts[1];
-    return `${apiBaseUrl}/upload/profile-picture/${fileName}`;
-  }
-  
-  return s3Url; // Return original if format doesn't match
+
+  return s3Url;
 };
 
 /**

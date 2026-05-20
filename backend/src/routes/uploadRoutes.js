@@ -5,6 +5,7 @@ import {
   uploadMultipleImages,
   uploadProfilePicture,
   deleteProfilePicture,
+  serveProfilePicture,
   uploadDocument,
   deleteDocument,
   uploadExpenseReceipt,
@@ -44,7 +45,7 @@ router.post(
   uploadProfilePicture
 );
 
-// Check profile picture health
+// Check profile picture health (must be before :fileName route)
 router.get(
   "/profile-picture/health",
   protect,
@@ -57,6 +58,12 @@ router.get(
       res.status(500).json({ message: "Server error", error: error.message });
     }
   }
+);
+
+// Serve profile picture through backend (public read; filenames are unguessable UUIDs)
+router.get(
+  "/profile-picture/:fileName",
+  serveProfilePicture
 );
 
 // Delete profile picture

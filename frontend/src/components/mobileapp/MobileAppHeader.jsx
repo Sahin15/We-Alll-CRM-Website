@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaUser, FaSignOutAlt, FaCog, FaBell } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
+import { resolveProfilePictureUrl } from '../../utils/profilePictureUrl';
 import { useNotifications } from '../../context/NotificationContext';
 import ProfileSheet from './ProfileSheet';
 import SettingsSheet from './SettingsSheet';
@@ -64,7 +65,7 @@ export default function MobileAppHeader() {
               <div ref={dropdownRef} style={{ position: 'relative' }}>
               <button onClick={() => setShowDropdown(v => !v)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', padding: '4px' }}>
                 {user.profilePicture ? (
-                  <img loading="lazy" src={user.profilePicture} alt={user.name} style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.6)' }} />
+                  <img loading="lazy" src={resolveProfilePictureUrl(user.profilePicture)} alt={user.name} style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.6)' }} />
                 ) : (
                   <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(255,255,255,0.25)', border: '2px solid rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '0.85rem', color: '#fff' }}>
                     {user.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
