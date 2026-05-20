@@ -386,6 +386,16 @@ export const updateUser = async (req, res) => {
       updateData.password = await bcrypt.hash(updateData.password, 10);
     }
 
+    // Track employment type change for full-time leave accrual
+    const previousEmploymentType = user.employmentType || "full-time";
+    const newEmploymentType = updateData.employmentType;
+
+    if (newEmploymentType !== undefined) {
+      if (newEmploymentType === "full-time" && previousEmploymentType !== "full-time") {
+        updateData.fullTimeStartDate = new Date();
+      }
+    }
+
     // Handle internship details specifically
     if (updateData.internshipDetails) {
       logger.info("Processing internship details:", updateData.internshipDetails);

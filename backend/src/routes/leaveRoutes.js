@@ -41,7 +41,7 @@ router.get(
         status: "active",
         role: { $in: ["employee", "hod", "hr", "accounts", "manager"] }
       })
-        .select("name email employeeId designation department joiningDate")
+        .select("name email employeeId designation department joiningDate employmentType fullTimeStartDate")
         .populate("department", "name")
         .lean();
 
@@ -148,25 +148,16 @@ router.get(
       }
 
       // Build summary for each employee
-      const summaries = employees.map(emp => {
+      const summaries = await Promise.all(employees.map(async (emp) => {
         const empId = emp._id.toString();
-        const yearLeaves = leavesByEmployee[empId] || [];
         const monthLeaves = month ? (monthlyLeavesByEmployee[empId] || []) : [];
 
-        // Year totals
-        const yearTotals = { personal: 0, medical: 0, vacation: 0, unpaid: 0, half_day: 0, total: 0 };
-        for (const l of yearLeaves) {
-          // Always use 0.5 for half_day regardless of what's stored (old records may have numberOfDays=1)
-          const days = l.leaveType === 'half_day' ? 0.5 : (l.numberOfDays || 0);
-          if (yearTotals.hasOwnProperty(l.leaveType)) yearTotals[l.leaveType] += days;
-          if (l.leaveType !== "unpaid") yearTotals.total += days;
-        }
+        const balance = await LeaveRequest.getLeaveBalance(emp._id, year);
 
         // Month totals
         const monthTotals = { personal: 0, medical: 0, vacation: 0, unpaid: 0, half_day: 0, total: 0 };
         if (month) {
           for (const l of monthLeaves) {
-            // Use stored numberOfDays for half_day (always 0.5), calculate overlap for others
             let days;
             if (l.leaveType === 'half_day') {
               days = l.numberOfDays || 0.5;
@@ -180,10 +171,6 @@ router.get(
           }
         }
 
-        // Earned leaves calculation
-        const earnedLeaves = LeaveRequest.calculateEarnedLeaves(year, emp.joiningDate);
-        const remaining = Math.max(0, earnedLeaves - yearTotals.total);
-
         const yearAtt = yearAttendanceMap[empId] || { late: 0, absent: 0 };
         const monthAtt = month ? (monthAttendanceMap[empId] || { late: 0, absent: 0 }) : null;
 
@@ -194,17 +181,19 @@ router.get(
             email: emp.email,
             employeeId: emp.employeeId,
             designation: emp.designation,
-            department: emp.department
+            department: emp.department,
+            employmentType: emp.employmentType || 'full-time'
           },
+          eligibleForPaidLeave: balance.eligibleForPaidLeave,
           year: {
-            earned: earnedLeaves,
-            totalUsed: yearTotals.total,
-            remaining,
-            personal: yearTotals.personal,
-            medical: yearTotals.medical,
-            vacation: yearTotals.vacation,
-            unpaid: yearTotals.unpaid,
-            halfDay: yearTotals.half_day,
+            earned: balance.earned.earned,
+            totalUsed: balance.earned.used,
+            remaining: balance.earned.remaining,
+            personal: balance.personal.used,
+            medical: balance.medical.used,
+            vacation: balance.vacation.used,
+            unpaid: balance.unpaid.used,
+            halfDay: balance.half_day.used,
             late: yearAtt.late,
             absent: yearAtt.absent
           },
@@ -220,7 +209,7 @@ router.get(
             absent: monthAtt.absent
           } : null
         };
-      });
+      }));
 
       res.status(200).json({ year, month: month || null, summaries });
     } catch (error) {

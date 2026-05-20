@@ -30,6 +30,20 @@ export const createLeaveRequest = async (req, res) => {
       return res.status(400).json({ message: "End date must be after start date" });
     }
 
+    const employeeUser = await User.findById(employee).select('employmentType');
+    const employmentType = employeeUser?.employmentType || 'full-time';
+
+    if (
+      !LeaveRequest.isFullTimeEmployee(employmentType) &&
+      leaveType !== 'unpaid' &&
+      leaveType !== 'work_from_home'
+    ) {
+      return res.status(400).json({
+        message:
+          'Only unpaid leave is available for your employment type. Earned leave applies to full-time employees only.',
+      });
+    }
+
     // Calculate number of days
     const numberOfDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
 
@@ -602,6 +616,40 @@ export const updateLeaveRequest = async (req, res) => {
     if (startDate) leaveRequest.startDate = startDate;
     if (endDate) leaveRequest.endDate = endDate;
     if (reason) leaveRequest.reason = reason;
+
+    const employeeUser = await User.findById(employee).select('employmentType');
+    const employmentType = employeeUser?.employmentType || 'full-time';
+    const effectiveLeaveType = leaveRequest.leaveType;
+
+    if (
+      !LeaveRequest.isFullTimeEmployee(employmentType) &&
+      effectiveLeaveType !== 'unpaid'
+    ) {
+      return res.status(400).json({
+        message:
+          'Only unpaid leave is available for your employment type. Earned leave applies to full-time employees only.',
+      });
+    }
+
+    const start = new Date(leaveRequest.startDate);
+    const end = new Date(leaveRequest.endDate);
+    const numberOfDays =
+      effectiveLeaveType === 'half_day'
+        ? 0.5
+        : Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+
+    if (effectiveLeaveType !== 'unpaid') {
+      try {
+        await LeaveRequest.validateLeaveRequest(
+          employee,
+          effectiveLeaveType,
+          numberOfDays,
+          start.getFullYear()
+        );
+      } catch (balanceError) {
+        return res.status(400).json({ message: balanceError.message });
+      }
+    }
 
     await leaveRequest.save();
 

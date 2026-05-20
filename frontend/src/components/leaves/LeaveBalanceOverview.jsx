@@ -34,6 +34,7 @@ const LeaveBalanceOverview = () => {
   const [search, setSearch] = useState("");
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [employmentFilter, setEmploymentFilter] = useState("all");
 
   useEffect(() => {
     fetchBalances();
@@ -57,12 +58,24 @@ const LeaveBalanceOverview = () => {
 
   const filtered = summaries.filter(s => {
     const q = search.toLowerCase();
-    return (
+    const matchesSearch =
       s.employee.name?.toLowerCase().includes(q) ||
       s.employee.employeeId?.toLowerCase().includes(q) ||
-      s.employee.department?.name?.toLowerCase().includes(q)
-    );
+      s.employee.department?.name?.toLowerCase().includes(q);
+
+    const empType = s.employee.employmentType || "full-time";
+    const matchesEmployment =
+      employmentFilter === "all" ||
+      (employmentFilter === "full-time" && empType === "full-time") ||
+      (employmentFilter === "non-full-time" && empType !== "full-time");
+
+    return matchesSearch && matchesEmployment;
   });
+
+  const formatEmploymentType = (type) => {
+    if (!type) return "Full Time";
+    return type.replace("-", " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  };
 
   const exportCSV = () => {
     const monthLabel = selectedMonth
@@ -70,7 +83,7 @@ const LeaveBalanceOverview = () => {
       : "Full Year";
 
     const headers = [
-      "Employee", "ID", "Department",
+      "Employee", "ID", "Department", "Employment Type",
       "Earned (Year)", "Used (Year)", "Remaining",
       ...(selectedMonth ? [`Used (${monthLabel})`, `Unpaid (${monthLabel})`, `Late (${monthLabel})`, `Absent (${monthLabel})`] : []),
       "Personal", "Medical", "Vacation", "Half Day (×0.5)", "Unpaid (Year)", "Late (Year)", "Absent (Year)"
@@ -80,9 +93,10 @@ const LeaveBalanceOverview = () => {
       s.employee.name,
       s.employee.employeeId || "",
       s.employee.department?.name || "",
-      s.year.earned,
-      s.year.totalUsed,
-      s.year.remaining,
+      formatEmploymentType(s.employee.employmentType),
+      s.eligibleForPaidLeave === false ? "N/A" : s.year.earned,
+      s.eligibleForPaidLeave === false ? "—" : s.year.totalUsed,
+      s.eligibleForPaidLeave === false ? "N/A" : s.year.remaining,
       ...(selectedMonth ? [s.month?.totalUsed ?? 0, s.month?.unpaid ?? 0, s.month?.late ?? 0, s.month?.absent ?? 0] : []),
       s.year.personal,
       s.year.medical,
@@ -236,7 +250,9 @@ const LeaveBalanceOverview = () => {
   const onLeaveThisMonth = selectedMonth
     ? filtered.filter(s => (s.month?.totalUsed ?? 0) > 0).length
     : 0;
-  const highUsage = filtered.filter(s => s.year.remaining <= 2).length;
+  const highUsage = filtered.filter(
+    s => s.eligibleForPaidLeave !== false && s.year.remaining <= 2
+  ).length;
   const totalUnpaid = filtered.reduce((sum, s) => sum + s.year.unpaid, 0);
 
   return (
@@ -275,6 +291,17 @@ const LeaveBalanceOverview = () => {
                 {MONTHS.map(m => (
                   <option key={m.value} value={m.value}>{m.label}</option>
                 ))}
+              </Form.Select>
+            </Col>
+            <Col md={2}>
+              <Form.Select
+                size="sm"
+                value={employmentFilter}
+                onChange={e => setEmploymentFilter(e.target.value)}
+              >
+                <option value="all">All employment types</option>
+                <option value="full-time">Full-time only</option>
+                <option value="non-full-time">Non-full-time only</option>
               </Form.Select>
             </Col>
             <Col md="auto" className="ms-auto">
@@ -366,6 +393,7 @@ const LeaveBalanceOverview = () => {
               <thead className="table-light">
                 <tr>
                   <th style={{ minWidth: 140 }}>Employee</th>
+                  <th style={{ minWidth: 100 }}>Type</th>
                   {selectedMonth && (
                     <>
                       <th className="text-center text-nowrap">{monthLabel} Unpaid</th>
@@ -400,6 +428,11 @@ const LeaveBalanceOverview = () => {
                         <small className="text-secondary d-block">{s.employee.department.name}</small>
                       )}
                     </td>
+                    <td className="align-middle">
+                      <Badge bg={s.eligibleForPaidLeave === false ? "secondary" : "primary"}>
+                        {formatEmploymentType(s.employee.employmentType)}
+                      </Badge>
+                    </td>
 
                     {selectedMonth && (
                       <>
@@ -421,12 +454,24 @@ const LeaveBalanceOverview = () => {
                       </>
                     )}
 
-                    <td className="text-center align-middle fw-bold">{s.year.earned}</td>
-                    <td className="text-center align-middle">{s.year.totalUsed > 0 ? s.year.totalUsed : "—"}</td>
+                    <td className="text-center align-middle fw-bold">
+                      {s.eligibleForPaidLeave === false ? (
+                        <span className="text-muted">N/A</span>
+                      ) : (
+                        s.year.earned
+                      )}
+                    </td>
                     <td className="text-center align-middle">
-                      <Badge bg={s.year.remaining <= 2 ? "danger" : s.year.remaining <= 5 ? "warning" : "success"}>
-                        {s.year.remaining % 1 === 0 ? s.year.remaining : s.year.remaining.toFixed(1)}
-                      </Badge>
+                      {s.eligibleForPaidLeave === false ? "—" : (s.year.totalUsed > 0 ? s.year.totalUsed : "—")}
+                    </td>
+                    <td className="text-center align-middle">
+                      {s.eligibleForPaidLeave === false ? (
+                        <span className="text-muted">N/A</span>
+                      ) : (
+                        <Badge bg={s.year.remaining <= 2 ? "danger" : s.year.remaining <= 5 ? "warning" : "success"}>
+                          {s.year.remaining % 1 === 0 ? s.year.remaining : s.year.remaining.toFixed(1)}
+                        </Badge>
+                      )}
                     </td>
                     <td className="text-center align-middle">{s.year.personal || "—"}</td>
                     <td className="text-center align-middle">{s.year.medical || "—"}</td>

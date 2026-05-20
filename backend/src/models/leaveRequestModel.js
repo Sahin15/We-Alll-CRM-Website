@@ -101,6 +101,20 @@ leaveRequestSchema.pre("save", function (next) {
   next();
 });
 
+const PAID_LEAVE_TYPES = ["personal", "medical", "vacation", "half_day"];
+const ALL_LEAVE_TYPES = [...PAID_LEAVE_TYPES, "unpaid"];
+
+// Static helper: only full-time employees earn paid leave
+leaveRequestSchema.statics.isFullTimeEmployee = function (employmentType) {
+  return employmentType === "full-time";
+};
+
+// Resolve accrual anchor for full-time employees
+leaveRequestSchema.statics.getAccrualDate = function (employee) {
+  if (!employee) return null;
+  return employee.fullTimeStartDate || employee.joiningDate || null;
+};
+
 // Static method to calculate earned leaves based on current date and joining date
 // Rule: Employees earn 2 leaves per month starting from their joining month
 // If they join mid-month, they still get the full month's leaves
@@ -187,20 +201,19 @@ leaveRequestSchema.statics.calculateEarnedLeaves = function(year = new Date().ge
 
 // Static method to get comprehensive leave balance for an employee
 leaveRequestSchema.statics.getLeaveBalance = async function(employeeId, year = new Date().getFullYear()) {
-  // Fetch employee to get joining date
   const User = mongoose.model('User');
-  const employee = await User.findById(employeeId).select('joiningDate');
-  
+  const employee = await User.findById(employeeId).select('joiningDate employmentType fullTimeStartDate');
+
+  const employmentType = employee?.employmentType || 'full-time';
+  const isFullTime = this.isFullTimeEmployee(employmentType);
+  const accrualDate = isFullTime ? this.getAccrualDate(employee) : null;
+
   const approvedLeaves = await this.find({
     employee: employeeId,
     status: 'approved',
     leaveYear: year
   });
 
-  // Calculate earned leaves for the year considering joining date
-  const earnedLeaves = this.calculateEarnedLeaves(year, employee?.joiningDate);
-  
-  // Calculate used leaves by category
   const usedByCategory = {
     personal: 0,
     medical: 0,
@@ -212,58 +225,68 @@ leaveRequestSchema.statics.getLeaveBalance = async function(employeeId, year = n
   let totalPaidLeavesUsed = 0;
 
   approvedLeaves.forEach(leave => {
-    // Always use 0.5 for half_day regardless of stored value (old records may have numberOfDays=1)
     const days = leave.leaveType === 'half_day' ? 0.5 : (leave.numberOfDays || 0);
     if (usedByCategory.hasOwnProperty(leave.leaveType)) {
       usedByCategory[leave.leaveType] += days;
-      
-      // Count only paid leaves against the 24 total (exclude unpaid)
+
       if (leave.leaveType !== 'unpaid') {
-        totalPaidLeavesUsed += days;
+        // For full-time: only count paid leaves on/after accrual date
+        const countsTowardEarned =
+          isFullTime &&
+          (!accrualDate || new Date(leave.startDate) >= new Date(accrualDate));
+
+        if (countsTowardEarned) {
+          totalPaidLeavesUsed += days;
+        }
       }
     }
   });
 
-  // Calculate remaining leaves
-  const remainingLeaves = Math.max(0, earnedLeaves - totalPaidLeavesUsed);
+  let earnedLeaves = 0;
+  let remainingLeaves = 0;
+
+  if (isFullTime) {
+    earnedLeaves = this.calculateEarnedLeaves(year, accrualDate);
+    remainingLeaves = Math.max(0, earnedLeaves - totalPaidLeavesUsed);
+  }
 
   const balance = {
-    // Individual category tracking (for reference)
-    personal: { 
-      total: 12, // Reference limit
-      used: usedByCategory.personal, 
-      remaining: Math.max(0, 12 - usedByCategory.personal)
+    personal: {
+      total: 12,
+      used: usedByCategory.personal,
+      remaining: isFullTime ? Math.max(0, 12 - usedByCategory.personal) : 0
     },
-    medical: { 
-      total: 6, // Reference limit
-      used: usedByCategory.medical, 
-      remaining: Math.max(0, 6 - usedByCategory.medical)
+    medical: {
+      total: 6,
+      used: usedByCategory.medical,
+      remaining: isFullTime ? Math.max(0, 6 - usedByCategory.medical) : 0
     },
-    vacation: { 
-      total: 6, // Reference limit
-      used: usedByCategory.vacation, 
-      remaining: Math.max(0, 6 - usedByCategory.vacation)
+    vacation: {
+      total: 6,
+      used: usedByCategory.vacation,
+      remaining: isFullTime ? Math.max(0, 6 - usedByCategory.vacation) : 0
     },
-    unpaid: { 
-      total: 0, // No limit
-      used: usedByCategory.unpaid, 
-      remaining: 0 // Always 0 as no limit
+    unpaid: {
+      total: 0,
+      used: usedByCategory.unpaid,
+      remaining: 0
     },
     half_day: {
-      total: 0, // No fixed limit — deducted from earned balance at 0.5/day
+      total: 0,
       used: usedByCategory.half_day,
       remaining: 0
     },
-    
-    // Main earned leave tracking
     earned: {
-      total: 24, // Annual total
-      earned: earnedLeaves, // Earned so far this year
-      used: totalPaidLeavesUsed, // Used paid leaves
-      remaining: remainingLeaves, // Available to use
-      monthlyRate: 2, // Leaves earned per month
+      total: 24,
+      earned: earnedLeaves,
+      used: isFullTime ? totalPaidLeavesUsed : 0,
+      remaining: remainingLeaves,
+      monthlyRate: 2,
       year: year
-    }
+    },
+    eligibleForPaidLeave: isFullTime,
+    employmentType,
+    canApplyLeaveTypes: isFullTime ? ALL_LEAVE_TYPES : ['unpaid']
   };
 
   return balance;
@@ -271,17 +294,25 @@ leaveRequestSchema.statics.getLeaveBalance = async function(employeeId, year = n
 
 // Static method to validate leave request against earned balance
 leaveRequestSchema.statics.validateLeaveRequest = async function(employeeId, leaveType, numberOfDays, year = new Date().getFullYear()) {
-  // Skip validation for unpaid leave
   if (leaveType === 'unpaid') {
     return true;
   }
-  
+
+  const User = mongoose.model('User');
+  const employee = await User.findById(employeeId).select('employmentType');
+
+  if (!this.isFullTimeEmployee(employee?.employmentType || 'full-time')) {
+    throw new Error(
+      'Only unpaid leave is available for your employment type. Earned leave applies to full-time employees only.'
+    );
+  }
+
   const balance = await this.getLeaveBalance(employeeId, year);
-  
+
   if (balance.earned.remaining < numberOfDays) {
     throw new Error(`Insufficient earned leave balance. Available: ${balance.earned.remaining} days, Requested: ${numberOfDays} days. You have earned ${balance.earned.earned} out of 24 annual leaves.`);
   }
-  
+
   return true;
 };
 

@@ -18,8 +18,16 @@ import { leaveApi } from "../../api/leaveApi";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
 import { LEAVE_TYPE_DETAILS } from "../../utils/constants";
 import ApplyWFHModal from "../../components/wfh/ApplyWFHModal";
+import { useAuth } from "../../context/AuthContext";
+import {
+  canApplyPaidLeave,
+  formatEmploymentType,
+  getAllowedLeaveTypes,
+  isFullTimeEmployee,
+} from "../../utils/leaveEligibility";
 
 const MyLeaves = () => {
+  const { user } = useAuth();
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -27,8 +35,11 @@ const MyLeaves = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [leaveBalance, setLeaveBalance] = useState(null);
   const [viewLeave, setViewLeave] = useState(null); // leave to view in detail modal
+  const paidLeaveEligible = canApplyPaidLeave(user, leaveBalance);
+  const allowedLeaveTypes = getAllowedLeaveTypes(user, leaveBalance);
+
   const [formData, setFormData] = useState({
-    leaveType: "personal",
+    leaveType: isFullTimeEmployee(user) ? "personal" : "unpaid",
     startDate: "",
     endDate: "",
     reason: "",
@@ -114,7 +125,7 @@ const MyLeaves = () => {
     // Check leave balance (skip for unpaid leave)
     const requestedDays = calculateDays(formData.startDate, formData.endDate);
     
-    if (formData.leaveType !== 'unpaid') {
+    if (paidLeaveEligible && formData.leaveType !== 'unpaid') {
       const availableBalance = leaveBalance?.earned?.remaining || 0;
       
       if (requestedDays > availableBalance) {
@@ -179,8 +190,16 @@ const MyLeaves = () => {
         </Col>
       </Row>
 
+      {!paidLeaveEligible && (
+        <Alert variant="info" className="mb-4">
+          <FaInfoCircle className="me-2" />
+          As a <strong>{formatEmploymentType(user?.employmentType)}</strong> employee, you are not eligible for earned leave.
+          You may apply for <strong>unpaid leave</strong> only.
+        </Alert>
+      )}
+
       {/* Earned Leave Balance Summary */}
-      {leaveBalance && leaveBalance.earned && (
+      {leaveBalance && paidLeaveEligible && leaveBalance.earned && (
         <Row className="mb-4">
           <Col>
             <Card className="border-0 shadow-sm bg-primary bg-opacity-10">
@@ -342,7 +361,9 @@ const MyLeaves = () => {
                 }
                 required
               >
-                {Object.entries(LEAVE_TYPE_DETAILS).map(([type, details]) => (
+                {Object.entries(LEAVE_TYPE_DETAILS)
+                  .filter(([type]) => allowedLeaveTypes.includes(type))
+                  .map(([type, details]) => (
                   <option key={type} value={type}>
                     {details.name} ({type === 'unpaid' ? 'No limit' : `${leaveBalance?.earned?.remaining || 0} days available`})
                   </option>
@@ -443,7 +464,7 @@ const MyLeaves = () => {
               disabled={
                 isSubmitting ||
                 !validateAdvanceNotice(formData.leaveType, formData.startDate).valid || 
-                (formData.leaveType !== 'unpaid' && calculateDays(formData.startDate, formData.endDate) > (leaveBalance?.earned?.remaining || 0))
+                (paidLeaveEligible && formData.leaveType !== 'unpaid' && calculateDays(formData.startDate, formData.endDate) > (leaveBalance?.earned?.remaining || 0))
               }
             >
               {isSubmitting ? 'Submitting...' : 'Submit Request'}

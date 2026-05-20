@@ -151,7 +151,11 @@ const userSchema = new mongoose.Schema(
       enum: ["full-time", "part-time", "intern", "freelancer", "contract"],
       default: "full-time",
     },
-    
+    // Date when employee became full-time (for earned leave accrual after conversion)
+    fullTimeStartDate: {
+      type: Date,
+    },
+
     // Internship Details (only applicable when employmentType is 'intern')
     internshipDetails: {
       duration: {

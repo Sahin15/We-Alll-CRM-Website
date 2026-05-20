@@ -21,6 +21,11 @@ import toast from "../../utils/toast";
 import api from "../../services/api";
 import workItemApi from "../../api/workItemApi";
 import { LEAVE_TYPE_DETAILS } from "../../utils/constants";
+import {
+  canApplyPaidLeave,
+  getAllowedLeaveTypes,
+  isFullTimeEmployee,
+} from "../../utils/leaveEligibility";
 import GreetingBanner from "../../components/common/GreetingBanner";
 import TodoWidget from "../../components/common/TodoWidget";
 import ConfirmModal from "../../components/common/ConfirmModal";
@@ -115,6 +120,8 @@ const MeetingRow = ({ meeting, user, onEdit, onComplete, showDate }) => {
 
 const EmployeeDashboard = () => {
   const { user } = useAuth();
+  const paidLeaveEligible = canApplyPaidLeave(user);
+  const allowedLeaveTypes = getAllowedLeaveTypes(user);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     attendanceToday: null,
@@ -177,7 +184,7 @@ const EmployeeDashboard = () => {
   const [employees, setEmployees] = useState([]);
   
   const [leaveFormData, setLeaveFormData] = useState({
-    leaveType: 'personal',
+    leaveType: isFullTimeEmployee(user) ? 'personal' : 'unpaid',
     startDate: '',
     endDate: '',
     reason: ''
@@ -876,13 +883,12 @@ const EmployeeDashboard = () => {
     // Check leave balance (skip for unpaid leave only)
     const requestedDays = calculateDays(leaveFormData.startDate, leaveFormData.endDate);
     
-    if (leaveFormData.leaveType !== 'unpaid') {
-      // Get current leave balance
+    if (paidLeaveEligible && leaveFormData.leaveType !== 'unpaid') {
       try {
         const balanceResponse = await api.get('/leaves/balance');
         const balance = balanceResponse.data.balance;
         const availableBalance = balance.earned.remaining;
-        
+
         if (requestedDays > availableBalance) {
           toast.error(`Insufficient earned leave balance. Available: ${availableBalance} days, Requested: ${requestedDays} days. You have earned ${balance.earned.earned} out of 24 annual leaves.`);
           return;
@@ -905,7 +911,7 @@ const EmployeeDashboard = () => {
       toast.success('Leave application submitted successfully!');
       setShowLeaveModal(false);
       setLeaveFormData({
-        leaveType: 'personal',
+        leaveType: paidLeaveEligible ? 'personal' : 'unpaid',
         startDate: '',
         endDate: '',
         reason: ''
@@ -1104,8 +1110,10 @@ const EmployeeDashboard = () => {
               <div className="d-flex justify-content-between align-items-start">
                 <div>
                   <h6 className="text-muted mb-2">Leave Balance</h6>
-                  <h3 className="mb-1">{stats.leaveBalance} days</h3>
-                  <small className="text-info">Available earned leaves • Click for details</small>
+                  <h3 className="mb-1">{paidLeaveEligible ? `${stats.leaveBalance} days` : 'Unpaid only'}</h3>
+                  <small className="text-info">
+                    {paidLeaveEligible ? 'Available earned leaves • Click for details' : 'Earned leave not available • Click for details'}
+                  </small>
                 </div>
                 <div className="bg-info bg-opacity-10 p-3 rounded">
                   <FaCalendarAlt className="text-info fs-4" />
@@ -1783,7 +1791,13 @@ const EmployeeDashboard = () => {
             {/* Leave Type Selection - Card Style */}
             <div className="mb-4">
               <h6 className="mb-3">Leave Type</h6>
+              {!paidLeaveEligible && (
+                <Alert variant="secondary" className="mb-3">
+                  Only unpaid leave is available for your employment type.
+                </Alert>
+              )}
               <Row className="g-3">
+                {allowedLeaveTypes.includes('vacation') && (
                 <Col md={6}>
                   <Card 
                     className={`leave-type-card ${leaveFormData.leaveType === 'vacation' ? 'selected' : ''}`}
@@ -1803,6 +1817,8 @@ const EmployeeDashboard = () => {
                     </Card.Body>
                   </Card>
                 </Col>
+                )}
+                {allowedLeaveTypes.includes('medical') && (
                 <Col md={6}>
                   <Card 
                     className={`leave-type-card ${leaveFormData.leaveType === 'medical' ? 'selected' : ''}`}
@@ -1822,6 +1838,8 @@ const EmployeeDashboard = () => {
                     </Card.Body>
                   </Card>
                 </Col>
+                )}
+                {allowedLeaveTypes.includes('personal') && (
                 <Col md={6}>
                   <Card 
                     className={`leave-type-card ${leaveFormData.leaveType === 'personal' ? 'selected' : ''}`}
@@ -1841,6 +1859,8 @@ const EmployeeDashboard = () => {
                     </Card.Body>
                   </Card>
                 </Col>
+                )}
+                {allowedLeaveTypes.includes('half_day') && (
                 <Col md={6}>
                   <Card 
                     className={`leave-type-card ${leaveFormData.leaveType === 'half_day' ? 'selected' : ''}`}
@@ -1860,6 +1880,8 @@ const EmployeeDashboard = () => {
                     </Card.Body>
                   </Card>
                 </Col>
+                )}
+                {allowedLeaveTypes.includes('unpaid') && (
                 <Col md={6}>
                   <Card 
                     className={`leave-type-card ${leaveFormData.leaveType === 'unpaid' ? 'selected' : ''}`}
@@ -1879,6 +1901,7 @@ const EmployeeDashboard = () => {
                     </Card.Body>
                   </Card>
                 </Col>
+                )}
               </Row>
             </div>
 

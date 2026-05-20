@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { FaUmbrellaBeach, FaPlus, FaTimes, FaUpload, FaFileAlt, FaChevronDown } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { leaveApi } from '../../api/leaveApi';
+import { useAuth } from '../../context/AuthContext';
+import { getAllowedLeaveTypes, isFullTimeEmployee } from '../../utils/leaveEligibility';
 
-const LEAVE_TYPES = [
+const ALL_LEAVE_TYPES = [
   { value: 'personal', label: 'Personal Leave' },
   { value: 'medical', label: 'Medical Leave' },
   { value: 'vacation', label: 'Vacation Leave' },
@@ -11,10 +13,10 @@ const LEAVE_TYPES = [
   { value: 'unpaid', label: 'Unpaid Leave' },
 ];
 
-function LeaveTypeSelect({ value, onChange }) {
+function LeaveTypeSelect({ value, onChange, leaveTypes }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
-  const selected = LEAVE_TYPES.find(t => t.value === value);
+  const selected = leaveTypes.find(t => t.value === value);
 
   useEffect(() => {
     const handleClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -44,7 +46,7 @@ function LeaveTypeSelect({ value, onChange }) {
           boxShadow: '0 4px 12px rgba(0,0,0,0.12)', zIndex: 50,
           marginTop: '4px', overflow: 'hidden',
         }}>
-          {LEAVE_TYPES.map(t => (
+          {leaveTypes.map(t => (
             <button
               key={t.value}
               type="button"
@@ -83,11 +85,16 @@ function fmt(iso) {
 }
 
 export default function LeaveTab() {
+  const { user } = useAuth();
+  const allowedTypes = getAllowedLeaveTypes(user);
+  const leaveTypes = ALL_LEAVE_TYPES.filter(t => allowedTypes.includes(t.value));
+  const defaultLeaveType = isFullTimeEmployee(user) ? 'personal' : 'unpaid';
+
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ leaveType: 'personal', startDate: '', endDate: '', reason: '' });
+  const [form, setForm] = useState({ leaveType: defaultLeaveType, startDate: '', endDate: '', reason: '' });
   const [document, setDocument] = useState(null);
 
   const fetchLeaves = useCallback(async () => {
@@ -129,7 +136,7 @@ export default function LeaveTab() {
       await leaveApi.createLeaveRequest(formDataToSend);
       toast.success('Leave request submitted!');
       setShowForm(false);
-      setForm({ leaveType: 'personal', startDate: '', endDate: '', reason: '' });
+      setForm({ leaveType: defaultLeaveType, startDate: '', endDate: '', reason: '' });
       setDocument(null);
       await fetchLeaves();
     } catch (e) {
@@ -179,7 +186,7 @@ export default function LeaveTab() {
 
           <div style={{ marginBottom: '12px' }}>
             <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>Leave Type</label>
-            <LeaveTypeSelect value={form.leaveType} onChange={val => setForm({ ...form, leaveType: val })} />
+            <LeaveTypeSelect value={form.leaveType} onChange={val => setForm({ ...form, leaveType: val })} leaveTypes={leaveTypes} />
           </div>
 
           <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>

@@ -7,6 +7,12 @@ import { leaveApi } from "../../api/leaveApi";
 import { getMyWFHRequests, cancelWFHRequest } from "../../api/wfhApi";
 import { LEAVE_TYPE_DETAILS } from "../../utils/constants";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
+import {
+  canApplyPaidLeave,
+  formatEmploymentType,
+  getAllowedLeaveTypes,
+  isFullTimeEmployee,
+} from "../../utils/leaveEligibility";
 import ApplyWFHModal from "../../components/wfh/ApplyWFHModal";
 import "../../styles/table-mobile.css";
 import "../../styles/modal-mobile.css";
@@ -21,13 +27,17 @@ const MyLeaves = () => {
   const [showWFHModal, setShowWFHModal] = useState(false);
   const [leaveBalance, setLeaveBalance] = useState(null);
   const [viewLeave, setViewLeave] = useState(null);
+  const defaultLeaveType = isFullTimeEmployee(user) ? "personal" : "unpaid";
   const [formData, setFormData] = useState({
-    leaveType: "personal",
+    leaveType: defaultLeaveType,
     startDate: "",
     endDate: "",
     reason: "",
     document: null,
   });
+
+  const paidLeaveEligible = canApplyPaidLeave(user, leaveBalance);
+  const allowedLeaveTypes = getAllowedLeaveTypes(user, leaveBalance);
 
   useEffect(() => {
     fetchLeaves();
@@ -91,7 +101,7 @@ const MyLeaves = () => {
   const handleCloseModal = () => {
     setShowModal(false);
     setFormData({
-      leaveType: "personal",
+      leaveType: paidLeaveEligible ? "personal" : "unpaid",
       startDate: "",
       endDate: "",
       reason: "",
@@ -153,9 +163,9 @@ const MyLeaves = () => {
     // Check leave balance (skip for unpaid leave and work from home)
     const requestedDays = calculateDays(formData.startDate, formData.endDate);
     
-    if (formData.leaveType !== 'unpaid') {
+    if (paidLeaveEligible && formData.leaveType !== 'unpaid') {
       const availableBalance = leaveBalance?.earned?.remaining || 0;
-      
+
       if (requestedDays > availableBalance) {
         toast.error(`Insufficient earned leave balance. Available: ${availableBalance} days, Requested: ${requestedDays} days. You have earned ${leaveBalance?.earned?.earned || 0} out of 24 annual leaves.`);
         return;
@@ -282,8 +292,16 @@ const MyLeaves = () => {
         </Alert>
       )}
 
+      {!paidLeaveEligible && (
+        <Alert variant="info" className="mb-4">
+          <FaInfoCircle className="me-2" />
+          As a <strong>{formatEmploymentType(user?.employmentType)}</strong> employee, you are not eligible for earned leave.
+          You may apply for <strong>unpaid leave</strong> only.
+        </Alert>
+      )}
+
       {/* Leave Balance Cards */}
-      {leaveBalance && (
+      {leaveBalance && paidLeaveEligible && (
         <>
           {/* Earned Leave Summary Card */}
           <Row className="mb-4">
@@ -410,7 +428,7 @@ const MyLeaves = () => {
       )}
 
       {/* Leave Balance Summary */}
-      {leaveBalance && leaveBalance.earned && (
+      {leaveBalance && paidLeaveEligible && leaveBalance.earned && (
         <Row className="mb-4">
           <Col xs={6} sm={6} md={3} className="mb-3">
             <Card className="border-0 shadow-sm">
@@ -709,7 +727,13 @@ const MyLeaves = () => {
             {/* Leave Type Selection - Card Style */}
             <div className="mb-4">
               <h6 className="mb-3">Leave Type</h6>
+              {!paidLeaveEligible && (
+                <Alert variant="secondary" className="mb-3">
+                  Only unpaid leave is available for your employment type.
+                </Alert>
+              )}
               <Row className="g-3">
+                {allowedLeaveTypes.includes('vacation') && (
                 <Col md={6}>
                   <Card 
                     className={`leave-type-card ${formData.leaveType === 'vacation' ? 'selected' : ''}`}
@@ -729,6 +753,8 @@ const MyLeaves = () => {
                     </Card.Body>
                   </Card>
                 </Col>
+                )}
+                {allowedLeaveTypes.includes('medical') && (
                 <Col md={6}>
                   <Card 
                     className={`leave-type-card ${formData.leaveType === 'medical' ? 'selected' : ''}`}
@@ -748,6 +774,8 @@ const MyLeaves = () => {
                     </Card.Body>
                   </Card>
                 </Col>
+                )}
+                {allowedLeaveTypes.includes('personal') && (
                 <Col md={6}>
                   <Card 
                     className={`leave-type-card ${formData.leaveType === 'personal' ? 'selected' : ''}`}
@@ -767,6 +795,8 @@ const MyLeaves = () => {
                     </Card.Body>
                   </Card>
                 </Col>
+                )}
+                {allowedLeaveTypes.includes('half_day') && (
                 <Col md={6}>
                   <Card 
                     className={`leave-type-card ${formData.leaveType === 'half_day' ? 'selected' : ''}`}
@@ -786,6 +816,8 @@ const MyLeaves = () => {
                     </Card.Body>
                   </Card>
                 </Col>
+                )}
+                {allowedLeaveTypes.includes('unpaid') && (
                 <Col md={6}>
                   <Card 
                     className={`leave-type-card ${formData.leaveType === 'unpaid' ? 'selected' : ''}`}
@@ -805,6 +837,7 @@ const MyLeaves = () => {
                     </Card.Body>
                   </Card>
                 </Col>
+                )}
               </Row>
             </div>
 
@@ -908,7 +941,7 @@ const MyLeaves = () => {
               <Button 
                 variant="primary" 
                 type="submit"
-                disabled={!advanceNoticeCheck.valid || (formData.leaveType !== 'unpaid' && requestedDays > availableBalance)}
+                disabled={!advanceNoticeCheck.valid || (paidLeaveEligible && formData.leaveType !== 'unpaid' && requestedDays > availableBalance)}
               >
                 Submit Request
               </Button>

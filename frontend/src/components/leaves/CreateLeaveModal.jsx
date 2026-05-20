@@ -3,12 +3,17 @@ import { Modal, Form, Button, Row, Col, Alert } from 'react-bootstrap';
 import { FaCalendarAlt, FaFileAlt, FaPaperclip } from 'react-icons/fa';
 import { leaveApi } from '../../api/leaveApi';
 import { LEAVE_TYPE_DETAILS } from '../../utils/constants';
+import { useAuth } from '../../context/AuthContext';
+import { getAllowedLeaveTypes, isFullTimeEmployee } from '../../utils/leaveEligibility';
 import moment from 'moment';
 import '../../pages/leaves/LeaveManagement.css';
 
 const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
+  const { user } = useAuth();
+  const allowedLeaveTypes = getAllowedLeaveTypes(user);
+
   const [formData, setFormData] = useState({
-    leaveType: 'personal',
+    leaveType: isFullTimeEmployee(user) ? 'personal' : 'unpaid',
     startDate: '',
     endDate: '',
     reason: '',
@@ -18,7 +23,9 @@ const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const leaveTypes = Object.entries(LEAVE_TYPE_DETAILS).map(([value, details]) => ({
+  const leaveTypes = Object.entries(LEAVE_TYPE_DETAILS)
+    .filter(([value]) => allowedLeaveTypes.includes(value))
+    .map(([value, details]) => ({
     value,
     label: details.name,
     description: details.description,
