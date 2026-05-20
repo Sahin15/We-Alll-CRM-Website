@@ -1,4 +1,5 @@
 import Department from "../models/departmentModel.js";
+import User from "../models/userModel.js";
 
 export const HR_ROLES = ["hr", "admin", "superadmin", "manager"];
 
@@ -13,17 +14,29 @@ export const assertHrAccess = (req, res) => {
 export const isHrUser = (user) => HR_ROLES.includes(user?.role);
 
 export const getHoDDepartment = async (userId) => {
-  return Department.findOne({ head: userId, status: "active" });
+  const id = userId?._id || userId;
+  let dept = await Department.findOne({ head: id, status: "active" });
+  if (dept) return dept;
+
+  const user = await User.findById(id).select("role headOfDepartment");
+  if (user?.headOfDepartment) {
+    dept = await Department.findOne({
+      _id: user.headOfDepartment,
+      status: "active",
+    });
+  }
+  return dept;
 };
 
 export const assertHoDAccess = async (req, res) => {
-  const dept = await getHoDDepartment(req.user._id);
-  if (!dept && req.user.role !== "hod") {
-    res.status(403).json({ message: "Access denied. You are not a Head of Department." });
-    return null;
-  }
-  if (!dept && req.user.role === "hod") {
-    res.status(403).json({ message: "No active department assigned as head." });
+  const dept = await getHoDDepartment(req.user._id || req.user.id);
+  if (!dept) {
+    res.status(403).json({
+      message:
+        req.user.role === "hod"
+          ? "No active department assigned as head."
+          : "Access denied. You are not a Head of Department.",
+    });
     return null;
   }
   return dept;
@@ -31,7 +44,7 @@ export const assertHoDAccess = async (req, res) => {
 
 export const canAccessHiringRequest = async (req, hiringRequest) => {
   if (isHrUser(req.user)) return true;
-  const dept = await getHoDDepartment(req.user._id);
+  const dept = await getHoDDepartment(req.user._id || req.user.id);
   if (!dept) return false;
   const reqDeptId = hiringRequest.department?._id || hiringRequest.department;
   return String(reqDeptId) === String(dept._id);

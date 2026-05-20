@@ -95,20 +95,6 @@ const OffersManagement = () => {
     api.get("/departments").then((r) => setDepartments(r.data || [])).catch(() => {});
   }, [fetchOffers]);
 
-  useEffect(() => {
-    const editId = searchParams.get("edit");
-    if (!editId) return;
-    offerApi
-      .get(editId)
-      .then((res) => {
-        if (res.data) openEdit(res.data);
-        const next = new URLSearchParams(searchParams);
-        next.delete("edit");
-        setSearchParams(next, { replace: true });
-      })
-      .catch(() => toast.error("Could not load offer from hiring pipeline"));
-  }, [searchParams, setSearchParams]);
-
   const openCreate = () => {
     setEditingOffer(null);
     setForm(emptyForm());
@@ -140,6 +126,20 @@ const OffersManagement = () => {
     });
     setShowModal(true);
   };
+
+  useEffect(() => {
+    const editId = searchParams.get("edit");
+    if (!editId) return;
+    offerApi
+      .get(editId)
+      .then((res) => {
+        if (res.data) openEdit(res.data);
+        const next = new URLSearchParams(searchParams);
+        next.delete("edit");
+        setSearchParams(next, { replace: true });
+      })
+      .catch(() => toast.error("Could not load offer from hiring pipeline"));
+  }, [searchParams, setSearchParams]);
 
   const handleSave = async () => {
     if (!form.candidateName.trim() || !form.candidateEmail.trim()) {

@@ -10,12 +10,17 @@ const documentSchema = new mongoose.Schema({
     type: String,
     required: true,
     enum: [
-      // Personal documents (uploaded by employees)
+      // Personal documents
       'aadhaar', 'pan', 'bank', 'passport', 'driving_license', 'education',
-      // Official documents (uploaded by HR/Admin)
-      'salary_slip', 'joining_letter', 'offer_letter', 'appraisal', 
-      'increment_letter', 'promotion_letter', 'leave_approval', 
-      'acknowledgement', 'experience_letter', 'relieving_letter'
+      // HR / employment (post-join; offer_letter often linked from Offer module)
+      'offer_letter', 'joining_letter', 'employment_contract', 'nda',
+      'policy_acknowledgment', 'increment_letter', 'bonus_letter',
+      'promotion_letter', 'appraisal_letter', 'leave_approval',
+      // Exit & other
+      'resignation_letter', 'experience_letter', 'relieving_letter',
+      'experience_certificate', 'medical_certificate', 'other',
+      // Legacy (kept for existing records)
+      'salary_slip', 'appraisal', 'acknowledgement'
     ]
   },
   originalName: {
