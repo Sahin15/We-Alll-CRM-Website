@@ -41,7 +41,7 @@ router.get(
         status: "active",
         role: { $in: ["employee", "hod", "hr", "accounts", "manager"] }
       })
-        .select("name email employeeId designation department joiningDate employmentType fullTimeStartDate")
+        .select("name email employeeId designation department joiningDate employmentType fullTimeStartDate internshipDetails")
         .populate("department", "name")
         .lean();
 
@@ -182,13 +182,14 @@ router.get(
             employeeId: emp.employeeId,
             designation: emp.designation,
             department: emp.department,
-            employmentType: emp.employmentType || 'full-time'
+            employmentType: emp.employmentType ?? null
           },
           eligibleForPaidLeave: balance.eligibleForPaidLeave,
+          employmentType: balance.employmentType ?? emp.employmentType ?? null,
           year: {
-            earned: balance.earned.earned,
-            totalUsed: balance.earned.used,
-            remaining: balance.earned.remaining,
+            earned: balance.eligibleForPaidLeave ? balance.earned.earned : 0,
+            totalUsed: balance.eligibleForPaidLeave ? balance.earned.used : 0,
+            remaining: balance.eligibleForPaidLeave ? balance.earned.remaining : 0,
             personal: balance.personal.used,
             medical: balance.medical.used,
             vacation: balance.vacation.used,

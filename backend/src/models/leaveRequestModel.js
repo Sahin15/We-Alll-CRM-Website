@@ -104,9 +104,31 @@ leaveRequestSchema.pre("save", function (next) {
 const PAID_LEAVE_TYPES = ["personal", "medical", "vacation", "half_day"];
 const ALL_LEAVE_TYPES = [...PAID_LEAVE_TYPES, "unpaid"];
 
-// Static helper: only full-time employees earn paid leave
-leaveRequestSchema.statics.isFullTimeEmployee = function (employmentType) {
-  return employmentType === "full-time";
+const NON_FULL_TIME_EMPLOYMENT_TYPES = ["part-time", "intern", "freelancer", "contract"];
+
+const normalizeEmploymentType = (type) => {
+  if (!type || typeof type !== "string") return null;
+  return type.trim().toLowerCase();
+};
+
+// Static helper: only explicit full-time employees earn paid leave
+leaveRequestSchema.statics.isFullTimeEmployee = function (employmentTypeOrEmployee) {
+  let type = null;
+  let employee = null;
+
+  if (employmentTypeOrEmployee && typeof employmentTypeOrEmployee === "object") {
+    employee = employmentTypeOrEmployee;
+    type = normalizeEmploymentType(employee.employmentType);
+  } else {
+    type = normalizeEmploymentType(employmentTypeOrEmployee);
+  }
+
+  if (type && NON_FULL_TIME_EMPLOYMENT_TYPES.includes(type)) {
+    return false;
+  }
+
+  // Unset or explicit full-time (Mongoose default for new users is full-time)
+  return type === "full-time" || !type;
 };
 
 // Resolve accrual anchor for full-time employees
@@ -202,10 +224,12 @@ leaveRequestSchema.statics.calculateEarnedLeaves = function(year = new Date().ge
 // Static method to get comprehensive leave balance for an employee
 leaveRequestSchema.statics.getLeaveBalance = async function(employeeId, year = new Date().getFullYear()) {
   const User = mongoose.model('User');
-  const employee = await User.findById(employeeId).select('joiningDate employmentType fullTimeStartDate');
+  const employee = await User.findById(employeeId).select(
+    'joiningDate employmentType fullTimeStartDate internshipDetails'
+  );
 
-  const employmentType = employee?.employmentType || 'full-time';
-  const isFullTime = this.isFullTimeEmployee(employmentType);
+  const employmentType = employee?.employmentType;
+  const isFullTime = this.isFullTimeEmployee(employee);
   const accrualDate = isFullTime ? this.getAccrualDate(employee) : null;
 
   const approvedLeaves = await this.find({
@@ -299,9 +323,9 @@ leaveRequestSchema.statics.validateLeaveRequest = async function(employeeId, lea
   }
 
   const User = mongoose.model('User');
-  const employee = await User.findById(employeeId).select('employmentType');
+  const employee = await User.findById(employeeId).select('employmentType internshipDetails');
 
-  if (!this.isFullTimeEmployee(employee?.employmentType || 'full-time')) {
+  if (!this.isFullTimeEmployee(employee)) {
     throw new Error(
       'Only unpaid leave is available for your employment type. Earned leave applies to full-time employees only.'
     );

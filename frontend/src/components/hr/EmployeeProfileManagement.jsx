@@ -348,7 +348,11 @@ const EmployeeProfileManagement = () => {
           department: document.getElementById('job-department')?.value || user?.department?._id,
           employeeId: document.getElementById('job-employeeId')?.value || user?.employeeId,
           joiningDate: document.getElementById('job-joiningDate')?.value || user?.joiningDate,
-          employmentType: document.getElementById('job-employmentType')?.value || user?.employmentType,
+          employmentType: (() => {
+            const selected = document.getElementById('job-employmentType')?.value;
+            if (selected && selected.trim()) return selected;
+            return user?.employmentType || 'full-time';
+          })(),
           funBadge: document.getElementById('job-funBadge')?.value || user?.funBadge,
           reportingManager: document.getElementById('job-reportingManager')?.value || null,
           workLocation: document.getElementById('job-workLocation')?.value || user?.workLocation,
@@ -1645,7 +1649,7 @@ const EmployeeProfileManagement = () => {
                           <Form.Label>Employment Type</Form.Label>
                           {editMode.job ? (
                             <Form.Select 
-                              defaultValue={user?.employmentType || ''} 
+                              defaultValue={user?.employmentType || 'full-time'} 
                               id="job-employmentType"
                               onChange={(e) => {
                                 const newType = e.target.value;
@@ -1653,7 +1657,6 @@ const EmployeeProfileManagement = () => {
                                 setCurrentEmploymentType(newType);
                               }}
                             >
-                              <option value="">Select Type</option>
                               <option value="full-time">Full Time</option>
                               <option value="part-time">Part Time</option>
                               <option value="intern">Intern</option>

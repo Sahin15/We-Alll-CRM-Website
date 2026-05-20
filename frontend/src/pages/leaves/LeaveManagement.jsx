@@ -10,6 +10,7 @@ import LeaveRequestCard from '../../components/leaves/LeaveRequestCard';
 import LeaveApprovalModal from '../../components/leaves/LeaveApprovalModal';
 import WFHManagementPanel from '../../components/wfh/WFHManagementPanel';
 import LeaveBalanceOverview from '../../components/leaves/LeaveBalanceOverview';
+import { isPaidLeaveEligibleRow } from '../../utils/leaveEligibility';
 import { toast } from 'react-toastify';
 import './LeaveManagement.css';
 
@@ -527,12 +528,24 @@ const LeaveManagement = () => {
                               <td>
                                 {balance ? (
                                   <div>
-                                    <div className="fw-bold text-primary">
-                                      {balance.summary?.currentRatio || `${balance.balance?.earned?.used || 0}/24`}
-                                    </div>
-                                    <small className="text-muted">
-                                      {balance.balance?.earned?.remaining || 0} available
-                                    </small>
+                                    {isPaidLeaveEligibleRow({
+                                      eligibleForPaidLeave: balance.balance?.eligibleForPaidLeave,
+                                      employee: {
+                                        employmentType: balance.balance?.employmentType
+                                          || leave.employee?.employmentType,
+                                      },
+                                    }) ? (
+                                      <>
+                                        <div className="fw-bold text-primary">
+                                          {balance.summary?.currentRatio || `${balance.balance?.earned?.used || 0}/24`}
+                                        </div>
+                                        <small className="text-muted">
+                                          {balance.balance?.earned?.remaining || 0} available
+                                        </small>
+                                      </>
+                                    ) : (
+                                      <small className="text-muted">Unpaid leave only</small>
+                                    )}
                                   </div>
                                 ) : (
                                   <small className="text-muted">Loading...</small>

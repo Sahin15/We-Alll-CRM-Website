@@ -33,6 +33,8 @@ export const registerUser = async (req, res) => {
       maritalStatus,
       nationality,
       status,
+      employmentType,
+      joiningDate,
     } = req.body;
 
     logger.info("Registration attempt:", { name, email, role });
@@ -72,6 +74,8 @@ export const registerUser = async (req, res) => {
       maritalStatus: maritalStatus || undefined,
       nationality: nationality || "Indian",
       status: status || "active",
+      employmentType: employmentType && employmentType.trim() ? employmentType.trim() : "full-time",
+      joiningDate: joiningDate || undefined,
     });
 
     logger.success("User created successfully:", user._id);
@@ -391,8 +395,21 @@ export const updateUser = async (req, res) => {
     const newEmploymentType = updateData.employmentType;
 
     if (newEmploymentType !== undefined) {
-      if (newEmploymentType === "full-time" && previousEmploymentType !== "full-time") {
+      if (typeof newEmploymentType === "string" && newEmploymentType.trim() === "") {
+        updateData.employmentType = "full-time";
+      }
+
+      const resolvedType = updateData.employmentType ?? newEmploymentType;
+
+      if (resolvedType === "full-time" && previousEmploymentType !== "full-time") {
         updateData.fullTimeStartDate = new Date();
+        if (user.internshipDetails) {
+          user.internshipDetails.isActive = false;
+        }
+      }
+
+      if (resolvedType !== "intern" && user.internshipDetails) {
+        user.internshipDetails.isActive = false;
       }
     }
 

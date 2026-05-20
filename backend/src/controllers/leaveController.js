@@ -30,11 +30,10 @@ export const createLeaveRequest = async (req, res) => {
       return res.status(400).json({ message: "End date must be after start date" });
     }
 
-    const employeeUser = await User.findById(employee).select('employmentType');
-    const employmentType = employeeUser?.employmentType || 'full-time';
+    const employeeUser = await User.findById(employee).select('employmentType internshipDetails');
 
     if (
-      !LeaveRequest.isFullTimeEmployee(employmentType) &&
+      !LeaveRequest.isFullTimeEmployee(employeeUser) &&
       leaveType !== 'unpaid' &&
       leaveType !== 'work_from_home'
     ) {
@@ -255,7 +254,7 @@ export const getAllLeaveRequests = async (req, res) => {
     const leaveRequests = await LeaveRequest.find(filter)
       .populate({
         path: "employee",
-        select: "name email designation employeeId department",
+        select: "name email designation employeeId department employmentType",
         populate: {
           path: "department",
           select: "name"
@@ -293,7 +292,7 @@ export const getLeaveRequestById = async (req, res) => {
     const leaveRequest = await LeaveRequest.findById(req.params.id)
       .populate({
         path: "employee",
-        select: "name email designation employeeId department",
+        select: "name email designation employeeId department employmentType",
         populate: {
           path: "department",
           select: "name"
@@ -617,12 +616,11 @@ export const updateLeaveRequest = async (req, res) => {
     if (endDate) leaveRequest.endDate = endDate;
     if (reason) leaveRequest.reason = reason;
 
-    const employeeUser = await User.findById(employee).select('employmentType');
-    const employmentType = employeeUser?.employmentType || 'full-time';
+    const employeeUser = await User.findById(employee).select('employmentType internshipDetails');
     const effectiveLeaveType = leaveRequest.leaveType;
 
     if (
-      !LeaveRequest.isFullTimeEmployee(employmentType) &&
+      !LeaveRequest.isFullTimeEmployee(employeeUser) &&
       effectiveLeaveType !== 'unpaid'
     ) {
       return res.status(400).json({

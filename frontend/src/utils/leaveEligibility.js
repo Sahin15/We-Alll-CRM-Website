@@ -1,7 +1,37 @@
 export const PAID_LEAVE_TYPES = ['personal', 'medical', 'vacation', 'half_day'];
+export const NON_FULL_TIME_EMPLOYMENT_TYPES = ['part-time', 'intern', 'freelancer', 'contract'];
 
-export const isFullTimeEmployee = (user) =>
-  !user?.employmentType || user.employmentType === 'full-time';
+export const normalizeEmploymentType = (type) => {
+  if (!type || typeof type !== 'string') return null;
+  return type.trim().toLowerCase();
+};
+
+export const isFullTimeEmployee = (user) => {
+  const type = normalizeEmploymentType(user?.employmentType);
+
+  if (type && NON_FULL_TIME_EMPLOYMENT_TYPES.includes(type)) {
+    return false;
+  }
+
+  return type === 'full-time' || !type;
+};
+
+/** HR leave balance row — use API flag first, then employment type */
+export const isPaidLeaveEligibleRow = (summary) => {
+  const empType = normalizeEmploymentType(
+    summary?.employee?.employmentType ?? summary?.employmentType
+  );
+
+  if (empType && NON_FULL_TIME_EMPLOYMENT_TYPES.includes(empType)) {
+    return false;
+  }
+
+  if (typeof summary?.eligibleForPaidLeave === 'boolean') {
+    return summary.eligibleForPaidLeave;
+  }
+
+  return empType === 'full-time' || !empType;
+};
 
 export const getAllowedLeaveTypes = (user, balance = null) => {
   if (balance?.canApplyLeaveTypes?.length) {

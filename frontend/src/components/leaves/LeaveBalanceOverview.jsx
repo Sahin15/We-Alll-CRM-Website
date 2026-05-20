@@ -6,6 +6,7 @@ import {
 import { FaSearch, FaUsers, FaDownload, FaFilePdf, FaFileCsv, FaChevronDown } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { leaveApi } from "../../api/leaveApi";
+import { isPaidLeaveEligibleRow } from "../../utils/leaveEligibility";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -63,11 +64,13 @@ const LeaveBalanceOverview = () => {
       s.employee.employeeId?.toLowerCase().includes(q) ||
       s.employee.department?.name?.toLowerCase().includes(q);
 
-    const empType = s.employee.employmentType || "full-time";
+    const empType = s.employee.employmentType;
+    const isNonFullTime =
+      (empType && empType !== "full-time") || s.eligibleForPaidLeave === false;
     const matchesEmployment =
       employmentFilter === "all" ||
-      (employmentFilter === "full-time" && empType === "full-time") ||
-      (employmentFilter === "non-full-time" && empType !== "full-time");
+      (employmentFilter === "full-time" && !isNonFullTime) ||
+      (employmentFilter === "non-full-time" && isNonFullTime);
 
     return matchesSearch && matchesEmployment;
   });
@@ -94,9 +97,9 @@ const LeaveBalanceOverview = () => {
       s.employee.employeeId || "",
       s.employee.department?.name || "",
       formatEmploymentType(s.employee.employmentType),
-      s.eligibleForPaidLeave === false ? "N/A" : s.year.earned,
-      s.eligibleForPaidLeave === false ? "—" : s.year.totalUsed,
-      s.eligibleForPaidLeave === false ? "N/A" : s.year.remaining,
+      isPaidLeaveEligibleRow(s) ? s.year.earned : "N/A",
+      isPaidLeaveEligibleRow(s) ? s.year.totalUsed : "—",
+      isPaidLeaveEligibleRow(s) ? s.year.remaining : "N/A",
       ...(selectedMonth ? [s.month?.totalUsed ?? 0, s.month?.unpaid ?? 0, s.month?.late ?? 0, s.month?.absent ?? 0] : []),
       s.year.personal,
       s.year.medical,
@@ -167,9 +170,11 @@ const LeaveBalanceOverview = () => {
       const base = {
         employee: s.employee.name + (s.employee.employeeId ? `\n${s.employee.employeeId}` : ""),
         dept: s.employee.department?.name || "—",
-        earned: s.year.earned,
-        used: s.year.totalUsed > 0 ? s.year.totalUsed : "—",
-        remaining: s.year.remaining % 1 === 0 ? s.year.remaining : s.year.remaining.toFixed(1),
+        earned: isPaidLeaveEligibleRow(s) ? s.year.earned : "N/A",
+        used: isPaidLeaveEligibleRow(s) ? (s.year.totalUsed > 0 ? s.year.totalUsed : "—") : "—",
+        remaining: isPaidLeaveEligibleRow(s)
+          ? (s.year.remaining % 1 === 0 ? s.year.remaining : s.year.remaining.toFixed(1))
+          : "N/A",
         personal: s.year.personal || "—",
         medical: s.year.medical || "—",
         vacation: s.year.vacation || "—",
@@ -429,7 +434,7 @@ const LeaveBalanceOverview = () => {
                       )}
                     </td>
                     <td className="align-middle">
-                      <Badge bg={s.eligibleForPaidLeave === false ? "secondary" : "primary"}>
+                      <Badge bg={isPaidLeaveEligibleRow(s) ? "primary" : "secondary"}>
                         {formatEmploymentType(s.employee.employmentType)}
                       </Badge>
                     </td>
@@ -455,22 +460,22 @@ const LeaveBalanceOverview = () => {
                     )}
 
                     <td className="text-center align-middle fw-bold">
-                      {s.eligibleForPaidLeave === false ? (
+                      {!isPaidLeaveEligibleRow(s) ? (
                         <span className="text-muted">N/A</span>
                       ) : (
                         s.year.earned
                       )}
                     </td>
                     <td className="text-center align-middle">
-                      {s.eligibleForPaidLeave === false ? "—" : (s.year.totalUsed > 0 ? s.year.totalUsed : "—")}
+                      {isPaidLeaveEligibleRow(s) ? (s.year.totalUsed > 0 ? s.year.totalUsed : "—") : "—"}
                     </td>
                     <td className="text-center align-middle">
-                      {s.eligibleForPaidLeave === false ? (
-                        <span className="text-muted">N/A</span>
-                      ) : (
+                      {isPaidLeaveEligibleRow(s) ? (
                         <Badge bg={s.year.remaining <= 2 ? "danger" : s.year.remaining <= 5 ? "warning" : "success"}>
                           {s.year.remaining % 1 === 0 ? s.year.remaining : s.year.remaining.toFixed(1)}
                         </Badge>
+                      ) : (
+                        <span className="text-muted">N/A</span>
                       )}
                     </td>
                     <td className="text-center align-middle">{s.year.personal || "—"}</td>
