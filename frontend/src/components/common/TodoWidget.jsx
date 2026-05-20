@@ -128,11 +128,44 @@ const TodoWidget = ({ isCollapsed = false }) => {
 
   const handleToggle = async (id) => {
     try {
+      // Update local state immediately for instant UI feedback
+      setTodos(prevTodos =>
+        prevTodos.map(todo =>
+          todo._id === id
+            ? {
+                ...todo,
+                status: todo.status === 'completed' ? 'pending' : 'completed',
+                completedAt: todo.status === 'completed' ? null : new Date(),
+              }
+            : todo
+        )
+      );
+
+      // Update stats immediately
+      setStats(prevStats => {
+        if (todos.find(t => t._id === id)?.status === 'pending') {
+          return {
+            ...prevStats,
+            pending: Math.max(0, prevStats.pending - 1),
+            completed: prevStats.completed + 1,
+          };
+        } else {
+          return {
+            ...prevStats,
+            pending: prevStats.pending + 1,
+            completed: Math.max(0, prevStats.completed - 1),
+          };
+        }
+      });
+
+      // Call API in background
       await todoApi.toggleTodoStatus(id);
+      toast.success('Todo updated!');
+    } catch (error) {
+      // Revert on error
       fetchTodos();
       fetchStats();
-    } catch (error) {
-      toast.error("Failed to update todo");
+      toast.error('Failed to update todo');
     }
   };
 
