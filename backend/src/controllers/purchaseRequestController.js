@@ -13,6 +13,22 @@ function currentFinancialYear() {
   return month >= 4 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
 }
 
+// Helper: populate PR via query (Query.populate chains correctly; Document.populate returns a Promise)
+async function fetchPopulatedPR(prId) {
+  return PurchaseRequest.findById(prId)
+    .populate('requestedBy', 'name email employeeId profilePicture')
+    .populate('department', 'name')
+    .populate('project', 'name');
+}
+
+async function safeSendNotification(fn) {
+  try {
+    await fn();
+  } catch (error) {
+    console.error('PR notification error:', error.message);
+  }
+}
+
 // POST /purchase-requests — create draft PR
 export const createPR = async (req, res) => {
   try {
@@ -62,9 +78,7 @@ export const createPR = async (req, res) => {
       }],
     });
 
-    const populatedPR = await pr.populate('requestedBy', 'name email employeeId profilePicture')
-      .populate('department', 'name')
-      .populate('project', 'name');
+    const populatedPR = await fetchPopulatedPR(pr._id);
 
     res.status(201).json({ 
       success: true,
@@ -213,9 +227,7 @@ export const updatePR = async (req, res) => {
     if (project !== undefined) pr.project = project || null;
 
     await pr.save();
-    const populatedPR = await pr.populate('requestedBy', 'name email employeeId profilePicture')
-      .populate('department', 'name')
-      .populate('project', 'name');
+    const populatedPR = await fetchPopulatedPR(pr._id);
 
     res.json({ 
       success: true,
@@ -324,12 +336,12 @@ export const submitPR = async (req, res) => {
       // Notify admin/accounts
       const admins = await User.find({ role: { $in: ['admin', 'superadmin', 'accounts'] }, status: 'active' }).select('_id');
       if (admins.length > 0) {
-        await NotificationService.sendToMultiple(
+        await safeSendNotification(() => NotificationService.sendToMultiple(
           admins.map(a => a._id),
           '📋 New Purchase Request (No HoD)',
           `${req.user.name} submitted PR ${pr.prNumber} — no HoD assigned, requires your approval`,
           { type: 'procurement_pr_submitted', data: { prId: pr._id.toString(), prNumber: pr.prNumber }, actionUrl: `/procurement/purchase-requests/${pr._id}`, senderId: req.user._id }
-        );
+        ));
       }
     } else {
       pr.status = 'pending_hod';
@@ -337,17 +349,15 @@ export const submitPR = async (req, res) => {
       await pr.save();
 
       // Notify HoD
-      await NotificationService.sendToUser(
+      await safeSendNotification(() => NotificationService.sendToUser(
         hodUser._id,
         '📋 Purchase Request Awaiting Your Approval',
         `${req.user.name} submitted PR ${pr.prNumber} for approval`,
         { type: 'procurement_pr_submitted', data: { prId: pr._id.toString(), prNumber: pr.prNumber }, actionUrl: `/procurement/purchase-requests/${pr._id}`, senderId: req.user._id }
-      );
+      ));
     }
 
-    const populatedPR = await pr.populate('requestedBy', 'name email employeeId profilePicture')
-      .populate('department', 'name')
-      .populate('project', 'name');
+    const populatedPR = await fetchPopulatedPR(pr._id);
 
     res.json({ 
       success: true,
@@ -386,16 +396,14 @@ export const approvePR = async (req, res) => {
       // Notify admin/accounts
       const admins = await User.find({ role: { $in: ['admin', 'superadmin', 'accounts'] }, status: 'active' }).select('_id');
       if (admins.length > 0) {
-        await NotificationService.sendToMultiple(
+        await safeSendNotification(() => NotificationService.sendToMultiple(
           admins.map(a => a._id),
           '📋 Purchase Request Approved by HoD',
           `PR ${pr.prNumber} approved by HoD — awaiting your final approval`,
           { type: 'procurement_pr_hod_approved', data: { prId: pr._id.toString(), prNumber: pr.prNumber }, actionUrl: `/procurement/purchase-requests/${pr._id}`, senderId: req.user._id }
-        );
+        ));
       }
-      const populatedPR = await pr.populate('requestedBy', 'name email employeeId profilePicture')
-        .populate('department', 'name')
-        .populate('project', 'name');
+      const populatedPR = await fetchPopulatedPR(pr._id);
       return res.json({ 
         success: true,
         message: 'PR approved by HoD, forwarded to Admin', 
@@ -410,15 +418,13 @@ export const approvePR = async (req, res) => {
       await pr.save();
 
       // Notify requestor
-      await NotificationService.sendToUser(
+      await safeSendNotification(() => NotificationService.sendToUser(
         pr.requestedBy._id,
         '✅ Purchase Request Approved',
         `Your PR ${pr.prNumber} has been approved`,
         { type: 'procurement_pr_approved', data: { prId: pr._id.toString(), prNumber: pr.prNumber }, actionUrl: `/procurement/purchase-requests/${pr._id}`, senderId: req.user._id }
-      );
-      const populatedPR = await pr.populate('requestedBy', 'name email employeeId profilePicture')
-        .populate('department', 'name')
-        .populate('project', 'name');
+      ));
+      const populatedPR = await fetchPopulatedPR(pr._id);
       return res.json({ 
         success: true,
         message: 'PR fully approved', 
@@ -481,16 +487,14 @@ export const rejectPR = async (req, res) => {
     await pr.save();
 
     // Notify requestor
-    await NotificationService.sendToUser(
+    await safeSendNotification(() => NotificationService.sendToUser(
       pr.requestedBy._id,
       '❌ Purchase Request Rejected',
       `Your PR ${pr.prNumber} has been rejected: ${comments}`,
       { type: 'procurement_pr_rejected', data: { prId: pr._id.toString(), prNumber: pr.prNumber, reason: comments }, actionUrl: `/procurement/purchase-requests/${pr._id}`, senderId: req.user._id }
-    );
+    ));
 
-    const populatedPR = await pr.populate('requestedBy', 'name email employeeId profilePicture')
-      .populate('department', 'name')
-      .populate('project', 'name');
+    const populatedPR = await fetchPopulatedPR(pr._id);
 
     res.json({ 
       success: true,

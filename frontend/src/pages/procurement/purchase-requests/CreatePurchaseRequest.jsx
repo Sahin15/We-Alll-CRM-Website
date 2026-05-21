@@ -136,11 +136,12 @@ export default function CreatePurchaseRequest() {
 
   const doSubmit = async (asDraft = false, overrideAcknowledged = false) => {
     setSubmitting(true);
+    let createdPR = null;
     try {
       // Step 1: Always create as draft first
       const payload = buildPayload();
       const res = await createPR(payload);
-      const createdPR = res.data?.data || res.data?.pr || res.data;
+      createdPR = res.data?.data || res.data?.pr || res.data;
 
       if (!createdPR?._id) {
         toast.error('Failed to create Purchase Request.');
@@ -172,8 +173,13 @@ export default function CreatePurchaseRequest() {
       toast.success('Purchase Request submitted for approval.');
       navigate('/procurement/purchase-requests/my');
     } catch (err) {
-      const msg = err.response?.data?.message || 'Failed to create Purchase Request.';
-      toast.error(msg);
+      if (createdPR?._id) {
+        toast.warning('Request saved but submission failed. You can submit it from My Requests.');
+        navigate('/procurement/purchase-requests/my');
+      } else {
+        const msg = err.response?.data?.message || 'Failed to create Purchase Request.';
+        toast.error(msg);
+      }
     } finally {
       setSubmitting(false);
     }
