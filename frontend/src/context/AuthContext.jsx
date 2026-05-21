@@ -89,24 +89,21 @@ export const AuthProvider = ({ children }) => {
       const { token, user } = response.data;
 
       safeLocalStorage.setItem("token", token);
-      
+      safeLocalStorage.setItem("user", JSON.stringify(user));
       setToken(token);
-      
-      // Immediately refresh user data from /me endpoint to get complete profile including profile picture
-      try {
-        const freshUserData = await authApi.getCurrentUser();
-        const completeUser = freshUserData.data.user;
-        
-        safeLocalStorage.setItem("user", JSON.stringify(completeUser));
-        setUser(completeUser);
-        
-        return { success: true, data: { token, user: completeUser } };
-      } catch (refreshError) {
-        // Fallback to login response data
-        safeLocalStorage.setItem("user", JSON.stringify(user));
-        setUser(user);
-        return { success: true, data: response.data };
-      }
+      setUser(user);
+
+      // Refresh full profile in background (don't block login)
+      authApi.getCurrentUser()
+        .then((freshUserData) => {
+          const completeUser = freshUserData?.data?.user;
+          if (!completeUser) return;
+          safeLocalStorage.setItem("user", JSON.stringify(completeUser));
+          setUser(completeUser);
+        })
+        .catch(() => {});
+
+      return { success: true, data: { token, user } };
     } catch (error) {
       const message = error.response?.data?.message || "Login failed";
       toast.error(message);

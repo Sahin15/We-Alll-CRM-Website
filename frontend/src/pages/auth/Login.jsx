@@ -66,12 +66,13 @@ const Login = () => {
         const firstName = fullName ? fullName.split(' ')[0] : email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1);
         
         setUserName(firstName);
-        
-        // Show welcome animation before navigating
+        setLoading(false);
+
+        // Brief welcome, then navigate immediately
         setShowWelcome(true);
         setTimeout(() => {
           navigate(getRedirectPath());
-        }, 4000); // 4 seconds welcome animation
+        }, 600);
       } else {
         setError(result.error);
         setLoading(false);

@@ -13,16 +13,13 @@ export default defineConfig({
       injectRegister: "auto",
       workbox: {
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
-        // Cache both PWA scopes
         navigateFallbackDenylist: [],
+        cleanupOutdatedCaches: true,
+        // Do not cache API calls — stale responses broke salary, attendance, and other live data
         runtimeCaching: [
           {
             urlPattern: /\/api\//,
-            handler: "NetworkFirst",
-            options: {
-              networkTimeoutSeconds: 5,
-              cacheName: "api-cache",
-            },
+            handler: "NetworkOnly",
           },
         ],
       },

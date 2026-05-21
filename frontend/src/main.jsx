@@ -16,7 +16,11 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' })
       .then(() => {
-        // Service worker registered
+        if ('caches' in window) {
+          caches.keys().then((keys) => {
+            keys.filter((key) => key.includes('api-cache')).forEach((key) => caches.delete(key));
+          });
+        }
       })
       .catch(() => {
         // Registration failed silently

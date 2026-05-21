@@ -7,8 +7,8 @@
    ============================================ */
 
 @media (max-width: 575.98px) {
-  /* Ensure all cards have light background on mobile */
-  .card {
+  /* Ensure all cards have light background on mobile (except gradient banner) */
+  .card:not(.greeting-banner) {
     background-color: #ffffff !important;
   }
   
@@ -68,9 +68,16 @@
     color: #ffffff !important;
   }
   
-  /* Card text should be dark */
-  .card .text-white {
+  /* Card text should be dark — but keep white text on the greeting banner & timer */
+  .card:not(.greeting-banner) .text-white {
     color: #212529 !important;
+  }
+
+  .greeting-banner .text-white,
+  .greeting-banner .timer-card-floating,
+  .greeting-banner .timer-card-floating .timer-info-text,
+  .greeting-banner .timer-card-floating .timer-icon-badge strong {
+    color: #ffffff !important;
   }
 }
 

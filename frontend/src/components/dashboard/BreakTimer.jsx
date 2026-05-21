@@ -91,7 +91,7 @@ const BreakTimer = () => {
   }, []);
 
   // ── Apply new attendance data (from API or action response) ────────────────
-  const applyAttendance = useCallback((data, immediate = false) => {
+  const applyAttendance = useCallback((data) => {
     setTodayAttendance(data);
     writeCache(data);
 
@@ -118,11 +118,7 @@ const BreakTimer = () => {
       const response = await api.get("/attendance/today");
       applyAttendance(response.data);
     } catch {
-      setTodayAttendance(null);
-      setTimerType(null);
-      setSeconds(0);
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      clearCache();
+      // Keep current timer state on transient failures — don't wipe optimistic updates
     }
   }, [applyAttendance]);
 
@@ -142,7 +138,7 @@ const BreakTimer = () => {
     const pollId = setInterval(fetchTodayAttendance, 30_000);
 
     // Listen for cross-component attendance updates
-    const handleUpdate = (e) => applyAttendance(e.detail.data, true);
+    const handleUpdate = (e) => applyAttendance(e.detail.data);
     window.addEventListener("attendanceUpdate", handleUpdate);
 
     return () => {
@@ -171,7 +167,7 @@ const BreakTimer = () => {
       toast.success("Break started");
       const data = response.data.attendance || response.data;
       // Apply immediately — timer switches to break mode without any delay
-      applyAttendance(data, true);
+      applyAttendance(data);
       window.dispatchEvent(new CustomEvent("attendanceUpdate", {
         detail: { type: "startBreak", data }
       }));
@@ -189,7 +185,7 @@ const BreakTimer = () => {
       toast.success("Break ended");
       const data = response.data.attendance || response.data;
       // Apply immediately — timer switches back to work mode without any delay
-      applyAttendance(data, true);
+      applyAttendance(data);
       window.dispatchEvent(new CustomEvent("attendanceUpdate", {
         detail: { type: "endBreak", data }
       }));
@@ -281,11 +277,43 @@ const BreakTimer = () => {
         .timer-action-btn-compact:hover { transform: scale(1.1); }
         .timer-action-btn-compact:active { transform: scale(0.95); }
         .timer-resume-btn { animation: pulse-resume 2s ease-in-out infinite; }
-        .timer-info-text { font-size: 0.65rem; opacity: 0.95; line-height: 1.3; }
+        .timer-info-text { font-size: 0.65rem; opacity: 0.95; line-height: 1.3; color: #ffffff; }
+        .timer-card-floating .text-white,
+        .timer-card-floating .timer-display,
+        .timer-card-floating .timer-icon-badge strong {
+          color: #ffffff;
+        }
         @media (max-width: 768px) {
           .timer-card-floating-container {
             position: relative !important; top: 0 !important; right: 0 !important;
-            width: 100% !important; margin-bottom: 15px !important;
+            width: 100% !important; margin-bottom: 12px !important;
+          }
+          .timer-card-floating {
+            padding: 10px 12px !important;
+            background: rgba(0, 0, 0, 0.25) !important;
+            border: 1px solid rgba(255, 255, 255, 0.35) !important;
+          }
+          .timer-accent-header {
+            margin: -10px -12px 10px -12px;
+            padding: 8px 12px;
+          }
+          .timer-icon-badge strong {
+            font-size: 0.8rem !important;
+            color: #ffffff !important;
+          }
+          .timer-display {
+            font-size: 1.5rem !important;
+            color: #ffffff !important;
+          }
+          .timer-info-text {
+            font-size: 0.75rem !important;
+            color: rgba(255, 255, 255, 0.95) !important;
+            opacity: 1;
+          }
+          .timer-action-btn-compact {
+            min-width: 44px;
+            min-height: 44px;
+            font-size: 1.25rem;
           }
         }
       `}</style>
@@ -305,8 +333,8 @@ const BreakTimer = () => {
           {/* Timer + action button */}
           <div className="d-flex align-items-center justify-content-between gap-2 mb-2">
             <div
-              className="d-flex justify-content-center align-items-center gap-1"
-              style={{ fontSize: "1.3rem", fontWeight: "bold", fontFamily: "monospace", textShadow: "0 2px 8px rgba(0,0,0,0.4)", flex: 1 }}
+              className="timer-display d-flex justify-content-center align-items-center gap-1"
+              style={{ fontSize: "1.3rem", fontWeight: "bold", fontFamily: "monospace", color: "#ffffff", textShadow: "0 2px 8px rgba(0,0,0,0.4)", flex: 1 }}
             >
               <span>{String(hours).padStart(2, "0")}</span>
               <span style={{ opacity: 0.7 }}>:</span>
@@ -360,7 +388,6 @@ const BreakTimer = () => {
         </div>
       </div>
 
-      {/* Confirm modal */}
       <Modal show={showConfirm} onHide={() => setShowConfirm(false)} centered backdrop="static" keyboard={false}>
         <Modal.Header closeButton>
           <Modal.Title>{action === "startBreak" ? "Start Break" : "Resume Work"}</Modal.Title>

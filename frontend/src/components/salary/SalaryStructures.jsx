@@ -34,7 +34,7 @@ const SalaryStructures = () => {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    status: "",
+    status: "active",
     employee: "",
   });
   const [pagination, setPagination] = useState({

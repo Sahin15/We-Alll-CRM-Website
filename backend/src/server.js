@@ -115,7 +115,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Cache-Control', 'Pragma'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
   maxAge: 86400, // 24 hours - cache preflight requests
   preflightContinue: false,
@@ -145,27 +145,14 @@ app.use((req, res, next) => {
   next();
 });
 
-// HTTP Cache Headers for API responses
+// Never cache API responses — stale GET data was causing updates (salary, attendance, etc.) to appear broken
 app.use((req, res, next) => {
-  // Cache GET requests for read-only endpoints
-  if (req.method === 'GET') {
-    // Cache list endpoints for 5 minutes
-    if (req.path.includes('/list') || req.path.includes('/get')) {
-      res.setHeader('Cache-Control', 'public, max-age=300'); // 5 minutes
-    }
-    // Cache dashboard/stats endpoints for 10 minutes
-    else if (req.path.includes('/dashboard') || req.path.includes('/stats')) {
-      res.setHeader('Cache-Control', 'public, max-age=600'); // 10 minutes
-    }
-    // Cache other GET requests for 1 minute
-    else {
-      res.setHeader('Cache-Control', 'public, max-age=60'); // 1 minute
-    }
-    // Add ETag support for conditional requests
-    res.setHeader('Vary', 'Accept-Encoding');
-  } else {
-    // Don't cache POST, PUT, DELETE requests
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  const apiPath = (req.originalUrl || req.url || req.path || "").split("?")[0];
+  if (apiPath.startsWith("/api")) {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    res.setHeader("Surrogate-Control", "no-store");
   }
   next();
 });
@@ -404,17 +391,24 @@ mongoose
     // Initialize real-time update service before starting server
     realTimeUpdateService.initialize(server);
 
+    server.on("error", (error) => {
+      if (error.code === "EADDRINUSE") {
+        console.error(`❌ Port ${PORT} is already in use. Another backend is still running.`);
+        console.error(`   Windows: netstat -ano | findstr :${PORT}`);
+        console.error(`   Then:    taskkill /PID <pid> /F`);
+        console.error(`   Or run:  npm run dev:clean   (from backend folder)`);
+      } else {
+        console.error("❌ Server error:", error);
+      }
+      process.exit(1);
+    });
+
     server.listen(PORT, () => {
       console.log(`✅ Server is running on port ${PORT}`);
       console.log(`🔗 API Health Check: http://localhost:${PORT}/api/health`);
       console.log(`🔌 WebSocket Server: ws://localhost:${PORT}/ws/admin-work-updates`);
       console.log(`📦 AWS S3 Bucket: ${process.env.AWS_S3_BUCKET_NAME || "Not configured"}`);
       console.log(`🌐 AWS Region: ${process.env.AWS_REGION || "Not configured"}`);
-    });
-
-    // Handle server errors
-    server.on('error', (error) => {
-      console.error('❌ Server error:', error);
     });
   })
   .catch((error) => {

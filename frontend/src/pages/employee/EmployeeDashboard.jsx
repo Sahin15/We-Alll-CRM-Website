@@ -316,9 +316,11 @@ const EmployeeDashboard = () => {
     }
   };
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       
       // Fetch all data in parallel for better performance
       const [
@@ -343,13 +345,16 @@ const EmployeeDashboard = () => {
         api.get('/projects')
       ]);
 
-      // Process attendance status
-      if (attendanceRes.status === 'fulfilled' && attendanceRes.value.data && attendanceRes.value.data.clockIn) {
-        updateClockedIn(!attendanceRes.value.data.clockOut);
-        updateClockInTime(new Date(attendanceRes.value.data.clockIn));
-      } else {
-        updateClockedIn(false);
-        updateClockInTime(null);
+      // Process attendance status — only update when the API returns a definitive answer
+      if (attendanceRes.status === "fulfilled" && attendanceRes.value?.data) {
+        const attendanceData = attendanceRes.value.data;
+        if (attendanceData.clockIn) {
+          updateClockedIn(!attendanceData.clockOut);
+          updateClockInTime(new Date(attendanceData.clockIn));
+        } else {
+          updateClockedIn(false);
+          updateClockInTime(null);
+        }
       }
 
       // Process tasks
@@ -469,9 +474,13 @@ const EmployeeDashboard = () => {
       
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
-      toast.error("Failed to load dashboard data");
+      if (!silent) {
+        toast.error("Failed to load dashboard data");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
@@ -584,9 +593,6 @@ const EmployeeDashboard = () => {
       window.dispatchEvent(new CustomEvent('attendanceUpdate', { 
         detail: { type: 'clockIn', data: attendance } 
       }));
-      
-      // Refresh dashboard data
-      fetchDashboardData();
     } catch (error) {
       console.error("Error clocking in:", error);
       const errorType = error.response?.data?.type;
@@ -665,9 +671,6 @@ const EmployeeDashboard = () => {
       window.dispatchEvent(new CustomEvent('attendanceUpdate', { 
         detail: { type: 'clockOut', data: attendance } 
       }));
-      
-      // Refresh dashboard data
-      fetchDashboardData();
     } catch (error) {
       console.error("Error clocking out:", error);
       const errorType = error.response?.data?.type;
