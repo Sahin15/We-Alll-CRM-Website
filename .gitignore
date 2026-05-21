@@ -1,6 +1,7 @@
-# Ignore all markdown files except README.md
+# Ignore all markdown files except README.md and GIT-WORKFLOW.md
 *.md
 !README.md
+!GIT-WORKFLOW.md
 
 # Node / build / environment
 node_modules/
