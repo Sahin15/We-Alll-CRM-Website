@@ -324,7 +324,7 @@ const Settings = () => {
                     <tbody>
                       <tr>
                         <td><strong>Version:</strong></td>
-                        <td>5.0.1</td>
+                        <td>5.0.2</td>
                       </tr>
                       <tr>
                         <td><strong>Last Updated:</strong></td>
