@@ -63,6 +63,7 @@ import assetRoutes from "./routes/assetRoutes.js";
 import softwareLicenseRoutes from "./routes/softwareLicenseRoutes.js";
 import supportRoutes from "./routes/supportRoutes.js";
 import importantPersonRoutes from "./routes/importantPersonRoutes.js";
+import hrDocumentRoutes from "./routes/hrDocumentRoutes.js";
 // Procurement routes
 import purchaseRequestRoutes from "./routes/purchaseRequestRoutes.js";
 import purchaseOrderRoutes from "./routes/purchaseOrderRoutes.js";
@@ -286,6 +287,7 @@ app.use("/api/holidays", apiLimiter, holidayRoutes);
 app.use("/api/activities", apiLimiter, activityRoutes);
 app.use("/api/policies", apiLimiter, policyRoutes);
 app.use("/api/documents", apiLimiter, documentRoutes);
+app.use("/api/hr-documents", apiLimiter, hrDocumentRoutes);
 app.use("/api/workload", apiLimiter, workloadRoutes);
 app.use("/api/work-items", apiLimiter, workItemRoutes);
 app.use("/api/calendar", apiLimiter, calendarRoutes);

@@ -8,7 +8,7 @@ import {
   FaCrown, FaShieldAlt, FaChartLine, FaUsers, FaProjectDiagram,
   FaCheckCircle, FaSave, FaMapMarkerAlt,
   FaIdCard, FaBriefcase, FaUser, FaHome,
-  FaFileUpload, FaDownload, FaEye, FaEyeSlash, FaTrash, FaPlus, FaFileAlt,
+  FaFileUpload, FaDownload, FaEye, FaEyeSlash, FaTrash, FaPlus, FaFileAlt, FaMagic,
   FaUniversity, FaArrowLeft, FaMoneyBillWave, FaCheck, FaTimes, FaClock
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
@@ -20,6 +20,11 @@ import DocumentVerificationModal from "./DocumentVerificationModal";
 import api from "../../services/api";
 import { salaryStructureApi } from "../../api/salaryApi";
 import { documentApi } from "../../api/documentApi";
+import { offerApi } from "../../api/offerApi";
+import GenerateHrDocumentModal, {
+  isGeneratableDocType,
+  getSlugForCategory,
+} from "./GenerateHrDocumentModal";
 import toast from "../../utils/toast";
 import { generateNewEmployeeId } from "../../utils/employeeIdGenerator";
 import StatusBadge from "./StatusBadge";
@@ -44,6 +49,9 @@ const EmployeeProfileManagement = () => {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [documents, setDocuments] = useState([]);
+  const [linkedOffer, setLinkedOffer] = useState(null);
+  const [showGenerateDocModal, setShowGenerateDocModal] = useState(false);
+  const [generateDocMeta, setGenerateDocMeta] = useState({ slug: "", label: "" });
   const [documentForm, setDocumentForm] = useState({
     file: null,
     description: '',
@@ -202,6 +210,12 @@ const EmployeeProfileManagement = () => {
       fetchSalaryStructure();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (userId) {
+      offerApi.getByUser(userId).then((res) => setLinkedOffer(res.data)).catch(() => setLinkedOffer(null));
+    }
+  }, [userId]);
 
   // Reset sameAsCurrentAddress when edit mode changes
   useEffect(() => {
@@ -780,6 +794,15 @@ const EmployeeProfileManagement = () => {
     }
   };
 
+  const openGenerateDocument = (docType) => {
+    if (!isGeneratableDocType(docType.key)) return;
+    setGenerateDocMeta({
+      slug: getSlugForCategory(docType.key),
+      label: docType.label,
+    });
+    setShowGenerateDocModal(true);
+  };
+
   const renderDocumentCategory = (category, documentTypes) => {
     const categoryDocs = documents.filter(doc => 
       documentTypes.some(type => type.key === doc.category)
@@ -800,16 +823,40 @@ const EmployeeProfileManagement = () => {
                   )}
                 </div>
                 {canEdit && (
-                  <Button
-                    variant="outline-primary"
-                    size="sm"
-                    onClick={() => {
-                      setDocumentForm({ ...documentForm, category: docType.key });
-                      setShowDocumentModal(true);
-                    }}
-                  >
-                    <FaPlus />
-                  </Button>
+                  <div className="d-flex gap-1">
+                    {docType.key === "offer_letter" ? (
+                      <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        title="Offer letters are created under Team → Offer Letters before joining"
+                        onClick={() => navigate("/hr/offers")}
+                      >
+                        Offers
+                      </Button>
+                    ) : (
+                      isGeneratableDocType(docType.key) && (
+                        <Button
+                          variant="outline-success"
+                          size="sm"
+                          title="Generate document"
+                          onClick={() => openGenerateDocument(docType)}
+                        >
+                          <FaMagic />
+                        </Button>
+                      )
+                    )}
+                    <Button
+                      variant="outline-primary"
+                      size="sm"
+                      title="Upload document"
+                      onClick={() => {
+                        setDocumentForm({ ...documentForm, category: docType.key });
+                        setShowDocumentModal(true);
+                      }}
+                    >
+                      <FaPlus />
+                    </Button>
+                  </div>
                 )}
               </div>
               
@@ -2201,10 +2248,30 @@ const EmployeeProfileManagement = () => {
                     {/* Document Categories */}
                     <Row className="mb-4">
                       <Col xs={12}>
-                        <Alert variant="info">
+                        <Alert variant="info" className="mb-2">
                           <FaFileAlt className="me-2" />
-                          Manage all employee documents including personal documents, HR documents, and official records.
+                          Personal and HR documents for this employee. Monthly salary slips are under{' '}
+                          <strong>Salary → Salary Slips</strong>. New offer letters (pre-join) are created under{' '}
+                          <strong>Team → Offer Letters</strong>.
                         </Alert>
+                        {linkedOffer && (
+                          <Alert variant="success">
+                            <strong>Linked offer:</strong> {linkedOffer.offerNumber}
+                            {linkedOffer.documentUrl && (
+                              <>
+                                {' '}
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="p-0 align-baseline"
+                                  onClick={() => window.open(linkedOffer.documentUrl, '_blank')}
+                                >
+                                  View offer letter PDF
+                                </Button>
+                              </>
+                            )}
+                          </Alert>
+                        )}
                       </Col>
                     </Row>
 
@@ -2242,51 +2309,34 @@ const EmployeeProfileManagement = () => {
                           </Card.Header>
                           <Card.Body>
                             {renderDocumentCategory('hr', [
-                              { key: 'offer_letter', label: 'Offer Letter', icon: <FaFileAlt /> },
-                              { key: 'joining_letter', label: 'Joining Letter', icon: <FaFileAlt /> },
-                              { key: 'employment_contract', label: 'Employment Contract', icon: <FaFileAlt /> },
-                              { key: 'nda', label: 'Non-Disclosure Agreement', icon: <FaFileAlt /> },
-                              { key: 'policy_acknowledgment', label: 'Policy Acknowledgment', icon: <FaFileAlt /> }
+                              { key: 'offer_letter', label: 'Offer Letter (from offer or upload)', icon: <FaFileAlt /> },
+                              { key: 'joining_letter', label: 'Joining Letter', icon: <FaFileAlt />, generatable: true },
+                              { key: 'employment_contract', label: 'Employment Contract', icon: <FaFileAlt />, generatable: true },
+                              { key: 'nda', label: 'Non-Disclosure Agreement', icon: <FaFileAlt />, generatable: true },
+                              { key: 'policy_acknowledgment', label: 'Policy Acknowledgment', icon: <FaFileAlt />, generatable: true },
+                              { key: 'increment_letter', label: 'Increment Letter', icon: <FaFileAlt />, generatable: true },
+                              { key: 'bonus_letter', label: 'Bonus Letter', icon: <FaFileAlt />, generatable: true },
+                              { key: 'promotion_letter', label: 'Promotion Letter', icon: <FaFileAlt />, generatable: true },
                             ])}
                           </Card.Body>
                         </Card>
                       </Col>
 
-                      {/* Payroll Documents */}
-                      <Col md={6} className="mb-4">
-                        <Card className="h-100">
-                          <Card.Header className="bg-warning text-dark">
-                            <h6 className="mb-0">
-                              <FaFileAlt className="me-2" />
-                              Payroll Documents
-                            </h6>
-                          </Card.Header>
-                          <Card.Body>
-                            {renderDocumentCategory('payroll', [
-                              { key: 'salary_slip', label: 'Salary Slips', icon: <FaFileAlt /> },
-                              { key: 'increment_letter', label: 'Increment Letters', icon: <FaFileAlt /> },
-                              { key: 'bonus_letter', label: 'Bonus Letters', icon: <FaFileAlt /> },
-                              { key: 'appraisal_letter', label: 'Appraisal Letters', icon: <FaFileAlt /> },
-                              { key: 'promotion_letter', label: 'Promotion Letters', icon: <FaFileAlt /> }
-                            ])}
-                          </Card.Body>
-                        </Card>
-                      </Col>
-
-                      {/* Other Documents */}
+                      {/* Exit & other */}
                       <Col md={6} className="mb-4">
                         <Card className="h-100">
                           <Card.Header className="bg-info text-white">
                             <h6 className="mb-0">
                               <FaFileAlt className="me-2" />
-                              Other Documents
+                              Exit & Other Documents
                             </h6>
                           </Card.Header>
                           <Card.Body>
                             {renderDocumentCategory('other', [
+                              { key: 'experience_letter', label: 'Experience Letter', icon: <FaFileAlt />, generatable: true },
+                              { key: 'experience_certificate', label: 'Experience Certificate', icon: <FaFileAlt />, generatable: true },
+                              { key: 'relieving_letter', label: 'Relieving Letter', icon: <FaFileAlt />, generatable: true },
                               { key: 'resignation_letter', label: 'Resignation Letter', icon: <FaFileAlt /> },
-                              { key: 'experience_certificate', label: 'Experience Certificate', icon: <FaFileAlt /> },
-                              { key: 'relieving_letter', label: 'Relieving Letter', icon: <FaFileAlt /> },
                               { key: 'medical_certificate', label: 'Medical Certificates', icon: <FaFileAlt /> },
                               { key: 'other', label: 'Miscellaneous', icon: <FaFileAlt /> }
                             ])}
@@ -2446,20 +2496,16 @@ const EmployeeProfileManagement = () => {
                   <option value="bank">Bank Account Proof</option>
                 </optgroup>
                 <optgroup label="HR Documents">
-                  <option value="offer_letter">Offer Letter</option>
+                  <option value="offer_letter">Offer Letter (upload if not from Offers)</option>
                   <option value="joining_letter">Joining Letter</option>
                   <option value="employment_contract">Employment Contract</option>
                   <option value="nda">Non-Disclosure Agreement</option>
                   <option value="policy_acknowledgment">Policy Acknowledgment</option>
-                </optgroup>
-                <optgroup label="Payroll Documents">
-                  <option value="salary_slip">Salary Slip</option>
                   <option value="increment_letter">Increment Letter</option>
                   <option value="bonus_letter">Bonus Letter</option>
-                  <option value="appraisal_letter">Appraisal Letter</option>
                   <option value="promotion_letter">Promotion Letter</option>
                 </optgroup>
-                <optgroup label="Other Documents">
+                <optgroup label="Exit & Other">
                   <option value="resignation_letter">Resignation Letter</option>
                   <option value="experience_certificate">Experience Certificate</option>
                   <option value="relieving_letter">Relieving Letter</option>
@@ -2625,6 +2671,15 @@ const EmployeeProfileManagement = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      <GenerateHrDocumentModal
+        show={showGenerateDocModal}
+        onHide={() => setShowGenerateDocModal(false)}
+        userId={userId}
+        templateSlug={generateDocMeta.slug}
+        templateLabel={generateDocMeta.label}
+        onGenerated={fetchDocuments}
+      />
 
       {/* Document Verification Modal */}
       <DocumentVerificationModal
