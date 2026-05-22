@@ -168,11 +168,14 @@ export const uploadProfilePicture = async (req, res) => {
 export const serveProfilePicture = async (req, res) => {
   try {
     const { fileName } = req.params;
-    if (!fileName || fileName.includes("..") || fileName.includes("/")) {
+    if (!fileName || fileName.includes("..")) {
       return res.status(400).json({ message: "Invalid file name" });
     }
 
-    const key = `profile-pictures/${fileName}`;
+    const decoded = decodeURIComponent(fileName);
+    const key = decoded.startsWith("profile-pictures/")
+      ? decoded
+      : `profile-pictures/${decoded}`;
     const command = new GetObjectCommand({
       Bucket: AWS_CONFIG.bucketName,
       Key: key,

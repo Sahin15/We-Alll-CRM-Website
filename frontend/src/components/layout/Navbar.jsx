@@ -28,6 +28,12 @@ import {
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import { resolveProfilePictureUrl } from "../../utils/profilePictureUrl";
+
+const withCacheBust = (url) => {
+  if (!url || !url.includes(".amazonaws.com")) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}v=${Date.now()}`;
+};
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import CompanySwitcher from "../admin/CompanySwitcher";
@@ -45,12 +51,15 @@ const Navbar = ({ toggleSidebar }) => {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [imageLoadError, setImageLoadError] = useState(false);
+  const [profileImgSrc, setProfileImgSrc] = useState(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const searchRef = useRef(null);
 
-  // Reset image load error when user profile picture changes
   useEffect(() => {
     setImageLoadError(false);
+    setProfileImgSrc(
+      user?.profilePicture ? resolveProfilePictureUrl(user.profilePicture) : null
+    );
   }, [user?.profilePicture]);
 
   // Check if user has permission to see company switcher
@@ -493,10 +502,10 @@ const Navbar = ({ toggleSidebar }) => {
             title={
               <div className="d-flex align-items-center">
                 <div className="profile-avatar-wrapper">
-                  {user?.profilePicture && !imageLoadError ? (
+                  {user?.profilePicture && !imageLoadError && profileImgSrc ? (
                     <Image
-                      key={user.profilePicture}
-                      src={resolveProfilePictureUrl(user.profilePicture)}
+                      key={profileImgSrc}
+                      src={profileImgSrc}
                       alt={user.name}
                       roundedCircle
                       width={42}
@@ -506,6 +515,15 @@ const Navbar = ({ toggleSidebar }) => {
                         objectFit: "cover"
                       }}
                       onError={() => {
+                        if (
+                          user.profilePicture?.includes(".amazonaws.com") &&
+                          !profileImgSrc.includes("v=")
+                        ) {
+                          setProfileImgSrc(
+                            withCacheBust(resolveProfilePictureUrl(user.profilePicture))
+                          );
+                          return;
+                        }
                         setImageLoadError(true);
                       }}
                     />

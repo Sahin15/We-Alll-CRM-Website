@@ -205,9 +205,11 @@ export const loginUser = async (req, res) => {
       message: "Login successful",
       user: {
         id: user._id,
+        _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
+        profilePicture: user.profilePicture || null,
         isHeadOfDepartment: user.isHeadOfDepartment || false,
         headOfDepartment: user.headOfDepartment || null,
         headOfProjects: user.headOfProjects || [],

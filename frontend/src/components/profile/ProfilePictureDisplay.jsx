@@ -1,10 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { Image, Modal, Button } from "react-bootstrap";
 import { FaUser, FaEye } from "react-icons/fa";
-import {
-  resolveProfilePictureUrl,
-  getProfilePictureProxyUrl,
-} from "../../utils/profilePictureUrl";
+import { resolveProfilePictureUrl } from "../../utils/profilePictureUrl";
 import "./ProfilePictureUpload.css";
 
 const ProfilePictureDisplay = ({ 
@@ -17,24 +14,27 @@ const ProfilePictureDisplay = ({
 }) => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [useProxyFallback, setUseProxyFallback] = useState(false);
+  const [retryWithCacheBust, setRetryWithCacheBust] = useState(false);
 
   const imageSrc = useMemo(() => {
     if (!profilePicture || profilePicture === "null") return null;
-    if (useProxyFallback) {
-      return getProfilePictureProxyUrl(profilePicture) || resolveProfilePictureUrl(profilePicture);
+    const base = resolveProfilePictureUrl(profilePicture);
+    if (!base) return null;
+    if (retryWithCacheBust && base.includes(".amazonaws.com")) {
+      const sep = base.includes("?") ? "&" : "?";
+      return `${base}${sep}v=1`;
     }
-    return resolveProfilePictureUrl(profilePicture);
-  }, [profilePicture, useProxyFallback]);
+    return base;
+  }, [profilePicture, retryWithCacheBust]);
 
   useEffect(() => {
     setImageError(false);
-    setUseProxyFallback(false);
+    setRetryWithCacheBust(false);
   }, [profilePicture]);
 
   const handleImageError = () => {
-    if (!useProxyFallback && getProfilePictureProxyUrl(profilePicture)) {
-      setUseProxyFallback(true);
+    if (!retryWithCacheBust && profilePicture?.includes(".amazonaws.com")) {
+      setRetryWithCacheBust(true);
       setImageError(false);
       return;
     }

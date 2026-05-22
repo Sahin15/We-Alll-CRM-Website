@@ -50,7 +50,7 @@ export const AuthProvider = ({ children }) => {
   const healthMonitorCleanup = useRef(null);
 
   useEffect(() => {
-    const initAuth = () => {
+    const initAuth = async () => {
       try {
         const storedToken = safeLocalStorage.getItem("token");
         const storedUser = safeLocalStorage.getItem("user");
@@ -60,18 +60,27 @@ export const AuthProvider = ({ children }) => {
           try {
             const parsedUser = JSON.parse(storedUser);
             setUser(parsedUser);
+
+            // Refresh profile from API (includes profilePicture; fixes stale localStorage)
+            try {
+              const response = await authApi.getCurrentUser();
+              const freshUser = response?.data?.user;
+              if (freshUser) {
+                setUser(freshUser);
+                safeLocalStorage.setItem("user", JSON.stringify(freshUser));
+              }
+            } catch {
+              // Keep cached user if refresh fails (offline, etc.)
+            }
           } catch (parseError) {
-            // Clear corrupted data
             safeLocalStorage.removeItem("token");
             safeLocalStorage.removeItem("user");
           }
         }
       } catch (error) {
-        // Clear potentially corrupted data
         safeLocalStorage.removeItem("token");
         safeLocalStorage.removeItem("user");
       } finally {
-        // Set loading to false immediately - no async operations needed
         setLoading(false);
       }
     };

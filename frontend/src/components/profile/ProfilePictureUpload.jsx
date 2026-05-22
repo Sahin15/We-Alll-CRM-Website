@@ -24,7 +24,17 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
   const cropContainerRef = useRef(null);
   const [imageLoaded, setImageLoaded] = useState(false);
 
-  const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  const getApiBaseUrl = () => {
+    if (import.meta.env.VITE_API_URL) {
+      return import.meta.env.VITE_API_URL.replace(/\/$/, "");
+    }
+    if (import.meta.env.PROD) {
+      return "/api";
+    }
+    return "http://localhost:5000/api";
+  };
+
+  const API_BASE_URL = getApiBaseUrl();
 
   // Update preview when user profile picture changes
   useEffect(() => {

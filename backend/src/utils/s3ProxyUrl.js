@@ -4,11 +4,17 @@
 export const extractProfilePictureKey = (url) => {
   if (!url || typeof url !== "string") return null;
 
-  if (url.includes("/api/upload/profile-picture/")) {
-    const fileName = url.split("/api/upload/profile-picture/")[1]?.split("?")[0];
-    return fileName && !fileName.includes("/") && !fileName.includes("..")
-      ? `profile-pictures/${fileName}`
-      : null;
+  if (url.includes("/upload/profile-picture/")) {
+    const segment = url.split("/upload/profile-picture/")[1]?.split("?")[0];
+    if (!segment || segment.includes("..")) return null;
+    const decoded = decodeURIComponent(segment);
+    return decoded.startsWith("profile-pictures/")
+      ? decoded
+      : `profile-pictures/${decoded}`;
+  }
+
+  if (url.startsWith("profile-pictures/")) {
+    return url.split("?")[0];
   }
 
   const urlParts = url.split(".amazonaws.com/");
@@ -18,6 +24,12 @@ export const extractProfilePictureKey = (url) => {
   if (fullPath.startsWith("profile-pictures/")) {
     return fullPath;
   }
+
+  const idx = fullPath.indexOf("profile-pictures/");
+  if (idx !== -1) {
+    return fullPath.slice(idx);
+  }
+
   return null;
 };
 

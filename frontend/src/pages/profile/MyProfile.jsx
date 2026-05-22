@@ -298,6 +298,19 @@ const MyProfile = () => {
         }
       }
       
+      if (doc?.path?.startsWith('https://')) {
+        const link = window.document.createElement('a');
+        link.href = doc.path;
+        link.setAttribute('download', filename);
+        link.setAttribute('target', '_blank');
+        link.rel = 'noopener noreferrer';
+        window.document.body.appendChild(link);
+        link.click();
+        link.remove();
+        toast.success('Document downloaded successfully');
+        return;
+      }
+
       const response = await api.get(`/users/documents/${documentId}/download`, {
         responseType: 'blob'
       });
@@ -327,7 +340,6 @@ const MyProfile = () => {
       }
       
       toast.error(errorMessage, { duration: 6000 });
-      toast.error(errorMessage);
     }
   };
 
@@ -341,12 +353,20 @@ const MyProfile = () => {
         toast.error('Access denied: This document does not belong to you.');
         return;
       }
+
+      if (doc.path?.startsWith('https://')) {
+        setViewingDocument({
+          ...doc,
+          url: doc.path,
+        });
+        setShowDocumentViewer(true);
+        return;
+      }
       
       const response = await api.get(`/users/documents/${doc._id}/download`, {
         responseType: 'blob'
       });
       
-      // Create blob with proper MIME type
       const blob = new Blob([response.data], { type: doc.mimetype || response.data.type });
       const url = window.URL.createObjectURL(blob);
       

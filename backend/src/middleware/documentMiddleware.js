@@ -1,5 +1,8 @@
 import multer from "multer";
+import path from "path";
 import { DOCUMENT_MIME_TYPES, MAX_DOCUMENT_SIZE } from "../utils/documentUpload.js";
+
+const ALLOWED_DOCUMENT_EXTENSIONS = [".jpeg", ".jpg", ".png", ".pdf", ".doc", ".docx"];
 
 // Configure multer for memory storage (we'll upload to S3 manually)
 const storage = multer.memoryStorage();
@@ -8,14 +11,23 @@ const storage = multer.memoryStorage();
 const documentFilter = (req, file, cb) => {
   if (DOCUMENT_MIME_TYPES.includes(file.mimetype)) {
     cb(null, true);
-  } else {
-    cb(
-      new Error(
-        `Invalid file type. Allowed types: PDF, JPG, PNG, DOC, DOCX`
-      ),
-      false
-    );
+    return;
   }
+
+  const ext = path.extname(file.originalname).toLowerCase();
+  const isGenericBinary =
+    file.mimetype === "application/octet-stream" ||
+    file.mimetype === "binary/octet-stream";
+
+  if (isGenericBinary && ALLOWED_DOCUMENT_EXTENSIONS.includes(ext)) {
+    cb(null, true);
+    return;
+  }
+
+  cb(
+    new Error("Invalid file type. Allowed types: PDF, JPG, PNG, DOC, DOCX"),
+    false
+  );
 };
 
 // Multer upload configuration for documents
