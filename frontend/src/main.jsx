@@ -43,6 +43,9 @@ try {
       <App />
     </React.StrictMode>
   );
+
+  window.__WEALLL_APP_MOUNTED__ = true;
+  window.dispatchEvent(new Event("wealll-app-mounted"));
   
 } catch (error) {
   console.error("Failed to mount React app:", error);
