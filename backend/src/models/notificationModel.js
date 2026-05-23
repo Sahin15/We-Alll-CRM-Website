@@ -95,6 +95,7 @@ const notificationSchema = new mongoose.Schema(
         'hiring_request',
         'hiring_offer',
         'hiring_application',
+        'hiring_interview',
       ],
       default: 'general',
     },

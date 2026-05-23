@@ -1,10 +1,16 @@
-import HiringRequest from "../models/hiringRequestModel.js";
 import HiringApplication from "../models/hiringApplicationModel.js";
+import HiringRequest from "../models/hiringRequestModel.js";
 import Applicant from "../models/applicantModel.js";
 import Offer from "../models/offerModel.js";
 import User from "../models/userModel.js";
 import NotificationService from "../services/notificationService.js";
 import { assertHrAccess } from "../utils/hiringAccess.js";
+import {
+  HIRING_STAGES,
+  validateStageTransition,
+  validateDecisionReason,
+  validateSelectStage,
+} from "../utils/hiringPipeline.js";
 
 const generateOfferNumber = async () => {
   const year = new Date().getFullYear();
@@ -23,6 +29,17 @@ const generateOfferNumber = async () => {
   return `${prefix}${String(seq).padStart(4, "0")}`;
 };
 
+const populateApplication = [
+  { path: "applicant" },
+  { path: "hiringRequest", select: "requestNumber designation status department raisedBy" },
+  { path: "addedBy", select: "name email" },
+  { path: "offerId", select: "offerNumber status" },
+  { path: "interviews.scheduledBy", select: "name email" },
+  { path: "interviews.completedBy", select: "name email" },
+  { path: "interviews.interviewers", select: "name email designation" },
+  { path: "stageHistory.changedBy", select: "name email" },
+];
+
 const pushStageHistory = (application, stage, userId, notes) => {
   application.stage = stage;
   application.stageHistory.push({
@@ -31,6 +48,25 @@ const pushStageHistory = (application, stage, userId, notes) => {
     changedAt: new Date(),
     notes: notes || "",
   });
+};
+
+const loadApplication = async (id) =>
+  HiringApplication.findById(id).populate(populateApplication);
+
+export const getHiringApplication = async (req, res) => {
+  try {
+    if (!assertHrAccess(req, res)) return;
+
+    const application = await loadApplication(req.params.id);
+    if (!application) {
+      return res.status(404).json({ message: "Application not found" });
+    }
+
+    res.json(application);
+  } catch (error) {
+    console.error("getHiringApplication:", error);
+    res.status(500).json({ message: "Failed to fetch application", error: error.message });
+  }
 };
 
 export const createHiringApplication = async (req, res) => {
@@ -80,16 +116,13 @@ export const createHiringApplication = async (req, res) => {
       addedBy: req.user._id,
     });
 
-    const populated = await HiringApplication.findById(application._id)
-      .populate("applicant")
-      .populate("hiringRequest", "requestNumber designation status")
-      .populate("addedBy", "name email");
-
+    const populated = await loadApplication(application._id);
     res.status(201).json(populated);
   } catch (error) {
     if (error.code === 11000) {
       return res.status(400).json({ message: "Applicant already linked to this request" });
     }
+    console.error("createHiringApplication:", error);
     res.status(500).json({ message: "Failed to create application", error: error.message });
   }
 };
@@ -98,30 +131,192 @@ export const updateApplicationStage = async (req, res) => {
   try {
     if (!assertHrAccess(req, res)) return;
 
-    const { stage, notes } = req.body;
-    const validStages = ["sourced", "shortlisted", "selected", "rejected", "withdrawn"];
-    if (!validStages.includes(stage)) {
+    const { stage, notes, decisionReason } = req.body;
+    if (!HIRING_STAGES.includes(stage)) {
       return res.status(400).json({ message: "Invalid stage" });
     }
 
-    const application = await HiringApplication.findById(req.params.id).populate(
-      "hiringRequest"
-    );
+    const application = await HiringApplication.findById(req.params.id);
     if (!application) {
       return res.status(404).json({ message: "Application not found" });
+    }
+
+    const transition = validateStageTransition(application.stage, stage);
+    if (!transition.allowed) {
+      return res.status(400).json({ message: transition.message });
+    }
+
+    const reasonCheck = validateDecisionReason(stage, decisionReason);
+    if (!reasonCheck.valid) {
+      return res.status(400).json({ message: reasonCheck.message });
+    }
+
+    const selectCheck = validateSelectStage(stage, application);
+    if (!selectCheck.valid) {
+      return res.status(400).json({ message: selectCheck.message });
+    }
+
+    if (stage === "rejected") {
+      application.decisionReason = decisionReason.trim();
+    } else if (stage === "selected") {
+      application.decisionReason = undefined;
     }
 
     pushStageHistory(application, stage, req.user._id, notes);
     await application.save();
 
-    const populated = await HiringApplication.findById(application._id)
-      .populate("applicant")
-      .populate("hiringRequest", "requestNumber designation raisedBy")
-      .populate("offerId", "offerNumber status");
-
+    const populated = await loadApplication(application._id);
     res.json(populated);
   } catch (error) {
+    console.error("updateApplicationStage:", error);
     res.status(500).json({ message: "Failed to update stage", error: error.message });
+  }
+};
+
+export const scheduleInterview = async (req, res) => {
+  try {
+    if (!assertHrAccess(req, res)) return;
+
+    const application = await HiringApplication.findById(req.params.id);
+    if (!application) {
+      return res.status(404).json({ message: "Application not found" });
+    }
+
+    if (!["shortlisted", "interviewed"].includes(application.stage)) {
+      return res.status(400).json({
+        message: "Interviews can only be scheduled for shortlisted or interviewed candidates",
+      });
+    }
+
+    const {
+      title,
+      scheduledAt,
+      durationMinutes,
+      mode,
+      locationOrLink,
+      interviewerIds,
+      round,
+    } = req.body;
+
+    if (!scheduledAt) {
+      return res.status(400).json({ message: "scheduledAt is required" });
+    }
+
+    const scheduledDate = new Date(scheduledAt);
+    if (Number.isNaN(scheduledDate.getTime())) {
+      return res.status(400).json({ message: "Invalid scheduledAt date" });
+    }
+
+    const nextRound =
+      round ||
+      (application.interviews?.length
+        ? Math.max(...application.interviews.map((i) => i.round || 1)) + 1
+        : 1);
+
+    application.interviews.push({
+      round: nextRound,
+      title: title?.trim() || `Round ${nextRound}`,
+      scheduledAt: scheduledDate,
+      durationMinutes: durationMinutes || 45,
+      mode: mode || "video",
+      locationOrLink: locationOrLink?.trim(),
+      interviewers: Array.isArray(interviewerIds) ? interviewerIds : [],
+      status: "scheduled",
+      scheduledBy: req.user._id,
+    });
+
+    if (application.stage !== "interview_scheduled") {
+      pushStageHistory(
+        application,
+        "interview_scheduled",
+        req.user._id,
+        `Interview round ${nextRound} scheduled`
+      );
+    }
+
+    await application.save();
+
+    const populated = await loadApplication(application._id);
+    const request = await HiringRequest.findById(application.hiringRequest).select("raisedBy requestNumber");
+
+    try {
+      await NotificationService.sendToUser(
+        request?.raisedBy,
+        "Interview scheduled",
+        `Interview scheduled for ${populated.applicant?.name} (${request?.requestNumber})`,
+        {
+          type: "hiring_interview",
+          data: {
+            hiringRequestId: application.hiringRequest.toString(),
+            applicationId: application._id.toString(),
+          },
+          actionUrl: `/hr/hiring/applications/${application._id}`,
+          senderId: req.user._id,
+        }
+      );
+    } catch (notifErr) {
+      console.error("scheduleInterview notification:", notifErr.message);
+    }
+
+    res.status(201).json(populated);
+  } catch (error) {
+    console.error("scheduleInterview:", error);
+    res.status(500).json({ message: "Failed to schedule interview", error: error.message });
+  }
+};
+
+export const completeInterview = async (req, res) => {
+  try {
+    if (!assertHrAccess(req, res)) return;
+
+    const application = await HiringApplication.findById(req.params.id);
+    if (!application) {
+      return res.status(404).json({ message: "Application not found" });
+    }
+
+    const interview = application.interviews.id(req.params.interviewId);
+    if (!interview) {
+      return res.status(404).json({ message: "Interview not found" });
+    }
+
+    if (interview.status === "completed") {
+      return res.status(400).json({ message: "Interview is already completed" });
+    }
+
+    const { remarks, rating, recommendation, status } = req.body;
+    const finalStatus = status || "completed";
+
+    if (!["completed", "cancelled", "no_show"].includes(finalStatus)) {
+      return res.status(400).json({ message: "Invalid interview status" });
+    }
+
+    if (finalStatus === "completed" && !remarks?.trim()) {
+      return res.status(400).json({ message: "Interview remarks are required when completing" });
+    }
+
+    interview.status = finalStatus;
+    interview.remarks = remarks?.trim() || interview.remarks;
+    if (rating) interview.rating = rating;
+    if (recommendation) interview.recommendation = recommendation;
+    interview.completedBy = req.user._id;
+    interview.completedAt = new Date();
+
+    if (finalStatus === "completed" && application.stage === "interview_scheduled") {
+      pushStageHistory(
+        application,
+        "interviewed",
+        req.user._id,
+        `Round ${interview.round} completed`
+      );
+    }
+
+    await application.save();
+
+    const populated = await loadApplication(application._id);
+    res.json(populated);
+  } catch (error) {
+    console.error("completeInterview:", error);
+    res.status(500).json({ message: "Failed to update interview", error: error.message });
   }
 };
 

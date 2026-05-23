@@ -171,6 +171,27 @@ describe("request number generation", () => {
   });
 });
 
+describe("hiring pipeline — stage transitions", () => {
+  it("allows sourced to shortlisted", async () => {
+    const { validateStageTransition } = await import("../src/utils/hiringPipeline.js");
+    expect(validateStageTransition("sourced", "shortlisted").allowed).toBe(true);
+    expect(validateStageTransition("shortlisted", "selected").allowed).toBe(false);
+    expect(validateStageTransition("interviewed", "selected").allowed).toBe(true);
+  });
+
+  it("requires rejection reason", async () => {
+    const { validateDecisionReason, validateSelectStage } = await import(
+      "../src/utils/hiringPipeline.js"
+    );
+    expect(validateDecisionReason("rejected", "").valid).toBe(false);
+    expect(validateDecisionReason("rejected", "Not a fit").valid).toBe(true);
+    expect(validateSelectStage("selected", { interviews: [] }).valid).toBe(false);
+    expect(
+      validateSelectStage("selected", { interviews: [{ status: "completed" }] }).valid
+    ).toBe(true);
+  });
+});
+
 describe("notification types", () => {
   it("includes HMS notification types in schema enum", async () => {
     const { default: Notification } = await import("../src/models/notificationModel.js");
@@ -178,5 +199,6 @@ describe("notification types", () => {
     expect(enumValues).toContain("hiring_request");
     expect(enumValues).toContain("hiring_offer");
     expect(enumValues).toContain("hiring_application");
+    expect(enumValues).toContain("hiring_interview");
   });
 });

@@ -19,6 +19,7 @@ import { hiringRequestApi } from "../../api/hiringRequestApi";
 import { hiringApplicationApi } from "../../api/hiringApplicationApi";
 import { applicantApi } from "../../api/applicantApi";
 import { offerApi } from "../../api/offerApi";
+import { STAGE_VARIANT, stageLabel } from "../../utils/hiringPipeline";
 
 const STATUS_VARIANT = {
   draft: "secondary",
@@ -29,14 +30,6 @@ const STATUS_VARIANT = {
   in_progress: "primary",
   filled: "success",
   cancelled: "dark",
-};
-
-const STAGE_VARIANT = {
-  sourced: "secondary",
-  shortlisted: "info",
-  selected: "success",
-  rejected: "danger",
-  withdrawn: "dark",
 };
 
 const HiringRequestDetail = () => {
@@ -136,28 +129,13 @@ const HiringRequestDetail = () => {
     }
   };
 
-  const handleStageChange = async (applicationId, stage) => {
+  const handleStageChange = async (applicationId, stage, extra = {}) => {
     try {
-      await hiringApplicationApi.updateStage(applicationId, { stage });
-      toast.success(`Moved to ${stage}`);
+      await hiringApplicationApi.updateStage(applicationId, { stage, ...extra });
+      toast.success(`Moved to ${stageLabel(stage)}`);
       fetchDetail();
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to update stage");
-    }
-  };
-
-  const handleCreateOffer = async (application) => {
-    try {
-      const res = await hiringApplicationApi.createOffer(application._id, {});
-      const offerId = res.data?.offer?._id;
-      toast.success("Offer created");
-      if (offerId) {
-        navigate(`/hr/offers?edit=${offerId}`);
-      } else {
-        fetchDetail();
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to create offer");
     }
   };
 
@@ -316,6 +294,7 @@ const HiringRequestDetail = () => {
                     <th>Candidate</th>
                     <th>Email</th>
                     <th>Stage</th>
+                    <th>Interviews</th>
                     <th>Offer</th>
                     <th>Actions</th>
                   </tr>
@@ -323,7 +302,7 @@ const HiringRequestDetail = () => {
                 <tbody>
                   {applications.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="text-center text-muted py-4">
+                      <td colSpan={6} className="text-center text-muted py-4">
                         No candidates in pipeline yet
                       </td>
                     </tr>
@@ -334,8 +313,13 @@ const HiringRequestDetail = () => {
                         <td>{app.applicant?.email}</td>
                         <td>
                           <Badge bg={STAGE_VARIANT[app.stage] || "secondary"}>
-                            {app.stage}
+                            {stageLabel(app.stage)}
                           </Badge>
+                        </td>
+                        <td>
+                          {(app.interviews || []).length === 0
+                            ? "—"
+                            : `${(app.interviews || []).filter((i) => i.status === "completed").length}/${app.interviews.length} done`}
                         </td>
                         <td>
                           {app.offerId ? (
@@ -355,45 +339,26 @@ const HiringRequestDetail = () => {
                           )}
                         </td>
                         <td>
-                          {canPipeline && app.stage !== "rejected" && (
-                            <div className="d-flex gap-1 flex-wrap">
-                              {app.stage === "sourced" && (
-                                <Button
-                                  size="sm"
-                                  variant="outline-info"
-                                  onClick={() => handleStageChange(app._id, "shortlisted")}
-                                >
-                                  Shortlist
-                                </Button>
-                              )}
-                              {app.stage === "shortlisted" && (
-                                <Button
-                                  size="sm"
-                                  variant="outline-success"
-                                  onClick={() => handleStageChange(app._id, "selected")}
-                                >
-                                  Select
-                                </Button>
-                              )}
-                              {app.stage === "selected" && !app.offerId && (
-                                <Button
-                                  size="sm"
-                                  variant="success"
-                                  onClick={() => handleCreateOffer(app)}
-                                >
-                                  Create offer
-                                </Button>
-                              )}
-                              {!["rejected", "withdrawn"].includes(app.stage) && (
-                                <Button
-                                  size="sm"
-                                  variant="outline-danger"
-                                  onClick={() => handleStageChange(app._id, "rejected")}
-                                >
-                                  Reject
-                                </Button>
-                              )}
-                            </div>
+                          <Button
+                            size="sm"
+                            variant="outline-primary"
+                            className="me-1"
+                            onClick={() => navigate(`/hr/hiring/applications/${app._id}`)}
+                          >
+                            Track
+                          </Button>
+                          {canPipeline && app.stage === "sourced" && (
+                            <Button
+                              size="sm"
+                              variant="outline-info"
+                              onClick={() =>
+                                handleStageChange(app._id, "shortlisted", {
+                                  notes: "Shortlisted",
+                                })
+                              }
+                            >
+                              Shortlist
+                            </Button>
                           )}
                         </td>
                       </tr>

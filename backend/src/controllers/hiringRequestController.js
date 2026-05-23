@@ -62,8 +62,9 @@ export const getHiringRequest = async (req, res) => {
     }
 
     const applications = await HiringApplication.find({ hiringRequest: request._id })
-      .populate("applicant", "name email phone status stage")
+      .populate("applicant", "name email phone status resumeUrl skills experienceYears")
       .populate("offerId", "offerNumber status")
+      .populate("interviews.interviewers", "name email")
       .sort({ updatedAt: -1 });
 
     res.json({ request, applications });
@@ -85,6 +86,7 @@ export const getHiringRequestApplications = async (req, res) => {
     const applications = await HiringApplication.find({ hiringRequest: request._id })
       .populate("applicant")
       .populate("offerId", "offerNumber status documentUrl")
+      .populate("interviews.interviewers", "name email")
       .populate("addedBy", "name email")
       .sort({ updatedAt: -1 });
 

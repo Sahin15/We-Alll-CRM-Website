@@ -12,6 +12,7 @@ import {
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { hiringRequestApi } from "../../api/hiringRequestApi";
+import { STAGE_VARIANT, stageLabel } from "../../utils/hiringPipeline";
 
 const STATUS_VARIANT = {
   draft: "secondary",
@@ -22,14 +23,6 @@ const STATUS_VARIANT = {
   in_progress: "primary",
   filled: "success",
   cancelled: "dark",
-};
-
-const STAGE_VARIANT = {
-  sourced: "secondary",
-  shortlisted: "info",
-  selected: "success",
-  rejected: "danger",
-  withdrawn: "dark",
 };
 
 const HoDHiringRequestDetail = () => {
@@ -180,13 +173,14 @@ const HoDHiringRequestDetail = () => {
                 <th>Candidate</th>
                 <th>Email</th>
                 <th>Stage</th>
+                <th>Interviews</th>
                 <th>Offer</th>
               </tr>
             </thead>
             <tbody>
               {applications.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="text-center text-muted py-4">
+                  <td colSpan={5} className="text-center text-muted py-4">
                     No candidates yet
                   </td>
                 </tr>
@@ -197,8 +191,13 @@ const HoDHiringRequestDetail = () => {
                     <td>{app.applicant?.email || "—"}</td>
                     <td>
                       <Badge bg={STAGE_VARIANT[app.stage] || "secondary"}>
-                        {app.stage}
+                        {stageLabel(app.stage)}
                       </Badge>
+                    </td>
+                    <td>
+                      {(app.interviews || []).length === 0
+                        ? "—"
+                        : `${(app.interviews || []).filter((i) => i.status === "completed").length}/${app.interviews.length}`}
                     </td>
                     <td>
                       {app.offerId?.offerNumber || "—"}

@@ -57,6 +57,7 @@ import OffersManagement from "../pages/hr/OffersManagement";
 import HiringDashboard from "../pages/hr/HiringDashboard";
 import HiringRequestsManagement from "../pages/hr/HiringRequestsManagement";
 import HiringRequestDetail from "../pages/hr/HiringRequestDetail";
+import HiringApplicationDetail from "../pages/hr/HiringApplicationDetail";
 import ApplicantCVBank from "../pages/hr/ApplicantCVBank";
 import HoDHiringRequests from "../pages/hod/HoDHiringRequests";
 import HoDCreateHiringRequest from "../pages/hod/HoDCreateHiringRequest";
@@ -500,6 +501,14 @@ const AppRoutes = () => {
           element={
             <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
               <HiringRequestDetail />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/hr/hiring/applications/:id"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <HiringApplicationDetail />
             </RoleBasedRoute>
           }
         />
