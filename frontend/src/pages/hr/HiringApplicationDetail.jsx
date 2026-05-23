@@ -15,7 +15,7 @@ import {
   Alert,
   ListGroup,
 } from "react-bootstrap";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   FaArrowLeft,
   FaCalendarPlus,
@@ -36,6 +36,7 @@ import {
   formatDateTime,
   buildApplicationTimeline,
 } from "../../utils/hiringPipeline";
+import OfferLetterEditor from "../../components/hr/OfferLetterEditor";
 
 const emptyScheduleForm = () => ({
   title: "",
@@ -56,6 +57,8 @@ const emptyCompleteForm = () => ({
 const HiringApplicationDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => searchParams.get("tab") || "overview");
   const [application, setApplication] = useState(null);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -89,6 +92,11 @@ const HiringApplicationDetail = () => {
       .then((r) => setUsers(r.data || []))
       .catch(() => setUsers([]));
   }, [fetchApplication]);
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab) setActiveTab(tab);
+  }, [searchParams]);
 
   const timeline = useMemo(
     () => buildApplicationTimeline(application),
@@ -180,16 +188,28 @@ const HiringApplicationDetail = () => {
 
   const handleCreateOffer = async () => {
     try {
-      const res = await hiringApplicationApi.createOffer(id, {});
-      const offerId = res.data?.offer?._id;
-      toast.success("Offer created");
-      if (offerId) {
-        navigate(`/hr/offers?edit=${offerId}`);
-      } else {
-        fetchApplication();
-      }
+      setSaving(true);
+      await hiringApplicationApi.createOffer(id, {});
+      toast.success("Offer created — edit and generate the letter below");
+      await fetchApplication();
+      setActiveTab("offer");
+      setSearchParams({ tab: "offer" }, { replace: true });
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to create offer");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const offerId = application?.offerId?._id || application?.offerId;
+
+  const handleTabSelect = (key) => {
+    if (!key) return;
+    setActiveTab(key);
+    if (key === "overview") {
+      setSearchParams({}, { replace: true });
+    } else {
+      setSearchParams({ tab: key }, { replace: true });
     }
   };
 
@@ -302,21 +322,15 @@ const HiringApplicationDetail = () => {
                 Mark selected
               </Button>
             )}
-            {stage === "selected" && !application.offerId && (
-              <Button variant="primary" onClick={handleCreateOffer}>
-                Create offer
+            {stage === "selected" && !offerId && (
+              <Button variant="primary" onClick={handleCreateOffer} disabled={saving}>
+                {saving ? "Creating…" : "Create offer letter"}
               </Button>
             )}
-            {application.offerId && (
-              <Button
-                variant="outline-primary"
-                onClick={() =>
-                  navigate(
-                    `/hr/offers?edit=${application.offerId._id || application.offerId}`
-                  )
-                }
-              >
-                Open offer
+            {offerId && (
+              <Button variant="outline-primary" onClick={() => handleTabSelect("offer")}>
+                <FaFileAlt className="me-1" />
+                Offer letter
               </Button>
             )}
             <Button variant="outline-danger" onClick={() => setShowRejectModal(true)}>
@@ -326,7 +340,7 @@ const HiringApplicationDetail = () => {
         </Card>
       )}
 
-      <Tabs defaultActiveKey="overview" className="mb-3">
+      <Tabs activeKey={activeTab} onSelect={handleTabSelect} className="mb-3">
         <Tab eventKey="overview" title="Overview">
           <Row className="g-3">
             <Col md={6}>
@@ -454,6 +468,20 @@ const HiringApplicationDetail = () => {
             </Card.Body>
           </Card>
         </Tab>
+
+        {offerId && (
+          <Tab eventKey="offer" title="Offer letter">
+            <OfferLetterEditor
+              offerId={String(offerId)}
+              onOfferUpdated={fetchApplication}
+              onOfferDeleted={() => {
+                fetchApplication();
+                setActiveTab("overview");
+                setSearchParams({}, { replace: true });
+              }}
+            />
+          </Tab>
+        )}
 
         <Tab eventKey="timeline" title="Timeline">
           <Card>

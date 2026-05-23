@@ -53,12 +53,12 @@ import Policies from "../pages/employee/Policies";
 import Settings from "../pages/employee/Settings";
 // Removed old imports: MySlots, MyWork, MyTasks, MyProfileEnhanced
 import HRSettings from "../pages/hr/HRSettings";
-import OffersManagement from "../pages/hr/OffersManagement";
 import HiringDashboard from "../pages/hr/HiringDashboard";
 import HiringRequestsManagement from "../pages/hr/HiringRequestsManagement";
 import HiringRequestDetail from "../pages/hr/HiringRequestDetail";
 import HiringApplicationDetail from "../pages/hr/HiringApplicationDetail";
 import ApplicantCVBank from "../pages/hr/ApplicantCVBank";
+import HiringOfferLetters from "../pages/hr/HiringOfferLetters";
 import HoDHiringRequests from "../pages/hod/HoDHiringRequests";
 import HoDCreateHiringRequest from "../pages/hod/HoDCreateHiringRequest";
 import HoDHiringRequestDetail from "../pages/hod/HoDHiringRequestDetail";
@@ -474,11 +474,7 @@ const AppRoutes = () => {
         {/* Holiday Management Routes */}
         <Route
           path="/hr/offers"
-          element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
-              <OffersManagement />
-            </RoleBasedRoute>
-          }
+          element={<Navigate to="/hr/hiring/offer-letters" replace />}
         />
         <Route
           path="/hr/hiring"
@@ -517,6 +513,14 @@ const AppRoutes = () => {
           element={
             <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
               <ApplicantCVBank />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/hr/hiring/offer-letters"
+          element={
+            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+              <HiringOfferLetters />
             </RoleBasedRoute>
           }
         />

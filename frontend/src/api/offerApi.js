@@ -8,7 +8,9 @@ export const offerApi = {
   update: (id, data) => api.put(`/offers/${id}`, data),
   preview: (id) =>
     api.get(`/offers/${id}/preview`, { responseType: "blob" }),
-  generate: (id) => api.post(`/offers/${id}/generate`),
+  generate: (id, data = {}) =>
+    api.post(`/offers/${id}/generate`, data, { timeout: 120000 }),
+  delete: (id) => api.delete(`/offers/${id}`),
   convertToEmployee: (id, data) =>
     api.post(`/offers/${id}/convert-to-employee`, data),
 };

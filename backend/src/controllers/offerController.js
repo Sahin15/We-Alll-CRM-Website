@@ -5,7 +5,8 @@ import Department from "../models/departmentModel.js";
 import Document from "../models/documentModel.js";
 import Applicant from "../models/applicantModel.js";
 import HiringRequest from "../models/hiringRequestModel.js";
-import { generateOfferLetterPdf } from "../services/hrDocumentPdfService.js";
+import HiringApplication from "../models/hiringApplicationModel.js";
+import { generateOfferLetterPdfFromTemplate } from "../services/offerLetterPdfService.js";
 import { uploadDocumentToS3, deleteDocumentFromS3 } from "../utils/documentUpload.js";
 
 const HR_ROLES = ["hr", "admin", "superadmin", "manager"];
@@ -247,13 +248,15 @@ export const previewOfferLetter = async (req, res) => {
   try {
     if (!assertHrAccess(req, res)) return;
 
-    const offer = await Offer.findById(req.params.id);
+    const offer = await Offer.findById(req.params.id).populate(
+      "proposedDepartment",
+      "name"
+    );
     if (!offer) {
       return res.status(404).json({ message: "Offer not found" });
     }
 
-    const vars = await buildOfferVariables(offer);
-    const pdfBuffer = await generateOfferLetterPdf(vars);
+    const pdfBuffer = await generateOfferLetterPdfFromTemplate(offer);
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
@@ -271,7 +274,10 @@ export const generateOfferLetter = async (req, res) => {
   try {
     if (!assertHrAccess(req, res)) return;
 
-    const offer = await Offer.findById(req.params.id);
+    const offer = await Offer.findById(req.params.id).populate(
+      "proposedDepartment",
+      "name"
+    );
     if (!offer) {
       return res.status(404).json({ message: "Offer not found" });
     }
@@ -280,7 +286,7 @@ export const generateOfferLetter = async (req, res) => {
     }
 
     const vars = await buildOfferVariables(offer);
-    const pdfBuffer = await generateOfferLetterPdf(vars);
+    const pdfBuffer = await generateOfferLetterPdfFromTemplate(offer);
 
     const fileName = `${offer.offerNumber}-offer-letter.pdf`;
     const documentUrl = await uploadDocumentToS3(
@@ -435,6 +441,12 @@ export const deleteOffer = async (req, res) => {
       } catch (err) {
         console.error("deleteOffer: S3 cleanup failed (continuing):", err.message);
       }
+    }
+
+    if (offer.hiringApplicationId) {
+      await HiringApplication.findByIdAndUpdate(offer.hiringApplicationId, {
+        $unset: { offerId: 1 },
+      });
     }
 
     await Offer.findByIdAndDelete(req.params.id);

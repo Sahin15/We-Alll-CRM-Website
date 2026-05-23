@@ -810,16 +810,6 @@ const EmployeeProfileManagement = () => {
                 </div>
                 {canEdit && (
                   <div className="d-flex gap-1">
-                    {docType.key === "offer_letter" && (
-                      <Button
-                        variant="outline-secondary"
-                        size="sm"
-                        title="Offer letters are created under Team → Offer Letters before joining"
-                        onClick={() => navigate("/hr/offers")}
-                      >
-                        Offers
-                      </Button>
-                    )}
                     <Button
                       variant="outline-primary"
                       size="sm"
@@ -2226,8 +2216,8 @@ const EmployeeProfileManagement = () => {
                         <Alert variant="info" className="mb-2">
                           <FaFileAlt className="me-2" />
                           Personal and HR documents for this employee. Monthly salary slips are under{' '}
-                          <strong>Salary → Salary Slips</strong>. New offer letters (pre-join) are created under{' '}
-                          <strong>Team → Offer Letters</strong>.
+                          <strong>Salary → Salary Slips</strong>. Pre-join offer letters are created in{' '}
+                          <strong>Hiring Management</strong> when a candidate is selected in the pipeline.
                         </Alert>
                         {linkedOffer && (
                           <Alert variant="success">

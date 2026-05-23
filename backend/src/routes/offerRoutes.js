@@ -9,6 +9,7 @@ import {
   generateOfferLetter,
   convertOfferToEmployee,
   getOfferByUserId,
+  deleteOffer,
 } from "../controllers/offerController.js";
 
 const router = express.Router();
@@ -23,5 +24,6 @@ router.post("/:id/generate", generateOfferLetter);
 router.post("/:id/convert-to-employee", convertOfferToEmployee);
 router.get("/:id", getOffer);
 router.put("/:id", updateOffer);
+router.delete("/:id", deleteOffer);
 
 export default router;

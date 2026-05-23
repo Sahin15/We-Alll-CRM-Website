@@ -433,7 +433,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           roles: ["admin", "superadmin", "hr", "manager"],
         },
         {
-          path: "/hr/offers",
+          path: "/hr/hiring/offer-letters",
           icon: <FaFileInvoiceDollar />,
           label: "Offer Letters",
           roles: ["admin", "superadmin", "hr", "manager"],
@@ -458,12 +458,6 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           path: "/employees",
           icon: <FaUsers />,
           label: "Employees",
-          roles: ["admin", "superadmin", "hr", "manager"],
-        },
-        {
-          path: "/hr/offers",
-          icon: <FaFileAlt />,
-          label: "Offer Letters",
           roles: ["admin", "superadmin", "hr", "manager"],
         },
         {

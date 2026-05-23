@@ -352,11 +352,11 @@ const HiringRequestDetail = () => {
                               variant="link"
                               onClick={() =>
                                 navigate(
-                                  `/hr/offers?edit=${app.offerId._id || app.offerId}`
+                                  `/hr/hiring/applications/${app._id}?tab=offer`
                                 )
                               }
                             >
-                              {app.offerId?.offerNumber || "View offer"}
+                              {app.offerId?.offerNumber || "Offer letter"}
                             </Button>
                           ) : (
                             "—"
@@ -394,9 +394,13 @@ const HiringRequestDetail = () => {
           </Card>
         </Tab>
 
-        <Tab eventKey="offers" title={`Offers (${offers.length})`}>
+        <Tab eventKey="offers" title={`Offer letters (${offers.length})`}>
           <Card>
             <Card.Body>
+              <Alert variant="light" className="border small mb-3">
+                Create and generate offer letters from each candidate&apos;s pipeline page after they
+                are <strong>selected</strong> (Interview Pipeline → Track → Create offer letter).
+              </Alert>
               <Table responsive hover>
                 <thead>
                   <tr>
@@ -410,33 +414,43 @@ const HiringRequestDetail = () => {
                   {offers.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="text-center text-muted py-4">
-                        No offers linked to this request yet
+                        No offer letters yet — create one from a selected candidate in the pipeline
                       </td>
                     </tr>
                   ) : (
-                    offers.map((offer) => (
-                      <tr key={offer._id}>
-                        <td>{offer.offerNumber}</td>
-                        <td>
-                          <div>{offer.candidateName}</div>
-                          <small className="text-muted">{offer.candidateEmail}</small>
-                        </td>
-                        <td>
-                          <Badge bg={offer.status === "converted" ? "success" : "secondary"}>
-                            {offer.status}
-                          </Badge>
-                        </td>
-                        <td>
-                          <Button
-                            size="sm"
-                            variant="outline-primary"
-                            onClick={() => navigate(`/hr/offers?edit=${offer._id}`)}
-                          >
-                            Open offer
-                          </Button>
-                        </td>
-                      </tr>
-                    ))
+                    offers.map((offer) => {
+                      const appId =
+                        offer.hiringApplicationId?._id || offer.hiringApplicationId;
+                      return (
+                        <tr key={offer._id}>
+                          <td>{offer.offerNumber}</td>
+                          <td>
+                            <div>{offer.candidateName}</div>
+                            <small className="text-muted">{offer.candidateEmail}</small>
+                          </td>
+                          <td>
+                            <Badge bg={offer.status === "converted" ? "success" : "secondary"}>
+                              {offer.status}
+                            </Badge>
+                          </td>
+                          <td>
+                            {appId ? (
+                              <Button
+                                size="sm"
+                                variant="outline-primary"
+                                onClick={() =>
+                                  navigate(`/hr/hiring/applications/${appId}?tab=offer`)
+                                }
+                              >
+                                Manage offer letter
+                              </Button>
+                            ) : (
+                              <span className="text-muted small">No pipeline link</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </Table>

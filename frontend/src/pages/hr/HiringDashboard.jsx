@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Container, Row, Col, Card, Button, Badge, Spinner, Alert } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
-import { FaUserPlus, FaFileAlt, FaClipboardList, FaRoute } from "react-icons/fa";
+import { FaFileAlt, FaClipboardList, FaRoute, FaFileInvoiceDollar } from "react-icons/fa";
 import { hiringRequestApi } from "../../api/hiringRequestApi";
 import HiringPipelineFlow from "../../components/hr/HiringPipelineFlow";
 
@@ -48,7 +48,7 @@ const HiringDashboard = () => {
                 <div>
                   <Card.Title>Hiring Requests</Card.Title>
                   <Card.Text className="text-muted">
-                    Review HoD requests, approve, and manage the interview pipeline per role.
+                    Review HoD requests, approve, and run the interview pipeline per role.
                   </Card.Text>
                 </div>
                 {!loading && pendingCount > 0 && (
@@ -73,7 +73,7 @@ const HiringDashboard = () => {
             <Card.Body>
               <Card.Title>CV Bank</Card.Title>
               <Card.Text className="text-muted">
-                Add applicants with CV details, then link them to an open hiring request pipeline.
+                Add applicants with CV details and link them to an open hiring request pipeline.
               </Card.Text>
               <Button
                 variant="outline-primary"
@@ -91,14 +91,15 @@ const HiringDashboard = () => {
             <Card.Body>
               <Card.Title>Offer Letters</Card.Title>
               <Card.Text className="text-muted">
-                After a candidate is selected in the pipeline, generate an offer and convert to employee.
+                Create offer letters, generate PDFs, and convert candidates to employees — from here
+                or from the interview pipeline after selection.
               </Card.Text>
               <Button
                 variant="outline-secondary"
                 className="mt-3"
-                onClick={() => navigate("/hr/offers")}
+                onClick={() => navigate("/hr/hiring/offer-letters")}
               >
-                <FaUserPlus className="me-2" />
+                <FaFileInvoiceDollar className="me-2" />
                 Offer letters
               </Button>
             </Card.Body>
