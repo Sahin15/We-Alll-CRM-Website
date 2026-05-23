@@ -12,6 +12,7 @@ import {
   Spinner,
   Tabs,
   Tab,
+  Alert,
 } from "react-bootstrap";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -20,6 +21,7 @@ import { hiringApplicationApi } from "../../api/hiringApplicationApi";
 import { applicantApi } from "../../api/applicantApi";
 import { offerApi } from "../../api/offerApi";
 import { STAGE_VARIANT, stageLabel } from "../../utils/hiringPipeline";
+import HiringPipelineFlow from "../../components/hr/HiringPipelineFlow";
 
 const STATUS_VARIANT = {
   draft: "secondary",
@@ -280,9 +282,23 @@ const HiringRequestDetail = () => {
           </Row>
         </Tab>
 
-        <Tab eventKey="pipeline" title={`Pipeline (${applications.length})`}>
+        <Tab eventKey="pipeline" title={`Interview Pipeline (${applications.length})`}>
           <Card>
             <Card.Body>
+              <Alert variant="light" className="border mb-3">
+                <strong>How it works:</strong> Add candidates from the CV bank, shortlist them, then
+                click <strong>Track</strong> to schedule interviews, add remarks, and mark selected
+                or rejected with reasons.
+                <div className="mt-2">
+                  <HiringPipelineFlow compact />
+                </div>
+              </Alert>
+              {!canPipeline && (
+                <Alert variant="warning" className="mb-3">
+                  Approve this request and set it to <strong>in progress</strong> on the Overview
+                  tab before adding candidates to the interview pipeline.
+                </Alert>
+              )}
               {canPipeline && (
                 <Button variant="primary" className="mb-3" onClick={openAddModal}>
                   Add from CV bank
@@ -309,7 +325,15 @@ const HiringRequestDetail = () => {
                   ) : (
                     applications.map((app) => (
                       <tr key={app._id}>
-                        <td>{app.applicant?.name}</td>
+                        <td>
+                          <Button
+                            variant="link"
+                            className="p-0 text-start text-decoration-none"
+                            onClick={() => navigate(`/hr/hiring/applications/${app._id}`)}
+                          >
+                            {app.applicant?.name}
+                          </Button>
+                        </td>
                         <td>{app.applicant?.email}</td>
                         <td>
                           <Badge bg={STAGE_VARIANT[app.stage] || "secondary"}>
@@ -341,11 +365,11 @@ const HiringRequestDetail = () => {
                         <td>
                           <Button
                             size="sm"
-                            variant="outline-primary"
+                            variant="primary"
                             className="me-1"
                             onClick={() => navigate(`/hr/hiring/applications/${app._id}`)}
                           >
-                            Track
+                            Track pipeline
                           </Button>
                           {canPipeline && app.stage === "sourced" && (
                             <Button

@@ -407,6 +407,40 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       ],
     },
     {
+      id: "hiring",
+      icon: <FaUserPlus />,
+      label: "Hiring",
+      roles: ["admin", "superadmin", "hr", "manager"],
+      onlyForRoles: ["admin", "superadmin", "hr", "manager"],
+      isGroup: true,
+      children: [
+        {
+          path: "/hr/hiring",
+          icon: <FaTachometerAlt />,
+          label: "Overview",
+          roles: ["admin", "superadmin", "hr", "manager"],
+        },
+        {
+          path: "/hr/hiring/requests",
+          icon: <FaClipboardList />,
+          label: "Requests & Pipeline",
+          roles: ["admin", "superadmin", "hr", "manager"],
+        },
+        {
+          path: "/hr/hiring/applicants",
+          icon: <FaFileAlt />,
+          label: "CV Bank",
+          roles: ["admin", "superadmin", "hr", "manager"],
+        },
+        {
+          path: "/hr/offers",
+          icon: <FaFileInvoiceDollar />,
+          label: "Offer Letters",
+          roles: ["admin", "superadmin", "hr", "manager"],
+        },
+      ],
+    },
+    {
       id: "team",
       icon: <FaUsers />,
       label: "Team",
@@ -424,12 +458,6 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           path: "/employees",
           icon: <FaUsers />,
           label: "Employees",
-          roles: ["admin", "superadmin", "hr", "manager"],
-        },
-        {
-          path: "/hr/hiring",
-          icon: <FaUserPlus />,
-          label: "Hiring",
           roles: ["admin", "superadmin", "hr", "manager"],
         },
         {

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { Container, Row, Col, Card, Button, Badge, Spinner } from "react-bootstrap";
+import { Container, Row, Col, Card, Button, Badge, Spinner, Alert } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
-import { FaUserPlus, FaFileAlt, FaClipboardList } from "react-icons/fa";
+import { FaUserPlus, FaFileAlt, FaClipboardList, FaRoute } from "react-icons/fa";
 import { hiringRequestApi } from "../../api/hiringRequestApi";
+import HiringPipelineFlow from "../../components/hr/HiringPipelineFlow";
 
 const HiringDashboard = () => {
   const navigate = useNavigate();
@@ -19,7 +20,26 @@ const HiringDashboard = () => {
 
   return (
     <Container fluid className="py-4">
-      <h2 className="mb-4">Hiring Management</h2>
+      <h2 className="mb-2">Hiring Management</h2>
+      <p className="text-muted mb-4">
+        Run hiring requests from department heads through CV bank, interviews, offers, and onboarding.
+      </p>
+
+      <Card className="mb-4 border-primary">
+        <Card.Body>
+          <div className="d-flex align-items-center gap-2 mb-2">
+            <FaRoute className="text-primary" />
+            <Card.Title className="mb-0 h5">Interview pipeline</Card.Title>
+          </div>
+          <Card.Text className="text-muted mb-3">
+            Each candidate moves through these stages. Open a request, go to the{" "}
+            <strong>Interview Pipeline</strong> tab, then click <strong>Track</strong> to schedule
+            interviews and record remarks.
+          </Card.Text>
+          <HiringPipelineFlow />
+        </Card.Body>
+      </Card>
+
       <Row className="g-4">
         <Col md={4}>
           <Card className="h-100 shadow-sm">
@@ -28,7 +48,7 @@ const HiringDashboard = () => {
                 <div>
                   <Card.Title>Hiring Requests</Card.Title>
                   <Card.Text className="text-muted">
-                    Review department head requests and run the hiring pipeline.
+                    Review HoD requests, approve, and manage the interview pipeline per role.
                   </Card.Text>
                 </div>
                 {!loading && pendingCount > 0 && (
@@ -53,7 +73,7 @@ const HiringDashboard = () => {
             <Card.Body>
               <Card.Title>CV Bank</Card.Title>
               <Card.Text className="text-muted">
-                Manage applicant profiles and resumes for open positions.
+                Add applicants with CV details, then link them to an open hiring request pipeline.
               </Card.Text>
               <Button
                 variant="outline-primary"
@@ -71,7 +91,7 @@ const HiringDashboard = () => {
             <Card.Body>
               <Card.Title>Offer Letters</Card.Title>
               <Card.Text className="text-muted">
-                Generate offer letters and onboard selected candidates.
+                After a candidate is selected in the pipeline, generate an offer and convert to employee.
               </Card.Text>
               <Button
                 variant="outline-secondary"
@@ -89,6 +109,14 @@ const HiringDashboard = () => {
         <div className="text-center mt-4">
           <Spinner animation="border" size="sm" />
         </div>
+      )}
+
+      {!loading && pendingCount === 0 && (
+        <Alert variant="info" className="mt-4 mb-0">
+          No pending HoD requests right now. To test the interview pipeline: ask a HoD to submit a
+          request, approve it here, add an applicant from the CV bank, then use{" "}
+          <strong>Interview Pipeline → Track</strong> on the request detail page.
+        </Alert>
       )}
     </Container>
   );
