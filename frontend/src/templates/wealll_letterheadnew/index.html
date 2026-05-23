@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>WeAlll Letterhead</title>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css"
+        integrity="sha384-/frq1SRXYH/bSyou/HUp/hib7RVN1TawQYja658FEOodR/FQBKVqT9Ol+Oz3Olq5" crossorigin="anonymous" />
+
+    <!-- Google Fonts -->
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap"
+        rel="stylesheet">
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+
+    <style>
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        body {
+            background: #ccc;
+            font-size: 20px;
+            font-weight: 500;
+        }
+
+        .page {
+            width: 210mm;
+            height: 297mm;
+            background: #ffffff;
+            margin: auto;
+            position: relative;
+            overflow: hidden;
+            font-family: "Inter", sans-serif;
+            font-size: 18px;
+            line-height: 22px;
+            font-weight: 500;
+        }
+
+        /* HEADER */
+        .header {
+            padding: 10mm 15mm;
+            align-items: center !important;
+        }
+
+        .logo {
+            width: 250px;
+        }
+
+        /* CONTACT */
+
+        .contact_block {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding-bottom: 10px;
+            padding-top: 6px;
+        }
+
+        .contact_block:first-of-type {
+            padding-bottom: 2px;
+        }
+
+        .contact_block:nth-child(3) {
+            padding-bottom: 5px;
+        }
+
+        .icon {
+            min-width: 36px;
+            min-height: 36px;
+            display: inline-block;
+            vertical-align: middle;
+            border-radius: 6px;
+            padding-left: 15px;
+        }
+
+        .icon span {
+            display: flex;
+            height: 36px;
+            width: 100%;
+            min-width: 36px;
+            border-radius: 6px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .icon span i {
+            font-size: 20px;
+            color: #fff;
+        }
+
+        .contact p {
+            margin: 0 0 4px;
+            display: flex;
+            text-align: right;
+            justify-content: flex-end;
+        }
+
+        .phone {
+            background: #3b75b4;
+        }
+
+        .mail {
+            background: #f1c214;
+        }
+
+        .web {
+            background: #32a850;
+        }
+
+        .location {
+            background: #f04335;
+        }
+
+        /* TOP COLOR LINE */
+        .top-line {
+            height: 5px;
+            background: linear-gradient(65deg,
+                    #e53935 0,
+                    #e53935 19%,
+                    #3aa64c 19.3%,
+                    #3aa64c 38%,
+                    #f2c318 38.3%,
+                    #f2c318 57%,
+                    #2f6fb2 57.3%,
+                    #2f6fb2 100%);
+        }
+
+        /* WATERMARK */
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .watermark img {
+            width: 450px;
+        }
+
+        /* FOOTER STRIP */
+        .footer {
+            position: absolute;
+            bottom: 15px;
+            left: 5mm;
+            width: calc(100% - 15mm);
+            height: 25px;
+            background: linear-gradient(65deg,
+                    #2f6fb2 0,
+                    #2f6fb2 calc(100% - 15mm - 180px),
+                    #f2c318 calc(100% - 15mm - 179.5px),
+                    #f2c318 calc(100% - 15mm - 120px),
+                    #3aa64c calc(100% - 15mm - 119.5px),
+                    #3aa64c calc(100% - 15mm - 60px),
+                    #e53935 calc(100% - 15mm - 59.5px),
+                    #e53935 calc(100% - 15mm),
+                    transparent calc(100% - 15mm + 0.5px),
+                    transparent 100%);
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <div class="page">
+
+        <!-- HEADER -->
+        <div class="d-flex justify-content-between align-items-start header">
+            <img src="images/logo.png" class="logo">
+
+            <div class="contact">
+                <div class="contact_block">
+                    <div class="ph_no">
+                        <p> +91 82408 58613 <br>
+                            +91 81005 45449 </p>
+                    </div>
+                    <div class="icon">
+                        <span class="phone"><i class="fa-solid fa-phone-volume"></i></span>
+                    </div>
+                </div>
+                <div class="contact_block">
+                    <p>amit@wealll.com </p>
+                    <div class="icon">
+                        <span class="mail"><i class="fa-regular fa-envelope"></i></span>
+                    </div>
+                </div>
+
+                <div class="contact_block">
+                    <p>www.wealll.com</p>
+                    <div class="icon">
+                        <span class="web"><i class="fa-solid fa-globe"></i></span>
+                    </div>
+                </div>
+
+                <div class="contact_block">
+                    <p>Basudevpur, Shyamnagar,<br>
+                        West Bengal, India - 743 127 </p>
+                    <div class="icon">
+                        <span class="location"><i class="fa-solid fa-location-dot"></i></span>
+                    </div>
+                </div>
+
+
+            </div>
+        </div>
+
+        <!-- COLOR LINE -->
+        <div class="top-line"></div>
+
+        <!-- WATERMARK -->
+        <div class="watermark">
+            <img src="images/watermark.png">
+        </div>
+
+        <!-- FOOTER -->
+        <div class="footer"></div>
+
+    </div>
+
+</body>
+
+</html>
