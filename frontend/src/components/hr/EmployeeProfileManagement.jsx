@@ -2232,6 +2232,24 @@ const EmployeeProfileManagement = () => {
                         {linkedOffer && (
                           <Alert variant="success">
                             <strong>Linked offer:</strong> {linkedOffer.offerNumber}
+                            {linkedOffer.hiringRequestId?.requestNumber && (
+                              <>
+                                {' '}
+                                | <strong>Hiring request:</strong>{' '}
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="p-0 align-baseline"
+                                  onClick={() =>
+                                    navigate(
+                                      `/hr/hiring/requests/${linkedOffer.hiringRequestId._id || linkedOffer.hiringRequestId}`
+                                    )
+                                  }
+                                >
+                                  {linkedOffer.hiringRequestId.requestNumber}
+                                </Button>
+                              </>
+                            )}
                             {linkedOffer.documentUrl && (
                               <>
                                 {' '}

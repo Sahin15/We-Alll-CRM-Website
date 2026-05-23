@@ -23,6 +23,7 @@ import {
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { offerApi } from "../../api/offerApi";
+import { hiringRequestApi } from "../../api/hiringRequestApi";
 import api from "../../services/api";
 
 const STATUS_VARIANT = {
@@ -60,6 +61,8 @@ const OffersManagement = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [hiringRequestFilter, setHiringRequestFilter] = useState("");
+  const [hiringRequests, setHiringRequests] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editingOffer, setEditingOffer] = useState(null);
@@ -74,6 +77,7 @@ const OffersManagement = () => {
     joiningDate: "",
   });
   const [converting, setConverting] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   const fetchOffers = useCallback(async () => {
     try {
@@ -81,6 +85,7 @@ const OffersManagement = () => {
       const params = {};
       if (search) params.search = search;
       if (statusFilter) params.status = statusFilter;
+      if (hiringRequestFilter) params.hiringRequestId = hiringRequestFilter;
       const res = await offerApi.list(params);
       setOffers(res.data || []);
     } catch (err) {
@@ -88,11 +93,15 @@ const OffersManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, [search, statusFilter]);
+  }, [search, statusFilter, hiringRequestFilter]);
 
   useEffect(() => {
     fetchOffers();
     api.get("/departments").then((r) => setDepartments(r.data || [])).catch(() => {});
+    hiringRequestApi
+      .list()
+      .then((r) => setHiringRequests(r.data || []))
+      .catch(() => setHiringRequests([]));
   }, [fetchOffers]);
 
   const openCreate = () => {
@@ -231,6 +240,44 @@ const OffersManagement = () => {
     }
   };
 
+  const handleDelete = async (offer) => {
+    if (!offer?._id) return;
+    if (offer.status === "converted") {
+      toast.error("Cannot delete an offer that was converted to an employee");
+      return;
+    }
+    const label = offer.offerNumber || offer.candidateName || "this offer";
+    if (
+      !window.confirm(
+        `Delete offer ${label}? This removes the offer record${offer.documentUrl ? " and its PDF from storage" : ""}. This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setDeletingId(offer._id);
+      await offerApi.delete(offer._id);
+      toast.success("Offer deleted");
+      if (editingOffer?._id === offer._id) {
+        setShowModal(false);
+        setEditingOffer(null);
+        setForm(emptyForm());
+      }
+      fetchOffers();
+    } catch (err) {
+      const status = err.response?.status;
+      const msg = err.response?.data?.message;
+      if (status === 404) {
+        toast.error(msg || "Delete failed — offer API not found. Restart the backend server.");
+      } else {
+        toast.error(msg || err.message || "Failed to delete offer");
+      }
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <Container fluid className="py-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -273,6 +320,19 @@ const OffersManagement = () => {
                 <option value="accepted">Accepted</option>
                 <option value="converted">Converted</option>
                 <option value="declined">Declined</option>
+              </Form.Select>
+            </Col>
+            <Col md={4}>
+              <Form.Select
+                value={hiringRequestFilter}
+                onChange={(e) => setHiringRequestFilter(e.target.value)}
+              >
+                <option value="">All hiring requests</option>
+                {hiringRequests.map((hr) => (
+                  <option key={hr._id} value={hr._id}>
+                    {hr.requestNumber} — {hr.designation}
+                  </option>
+                ))}
               </Form.Select>
             </Col>
           </Row>
@@ -386,6 +446,21 @@ const OffersManagement = () => {
                             }
                           >
                             Profile
+                          </Button>
+                        )}
+                        {o.status !== "converted" && (
+                          <Button
+                            size="sm"
+                            variant="outline-danger"
+                            title="Delete offer"
+                            onClick={() => handleDelete(o)}
+                            disabled={deletingId === o._id}
+                          >
+                            {deletingId === o._id ? (
+                              <Spinner size="sm" animation="border" />
+                            ) : (
+                              <FaTrash />
+                            )}
                           </Button>
                         )}
                       </div>

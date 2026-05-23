@@ -13,7 +13,7 @@ import {
   Spinner,
 } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
-import { FaPlus, FaSearch, FaFileAlt, FaTrash } from "react-icons/fa";
+import { FaPlus, FaSearch, FaFileAlt, FaTrash, FaEdit } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { applicantApi } from "../../api/applicantApi";
 
@@ -44,6 +44,7 @@ const ApplicantCVBank = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyForm());
   const [resumeFile, setResumeFile] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -64,6 +65,31 @@ const ApplicantCVBank = () => {
     fetchApplicants();
   }, [fetchApplicants]);
 
+  const openCreate = () => {
+    setEditingId(null);
+    setForm(emptyForm());
+    setResumeFile(null);
+    setShowModal(true);
+  };
+
+  const openEdit = (applicant) => {
+    setEditingId(applicant._id);
+    setForm({
+      name: applicant.name || "",
+      email: applicant.email || "",
+      phone: applicant.phone || "",
+      skills: applicant.skills || "",
+      experienceYears: applicant.experienceYears ?? "",
+      currentCompany: applicant.currentCompany || "",
+      expectedCtc: applicant.expectedCtc || "",
+      source: applicant.source || "other",
+      tags: Array.isArray(applicant.tags) ? applicant.tags.join(", ") : applicant.tags || "",
+      notes: applicant.notes || "",
+    });
+    setResumeFile(null);
+    setShowModal(true);
+  };
+
   const handleSave = async () => {
     if (!form.name.trim() || !form.email.trim()) {
       toast.error("Name and email are required");
@@ -71,14 +97,39 @@ const ApplicantCVBank = () => {
     }
     try {
       setSaving(true);
-      const fd = new FormData();
-      Object.entries(form).forEach(([k, v]) => {
-        if (v !== "") fd.append(k, v);
-      });
-      if (resumeFile) fd.append("resume", resumeFile);
-      await applicantApi.create(fd);
-      toast.success("Applicant added");
+      if (editingId) {
+        const payload = {
+          name: form.name.trim(),
+          email: form.email.trim(),
+          phone: form.phone || undefined,
+          skills: form.skills || undefined,
+          experienceYears: form.experienceYears !== "" ? form.experienceYears : undefined,
+          currentCompany: form.currentCompany || undefined,
+          expectedCtc: form.expectedCtc || undefined,
+          source: form.source,
+          tags: form.tags
+            ? form.tags.split(",").map((t) => t.trim()).filter(Boolean)
+            : undefined,
+          notes: form.notes || undefined,
+        };
+        await applicantApi.update(editingId, payload);
+        if (resumeFile) {
+          const fd = new FormData();
+          fd.append("resume", resumeFile);
+          await applicantApi.uploadResume(editingId, fd);
+        }
+        toast.success("Applicant updated");
+      } else {
+        const fd = new FormData();
+        Object.entries(form).forEach(([k, v]) => {
+          if (v !== "") fd.append(k, v);
+        });
+        if (resumeFile) fd.append("resume", resumeFile);
+        await applicantApi.create(fd);
+        toast.success("Applicant added");
+      }
       setShowModal(false);
+      setEditingId(null);
       setForm(emptyForm());
       setResumeFile(null);
       fetchApplicants();
@@ -108,7 +159,7 @@ const ApplicantCVBank = () => {
           <Button variant="outline-secondary" onClick={() => navigate("/hr/hiring")}>
             Back to Hiring
           </Button>
-          <Button variant="primary" onClick={() => setShowModal(true)}>
+          <Button variant="primary" onClick={openCreate}>
             <FaPlus className="me-2" />
             Add applicant
           </Button>
@@ -183,13 +234,23 @@ const ApplicantCVBank = () => {
                       </td>
                       <td>
                         {a.status === "active" && (
-                          <Button
-                            size="sm"
-                            variant="outline-danger"
-                            onClick={() => handleArchive(a._id)}
-                          >
-                            <FaTrash />
-                          </Button>
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline-primary"
+                              className="me-1"
+                              onClick={() => openEdit(a)}
+                            >
+                              <FaEdit />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline-danger"
+                              onClick={() => handleArchive(a._id)}
+                            >
+                              <FaTrash />
+                            </Button>
+                          </>
                         )}
                       </td>
                     </tr>
@@ -201,9 +262,16 @@ const ApplicantCVBank = () => {
         </Card.Body>
       </Card>
 
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
+      <Modal
+        show={showModal}
+        onHide={() => {
+          setShowModal(false);
+          setEditingId(null);
+        }}
+        size="lg"
+      >
         <Modal.Header closeButton>
-          <Modal.Title>Add applicant</Modal.Title>
+          <Modal.Title>{editingId ? "Edit applicant" : "Add applicant"}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Row className="g-3">
@@ -280,7 +348,7 @@ const ApplicantCVBank = () => {
             </Col>
             <Col md={12}>
               <Form.Group>
-                <Form.Label>Resume (PDF/DOC)</Form.Label>
+                <Form.Label>{editingId ? "Replace resume (optional)" : "Resume (PDF/DOC)"}</Form.Label>
                 <Form.Control
                   type="file"
                   accept=".pdf,.doc,.docx"
@@ -306,7 +374,7 @@ const ApplicantCVBank = () => {
             Cancel
           </Button>
           <Button variant="primary" disabled={saving} onClick={handleSave}>
-            {saving ? "Saving..." : "Save"}
+            {saving ? "Saving..." : editingId ? "Update" : "Save"}
           </Button>
         </Modal.Footer>
       </Modal>

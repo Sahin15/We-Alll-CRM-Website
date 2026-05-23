@@ -91,6 +91,10 @@ const notificationSchema = new mongoose.Schema(
         'procurement_po_issued',
         'procurement_gr_recorded',
         'procurement_invoice_due',
+        // Hiring
+        'hiring_request',
+        'hiring_offer',
+        'hiring_application',
       ],
       default: 'general',
     },

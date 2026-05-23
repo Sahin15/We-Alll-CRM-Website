@@ -18,6 +18,7 @@ import { toast } from "react-toastify";
 import { hiringRequestApi } from "../../api/hiringRequestApi";
 import { hiringApplicationApi } from "../../api/hiringApplicationApi";
 import { applicantApi } from "../../api/applicantApi";
+import { offerApi } from "../../api/offerApi";
 
 const STATUS_VARIANT = {
   draft: "secondary",
@@ -43,6 +44,7 @@ const HiringRequestDetail = () => {
   const navigate = useNavigate();
   const [request, setRequest] = useState(null);
   const [applications, setApplications] = useState([]);
+  const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [reviewNotes, setReviewNotes] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
@@ -59,6 +61,12 @@ const HiringRequestDetail = () => {
       const res = await hiringRequestApi.get(id);
       setRequest(res.data?.request || res.data);
       setApplications(res.data?.applications || []);
+      try {
+        const offersRes = await offerApi.list({ hiringRequestId: id });
+        setOffers(offersRes.data || []);
+      } catch {
+        setOffers([]);
+      }
     } catch {
       toast.error("Failed to load hiring request");
       navigate("/hr/hiring/requests");
@@ -387,6 +395,56 @@ const HiringRequestDetail = () => {
                               )}
                             </div>
                           )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </Table>
+            </Card.Body>
+          </Card>
+        </Tab>
+
+        <Tab eventKey="offers" title={`Offers (${offers.length})`}>
+          <Card>
+            <Card.Body>
+              <Table responsive hover>
+                <thead>
+                  <tr>
+                    <th>Offer #</th>
+                    <th>Candidate</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {offers.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="text-center text-muted py-4">
+                        No offers linked to this request yet
+                      </td>
+                    </tr>
+                  ) : (
+                    offers.map((offer) => (
+                      <tr key={offer._id}>
+                        <td>{offer.offerNumber}</td>
+                        <td>
+                          <div>{offer.candidateName}</div>
+                          <small className="text-muted">{offer.candidateEmail}</small>
+                        </td>
+                        <td>
+                          <Badge bg={offer.status === "converted" ? "success" : "secondary"}>
+                            {offer.status}
+                          </Badge>
+                        </td>
+                        <td>
+                          <Button
+                            size="sm"
+                            variant="outline-primary"
+                            onClick={() => navigate(`/hr/offers?edit=${offer._id}`)}
+                          >
+                            Open offer
+                          </Button>
                         </td>
                       </tr>
                     ))

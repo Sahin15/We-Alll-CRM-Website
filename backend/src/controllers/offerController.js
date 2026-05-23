@@ -6,7 +6,7 @@ import Document from "../models/documentModel.js";
 import Applicant from "../models/applicantModel.js";
 import HiringRequest from "../models/hiringRequestModel.js";
 import { generateOfferLetterPdf } from "../services/hrDocumentPdfService.js";
-import { uploadDocumentToS3 } from "../utils/documentUpload.js";
+import { uploadDocumentToS3, deleteDocumentFromS3 } from "../utils/documentUpload.js";
 
 const HR_ROLES = ["hr", "admin", "superadmin", "manager"];
 
@@ -63,9 +63,10 @@ export const listOffers = async (req, res) => {
   try {
     if (!assertHrAccess(req, res)) return;
 
-    const { status, search } = req.query;
+    const { status, search, hiringRequestId } = req.query;
     const query = {};
     if (status) query.status = status;
+    if (hiringRequestId) query.hiringRequestId = hiringRequestId;
     if (search) {
       query.$or = [
         { candidateName: { $regex: search, $options: "i" } },
@@ -414,13 +415,45 @@ export const convertOfferToEmployee = async (req, res) => {
   }
 };
 
+export const deleteOffer = async (req, res) => {
+  try {
+    if (!assertHrAccess(req, res)) return;
+
+    const offer = await Offer.findById(req.params.id);
+    if (!offer) {
+      return res.status(404).json({ message: "Offer not found" });
+    }
+    if (offer.status === "converted") {
+      return res.status(400).json({
+        message: "Cannot delete an offer that was converted to an employee",
+      });
+    }
+
+    if (offer.documentUrl) {
+      try {
+        await deleteDocumentFromS3(offer.documentUrl);
+      } catch (err) {
+        console.error("deleteOffer: S3 cleanup failed (continuing):", err.message);
+      }
+    }
+
+    await Offer.findByIdAndDelete(req.params.id);
+
+    res.json({ message: "Offer deleted successfully" });
+  } catch (error) {
+    console.error("deleteOffer:", error);
+    res.status(500).json({ message: "Failed to delete offer", error: error.message });
+  }
+};
+
 export const getOfferByUserId = async (req, res) => {
   try {
     if (!assertHrAccess(req, res)) return;
 
     const offer = await Offer.findOne({ convertedUserId: req.params.userId })
       .populate("proposedDepartment", "name")
-      .select("offerNumber status documentUrl convertedAt candidateName");
+      .populate("hiringRequestId", "requestNumber designation status")
+      .select("offerNumber status documentUrl convertedAt candidateName hiringRequestId");
 
     res.json(offer || null);
   } catch (error) {

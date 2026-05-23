@@ -8,7 +8,7 @@ import {
   Spinner,
 } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
-import { FaPlus, FaEdit, FaPaperPlane } from "react-icons/fa";
+import { FaPlus, FaEdit, FaPaperPlane, FaEye } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { hiringRequestApi } from "../../api/hiringRequestApi";
 
@@ -122,6 +122,15 @@ const HoDHiringRequests = () => {
                       </td>
                       <td>{r.hrNotes || r.rejectionReason || "—"}</td>
                       <td>
+                        <Button
+                          size="sm"
+                          variant="outline-secondary"
+                          className="me-1"
+                          title="View details"
+                          onClick={() => navigate(`/hod/hiring/requests/${r._id}`)}
+                        >
+                          <FaEye />
+                        </Button>
                         {r.status === "draft" && (
                           <>
                             <Button

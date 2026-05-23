@@ -60,6 +60,7 @@ import HiringRequestDetail from "../pages/hr/HiringRequestDetail";
 import ApplicantCVBank from "../pages/hr/ApplicantCVBank";
 import HoDHiringRequests from "../pages/hod/HoDHiringRequests";
 import HoDCreateHiringRequest from "../pages/hod/HoDCreateHiringRequest";
+import HoDHiringRequestDetail from "../pages/hod/HoDHiringRequestDetail";
 import AdminSettings from "../pages/admin/AdminSettings";
 import HODSettings from "../pages/hod/HODSettings";
 
@@ -515,6 +516,14 @@ const AppRoutes = () => {
           element={
             <RoleBasedRoute allowedRoles={["hod"]}>
               <HoDHiringRequests />
+            </RoleBasedRoute>
+          }
+        />
+        <Route
+          path="/hod/hiring/requests/:id"
+          element={
+            <RoleBasedRoute allowedRoles={["hod"]}>
+              <HoDHiringRequestDetail />
             </RoleBasedRoute>
           }
         />
