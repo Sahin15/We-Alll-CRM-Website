@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import assetApi from '../../api/assetApi';
 import AssetStatusBadge from '../../components/assets/AssetStatusBadge';
 import useScrollToTop from '../../hooks/useScrollToTop';
+import PageHeader from '../../components/shared/PageHeader';
 import './MyAssets.css';
 
 const MyAssets = () => {
@@ -30,10 +31,7 @@ const MyAssets = () => {
 
   return (
     <div className="my-assets-container">
-      <div className="my-assets-header">
-        <h1>My Assets</h1>
-        <p>Assets currently assigned to you</p>
-      </div>
+      <PageHeader title="My Assets" subtitle="Assets currently assigned to you" />
 
       {error && <div className="alert alert-danger">{error}</div>}
 

@@ -4,6 +4,8 @@ import assetApi from '../../api/assetApi';
 import AssetStatusBadge from '../../components/assets/AssetStatusBadge';
 import useScrollToTop from '../../hooks/useScrollToTop';
 import { useAuth } from '../../context/AuthContext';
+import PageHeader from '../../components/shared/PageHeader';
+import MobileFilterSheet from '../../components/shared/MobileFilterSheet';
 import './AssetList.css';
 
 // Action Menu Component
@@ -206,17 +208,81 @@ const AssetList = () => {
 
   return (
     <div className="asset-list-container">
-      <div className="asset-list-header">
-        <h1>Asset List</h1>
-        <button className="btn btn-primary" onClick={() => navigate('/assets/add')}>
-          + Add Asset
-        </button>
-      </div>
+      <PageHeader
+        title="Asset List"
+        actions={
+          <button className="btn btn-primary w-100 w-md-auto" onClick={() => navigate('/assets/add')}>
+            + Add Asset
+          </button>
+        }
+      />
 
       {error && <div className="alert alert-danger">{error}</div>}
 
-      {/* Filters */}
-      <div className="asset-filters">
+      <MobileFilterSheet
+        title="Filters"
+        activeFilterCount={[search, category, status, employee].filter(Boolean).length}
+        onClear={handleReset}
+        showApply={false}
+      >
+        <input
+          type="text"
+          placeholder="Search by Asset ID or Name"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          className="form-control"
+        />
+        <select
+          value={category}
+          onChange={(e) => {
+            setCategory(e.target.value);
+            setPage(1);
+          }}
+          className="form-control"
+        >
+          <option value="">All Categories</option>
+          {categories.map((cat) => (
+            <option key={cat} value={cat}>
+              {cat.charAt(0).toUpperCase() + cat.slice(1)}
+            </option>
+          ))}
+        </select>
+        <select
+          value={status}
+          onChange={(e) => {
+            setStatus(e.target.value);
+            setPage(1);
+          }}
+          className="form-control"
+        >
+          <option value="">All Statuses</option>
+          {statuses.map((st) => (
+            <option key={st} value={st}>
+              {st.charAt(0).toUpperCase() + st.slice(1).replace('_', ' ')}
+            </option>
+          ))}
+        </select>
+        <select
+          value={employee}
+          onChange={(e) => {
+            setEmployee(e.target.value);
+            setPage(1);
+          }}
+          className="form-control"
+        >
+          <option value="">All Employees</option>
+          {employees.map((emp) => (
+            <option key={emp._id} value={emp._id}>
+              {emp.name}
+            </option>
+          ))}
+        </select>
+      </MobileFilterSheet>
+
+      <div className="asset-filters d-none d-lg-flex">
         <div className="filter-group">
           <input
             type="text"
@@ -296,14 +362,14 @@ const AssetList = () => {
         ) : assets.length === 0 ? (
           <div className="no-data">No assets found</div>
         ) : (
-          <table className="asset-table">
+          <table className="asset-table table-responsive">
             <thead>
               <tr>
                 <th>Asset ID</th>
                 <th>Category</th>
                 <th>Status</th>
-                <th>Assigned To</th>
-                <th>Warranty End</th>
+                <th className="hide-mobile">Assigned To</th>
+                <th className="hide-mobile">Warranty End</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -315,8 +381,8 @@ const AssetList = () => {
                   <td className="asset-status">
                     <AssetStatusBadge status={asset.status} />
                   </td>
-                  <td className="asset-assigned">{asset.currentAssignment?.employee?.name || '-'}</td>
-                  <td className="asset-date">
+                  <td className="asset-assigned hide-mobile">{asset.currentAssignment?.employee?.name || '-'}</td>
+                  <td className="asset-date hide-mobile">
                     {asset.warrantyEndDate ? new Date(asset.warrantyEndDate).toLocaleDateString() : '-'}
                   </td>
                   <td className="actions" onClick={(e) => e.stopPropagation()}>

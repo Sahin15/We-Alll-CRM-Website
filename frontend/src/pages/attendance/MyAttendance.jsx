@@ -29,11 +29,11 @@ import ConfirmModal from "../../components/common/ConfirmModal";
 import WorkLogSubmissionModal from "../../components/worklog/WorkLogSubmissionModal";
 import MyOvertimeHistory from "../../components/attendance/MyOvertimeHistory";
 import AttendanceCalendar from "../../components/attendance/AttendanceCalendar";
+import PageHeader from "../../components/shared/PageHeader";
+import MobileTabBar from "../../components/shared/MobileTabBar";
+import MobileFilterSheet from "../../components/shared/MobileFilterSheet";
 import { workLogApi } from "../../api/workLogApi";
 import * as XLSX from "xlsx";
-import "../../styles/table-mobile.css";
-import "../../styles/modal-mobile.css";
-
 const MyAttendance = () => {
   const { user } = useAuth();
   const [attendances, setAttendances] = useState([]);
@@ -48,6 +48,7 @@ const MyAttendance = () => {
   });
   const [stats, setStats] = useState(null);
   const [calendarView, setCalendarView] = useState([]);
+  const [activeViewTab, setActiveViewTab] = useState("table");
   
   // Break details modal state
   const [showBreakDetailsModal, setShowBreakDetailsModal] = useState(false);
@@ -587,14 +588,20 @@ const MyAttendance = () => {
 
   const status = getCurrentStatus();
 
+  const viewTabs = [
+    { key: "table", label: "Table View" },
+    { key: "calendar", label: "Calendar" },
+    { key: "overtime", label: "Overtime" },
+  ];
+
+  const activeFilterCount = [dateRange.startDate, dateRange.endDate].filter(Boolean).length;
+
   return (
     <Container fluid>
-      <Row className="mb-4">
-        <Col>
-          <h2>My Attendance</h2>
-          <p className="text-muted">Track your daily attendance and work hours</p>
-        </Col>
-      </Row>
+      <PageHeader
+        title="My Attendance"
+        subtitle="Track your daily attendance and work hours"
+      />
 
       {/* Today's Status Card */}
       <Row className="mb-4">
@@ -817,44 +824,50 @@ const MyAttendance = () => {
         </Col>
       </Row>
 
-      {/* Filters */}
-      <Row className="mb-3 filter-controls">
-        <Col xs={12} sm={6} md={3} className="mb-2 mb-md-0">
-          <Form.Group>
-            <Form.Label>Start Date</Form.Label>
-            <Form.Control
-              type="date"
-              name="startDate"
-              value={dateRange.startDate}
-              onChange={handleDateChange}
-            />
-          </Form.Group>
-        </Col>
-        <Col xs={12} sm={6} md={3} className="mb-2 mb-md-0">
-          <Form.Group>
-            <Form.Label>End Date</Form.Label>
-            <Form.Control
-              type="date"
-              name="endDate"
-              value={dateRange.endDate}
-              onChange={handleDateChange}
-            />
-          </Form.Group>
-        </Col>
-        <Col xs={12} md={3} className="d-flex align-items-end gap-2">
-          <Button variant="outline-success" onClick={handleExport} className="flex-fill w-mobile-100">
-            <FaDownload className="me-2" />
-            Excel
-          </Button>
-          <Button variant="outline-danger" onClick={handleExportPDF} className="flex-fill w-mobile-100">
-            <FaDownload className="me-2" />
-            PDF
-          </Button>
-        </Col>
-      </Row>
+      <MobileFilterSheet
+        title="Date range"
+        activeFilterCount={activeFilterCount}
+        showApply={false}
+      >
+        <Form.Group>
+          <Form.Label>Start Date</Form.Label>
+          <Form.Control
+            type="date"
+            name="startDate"
+            value={dateRange.startDate}
+            onChange={handleDateChange}
+          />
+        </Form.Group>
+        <Form.Group>
+          <Form.Label>End Date</Form.Label>
+          <Form.Control
+            type="date"
+            name="endDate"
+            value={dateRange.endDate}
+            onChange={handleDateChange}
+          />
+        </Form.Group>
+      </MobileFilterSheet>
 
-      {/* Tabs: Table View and Calendar View */}
-      <Tabs defaultActiveKey="table" className="mb-3">
+      <div className="d-flex flex-column flex-md-row gap-2 mb-3 filter-controls">
+        <Button variant="outline-success" onClick={handleExport} className="flex-fill">
+          <FaDownload className="me-2" />
+          Excel
+        </Button>
+        <Button variant="outline-danger" onClick={handleExportPDF} className="flex-fill">
+          <FaDownload className="me-2" />
+          PDF
+        </Button>
+      </div>
+
+      <div className="has-mobile-tab-bar">
+        <MobileTabBar
+          tabs={viewTabs}
+          activeKey={activeViewTab}
+          onSelect={setActiveViewTab}
+          desktopChildren={<span />}
+        />
+        <Tabs activeKey={activeViewTab} onSelect={setActiveViewTab} className="mb-3">
         <Tab eventKey="table" title="Table View">
           <Card>
             <Card.Body>
@@ -976,6 +989,7 @@ const MyAttendance = () => {
           <MyOvertimeHistory />
         </Tab>
       </Tabs>
+      </div>
 
       {/* Break Details Modal */}
       <Modal 

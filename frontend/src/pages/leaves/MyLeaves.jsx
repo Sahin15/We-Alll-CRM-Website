@@ -5,9 +5,7 @@ import {
   Col,
   Card,
   Button,
-  Table,
   Badge,
-  Modal,
   Form,
   Alert,
   ProgressBar,
@@ -19,6 +17,10 @@ import { formatDate, getStatusVariant } from "../../utils/helpers";
 import { LEAVE_TYPE_DETAILS } from "../../utils/constants";
 import ApplyWFHModal from "../../components/wfh/ApplyWFHModal";
 import { useAuth } from "../../context/AuthContext";
+import PageHeader from "../../components/shared/PageHeader";
+import ResponsiveDataTable from "../../components/shared/ResponsiveDataTable";
+import MobileModal from "../../components/shared/MobileModal";
+import FormFieldStack from "../../components/shared/FormFieldStack";
 import {
   canApplyPaidLeave,
   formatEmploymentType,
@@ -175,20 +177,104 @@ const MyLeaves = () => {
     }
   };
 
+  const leaveTypeBadge = (type) => (
+    <Badge
+      bg={
+        type === "personal"
+          ? "primary"
+          : type === "medical"
+          ? "danger"
+          : type === "vacation"
+          ? "success"
+          : type === "half_day"
+          ? "warning"
+          : "secondary"
+      }
+      className="text-capitalize"
+    >
+      {LEAVE_TYPE_DETAILS[type]?.name || type}
+    </Badge>
+  );
+
+  const leaveColumns = [
+    {
+      key: "leaveType",
+      label: "Leave Type",
+      mobilePriority: 1,
+      render: (_, row) => leaveTypeBadge(row.leaveType),
+    },
+    {
+      key: "startDate",
+      label: "Start Date",
+      mobilePriority: 2,
+      render: (_, row) => formatDate(row.startDate),
+    },
+    {
+      key: "endDate",
+      label: "End Date",
+      mobilePriority: 3,
+      render: (_, row) => formatDate(row.endDate),
+    },
+    {
+      key: "numberOfDays",
+      label: "Days",
+      mobilePriority: 4,
+    },
+    {
+      key: "reason",
+      label: "Reason",
+      hideOnMobile: true,
+    },
+    {
+      key: "status",
+      label: "Status",
+      mobilePriority: 5,
+      render: (_, row) => (
+        <Badge bg={getStatusVariant(row.status)}>{row.status}</Badge>
+      ),
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      sortable: false,
+      render: (_, row) => (
+        <div className="d-flex gap-1">
+          <Button
+            size="sm"
+            variant="outline-primary"
+            className="touch-target"
+            onClick={() => setViewLeave(row)}
+            title="View details"
+          >
+            <FaEye />
+          </Button>
+          {row.status === "pending" && (
+            <Button
+              size="sm"
+              variant="outline-danger"
+              className="touch-target"
+              onClick={() => handleCancel(row._id)}
+            >
+              <FaTimes /> Cancel
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <Container fluid>
-      <Row className="mb-4">
-        <Col>
-          <h2>My Leave Requests</h2>
-          <p className="text-muted mb-0">Manage your leave applications - Earned leave system (24 days annual allowance)</p>
-        </Col>
-        <Col className="text-end">
-          <Button variant="primary" onClick={() => setShowModal(true)}>
+      <PageHeader
+        title="My Leave Requests"
+        subtitle="Manage your leave applications - Earned leave system (24 days annual allowance)"
+        actions={
+          <Button variant="primary" className="touch-target" onClick={() => setShowModal(true)}>
             <FaPlus className="me-2" />
             Request Leave
           </Button>
-        </Col>
-      </Row>
+        }
+      />
 
       {!paidLeaveEligible && (
         <Alert variant="info" className="mb-4">
@@ -247,81 +333,14 @@ const MyLeaves = () => {
         <Col>
           <Card>
             <Card.Body>
-              {loading ? (
-                <div className="text-center py-5">
-                  <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
-                </div>
-              ) : (
-                <Table responsive hover>
-                  <thead>
-                    <tr>
-                      <th>Leave Type</th>
-                      <th>Start Date</th>
-                      <th>End Date</th>
-                      <th>Days</th>
-                      <th>Reason</th>
-                      <th>Status</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {leaves.length > 0 ? (
-                      leaves.map((leave) => (
-                        <tr key={leave._id}>
-                          <td>
-                            <Badge bg={
-                              leave.leaveType === 'personal' ? 'primary' :
-                              leave.leaveType === 'medical' ? 'danger' :
-                              leave.leaveType === 'vacation' ? 'success' :
-                              leave.leaveType === 'half_day' ? 'warning' : 'secondary'
-                            } className="text-capitalize">
-                              {LEAVE_TYPE_DETAILS[leave.leaveType]?.name || leave.leaveType}
-                            </Badge>
-                          </td>
-                          <td>{formatDate(leave.startDate)}</td>
-                          <td>{formatDate(leave.endDate)}</td>
-                          <td>{leave.numberOfDays}</td>
-                          <td>{leave.reason}</td>
-                          <td>
-                            <Badge bg={getStatusVariant(leave.status)}>
-                              {leave.status}
-                            </Badge>
-                          </td>
-                          <td>
-                            <div className="d-flex gap-1">
-                              <Button
-                                size="sm"
-                                variant="outline-primary"
-                                onClick={() => setViewLeave(leave)}
-                                title="View details"
-                              >
-                                <FaEye />
-                              </Button>
-                              {leave.status === "pending" && (
-                                <Button
-                                  size="sm"
-                                  variant="outline-danger"
-                                  onClick={() => handleCancel(leave._id)}
-                                >
-                                  <FaTimes /> Cancel
-                                </Button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="7" className="text-center py-4">
-                          No leave requests found
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </Table>
-              )}
+              <ResponsiveDataTable
+                columns={leaveColumns}
+                data={leaves}
+                loading={loading}
+                emptyMessage="No leave requests found"
+                paginated={false}
+                keyField="_id"
+              />
             </Card.Body>
             <Card.Footer className="bg-light border-top-0">
               <div className="text-center py-2">
@@ -345,133 +364,141 @@ const MyLeaves = () => {
         </Col>
       </Row>
 
-      {/* Add Leave Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Request Leave</Modal.Title>
-        </Modal.Header>
-        <Form onSubmit={handleSubmit}>
-          <Modal.Body>
-            <Form.Group className="mb-3">
-              <Form.Label>Leave Type *</Form.Label>
-              <Form.Select
-                value={formData.leaveType}
-                onChange={(e) =>
-                  setFormData({ ...formData, leaveType: e.target.value })
-                }
-                required
-              >
-                {Object.entries(LEAVE_TYPE_DETAILS)
-                  .filter(([type]) => allowedLeaveTypes.includes(type))
-                  .map(([type, details]) => (
+      <MobileModal
+        show={showModal}
+        onHide={() => setShowModal(false)}
+        title="Request Leave"
+        footer={
+          <>
+            <Button variant="secondary" className="touch-target" onClick={() => setShowModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              className="touch-target"
+              type="submit"
+              form="leave-request-form"
+              disabled={
+                isSubmitting ||
+                !validateAdvanceNotice(formData.leaveType, formData.startDate).valid ||
+                (paidLeaveEligible &&
+                  formData.leaveType !== "unpaid" &&
+                  calculateDays(formData.startDate, formData.endDate) >
+                    (leaveBalance?.earned?.remaining || 0))
+              }
+            >
+              {isSubmitting ? "Submitting..." : "Submit Request"}
+            </Button>
+          </>
+        }
+      >
+        <Form id="leave-request-form" onSubmit={handleSubmit}>
+          <Form.Group className="mb-3">
+            <Form.Label>Leave Type *</Form.Label>
+            <Form.Select
+              value={formData.leaveType}
+              onChange={(e) =>
+                setFormData({ ...formData, leaveType: e.target.value })
+              }
+              required
+            >
+              {Object.entries(LEAVE_TYPE_DETAILS)
+                .filter(([type]) => allowedLeaveTypes.includes(type))
+                .map(([type, details]) => (
                   <option key={type} value={type}>
-                    {details.name} ({type === 'unpaid' ? 'No limit' : `${leaveBalance?.earned?.remaining || 0} days available`})
+                    {details.name} (
+                    {type === "unpaid"
+                      ? "No limit"
+                      : `${leaveBalance?.earned?.remaining || 0} days available`}
+                    )
                   </option>
                 ))}
-              </Form.Select>
-              <Form.Text className="text-muted">
-                {LEAVE_TYPE_DETAILS[formData.leaveType]?.description}
-                <br />
-                <strong>Advance Notice Required:</strong> {
-                  LEAVE_TYPE_DETAILS[formData.leaveType]?.advanceNotice === 0 
-                    ? 'Same day application allowed' 
-                    : `${LEAVE_TYPE_DETAILS[formData.leaveType]?.advanceNotice} days`
+            </Form.Select>
+            <Form.Text className="text-muted">
+              {LEAVE_TYPE_DETAILS[formData.leaveType]?.description}
+              <br />
+              <strong>Advance Notice Required:</strong>{" "}
+              {LEAVE_TYPE_DETAILS[formData.leaveType]?.advanceNotice === 0
+                ? "Same day application allowed"
+                : `${LEAVE_TYPE_DETAILS[formData.leaveType]?.advanceNotice} days`}
+            </Form.Text>
+          </Form.Group>
+
+          <FormFieldStack md={6}>
+            <Form.Group>
+              <Form.Label>Start Date *</Form.Label>
+              <Form.Control
+                type="date"
+                value={formData.startDate}
+                onChange={(e) =>
+                  setFormData({ ...formData, startDate: e.target.value })
                 }
-              </Form.Text>
+                required
+              />
             </Form.Group>
+            <Form.Group>
+              <Form.Label>End Date *</Form.Label>
+              <Form.Control
+                type="date"
+                value={formData.endDate}
+                onChange={(e) =>
+                  setFormData({ ...formData, endDate: e.target.value })
+                }
+                required
+              />
+            </Form.Group>
+          </FormFieldStack>
 
-            <Row>
-              <Col xs={12} md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Start Date *</Form.Label>
-                  <Form.Control
-                    type="date"
-                    value={formData.startDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, startDate: e.target.value })
-                    }
-                    required
-                  />
-                </Form.Group>
-              </Col>
-              <Col xs={12} md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>End Date *</Form.Label>
-                  <Form.Control
-                    type="date"
-                    value={formData.endDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, endDate: e.target.value })
-                    }
-                    required
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
+          {formData.startDate && formData.endDate && (
+            <Alert variant="info" className="mb-3">
+              <FaInfoCircle className="me-2" />
+              <strong>Leave Duration:</strong>{" "}
+              {calculateDays(formData.startDate, formData.endDate)} day(s)
+              <br />
+              {formData.leaveType === "unpaid" ? (
+                <span>
+                  <strong>Type:</strong> Unpaid Leave (no limit)
+                </span>
+              ) : (
+                <>
+                  <strong>Available Balance:</strong>{" "}
+                  {leaveBalance?.earned?.remaining || 0} day(s) (earned leaves)
+                  {calculateDays(formData.startDate, formData.endDate) >
+                    (leaveBalance?.earned?.remaining || 0) && (
+                    <div className="text-danger mt-1">
+                      <FaExclamationTriangle className="me-1" />
+                      Insufficient earned leave balance! You have earned{" "}
+                      {leaveBalance?.earned?.earned || 0} out of 24 annual leaves.
+                    </div>
+                  )}
+                </>
+              )}
+            </Alert>
+          )}
 
-            {/* Validation Alerts */}
-            {formData.startDate && formData.endDate && (
-              <Alert variant="info" className="mb-3">
-                <FaInfoCircle className="me-2" />
-                <strong>Leave Duration:</strong> {calculateDays(formData.startDate, formData.endDate)} day(s)
-                <br />
-                {formData.leaveType === 'unpaid' ? (
-                  <span>
-                    <strong>Type:</strong> Unpaid Leave (no limit)
-                  </span>
-                ) : (
-                  <>
-                    <strong>Available Balance:</strong> {leaveBalance?.earned?.remaining || 0} day(s) (earned leaves)
-                    {calculateDays(formData.startDate, formData.endDate) > (leaveBalance?.earned?.remaining || 0) && (
-                      <div className="text-danger mt-1">
-                        <FaExclamationTriangle className="me-1" />
-                        Insufficient earned leave balance! You have earned {leaveBalance?.earned?.earned || 0} out of 24 annual leaves.
-                      </div>
-                    )}
-                  </>
-                )}
-              </Alert>
-            )}
-
-            {formData.startDate && !validateAdvanceNotice(formData.leaveType, formData.startDate).valid && (
+          {formData.startDate &&
+            !validateAdvanceNotice(formData.leaveType, formData.startDate).valid && (
               <Alert variant="warning" className="mb-3">
                 <FaExclamationTriangle className="me-2" />
                 {validateAdvanceNotice(formData.leaveType, formData.startDate).message}
               </Alert>
             )}
 
-            <Form.Group className="mb-3">
-              <Form.Label>Reason *</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                value={formData.reason}
-                onChange={(e) =>
-                  setFormData({ ...formData, reason: e.target.value })
-                }
-                placeholder="Please provide a reason for your leave..."
-                required
-              />
-            </Form.Group>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowModal(false)}>
-              Cancel
-            </Button>
-            <Button 
-              variant="primary" 
-              type="submit"
-              disabled={
-                isSubmitting ||
-                !validateAdvanceNotice(formData.leaveType, formData.startDate).valid || 
-                (paidLeaveEligible && formData.leaveType !== 'unpaid' && calculateDays(formData.startDate, formData.endDate) > (leaveBalance?.earned?.remaining || 0))
+          <Form.Group className="mb-3">
+            <Form.Label>Reason *</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              value={formData.reason}
+              onChange={(e) =>
+                setFormData({ ...formData, reason: e.target.value })
               }
-            >
-              {isSubmitting ? 'Submitting...' : 'Submit Request'}
-            </Button>
-          </Modal.Footer>
+              placeholder="Please provide a reason for your leave..."
+              required
+            />
+          </Form.Group>
         </Form>
-      </Modal>
+      </MobileModal>
 
       {/* Apply for WFH Modal */}
       <ApplyWFHModal
@@ -482,83 +509,77 @@ const MyLeaves = () => {
         }}
       />
 
-      {/* Leave Detail View Modal */}
-      <Modal show={!!viewLeave} onHide={() => setViewLeave(null)} centered size="md">
-        <Modal.Header closeButton style={{
-          background: viewLeave?.status === 'approved' ? 'linear-gradient(135deg,#10B981,#059669)' :
-                      viewLeave?.status === 'rejected' ? 'linear-gradient(135deg,#EF4444,#DC2626)' :
-                      viewLeave?.status === 'pending'  ? 'linear-gradient(135deg,#F59E0B,#D97706)' :
-                      'linear-gradient(135deg,#6B7280,#4B5563)',
-          color: '#fff', borderBottom: 'none',
-        }}>
-          <Modal.Title style={{ fontWeight: 700, fontSize: '1rem' }}>
-            Leave Request Details
-          </Modal.Title>
-        </Modal.Header>
-
+      <MobileModal
+        show={!!viewLeave}
+        onHide={() => setViewLeave(null)}
+        title="Leave Request Details"
+        footer={
+          <Button variant="secondary" className="touch-target" onClick={() => setViewLeave(null)}>
+            Close
+          </Button>
+        }
+      >
         {viewLeave && (
-          <Modal.Body style={{ padding: '20px 24px' }}>
-            {/* Status banner */}
-            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              <Badge bg={getStatusVariant(viewLeave.status)} style={{ fontSize: '0.85rem', padding: '6px 16px', textTransform: 'capitalize' }}>
+          <>
+            <div className="text-center mb-3">
+              <Badge
+                bg={getStatusVariant(viewLeave.status)}
+                className="text-capitalize"
+              >
                 {viewLeave.status}
               </Badge>
             </div>
 
-            {/* Info grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+            <div className="row g-2 mb-3">
               {[
-                { label: 'Leave Type', value: LEAVE_TYPE_DETAILS[viewLeave.leaveType]?.name || viewLeave.leaveType },
-                { label: 'Duration', value: `${viewLeave.numberOfDays} day(s)` },
-                { label: 'Start Date', value: formatDate(viewLeave.startDate) },
-                { label: 'End Date', value: formatDate(viewLeave.endDate) },
-              ].map(item => (
-                <div key={item.label} style={{ background: '#F9FAFB', borderRadius: '10px', padding: '12px 14px', border: '1px solid #E5E7EB' }}>
-                  <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>{item.label}</div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#111827' }}>{item.value}</div>
+                {
+                  label: "Leave Type",
+                  value:
+                    LEAVE_TYPE_DETAILS[viewLeave.leaveType]?.name ||
+                    viewLeave.leaveType,
+                },
+                { label: "Duration", value: `${viewLeave.numberOfDays} day(s)` },
+                { label: "Start Date", value: formatDate(viewLeave.startDate) },
+                { label: "End Date", value: formatDate(viewLeave.endDate) },
+              ].map((item) => (
+                <div key={item.label} className="col-6">
+                  <div className="bg-light rounded p-2 border">
+                    <div className="small text-muted text-uppercase">{item.label}</div>
+                    <div className="fw-semibold">{item.value}</div>
+                  </div>
                 </div>
               ))}
             </div>
 
-            {/* Reason */}
-            <div style={{ background: '#F9FAFB', borderRadius: '10px', padding: '12px 14px', border: '1px solid #E5E7EB', marginBottom: '12px' }}>
-              <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Your Reason</div>
-              <div style={{ fontSize: '0.88rem', color: '#374151', lineHeight: 1.5 }}>{viewLeave.reason}</div>
+            <div className="bg-light rounded p-2 border mb-3">
+              <div className="small text-muted text-uppercase">Your Reason</div>
+              <div>{viewLeave.reason}</div>
             </div>
 
-            {/* Approval note (stored in rejectionReason for approved leaves) */}
-            {viewLeave.status === 'approved' && viewLeave.rejectionReason && (
-              <div style={{ background: '#ECFDF5', borderRadius: '10px', padding: '12px 14px', border: '1px solid #A7F3D0', marginBottom: '12px' }}>
-                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>✅ Approval Note</div>
-                <div style={{ fontSize: '0.88rem', color: '#065F46', lineHeight: 1.5 }}>{viewLeave.rejectionReason}</div>
-              </div>
+            {viewLeave.status === "approved" && viewLeave.rejectionReason && (
+              <Alert variant="success">
+                <strong>Approval Note:</strong> {viewLeave.rejectionReason}
+              </Alert>
             )}
 
-            {/* Rejection reason */}
-            {viewLeave.status === 'rejected' && viewLeave.rejectionReason && (
-              <div style={{ background: '#FEF2F2', borderRadius: '10px', padding: '12px 14px', border: '1px solid #FECACA', marginBottom: '12px' }}>
-                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#DC2626', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>❌ Rejection Reason</div>
-                <div style={{ fontSize: '0.88rem', color: '#991B1B', lineHeight: 1.5 }}>{viewLeave.rejectionReason}</div>
-              </div>
+            {viewLeave.status === "rejected" && viewLeave.rejectionReason && (
+              <Alert variant="danger">
+                <strong>Rejection Reason:</strong> {viewLeave.rejectionReason}
+              </Alert>
             )}
 
-            {/* Approved by */}
-            {viewLeave.status !== 'pending' && (viewLeave.approvedBy || viewLeave.approvedDate) && (
-              <div style={{ fontSize: '0.78rem', color: '#9CA3AF', textAlign: 'center', marginTop: '8px' }}>
-                {viewLeave.status === 'approved' ? 'Approved' : 'Reviewed'} by{' '}
-                <strong style={{ color: '#6B7280' }}>
-                  {viewLeave.approvedBy?.name || 'HR'}
-                </strong>
-                {viewLeave.approvedDate && ` on ${formatDate(viewLeave.approvedDate)}`}
-              </div>
-            )}
-          </Modal.Body>
+            {viewLeave.status !== "pending" &&
+              (viewLeave.approvedBy || viewLeave.approvedDate) && (
+                <p className="text-muted small text-center mb-0">
+                  {viewLeave.status === "approved" ? "Approved" : "Reviewed"} by{" "}
+                  <strong>{viewLeave.approvedBy?.name || "HR"}</strong>
+                  {viewLeave.approvedDate &&
+                    ` on ${formatDate(viewLeave.approvedDate)}`}
+                </p>
+              )}
+          </>
         )}
-
-        <Modal.Footer style={{ borderTop: '1px solid #F3F4F6', padding: '12px 24px' }}>
-          <Button variant="secondary" onClick={() => setViewLeave(null)}>Close</Button>
-        </Modal.Footer>
-      </Modal>
+      </MobileModal>
     </Container>
   );
 };

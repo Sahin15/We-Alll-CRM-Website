@@ -273,9 +273,8 @@ const QuickStatsWidgets = () => {
 
   return (
     <>
-    <Row className="g-3 mb-4">
+    <div className="stat-grid mb-4">
       {/* Upcoming Birthdays */}
-      <Col lg={2} md={4} sm={6}>
         <Card 
           className="dashboard-card border-0 shadow-sm h-100" 
           style={{ cursor: stats.birthdays.length > 0 ? 'pointer' : 'default' }}
@@ -301,10 +300,8 @@ const QuickStatsWidgets = () => {
             )}
           </Card.Body>
         </Card>
-      </Col>
 
       {/* Work Anniversaries */}
-      <Col lg={2} md={4} sm={6}>
         <Card 
           className="dashboard-card border-0 shadow-sm h-100"
           style={{ cursor: stats.anniversaries.length > 0 ? 'pointer' : 'default' }}
@@ -327,10 +324,8 @@ const QuickStatsWidgets = () => {
             )}
           </Card.Body>
         </Card>
-      </Col>
 
       {/* Probation Ending */}
-      <Col lg={2} md={4} sm={6}>
         <Card 
           className="dashboard-card border-0 shadow-sm h-100"
           style={{ cursor: stats.probationEnding.length > 0 ? 'pointer' : 'default' }}
@@ -351,10 +346,8 @@ const QuickStatsWidgets = () => {
             )}
           </Card.Body>
         </Card>
-      </Col>
 
       {/* Contract Renewals */}
-      <Col lg={2} md={4} sm={6}>
         <Card 
           className="dashboard-card border-0 shadow-sm h-100"
           style={{ cursor: stats.contractRenewals.length > 0 ? 'pointer' : 'default' }}
@@ -375,10 +368,8 @@ const QuickStatsWidgets = () => {
             )}
           </Card.Body>
         </Card>
-      </Col>
 
       {/* Document Expiry */}
-      <Col lg={2} md={4} sm={6}>
         <Card 
           className="dashboard-card border-0 shadow-sm h-100"
           style={{ cursor: stats.documentExpiry.length > 0 ? 'pointer' : 'default' }}
@@ -399,8 +390,7 @@ const QuickStatsWidgets = () => {
             )}
           </Card.Body>
         </Card>
-      </Col>
-    </Row>
+    </div>
 
     {/* Details Modal - Modern Card Design */}
     <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered>

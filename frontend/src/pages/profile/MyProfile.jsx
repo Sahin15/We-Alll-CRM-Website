@@ -13,8 +13,6 @@ import ProfilePictureUpload from "../../components/profile/ProfilePictureUpload"
 import NotificationSettings from "../../components/notifications/NotificationSettings";
 import api from "../../services/api";
 import toast from "../../utils/toast";
-import "../../styles/pages-mobile.css";
-import "../../styles/modal-mobile.css";
 import "../../styles/profile-tabs.css";
 
 const MyProfile = () => {

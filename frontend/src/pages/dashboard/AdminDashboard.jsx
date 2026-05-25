@@ -754,33 +754,25 @@ const AdminDashboard = () => {
 
       <AdminQuickStats stats={stats} onWidgetClick={handleWidgetClick} />
 
-      <Row className="g-4 mb-4">
-        <Col lg={3} md={6}>
-          <div onClick={handleUsersCardClick} className="cursor-pointer">
-            <StatCard title="Total Users" value={stats.users} icon={<FaUsers />} bgColor="primary" />
-          </div>
-        </Col>
-        <Col lg={3} md={6}>
-          <div onClick={handleProjectsCardClick} className="cursor-pointer">
-            <StatCard title="Active Projects" value={stats.activeProjects} icon={<FaProjectDiagram />} bgColor="success" />
-          </div>
-        </Col>
-        <Col lg={3} md={6}>
-          <div onClick={handleClientsCardClick} className="cursor-pointer">
-            <StatCard title="Total Clients" value={stats.clients} icon={<FaUserTie />} bgColor="info" />
-          </div>
-        </Col>
-        <Col lg={3} md={6}>
-          <div onClick={handleSystemHealthClick} className="cursor-pointer">
-            <StatCard 
-              title="System Health" 
-              value={`${stats.systemHealth}%`} 
-              icon={<FaServer />} 
-              bgColor={stats.systemHealth >= 90 ? 'success' : stats.systemHealth >= 70 ? 'warning' : 'danger'} 
-            />
-          </div>
-        </Col>
-      </Row>
+      <div className="stat-grid mb-4">
+        <div onClick={handleUsersCardClick} className="cursor-pointer">
+          <StatCard title="Total Users" value={stats.users} icon={<FaUsers />} bgColor="primary" />
+        </div>
+        <div onClick={handleProjectsCardClick} className="cursor-pointer">
+          <StatCard title="Active Projects" value={stats.activeProjects} icon={<FaProjectDiagram />} bgColor="success" />
+        </div>
+        <div onClick={handleClientsCardClick} className="cursor-pointer">
+          <StatCard title="Total Clients" value={stats.clients} icon={<FaUserTie />} bgColor="info" />
+        </div>
+        <div onClick={handleSystemHealthClick} className="cursor-pointer">
+          <StatCard 
+            title="System Health" 
+            value={`${stats.systemHealth}%`} 
+            icon={<FaServer />} 
+            bgColor={stats.systemHealth >= 90 ? 'success' : stats.systemHealth >= 70 ? 'warning' : 'danger'} 
+          />
+        </div>
+      </div>
 
       {/* Notification Management Section */}
       <Row className="g-4 mb-4">
@@ -807,12 +799,11 @@ const AdminDashboard = () => {
               </div>
             </Card.Header>
             <Card.Body>
-              <Row className="g-3">
-                <Col md={3}>
-                  <div 
-                    className="notification-stat-card cursor-pointer"
-                    onClick={() => navigate('/admin/notifications/dashboard')}
-                  >
+              <div className="stat-grid">
+                <div 
+                  className="notification-stat-card cursor-pointer"
+                  onClick={() => navigate('/admin/notifications/dashboard')}
+                >
                     <Card className="h-100 border-0 bg-primary bg-opacity-10">
                       <Card.Body className="text-center">
                         <div 
@@ -831,13 +822,11 @@ const AdminDashboard = () => {
                       </Card.Body>
                     </Card>
                   </div>
-                </Col>
                 
-                <Col md={3}>
-                  <div 
-                    className="notification-stat-card cursor-pointer"
-                    onClick={() => navigate('/admin/notifications/manage')}
-                  >
+                <div 
+                  className="notification-stat-card cursor-pointer"
+                  onClick={() => navigate('/admin/notifications/manage')}
+                >
                     <Card className="h-100 border-0 bg-warning bg-opacity-10">
                       <Card.Body className="text-center">
                         <div 
@@ -856,38 +845,34 @@ const AdminDashboard = () => {
                       </Card.Body>
                     </Card>
                   </div>
-                </Col>
                 
-                <Col md={3}>
-                  <div 
-                    className="notification-stat-card cursor-pointer"
-                    onClick={() => navigate('/admin/notifications/manage')}
-                  >
-                    <Card className="h-100 border-0 bg-success bg-opacity-10">
-                      <Card.Body className="text-center">
-                        <div 
-                          className="rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center"
-                          style={{ 
-                            width: '50px', 
-                            height: '50px', 
-                            backgroundColor: '#10B981' + '20',
-                            color: '#10B981'
-                          }}
-                        >
-                          <FaCalendarAlt size={20} />
-                        </div>
-                        <h4 className="mb-1 text-dark fw-bold">{notificationStats.todayCount}</h4>
-                        <small className="text-dark">Sent Today</small>
-                      </Card.Body>
-                    </Card>
-                  </div>
-                </Col>
+                <div 
+                  className="notification-stat-card cursor-pointer"
+                  onClick={() => navigate('/admin/notifications/manage')}
+                >
+                  <Card className="h-100 border-0 bg-success bg-opacity-10">
+                    <Card.Body className="text-center">
+                      <div 
+                        className="rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center"
+                        style={{ 
+                          width: '50px', 
+                          height: '50px', 
+                          backgroundColor: '#10B981' + '20',
+                          color: '#10B981'
+                        }}
+                      >
+                        <FaCalendarAlt size={20} />
+                      </div>
+                      <h4 className="mb-1 text-dark fw-bold">{notificationStats.todayCount}</h4>
+                      <small className="text-dark">Sent Today</small>
+                    </Card.Body>
+                  </Card>
+                </div>
                 
-                <Col md={3}>
-                  <div 
-                    className="notification-stat-card cursor-pointer"
-                    onClick={() => navigate('/admin/notifications/settings')}
-                  >
+                <div 
+                  className="notification-stat-card cursor-pointer"
+                  onClick={() => navigate('/admin/notifications/settings')}
+                >
                     <Card className="h-100 border-0 bg-info bg-opacity-10">
                       <Card.Body className="text-center">
                         <div 
@@ -906,8 +891,7 @@ const AdminDashboard = () => {
                       </Card.Body>
                     </Card>
                   </div>
-                </Col>
-              </Row>
+              </div>
               
               <div className="mt-3 pt-3 border-top">
                 <div className="d-flex gap-2 flex-wrap">
@@ -967,12 +951,11 @@ const AdminDashboard = () => {
               </div>
             </Card.Header>
             <Card.Body>
-              <Row className="g-3">
-                <Col md={3}>
-                  <div 
-                    className="work-management-card cursor-pointer"
-                    onClick={() => navigate('/work-calendar/enhanced-admin-overview')}
-                  >
+              <div className="stat-grid">
+                <div 
+                  className="work-management-card cursor-pointer"
+                  onClick={() => navigate('/work-calendar/enhanced-admin-overview')}
+                >
                     <Card className="h-100 border-0 bg-success bg-opacity-10">
                       <Card.Body className="text-center">
                         <div 
@@ -991,13 +974,11 @@ const AdminDashboard = () => {
                       </Card.Body>
                     </Card>
                   </div>
-                </Col>
                 
-                <Col md={3}>
-                  <div 
-                    className="work-management-card cursor-pointer"
-                    onClick={() => navigate('/work-calendar/enhanced-admin-overview')}
-                  >
+                <div 
+                  className="work-management-card cursor-pointer"
+                  onClick={() => navigate('/work-calendar/enhanced-admin-overview')}
+                >
                     <Card className="h-100 border-0 bg-primary bg-opacity-10">
                       <Card.Body className="text-center">
                         <div 
@@ -1016,13 +997,11 @@ const AdminDashboard = () => {
                       </Card.Body>
                     </Card>
                   </div>
-                </Col>
                 
-                <Col md={3}>
-                  <div 
-                    className="work-management-card cursor-pointer"
-                    onClick={() => navigate('/work-calendar/enhanced-admin-overview')}
-                  >
+                <div 
+                  className="work-management-card cursor-pointer"
+                  onClick={() => navigate('/work-calendar/enhanced-admin-overview')}
+                >
                     <Card className="h-100 border-0 bg-warning bg-opacity-10">
                       <Card.Body className="text-center">
                         <div 
@@ -1041,13 +1020,11 @@ const AdminDashboard = () => {
                       </Card.Body>
                     </Card>
                   </div>
-                </Col>
                 
-                <Col md={3}>
-                  <div 
-                    className="work-management-card cursor-pointer"
-                    onClick={() => navigate('/work-calendar/enhanced-admin-overview')}
-                  >
+                <div 
+                  className="work-management-card cursor-pointer"
+                  onClick={() => navigate('/work-calendar/enhanced-admin-overview')}
+                >
                     <Card className="h-100 border-0 bg-info bg-opacity-10">
                       <Card.Body className="text-center">
                         <div 
@@ -1066,8 +1043,7 @@ const AdminDashboard = () => {
                       </Card.Body>
                     </Card>
                   </div>
-                </Col>
-              </Row>
+              </div>
               
               <div className="mt-3 pt-3 border-top">
                 <div className="d-flex gap-2 flex-wrap">
@@ -1102,80 +1078,72 @@ const AdminDashboard = () => {
         </Col>
       </Row>
 
-      <Row className="g-4 mb-4">
-        <Col lg={3} md={6}>
-          <div onClick={handleDepartmentsCardClick} className="cursor-pointer">
-            <Card className="dashboard-card border-0 shadow-sm h-100">
-              <Card.Body>
-                <div className="d-flex justify-content-between align-items-start">
-                  <div>
-                    <h6 className="text-muted mb-2">Departments</h6>
-                    <h3 className="mb-1">{stats.departments}</h3>
-                    <small className="text-info">Active departments</small>
-                  </div>
-                  <div className="bg-info bg-opacity-10 p-3 rounded">
-                    <FaBuilding className="text-info fs-4" />
-                  </div>
+      <div className="stat-grid mb-4">
+        <div onClick={handleDepartmentsCardClick} className="cursor-pointer">
+          <Card className="dashboard-card border-0 shadow-sm h-100">
+            <Card.Body>
+              <div className="d-flex justify-content-between align-items-start">
+                <div>
+                  <h6 className="text-muted mb-2">Departments</h6>
+                  <h3 className="mb-1">{stats.departments}</h3>
+                  <small className="text-info">Active departments</small>
                 </div>
-              </Card.Body>
-            </Card>
-          </div>
-        </Col>
-        <Col lg={3} md={6}>
-          <div onClick={handleLeadsCardClick} className="cursor-pointer">
-            <Card className="dashboard-card border-0 shadow-sm h-100">
-              <Card.Body>
-                <div className="d-flex justify-content-between align-items-start">
-                  <div>
-                    <h6 className="text-muted mb-2">Leads</h6>
-                    <h3 className="mb-1">{stats.leads}</h3>
-                    <small className="text-primary">Potential clients</small>
-                  </div>
-                  <div className="bg-primary bg-opacity-10 p-3 rounded">
-                    <FaChartLine className="text-primary fs-4" />
-                  </div>
+                <div className="bg-info bg-opacity-10 p-3 rounded">
+                  <FaBuilding className="text-info fs-4" />
                 </div>
-              </Card.Body>
-            </Card>
-          </div>
-        </Col>
-        <Col lg={3} md={6}>
-          <div onClick={handleLateCardClick} className="cursor-pointer">
-            <Card className="dashboard-card border-0 shadow-sm h-100">
-              <Card.Body>
-                <div className="d-flex justify-content-between align-items-start">
-                  <div>
-                    <h6 className="text-muted mb-2">Late Today</h6>
-                    <h3 className="mb-1">{stats.lateToday}</h3>
-                    <small className="text-danger">Late arrivals</small>
-                  </div>
-                  <div className="bg-danger bg-opacity-10 p-3 rounded">
-                    <FaUserClock className="text-danger fs-4" />
-                  </div>
+              </div>
+            </Card.Body>
+          </Card>
+        </div>
+        <div onClick={handleLeadsCardClick} className="cursor-pointer">
+          <Card className="dashboard-card border-0 shadow-sm h-100">
+            <Card.Body>
+              <div className="d-flex justify-content-between align-items-start">
+                <div>
+                  <h6 className="text-muted mb-2">Leads</h6>
+                  <h3 className="mb-1">{stats.leads}</h3>
+                  <small className="text-primary">Potential clients</small>
                 </div>
-              </Card.Body>
-            </Card>
-          </div>
-        </Col>
-        <Col lg={3} md={6}>
-          <div onClick={handleOnLeaveCardClick} className="cursor-pointer">
-            <Card className="dashboard-card border-0 shadow-sm h-100">
-              <Card.Body>
-                <div className="d-flex justify-content-between align-items-start">
-                  <div>
-                    <h6 className="text-muted mb-2">On Leave</h6>
-                    <h3 className="mb-1">{stats.onLeaveToday}</h3>
-                    <small className="text-warning">Today</small>
-                  </div>
-                  <div className="bg-warning bg-opacity-10 p-3 rounded">
-                    <FaCalendarCheck className="text-warning fs-4" />
-                  </div>
+                <div className="bg-primary bg-opacity-10 p-3 rounded">
+                  <FaChartLine className="text-primary fs-4" />
                 </div>
-              </Card.Body>
-            </Card>
-          </div>
-        </Col>
-      </Row>
+              </div>
+            </Card.Body>
+          </Card>
+        </div>
+        <div onClick={handleLateCardClick} className="cursor-pointer">
+          <Card className="dashboard-card border-0 shadow-sm h-100">
+            <Card.Body>
+              <div className="d-flex justify-content-between align-items-start">
+                <div>
+                  <h6 className="text-muted mb-2">Late Today</h6>
+                  <h3 className="mb-1">{stats.lateToday}</h3>
+                  <small className="text-danger">Late arrivals</small>
+                </div>
+                <div className="bg-danger bg-opacity-10 p-3 rounded">
+                  <FaUserClock className="text-danger fs-4" />
+                </div>
+              </div>
+            </Card.Body>
+          </Card>
+        </div>
+        <div onClick={handleOnLeaveCardClick} className="cursor-pointer">
+          <Card className="dashboard-card border-0 shadow-sm h-100">
+            <Card.Body>
+              <div className="d-flex justify-content-between align-items-start">
+                <div>
+                  <h6 className="text-muted mb-2">On Leave</h6>
+                  <h3 className="mb-1">{stats.onLeaveToday}</h3>
+                  <small className="text-warning">Today</small>
+                </div>
+                <div className="bg-warning bg-opacity-10 p-3 rounded">
+                  <FaCalendarCheck className="text-warning fs-4" />
+                </div>
+              </div>
+            </Card.Body>
+          </Card>
+        </div>
+      </div>
 
       {/* Todo List Widget */}
       <Row className="mb-4">

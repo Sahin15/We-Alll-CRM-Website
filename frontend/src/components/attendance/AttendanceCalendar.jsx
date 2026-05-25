@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, Badge, Row, Col } from 'react-bootstrap';
 import { getStatusColor, formatHours } from '../../utils/helpers';
+import { useBreakpoint } from '../../context/BreakpointContext';
 import holidayApi from '../../api/holidayApi';
 import './AttendanceCalendar.css';
 
@@ -10,6 +11,7 @@ import './AttendanceCalendar.css';
  * Note: Holidays are flexible - employees can work on any day and take holiday on another day
  */
 const AttendanceCalendar = ({ attendances, selectedMonth, selectedYear, employeeName }) => {
+  const { isAppMobile } = useBreakpoint();
   const [calendarDays, setCalendarDays] = useState([]);
   const [holidays, setHolidays] = useState([]);
 
@@ -241,56 +243,42 @@ const AttendanceCalendar = ({ attendances, selectedMonth, selectedYear, employee
     <div className="attendance-calendar">
       <Card>
         <Card.Header className="bg-primary text-white">
-          <h5 className="mb-0">
+          <h5 className={`mb-0 ${isAppMobile ? "fs-6" : ""}`}>
             📅 Attendance Calendar - {employeeName || 'Employee'} ({monthName})
           </h5>
         </Card.Header>
         <Card.Body>
           {/* Statistics */}
-          <Row className="mb-4">
-            <Col xs={6} sm={4} md={2} className="mb-2">
-              <div className="text-center p-2 bg-success bg-opacity-10 rounded border border-success">
-                <h6 className="text-success mb-0">{stats.present}</h6>
-                <small className="text-success fw-semibold">Present</small>
-              </div>
-            </Col>
-            <Col xs={6} sm={4} md={2} className="mb-2">
-              <div className="text-center p-2 bg-warning bg-opacity-10 rounded border border-warning">
-                <h6 className="text-warning mb-0">{stats.late}</h6>
-                <small className="text-warning fw-semibold">Late</small>
-              </div>
-            </Col>
-            <Col xs={6} sm={4} md={2} className="mb-2">
-              <div className="text-center p-2 bg-info bg-opacity-10 rounded border border-info">
-                <h6 className="text-info mb-0">{stats.halfDay}</h6>
-                <small className="text-info fw-semibold">Half Day</small>
-              </div>
-            </Col>
-            <Col xs={6} sm={4} md={2} className="mb-2">
-              <div className="text-center p-2 bg-danger bg-opacity-10 rounded border border-danger">
-                <h6 className="text-danger mb-0">{stats.absent}</h6>
-                <small className="text-danger fw-semibold">Absent</small>
-              </div>
-            </Col>
-            <Col xs={6} sm={4} md={2} className="mb-2">
-              <div className="text-center p-2 bg-secondary bg-opacity-10 rounded border border-secondary">
-                <h6 className="text-secondary mb-0">{stats.onLeave}</h6>
-                <small className="text-secondary fw-semibold">On Leave</small>
-              </div>
-            </Col>
-            <Col xs={6} sm={4} md={2} className="mb-2">
-              <div className="text-center p-2 bg-purple bg-opacity-10 rounded border border-purple" style={{ borderColor: '#6f42c1' }}>
-                <h6 className="mb-0" style={{ color: '#6f42c1' }}>{stats.holiday}</h6>
-                <small className="fw-semibold" style={{ color: '#6f42c1' }}>Holiday</small>
-              </div>
-            </Col>
-            <Col xs={6} sm={4} md={2} className="mb-2">
-              <div className="text-center p-2 bg-light border border-secondary rounded">
-                <h6 className="text-muted mb-0">{stats.noData}</h6>
-                <small className="text-muted fw-semibold">No Data</small>
-              </div>
-            </Col>
-          </Row>
+          <div className="stat-grid mb-4">
+            <div className="text-center p-2 bg-success bg-opacity-10 rounded border border-success">
+              <h6 className="text-success mb-0">{stats.present}</h6>
+              <small className="text-success fw-semibold">Present</small>
+            </div>
+            <div className="text-center p-2 bg-warning bg-opacity-10 rounded border border-warning">
+              <h6 className="text-warning mb-0">{stats.late}</h6>
+              <small className="text-warning fw-semibold">Late</small>
+            </div>
+            <div className="text-center p-2 bg-info bg-opacity-10 rounded border border-info">
+              <h6 className="text-info mb-0">{stats.halfDay}</h6>
+              <small className="text-info fw-semibold">Half Day</small>
+            </div>
+            <div className="text-center p-2 bg-danger bg-opacity-10 rounded border border-danger">
+              <h6 className="text-danger mb-0">{stats.absent}</h6>
+              <small className="text-danger fw-semibold">Absent</small>
+            </div>
+            <div className="text-center p-2 bg-secondary bg-opacity-10 rounded border border-secondary">
+              <h6 className="text-secondary mb-0">{stats.onLeave}</h6>
+              <small className="text-secondary fw-semibold">On Leave</small>
+            </div>
+            <div className="text-center p-2 bg-purple bg-opacity-10 rounded border border-purple" style={{ borderColor: '#6f42c1' }}>
+              <h6 className="mb-0" style={{ color: '#6f42c1' }}>{stats.holiday}</h6>
+              <small className="fw-semibold" style={{ color: '#6f42c1' }}>Holiday</small>
+            </div>
+            <div className="text-center p-2 bg-light border border-secondary rounded">
+              <h6 className="text-muted mb-0">{stats.noData}</h6>
+              <small className="text-muted fw-semibold">No Data</small>
+            </div>
+          </div>
 
           {/* Expected vs Achieved Average */}
           <div className="mb-4 p-3 bg-primary bg-opacity-10 rounded border border-primary">

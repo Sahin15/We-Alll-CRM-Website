@@ -5,9 +5,12 @@ import { useAuth } from '../../context/AuthContext';
 import { departmentApi } from '../../api/departmentApi';
 import { projectApi } from '../../api/projectApi';
 import toast from '../../utils/toast';
+import PageHeader from '../../components/shared/PageHeader';
+import { useBreakpoint } from '../../context/BreakpointContext';
 
 const HoDDashboard = () => {
   const { user } = useAuth();
+  const { isAppMobile } = useBreakpoint();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [projects, setProjects] = useState([]);
@@ -287,25 +290,19 @@ const HoDDashboard = () => {
   }
 
   return (
-    <Container fluid className="py-4">
-      {/* Header */}
-      <Row className="mb-4">
-        <Col>
-          <h2 className="mb-1">
-            <FaUserTie className="me-2 text-primary" />
-            {department?.name || 'Department'} Department
-          </h2>
-          <p className="text-muted mb-0">Head of Department Dashboard</p>
-        </Col>
-      </Row>
+    <Container fluid className="py-2 dashboard-container">
+      <PageHeader
+        title={`${department?.name || 'Department'} Department`}
+        subtitle="Head of Department Dashboard"
+      />
 
       {/* Attendance Card - HoD is also an employee */}
       <Row className="mb-4">
         <Col>
           <Card className="border-primary">
             <Card.Body>
-              <Row className="align-items-center">
-                <Col md={8}>
+              <Row className={`align-items-center ${isAppMobile ? "g-3" : ""}`}>
+                <Col xs={12} md={8}>
                   <h5 className="mb-2">
                     <FaClock className="me-2 text-primary" />
                     Today's Attendance
@@ -341,14 +338,14 @@ const HoDDashboard = () => {
                     <p className="text-muted mb-0">You haven't clocked in today</p>
                   )}
                 </Col>
-                <Col md={4} className="text-end">
+                <Col xs={12} md={4} className={isAppMobile ? "" : "text-end"}>
                   {!clockedIn ? (
-                    <Button variant="success" size="lg" onClick={handleClockIn}>
+                    <Button variant="success" size="lg" className={isAppMobile ? "w-100" : ""} onClick={handleClockIn}>
                       <FaClock className="me-2" />
                       Clock In
                     </Button>
                   ) : (
-                    <Button variant="danger" size="lg" onClick={handleClockOut}>
+                    <Button variant="danger" size="lg" className={isAppMobile ? "w-100" : ""} onClick={handleClockOut}>
                       <FaClock className="me-2" />
                       Clock Out
                     </Button>
@@ -361,45 +358,37 @@ const HoDDashboard = () => {
       </Row>
 
       {/* Stats Cards */}
-      <Row className="g-4 mb-4">
-        <Col md={3}>
-          <Card className="stat-card">
-            <Card.Body className="text-center">
-              <FaUsers className="text-primary mb-2" size={32} />
-              <h3 className="mb-1">{stats?.totalMembers || 0}</h3>
-              <p className="text-muted mb-0">Team Members</p>
-              <small className="text-success">{stats?.activeMembers || 0} Active</small>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="stat-card">
-            <Card.Body className="text-center">
-              <FaProjectDiagram className="text-info mb-2" size={32} />
-              <h3 className="mb-1">{stats?.totalProjects || 0}</h3>
-              <p className="text-muted mb-0">Total Projects</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="stat-card">
-            <Card.Body className="text-center">
-              <FaClock className="text-warning mb-2" size={32} />
-              <h3 className="mb-1">{stats?.activeProjects || 0}</h3>
-              <p className="text-muted mb-0">Active Projects</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="stat-card">
-            <Card.Body className="text-center">
-              <FaCheckCircle className="text-success mb-2" size={32} />
-              <h3 className="mb-1">{stats?.completedProjects || 0}</h3>
-              <p className="text-muted mb-0">Completed</p>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+      <div className="stat-grid mb-4">
+        <Card className="stat-card h-100">
+          <Card.Body className="text-center">
+            <FaUsers className="text-primary mb-2" size={32} />
+            <h3 className="mb-1">{stats?.totalMembers || 0}</h3>
+            <p className="text-muted mb-0">Team Members</p>
+            <small className="text-success">{stats?.activeMembers || 0} Active</small>
+          </Card.Body>
+        </Card>
+        <Card className="stat-card h-100">
+          <Card.Body className="text-center">
+            <FaProjectDiagram className="text-info mb-2" size={32} />
+            <h3 className="mb-1">{stats?.totalProjects || 0}</h3>
+            <p className="text-muted mb-0">Total Projects</p>
+          </Card.Body>
+        </Card>
+        <Card className="stat-card h-100">
+          <Card.Body className="text-center">
+            <FaClock className="text-warning mb-2" size={32} />
+            <h3 className="mb-1">{stats?.activeProjects || 0}</h3>
+            <p className="text-muted mb-0">Active Projects</p>
+          </Card.Body>
+        </Card>
+        <Card className="stat-card h-100">
+          <Card.Body className="text-center">
+            <FaCheckCircle className="text-success mb-2" size={32} />
+            <h3 className="mb-1">{stats?.completedProjects || 0}</h3>
+            <p className="text-muted mb-0">Completed</p>
+          </Card.Body>
+        </Card>
+      </div>
 
       {/* Department Leave Overview - View Only */}
       <Row className="mb-4">
@@ -413,52 +402,44 @@ const HoDDashboard = () => {
               <small className="text-muted">View-only access to team leave status</small>
             </Card.Header>
             <Card.Body>
-              <Row className="g-3">
-                <Col md={3}>
-                  <Card className="border-0 bg-warning bg-opacity-10">
-                    <Card.Body className="text-center">
-                      <h3 className="mb-0 text-warning">{stats?.leaveStats?.pending || 0}</h3>
-                      <small className="text-muted">Pending Requests</small>
-                      <div className="mt-1">
-                        <small className="text-muted">Awaiting HR approval</small>
-                      </div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                <Col md={3}>
-                  <Card className="border-0 bg-success bg-opacity-10">
-                    <Card.Body className="text-center">
-                      <h3 className="mb-0 text-success">{stats?.leaveStats?.approved || 0}</h3>
-                      <small className="text-muted">Approved</small>
-                      <div className="mt-1">
-                        <small className="text-muted">This month</small>
-                      </div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                <Col md={3}>
-                  <Card className="border-0 bg-info bg-opacity-10">
-                    <Card.Body className="text-center">
-                      <h3 className="mb-0 text-info">{stats?.leaveStats?.onLeaveToday || 0}</h3>
-                      <small className="text-muted">On Leave Today</small>
-                      <div className="mt-1">
-                        <small className="text-muted">Team members</small>
-                      </div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                <Col md={3}>
-                  <Card className="border-0 bg-secondary bg-opacity-10">
-                    <Card.Body className="text-center">
-                      <h3 className="mb-0 text-secondary">{stats?.leaveStats?.total || 0}</h3>
-                      <small className="text-muted">Total Requests</small>
-                      <div className="mt-1">
-                        <small className="text-muted">This month</small>
-                      </div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-              </Row>
+              <div className="stat-grid">
+                <Card className="border-0 bg-warning bg-opacity-10 h-100">
+                  <Card.Body className="text-center">
+                    <h3 className="mb-0 text-warning">{stats?.leaveStats?.pending || 0}</h3>
+                    <small className="text-muted">Pending Requests</small>
+                    <div className="mt-1">
+                      <small className="text-muted">Awaiting HR approval</small>
+                    </div>
+                  </Card.Body>
+                </Card>
+                <Card className="border-0 bg-success bg-opacity-10 h-100">
+                  <Card.Body className="text-center">
+                    <h3 className="mb-0 text-success">{stats?.leaveStats?.approved || 0}</h3>
+                    <small className="text-muted">Approved</small>
+                    <div className="mt-1">
+                      <small className="text-muted">This month</small>
+                    </div>
+                  </Card.Body>
+                </Card>
+                <Card className="border-0 bg-info bg-opacity-10 h-100">
+                  <Card.Body className="text-center">
+                    <h3 className="mb-0 text-info">{stats?.leaveStats?.onLeaveToday || 0}</h3>
+                    <small className="text-muted">On Leave Today</small>
+                    <div className="mt-1">
+                      <small className="text-muted">Team members</small>
+                    </div>
+                  </Card.Body>
+                </Card>
+                <Card className="border-0 bg-secondary bg-opacity-10 h-100">
+                  <Card.Body className="text-center">
+                    <h3 className="mb-0 text-secondary">{stats?.leaveStats?.total || 0}</h3>
+                    <small className="text-muted">Total Requests</small>
+                    <div className="mt-1">
+                      <small className="text-muted">This month</small>
+                    </div>
+                  </Card.Body>
+                </Card>
+              </div>
 
               {/* Team Members on Leave Today */}
               {stats?.leaveStats?.onLeaveToday > 0 && stats?.todayLeaveDetails && (
@@ -510,132 +491,124 @@ const HoDDashboard = () => {
               </h5>
             </Card.Header>
             <Card.Body>
-              <Row className="g-3">
-                <Col md={3}>
-                  <Card 
-                    className={`border-0 bg-success bg-opacity-10 ${stats?.attendanceFilter === 'present' ? 'border border-success border-2' : ''}`}
-                    style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
-                    onClick={() => {
-                      setStats(prev => ({
-                        ...prev,
-                        attendanceFilter: prev?.attendanceFilter === 'present' ? '' : 'present'
-                      }));
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-4px)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                  >
-                    <Card.Body className="text-center">
-                      <h3 className="mb-0 text-success">{stats?.attendance?.present || 0}</h3>
-                      <small className="text-muted d-block">Present</small>
-                      <small className="text-success" style={{ fontSize: '0.7rem' }}>Click to filter</small>
-                      {stats?.attendanceFilter === 'present' && (
-                        <div className="mt-2">
-                          <Badge bg="success" className="w-100">✓ Filtered</Badge>
-                        </div>
-                      )}
-                    </Card.Body>
-                  </Card>
-                </Col>
-                <Col md={3}>
-                  <Card 
-                    className={`border-0 bg-danger bg-opacity-10 ${stats?.attendanceFilter === 'absent' ? 'border border-danger border-2' : ''}`}
-                    style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
-                    onClick={() => {
-                      setStats(prev => ({
-                        ...prev,
-                        attendanceFilter: prev?.attendanceFilter === 'absent' ? '' : 'absent'
-                      }));
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-4px)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                  >
-                    <Card.Body className="text-center">
-                      <h3 className="mb-0 text-danger">{stats?.attendance?.absent || 0}</h3>
-                      <small className="text-muted d-block">Absent</small>
-                      <small className="text-danger" style={{ fontSize: '0.7rem' }}>Click to filter</small>
-                      {stats?.attendanceFilter === 'absent' && (
-                        <div className="mt-2">
-                          <Badge bg="danger" className="w-100">✓ Filtered</Badge>
-                        </div>
-                      )}
-                    </Card.Body>
-                  </Card>
-                </Col>
-                <Col md={3}>
-                  <Card 
-                    className={`border-0 bg-warning bg-opacity-10 ${stats?.attendanceFilter === 'late' ? 'border border-warning border-2' : ''}`}
-                    style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
-                    onClick={() => {
-                      setStats(prev => ({
-                        ...prev,
-                        attendanceFilter: prev?.attendanceFilter === 'late' ? '' : 'late'
-                      }));
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-4px)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                  >
-                    <Card.Body className="text-center">
-                      <h3 className="mb-0 text-warning">{stats?.attendance?.late || 0}</h3>
-                      <small className="text-muted d-block">Late</small>
-                      <small className="text-warning" style={{ fontSize: '0.7rem' }}>Click to filter</small>
-                      {stats?.attendanceFilter === 'late' && (
-                        <div className="mt-2">
-                          <Badge bg="warning" className="w-100">✓ Filtered</Badge>
-                        </div>
-                      )}
-                    </Card.Body>
-                  </Card>
-                </Col>
-                <Col md={3}>
-                  <Card 
-                    className={`border-0 bg-info bg-opacity-10 ${stats?.attendanceFilter === '' || !stats?.attendanceFilter ? 'border border-info border-2' : ''}`}
-                    style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
-                    onClick={() => {
-                      setStats(prev => ({
-                        ...prev,
-                        attendanceFilter: ''
-                      }));
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-4px)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                  >
-                    <Card.Body className="text-center">
-                      <h3 className="mb-0 text-info">{stats?.attendance?.total || 0}</h3>
-                      <small className="text-muted d-block">Total</small>
-                      <small className="text-info" style={{ fontSize: '0.7rem' }}>Click to show all</small>
-                      {(stats?.attendanceFilter === '' || !stats?.attendanceFilter) && (
-                        <div className="mt-2">
-                          <Badge bg="info" className="w-100">✓ Showing All</Badge>
-                        </div>
-                      )}
-                    </Card.Body>
-                  </Card>
-                </Col>
-              </Row>
+              <div className="stat-grid">
+                <Card 
+                  className={`border-0 bg-success bg-opacity-10 h-100 ${stats?.attendanceFilter === 'present' ? 'border border-success border-2' : ''}`}
+                  style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+                  onClick={() => {
+                    setStats(prev => ({
+                      ...prev,
+                      attendanceFilter: prev?.attendanceFilter === 'present' ? '' : 'present'
+                    }));
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-4px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  <Card.Body className="text-center">
+                    <h3 className="mb-0 text-success">{stats?.attendance?.present || 0}</h3>
+                    <small className="text-muted d-block">Present</small>
+                    <small className="text-success" style={{ fontSize: '0.7rem' }}>Click to filter</small>
+                    {stats?.attendanceFilter === 'present' && (
+                      <div className="mt-2">
+                        <Badge bg="success" className="w-100">✓ Filtered</Badge>
+                      </div>
+                    )}
+                  </Card.Body>
+                </Card>
+                <Card 
+                  className={`border-0 bg-danger bg-opacity-10 h-100 ${stats?.attendanceFilter === 'absent' ? 'border border-danger border-2' : ''}`}
+                  style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+                  onClick={() => {
+                    setStats(prev => ({
+                      ...prev,
+                      attendanceFilter: prev?.attendanceFilter === 'absent' ? '' : 'absent'
+                    }));
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-4px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  <Card.Body className="text-center">
+                    <h3 className="mb-0 text-danger">{stats?.attendance?.absent || 0}</h3>
+                    <small className="text-muted d-block">Absent</small>
+                    <small className="text-danger" style={{ fontSize: '0.7rem' }}>Click to filter</small>
+                    {stats?.attendanceFilter === 'absent' && (
+                      <div className="mt-2">
+                        <Badge bg="danger" className="w-100">✓ Filtered</Badge>
+                      </div>
+                    )}
+                  </Card.Body>
+                </Card>
+                <Card 
+                  className={`border-0 bg-warning bg-opacity-10 h-100 ${stats?.attendanceFilter === 'late' ? 'border border-warning border-2' : ''}`}
+                  style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+                  onClick={() => {
+                    setStats(prev => ({
+                      ...prev,
+                      attendanceFilter: prev?.attendanceFilter === 'late' ? '' : 'late'
+                    }));
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-4px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  <Card.Body className="text-center">
+                    <h3 className="mb-0 text-warning">{stats?.attendance?.late || 0}</h3>
+                    <small className="text-muted d-block">Late</small>
+                    <small className="text-warning" style={{ fontSize: '0.7rem' }}>Click to filter</small>
+                    {stats?.attendanceFilter === 'late' && (
+                      <div className="mt-2">
+                        <Badge bg="warning" className="w-100">✓ Filtered</Badge>
+                      </div>
+                    )}
+                  </Card.Body>
+                </Card>
+                <Card 
+                  className={`border-0 bg-info bg-opacity-10 h-100 ${stats?.attendanceFilter === '' || !stats?.attendanceFilter ? 'border border-info border-2' : ''}`}
+                  style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+                  onClick={() => {
+                    setStats(prev => ({
+                      ...prev,
+                      attendanceFilter: ''
+                    }));
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-4px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  <Card.Body className="text-center">
+                    <h3 className="mb-0 text-info">{stats?.attendance?.total || 0}</h3>
+                    <small className="text-muted d-block">Total</small>
+                    <small className="text-info" style={{ fontSize: '0.7rem' }}>Click to show all</small>
+                    {(stats?.attendanceFilter === '' || !stats?.attendanceFilter) && (
+                      <div className="mt-2">
+                        <Badge bg="info" className="w-100">✓ Showing All</Badge>
+                      </div>
+                    )}
+                  </Card.Body>
+                </Card>
+              </div>
 
               {/* Filtered Attendance Details */}
               {stats?.attendanceFilter && stats?.attendanceDetails && stats.attendanceDetails.length > 0 && (

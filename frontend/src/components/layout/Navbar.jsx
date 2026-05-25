@@ -11,6 +11,7 @@ import {
   ListGroup,
   Spinner,
   Modal,
+  Offcanvas,
 } from "react-bootstrap";
 import { 
   FaBars, 
@@ -27,6 +28,7 @@ import {
   FaExclamationTriangle,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
+import { useBreakpoint } from "../../context/BreakpointContext";
 import { resolveProfilePictureUrl } from "../../utils/profilePictureUrl";
 
 const withCacheBust = (url) => {
@@ -44,6 +46,7 @@ import workItemApi from "../../api/workItemApi";
 
 const Navbar = ({ toggleSidebar }) => {
   const { user, logout } = useAuth();
+  const { isAppMobile } = useBreakpoint();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
@@ -53,6 +56,7 @@ const Navbar = ({ toggleSidebar }) => {
   const [imageLoadError, setImageLoadError] = useState(false);
   const [profileImgSrc, setProfileImgSrc] = useState(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
   const searchRef = useRef(null);
 
   useEffect(() => {
@@ -278,6 +282,16 @@ const Navbar = ({ toggleSidebar }) => {
           >
             <FaBars />
           </button>
+          {!showCompanySwitcher && isAppMobile && (
+            <button
+              type="button"
+              className="btn btn-link text-white p-2 touch-target d-lg-none"
+              onClick={() => setShowMobileSearch(true)}
+              aria-label="Open search"
+            >
+              <FaSearch size={18} />
+            </button>
+          )}
         </div>
 
         {/* Center Section: Search Bar */}
@@ -640,6 +654,55 @@ const Navbar = ({ toggleSidebar }) => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      <Offcanvas show={showMobileSearch} onHide={() => setShowMobileSearch(false)} placement="top" className="mobile-search-offcanvas">
+        <Offcanvas.Header closeButton>
+          <Offcanvas.Title>Search</Offcanvas.Title>
+        </Offcanvas.Header>
+        <Offcanvas.Body>
+          <Form
+            onSubmit={(e) => {
+              handleSearch(e);
+            }}
+          >
+            <InputGroup className="mb-3">
+              <Form.Control
+                type="search"
+                placeholder="Search users, tasks, policies..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                autoFocus
+                className="touch-target"
+              />
+              <Button type="submit" variant="primary" disabled={isSearching}>
+                {isSearching ? <Spinner animation="border" size="sm" /> : <FaSearch />}
+              </Button>
+            </InputGroup>
+          </Form>
+          <ListGroup variant="flush" style={{ maxHeight: "60vh", overflowY: "auto" }}>
+            {searchResults.length > 0 ? (
+              searchResults.map((result, index) => (
+                <ListGroup.Item
+                  key={index}
+                  action
+                  className="touch-target"
+                  onClick={() => {
+                    handleResultClick(result.path);
+                    setShowMobileSearch(false);
+                  }}
+                >
+                  <div className="fw-semibold">{result.title}</div>
+                  <small className="text-muted">{result.subtitle}</small>
+                </ListGroup.Item>
+              ))
+            ) : searchQuery.length >= 2 ? (
+              <ListGroup.Item className="text-muted text-center">No results found</ListGroup.Item>
+            ) : (
+              <ListGroup.Item className="text-muted text-center">Type at least 2 characters</ListGroup.Item>
+            )}
+          </ListGroup>
+        </Offcanvas.Body>
+      </Offcanvas>
 
       {/* Custom CSS for dropdown styling and mobile responsiveness */}
       <style>{`

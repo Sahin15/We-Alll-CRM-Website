@@ -55,9 +55,10 @@
   background: white;
   border-radius: 0.5rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  overflow: visible; /* Fix for dropdown clipping */
+  overflow-x: auto;
   margin-bottom: 2rem;
-  min-height: 250px; /* Give space for dropdowns */
+  min-height: 250px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .asset-table {
@@ -99,34 +100,34 @@
 .asset-id {
   font-weight: 600;
   color: #007bff;
-  min-width: 80px;
+  min-width: 60px;
 }
 
 .asset-name {
   font-weight: 500;
   color: #333;
-  min-width: 120px;
+  min-width: 80px;
 }
 
 .asset-category {
   text-transform: capitalize;
   color: #666;
-  min-width: 100px;
+  min-width: 70px;
 }
 
 .asset-status {
-  min-width: 90px;
+  min-width: 70px;
 }
 
 .asset-assigned {
   color: #666;
-  min-width: 100px;
+  min-width: 70px;
 }
 
 .asset-date {
   color: #999;
   font-size: 0.8rem;
-  min-width: 90px;
+  min-width: 70px;
 }
 
 .actions {
@@ -349,6 +350,11 @@
 
   .asset-table {
     font-size: 0.75rem;
+    min-width: 520px;
+  }
+
+  .asset-table .hide-mobile {
+    display: none;
   }
 
   .asset-table th,
@@ -358,6 +364,7 @@
 
   .actions {
     flex-direction: column;
+    min-width: 80px;
   }
 
   .btn-sm {

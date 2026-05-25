@@ -5,13 +5,11 @@ import {
   Row,
   Col,
   Card,
-  Tabs,
-  Tab,
+  Nav,
   Spinner,
   Button,
 } from "react-bootstrap";
 import {
-  FaMoneyBillWave,
   FaFileInvoiceDollar,
   FaUsers,
   FaChartLine,
@@ -27,6 +25,17 @@ import HRSalaryPreviewManagement from "../../components/salary/HRSalaryPreviewMa
 import TemplateManagement from "../../components/salary/TemplateManagement";
 import { salarySlipApi } from "../../api/salaryApi";
 import api from "../../services/api";
+import PageHeader from "../../components/shared/PageHeader";
+import MobileTabBar from "../../components/shared/MobileTabBar";
+
+const SALARY_TABS = [
+  { key: "slips", label: "Salary Slips" },
+  { key: "generate", label: "Generate" },
+  { key: "structures", label: "Structures" },
+  { key: "previews", label: "Previews" },
+  { key: "templates", label: "Templates" },
+  { key: "reports", label: "Reports" },
+];
 
 const SalaryManagement = () => {
   const location = useLocation();
@@ -111,69 +120,51 @@ const SalaryManagement = () => {
     }).format(amount);
   };
 
-  // Scroll to top when component mounts
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
-
-  // Handle URL parameters for tab selection
-  useEffect(() => {
-    const urlParams = new URLSearchParams(location.search);
-    const tab = urlParams.get('tab');
-    if (tab) {
-      setActiveTab(tab);
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "slips":
+        return <SalarySlipList />;
+      case "generate":
+        return <GenerateSalarySlips />;
+      case "structures":
+        return <SalaryStructures />;
+      case "previews":
+        return <HRSalaryPreviewManagement />;
+      case "templates":
+        return <TemplateManagement />;
+      case "reports":
+        return <PayrollSummary />;
+      default:
+        return null;
     }
-  }, [location.search]);
+  };
 
   return (
     <Container fluid className="mt-4">
-      {/* Header */}
-      <Row className="mb-4">
-        <Col>
-          <Card className="salary-header-card border-0 shadow-lg">
-            <Card.Body className="p-4">
-              <div className="d-flex justify-content-between align-items-center">
-                <div className="salary-header-content">
-                  <div className="d-flex align-items-center mb-2">
-                    <div className="salary-icon-container me-3">
-                      <FaMoneyBillWave className="salary-header-icon" />
-                    </div>
-                    <div>
-                      <h2 className="salary-header-title mb-1">
-                        Salary Management
-                      </h2>
-                      <div className="salary-header-badge">
-                        HR Dashboard
-                      </div>
-                    </div>
-                  </div>
-                  <p className="salary-header-description mb-0">
-                    Manage salary structures, previews, and generate salary slips with comprehensive payroll analytics
-                  </p>
-                </div>
-                <div className="d-flex gap-2 salary-action-buttons">
-                  <Button 
-                    variant="light" 
-                    href="/salary-preview-management"
-                    className="salary-action-btn d-flex align-items-center"
-                  >
-                    <FaEye className="me-2" />
-                    Preview Management
-                  </Button>
-                  <Button 
-                    variant="light" 
-                    href="/salary-templates"
-                    className="salary-action-btn d-flex align-items-center"
-                  >
-                    <FaCogs className="me-2" />
-                    Templates
-                  </Button>
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+      <PageHeader
+        title="Salary Management"
+        subtitle="Manage salary structures, previews, and generate salary slips with comprehensive payroll analytics"
+        actions={
+          <>
+            <Button
+              variant="outline-primary"
+              href="/salary-preview-management"
+              className="salary-action-btn touch-target d-flex align-items-center"
+            >
+              <FaEye className="me-2" />
+              Preview Management
+            </Button>
+            <Button
+              variant="outline-primary"
+              href="/salary-templates"
+              className="salary-action-btn touch-target d-flex align-items-center"
+            >
+              <FaCogs className="me-2" />
+              Templates
+            </Button>
+          </>
+        }
+      />
 
       {/* Stats Cards */}
       <Row className="mb-4">
@@ -303,197 +294,25 @@ const SalaryManagement = () => {
       {/* Tabs */}
       <Card className="shadow-sm">
         <Card.Body>
-          <Tabs
+          <MobileTabBar
+            tabs={SALARY_TABS}
             activeKey={activeTab}
-            onSelect={(k) => setActiveTab(k)}
-            className="mb-3"
-          >
-            <Tab eventKey="slips" title="Salary Slips">
-              <SalarySlipList />
-            </Tab>
-            <Tab eventKey="generate" title="Generate Slips">
-              <GenerateSalarySlips />
-            </Tab>
-            <Tab eventKey="structures" title="Salary Structures">
-              <SalaryStructures />
-            </Tab>
-            <Tab eventKey="previews" title="Salary Previews">
-              <HRSalaryPreviewManagement />
-            </Tab>
-            <Tab eventKey="templates" title="Templates">
-              <TemplateManagement />
-            </Tab>
-            <Tab eventKey="reports" title="Reports">
-              <PayrollSummary />
-            </Tab>
-          </Tabs>
+            onSelect={setActiveTab}
+            desktopChildren={
+              <Nav variant="tabs" className="mb-3">
+                {SALARY_TABS.map(({ key, label }) => (
+                  <Nav.Item key={key}>
+                    <Nav.Link active={activeTab === key} onClick={() => setActiveTab(key)}>
+                      {label}
+                    </Nav.Link>
+                  </Nav.Item>
+                ))}
+              </Nav>
+            }
+          />
+          {renderTabContent()}
         </Card.Body>
       </Card>
-
-      <style>{`
-        /* Salary Management Header Styles */
-        .salary-header-card {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          border-radius: 16px !important;
-          overflow: hidden;
-          position: relative;
-        }
-
-        .salary-header-card::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: linear-gradient(135deg, rgba(102, 126, 234, 0.9) 0%, rgba(118, 75, 162, 0.9) 100%);
-          backdrop-filter: blur(10px);
-        }
-
-        .salary-header-card .card-body {
-          position: relative;
-          z-index: 2;
-        }
-
-        .salary-icon-container {
-          width: 70px;
-          height: 70px;
-          background: rgba(255, 255, 255, 0.2);
-          border-radius: 20px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          backdrop-filter: blur(10px);
-          border: 1px solid rgba(255, 255, 255, 0.3);
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-          transition: all 0.3s ease;
-        }
-
-        .salary-icon-container:hover {
-          transform: scale(1.05);
-          background: rgba(255, 255, 255, 0.3);
-          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-        }
-
-        .salary-header-icon {
-          font-size: 32px;
-          color: #ffffff;
-          filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
-        }
-
-        .salary-header-title {
-          color: #ffffff;
-          font-weight: 700;
-          font-size: 2.2rem;
-          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-          margin: 0;
-          letter-spacing: -0.5px;
-        }
-
-        .salary-header-badge {
-          background: rgba(255, 255, 255, 0.25);
-          color: #ffffff;
-          padding: 4px 12px;
-          border-radius: 20px;
-          font-size: 0.75rem;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          backdrop-filter: blur(10px);
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          display: inline-block;
-        }
-
-        .salary-header-description {
-          color: rgba(255, 255, 255, 0.9);
-          font-size: 1rem;
-          line-height: 1.5;
-          margin-top: 8px;
-          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-        }
-
-        .salary-action-buttons {
-          flex-shrink: 0;
-        }
-
-        .salary-action-btn {
-          background: rgba(255, 255, 255, 0.15) !important;
-          border: 1px solid rgba(255, 255, 255, 0.3) !important;
-          color: #ffffff !important;
-          backdrop-filter: blur(10px);
-          border-radius: 12px !important;
-          padding: 10px 20px !important;
-          font-weight: 600 !important;
-          transition: all 0.3s ease !important;
-          text-decoration: none !important;
-          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
-        }
-
-        .salary-action-btn:hover {
-          background: rgba(255, 255, 255, 0.25) !important;
-          border-color: rgba(255, 255, 255, 0.4) !important;
-          transform: translateY(-2px) !important;
-          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
-          color: #ffffff !important;
-        }
-
-        .salary-action-btn:active {
-          transform: translateY(0) !important;
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-          .salary-header-card .d-flex {
-            flex-direction: column !important;
-            align-items: flex-start !important;
-          }
-
-          .salary-action-buttons {
-            margin-top: 1rem;
-            width: 100%;
-          }
-
-          .salary-action-buttons .d-flex {
-            flex-direction: column !important;
-            width: 100%;
-          }
-
-          .salary-action-btn {
-            width: 100% !important;
-            margin-bottom: 0.5rem !important;
-            justify-content: center !important;
-          }
-
-          .salary-header-title {
-            font-size: 1.8rem !important;
-          }
-
-          .salary-icon-container {
-            width: 60px !important;
-            height: 60px !important;
-          }
-
-          .salary-header-icon {
-            font-size: 28px !important;
-          }
-        }
-
-        @media (max-width: 576px) {
-          .salary-header-content .d-flex {
-            flex-direction: column !important;
-            align-items: flex-start !important;
-          }
-
-          .salary-icon-container {
-            margin-bottom: 1rem !important;
-            margin-right: 0 !important;
-          }
-
-          .salary-header-title {
-            font-size: 1.6rem !important;
-          }
-        }
-      `}</style>
     </Container>
   );
 };

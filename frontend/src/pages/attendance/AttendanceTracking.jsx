@@ -16,8 +16,8 @@ import {
 import { formatWorkHours } from "../../utils/attendanceHelpers";
 import EmployeeAttendanceDetails from "../../components/attendance/EmployeeAttendanceDetails";
 import AttendanceCalendar from "../../components/attendance/AttendanceCalendar";
-import "../../styles/pages-mobile.css";
-import "../../styles/table-mobile.css";
+import PageHeader from "../../components/shared/PageHeader";
+import MobileFilterSheet from "../../components/shared/MobileFilterSheet";
 
 const AttendanceTracking = () => {
   const { user } = useAuth();
@@ -518,6 +518,39 @@ const AttendanceTracking = () => {
 
   const stats = calculateStats();
 
+  const activeFilterCount = [
+    filters.employee,
+    filters.status,
+    filters.startDate !== getTodayDate() ? filters.startDate : "",
+    filters.endDate !== getTodayDate() ? filters.endDate : "",
+  ].filter(Boolean).length;
+
+  const clearAllFilters = async () => {
+    setSearchTerm("");
+    const clearedFilters = {
+      employee: "",
+      status: "",
+      startDate: getTodayDate(),
+      endDate: getTodayDate(),
+    };
+    setFilters(clearedFilters);
+    setActiveFilter("today");
+
+    try {
+      setLoading(true);
+      const params = {};
+      if (clearedFilters.startDate) params.startDate = clearedFilters.startDate;
+      if (clearedFilters.endDate) params.endDate = clearedFilters.endDate;
+
+      const response = await attendanceApi.getAllAttendance(params);
+      setAttendances(response.data);
+    } catch (error) {
+      toast.error("Failed to fetch attendance records");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Calculate absent employees (not clocked in today) — only active employees count as absent
   const getAbsentEmployees = () => {
     // Only show for today's date AND when no specific employee is selected
@@ -997,11 +1030,7 @@ const AttendanceTracking = () => {
     <>
       <style>{dropdownStyles}</style>
       <Container fluid>
-      <Row className="mb-4">
-        <Col>
-          <h2>Attendance Tracking</h2>
-        </Col>
-      </Row>
+      <PageHeader title="Attendance Tracking" />
 
       <Row className="mb-4">
         <Col>
@@ -1039,7 +1068,103 @@ const AttendanceTracking = () => {
                 </Col>
               </Row>
               <hr />
-              <Row className="g-3" style={{ position: 'relative', overflow: 'visible' }}>
+              <MobileFilterSheet
+                title="Filters"
+                activeFilterCount={activeFilterCount}
+                onApply={handleApplyFilters}
+                onClear={clearAllFilters}
+              >
+                <Form.Group style={{ position: "relative", overflow: "visible" }}>
+                  <Form.Label>Employee</Form.Label>
+                  <div className="position-relative attendance-dropdown-container" style={{ overflow: "visible" }}>
+                    <Form.Control
+                      type="text"
+                      placeholder={
+                        filters.employee
+                          ? users.find((u) => u._id === filters.employee)?.name
+                          : "All Employees - Type to search..."
+                      }
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onFocus={() => setShowDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                      autoComplete="off"
+                    />
+                    {showDropdown && (
+                      <div className="attendance-dropdown w-100">
+                        <div
+                          className="p-2 border-bottom bg-light attendance-dropdown-item"
+                          style={{ cursor: "pointer" }}
+                          onClick={() => {
+                            setSearchTerm("");
+                            setShowDropdown(false);
+                            handleFilterChange({ target: { name: "employee", value: "" } });
+                          }}
+                        >
+                          <strong>All Employees</strong>
+                        </div>
+                        {filteredUsers.length > 0 ? (
+                          filteredUsers.map((user) => (
+                            <div
+                              key={user._id}
+                              className="p-2 border-bottom attendance-dropdown-item"
+                              style={{ cursor: "pointer" }}
+                              onClick={() => {
+                                setSearchTerm("");
+                                setShowDropdown(false);
+                                handleFilterChange({ target: { name: "employee", value: user._id } });
+                              }}
+                            >
+                              <div className="fw-semibold">{user.name}</div>
+                              <small className="text-muted">{user.email}</small>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-3 text-muted text-center">No employees found</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {filters.employee && (
+                    <Form.Text className="text-muted d-block mt-1">
+                      Selected: <strong>{users.find((u) => u._id === filters.employee)?.name}</strong>
+                    </Form.Text>
+                  )}
+                </Form.Group>
+
+                <Form.Group>
+                  <Form.Label>Status</Form.Label>
+                  <Form.Select name="status" value={filters.status} onChange={handleFilterChange}>
+                    <option value="">All Status</option>
+                    <option value="present">Present</option>
+                    <option value="absent">Absent</option>
+                    <option value="late">Late</option>
+                    <option value="half-day">Half Day</option>
+                    <option value="on-leave">On Leave</option>
+                  </Form.Select>
+                </Form.Group>
+
+                <Form.Group>
+                  <Form.Label>Start Date</Form.Label>
+                  <Form.Control
+                    type="date"
+                    name="startDate"
+                    value={filters.startDate}
+                    onChange={handleFilterChange}
+                  />
+                </Form.Group>
+
+                <Form.Group>
+                  <Form.Label>End Date</Form.Label>
+                  <Form.Control
+                    type="date"
+                    name="endDate"
+                    value={filters.endDate}
+                    onChange={handleFilterChange}
+                  />
+                </Form.Group>
+              </MobileFilterSheet>
+              <Row className="g-3 d-none d-md-flex" style={{ position: "relative", overflow: "visible" }}>
                 <Col md={3} style={{ position: 'relative', overflow: 'visible' }}>
                   <Form.Group style={{ position: 'relative', overflow: 'visible' }}>
                     <Form.Label>Employee</Form.Label>
@@ -1210,7 +1335,7 @@ const AttendanceTracking = () => {
 
       {/* Employee Statistics Summary */}
       {stats && (
-        <Row className="mb-4">
+        <Row className="mb-4 attendance-summary-cards">
           <Col>
             <Card className="border-primary">
               <Card.Header className="bg-primary text-white">
@@ -1312,7 +1437,7 @@ const AttendanceTracking = () => {
                   </div>
                 )}
                 <hr />
-                <Row className="text-center">
+                <Row className="text-center d-none-mobile-detail">
                   <Col xs={6} md={2}>
                     <div className="p-2">
                       <h5 className="text-primary mb-0">{stats.totalDays}</h5>
@@ -1441,19 +1566,19 @@ const AttendanceTracking = () => {
                     </div>
                   </div>
                 ) : (
-                  <Table responsive hover>
+                  <Table responsive hover className="attendance-tracking-table">
                   <thead>
                     <tr>
                       {!filters.employee && <th>Employee</th>}
                       <th>Date</th>
                       <th>Clock In</th>
                       <th>Clock Out</th>
-                      <th>Breaks</th>
-                      <th>Break Time</th>
+                      <th className="hide-mobile">Breaks</th>
+                      <th className="hide-mobile">Break Time</th>
                       <th>Work Hours</th>
-                      <th>Overtime</th>
+                      <th className="hide-mobile">Overtime</th>
                       <th>Status</th>
-                      {(!filters.employee || canViewDetails()) && <th>Actions</th>}
+                      {(!filters.employee || canViewDetails()) && <th className="actions-col">Actions</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -1544,7 +1669,7 @@ const AttendanceTracking = () => {
                                   ? <Badge bg="warning" className="pulse-badge">On Break</Badge>
                                   : <Badge bg="success">Working</Badge>}
                               </td>
-                              <td>
+                              <td className="hide-mobile">
                                 {breakCount > 0 ? (
                                   <div 
                                     className="d-flex align-items-center gap-1"
@@ -1575,7 +1700,7 @@ const AttendanceTracking = () => {
                                   <span className="text-muted">-</span>
                                 )}
                               </td>
-                              <td>
+                              <td className="hide-mobile">
                                 {totalBreakMinutes > 0 ? (
                                   <Badge bg="info">
                                     {Math.floor(totalBreakMinutes)} min
@@ -1587,7 +1712,7 @@ const AttendanceTracking = () => {
                               <td>
                                 <strong>{formatHours(attendance.workHours || 0)}</strong>
                               </td>
-                              <td>
+                              <td className="hide-mobile">
                                 {attendance.overtime > 0 ? (
                                   <Badge bg="warning">{formatHours(attendance.overtime)}</Badge>
                                 ) : (

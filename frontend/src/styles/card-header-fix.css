@@ -197,3 +197,29 @@
 .card-header[style*="flex-direction: column"] {
   flex-direction: row !important;
 }
+
+/* Employee list — stack title and view toggle; row-only rules overflow the toggle on narrow screens */
+@media (max-width: 767.98px) {
+  .card-header.employee-list-card-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .card-header.employee-list-card-header .d-flex {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .card-header.employee-list-card-header .d-flex.justify-content-between > div:last-child,
+  .card-header.employee-list-card-header .employee-list-view-controls {
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 1 1 auto !important;
+  }
+
+  .card-header.employee-list-card-header h5 {
+    width: 100% !important;
+    flex: 1 1 auto !important;
+  }
+}

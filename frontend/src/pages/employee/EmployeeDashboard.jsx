@@ -33,9 +33,6 @@ import HoDSection from "../../components/dashboard/HoDSection";
 import HoPSection from "../../components/dashboard/HoPSection";
 import QuickAnnouncements from "../../components/dashboard/QuickAnnouncements";
 import WorkLogSubmissionModal from "../../components/worklog/WorkLogSubmissionModal";
-import "../../styles/dashboard-mobile.css";
-import "../../styles/modal-mobile.css";
-
 // ============================================
 // 📅 WORK SCHEDULE CONFIGURATION
 // ============================================
@@ -1081,13 +1078,12 @@ const EmployeeDashboard = () => {
       )}
 
       {/* Quick Stats - Clean 4-Card Layout */}
-      <Row className="mb-4">
-        <Col xs={12} sm={6} lg={3} className="mb-3">
-          <Card 
-            className="dashboard-card stat-card border-0 shadow-sm h-100 cursor-pointer"
-            onClick={handleAttendanceCardClick}
-            style={{ cursor: 'pointer' }}
-          >
+      <div className="stat-grid mb-4">
+        <Card 
+          className="dashboard-card stat-card border-0 shadow-sm h-100 cursor-pointer"
+          onClick={handleAttendanceCardClick}
+          style={{ cursor: 'pointer' }}
+        >
             <Card.Body>
               <div className="d-flex justify-content-between align-items-start">
                 <div>
@@ -1101,14 +1097,12 @@ const EmployeeDashboard = () => {
               </div>
             </Card.Body>
           </Card>
-        </Col>
 
-        <Col xs={12} sm={6} lg={3} className="mb-3">
-          <Card 
-            className="dashboard-card stat-card border-0 shadow-sm h-100 cursor-pointer" 
-            onClick={handleLeaveCardClick}
-            style={{ cursor: 'pointer' }}
-          >
+        <Card 
+          className="dashboard-card stat-card border-0 shadow-sm h-100 cursor-pointer" 
+          onClick={handleLeaveCardClick}
+          style={{ cursor: 'pointer' }}
+        >
             <Card.Body>
               <div className="d-flex justify-content-between align-items-start">
                 <div>
@@ -1124,14 +1118,12 @@ const EmployeeDashboard = () => {
               </div>
             </Card.Body>
           </Card>
-        </Col>
 
-        <Col xs={12} sm={6} lg={3} className="mb-3">
-          <Card 
-            className="dashboard-card stat-card border-0 shadow-sm h-100 cursor-pointer"
-            onClick={handleTasksCardClick}
-            style={{ cursor: 'pointer' }}
-          >
+        <Card 
+          className="dashboard-card stat-card border-0 shadow-sm h-100 cursor-pointer"
+          onClick={handleTasksCardClick}
+          style={{ cursor: 'pointer' }}
+        >
             <Card.Body>
               <div className="d-flex justify-content-between align-items-start">
                 <div>
@@ -1145,14 +1137,12 @@ const EmployeeDashboard = () => {
               </div>
             </Card.Body>
           </Card>
-        </Col>
 
-        <Col xs={12} sm={6} lg={3} className="mb-3">
-          <Card 
-            className="dashboard-card stat-card border-0 shadow-sm h-100 cursor-pointer"
-            onClick={handleWorkHoursCardClick}
-            style={{ cursor: 'pointer' }}
-          >
+        <Card 
+          className="dashboard-card stat-card border-0 shadow-sm h-100 cursor-pointer"
+          onClick={handleWorkHoursCardClick}
+          style={{ cursor: 'pointer' }}
+        >
             <Card.Body>
               <div className="d-flex justify-content-between align-items-start">
                 <div className="w-100">
@@ -1175,8 +1165,7 @@ const EmployeeDashboard = () => {
               </div>
             </Card.Body>
           </Card>
-        </Col>
-      </Row>
+      </div>
 
       {/* Clock In/Out Section */}
       <Row className="mb-4">

@@ -12,6 +12,7 @@ import AssignmentHistory from './AssignmentHistory';
 import RepairLog from './RepairLog';
 import WarrantyTracker from './WarrantyTracker';
 import MyAssets from './MyAssets';
+import MobileTabBar from '../../components/shared/MobileTabBar';
 import './PremiumAssetManagement.css';
 
 const AssetManagement = () => {
@@ -65,18 +66,25 @@ const AssetManagement = () => {
         </div>
       </div>
 
-      <div className="premium-tabs-wrapper">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            className={`premium-tab-btn ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.icon}
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <MobileTabBar
+        tabs={tabs.map((tab) => ({ key: tab.id, label: tab.label }))}
+        activeKey={activeTab}
+        onSelect={setActiveTab}
+        desktopChildren={
+          <div className="premium-tabs-wrapper">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                className={`premium-tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
       <div className="premium-content-area" key={activeTab}>
         {renderContent()}

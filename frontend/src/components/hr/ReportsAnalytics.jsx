@@ -1,12 +1,16 @@
 import { useState, useEffect } from "react";
-import { Card, Row, Col, Button, Spinner, Table, Badge } from "react-bootstrap";
+import { Card, Button, Spinner, Badge } from "react-bootstrap";
 import { FaChartBar, FaDownload, FaUsers, FaCalendarAlt, FaClock } from "react-icons/fa";
+import ResponsiveChartGrid from "../shared/ResponsiveChartGrid";
+import ResponsiveDataTable from "../shared/ResponsiveDataTable";
+import { useBreakpoint } from "../../context/BreakpointContext";
 import { userApi } from "../../api/userApi";
 import { leaveApi } from "../../api/leaveApi";
 import { attendanceApi } from "../../api/attendanceApi";
 import toast from "../../utils/toast";
 
 const ReportsAnalytics = () => {
+  const { isAppMobile } = useBreakpoint();
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState({
     headcountByDept: [],
@@ -196,7 +200,6 @@ const ReportsAnalytics = () => {
   };
 
   const exportToCSV = (data, filename) => {
-    // Simple CSV export
     const csv = data.map((row) => Object.values(row).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
@@ -207,10 +210,36 @@ const ReportsAnalytics = () => {
     toast.success("Report exported successfully");
   };
 
+  const headcountTotal = analytics.headcountByDept.reduce((sum, d) => sum + d.count, 0);
+  const headcountRows = analytics.headcountByDept.map((dept) => ({
+    ...dept,
+    percentage: headcountTotal > 0 ? ((dept.count / headcountTotal) * 100).toFixed(1) : 0,
+  }));
+
+  const genderTotal = Object.values(analytics.genderDiversity).reduce((sum, c) => sum + c, 0);
+  const genderRows = Object.entries(analytics.genderDiversity).map(([gender, count]) => ({
+    gender,
+    count,
+    percentage: genderTotal > 0 ? ((count / genderTotal) * 100).toFixed(1) : 0,
+  }));
+
+  const ageTotal = Object.values(analytics.ageDistribution).reduce((sum, c) => sum + c, 0);
+  const ageRows = Object.entries(analytics.ageDistribution).map(([ageGroup, count]) => ({
+    ageGroup,
+    count,
+    percentage: ageTotal > 0 ? ((count / ageTotal) * 100).toFixed(1) : 0,
+  }));
+
+  const leaveRows = [
+    { status: "Approved", count: analytics.leaveStats.approved, variant: "success" },
+    { status: "Pending", count: analytics.leaveStats.pending, variant: "warning" },
+    { status: "Rejected", count: analytics.leaveStats.rejected, variant: "danger" },
+  ];
+
   return (
     <Card className="shadow-sm">
       <Card.Header className="bg-white border-bottom">
-        <div className="d-flex justify-content-between align-items-center">
+        <div className={`d-flex mb-0 ${isAppMobile ? "flex-column gap-2 align-items-stretch" : "justify-content-between align-items-center"}`}>
           <h5 className="mb-0">
             <FaChartBar className="me-2 text-primary" />
             Reports & Analytics
@@ -218,6 +247,7 @@ const ReportsAnalytics = () => {
           <Button
             variant="outline-primary"
             size="sm"
+            className={isAppMobile ? "w-100" : ""}
             onClick={() => exportToCSV(analytics.headcountByDept, "headcount-report")}
           >
             <FaDownload className="me-1" />
@@ -233,211 +263,156 @@ const ReportsAnalytics = () => {
         ) : (
           <>
             {/* Summary Cards */}
-            <Row className="g-3 mb-4">
-              <Col md={4}>
-                <Card className="border-start border-primary border-4 bg-light">
-                  <Card.Body>
-                    <div className="d-flex justify-content-between align-items-center">
-                      <div>
-                        <small className="text-muted">Attendance Rate</small>
-                        <h3 className="mb-0">{analytics.attendanceRate}%</h3>
-                      </div>
-                      <FaClock size={30} className="text-primary opacity-50" />
+            <ResponsiveChartGrid className="mb-4">
+              <Card className="border-start border-primary border-4 bg-light h-100">
+                <Card.Body>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <div>
+                      <small className="text-muted">Attendance Rate</small>
+                      <h3 className="mb-0">{analytics.attendanceRate}%</h3>
                     </div>
-                  </Card.Body>
-                </Card>
-              </Col>
-              <Col md={4}>
-                <Card className="border-start border-success border-4 bg-light">
-                  <Card.Body>
-                    <div className="d-flex justify-content-between align-items-center">
-                      <div>
-                        <small className="text-muted">Approved Leaves</small>
-                        <h3 className="mb-0">{analytics.leaveStats.approved}</h3>
-                      </div>
-                      <FaCalendarAlt size={30} className="text-success opacity-50" />
+                    <FaClock size={30} className="text-primary opacity-50" />
+                  </div>
+                </Card.Body>
+              </Card>
+              <Card className="border-start border-success border-4 bg-light h-100">
+                <Card.Body>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <div>
+                      <small className="text-muted">Approved Leaves</small>
+                      <h3 className="mb-0">{analytics.leaveStats.approved}</h3>
                     </div>
-                  </Card.Body>
-                </Card>
-              </Col>
-              <Col md={4}>
-                <Card className="border-start border-warning border-4 bg-light">
-                  <Card.Body>
-                    <div className="d-flex justify-content-between align-items-center">
-                      <div>
-                        <small className="text-muted">Pending Leaves</small>
-                        <h3 className="mb-0">{analytics.leaveStats.pending}</h3>
-                      </div>
-                      <FaCalendarAlt size={30} className="text-warning opacity-50" />
+                    <FaCalendarAlt size={30} className="text-success opacity-50" />
+                  </div>
+                </Card.Body>
+              </Card>
+              <Card className="border-start border-warning border-4 bg-light h-100">
+                <Card.Body>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <div>
+                      <small className="text-muted">Pending Leaves</small>
+                      <h3 className="mb-0">{analytics.leaveStats.pending}</h3>
                     </div>
-                  </Card.Body>
-                </Card>
-              </Col>
-            </Row>
+                    <FaCalendarAlt size={30} className="text-warning opacity-50" />
+                  </div>
+                </Card.Body>
+              </Card>
+            </ResponsiveChartGrid>
 
             {/* Detailed Reports */}
-            <Row className="g-4">
-              {/* Headcount by Department */}
-              <Col lg={6}>
-                <Card className="h-100">
-                  <Card.Header className="bg-light">
-                    <strong>Headcount by Department</strong>
-                  </Card.Header>
-                  <Card.Body>
-                    <Table hover size="sm" className="mb-0">
-                      <thead>
-                        <tr>
-                          <th>Department</th>
-                          <th className="text-end">Employees</th>
-                          <th className="text-end">%</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {analytics.headcountByDept.map((dept) => {
-                          const total = analytics.headcountByDept.reduce(
-                            (sum, d) => sum + d.count,
-                            0
-                          );
-                          const percentage = ((dept.count / total) * 100).toFixed(1);
-                          return (
-                            <tr key={dept.name}>
-                              <td>{dept.name}</td>
-                              <td className="text-end">
-                                <Badge bg="primary">{dept.count}</Badge>
-                              </td>
-                              <td className="text-end">{percentage}%</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </Table>
-                  </Card.Body>
-                </Card>
-              </Col>
+            <ResponsiveChartGrid>
+              <Card className="h-100">
+                <Card.Header className="bg-light">
+                  <strong>Headcount by Department</strong>
+                </Card.Header>
+                <Card.Body>
+                  <ResponsiveDataTable
+                    columns={[
+                      { key: "name", label: "Department", mobilePriority: 1 },
+                      {
+                        key: "count",
+                        label: "Employees",
+                        mobilePriority: 2,
+                        render: (_, row) => <Badge bg="primary">{row.count}</Badge>,
+                      },
+                      { key: "percentage", label: "%", mobilePriority: 3, render: (_, row) => `${row.percentage}%` },
+                    ]}
+                    data={headcountRows}
+                    loading={false}
+                    paginated={false}
+                    sortable={false}
+                    keyField="name"
+                  />
+                </Card.Body>
+              </Card>
 
-              {/* Gender Diversity */}
-              <Col lg={6}>
-                <Card className="h-100">
-                  <Card.Header className="bg-light">
-                    <strong>Gender Diversity</strong>
-                  </Card.Header>
-                  <Card.Body>
-                    {Object.values(analytics.genderDiversity).reduce((sum, c) => sum + c, 0) === 0 ? (
-                      <div className="text-center py-4 text-muted">
-                        <FaUsers size={40} className="mb-3 opacity-50" />
-                        <p className="mb-0">No gender data available</p>
-                        <small>Please update employee profiles to include gender information</small>
-                      </div>
-                    ) : (
-                      <Table hover size="sm" className="mb-0">
-                        <thead>
-                          <tr>
-                            <th>Gender</th>
-                            <th className="text-end">Count</th>
-                            <th className="text-end">%</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {Object.entries(analytics.genderDiversity).map(([gender, count]) => {
-                            const total = Object.values(analytics.genderDiversity).reduce(
-                              (sum, c) => sum + c,
-                              0
-                            );
-                            const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
-                            return (
-                              <tr key={gender}>
-                                <td className="text-capitalize">{gender}</td>
-                                <td className="text-end">
-                                  <Badge bg="info">{count}</Badge>
-                                </td>
-                                <td className="text-end">{percentage}%</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </Table>
-                    )}
-                  </Card.Body>
-                </Card>
-              </Col>
+              <Card className="h-100">
+                <Card.Header className="bg-light">
+                  <strong>Gender Diversity</strong>
+                </Card.Header>
+                <Card.Body>
+                  {genderTotal === 0 ? (
+                    <div className="text-center py-4 text-muted">
+                      <FaUsers size={40} className="mb-3 opacity-50" />
+                      <p className="mb-0">No gender data available</p>
+                      <small>Please update employee profiles to include gender information</small>
+                    </div>
+                  ) : (
+                    <ResponsiveDataTable
+                      columns={[
+                        {
+                          key: "gender",
+                          label: "Gender",
+                          mobilePriority: 1,
+                          render: (_, row) => <span className="text-capitalize">{row.gender}</span>,
+                        },
+                        {
+                          key: "count",
+                          label: "Count",
+                          mobilePriority: 2,
+                          render: (_, row) => <Badge bg="info">{row.count}</Badge>,
+                        },
+                        { key: "percentage", label: "%", mobilePriority: 3, render: (_, row) => `${row.percentage}%` },
+                      ]}
+                      data={genderRows}
+                      loading={false}
+                      paginated={false}
+                      sortable={false}
+                      keyField="gender"
+                    />
+                  )}
+                </Card.Body>
+              </Card>
 
-              {/* Age Distribution */}
-              <Col lg={6}>
-                <Card className="h-100">
-                  <Card.Header className="bg-light">
-                    <strong>Age Distribution</strong>
-                  </Card.Header>
-                  <Card.Body>
-                    <Table hover size="sm" className="mb-0">
-                      <thead>
-                        <tr>
-                          <th>Age Group</th>
-                          <th className="text-end">Count</th>
-                          <th className="text-end">%</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.entries(analytics.ageDistribution).map(([age, count]) => {
-                          const total = Object.values(analytics.ageDistribution).reduce(
-                            (sum, c) => sum + c,
-                            0
-                          );
-                          const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
-                          return (
-                            <tr key={age}>
-                              <td>{age}</td>
-                              <td className="text-end">
-                                <Badge bg="success">{count}</Badge>
-                              </td>
-                              <td className="text-end">{percentage}%</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </Table>
-                  </Card.Body>
-                </Card>
-              </Col>
+              <Card className="h-100">
+                <Card.Header className="bg-light">
+                  <strong>Age Distribution</strong>
+                </Card.Header>
+                <Card.Body>
+                  <ResponsiveDataTable
+                    columns={[
+                      { key: "ageGroup", label: "Age Group", mobilePriority: 1 },
+                      {
+                        key: "count",
+                        label: "Count",
+                        mobilePriority: 2,
+                        render: (_, row) => <Badge bg="success">{row.count}</Badge>,
+                      },
+                      { key: "percentage", label: "%", mobilePriority: 3, render: (_, row) => `${row.percentage}%` },
+                    ]}
+                    data={ageRows}
+                    loading={false}
+                    paginated={false}
+                    sortable={false}
+                    keyField="ageGroup"
+                  />
+                </Card.Body>
+              </Card>
 
-              {/* Leave Statistics */}
-              <Col lg={6}>
-                <Card className="h-100">
-                  <Card.Header className="bg-light">
-                    <strong>Leave Statistics</strong>
-                  </Card.Header>
-                  <Card.Body>
-                    <Table hover size="sm" className="mb-0">
-                      <thead>
-                        <tr>
-                          <th>Status</th>
-                          <th className="text-end">Count</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td>Approved</td>
-                          <td className="text-end">
-                            <Badge bg="success">{analytics.leaveStats.approved}</Badge>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>Pending</td>
-                          <td className="text-end">
-                            <Badge bg="warning">{analytics.leaveStats.pending}</Badge>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>Rejected</td>
-                          <td className="text-end">
-                            <Badge bg="danger">{analytics.leaveStats.rejected}</Badge>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </Table>
-                  </Card.Body>
-                </Card>
-              </Col>
-            </Row>
+              <Card className="h-100">
+                <Card.Header className="bg-light">
+                  <strong>Leave Statistics</strong>
+                </Card.Header>
+                <Card.Body>
+                  <ResponsiveDataTable
+                    columns={[
+                      { key: "status", label: "Status", mobilePriority: 1 },
+                      {
+                        key: "count",
+                        label: "Count",
+                        mobilePriority: 2,
+                        render: (_, row) => <Badge bg={row.variant}>{row.count}</Badge>,
+                      },
+                    ]}
+                    data={leaveRows}
+                    loading={false}
+                    paginated={false}
+                    sortable={false}
+                    keyField="status"
+                  />
+                </Card.Body>
+              </Card>
+            </ResponsiveChartGrid>
           </>
         )}
       </Card.Body>

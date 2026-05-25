@@ -9,7 +9,6 @@ import {
   Spinner,
   Alert,
   Form,
-  Modal,
 } from "react-bootstrap";
 import {
   FaFileInvoiceDollar,
@@ -20,6 +19,10 @@ import {
 import { toast } from "react-toastify";
 import { salarySlipApi } from "../../api/salaryApi";
 import { useAuth } from "../../context/AuthContext";
+import PageHeader from "../../components/shared/PageHeader";
+import MobileFilterSheet from "../../components/shared/MobileFilterSheet";
+import MobileModal from "../../components/shared/MobileModal";
+import ResponsiveChartGrid from "../../components/shared/ResponsiveChartGrid";
 
 const MySalarySlips = () => {
   const [slips, setSlips] = useState([]);
@@ -122,20 +125,19 @@ const MySalarySlips = () => {
 
   return (
     <Container className="mt-4">
-      {/* Header */}
-      <Row className="mb-4">
-        <Col>
-          <h2>
+      <PageHeader
+        title={
+          <>
             <FaFileInvoiceDollar className="me-2" />
             My Salary Slips
-          </h2>
-          <p className="text-muted">View and download your salary slips</p>
-        </Col>
-      </Row>
+          </>
+        }
+        subtitle="View and download your salary slips"
+      />
 
-      {/* Year Filter */}
-      <Row className="mb-4">
-        <Col md={3}>
+      <MobileFilterSheet title="Filter by Year" showApply={false}>
+        <Form.Group>
+          <Form.Label>Year</Form.Label>
           <Form.Select
             value={selectedYear}
             onChange={(e) => setSelectedYear(parseInt(e.target.value))}
@@ -146,8 +148,8 @@ const MySalarySlips = () => {
               </option>
             ))}
           </Form.Select>
-        </Col>
-      </Row>
+        </Form.Group>
+      </MobileFilterSheet>
 
       {/* Salary Slips List */}
       {slips.length === 0 ? (
@@ -156,10 +158,9 @@ const MySalarySlips = () => {
           No salary slips found for {selectedYear}
         </Alert>
       ) : (
-        <Row>
+        <ResponsiveChartGrid>
           {slips.map((slip) => (
-            <Col key={slip._id} md={6} lg={4} className="mb-4">
-              <Card className="h-100 shadow-sm">
+            <Card key={slip._id} className="h-100 shadow-sm">
                 <Card.Body>
                   <div className="d-flex justify-content-between align-items-start mb-3">
                     <div>
@@ -238,24 +239,45 @@ const MySalarySlips = () => {
                   </div>
                 </Card.Body>
               </Card>
-            </Col>
           ))}
-        </Row>
+        </ResponsiveChartGrid>
       )}
 
-      {/* Detail Modal */}
       {selectedSlip && (
-        <Modal
+        <MobileModal
           show={showDetailModal}
           onHide={() => setShowDetailModal(false)}
-          size="lg"
+          title={`Salary Slip - ${selectedSlip.payPeriod}`}
+          footer={
+            <>
+              <Button
+                variant="secondary"
+                className="touch-target"
+                onClick={() => setShowDetailModal(false)}
+              >
+                Close
+              </Button>
+              <Button
+                variant="success"
+                className="touch-target"
+                onClick={() => handleDownloadPDF(selectedSlip)}
+                disabled={downloading === selectedSlip._id}
+              >
+                {downloading === selectedSlip._id ? (
+                  <>
+                    <Spinner as="span" animation="border" size="sm" className="me-1" />
+                    Downloading...
+                  </>
+                ) : (
+                  <>
+                    <FaDownload className="me-1" />
+                    Download PDF
+                  </>
+                )}
+              </Button>
+            </>
+          }
         >
-          <Modal.Header closeButton>
-            <Modal.Title>
-              Salary Slip - {selectedSlip.payPeriod}
-            </Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
             {/* Employee Info */}
             <Card className="mb-3">
               <Card.Body>
@@ -425,38 +447,7 @@ const MySalarySlips = () => {
                 </Row>
               </Card.Body>
             </Card>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button
-              variant="secondary"
-              onClick={() => setShowDetailModal(false)}
-            >
-              Close
-            </Button>
-            <Button
-              variant="success"
-              onClick={() => handleDownloadPDF(selectedSlip)}
-              disabled={downloading === selectedSlip._id}
-            >
-              {downloading === selectedSlip._id ? (
-                <>
-                  <Spinner
-                    as="span"
-                    animation="border"
-                    size="sm"
-                    className="me-1"
-                  />
-                  Downloading...
-                </>
-              ) : (
-                <>
-                  <FaDownload className="me-1" />
-                  Download PDF
-                </>
-              )}
-            </Button>
-          </Modal.Footer>
-        </Modal>
+        </MobileModal>
       )}
     </Container>
   );

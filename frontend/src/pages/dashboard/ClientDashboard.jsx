@@ -30,32 +30,26 @@ const ClientDashboard = () => {
     <Container fluid className="py-2">
       <GreetingBanner subtitle="Track your projects and communications" />
 
-      <Row className="g-4 mb-4">
-        <Col lg={4} md={6}>
-          <StatCard
-            title="Active Projects"
-            value="0"
-            icon={<FaProjectDiagram />}
-            bgColor="primary"
-          />
-        </Col>
-        <Col lg={4} md={6}>
-          <StatCard
-            title="Pending Invoices"
-            value="0"
-            icon={<FaFileAlt />}
-            bgColor="warning"
-          />
-        </Col>
-        <Col lg={4} md={6}>
-          <StatCard
-            title="Support Tickets"
-            value="0"
-            icon={<FaComments />}
-            bgColor="info"
-          />
-        </Col>
-      </Row>
+      <div className="stat-grid mb-4">
+        <StatCard
+          title="Active Projects"
+          value="0"
+          icon={<FaProjectDiagram />}
+          bgColor="primary"
+        />
+        <StatCard
+          title="Pending Invoices"
+          value="0"
+          icon={<FaFileAlt />}
+          bgColor="warning"
+        />
+        <StatCard
+          title="Support Tickets"
+          value="0"
+          icon={<FaComments />}
+          bgColor="info"
+        />
+      </div>
 
       <Row>
         <Col lg={4}>

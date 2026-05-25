@@ -2,13 +2,11 @@ import { useState, useEffect } from "react";
 import {
   Row,
   Col,
-  Table,
   Button,
   Form,
   Badge,
   Spinner,
   Alert,
-  Modal,
   Card,
 } from "react-bootstrap";
 import {
@@ -17,7 +15,6 @@ import {
   FaEdit,
   FaTrash,
   FaCheck,
-  FaSearch,
   FaArrowUp,
 } from "react-icons/fa";
 import { toast } from "../../utils/toast";
@@ -26,6 +23,10 @@ import SalaryStructureForm from "./SalaryStructureForm";
 import SalaryIncrementModal from "./SalaryIncrementModal";
 import api from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
+import MobileFilterSheet from "../shared/MobileFilterSheet";
+import ResponsiveDataTable from "../shared/ResponsiveDataTable";
+import MobileModal from "../shared/MobileModal";
+import FormFieldStack from "../shared/FormFieldStack";
 
 const SalaryStructures = () => {
   const { user } = useAuth();
@@ -171,51 +172,184 @@ const SalaryStructures = () => {
     return <Badge bg={config.bg}>{config.text}</Badge>;
   };
 
+  const structureColumns = [
+    {
+      key: "employee",
+      label: "Employee",
+      mobilePriority: 1,
+      render: (_, row) => (
+        <div>
+          <strong>{row.employee.name}</strong>
+          <br />
+          <small className="text-muted">{row.employee.employeeId}</small>
+        </div>
+      ),
+    },
+    {
+      key: "basicSalary",
+      label: "Basic Salary",
+      hideOnMobile: true,
+      render: (_, row) => formatCurrency(row.basicSalary),
+    },
+    {
+      key: "grossSalary",
+      label: "Gross Salary",
+      hideOnMobile: true,
+      render: (_, row) => formatCurrency(row.grossSalary),
+    },
+    {
+      key: "netSalary",
+      label: "Net Salary",
+      mobilePriority: 2,
+      render: (_, row) => (
+        <strong className="text-success">{formatCurrency(row.netSalary)}</strong>
+      ),
+    },
+    {
+      key: "ctc",
+      label: "CTC",
+      hideOnMobile: true,
+      render: (_, row) => formatCurrency(row.ctc),
+    },
+    {
+      key: "status",
+      label: "Status",
+      mobilePriority: 3,
+      render: (_, row) => getStatusBadge(row.status),
+    },
+    {
+      key: "effectiveFrom",
+      label: "Effective From",
+      hideOnMobile: true,
+      render: (_, row) => new Date(row.effectiveFrom).toLocaleDateString("en-IN"),
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      sortable: false,
+      render: (_, row) => (
+        <div className="d-flex gap-1 flex-wrap">
+          <Button
+            variant="outline-primary"
+            size="sm"
+            className="touch-target"
+            onClick={() => handleViewDetails(row)}
+            title="View details"
+          >
+            <FaEye />
+          </Button>
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            className="touch-target"
+            onClick={() => handleEdit(row)}
+            disabled={actionLoading === row._id}
+            title="Edit structure"
+          >
+            <FaEdit />
+          </Button>
+          {row.status === "active" && (
+            <Button
+              variant="outline-success"
+              size="sm"
+              className="touch-target"
+              onClick={() => handleCreateIncrement(row)}
+              title="Create salary increment"
+            >
+              <FaArrowUp />
+            </Button>
+          )}
+          {row.status === "draft" && (
+            <>
+              <Button
+                variant="outline-success"
+                size="sm"
+                className="touch-target"
+                onClick={() => handleActivate(row._id)}
+                disabled={actionLoading === row._id}
+                title="Activate structure"
+              >
+                <FaCheck />
+              </Button>
+              <Button
+                variant="outline-danger"
+                size="sm"
+                className="touch-target"
+                onClick={() => confirmDelete(row)}
+                disabled={actionLoading === row._id}
+                title="Delete structure"
+              >
+                <FaTrash />
+              </Button>
+            </>
+          )}
+          {row.status !== "draft" && isAdminOrSuperAdmin && (
+            <Button
+              variant="outline-danger"
+              size="sm"
+              className="touch-target"
+              onClick={() => confirmDelete(row)}
+              disabled={actionLoading === row._id}
+              title="Delete structure (Admin only)"
+            >
+              {actionLoading === row._id ? (
+                <Spinner animation="border" size="sm" />
+              ) : (
+                <FaTrash />
+              )}
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <>
-      {/* Header */}
       <Row className="mb-3">
         <Col>
-          <Button variant="primary" onClick={handleCreateNew}>
+          <Button variant="primary" className="touch-target" onClick={handleCreateNew}>
             <FaPlus className="me-1" />
             Create New Structure
           </Button>
         </Col>
       </Row>
 
-      {/* Filters */}
-      <Row className="mb-3">
-        <Col md={3}>
-          <Form.Select
-            value={filters.status}
-            onChange={(e) => handleFilterChange("status", e.target.value)}
-          >
-            <option value="">All Status</option>
-            <option value="draft">Draft</option>
-            <option value="active">Active</option>
-            <option value="superseded">Superseded</option>
-          </Form.Select>
-        </Col>
-        <Col md={4}>
-          <Form.Select
-            value={filters.employee}
-            onChange={(e) => handleFilterChange("employee", e.target.value)}
-          >
-            <option value="">All Employees</option>
-            {employees.map((employee) => (
-              <option key={employee._id} value={employee._id}>
-                {employee.name}
-              </option>
-            ))}
-          </Form.Select>
-        </Col>
-        <Col md={2}>
-          <Button variant="outline-secondary" onClick={fetchSalaryStructures}>
-            <FaSearch className="me-1" />
-            Search
-          </Button>
-        </Col>
-      </Row>
+      <MobileFilterSheet
+        title="Structure Filters"
+        activeFilterCount={[filters.status !== "active", filters.employee].filter(Boolean).length}
+        onClear={() => setFilters({ status: "active", employee: "" })}
+        onApply={fetchSalaryStructures}
+      >
+        <FormFieldStack md={6}>
+          <Form.Group>
+            <Form.Label>Status</Form.Label>
+            <Form.Select
+              value={filters.status}
+              onChange={(e) => handleFilterChange("status", e.target.value)}
+            >
+              <option value="">All Status</option>
+              <option value="draft">Draft</option>
+              <option value="active">Active</option>
+              <option value="superseded">Superseded</option>
+            </Form.Select>
+          </Form.Group>
+          <Form.Group>
+            <Form.Label>Employee</Form.Label>
+            <Form.Select
+              value={filters.employee}
+              onChange={(e) => handleFilterChange("employee", e.target.value)}
+            >
+              <option value="">All Employees</option>
+              {employees.map((employee) => (
+                <option key={employee._id} value={employee._id}>
+                  {employee.name}
+                </option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+        </FormFieldStack>
+      </MobileFilterSheet>
 
       {/* Results Info */}
       <div className="d-flex justify-content-between align-items-center mb-3">
@@ -238,7 +372,6 @@ const SalaryStructures = () => {
         )}
       </div>
 
-      {/* Table */}
       {loading ? (
         <div className="text-center py-5">
           <Spinner animation="border" />
@@ -247,113 +380,14 @@ const SalaryStructures = () => {
       ) : structures.length === 0 ? (
         <Alert variant="info">No salary structures found for the selected criteria.</Alert>
       ) : (
-        <Table responsive striped hover>
-          <thead>
-            <tr>
-              <th>Employee</th>
-              <th>Basic Salary</th>
-              <th>Gross Salary</th>
-              <th>Net Salary</th>
-              <th>CTC</th>
-              <th>Status</th>
-              <th>Effective From</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {structures.map((structure) => (
-              <tr key={structure._id}>
-                <td>
-                  <div>
-                    <strong>{structure.employee.name}</strong>
-                    <br />
-                    <small className="text-muted">{structure.employee.employeeId}</small>
-                  </div>
-                </td>
-                <td>{formatCurrency(structure.basicSalary)}</td>
-                <td>{formatCurrency(structure.grossSalary)}</td>
-                <td>
-                  <strong className="text-success">
-                    {formatCurrency(structure.netSalary)}
-                  </strong>
-                </td>
-                <td>{formatCurrency(structure.ctc)}</td>
-                <td>{getStatusBadge(structure.status)}</td>
-                <td>
-                  {new Date(structure.effectiveFrom).toLocaleDateString("en-IN")}
-                </td>
-                <td>
-                  <div className="d-flex gap-1">
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      onClick={() => handleViewDetails(structure)}
-                      title="View details"
-                    >
-                      <FaEye />
-                    </Button>
-                    <Button
-                      variant="outline-secondary"
-                      size="sm"
-                      onClick={() => handleEdit(structure)}
-                      disabled={actionLoading === structure._id}
-                      title="Edit structure"
-                    >
-                      <FaEdit />
-                    </Button>
-                    {structure.status === "active" && (
-                      <Button
-                        variant="outline-success"
-                        size="sm"
-                        onClick={() => handleCreateIncrement(structure)}
-                        title="Create salary increment"
-                      >
-                        <FaArrowUp />
-                      </Button>
-                    )}
-                    {structure.status === "draft" && (
-                      <>
-                        <Button
-                          variant="outline-success"
-                          size="sm"
-                          onClick={() => handleActivate(structure._id)}
-                          disabled={actionLoading === structure._id}
-                          title="Activate structure"
-                        >
-                          <FaCheck />
-                        </Button>
-                        <Button
-                          variant="outline-danger"
-                          size="sm"
-                          onClick={() => confirmDelete(structure)}
-                          disabled={actionLoading === structure._id}
-                          title="Delete structure"
-                        >
-                          <FaTrash />
-                        </Button>
-                      </>
-                    )}
-                    {structure.status !== "draft" && isAdminOrSuperAdmin && (
-                      <Button
-                        variant="outline-danger"
-                        size="sm"
-                        onClick={() => confirmDelete(structure)}
-                        disabled={actionLoading === structure._id}
-                        title="Delete structure (Admin only)"
-                      >
-                        {actionLoading === structure._id ? (
-                          <Spinner animation="border" size="sm" />
-                        ) : (
-                          <FaTrash />
-                        )}
-                      </Button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
+        <ResponsiveDataTable
+          columns={structureColumns}
+          data={structures}
+          loading={false}
+          emptyMessage="No salary structures found for the selected criteria."
+          paginated={false}
+          keyField="_id"
+        />
       )}
 
       {/* Form Modal */}
@@ -371,67 +405,76 @@ const SalaryStructures = () => {
         }}
       />
 
-      {/* Delete Confirmation Modal */}
-      <Modal
+      <MobileModal
         show={showDeleteModal}
         onHide={() => { setShowDeleteModal(false); setStructureToDelete(null); }}
-        centered
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>Delete Salary Structure</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {structureToDelete && (
-            <div className="text-center py-2">
-              <FaTrash size={40} className="text-danger mb-3" />
-              <h5>Are you sure?</h5>
-              <p className="text-muted">
-                You are about to delete the salary structure for{" "}
-                <strong>{structureToDelete.employee?.name}</strong>.
-              </p>
-              {structureToDelete.status !== "draft" && (
-                <div className="alert alert-warning">
-                  <strong>Warning:</strong> This is an <strong>{structureToDelete.status}</strong> salary structure. Deleting it may affect payroll records.
-                </div>
+        title="Delete Salary Structure"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              className="touch-target"
+              onClick={() => { setShowDeleteModal(false); setStructureToDelete(null); }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              className="touch-target"
+              onClick={() => handleDelete(structureToDelete?._id)}
+              disabled={actionLoading === structureToDelete?._id}
+            >
+              {actionLoading === structureToDelete?._id ? (
+                <><Spinner animation="border" size="sm" className="me-1" /> Deleting...</>
+              ) : (
+                <><FaTrash className="me-1" /> Delete</>
               )}
-              <p className="text-danger small">This action cannot be undone.</p>
-            </div>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button
-            variant="secondary"
-            onClick={() => { setShowDeleteModal(false); setStructureToDelete(null); }}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="danger"
-            onClick={() => handleDelete(structureToDelete?._id)}
-            disabled={actionLoading === structureToDelete?._id}
-          >
-            {actionLoading === structureToDelete?._id ? (
-              <><Spinner animation="border" size="sm" className="me-1" /> Deleting...</>
-            ) : (
-              <><FaTrash className="me-1" /> Delete</>
+            </Button>
+          </>
+        }
+      >
+        {structureToDelete && (
+          <div className="text-center py-2">
+            <FaTrash size={40} className="text-danger mb-3" />
+            <h5>Are you sure?</h5>
+            <p className="text-muted">
+              You are about to delete the salary structure for{" "}
+              <strong>{structureToDelete.employee?.name}</strong>.
+            </p>
+            {structureToDelete.status !== "draft" && (
+              <Alert variant="warning">
+                <strong>Warning:</strong> This is an <strong>{structureToDelete.status}</strong> salary structure. Deleting it may affect payroll records.
+              </Alert>
             )}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+            <p className="text-danger small">This action cannot be undone.</p>
+          </div>
+        )}
+      </MobileModal>
 
-      {/* Detail Modal */}
       {selectedStructure && (
-        <Modal
+        <MobileModal
           show={showDetailModal}
           onHide={() => setShowDetailModal(false)}
-          size="lg"
+          title={`Salary Structure - ${selectedStructure.employee.name}`}
+          footer={
+            <>
+              <Button variant="secondary" className="touch-target" onClick={() => setShowDetailModal(false)}>
+                Close
+              </Button>
+              {selectedStructure.status === "draft" && (
+                <Button
+                  variant="success"
+                  className="touch-target"
+                  onClick={() => handleActivate(selectedStructure._id)}
+                  disabled={actionLoading === selectedStructure._id}
+                >
+                  <FaCheck className="me-1" />
+                  Activate
+                </Button>
+              )}
+            </>
+          }
         >
-          <Modal.Header closeButton>
-            <Modal.Title>
-              Salary Structure - {selectedStructure.employee.name}
-            </Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
             <Row>
               <Col md={6}>
                 <Card className="mb-3">
@@ -545,23 +588,7 @@ const SalaryStructures = () => {
                 <strong>Notes:</strong> {selectedStructure.notes}
               </Alert>
             )}
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowDetailModal(false)}>
-              Close
-            </Button>
-            {selectedStructure.status === "draft" && (
-              <Button
-                variant="success"
-                onClick={() => handleActivate(selectedStructure._id)}
-                disabled={actionLoading === selectedStructure._id}
-              >
-                <FaCheck className="me-1" />
-                Activate
-              </Button>
-            )}
-          </Modal.Footer>
-        </Modal>
+        </MobileModal>
       )}
 
       {/* Salary Increment Modal */}

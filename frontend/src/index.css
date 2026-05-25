@@ -2,6 +2,11 @@
 @import './styles/dashboard-common.css';
 /* Import responsive utilities */
 @import './styles/responsive.css';
+@import './styles/table-mobile.css';
+@import './styles/form-mobile.css';
+@import './styles/dashboard-mobile.css';
+@import './styles/pages-mobile.css';
+@import './styles/mobile-tabs.css';
 /* Import modal mobile styles */
 @import './styles/modal-mobile.css';
 /* Import mobile polish and optimizations */

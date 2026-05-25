@@ -6,6 +6,8 @@ import toast from "../../utils/toast";
 import { expenseApi } from "../../api/expenseApi";
 import { formatDate, formatCurrency } from "../../utils/helpers";
 import { getTypeColor, EXPENSE_PURPOSES_ARRAY, EXPENSE_TYPES_ARRAY } from "../../utils/expenseConstants";
+import MobileFilterSheet from "../../components/shared/MobileFilterSheet";
+import { useBreakpoint } from "../../context/BreakpointContext";
 
 const STATUS_COLORS = {
   pending: "warning",
@@ -16,6 +18,7 @@ const STATUS_COLORS = {
 
 const MyExpenses = () => {
   const navigate = useNavigate();
+  const { isCompact } = useBreakpoint();
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ total: 0, pending: 0, approved: 0, rejected: 0, reimbursed: 0, totalAmount: 0, approvedAmount: 0 });
@@ -133,9 +136,8 @@ const MyExpenses = () => {
       </div>
 
       {/* Stats Cards - Improved Layout */}
-      <Row className="mb-4 g-3">
-        <Col lg={3} md={6} sm={12}>
-          <Card className="border-0 shadow-sm h-100">
+      <div className="stat-grid mb-4">
+        <Card className="border-0 shadow-sm h-100">
             <Card.Body>
               <div className="d-flex justify-content-between align-items-start">
                 <div>
@@ -148,8 +150,6 @@ const MyExpenses = () => {
               </div>
             </Card.Body>
           </Card>
-        </Col>
-        <Col lg={3} md={6} sm={12}>
           <Card className="border-0 shadow-sm h-100">
             <Card.Body>
               <div className="d-flex justify-content-between align-items-start">
@@ -163,8 +163,6 @@ const MyExpenses = () => {
               </div>
             </Card.Body>
           </Card>
-        </Col>
-        <Col lg={3} md={6} sm={12}>
           <Card className="border-0 shadow-sm h-100">
             <Card.Body>
               <div className="d-flex justify-content-between align-items-start">
@@ -178,8 +176,6 @@ const MyExpenses = () => {
               </div>
             </Card.Body>
           </Card>
-        </Col>
-        <Col lg={3} md={6} sm={12}>
           <Card className="border-0 shadow-sm h-100">
             <Card.Body>
               <div className="d-flex justify-content-between align-items-start">
@@ -193,8 +189,7 @@ const MyExpenses = () => {
               </div>
             </Card.Body>
           </Card>
-        </Col>
-      </Row>
+      </div>
 
       {/* Main Card */}
       <Card className="border-0 shadow-sm">
@@ -206,7 +201,12 @@ const MyExpenses = () => {
         </Card.Header>
 
         <Card.Body className="p-4">
-          {/* Filters */}
+          <MobileFilterSheet
+            title="Expense filters"
+            activeFilterCount={[filters.status, filters.expensePurpose, filters.expenseType].filter(Boolean).length}
+            onClear={() => setFilters({ status: "", expensePurpose: "", expenseType: "", page: 1, limit: 10 })}
+            showApply={false}
+          >
           <Row className="mb-4 g-3">
             <Col md={4}>
               <Form.Group>
@@ -259,6 +259,7 @@ const MyExpenses = () => {
               </Form.Group>
             </Col>
           </Row>
+          </MobileFilterSheet>
 
           {/* Table */}
           {loading ? (

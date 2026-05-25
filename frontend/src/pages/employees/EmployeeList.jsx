@@ -39,14 +39,17 @@ import {
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
+import { useBreakpoint } from "../../context/BreakpointContext";
 import api from "../../services/api";
 import ProfilePictureDisplay from "../../components/profile/ProfilePictureDisplay";
 import StatusBadge from "../../components/hr/StatusBadge";
+import MobileFilterSheet from "../../components/shared/MobileFilterSheet";
 
 
 const EmployeeList = () => {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
+  const { isCompact } = useBreakpoint();
   const [employees, setEmployees] = useState([]);
   const [filteredEmployees, setFilteredEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -64,6 +67,10 @@ const EmployeeList = () => {
   useEffect(() => {
     applyFilters();
   }, [employees, searchTerm, statusFilter, departmentFilter]);
+
+  useEffect(() => {
+    if (isCompact) setViewMode("cards");
+  }, [isCompact]);
 
   const fetchEmployees = async () => {
     try {
@@ -325,6 +332,16 @@ const EmployeeList = () => {
           </h5>
         </Card.Header>
         <Card.Body className="p-4">
+          <MobileFilterSheet
+            title="Search & filters"
+            activeFilterCount={[searchTerm, statusFilter, departmentFilter].filter(Boolean).length}
+            onClear={() => {
+              setSearchTerm("");
+              setStatusFilter("");
+              setDepartmentFilter("");
+            }}
+            showApply={false}
+          >
           <Row className="g-3">
             <Col lg={4} md={6}>
               <Form.Label className="fw-semibold text-muted small">SEARCH EMPLOYEES</Form.Label>
@@ -403,42 +420,44 @@ const EmployeeList = () => {
               </div>
             </Col>
           </Row>
+          </MobileFilterSheet>
         </Card.Body>
       </Card>
 
       {/* Modern Employee Cards/Table */}
-      <Card className="border-0 shadow-lg" style={{ borderRadius: '20px', overflow: 'visible' }}>
-        <Card.Header className="bg-white border-0 pt-4 pb-0" style={{ borderRadius: '20px 20px 0 0' }}>
-          <div className="d-flex justify-content-between align-items-center">
+      <Card className="border-0 shadow-lg employee-list-shell-card" style={{ borderRadius: '20px' }}>
+        <Card.Header className="bg-white border-0 pt-4 pb-3 employee-list-card-header" style={{ borderRadius: '20px 20px 0 0' }}>
+          <div className="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-3 w-100">
             <h5 className="mb-0 text-dark fw-bold">
               <FaUsers className="me-2 text-primary" />
               Active Employees ({activeEmployees.length})
             </h5>
-            <div className="d-flex align-items-center gap-2">
-              {/* View Toggle */}
-              <div className="btn-group" role="group">
+            <div className="employee-list-view-controls w-100 w-md-auto">
+              <div className="employee-view-toggle" role="group" aria-label="Employee view mode">
                 <Button
                   variant={viewMode === "cards" ? "primary" : "outline-primary"}
                   size="sm"
                   onClick={() => setViewMode("cards")}
                   title="Card View"
-                  className="fw-semibold"
+                  className={`employee-view-toggle__btn fw-semibold ${viewMode === "cards" ? "active" : ""}`}
+                  aria-pressed={viewMode === "cards"}
                 >
                   <FaTh className="me-1" />
-                  Cards
+                  <span className="employee-view-toggle__label">Cards</span>
                 </Button>
                 <Button
                   variant={viewMode === "list" ? "primary" : "outline-primary"}
                   size="sm"
                   onClick={() => setViewMode("list")}
                   title="List View"
-                  className="fw-semibold"
+                  className={`employee-view-toggle__btn fw-semibold ${viewMode === "list" ? "active" : ""}`}
+                  aria-pressed={viewMode === "list"}
                 >
                   <FaList className="me-1" />
-                  List
+                  <span className="employee-view-toggle__label">List</span>
                 </Button>
               </div>
-              <Badge bg="primary" className="px-3 py-2 rounded-pill">
+              <Badge bg="primary" className="px-3 py-2 rounded-pill d-none d-md-inline-flex">
                 {activeEmployees.length} Results
               </Badge>
             </div>
@@ -578,6 +597,11 @@ const EmployeeList = () => {
               color: #667eea;
               flex-shrink: 0;
             }
+            .employee-info-item span,
+            .employee-info-text {
+              min-width: 0;
+              flex: 1;
+            }
             
             /* Fix for profile picture wrapper sizing */
             .profile-picture-display {
@@ -607,12 +631,12 @@ const EmployeeList = () => {
           `}</style>
           
           {activeEmployees.length > 0 ? (
-            <div className="p-4" style={{ overflow: 'visible' }}>
+            <div className="p-2 p-md-4 employee-cards-grid" style={{ overflow: 'visible' }}>
               {viewMode === "cards" ? (
                 // Card View (Original)
                 <Row className="g-4" style={{ overflow: 'visible' }}>
                   {activeEmployees.map((employee) => (
-                    <Col lg={6} xl={4} key={employee._id}>
+                    <Col xs={12} md={6} xl={4} key={employee._id}>
                       <Card className="employee-card h-100 border-0 shadow-sm">
                         <Card.Body className="p-4">
                           {/* Employee Header */}
@@ -648,7 +672,7 @@ const EmployeeList = () => {
                             </div>
                             <div className="employee-info-item">
                               <FaEnvelope className="icon" />
-                              <span className="text-truncate">{employee.email}</span>
+                              <span className="employee-info-text">{employee.email}</span>
                             </div>
                             <div className="employee-info-item">
                               <FaBuilding className="icon" />
@@ -661,7 +685,7 @@ const EmployeeList = () => {
                           </div>
 
                           {/* Action Buttons */}
-                          <div className="d-flex gap-2">
+                          <div className="d-flex flex-column flex-sm-row gap-2 employee-card-actions">
                             <Button
                               variant="primary"
                               size="sm"
@@ -831,10 +855,10 @@ const EmployeeList = () => {
           </Card.Header>
           <Card.Body className="p-0" style={{ overflow: 'visible' }}>
             {viewMode === "cards" ? (
-              <div className="p-4" style={{ overflow: 'visible' }}>
+              <div className="p-2 p-md-4 employee-cards-grid" style={{ overflow: 'visible' }}>
                 <Row className="g-4" style={{ overflow: 'visible' }}>
                   {inactiveEmployees.map((employee) => (
-                    <Col lg={6} xl={4} key={employee._id}>
+                    <Col xs={12} md={6} xl={4} key={employee._id}>
                       <Card className="employee-card h-100 border-0 shadow-sm">
                         <Card.Body className="p-4">
                           <div className="d-flex align-items-start mb-3">
@@ -867,14 +891,14 @@ const EmployeeList = () => {
                             </div>
                             <div className="employee-info-item">
                               <FaEnvelope className="icon" />
-                              <span className="text-truncate">{employee.email}</span>
+                              <span className="employee-info-text">{employee.email}</span>
                             </div>
                             <div className="employee-info-item">
                               <FaBuilding className="icon" />
                               <span>{employee.department?.name || "No department"}</span>
                             </div>
                           </div>
-                          <div className="d-flex gap-2">
+                          <div className="d-flex flex-column flex-sm-row gap-2 employee-card-actions">
                             <Button
                               variant="primary"
                               size="sm"

@@ -69,6 +69,10 @@
    2. CARD-BASED TABLE LAYOUT (MOBILE)
    ============================================ */
 
+.mobile-table-cards {
+  display: none;
+}
+
 @media (max-width: 575.98px) {
   /* Hide traditional table on very small screens */
   .table-mobile-cards {
@@ -154,8 +158,23 @@
   }
   
   /* Hide less important columns on mobile */
-  .attendance-table .hide-mobile {
+  .attendance-table .hide-mobile,
+  .attendance-tracking-table .hide-mobile {
     display: none;
+  }
+
+  .attendance-tracking-table th,
+  .attendance-tracking-table td {
+    padding: 8px 6px;
+    font-size: 0.8rem;
+  }
+
+  .attendance-tracking-table .actions-col {
+    min-width: 0;
+  }
+
+  .attendance-summary-cards .d-none-mobile-detail {
+    display: none !important;
   }
   
   /* Compact date display */
@@ -322,6 +341,19 @@
 /* ============================================
    8. TABS MOBILE
    ============================================ */
+
+@media (max-width: 991.98px) {
+  .has-mobile-tab-bar .nav-tabs {
+    display: none !important;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .procurement-table .hide-mobile,
+  .expense-table .hide-mobile {
+    display: none;
+  }
+}
 
 @media (max-width: 575.98px) {
   .nav-tabs {

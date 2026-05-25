@@ -7,9 +7,14 @@ import "react-datepicker/dist/react-datepicker.css";
 import "./index.css";
 import "./styles/card-header-fix.css";
 import { initMobileDebug } from "./utils/mobileDebug";
+import { initResponsiveAudit } from "./utils/responsiveAudit";
 
 // Initialize mobile debugging in production
 initMobileDebug();
+
+if (import.meta.env.DEV) {
+  initResponsiveAudit();
+}
 
 // Register service worker early for push notifications
 if ('serviceWorker' in navigator) {

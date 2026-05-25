@@ -14,9 +14,6 @@ import {
   isFullTimeEmployee,
 } from "../../utils/leaveEligibility";
 import ApplyWFHModal from "../../components/wfh/ApplyWFHModal";
-import "../../styles/table-mobile.css";
-import "../../styles/modal-mobile.css";
-
 const MyLeaves = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('leaves');

@@ -51,9 +51,11 @@ import { getPendingWFHRequests } from "../../api/wfhApi";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
 import toast from "../../utils/toast";
 import TodoWidget from "../../components/common/TodoWidget";
+import { useBreakpoint } from "../../context/BreakpointContext";
 
 const HRDashboard = () => {
   const { user } = useAuth();
+  const { isAppMobile } = useBreakpoint();
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     employees: 0,
@@ -433,49 +435,41 @@ const HRDashboard = () => {
     <Container fluid className="py-2">
       <GreetingBanner subtitle="Manage your workforce efficiently" />
 
-      <Row className="g-4 mb-4">
-        <Col lg={3} md={6}>
-          <div onClick={handleEmployeesCardClick} style={{ cursor: 'pointer', height: '100%' }}>
-            <StatCard
-              title="Active Employees"
-              value={stats.employees}
-              icon={<FaUsers />}
-              bgColor="primary"
-              trend={5}
-            />
-          </div>
-        </Col>
-        <Col lg={3} md={6}>
-          <div onClick={handleLeavesCardClick} style={{ cursor: 'pointer', height: '100%' }}>
-            <StatCard
-              title="Pending Leave Requests"
-              value={stats.pendingLeaves}
-              icon={<FaCalendarAlt />}
-              bgColor="warning"
-            />
-          </div>
-        </Col>
-        <Col lg={3} md={6}>
-          <div onClick={handleAttendanceCardClick} style={{ cursor: 'pointer', height: '100%' }}>
-            <StatCard
-              title="Present Today"
-              value={stats.presentToday}
-              icon={<FaClock />}
-              bgColor="success"
-            />
-          </div>
-        </Col>
-        <Col lg={3} md={6}>
-          <div onClick={handleLeadsCardClick} style={{ cursor: 'pointer', height: '100%' }}>
-            <StatCard
-              title="Total Leads"
-              value={stats.leads}
-              icon={<FaChartLine />}
-              bgColor="info"
-            />
-          </div>
-        </Col>
-      </Row>
+      <div className="stat-grid mb-4">
+        <div onClick={handleEmployeesCardClick} style={{ cursor: 'pointer', height: '100%' }}>
+          <StatCard
+            title="Active Employees"
+            value={stats.employees}
+            icon={<FaUsers />}
+            bgColor="primary"
+            trend={5}
+          />
+        </div>
+        <div onClick={handleLeavesCardClick} style={{ cursor: 'pointer', height: '100%' }}>
+          <StatCard
+            title="Pending Leave Requests"
+            value={stats.pendingLeaves}
+            icon={<FaCalendarAlt />}
+            bgColor="warning"
+          />
+        </div>
+        <div onClick={handleAttendanceCardClick} style={{ cursor: 'pointer', height: '100%' }}>
+          <StatCard
+            title="Present Today"
+            value={stats.presentToday}
+            icon={<FaClock />}
+            bgColor="success"
+          />
+        </div>
+        <div onClick={handleLeadsCardClick} style={{ cursor: 'pointer', height: '100%' }}>
+          <StatCard
+            title="Total Leads"
+            value={stats.leads}
+            icon={<FaChartLine />}
+            bgColor="info"
+          />
+        </div>
+      </div>
 
       {/* Salary Management Card */}
       <Row className="mb-4">
@@ -488,17 +482,17 @@ const HRDashboard = () => {
             }}
           >
             <Card.Body className="d-flex align-items-center">
-              <Row className="w-100 align-items-center">
-                <Col md={8}>
-                  <div className="d-flex align-items-center">
-                    <div className="me-4">
+              <div className={`w-100 ${isAppMobile ? "d-flex flex-column gap-3" : "row align-items-center"}`}>
+                <div className={isAppMobile ? "" : "col-md-8"}>
+                  <div className={`d-flex align-items-center ${isAppMobile ? "flex-column text-center" : ""}`}>
+                    <div className={isAppMobile ? "mb-2" : "me-4"}>
                       <FaMoneyBillWave 
                         size={50} 
                         className="text-primary"
                       />
                     </div>
                     <div>
-                      <h4 className="mb-2 fw-bold text-dark" style={{ fontSize: '20px' }}>
+                      <h4 className={`mb-2 fw-bold text-dark ${isAppMobile ? "fs-5" : ""}`}>
                         Salary Management System
                       </h4>
                       <p className="mb-0 text-muted fs-6">
@@ -506,19 +500,19 @@ const HRDashboard = () => {
                       </p>
                     </div>
                   </div>
-                </Col>
-                <Col md={4} className="text-end">
+                </div>
+                <div className={`${isAppMobile ? "w-100" : "col-md-4 text-end"}`}>
                   <Button 
                     variant="primary" 
                     size="lg"
                     onClick={() => navigate('/salary-management')}
-                    className="fw-bold px-4 py-3"
+                    className={`fw-bold px-4 py-3 ${isAppMobile ? "w-100" : ""}`}
                   >
                     <FaMoneyBillWave className="me-2" />
                     Manage Salaries
                   </Button>
-                </Col>
-              </Row>
+                </div>
+              </div>
             </Card.Body>
           </Card>
         </Col>

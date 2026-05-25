@@ -1,10 +1,21 @@
 import { useState } from 'react';
-import { Container, Row, Col, Card, Form, Button, Alert, Tab, Tabs } from 'react-bootstrap';
+import { Container, Card, Form, Button, Alert, Nav } from 'react-bootstrap';
 import { FaSave, FaLock, FaBell, FaPalette, FaShieldAlt, FaCog } from 'react-icons/fa';
 import NotificationSettings from '../../components/notifications/NotificationSettings';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import api from '../../services/api';
+import PageHeader from '../../components/shared/PageHeader';
+import MobileTabBar from '../../components/shared/MobileTabBar';
+import FormFieldStack from '../../components/shared/FormFieldStack';
+
+const SETTINGS_TABS = [
+  { key: 'account', label: 'Security' },
+  { key: 'notifications', label: 'Notifications' },
+  { key: 'hr-prefs', label: 'HR Preferences' },
+  { key: 'display', label: 'Display' },
+  { key: 'privacy', label: 'Privacy' },
+];
 
 const HRSettings = () => {
   const { user } = useAuth();
@@ -70,7 +81,6 @@ const HRSettings = () => {
   const handleNotificationSave = async () => {
     try {
       setSaving(true);
-      // Save to localStorage
       localStorage.setItem('notificationPreferences', JSON.stringify(notifications));
       toast.success('Notification preferences saved');
     } catch (error) {
@@ -94,7 +104,6 @@ const HRSettings = () => {
   const handleDisplayPrefsSave = async () => {
     try {
       setSaving(true);
-      // Save to localStorage for UI preferences
       localStorage.setItem('displayPreferences', JSON.stringify(displayPrefs));
       toast.success('Display preferences saved');
     } catch (error) {
@@ -104,153 +113,150 @@ const HRSettings = () => {
     }
   };
 
-  return (
-    <Container className="mt-4">
-      <Row className="mb-4">
-        <Col>
-          <h2>{user?.name}'s Settings</h2>
-          <p className="text-muted">Manage your account settings and preferences</p>
-        </Col>
-      </Row>
-
-      <Tabs activeKey={activeTab} onSelect={(k) => setActiveTab(k)} className="mb-4">
-        <Tab eventKey="account" title={<span><FaLock className="me-2" />Security</span>}>
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'account':
+        return (
           <Card>
             <Card.Body>
               <h5 className="mb-4">Change Password</h5>
               <Form onSubmit={handlePasswordChange}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Current Password</Form.Label>
-                  <Form.Control
-                    type="password"
-                    value={passwordData.currentPassword}
-                    onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                    required
-                  />
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>New Password</Form.Label>
-                  <Form.Control
-                    type="password"
-                    value={passwordData.newPassword}
-                    onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                    required
-                  />
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>Confirm New Password</Form.Label>
-                  <Form.Control
-                    type="password"
-                    value={passwordData.confirmPassword}
-                    onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                    required
-                  />
-                </Form.Group>
-                <Button type="submit" variant="primary" disabled={saving}>
+                <FormFieldStack md={12} lg={12}>
+                  <Form.Group>
+                    <Form.Label>Current Password</Form.Label>
+                    <Form.Control
+                      type="password"
+                      value={passwordData.currentPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                      required
+                    />
+                  </Form.Group>
+                  <Form.Group>
+                    <Form.Label>New Password</Form.Label>
+                    <Form.Control
+                      type="password"
+                      value={passwordData.newPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                      required
+                    />
+                  </Form.Group>
+                  <Form.Group>
+                    <Form.Label>Confirm New Password</Form.Label>
+                    <Form.Control
+                      type="password"
+                      value={passwordData.confirmPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                      required
+                    />
+                  </Form.Group>
+                </FormFieldStack>
+                <Button type="submit" variant="primary" className="touch-target mt-3" disabled={saving}>
                   <FaSave className="me-2" />
                   {saving ? 'Changing...' : 'Change Password'}
                 </Button>
               </Form>
             </Card.Body>
           </Card>
-        </Tab>
-
-        <Tab eventKey="notifications" title={<span><FaBell className="me-2" />Notifications</span>}>
-          <NotificationSettings />
-        </Tab>
-
-        <Tab eventKey="hr-prefs" title={<span><FaCog className="me-2" />HR Preferences</span>}>
+        );
+      case 'notifications':
+        return <NotificationSettings />;
+      case 'hr-prefs':
+        return (
           <Card>
             <Card.Body>
               <h5 className="mb-4">HR System Preferences</h5>
-              <Form.Group className="mb-3">
-                <Form.Check
-                  type="switch"
-                  label="Auto-approve leaves (up to limit)"
-                  checked={hrPreferences.autoApproveLeaves}
-                  onChange={(e) => setHrPreferences({ ...hrPreferences, autoApproveLeaves: e.target.checked })}
-                />
-                <Form.Text className="text-muted">Automatically approve leaves within the specified limit</Form.Text>
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Leave Auto-Approval Limit (days)</Form.Label>
-                <Form.Control
-                  type="number"
-                  value={hrPreferences.leaveApprovalLimit}
-                  onChange={(e) => setHrPreferences({ ...hrPreferences, leaveApprovalLimit: e.target.value })}
-                  min="1"
-                  max="10"
-                />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Daily Attendance Reminder Time</Form.Label>
-                <Form.Control
-                  type="time"
-                  value={hrPreferences.attendanceReminderTime}
-                  onChange={(e) => setHrPreferences({ ...hrPreferences, attendanceReminderTime: e.target.value })}
-                />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Probation Period (days)</Form.Label>
-                <Form.Control
-                  type="number"
-                  value={hrPreferences.probationPeriodDays}
-                  onChange={(e) => setHrPreferences({ ...hrPreferences, probationPeriodDays: e.target.value })}
-                  min="30"
-                  max="180"
-                />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Contract Renewal Notice (days before)</Form.Label>
-                <Form.Control
-                  type="number"
-                  value={hrPreferences.contractRenewalNotice}
-                  onChange={(e) => setHrPreferences({ ...hrPreferences, contractRenewalNotice: e.target.value })}
-                  min="7"
-                  max="90"
-                />
-              </Form.Group>
-              <Button variant="primary" onClick={handleHRPrefsSave} disabled={saving}>
+              <FormFieldStack md={6}>
+                <Form.Group>
+                  <Form.Check
+                    type="switch"
+                    label="Auto-approve leaves (up to limit)"
+                    checked={hrPreferences.autoApproveLeaves}
+                    onChange={(e) => setHrPreferences({ ...hrPreferences, autoApproveLeaves: e.target.checked })}
+                  />
+                  <Form.Text className="text-muted">Automatically approve leaves within the specified limit</Form.Text>
+                </Form.Group>
+                <Form.Group>
+                  <Form.Label>Leave Auto-Approval Limit (days)</Form.Label>
+                  <Form.Control
+                    type="number"
+                    value={hrPreferences.leaveApprovalLimit}
+                    onChange={(e) => setHrPreferences({ ...hrPreferences, leaveApprovalLimit: e.target.value })}
+                    min="1"
+                    max="10"
+                  />
+                </Form.Group>
+                <Form.Group>
+                  <Form.Label>Daily Attendance Reminder Time</Form.Label>
+                  <Form.Control
+                    type="time"
+                    value={hrPreferences.attendanceReminderTime}
+                    onChange={(e) => setHrPreferences({ ...hrPreferences, attendanceReminderTime: e.target.value })}
+                  />
+                </Form.Group>
+                <Form.Group>
+                  <Form.Label>Probation Period (days)</Form.Label>
+                  <Form.Control
+                    type="number"
+                    value={hrPreferences.probationPeriodDays}
+                    onChange={(e) => setHrPreferences({ ...hrPreferences, probationPeriodDays: e.target.value })}
+                    min="30"
+                    max="180"
+                  />
+                </Form.Group>
+                <Form.Group>
+                  <Form.Label>Contract Renewal Notice (days before)</Form.Label>
+                  <Form.Control
+                    type="number"
+                    value={hrPreferences.contractRenewalNotice}
+                    onChange={(e) => setHrPreferences({ ...hrPreferences, contractRenewalNotice: e.target.value })}
+                    min="7"
+                    max="90"
+                  />
+                </Form.Group>
+              </FormFieldStack>
+              <Button variant="primary" className="touch-target mt-3" onClick={handleHRPrefsSave} disabled={saving}>
                 <FaSave className="me-2" />Save HR Preferences
               </Button>
             </Card.Body>
           </Card>
-        </Tab>
-
-        <Tab eventKey="display" title={<span><FaPalette className="me-2" />Display</span>}>
+        );
+      case 'display':
+        return (
           <Card>
             <Card.Body>
               <h5 className="mb-4">Display Preferences</h5>
-              <Form.Group className="mb-3">
-                <Form.Label>Theme</Form.Label>
-                <Form.Select value={displayPrefs.theme} onChange={(e) => setDisplayPrefs({ ...displayPrefs, theme: e.target.value })}>
-                  <option value="light">Light</option>
-                  <option value="dark">Dark (Coming Soon)</option>
-                </Form.Select>
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Date Format</Form.Label>
-                <Form.Select value={displayPrefs.dateFormat} onChange={(e) => setDisplayPrefs({ ...displayPrefs, dateFormat: e.target.value })}>
-                  <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-                  <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                  <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                </Form.Select>
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Time Format</Form.Label>
-                <Form.Select value={displayPrefs.timeFormat} onChange={(e) => setDisplayPrefs({ ...displayPrefs, timeFormat: e.target.value })}>
-                  <option value="12h">12-hour</option>
-                  <option value="24h">24-hour</option>
-                </Form.Select>
-              </Form.Group>
-              <Button variant="primary" onClick={handleDisplayPrefsSave} disabled={saving}>
+              <FormFieldStack md={6}>
+                <Form.Group>
+                  <Form.Label>Theme</Form.Label>
+                  <Form.Select value={displayPrefs.theme} onChange={(e) => setDisplayPrefs({ ...displayPrefs, theme: e.target.value })}>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark (Coming Soon)</option>
+                  </Form.Select>
+                </Form.Group>
+                <Form.Group>
+                  <Form.Label>Date Format</Form.Label>
+                  <Form.Select value={displayPrefs.dateFormat} onChange={(e) => setDisplayPrefs({ ...displayPrefs, dateFormat: e.target.value })}>
+                    <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                    <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                    <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                  </Form.Select>
+                </Form.Group>
+                <Form.Group>
+                  <Form.Label>Time Format</Form.Label>
+                  <Form.Select value={displayPrefs.timeFormat} onChange={(e) => setDisplayPrefs({ ...displayPrefs, timeFormat: e.target.value })}>
+                    <option value="12h">12-hour</option>
+                    <option value="24h">24-hour</option>
+                  </Form.Select>
+                </Form.Group>
+              </FormFieldStack>
+              <Button variant="primary" className="touch-target mt-3" onClick={handleDisplayPrefsSave} disabled={saving}>
                 <FaSave className="me-2" />Save Preferences
               </Button>
             </Card.Body>
           </Card>
-        </Tab>
-
-        <Tab eventKey="privacy" title={<span><FaShieldAlt className="me-2" />Privacy</span>}>
+        );
+      case 'privacy':
+        return (
           <Card>
             <Card.Body>
               <h5 className="mb-4">Privacy & Data Access</h5>
@@ -268,8 +274,42 @@ const HRSettings = () => {
               </ul>
             </Card.Body>
           </Card>
-        </Tab>
-      </Tabs>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <Container className="mt-4">
+      <PageHeader
+        title={`${user?.name}'s Settings`}
+        subtitle="Manage your account settings and preferences"
+      />
+
+      <MobileTabBar
+        tabs={SETTINGS_TABS}
+        activeKey={activeTab}
+        onSelect={setActiveTab}
+        desktopChildren={
+          <Nav variant="tabs" className="mb-4">
+            {SETTINGS_TABS.map(({ key, label }) => (
+              <Nav.Item key={key}>
+                <Nav.Link active={activeTab === key} onClick={() => setActiveTab(key)}>
+                  {key === 'account' && <FaLock className="me-2" />}
+                  {key === 'notifications' && <FaBell className="me-2" />}
+                  {key === 'hr-prefs' && <FaCog className="me-2" />}
+                  {key === 'display' && <FaPalette className="me-2" />}
+                  {key === 'privacy' && <FaShieldAlt className="me-2" />}
+                  {label}
+                </Nav.Link>
+              </Nav.Item>
+            ))}
+          </Nav>
+        }
+      />
+
+      {renderTabContent()}
     </Container>
   );
 };

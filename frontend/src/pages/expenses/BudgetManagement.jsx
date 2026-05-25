@@ -7,6 +7,9 @@ import { useAuth } from "../../context/AuthContext";
 import toast from "../../utils/toast";
 import { getPurposeLabel, getTypeLabel } from "../../utils/expenseConstants";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import PageHeader from "../../components/shared/PageHeader";
+import { chartHeight } from "../../components/shared/ResponsiveChartGrid";
+import { useBreakpoint } from "../../context/BreakpointContext";
 import "./ExpenseManagement.css";
 
 const BudgetManagement = () => {
@@ -34,6 +37,7 @@ const BudgetManagement = () => {
   const [selectedFinancialYear, setSelectedFinancialYear] = useState("");
   const [loading, setLoading] = useState(true);
   const [chartData, setChartData] = useState([]);
+  const { isCompact } = useBreakpoint();
 
   const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8", "#82CA9D", "#FFC658"];
 
@@ -143,27 +147,19 @@ const BudgetManagement = () => {
 
   return (
     <Container fluid className="py-4">
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div className="d-flex align-items-center">
-          <Button
-            variant="outline-secondary"
-            size="sm"
-            className="me-3"
-            onClick={() => navigate(-1)}
-          >
-            <FaArrowLeft className="me-2" />
-            Back
-          </Button>
-          <h2 className="mb-0">Expense Tracking</h2>
-        </div>
-        <div className="d-flex align-items-end gap-3">
-          <div>
-            <Form.Label className="small text-muted mb-1 d-block">Financial Year</Form.Label>
+      <PageHeader
+        title="Expense Tracking"
+        actions={
+          <>
+            <Button variant="outline-secondary" size="sm" onClick={() => navigate(-1)}>
+              <FaArrowLeft className="me-2" />
+              Back
+            </Button>
             <Form.Select
               value={selectedFinancialYear}
               onChange={(e) => setSelectedFinancialYear(e.target.value)}
               style={{ minWidth: "150px" }}
+              aria-label="Financial year"
             >
               {financialYears.map((year) => (
                 <option key={year} value={year}>
@@ -171,17 +167,17 @@ const BudgetManagement = () => {
                 </option>
               ))}
             </Form.Select>
-          </div>
-          <Button
-            variant="primary"
-            onClick={handleExportData}
-            disabled={categoryExpenses.length === 0}
-          >
-            <FaDownload className="me-2" />
-            Export CSV
-          </Button>
-        </div>
-      </div>
+            <Button
+              variant="primary"
+              onClick={handleExportData}
+              disabled={categoryExpenses.length === 0}
+            >
+              <FaDownload className="me-2" />
+              Export CSV
+            </Button>
+          </>
+        }
+      />
 
       {/* Info Alert */}
       <Alert variant="info" className="mb-4">
@@ -192,34 +188,28 @@ const BudgetManagement = () => {
       </Alert>
 
       {/* Summary Cards */}
-      <Row className="mb-4">
-        <Col md={4}>
-          <Card className="shadow-sm">
-            <Card.Body>
-              <h6 className="text-muted mb-3">Total Expenses</h6>
-              <h3 className="mb-0">{formatCurrency(getTotalExpenses())}</h3>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={4}>
-          <Card className="shadow-sm">
-            <Card.Body>
-              <h6 className="text-muted mb-3">Total Transactions</h6>
-              <h3 className="mb-0">{getTotalCount()}</h3>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={4}>
-          <Card className="shadow-sm">
-            <Card.Body>
-              <h6 className="text-muted mb-3">Average Expense</h6>
-              <h3 className="mb-0">
-                {getTotalCount() > 0 ? formatCurrency(getTotalExpenses() / getTotalCount()) : "₹0"}
-              </h3>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+      <div className="stat-grid mb-4">
+        <Card className="shadow-sm">
+          <Card.Body>
+            <h6 className="text-muted mb-3">Total Expenses</h6>
+            <h3 className="mb-0">{formatCurrency(getTotalExpenses())}</h3>
+          </Card.Body>
+        </Card>
+        <Card className="shadow-sm">
+          <Card.Body>
+            <h6 className="text-muted mb-3">Total Transactions</h6>
+            <h3 className="mb-0">{getTotalCount()}</h3>
+          </Card.Body>
+        </Card>
+        <Card className="shadow-sm">
+          <Card.Body>
+            <h6 className="text-muted mb-3">Average Expense</h6>
+            <h3 className="mb-0">
+              {getTotalCount() > 0 ? formatCurrency(getTotalExpenses() / getTotalCount()) : "₹0"}
+            </h3>
+          </Card.Body>
+        </Card>
+      </div>
 
       {/* Chart */}
       {chartData.length > 0 && (
@@ -228,7 +218,7 @@ const BudgetManagement = () => {
             <h6 className="mb-0">Expenses by Category</h6>
           </Card.Header>
           <Card.Body>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={chartHeight(isCompact)}>
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />

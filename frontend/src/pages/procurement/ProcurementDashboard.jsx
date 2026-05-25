@@ -22,6 +22,9 @@ import {
 } from '../../api/procurementApi';
 import PRStatusBadge from '../../components/procurement/PRStatusBadge';
 import PaymentDueAlert from '../../components/procurement/PaymentDueAlert';
+import PageHeader from '../../components/shared/PageHeader';
+import ResponsiveChartGrid, { chartHeight } from '../../components/shared/ResponsiveChartGrid';
+import { useBreakpoint } from '../../context/BreakpointContext';
 
 const COLORS = ['#4361ee', '#3a0ca3', '#7209b7', '#f72585', '#4cc9f0', '#06d6a0', '#ffd166'];
 
@@ -61,6 +64,7 @@ const SummaryCard = ({ icon: Icon, title, value, sub, color, loading }) => (
 // ─── Main Component ───────────────────────────────────────────────────────────
 const ProcurementDashboard = () => {
   const { user } = useAuth();
+  const { isCompact } = useBreakpoint();
 
   // Only admin/superadmin/accounts can view the analytics dashboard.
   // hr, manager, hod, employee are redirected to their own purchase requests.
@@ -132,35 +136,27 @@ const ProcurementDashboard = () => {
 
   return (
     <Container fluid className="py-4">
-      {/* Header */}
-      <Row className="mb-3 align-items-center">
-        <Col>
-          <h4 className="mb-0 fw-bold">
-            <FaChartPie className="me-2 text-primary" />
-            Procurement Dashboard
-          </h4>
-          <p className="text-muted mb-0 small">Overview of procurement activity</p>
-        </Col>
-        <Col xs="auto">
+      <PageHeader
+        title="Procurement Dashboard"
+        subtitle="Overview of procurement activity"
+        actions={
           <Form.Select
             size="sm"
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
             style={{ width: 110 }}
+            className="touch-target"
           >
             {YEAR_OPTIONS.map((y) => (
               <option key={y} value={y}>{y}</option>
             ))}
           </Form.Select>
-        </Col>
-      </Row>
+        }
+      />
 
-      {/* Payment Due Alert */}
       <PaymentDueAlert invoices={invoices} />
 
-      {/* Summary Cards */}
-      <Row className="g-3 mb-4">
-        <Col xs={12} sm={6} xl>
+      <div className="stat-grid mb-4">
           <SummaryCard
             icon={FaShoppingCart}
             title="Total PRs"
@@ -177,8 +173,6 @@ const ProcurementDashboard = () => {
             color="#4361ee"
             loading={loading}
           />
-        </Col>
-        <Col xs={12} sm={6} xl>
           <SummaryCard
             icon={FaFileInvoice}
             title="Total POs"
@@ -195,8 +189,6 @@ const ProcurementDashboard = () => {
             color="#3a0ca3"
             loading={loading}
           />
-        </Col>
-        <Col xs={12} sm={6} xl>
           <SummaryCard
             icon={FaRupeeSign}
             title={`Total Spend (YTD ${year})`}
@@ -204,8 +196,6 @@ const ProcurementDashboard = () => {
             color="#7209b7"
             loading={loading}
           />
-        </Col>
-        <Col xs={12} sm={6} xl>
           <SummaryCard
             icon={FaClock}
             title="Pending Payments"
@@ -214,8 +204,6 @@ const ProcurementDashboard = () => {
             color="#f72585"
             loading={loading}
           />
-        </Col>
-        <Col xs={12} xl>
           <Card className="h-100 shadow-sm border-0">
             <Card.Body>
               <div className="text-muted small mb-1">Budget Utilisation</div>
@@ -237,13 +225,9 @@ const ProcurementDashboard = () => {
               )}
             </Card.Body>
           </Card>
-        </Col>
-      </Row>
+      </div>
 
-      {/* Charts Row */}
-      <Row className="g-3 mb-4">
-        {/* Monthly Spend Trend */}
-        <Col xs={12} lg={7}>
+      <ResponsiveChartGrid className="mb-4">
           <Card className="shadow-sm border-0 h-100">
             <Card.Header className="bg-white border-bottom-0 pt-3 pb-0">
               <h6 className="fw-semibold mb-0">Monthly Spend Trend</h6>
@@ -256,7 +240,7 @@ const ProcurementDashboard = () => {
               ) : trendData.length === 0 ? (
                 <div className="text-center text-muted py-5">No trend data available</div>
               ) : (
-                <ResponsiveContainer width="100%" height={260}>
+                <ResponsiveContainer width="100%" height={chartHeight(isCompact)}>
                   <BarChart data={trendData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="month" tick={{ fontSize: 12 }} />
@@ -279,23 +263,20 @@ const ProcurementDashboard = () => {
               )}
             </Card.Body>
           </Card>
-        </Col>
 
-        {/* Spend by Category */}
-        <Col xs={12} lg={5}>
           <Card className="shadow-sm border-0 h-100">
             <Card.Header className="bg-white border-bottom-0 pt-3 pb-0">
               <h6 className="fw-semibold mb-0">Spend by Category</h6>
             </Card.Header>
             <Card.Body>
               {loading ? (
-                <div className="d-flex justify-content-center align-items-center" style={{ height: 260 }}>
+                <div className="d-flex justify-content-center align-items-center" style={{ height: chartHeight(isCompact) }}>
                   <Spinner animation="border" />
                 </div>
               ) : categoryData.length === 0 ? (
                 <div className="text-center text-muted py-5">No category data available</div>
               ) : (
-                <ResponsiveContainer width="100%" height={260}>
+                <ResponsiveContainer width="100%" height={chartHeight(isCompact)}>
                   <PieChart>
                     <Pie
                       data={categoryData}
@@ -320,8 +301,7 @@ const ProcurementDashboard = () => {
               )}
             </Card.Body>
           </Card>
-        </Col>
-      </Row>
+      </ResponsiveChartGrid>
 
       {/* Tables Row */}
       <Row className="g-3">

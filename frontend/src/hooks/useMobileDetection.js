@@ -1,81 +1,29 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useBreakpoint } from '../context/BreakpointContext';
 
 /**
  * Mobile Detection and Touch Gesture Hook
- * Provides device detection and touch gesture handling for mobile responsiveness
- * 
- * Features:
- * - Device type detection (mobile, tablet, desktop)
- * - Screen size monitoring
- * - Touch gesture detection (swipe, tap, long press)
- * - Orientation change handling
- * - Touch-friendly interaction helpers
+ * Breakpoint state comes from BreakpointContext (991px shell, Bootstrap-aligned sizes).
  */
 export const useMobileDetection = () => {
-  // Device state
-  const [isMobile, setIsMobile] = useState(false);
-  const [isTablet, setIsTablet] = useState(false);
-  const [isDesktop, setIsDesktop] = useState(true);
-  const [screenSize, setScreenSize] = useState('lg');
-  const [orientation, setOrientation] = useState('portrait');
-  const [touchDevice, setTouchDevice] = useState(false);
+  const {
+    isAppMobile,
+    isTablet,
+    isDesktop,
+    screenSize,
+    orientation,
+    isTouchDevice,
+    isCompact,
+  } = useBreakpoint();
+
+  const isMobile = isAppMobile;
+  const touchDevice = isTouchDevice;
 
   // Touch gesture state
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
   const [isLongPress, setIsLongPress] = useState(false);
   const [longPressTimer, setLongPressTimer] = useState(null);
-
-  // Device detection
-  useEffect(() => {
-    const checkDevice = () => {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      
-      // Screen size classification
-      if (width <= 576) {
-        setScreenSize('xs');
-        setIsMobile(true);
-        setIsTablet(false);
-        setIsDesktop(false);
-      } else if (width <= 768) {
-        setScreenSize('sm');
-        setIsMobile(true);
-        setIsTablet(false);
-        setIsDesktop(false);
-      } else if (width <= 992) {
-        setScreenSize('md');
-        setIsMobile(false);
-        setIsTablet(true);
-        setIsDesktop(false);
-      } else if (width <= 1200) {
-        setScreenSize('lg');
-        setIsMobile(false);
-        setIsTablet(false);
-        setIsDesktop(true);
-      } else {
-        setScreenSize('xl');
-        setIsMobile(false);
-        setIsTablet(false);
-        setIsDesktop(true);
-      }
-
-      // Orientation detection
-      setOrientation(width > height ? 'landscape' : 'portrait');
-
-      // Touch device detection
-      setTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
-    };
-
-    checkDevice();
-    window.addEventListener('resize', checkDevice);
-    window.addEventListener('orientationchange', checkDevice);
-
-    return () => {
-      window.removeEventListener('resize', checkDevice);
-      window.removeEventListener('orientationchange', checkDevice);
-    };
-  }, []);
 
   // Touch gesture handlers
   const handleTouchStart = useCallback((e) => {
@@ -234,6 +182,7 @@ export const useMobileDetection = () => {
     isMobile,
     isTablet,
     isDesktop,
+    isCompact,
     screenSize,
     orientation,
     touchDevice,

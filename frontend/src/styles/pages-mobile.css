@@ -571,6 +571,114 @@
    11. PAGE HEADER MOBILE
    ============================================ */
 
+@media (max-width: 767.98px) {
+  .employee-list-shell-card {
+    overflow: visible !important;
+  }
+
+  .employee-list-card-header {
+    overflow: visible !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  .employee-list-view-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .employee-view-toggle {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    width: 100%;
+    max-width: 100%;
+    gap: 0;
+    border: 1px solid rgba(102, 126, 234, 0.45);
+    border-radius: 10px;
+    overflow: hidden;
+    background: #fff;
+  }
+
+  .employee-view-toggle__btn {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    min-height: var(--mobile-button-height, 44px) !important;
+    border-radius: 0 !important;
+    border: none !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .employee-view-toggle__btn:first-child {
+    border-right: 1px solid rgba(102, 126, 234, 0.25) !important;
+  }
+
+  .employee-view-toggle__label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .employee-cards-grid .employee-card .card-body {
+    padding: 1rem !important;
+  }
+
+  .employee-info-text {
+    word-break: break-word;
+    white-space: normal;
+    line-height: 1.4;
+  }
+
+  .employee-card-actions {
+    margin-top: 0.25rem;
+  }
+
+  .employee-card-actions .action-btn {
+    width: 100%;
+    min-height: var(--mobile-button-height, 44px);
+  }
+}
+
+@media (min-width: 768px) {
+  .employee-list-view-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .employee-view-toggle {
+    display: inline-flex;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(102, 126, 234, 0.35);
+  }
+
+  .employee-view-toggle__btn {
+    min-height: 36px;
+    border-radius: 0 !important;
+    border: none !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .employee-view-toggle__btn:first-child {
+    border-right: 1px solid rgba(102, 126, 234, 0.2) !important;
+  }
+}
+
 @media (max-width: 575.98px) {
   /* Generic page header */
   .page-header {
@@ -819,8 +927,45 @@
 
 
 /* ============================================
-   ATTENDANCE DROPDOWN FIX
+   17. GLOBAL MODULE MOBILE (Phase 10 catch-all)
    ============================================ */
+
+@media (max-width: 991.98px) {
+  .nav-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nav-tabs .nav-link {
+    white-space: nowrap;
+  }
+
+  .kanban-board,
+  .kanban-column {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .attendance-tracking-table th:nth-child(n+6),
+  .attendance-tracking-table td:nth-child(n+6) {
+    display: none;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .login-page .card,
+  .auth-layout .card {
+    margin: 0.5rem;
+  }
+
+  .login-page .form-control,
+  .auth-layout .form-control {
+    min-height: var(--mobile-button-height);
+  }
+}
+
+
 
 .attendance-dropdown-container {
   overflow: visible !important;

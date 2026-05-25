@@ -1,4 +1,4 @@
-import { Card, Row, Col } from 'react-bootstrap';
+import { Card } from 'react-bootstrap';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -13,6 +13,8 @@ import {
   Filler
 } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
+import ResponsiveChartGrid, { chartHeight } from '../shared/ResponsiveChartGrid';
+import { useBreakpoint } from '../../context/BreakpointContext';
 
 ChartJS.register(
   CategoryScale,
@@ -28,6 +30,9 @@ ChartJS.register(
 );
 
 const AnalyticsCharts = ({ stats, onChartClick }) => {
+  const { isCompact } = useBreakpoint();
+  const height = chartHeight(isCompact);
+
   // Project Status Distribution
   const projectStatusData = {
     labels: ['Active', 'Completed', 'On Hold', 'Cancelled'],
@@ -214,64 +219,58 @@ const AnalyticsCharts = ({ stats, onChartClick }) => {
   };
 
   return (
-    <Row className="g-4 mb-4">
-      <Col lg={6}>
+    <>
+      <ResponsiveChartGrid className="mb-4">
         <Card className="border-0 shadow-sm h-100 cursor-pointer dashboard-card">
           <Card.Body>
             <h5 className="mb-4">
               Project Status Distribution
-              <small className="text-muted ms-2" style={{ fontSize: '0.75rem' }}>(Click segments for details)</small>
+              <small className="text-muted ms-2 d-none d-sm-inline" style={{ fontSize: '0.75rem' }}>(Click segments for details)</small>
             </h5>
-            <div style={{ height: '300px' }}>
+            <div className="chart-container" style={{ height: `${height}px` }}>
               <Doughnut data={projectStatusData} options={projectChartOptions} />
             </div>
           </Card.Body>
         </Card>
-      </Col>
 
-      <Col lg={6}>
         <Card className="border-0 shadow-sm h-100 cursor-pointer dashboard-card">
           <Card.Body>
             <h5 className="mb-4">
               User Roles Distribution
-              <small className="text-muted ms-2" style={{ fontSize: '0.75rem' }}>(Click segments for details)</small>
+              <small className="text-muted ms-2 d-none d-sm-inline" style={{ fontSize: '0.75rem' }}>(Click segments for details)</small>
             </h5>
-            <div style={{ height: '300px' }}>
+            <div className="chart-container" style={{ height: `${height}px` }}>
               <Doughnut data={userRolesData} options={userChartOptions} />
             </div>
           </Card.Body>
         </Card>
-      </Col>
+      </ResponsiveChartGrid>
 
-      <Col lg={12}>
-        <Card className="border-0 shadow-sm">
-          <Card.Body>
-            <h5 className="mb-4">Monthly Attendance Trend</h5>
-            <div style={{ height: '300px' }}>
-              <Line data={attendanceTrendData} options={lineChartOptions} />
-            </div>
-            <small className="text-muted">Note: Showing sample data for monthly trends</small>
-          </Card.Body>
-        </Card>
-      </Col>
+      <Card className="border-0 shadow-sm mb-4">
+        <Card.Body>
+          <h5 className="mb-4">Monthly Attendance Trend</h5>
+          <div className="chart-container" style={{ height: `${height}px` }}>
+            <Line data={attendanceTrendData} options={lineChartOptions} />
+          </div>
+          <small className="text-muted">Note: Showing sample data for monthly trends</small>
+        </Card.Body>
+      </Card>
 
-      <Col lg={12}>
-        <Card className="border-0 shadow-sm cursor-pointer dashboard-card">
-          <Card.Body>
-            <h5 className="mb-4">
-              Department Overview
-              <small className="text-muted ms-2" style={{ fontSize: '0.75rem' }}>(Click bars for details)</small>
-            </h5>
-            <div style={{ height: '300px' }}>
-              <Bar data={departmentData} options={barChartOptions} />
-            </div>
-            {!hasDepartmentData && (
-              <small className="text-muted">Note: Showing sample data. Add departments to see real data.</small>
-            )}
-          </Card.Body>
-        </Card>
-      </Col>
-    </Row>
+      <Card className="border-0 shadow-sm cursor-pointer dashboard-card mb-4">
+        <Card.Body>
+          <h5 className="mb-4">
+            Department Overview
+            <small className="text-muted ms-2 d-none d-sm-inline" style={{ fontSize: '0.75rem' }}>(Click bars for details)</small>
+          </h5>
+          <div className="chart-container" style={{ height: `${height}px` }}>
+            <Bar data={departmentData} options={barChartOptions} />
+          </div>
+          {!hasDepartmentData && (
+            <small className="text-muted">Note: Showing sample data. Add departments to see real data.</small>
+          )}
+        </Card.Body>
+      </Card>
+    </>
   );
 };
 

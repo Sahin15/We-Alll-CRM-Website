@@ -34,23 +34,15 @@ import {
   FaBoxOpen,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
+import { useBreakpoint } from "../../context/BreakpointContext";
 import "./Sidebar.css";
 
 const Sidebar = ({ collapsed, toggleSidebar }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isAppMobile } = useBreakpoint();
   const [expandedGroups, setExpandedGroups] = useState({});
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 991);
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 991);
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
 
   // Auto-expand groups based on current path
   useEffect(() => {
@@ -83,7 +75,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
 
   // Auto-close sidebar on mobile when a link is clicked
   const handleLinkClick = () => {
-    if (isMobile && !collapsed) {
+    if (isAppMobile && !collapsed) {
       toggleSidebar();
     }
   };
@@ -622,17 +614,23 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
               {collapsed ? (
                 /* Collapsed: Show only mini logo */
                 <div className="logo-mini-container">
-                  <img loading="lazy" src="/Wealll_mini.png" 
-                    alt="We Alll Office" 
+                  <img
+                    src="/Wealll_mini.png"
+                    alt="We Alll Office"
                     className="logo-img-mini"
+                    loading="eager"
+                    decoding="async"
                   />
                 </div>
               ) : (
                 /* Expanded: Show full We Alll Office logo */
                 <div className="logo-full-container">
-                  <img loading="lazy" src="/We Alll Office Logo.png" 
-                    alt="We Alll Office" 
+                  <img
+                    src="/We Alll Office Logo.png"
+                    alt="We Alll Office"
                     className="logo-img-full"
+                    loading="eager"
+                    decoding="async"
                   />
                 </div>
               )}
@@ -704,11 +702,12 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       </div>
 
       {/* Mobile overlay */}
-      {!collapsed && (
+      {!collapsed && isAppMobile && (
         <div
-          className="sidebar-overlay d-md-none"
+          className="sidebar-overlay"
           onClick={toggleSidebar}
-        ></div>
+          aria-hidden="true"
+        />
       )}
     </>
   );

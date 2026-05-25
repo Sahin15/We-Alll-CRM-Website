@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Button, Badge, Nav, Table, Form, InputGroup } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button, Badge, Nav, Form, InputGroup } from 'react-bootstrap';
 import { FaPlus, FaCalendarAlt, FaFilter, FaDownload, FaChevronDown, FaChevronUp, FaSearch, FaUsers, FaEye } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import { leaveApi } from '../../api/leaveApi';
@@ -12,6 +12,10 @@ import WFHManagementPanel from '../../components/wfh/WFHManagementPanel';
 import LeaveBalanceOverview from '../../components/leaves/LeaveBalanceOverview';
 import { isPaidLeaveEligibleRow } from '../../utils/leaveEligibility';
 import { toast } from 'react-toastify';
+import PageHeader from '../../components/shared/PageHeader';
+import MobileTabBar from '../../components/shared/MobileTabBar';
+import MobileFilterSheet from '../../components/shared/MobileFilterSheet';
+import ResponsiveDataTable from '../../components/shared/ResponsiveDataTable';
 import './LeaveManagement.css';
 
 const LeaveManagement = () => {
@@ -258,38 +262,131 @@ const LeaveManagement = () => {
 
   const stats = getStats();
 
+  const leaveTabs = [
+    { key: 'my-leaves', label: 'My Leaves' },
+    { key: 'all-leaves', label: 'All Requests' },
+    { key: 'wfh-requests', label: 'WFH' },
+    ...(isAdmin ? [{ key: 'leave-balance', label: 'Balance' }] : []),
+  ];
+
+  const activeFilterCount = [
+    filters.status !== 'all',
+    filters.leaveType !== 'all',
+    Boolean(filters.search),
+  ].filter(Boolean).length;
+
+  const adminLeaveColumns = [
+    {
+      key: 'employee',
+      label: 'Employee',
+      mobilePriority: 1,
+      render: (_, row) => (
+        <div>
+          <strong>{row.employee?.name}</strong>
+          <br />
+          <small className="text-muted">{row.employee?.email}</small>
+        </div>
+      ),
+    },
+    {
+      key: 'leaveType',
+      label: 'Leave Type',
+      mobilePriority: 2,
+      render: (_, row) => (
+        <Badge bg={getLeaveTypeColor(row.leaveType)}>
+          {LEAVE_TYPE_DETAILS[row.leaveType]?.name || row.leaveType}
+        </Badge>
+      ),
+    },
+    {
+      key: 'duration',
+      label: 'Duration',
+      mobilePriority: 3,
+      render: (_, row) => `${formatDate(row.startDate)} - ${formatDate(row.endDate)}`,
+    },
+    {
+      key: 'numberOfDays',
+      label: 'Days',
+      mobilePriority: 4,
+      render: (_, row) => <strong>{row.numberOfDays}</strong>,
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      mobilePriority: 5,
+      render: (_, row) => <Badge bg={getStatusColor(row.status)}>{row.status}</Badge>,
+    },
+    {
+      key: 'usageRatio',
+      label: 'Usage Ratio',
+      hideOnMobile: true,
+      render: (_, row) => {
+        const balance = employeeBalances[row.employee?._id];
+        if (!balance) return <small className="text-muted">Loading...</small>;
+        return isPaidLeaveEligibleRow({
+          eligibleForPaidLeave: balance.balance?.eligibleForPaidLeave,
+          employee: {
+            employmentType: balance.balance?.employmentType || row.employee?.employmentType,
+          },
+        }) ? (
+          <>
+            <div className="fw-bold text-primary">
+              {balance.summary?.currentRatio || `${balance.balance?.earned?.used || 0}/24`}
+            </div>
+            <small className="text-muted">
+              {balance.balance?.earned?.remaining || 0} available
+            </small>
+          </>
+        ) : (
+          <small className="text-muted">Unpaid leave only</small>
+        );
+      },
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      sortable: false,
+      render: (_, row) => (
+        <Button
+          size="sm"
+          variant="outline-primary"
+          className="touch-target"
+          title="View Details"
+          onClick={() => handleApproveReject(row)}
+        >
+          <FaEye />
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <Container fluid className="leave-management">
-      {/* Header */}
-      <Row className="mb-4">
-        <Col>
-          <div className="d-flex justify-content-between align-items-center">
-            <div>
-              <h2 className="page-title">
-                <FaCalendarAlt className="me-2" />
-                Leave Management
-              </h2>
-              <p className="text-muted mb-0">
-                Manage leave requests, approvals, and employee time off (24 days annual allowance)
-                {filteredLeaves.length > 9 && displayedLeaves.length < filteredLeaves.length && (
-                  <span className="ms-2">
-                    <Badge bg="info" className="small">
-                      Showing {displayedLeaves.length} of {filteredLeaves.length}
-                    </Badge>
-                  </span>
-                )}
-              </p>
-            </div>
-            <div className="d-flex gap-2">
-              {isAdmin && (
-                <Button variant="outline-primary" className="d-flex align-items-center gap-2">
-                  <FaDownload /> Export
-                </Button>
-              )}
-            </div>
-          </div>
-        </Col>
-      </Row>
+      <PageHeader
+        title={
+          <>
+            <FaCalendarAlt className="me-2" />
+            Leave Management
+          </>
+        }
+        subtitle={
+          <>
+            Manage leave requests, approvals, and employee time off (24 days annual allowance)
+            {filteredLeaves.length > 9 && displayedLeaves.length < filteredLeaves.length && (
+              <Badge bg="info" className="small ms-2">
+                Showing {displayedLeaves.length} of {filteredLeaves.length}
+              </Badge>
+            )}
+          </>
+        }
+        actions={
+          isAdmin ? (
+            <Button variant="outline-primary" className="touch-target d-flex align-items-center gap-2">
+              <FaDownload /> Export
+            </Button>
+          ) : null
+        }
+      />
 
       {/* Stats Cards */}
       <Row className="mb-4">
@@ -360,81 +457,86 @@ const LeaveManagement = () => {
         <Col>
           <Card className="border-0 shadow-sm">
             <Card.Body className="py-3">
-              <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
-                <Nav variant="pills" className="flex-nowrap">
-                  <Nav.Item>
-                    <Nav.Link 
-                      active={activeTab === 'my-leaves'}
-                      onClick={() => setActiveTab('my-leaves')}
-                    >
-                      My Leaves
-                    </Nav.Link>
-                  </Nav.Item>
-                  <Nav.Item>
-                    <Nav.Link 
-                      active={activeTab === 'all-leaves'}
-                      onClick={() => setActiveTab('all-leaves')}
-                    >
-                      All Leave Requests
-                    </Nav.Link>
-                  </Nav.Item>
-                  <Nav.Item>
-                    <Nav.Link 
-                      active={activeTab === 'wfh-requests'}
-                      onClick={() => setActiveTab('wfh-requests')}
-                    >
-                      WFH Requests
-                    </Nav.Link>
-                  </Nav.Item>
-                  {isAdmin && (
+              <MobileTabBar
+                tabs={leaveTabs}
+                activeKey={activeTab}
+                onSelect={setActiveTab}
+                desktopChildren={
+                  <Nav variant="pills" className="flex-nowrap mb-3">
                     <Nav.Item>
-                      <Nav.Link
-                        active={activeTab === 'leave-balance'}
-                        onClick={() => setActiveTab('leave-balance')}
-                      >
-                        <FaUsers className="me-1" />
-                        Leave Balance
+                      <Nav.Link active={activeTab === 'my-leaves'} onClick={() => setActiveTab('my-leaves')}>
+                        My Leaves
                       </Nav.Link>
                     </Nav.Item>
-                  )}
-                </Nav>
+                    <Nav.Item>
+                      <Nav.Link active={activeTab === 'all-leaves'} onClick={() => setActiveTab('all-leaves')}>
+                        All Leave Requests
+                      </Nav.Link>
+                    </Nav.Item>
+                    <Nav.Item>
+                      <Nav.Link active={activeTab === 'wfh-requests'} onClick={() => setActiveTab('wfh-requests')}>
+                        WFH Requests
+                      </Nav.Link>
+                    </Nav.Item>
+                    {isAdmin && (
+                      <Nav.Item>
+                        <Nav.Link active={activeTab === 'leave-balance'} onClick={() => setActiveTab('leave-balance')}>
+                          <FaUsers className="me-1" />
+                          Leave Balance
+                        </Nav.Link>
+                      </Nav.Item>
+                    )}
+                  </Nav>
+                }
+              />
 
-                <div className="d-flex gap-2 flex-wrap">
-                  <Form.Select
-                    size="sm"
-                    style={{ width: 'auto' }}
-                    value={filters.status}
-                    onChange={(e) => setFilters({...filters, status: e.target.value})}
-                  >
-                    <option value="all">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="approved">Approved</option>
-                    <option value="rejected">Rejected</option>
-                    <option value="cancelled">Cancelled</option>
-                  </Form.Select>
-                  <Form.Select
-                    size="sm"
-                    style={{ width: 'auto' }}
-                    value={filters.leaveType}
-                    onChange={(e) => setFilters({...filters, leaveType: e.target.value})}
-                  >
-                    <option value="all">All Types</option>
-                    {Object.entries(LEAVE_TYPE_DETAILS).map(([type, details]) => (
-                      <option key={type} value={type}>{details.name}</option>
-                    ))}
-                  </Form.Select>
-                  <InputGroup size="sm" style={{ width: 'auto' }}>
-                    <InputGroup.Text>
-                      <FaSearch />
-                    </InputGroup.Text>
-                    <Form.Control
-                      placeholder="Search employees..."
-                      value={filters.search}
-                      onChange={(e) => setFilters({...filters, search: e.target.value})}
-                    />
-                  </InputGroup>
-                </div>
-              </div>
+              {activeTab !== 'leave-balance' && activeTab !== 'wfh-requests' && (
+                <MobileFilterSheet
+                  title="Leave Filters"
+                  activeFilterCount={activeFilterCount}
+                  onClear={() => setFilters({ status: 'all', leaveType: 'all', year: filters.year, search: '' })}
+                  showApply={false}
+                >
+                  <Form.Group>
+                    <Form.Label className="small text-muted">Status</Form.Label>
+                    <Form.Select
+                      value={filters.status}
+                      onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                    >
+                      <option value="all">All Status</option>
+                      <option value="pending">Pending</option>
+                      <option value="approved">Approved</option>
+                      <option value="rejected">Rejected</option>
+                      <option value="cancelled">Cancelled</option>
+                    </Form.Select>
+                  </Form.Group>
+                  <Form.Group>
+                    <Form.Label className="small text-muted">Leave Type</Form.Label>
+                    <Form.Select
+                      value={filters.leaveType}
+                      onChange={(e) => setFilters({ ...filters, leaveType: e.target.value })}
+                    >
+                      <option value="all">All Types</option>
+                      {Object.entries(LEAVE_TYPE_DETAILS).map(([type, details]) => (
+                        <option key={type} value={type}>{details.name}</option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                  <Form.Group>
+                    <Form.Label className="small text-muted">Search</Form.Label>
+                    <InputGroup>
+                      <InputGroup.Text>
+                        <FaSearch />
+                      </InputGroup.Text>
+                      <Form.Control
+                        placeholder="Search employees..."
+                        value={filters.search}
+                        onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                      />
+                    </InputGroup>
+                  </Form.Group>
+                </MobileFilterSheet>
+              )}
             </Card.Body>
           </Card>
         </Col>
@@ -483,91 +585,14 @@ const LeaveManagement = () => {
               {isAdmin && activeTab === 'all-leaves' ? (
                 <Card className="border-0 shadow-sm">
                   <Card.Body>
-                    <Table responsive hover>
-                      <thead>
-                        <tr>
-                          <th>Employee</th>
-                          <th>Leave Type</th>
-                          <th>Duration</th>
-                          <th>Days</th>
-                          <th>Status</th>
-                          <th>Usage Ratio</th>
-                          <th>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {displayedLeaves.map(leave => {
-                          const balance = employeeBalances[leave.employee?._id];
-                          return (
-                            <tr key={leave._id}>
-                              <td>
-                                <div>
-                                  <strong>{leave.employee?.name}</strong>
-                                  <br />
-                                  <small className="text-muted">{leave.employee?.email}</small>
-                                </div>
-                              </td>
-                              <td>
-                                <Badge bg={getLeaveTypeColor(leave.leaveType)}>
-                                  {LEAVE_TYPE_DETAILS[leave.leaveType]?.name || leave.leaveType}
-                                </Badge>
-                              </td>
-                              <td>
-                                <div>
-                                  {formatDate(leave.startDate)} - {formatDate(leave.endDate)}
-                                </div>
-                              </td>
-                              <td>
-                                <strong>{leave.numberOfDays}</strong>
-                              </td>
-                              <td>
-                                <Badge bg={getStatusColor(leave.status)}>
-                                  {leave.status}
-                                </Badge>
-                              </td>
-                              <td>
-                                {balance ? (
-                                  <div>
-                                    {isPaidLeaveEligibleRow({
-                                      eligibleForPaidLeave: balance.balance?.eligibleForPaidLeave,
-                                      employee: {
-                                        employmentType: balance.balance?.employmentType
-                                          || leave.employee?.employmentType,
-                                      },
-                                    }) ? (
-                                      <>
-                                        <div className="fw-bold text-primary">
-                                          {balance.summary?.currentRatio || `${balance.balance?.earned?.used || 0}/24`}
-                                        </div>
-                                        <small className="text-muted">
-                                          {balance.balance?.earned?.remaining || 0} available
-                                        </small>
-                                      </>
-                                    ) : (
-                                      <small className="text-muted">Unpaid leave only</small>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <small className="text-muted">Loading...</small>
-                                )}
-                              </td>
-                              <td>
-                                <div className="d-flex gap-1">
-                                  <Button
-                                    size="sm"
-                                    variant="outline-primary"
-                                    title="View Details"
-                                    onClick={() => handleApproveReject(leave)}
-                                  >
-                                    <FaEye />
-                                  </Button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </Table>
+                    <ResponsiveDataTable
+                      columns={adminLeaveColumns}
+                      data={displayedLeaves}
+                      loading={loading}
+                      emptyMessage="No leave requests found"
+                      paginated={false}
+                      keyField="_id"
+                    />
                   </Card.Body>
                 </Card>
               ) : (

@@ -19,6 +19,7 @@ import { FaPlus, FaEdit, FaTrash, FaEye, FaFilter, FaEnvelope, FaCheck, FaHistor
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
+import { useBreakpoint } from "../../context/BreakpointContext";
 import { leadApi } from "../../api/leadApi";
 import emailService from "../../services/emailService";
 import EmailHistoryModal from "../../components/leads/EmailHistoryModal";
@@ -30,13 +31,13 @@ import "./LeadList.css";
 
 const LeadList = () => {
   const { user, token } = useAuth();
+  const { isCompact } = useBreakpoint();
   const { id } = useParams(); // For edit mode
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentLead, setCurrentLead] = useState(null);
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'cards'
   const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('leadListTab') || 'followup');
   const [formData, setFormData] = useState({
@@ -175,20 +176,9 @@ const LeadList = () => {
     return budgetMap[budget] || budget;
   };
 
-  // Handle window resize for mobile detection
   useEffect(() => {
-    const handleResize = () => {
-      const mobile = window.innerWidth <= 768;
-      setIsMobile(mobile);
-      // Auto-switch to cards on mobile
-      if (mobile) {
-        setViewMode('cards');
-      }
-    };
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+    if (isCompact) setViewMode("cards");
+  }, [isCompact]);
 
   const serviceOptions = [
     "Marketing",
@@ -1083,7 +1073,7 @@ const LeadList = () => {
       <div className="d-flex align-items-center gap-2 flex-wrap mb-3">
 
         {/* Table / Cards toggle — desktop only */}
-        {!isMobile && (
+        {!isCompact && (
           <div className="btn-group btn-group-sm" role="group">
             <Button variant={viewMode === 'table' ? 'primary' : 'outline-primary'} size="sm" onClick={() => setViewMode('table')}>Table</Button>
             <Button variant={viewMode === 'cards' ? 'primary' : 'outline-primary'} size="sm" onClick={() => setViewMode('cards')}>Cards</Button>
@@ -1170,7 +1160,7 @@ const LeadList = () => {
                     <span className="visually-hidden">Loading...</span>
                   </div>
                 </div>
-              ) : (isMobile || viewMode === 'cards') ? (
+              ) : (isCompact || viewMode === 'cards') ? (
                 // Card View (Mobile and Desktop)
                 <div className="mobile-lead-cards">
                   {filteredLeads.length > 0 ? (

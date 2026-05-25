@@ -24,9 +24,6 @@ import toast from "../../utils/toast";
 import { generateNewEmployeeId } from "../../utils/employeeIdGenerator";
 import StatusBadge from "./StatusBadge";
 import StatusChangeModal from "./StatusChangeModal";
-import "../../styles/pages-mobile.css";
-import "../../styles/modal-mobile.css";
-
 const EmployeeProfileManagement = () => {
   const { user: currentUser } = useAuth();
   const { userId } = useParams();

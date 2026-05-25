@@ -1,0 +1,47 @@
+.mobile-tab-bar {
+  display: none;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  margin-bottom: 1rem;
+  scrollbar-width: none;
+}
+
+.mobile-tab-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.mobile-tab-bar__pill {
+  flex: 0 0 auto;
+  border: 1px solid rgba(102, 126, 234, 0.35);
+  background: #fff;
+  color: #4b5563;
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  min-height: var(--mobile-button-height);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.mobile-tab-bar__pill--active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: transparent;
+  color: #fff;
+}
+
+.desktop-tab-nav {
+  display: block;
+}
+
+@media (max-width: 991.98px) {
+  .mobile-tab-bar {
+    display: flex;
+  }
+
+  .desktop-tab-nav {
+    display: none !important;
+  }
+}

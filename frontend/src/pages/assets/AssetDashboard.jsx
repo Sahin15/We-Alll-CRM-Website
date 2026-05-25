@@ -69,7 +69,7 @@ const AssetDashboard = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="summary-cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
+      <div className="summary-cards">
         {summaryCards.map((card, index) => {
           const IconComponent = card.icon;
           const colorMap = {
@@ -85,37 +85,19 @@ const AssetDashboard = () => {
           return (
             <div
               key={index}
+              className="summary-card"
               onClick={() => navigate(card.path)}
-              style={{
-                background: '#fff',
-                borderRadius: '14px',
-                borderLeft: `5px solid ${colors.border}`,
-                padding: '1.25rem 1.5rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '1.1rem',
-                cursor: 'pointer',
-                boxShadow: '0 2px 10px rgba(0,0,0,0.07)',
-                transition: 'all 0.25s ease',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.12)'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,0.07)'; }}
+              style={{ borderLeftColor: colors.border, cursor: 'pointer' }}
             >
-              <div style={{
-                width: '56px', height: '56px', borderRadius: '12px',
-                backgroundColor: colors.bg, color: colors.text,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '1.6rem', flexShrink: 0,
-              }}>
+              <div
+                className="summary-card-icon"
+                style={{ backgroundColor: colors.bg, color: colors.text }}
+              >
                 <IconComponent />
               </div>
               <div>
-                <div style={{ fontSize: '2.2rem', fontWeight: 800, color: '#111827', lineHeight: 1 }}>
-                  {card.value}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: '#6B7280', fontWeight: 600, marginTop: '5px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  {card.label}
-                </div>
+                <div className="card-value">{card.value}</div>
+                <div className="card-label">{card.label}</div>
               </div>
             </div>
           );

@@ -120,17 +120,7 @@
     height: auto;
     display: block;
   }
-  
-  /* Lazy loading optimization */
-  img[loading="lazy"] {
-    opacity: 0;
-    transition: opacity 0.3s;
-  }
-  
-  img[loading="lazy"].loaded {
-    opacity: 1;
-  }
-  
+
   /* Avatar images */
   .avatar,
   .profile-picture,
@@ -577,32 +567,8 @@
 
 /* ============================================
    20. DARK MODE SUPPORT (Optional)
+   Disabled until feature/dark-mode ships — partial rules caused light text on light bg.
    ============================================ */
-
-@media (max-width: 767.98px) and (prefers-color-scheme: dark) {
-  /* Add dark mode styles if needed */
-  body {
-    background: #1a1a1a;
-    color: #e0e0e0;
-  }
-  
-  .card {
-    background: #2a2a2a;
-    border-color: #3a3a3a;
-  }
-  
-  .modal-content {
-    background: #2a2a2a;
-    color: #e0e0e0;
-  }
-  
-  .form-control,
-  .form-select {
-    background: #3a3a3a;
-    border-color: #4a4a4a;
-    color: #e0e0e0;
-  }
-}
 
 /* ============================================
    21. PRINT OPTIMIZATION

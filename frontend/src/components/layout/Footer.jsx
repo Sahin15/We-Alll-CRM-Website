@@ -12,7 +12,7 @@ import { FaXTwitter } from "react-icons/fa6";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
-const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
+const Footer = ({ sidebarCollapsed = false, isMobile = false, className = "" }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const currentYear = new Date().getFullYear();
@@ -22,7 +22,7 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
 
   return (
     <footer
-      className="footer mt-auto"
+      className={`footer mt-auto ${className}`.trim()}
       style={{
         zIndex: 1040,
         marginLeft: footerMargin,
@@ -218,8 +218,8 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
           box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
         }
 
-        /* Full logo container - when expanded */
-        .logo-full-container {
+        /* Full logo container - footer only */
+        .footer .logo-full-container {
           width: 180px;
           height: 60px;
           flex-shrink: 0;
@@ -236,7 +236,7 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
           margin-right: 12px;
         }
 
-        .logo-full-container:hover {
+        .footer .logo-full-container:hover {
           background: rgba(255, 255, 255, 0.25);
           backdrop-filter: blur(15px);
           transform: scale(1.05);
@@ -246,13 +246,13 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
           border: 1px solid rgba(255, 255, 255, 0.35);
         }
 
-        .logo-full-container:hover .logo-img-full {
+        .footer .logo-full-container:hover .logo-img-full {
           filter: contrast(1.2) saturate(1.2) brightness(1.15);
           transform: scale(1.15);
         }
 
         /* Full logo image */
-        .logo-img-full {
+        .footer .logo-img-full {
           width: 120%;
           height: 120%;
           object-fit: contain;
@@ -404,7 +404,7 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
             padding-right: 1rem !important;
           }
 
-          .logo-full-container {
+          .footer .logo-full-container {
             width: 140px;
             height: 45px;
             margin-right: 10px;

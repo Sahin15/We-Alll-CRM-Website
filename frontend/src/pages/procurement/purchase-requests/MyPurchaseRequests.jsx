@@ -9,6 +9,7 @@ import { FaPlus, FaEye, FaEdit, FaTrash, FaPaperPlane } from 'react-icons/fa';
 import { getMyPRs, deletePR, submitPR } from '../../../api/procurementApi';
 import PRStatusBadge from '../../../components/procurement/PRStatusBadge';
 import ProcurementBreadcrumb from '../../../components/procurement/ProcurementBreadcrumb';
+import PageHeader from '../../../components/shared/PageHeader';
 
 const formatCurrency = (amount) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(amount ?? 0);
@@ -99,15 +100,15 @@ export default function MyPurchaseRequests() {
         ]}
       />
 
-      <div className="d-flex align-items-center justify-content-between mb-4">
-        <div>
-          <h4 className="mb-0 fw-bold">My Purchase Requests</h4>
-          <small className="text-muted">Create and track your purchase requests</small>
-        </div>
-        <Button variant="primary" onClick={() => navigate('/procurement/purchase-requests/create')}>
-          <FaPlus className="me-1" /> New Request
-        </Button>
-      </div>
+      <PageHeader
+        title="My Purchase Requests"
+        subtitle="Create and track your purchase requests"
+        actions={
+          <Button variant="primary" onClick={() => navigate('/procurement/purchase-requests/create')}>
+            <FaPlus className="me-1" /> New Request
+          </Button>
+        }
+      />
 
       {/* ── Filters ── */}
       <Card className="mb-3 shadow-sm">

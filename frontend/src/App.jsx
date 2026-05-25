@@ -2,6 +2,7 @@ import { BrowserRouter } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import { useEffect } from "react";
 import { AuthProvider } from "./context/AuthContext";
+import { BreakpointProvider } from "./context/BreakpointContext";
 import { CompanyProvider } from "./context/CompanyContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import AppRoutes from "./routes";
@@ -27,6 +28,7 @@ function App() {
         }}
       >
         <AuthProvider>
+          <BreakpointProvider>
           <CompanyProvider>
             <NotificationProvider>
               <NotificationInitializer />
@@ -53,6 +55,7 @@ function App() {
               </div>
             </NotificationProvider>
           </CompanyProvider>
+          </BreakpointProvider>
         </AuthProvider>
       </BrowserRouter>
     </ErrorBoundary>

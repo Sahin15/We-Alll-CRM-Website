@@ -25,6 +25,7 @@ import {
 import toast from "../../utils/toast";
 import api from "../../services/api";
 import { formatDate } from "../../utils/helpers";
+import { useBreakpoint } from "../../context/BreakpointContext";
 
 // Move styles outside component to prevent recreation
 const cardHoverStyle = {
@@ -39,6 +40,7 @@ const cardHoverActiveStyle = {
 };
 
 const AttendanceOverview = () => {
+  const { isAppMobile } = useBreakpoint();
   const [attendance, setAttendance] = useState([]);
   const [filteredAttendance, setFilteredAttendance] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -469,17 +471,17 @@ const AttendanceOverview = () => {
     <>
       <Card className="border-0 shadow-sm mb-4">
         <Card.Header className="bg-white py-3">
-          <div className="d-flex justify-content-between align-items-center">
+          <div className={`d-flex ${isAppMobile ? "flex-column gap-2 align-items-stretch" : "justify-content-between align-items-center"}`}>
             <h5 className="mb-0">
               <FaClock className="me-2 text-primary" />
               Attendance Overview
             </h5>
-            <div>
-              <Button variant="outline-primary" size="sm" className="me-2" onClick={handleExport}>
+            <div className={`d-flex gap-2 ${isAppMobile ? "flex-column" : ""}`}>
+              <Button variant="outline-primary" size="sm" className={isAppMobile ? "w-100" : ""} onClick={handleExport}>
                 <FaDownload className="me-2" />
                 Export
               </Button>
-              <Button variant="primary" size="sm" onClick={handleCreateAttendance}>
+              <Button variant="primary" size="sm" className={isAppMobile ? "w-100" : ""} onClick={handleCreateAttendance}>
                 <FaPlus className="me-2" />
                 Manual Entry
               </Button>
@@ -493,8 +495,7 @@ const AttendanceOverview = () => {
               {dateFilter ? `Statistics for ${new Date(dateFilter).toLocaleDateString('en-GB')}` : "Today's Attendance Statistics"}
             </h6>
           </div>
-          <Row className="mb-4">
-            <Col md={3}>
+          <div className="stat-grid mb-4">
               <Card 
                 className={`border-0 bg-success bg-opacity-10 ${statusFilter === 'present' ? 'border border-success border-2' : ''}`}
                 style={cardHoverStyle}
@@ -513,8 +514,6 @@ const AttendanceOverview = () => {
                   )}
                 </Card.Body>
               </Card>
-            </Col>
-            <Col md={3}>
               <Card 
                 className={`border-0 bg-danger bg-opacity-10 ${statusFilter === 'absent' ? 'border border-danger border-2' : ''}`}
                 style={cardHoverStyle}
@@ -533,8 +532,6 @@ const AttendanceOverview = () => {
                   )}
                 </Card.Body>
               </Card>
-            </Col>
-            <Col md={3}>
               <Card 
                 className={`border-0 bg-warning bg-opacity-10 ${statusFilter === 'late' ? 'border border-warning border-2' : ''}`}
                 style={cardHoverStyle}
@@ -553,8 +550,6 @@ const AttendanceOverview = () => {
                   )}
                 </Card.Body>
               </Card>
-            </Col>
-            <Col md={3}>
               <Card 
                 className={`border-0 bg-info bg-opacity-10 ${statusFilter === '' ? 'border border-info border-2' : ''}`}
                 style={cardHoverStyle}
@@ -573,12 +568,11 @@ const AttendanceOverview = () => {
                   )}
                 </Card.Body>
               </Card>
-            </Col>
-          </Row>
+          </div>
 
           {/* Filters */}
-          <Row className="mb-3">
-            <Col md={3}>
+          <Row className="mb-3 g-2">
+            <Col xs={12} sm={6} md={3}>
               <InputGroup>
                 <InputGroup.Text>
                   <FaSearch />
@@ -591,7 +585,7 @@ const AttendanceOverview = () => {
                 />
               </InputGroup>
             </Col>
-            <Col md={2}>
+            <Col xs={12} sm={6} md={2}>
               <Form.Select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -604,7 +598,7 @@ const AttendanceOverview = () => {
                 <option value="leave">On Leave</option>
               </Form.Select>
             </Col>
-            <Col md={3}>
+            <Col xs={12} sm={6} md={3}>
               <Form.Select
                 value={employeeFilter}
                 onChange={(e) => setEmployeeFilter(e.target.value)}
@@ -615,7 +609,7 @@ const AttendanceOverview = () => {
                 ))}
               </Form.Select>
             </Col>
-            <Col md={2}>
+            <Col xs={12} sm={6} md={2}>
               <Form.Control
                 type="date"
                 value={dateFilter}
@@ -623,7 +617,7 @@ const AttendanceOverview = () => {
                 placeholder="Select date"
               />
             </Col>
-            <Col md={2}>
+            <Col xs={12} sm={6} md={2}>
               <Button 
                 variant="outline-secondary" 
                 className="w-100"

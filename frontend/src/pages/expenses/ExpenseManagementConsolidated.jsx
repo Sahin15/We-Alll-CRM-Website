@@ -8,6 +8,9 @@ import toast from "../../utils/toast";
 import { BarChart, Bar, PieChart, Pie, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
 import { formatDate, formatCurrency } from "../../utils/helpers";
 import { EXPENSE_PURPOSES_ARRAY, getTypeColor } from "../../utils/expenseConstants";
+import PageHeader from "../../components/shared/PageHeader";
+import MobileTabBar from "../../components/shared/MobileTabBar";
+import MobileFilterSheet from "../../components/shared/MobileFilterSheet";
 import "./ExpenseManagement.css";
 
 const ExpenseManagementConsolidated = () => {
@@ -54,6 +57,24 @@ const ExpenseManagementConsolidated = () => {
   const [hasBudgets, setHasBudgets] = useState(false);
 
   const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8", "#82CA9D"];
+
+  const expenseTabs = [
+    { key: "all-expenses", label: "All Expenses" },
+    { key: "approvals", label: "Pending Approvals" },
+    { key: "reimbursement", label: "Reimbursement" },
+    { key: "search", label: "Search & Export" },
+    { key: "analytics", label: "Analytics" },
+    { key: "budget", label: "Budget Tracking" },
+    { key: "reports", label: "Reports" },
+  ];
+
+  const activeFilterCount = [
+    filters.status !== "all" ? filters.status : "",
+    filters.expensePurpose !== "all" ? filters.expensePurpose : "",
+    filters.expenseType !== "all" ? filters.expenseType : "",
+    filters.startDate,
+    filters.endDate,
+  ].filter(Boolean).length;
 
   useEffect(() => {
     fetchData();

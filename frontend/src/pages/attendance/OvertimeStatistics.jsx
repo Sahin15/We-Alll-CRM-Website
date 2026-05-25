@@ -22,8 +22,9 @@ import {
 import { toast } from 'react-toastify';
 import { getOvertimeStatistics } from '../../api/overtimeApi';
 import { departmentApi } from '../../api/departmentApi';
+import PageHeader from '../../components/shared/PageHeader';
+import MobileFilterSheet from '../../components/shared/MobileFilterSheet';
 import * as XLSX from 'xlsx';
-
 const OvertimeStatistics = () => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
@@ -137,121 +138,105 @@ const OvertimeStatistics = () => {
 
   return (
     <Container fluid className="py-4">
-      {/* Header */}
-      <Row className="mb-4">
-        <Col>
-          <div className="d-flex justify-content-between align-items-center">
-            <div>
-              <h2 className="mb-1">
-                <FaChartBar className="me-2 text-primary" />
-                Overtime Statistics
-              </h2>
-              <p className="text-muted mb-0">
-                Comprehensive overtime analytics and reports
-              </p>
-            </div>
-            <Button variant="success" onClick={exportToExcel}>
-              <FaDownload className="me-2" />
-              Export to Excel
-            </Button>
-          </div>
-        </Col>
-      </Row>
+      <PageHeader
+        title={
+          <>
+            <FaChartBar className="me-2 text-primary" />
+            Overtime Statistics
+          </>
+        }
+        subtitle="Comprehensive overtime analytics and reports"
+        actions={
+          <Button variant="success" onClick={exportToExcel} className="w-100 w-md-auto">
+            <FaDownload className="me-2" />
+            Export to Excel
+          </Button>
+        }
+      />
 
-      {/* Filters */}
       <Card className="border-0 shadow-sm mb-4">
         <Card.Body>
-          <Row className="align-items-end">
-            <Col md={3}>
-              <Form.Group>
-                <Form.Label>
-                  <FaFilter className="me-2" />
-                  Start Date
-                </Form.Label>
-                <Form.Control
-                  type="date"
-                  name="startDate"
-                  value={filters.startDate}
-                  onChange={handleFilterChange}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group>
-                <Form.Label>End Date</Form.Label>
-                <Form.Control
-                  type="date"
-                  name="endDate"
-                  value={filters.endDate}
-                  onChange={handleFilterChange}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group>
-                <Form.Label>
-                  <FaBuilding className="me-2" />
-                  Department
-                </Form.Label>
-                <Form.Select
-                  name="departmentId"
-                  value={filters.departmentId}
-                  onChange={handleFilterChange}
-                >
-                  <option value="">All Departments</option>
-                  {departments.map((dept) => (
-                    <option key={dept._id} value={dept._id}>
-                      {dept.name}
-                    </option>
-                  ))}
-                </Form.Select>
-              </Form.Group>
-            </Col>
-          </Row>
+          <MobileFilterSheet
+            title="Filters"
+            activeFilterCount={[filters.departmentId].filter(Boolean).length}
+            showApply={false}
+          >
+            <Form.Group>
+              <Form.Label>
+                <FaFilter className="me-2" />
+                Start Date
+              </Form.Label>
+              <Form.Control
+                type="date"
+                name="startDate"
+                value={filters.startDate}
+                onChange={handleFilterChange}
+              />
+            </Form.Group>
+            <Form.Group>
+              <Form.Label>End Date</Form.Label>
+              <Form.Control
+                type="date"
+                name="endDate"
+                value={filters.endDate}
+                onChange={handleFilterChange}
+              />
+            </Form.Group>
+            <Form.Group>
+              <Form.Label>
+                <FaBuilding className="me-2" />
+                Department
+              </Form.Label>
+              <Form.Select
+                name="departmentId"
+                value={filters.departmentId}
+                onChange={handleFilterChange}
+              >
+                <option value="">All Departments</option>
+                {departments.map((dept) => (
+                  <option key={dept._id} value={dept._id}>
+                    {dept.name}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+          </MobileFilterSheet>
         </Card.Body>
       </Card>
 
       {stats && (
         <>
           {/* Summary Cards */}
-          <Row className="mb-4">
-            <Col md={3}>
-              <Card className="border-0 shadow-sm h-100">
-                <Card.Body className="text-center">
-                  <FaClock className="text-primary mb-2" size={32} />
-                  <h3 className="mb-1">{stats.totalAutoOvertime.toFixed(2)}</h3>
-                  <small className="text-muted">Auto Overtime (hrs)</small>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col md={3}>
-              <Card className="border-0 shadow-sm h-100">
-                <Card.Body className="text-center">
-                  <FaClock className="text-success mb-2" size={32} />
-                  <h3 className="mb-1">{stats.totalManualOvertime.toFixed(2)}</h3>
-                  <small className="text-muted">Manual Overtime (hrs)</small>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col md={3}>
-              <Card className="border-0 shadow-sm h-100">
-                <Card.Body className="text-center">
-                  <FaClock className="text-info mb-2" size={32} />
-                  <h3 className="mb-1">{stats.totalOvertime.toFixed(2)}</h3>
-                  <small className="text-muted">Total Overtime (hrs)</small>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col md={3}>
-              <Card className="border-0 shadow-sm h-100">
-                <Card.Body className="text-center">
-                  <FaUsers className="text-warning mb-2" size={32} />
-                  <h3 className="mb-1">{stats.pendingApprovals}</h3>
-                  <small className="text-muted">Pending Approvals</small>
-                </Card.Body>
-              </Card>
-            </Col>
-          </Row>
+          <div className="stat-grid mb-4">
+            <Card className="border-0 shadow-sm h-100">
+              <Card.Body className="text-center">
+                <FaClock className="text-primary mb-2" size={32} />
+                <h3 className="mb-1">{stats.totalAutoOvertime.toFixed(2)}</h3>
+                <small className="text-muted">Auto Overtime (hrs)</small>
+              </Card.Body>
+            </Card>
+            <Card className="border-0 shadow-sm h-100">
+              <Card.Body className="text-center">
+                <FaClock className="text-success mb-2" size={32} />
+                <h3 className="mb-1">{stats.totalManualOvertime.toFixed(2)}</h3>
+                <small className="text-muted">Manual Overtime (hrs)</small>
+              </Card.Body>
+            </Card>
+            <Card className="border-0 shadow-sm h-100">
+              <Card.Body className="text-center">
+                <FaClock className="text-info mb-2" size={32} />
+                <h3 className="mb-1">{stats.totalOvertime.toFixed(2)}</h3>
+                <small className="text-muted">Total Overtime (hrs)</small>
+              </Card.Body>
+            </Card>
+            <Card className="border-0 shadow-sm h-100">
+              <Card.Body className="text-center">
+                <FaUsers className="text-warning mb-2" size={32} />
+                <h3 className="mb-1">{stats.pendingApprovals}</h3>
+                <small className="text-muted">Pending Approvals</small>
+              </Card.Body>
+            </Card>
+          </div>
 
           {/* Approval Status */}
           <Row className="mb-4">
@@ -303,14 +288,14 @@ const OvertimeStatistics = () => {
                     </Alert>
                   ) : (
                     <div className="table-responsive">
-                      <Table hover>
+                      <Table hover className="attendance-tracking-table">
                         <thead>
                           <tr>
                             <th>Employee</th>
-                            <th>Department</th>
-                            <th>Auto OT (hrs)</th>
-                            <th>Manual OT (hrs)</th>
-                            <th>Total OT (hrs)</th>
+                            <th className="hide-mobile">Department</th>
+                            <th>Auto OT</th>
+                            <th className="hide-mobile">Manual OT</th>
+                            <th>Total OT</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -319,15 +304,15 @@ const OvertimeStatistics = () => {
                               <td>
                                 <div>
                                   <strong>{emp.name}</strong>
-                                  <br />
-                                  <small className="text-muted">{emp.email}</small>
+                                  <br className="hide-mobile" />
+                                  <small className="text-muted hide-mobile">{emp.email}</small>
                                 </div>
                               </td>
-                              <td>{emp.department}</td>
+                              <td className="hide-mobile">{emp.department}</td>
                               <td>
                                 <Badge bg="primary">{emp.autoOvertime.toFixed(2)}</Badge>
                               </td>
-                              <td>
+                              <td className="hide-mobile">
                                 <Badge bg="success">{emp.manualOvertime.toFixed(2)}</Badge>
                               </td>
                               <td>
@@ -361,13 +346,13 @@ const OvertimeStatistics = () => {
                     </Alert>
                   ) : (
                     <div className="table-responsive">
-                      <Table hover>
+                      <Table hover className="attendance-tracking-table">
                         <thead>
                           <tr>
                             <th>Department</th>
-                            <th>Auto OT (hrs)</th>
-                            <th>Manual OT (hrs)</th>
-                            <th>Total OT (hrs)</th>
+                            <th>Auto OT</th>
+                            <th className="hide-mobile">Manual OT</th>
+                            <th>Total OT</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -379,7 +364,7 @@ const OvertimeStatistics = () => {
                               <td>
                                 <Badge bg="primary">{dept.autoOvertime.toFixed(2)}</Badge>
                               </td>
-                              <td>
+                              <td className="hide-mobile">
                                 <Badge bg="success">{dept.manualOvertime.toFixed(2)}</Badge>
                               </td>
                               <td>

@@ -1,13 +1,9 @@
 import { useState, useEffect } from "react";
 import {
   Container,
-  Row,
-  Col,
   Card,
-  Table,
   Badge,
   Button,
-  Modal,
   Form,
 } from "react-bootstrap";
 import { FaEye, FaEdit, FaTrash, FaPlus } from "react-icons/fa";
@@ -16,6 +12,10 @@ import { toast } from "react-toastify";
 import { userApi } from "../../api/userApi";
 import { getStatusVariant } from "../../utils/helpers";
 import { ROLES } from "../../utils/constants";
+import PageHeader from "../../components/shared/PageHeader";
+import ResponsiveDataTable from "../../components/shared/ResponsiveDataTable";
+import MobileModal from "../../components/shared/MobileModal";
+import FormFieldStack from "../../components/shared/FormFieldStack";
 
 const UserList = () => {
   const [users, setUsers] = useState([]);
@@ -142,234 +142,209 @@ const UserList = () => {
     setDisplayCount((prev) => prev + 10);
   };
 
+  const userColumns = [
+    { key: "name", label: "Name", mobilePriority: 1 },
+    { key: "email", label: "Email", mobilePriority: 2 },
+    {
+      key: "role",
+      label: "Role",
+      mobilePriority: 3,
+      render: (_, row) => (
+        <Badge bg="primary" className="text-capitalize">
+          {row.role}
+        </Badge>
+      ),
+    },
+    {
+      key: "department",
+      label: "Department",
+      hideOnMobile: true,
+      render: (_, row) => row.department?.name || "N/A",
+    },
+    {
+      key: "position",
+      label: "Position",
+      hideOnMobile: true,
+      render: (_, row) => row.position || "N/A",
+    },
+    {
+      key: "status",
+      label: "Status",
+      mobilePriority: 4,
+      render: (_, row) => (
+        <Badge bg={getStatusVariant(row.status || "active")}>
+          {row.status || "active"}
+        </Badge>
+      ),
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      sortable: false,
+      render: (_, row) => (
+        <div className="d-flex gap-1 flex-wrap">
+          <Button
+            size="sm"
+            variant="outline-primary"
+            className="touch-target"
+            onClick={() => navigate(`/users/${row._id}`)}
+          >
+            <FaEye />
+          </Button>
+          <Button
+            size="sm"
+            variant="outline-success"
+            className="touch-target"
+            onClick={() => handleShowModal(row)}
+          >
+            <FaEdit />
+          </Button>
+          {row.role !== "superadmin" && (
+            <Button
+              size="sm"
+              variant="outline-danger"
+              className="touch-target"
+              onClick={() => handleDelete(row._id)}
+            >
+              <FaTrash />
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <Container fluid>
-      <Row className="mb-4">
-        <Col>
-          <h2>User Management</h2>
-          <p className="text-muted">Manage all system users</p>
-        </Col>
-        <Col className="text-end">
-          <Button variant="primary" onClick={() => handleShowModal()}>
+      <PageHeader
+        title="User Management"
+        subtitle="Manage all system users"
+        actions={
+          <Button variant="primary" className="touch-target" onClick={() => handleShowModal()}>
             <FaPlus className="me-2" />
             Add User
           </Button>
-        </Col>
-      </Row>
+        }
+      />
 
-      <Row>
-        <Col>
-          <Card>
-            <Card.Body>
-              {loading ? (
-                <div className="text-center py-5">
-                  <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <Table responsive hover>
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Role</th>
-                        <th>Department</th>
-                        <th>Position</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {displayedUsers.length > 0 ? (
-                        displayedUsers.map((user) => (
-                          <tr key={user._id}>
-                            <td>{user.name}</td>
-                            <td>{user.email}</td>
-                            <td>
-                              <Badge bg="primary" className="text-capitalize">
-                                {user.role}
-                              </Badge>
-                            </td>
-                            <td>{user.department?.name || "N/A"}</td>
-                            <td>{user.position || "N/A"}</td>
-                            <td>
-                              <Badge
-                                bg={getStatusVariant(user.status || "active")}
-                              >
-                                {user.status || "active"}
-                              </Badge>
-                            </td>
-                            <td>
-                              <div className="btn-group" role="group">
-                                <Button
-                                  size="sm"
-                                  variant="outline-primary"
-                                  onClick={() => navigate(`/users/${user._id}`)}
-                                >
-                                  <FaEye />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline-success"
-                                  onClick={() => handleShowModal(user)}
-                                >
-                                  <FaEdit />
-                                </Button>
-                                {user.role !== "superadmin" && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline-danger"
-                                    onClick={() => handleDelete(user._id)}
-                                  >
-                                    <FaTrash />
-                                  </Button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan="7" className="text-center py-4">
-                            No users found
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </Table>
+      <Card>
+        <Card.Body>
+          <ResponsiveDataTable
+            columns={userColumns}
+            data={displayedUsers}
+            loading={loading}
+            emptyMessage="No users found"
+            paginated={false}
+            keyField="_id"
+          />
 
-                  {/* Load More Button */}
-                  {displayedUsers.length < users.length && (
-                    <div className="text-center mt-3">
-                      <Button variant="outline-primary" onClick={loadMore}>
-                        Load More ({users.length - displayedUsers.length}{" "}
-                        remaining)
-                      </Button>
-                    </div>
-                  )}
+          {!loading && displayedUsers.length < users.length && (
+            <div className="text-center mt-3">
+              <Button variant="outline-primary" className="touch-target" onClick={loadMore}>
+                Load More ({users.length - displayedUsers.length} remaining)
+              </Button>
+            </div>
+          )}
 
-                  {/* Total Count */}
-                  <div className="text-muted text-center mt-3">
-                    Showing {displayedUsers.length} of {users.length} users
-                  </div>
-                </>
-              )}
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+          {!loading && (
+            <div className="text-muted text-center mt-3">
+              Showing {displayedUsers.length} of {users.length} users
+            </div>
+          )}
+        </Card.Body>
+      </Card>
 
-      {/* Add/Edit User Modal */}
-      <Modal show={showModal} onHide={handleCloseModal} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>{editMode ? "Edit User" : "Add New User"}</Modal.Title>
-        </Modal.Header>
-        <Form onSubmit={handleSubmit}>
-          <Modal.Body>
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Full Name *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    required
-                    placeholder="Enter full name"
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Email *</Form.Label>
-                  <Form.Control
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                    placeholder="user@example.com"
-                    disabled={editMode}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>
-                    Password {editMode && "(leave blank to keep current)"}
-                  </Form.Label>
-                  <Form.Control
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    required={!editMode}
-                    placeholder="Enter password"
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Role *</Form.Label>
-                  <Form.Select
-                    name="role"
-                    value={formData.role}
-                    onChange={handleChange}
-                    required
-                  >
-                    {Object.entries(ROLES).map(([key, value]) => (
-                      <option key={value} value={value}>
-                        {key}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Phone</Form.Label>
-                  <Form.Control
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    placeholder="Enter phone number"
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Position</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="position"
-                    value={formData.position}
-                    onChange={handleChange}
-                    placeholder="Enter position"
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={handleCloseModal}>
+      <MobileModal
+        show={showModal}
+        onHide={handleCloseModal}
+        title={editMode ? "Edit User" : "Add New User"}
+        footer={
+          <>
+            <Button variant="secondary" className="touch-target" onClick={handleCloseModal}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
+            <Button variant="primary" className="touch-target" type="submit" form="user-form">
               {editMode ? "Update User" : "Create User"}
             </Button>
-          </Modal.Footer>
+          </>
+        }
+      >
+        <Form id="user-form" onSubmit={handleSubmit}>
+          <FormFieldStack md={6}>
+            <Form.Group>
+              <Form.Label>Full Name *</Form.Label>
+              <Form.Control
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                required
+                placeholder="Enter full name"
+              />
+            </Form.Group>
+            <Form.Group>
+              <Form.Label>Email *</Form.Label>
+              <Form.Control
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                placeholder="user@example.com"
+                disabled={editMode}
+              />
+            </Form.Group>
+            <Form.Group>
+              <Form.Label>
+                Password {editMode && "(leave blank to keep current)"}
+              </Form.Label>
+              <Form.Control
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                required={!editMode}
+                placeholder="Enter password"
+              />
+            </Form.Group>
+            <Form.Group>
+              <Form.Label>Role *</Form.Label>
+              <Form.Select
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                required
+              >
+                {Object.entries(ROLES).map(([key, value]) => (
+                  <option key={value} value={value}>
+                    {key}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+            <Form.Group>
+              <Form.Label>Phone</Form.Label>
+              <Form.Control
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="Enter phone number"
+              />
+            </Form.Group>
+            <Form.Group>
+              <Form.Label>Position</Form.Label>
+              <Form.Control
+                type="text"
+                name="position"
+                value={formData.position}
+                onChange={handleChange}
+                placeholder="Enter position"
+              />
+            </Form.Group>
+          </FormFieldStack>
         </Form>
-      </Modal>
+      </MobileModal>
     </Container>
   );
 };

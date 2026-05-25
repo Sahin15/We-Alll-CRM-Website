@@ -1,13 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import {
-  Row,
-  Col,
-  Card,
-  Form,
-  Spinner,
-  Alert,
-  Table,
-} from "react-bootstrap";
+import { Card, Form, Spinner, Alert } from "react-bootstrap";
 import {
   FaMoneyBillWave,
   FaUsers,
@@ -16,6 +8,10 @@ import {
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { salarySlipApi } from "../../api/salaryApi";
+import MobileFilterSheet from "../shared/MobileFilterSheet";
+import ResponsiveChartGrid from "../shared/ResponsiveChartGrid";
+import ResponsiveDataTable from "../shared/ResponsiveDataTable";
+import FormFieldStack from "../shared/FormFieldStack";
 
 const PayrollSummary = () => {
   const [summary, setSummary] = useState(null);
@@ -92,11 +88,25 @@ const PayrollSummary = () => {
     );
   }
 
+  const departmentRows = Object.entries(summary?.byDepartment || {}).map(([dept, data]) => ({
+    department: dept,
+    count: data.count,
+    totalNetSalary: formatCurrency(data.totalNetSalary),
+  }));
+
+  const statusRows = Object.entries(summary?.byStatus || {}).map(([status, count]) => ({
+    status: status.replace("_", " "),
+    count,
+    percentage:
+      (summary?.totalEmployees || 0) > 0
+        ? ((count / (summary?.totalEmployees || 1)) * 100).toFixed(1)
+        : 0,
+  }));
+
   return (
     <>
-      {/* Filters */}
-      <Row className="mb-4">
-        <Col md={3}>
+      <MobileFilterSheet title="Payroll Period" showApply={false}>
+        <FormFieldStack md={6}>
           <Form.Group>
             <Form.Label>Month</Form.Label>
             <Form.Select
@@ -110,8 +120,6 @@ const PayrollSummary = () => {
               ))}
             </Form.Select>
           </Form.Group>
-        </Col>
-        <Col md={3}>
           <Form.Group>
             <Form.Label>Year</Form.Label>
             <Form.Select
@@ -125,194 +133,151 @@ const PayrollSummary = () => {
               ))}
             </Form.Select>
           </Form.Group>
-        </Col>
-      </Row>
+        </FormFieldStack>
+      </MobileFilterSheet>
 
-      {/* Summary Cards */}
-      <Row className="mb-4">
-        <Col md={3}>
-          <Card className="text-center">
-            <Card.Body>
-              <div
-                className="rounded-circle bg-primary bg-opacity-10 p-3 mx-auto mb-3"
-                style={{ width: "60px", height: "60px" }}
-              >
-                <FaUsers className="text-primary" size={30} />
-              </div>
-              <h3 className="mb-1">{summary?.totalEmployees || 0}</h3>
-              <p className="text-muted mb-0">Total Employees</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="text-center">
-            <Card.Body>
-              <div
-                className="rounded-circle bg-success bg-opacity-10 p-3 mx-auto mb-3"
-                style={{ width: "60px", height: "60px" }}
-              >
-                <FaMoneyBillWave className="text-success" size={30} />
-              </div>
-              <h3 className="mb-1">{formatCurrency(summary?.totalGrossSalary || 0)}</h3>
-              <p className="text-muted mb-0">Total Gross Salary</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="text-center">
-            <Card.Body>
-              <div
-                className="rounded-circle bg-danger bg-opacity-10 p-3 mx-auto mb-3"
-                style={{ width: "60px", height: "60px" }}
-              >
-                <FaChartLine className="text-danger" size={30} />
-              </div>
-              <h3 className="mb-1">{formatCurrency(summary?.totalDeductions || 0)}</h3>
-              <p className="text-muted mb-0">Total Deductions</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="text-center">
-            <Card.Body>
-              <div
-                className="rounded-circle bg-warning bg-opacity-10 p-3 mx-auto mb-3"
-                style={{ width: "60px", height: "60px" }}
-              >
-                <FaFileInvoiceDollar className="text-warning" size={30} />
-              </div>
-              <h3 className="mb-1 text-success">{formatCurrency(summary?.totalNetSalary || 0)}</h3>
-              <p className="text-muted mb-0">Total Net Payout</p>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+      <ResponsiveChartGrid className="mb-4">
+        <Card className="text-center h-100">
+          <Card.Body>
+            <div
+              className="rounded-circle bg-primary bg-opacity-10 p-3 mx-auto mb-3"
+              style={{ width: "60px", height: "60px" }}
+            >
+              <FaUsers className="text-primary" size={30} />
+            </div>
+            <h3 className="mb-1">{summary?.totalEmployees || 0}</h3>
+            <p className="text-muted mb-0">Total Employees</p>
+          </Card.Body>
+        </Card>
+        <Card className="text-center h-100">
+          <Card.Body>
+            <div
+              className="rounded-circle bg-success bg-opacity-10 p-3 mx-auto mb-3"
+              style={{ width: "60px", height: "60px" }}
+            >
+              <FaMoneyBillWave className="text-success" size={30} />
+            </div>
+            <h3 className="mb-1">{formatCurrency(summary?.totalGrossSalary || 0)}</h3>
+            <p className="text-muted mb-0">Total Gross Salary</p>
+          </Card.Body>
+        </Card>
+        <Card className="text-center h-100">
+          <Card.Body>
+            <div
+              className="rounded-circle bg-danger bg-opacity-10 p-3 mx-auto mb-3"
+              style={{ width: "60px", height: "60px" }}
+            >
+              <FaChartLine className="text-danger" size={30} />
+            </div>
+            <h3 className="mb-1">{formatCurrency(summary?.totalDeductions || 0)}</h3>
+            <p className="text-muted mb-0">Total Deductions</p>
+          </Card.Body>
+        </Card>
+        <Card className="text-center h-100">
+          <Card.Body>
+            <div
+              className="rounded-circle bg-warning bg-opacity-10 p-3 mx-auto mb-3"
+              style={{ width: "60px", height: "60px" }}
+            >
+              <FaFileInvoiceDollar className="text-warning" size={30} />
+            </div>
+            <h3 className="mb-1 text-success">{formatCurrency(summary?.totalNetSalary || 0)}</h3>
+            <p className="text-muted mb-0">Total Net Payout</p>
+          </Card.Body>
+        </Card>
+      </ResponsiveChartGrid>
 
-      <Row>
-        {/* Department-wise Breakdown */}
-        <Col md={6}>
-          <Card>
-            <Card.Header>
-              <strong>Department-wise Breakdown</strong>
-            </Card.Header>
-            <Card.Body>
-              {Object.keys(summary?.byDepartment || {}).length === 0 ? (
-                <Alert variant="info">No department data available</Alert>
-              ) : (
-                <Table responsive>
-                  <thead>
-                    <tr>
-                      <th>Department</th>
-                      <th>Employees</th>
-                      <th>Total Payout</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Object.entries(summary?.byDepartment || {}).map(([dept, data]) => (
-                      <tr key={dept}>
-                        <td>{dept}</td>
-                        <td>{data.count}</td>
-                        <td>{formatCurrency(data.totalNetSalary)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              )}
-            </Card.Body>
-          </Card>
-        </Col>
+      <ResponsiveChartGrid className="mb-4">
+        <Card className="h-100">
+          <Card.Header>
+            <strong>Department-wise Breakdown</strong>
+          </Card.Header>
+          <Card.Body>
+            {departmentRows.length === 0 ? (
+              <Alert variant="info">No department data available</Alert>
+            ) : (
+              <ResponsiveDataTable
+                columns={[
+                  { key: "department", label: "Department", mobilePriority: 1 },
+                  { key: "count", label: "Employees", mobilePriority: 2 },
+                  { key: "totalNetSalary", label: "Total Payout", mobilePriority: 3 },
+                ]}
+                data={departmentRows}
+                loading={false}
+                paginated={false}
+                sortable={false}
+                keyField="department"
+              />
+            )}
+          </Card.Body>
+        </Card>
 
-        {/* Status Breakdown */}
-        <Col md={6}>
-          <Card>
-            <Card.Header>
-              <strong>Status Breakdown</strong>
-            </Card.Header>
-            <Card.Body>
-              <Table responsive>
-                <thead>
-                  <tr>
-                    <th>Status</th>
-                    <th>Count</th>
-                    <th>Percentage</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(summary?.byStatus || {}).map(([status, count]) => {
-                    const percentage = (summary?.totalEmployees || 0) > 0 
-                      ? ((count / (summary?.totalEmployees || 1)) * 100).toFixed(1)
-                      : 0;
-                    
-                    return (
-                      <tr key={status}>
-                        <td className="text-capitalize">{status.replace('_', ' ')}</td>
-                        <td>{count}</td>
-                        <td>{percentage}%</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </Table>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+        <Card className="h-100">
+          <Card.Header>
+            <strong>Status Breakdown</strong>
+          </Card.Header>
+          <Card.Body>
+            <ResponsiveDataTable
+              columns={[
+                {
+                  key: "status",
+                  label: "Status",
+                  mobilePriority: 1,
+                  render: (_, row) => <span className="text-capitalize">{row.status}</span>,
+                },
+                { key: "count", label: "Count", mobilePriority: 2 },
+                { key: "percentage", label: "Percentage", mobilePriority: 3, render: (_, row) => `${row.percentage}%` },
+              ]}
+              data={statusRows}
+              loading={false}
+              paginated={false}
+              sortable={false}
+              keyField="status"
+            />
+          </Card.Body>
+        </Card>
+      </ResponsiveChartGrid>
 
-      {/* Summary Statistics */}
-      <Row className="mt-4">
-        <Col>
-          <Card>
-            <Card.Header>
-              <strong>Summary Statistics</strong>
-            </Card.Header>
-            <Card.Body>
-              <Row>
-                <Col md={3}>
-                  <div className="text-center">
-                    <h5 className="text-muted">Average Gross Salary</h5>
-                    <h4 className="text-primary">
-                      {(summary?.totalEmployees || 0) > 0
-                        ? formatCurrency((summary?.totalGrossSalary || 0) / (summary?.totalEmployees || 1))
-                        : formatCurrency(0)
-                      }
-                    </h4>
-                  </div>
-                </Col>
-                <Col md={3}>
-                  <div className="text-center">
-                    <h5 className="text-muted">Average Net Salary</h5>
-                    <h4 className="text-success">
-                      {(summary?.totalEmployees || 0) > 0
-                        ? formatCurrency((summary?.totalNetSalary || 0) / (summary?.totalEmployees || 1))
-                        : formatCurrency(0)
-                      }
-                    </h4>
-                  </div>
-                </Col>
-                <Col md={3}>
-                  <div className="text-center">
-                    <h5 className="text-muted">Deduction Rate</h5>
-                    <h4 className="text-danger">
-                      {(summary?.totalGrossSalary || 0) > 0
-                        ? (((summary?.totalDeductions || 0) / (summary?.totalGrossSalary || 1)) * 100).toFixed(1)
-                        : 0
-                      }%
-                    </h4>
-                  </div>
-                </Col>
-                <Col md={3}>
-                  <div className="text-center">
-                    <h5 className="text-muted">Processing Status</h5>
-                    <h4 className="text-info">
-                      {(summary?.byStatus?.paid || 0)}/{(summary?.totalEmployees || 0)} Paid
-                    </h4>
-                  </div>
-                </Col>
-              </Row>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+      <Card>
+        <Card.Header>
+          <strong>Summary Statistics</strong>
+        </Card.Header>
+        <Card.Body>
+          <ResponsiveChartGrid>
+            <div className="text-center">
+              <h5 className="text-muted">Average Gross Salary</h5>
+              <h4 className="text-primary">
+                {(summary?.totalEmployees || 0) > 0
+                  ? formatCurrency((summary?.totalGrossSalary || 0) / (summary?.totalEmployees || 1))
+                  : formatCurrency(0)}
+              </h4>
+            </div>
+            <div className="text-center">
+              <h5 className="text-muted">Average Net Salary</h5>
+              <h4 className="text-success">
+                {(summary?.totalEmployees || 0) > 0
+                  ? formatCurrency((summary?.totalNetSalary || 0) / (summary?.totalEmployees || 1))
+                  : formatCurrency(0)}
+              </h4>
+            </div>
+            <div className="text-center">
+              <h5 className="text-muted">Deduction Rate</h5>
+              <h4 className="text-danger">
+                {(summary?.totalGrossSalary || 0) > 0
+                  ? (((summary?.totalDeductions || 0) / (summary?.totalGrossSalary || 1)) * 100).toFixed(1)
+                  : 0}
+                %
+              </h4>
+            </div>
+            <div className="text-center">
+              <h5 className="text-muted">Processing Status</h5>
+              <h4 className="text-info">
+                {(summary?.byStatus?.paid || 0)}/{(summary?.totalEmployees || 0)} Paid
+              </h4>
+            </div>
+          </ResponsiveChartGrid>
+        </Card.Body>
+      </Card>
     </>
   );
 };

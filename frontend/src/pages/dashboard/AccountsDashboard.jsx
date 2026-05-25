@@ -67,42 +67,34 @@ const AccountsDashboard = () => {
     <Container fluid className="py-2">
       <GreetingBanner subtitle="Financial overview and management" />
 
-      <Row className="g-4 mb-4">
-        <Col lg={3} md={6}>
+      <div className="stat-grid mb-4">
+        <StatCard
+          title="Total Revenue"
+          value="$0"
+          icon={<FaDollarSign />}
+          bgColor="success"
+        />
+        <StatCard
+          title="Pending Invoices"
+          value="0"
+          icon={<FaFileInvoice />}
+          bgColor="warning"
+        />
+        <StatCard
+          title="Expenses"
+          value="$0"
+          icon={<FaWallet />}
+          bgColor="danger"
+        />
+        <div onClick={handleLeadsCardClick} style={{ cursor: 'pointer', height: '100%' }}>
           <StatCard
-            title="Total Revenue"
-            value="$0"
-            icon={<FaDollarSign />}
-            bgColor="success"
+            title="Total Leads"
+            value={stats.leads}
+            icon={<FaChartLine />}
+            bgColor="primary"
           />
-        </Col>
-        <Col lg={3} md={6}>
-          <StatCard
-            title="Pending Invoices"
-            value="0"
-            icon={<FaFileInvoice />}
-            bgColor="warning"
-          />
-        </Col>
-        <Col lg={3} md={6}>
-          <StatCard
-            title="Expenses"
-            value="$0"
-            icon={<FaWallet />}
-            bgColor="danger"
-          />
-        </Col>
-        <Col lg={3} md={6}>
-          <div onClick={handleLeadsCardClick} style={{ cursor: 'pointer', height: '100%' }}>
-            <StatCard
-              title="Total Leads"
-              value={stats.leads}
-              icon={<FaChartLine />}
-              bgColor="primary"
-            />
-          </div>
-        </Col>
-      </Row>
+        </div>
+      </div>
 
       <Row>
         <Col lg={4}>
