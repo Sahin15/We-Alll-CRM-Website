@@ -43,7 +43,7 @@ const HiringDashboard = () => {
       <Row className="g-4">
         <Col md={4}>
           <Card className="h-100 shadow-sm">
-            <Card.Body>
+            <Card.Body className="d-flex flex-column h-100">
               <div className="d-flex justify-content-between align-items-start">
                 <div>
                   <Card.Title>Hiring Requests</Card.Title>
@@ -59,7 +59,7 @@ const HiringDashboard = () => {
               </div>
               <Button
                 variant="primary"
-                className="mt-3"
+                className="mt-auto pt-3"
                 onClick={() => navigate("/hr/hiring/requests")}
               >
                 <FaClipboardList className="me-2" />
@@ -70,14 +70,14 @@ const HiringDashboard = () => {
         </Col>
         <Col md={4}>
           <Card className="h-100 shadow-sm">
-            <Card.Body>
+            <Card.Body className="d-flex flex-column h-100">
               <Card.Title>CV Bank</Card.Title>
               <Card.Text className="text-muted">
                 Add applicants with CV details and link them to an open hiring request pipeline.
               </Card.Text>
               <Button
                 variant="outline-primary"
-                className="mt-3"
+                className="mt-auto pt-3"
                 onClick={() => navigate("/hr/hiring/applicants")}
               >
                 <FaFileAlt className="me-2" />
@@ -88,7 +88,7 @@ const HiringDashboard = () => {
         </Col>
         <Col md={4}>
           <Card className="h-100 shadow-sm">
-            <Card.Body>
+            <Card.Body className="d-flex flex-column h-100">
               <Card.Title>Offer Letters</Card.Title>
               <Card.Text className="text-muted">
                 Create offer letters, generate PDFs, and convert candidates to employees — from here
@@ -96,7 +96,7 @@ const HiringDashboard = () => {
               </Card.Text>
               <Button
                 variant="outline-secondary"
-                className="mt-3"
+                className="mt-auto pt-3"
                 onClick={() => navigate("/hr/hiring/offer-letters")}
               >
                 <FaFileInvoiceDollar className="me-2" />
