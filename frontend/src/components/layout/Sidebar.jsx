@@ -32,6 +32,7 @@ import {
   FaFileAlt,
   FaCheckSquare,
   FaBoxOpen,
+  FaUserPlus,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import "./Sidebar.css";
@@ -251,6 +252,12 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           label: "Department Review",
           roles: ["hod"],
         },
+        {
+          path: "/hod/hiring/requests",
+          icon: <FaUserPlus />,
+          label: "Hiring Requests",
+          roles: ["hod"],
+        },
       ],
     },
     {
@@ -396,6 +403,40 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           label: "Policy Management",
           roles: ["admin", "superadmin", "hr", "manager"],
           onlyForRoles: ["admin", "superadmin", "hr", "manager"],
+        },
+      ],
+    },
+    {
+      id: "hiring",
+      icon: <FaUserPlus />,
+      label: "Hiring",
+      roles: ["admin", "superadmin", "hr", "manager"],
+      onlyForRoles: ["admin", "superadmin", "hr", "manager"],
+      isGroup: true,
+      children: [
+        {
+          path: "/hr/hiring",
+          icon: <FaTachometerAlt />,
+          label: "Overview",
+          roles: ["admin", "superadmin", "hr", "manager"],
+        },
+        {
+          path: "/hr/hiring/requests",
+          icon: <FaClipboardList />,
+          label: "Requests & Pipeline",
+          roles: ["admin", "superadmin", "hr", "manager"],
+        },
+        {
+          path: "/hr/hiring/applicants",
+          icon: <FaFileAlt />,
+          label: "CV Bank",
+          roles: ["admin", "superadmin", "hr", "manager"],
+        },
+        {
+          path: "/hr/hiring/offer-letters",
+          icon: <FaFileInvoiceDollar />,
+          label: "Offer Letters",
+          roles: ["admin", "superadmin", "hr", "manager"],
         },
       ],
     },

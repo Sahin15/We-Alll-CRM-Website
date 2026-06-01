@@ -9,6 +9,7 @@ Production (`wealll.cloud`) deploys **only** from `main`. The server should matc
 | `main` | Production-ready code only (matches last VPS deploy) |
 | `feature/hiring-management` | Hiring system + offer letters (WIP, not on main) |
 | `feature/hr-document-generator` | HR document PDF generation on employee profiles (WIP) |
+| `feature/mobile-responsive-platform` | Full mobile-first responsive platform (WIP, separate from hiring) |
 | `fix/profile-api-refresh-on-load` | Refresh `/users/me` on app load for profile pictures (ready to merge when you deploy) |
 | `backup/main-before-cleanup` | Snapshot of `main` before cleanup (2025) |
 

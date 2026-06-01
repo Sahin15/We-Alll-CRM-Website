@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Offer Letter — {{candidateName}}</title>
+  <style>
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 10pt;
+      line-height: 1.45;
+      color: #1a1a1a;
+      margin: 0;
+      padding: 0;
+    }
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-35deg);
+      z-index: -1;
+      opacity: 0.1;
+      font-size: 60px;
+      font-weight: bold;
+      text-align: center;
+      color: #000;
+      pointer-events: none;
+      white-space: nowrap;
+      line-height: 1.2;
+    }
+    .doc-title {
+      font-size: 16pt;
+      font-weight: bold;
+      text-align: center;
+      margin: 0 0 8px;
+    }
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 9pt;
+      margin-bottom: 20px;
+    }
+    .meta-right { font-weight: bold; }
+    .salutation {
+      font-weight: bold;
+      font-size: 11pt;
+      margin: 24px 0 12px;
+    }
+    h2 {
+      font-size: 11pt;
+      font-weight: bold;
+      margin: 14px 0 8px;
+      page-break-after: avoid;
+    }
+    h3 {
+      font-size: 10pt;
+      font-weight: bold;
+      margin: 12px 0 6px;
+      page-break-after: avoid;
+    }
+    p {
+      margin: 0 0 10px;
+      text-align: justify;
+    }
+    p.bold { font-weight: bold; }
+    ul {
+      margin: 0 0 10px;
+      padding-left: 20px;
+    }
+    li { margin-bottom: 6px; text-align: justify; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0 0 12px;
+      font-size: 9pt;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { font-weight: bold; background: #f5f5f5; }
+    .signatures {
+      margin-top: 24px;
+      page-break-inside: avoid;
+    }
+    .sig-columns {
+      display: flex;
+      gap: 24px;
+      margin-top: 12px;
+    }
+    .sig-col { flex: 1; }
+    .sig-col h4 { margin: 0 0 8px; font-size: 10pt; }
+    .sig-line { font-size: 9pt; margin: 4px 0; }
+    .company-seal {
+      width: 110px;
+      height: auto;
+      margin-top: 8px;
+      display: block;
+    }
+    .acknowledgment { margin-top: 16px; font-size: 9.5pt; }
+    .confidential-footer { font-size: 9pt; color: #444; margin-top: 12px; }
+    strong { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="watermark">We Alll<br />Grow Together</div>
+
+  <h1 class="doc-title">Offer Letter</h1>
+  <div class="meta-row">
+    <span>{{offerDate}}</span>
+    <span class="meta-right">PRIVATE &amp; CONFIDENTIAL</span>
+  </div>
+
+  <p class="salutation">Dear {{candidateName}},</p>
+  <p>{{candidateAddress}}</p>
+
+  <h2>Congratulations !!</h2>
+  <p>On behalf of WE ALLL., we are pleased to the offer of employment to you on the following terms and conditions:</p>
+  <p>The key terms and conditions of your employment are specified below:</p>
+
+  {{#if showReportingManager}}
+  <p>You will report to {{reportingManager}}.</p>
+  {{/if}}
+
+  <h2>1. Appointment Details</h2>
+  <table>
+    <thead>
+      <tr><th>Details</th><th>Information</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Position / Designation</td><td>{{jobTitle}}</td></tr>
+      <tr><td>Department</td><td>{{departmentName}}</td></tr>
+      <tr><td>Location</td><td>{{workLocation}}</td></tr>
+      <tr><td>Date of Joining</td><td>{{joiningDate}}</td></tr>
+      <tr><td>Employment Type</td><td>{{employmentType}}</td></tr>
+    </tbody>
+  </table>
+  <p>Your appointment is subject to satisfactory completion of all pre-employment verification checks, including background verification and document validation. The Company reserves the right to withdraw this offer in case of any discrepancy in the information provided.</p>
+
+  <h2>2. Compensation &amp; Remuneration</h2>
+  <p>
+    Your gross monthly remuneration will be <strong>{{monthlyGrossFormatted}}</strong>
+    (INR <strong>{{monthlyGrossWords}}</strong> only), translating to an annual Cost to Company (CTC) of
+    <strong>{{annualCtcFormatted}}</strong> per annum.
+  </p>
+  <p>The above compensation is subject to applicable statutory deductions, including Tax Deducted at Source (TDS) as per the Income Tax Act, 1961. Salary increments are reviewed annually based on individual performance and business outcomes.</p>
+
+  {{#if hasCustomClause}}
+  <p>{{customClause}}</p>
+  {{/if}}
+
+  <h3>2.1. Payment of Monthly Salary &amp; Incentives</h3>
+  <p>The Company follows a monthly salary cycle of 1st to 30th of the month. The salary for any calendar month is paid on the 10th-12th of the following month.</p>
+  <h3>2.2. Appraisal</h3>
+  <p>Performance management is done on yearly basis, and your Appraisal is solely dependent on the same.</p>
+
+  <h2>3. Probation Period</h2>
+  <p>You will initially be on probation for a period of <strong>{{probationPeriod}}</strong> from your date of joining.</p>
+  <p>The Company reserves the right to extend the probation period based on performance evaluation.</p>
+  <p>During probation, either party may terminate employment by giving Seven (7) Days Written Notice.</p>
+
+  <p class="bold">During the probation period your services can be terminated within seven days' notice on either side and without any reasons whatsoever. Suppose your services are found satisfactory during the probation period. In that case, you will be confirmed in the present position and thereafter either party can terminate this contract by giving a Sixty Days advance notice or pay basic salary instead of the same to the other party. However should your termination be due to unauthorized absenteeism, non-performance, misconduct, fraud, negligence, theft, wilful violation of the company rules, misappropriation, imprisonment or censure by the court of law or as it may deem fit in the instant case, company will not pay notice pay. At discretion of the company the current month salary may be forfeited due to non-performance or any sort or further in disciplinary matters.</p>
+
+  <h2>4. Working Hours &amp; Leave</h2>
+  <p>Standard office working hours shall be from <strong>10:00 AM to 7:00 PM</strong>, Monday to Friday, and <strong>10:00 AM to 5:00 PM</strong> on Saturdays.</p>
+  <p>Additional working hours may be required depending on business needs.</p>
+  <p>Weekly offs and holidays shall be governed by the Company policy.</p>
+  <p>Leaves shall be governed as per the applicable Company Leave Policy.</p>
+  <h3>4.1. Benefits After Probation</h3>
+  <p>Annual Leaves: On confirmation, an employee is eligible for 24 days of annual leave per calendar year (Jan to Dec), which is earned @ of 2 Days of leave per month of completed service. An employee at no point can avail more than his earned leave. Any excess leave will be treated as unpaid leave at that point of time. The above terms and conditions of employment shall prevail right through an employee's tenure of employment. In case of any change/update, the management of the company shall issue a written directive informing you the same.</p>
+
+  <h2>5. Code of Conduct &amp; Confidentiality</h2>
+  <p>Your employment shall be governed by the Company's Code of Conduct, HR Policies, and applicable statutory regulations.</p>
+  <p>You shall:</p>
+  <ul>
+    <li>Maintain strict confidentiality regarding Company data, clients, business strategies, processes, and internal communications during and after employment.</li>
+    <li>Not disclose any confidential information to any third party without written authorization from the Company.</li>
+    <li>Ensure that all work, intellectual property, content, designs, strategies, and deliverables created during employment remain the sole property of the Company.</li>
+    <li>Use all Company-provided assets, including laptops, systems, software, accounts, devices, documents, and other resources, strictly for official Company purposes only and not for any personal use unless expressly authorized by the Company.</li>
+  </ul>
+  <p>Any breach of confidentiality, misuse of Company assets, or misconduct may result in disciplinary action, including termination of employment.</p>
+
+  <h2>6. Notice Period &amp; Separation</h2>
+  <p>Upon confirmation of employment:</p>
+  <ul>
+    <li>Either party may terminate employment by providing {{noticePeriod}} Written Notice or salary in lieu thereof.</li>
+    <li>The notice period shall commence only after formal acceptance by management.</li>
+    <li>The employee shall return all Company property, assets, credentials, documents, and confidential information before final settlement.</li>
+    <li>The Company reserves the right to terminate employment without notice in cases involving: Gross misconduct, Fraud, Theft, Wilful negligence, Serious policy violations, Breach of confidentiality</li>
+  </ul>
+
+  <h2>7. Pre-Joining Documentation</h2>
+  <p>You are requested to submit the following documents on or before your joining date:</p>
+  <ul>
+    <li>Aadhaar Card</li>
+    <li>PAN Card</li>
+    <li>Educational Certificates &amp; Mark Sheets</li>
+    <li>Previous Employment Documents (if applicable)</li>
+    <li>Current Address Proof (Rent Agreement)</li>
+    <li>Permanent Address Proof (Aadhaar Card / Voter ID / Passport)</li>
+    <li>Bank Passbook / Cancelled Cheque for Salary Processing</li>
+    <li>Recent Passport Size Photographs</li>
+    <li>Signed Copy of this Offer Letter</li>
+  </ul>
+
+  <h2>8. General Terms</h2>
+  <ul>
+    <li>This offer is subject to successful background verification.</li>
+    <li>This letter does not constitute a permanent employment guarantee.</li>
+    <li>The Company reserves the right to amend policies from time to time.</li>
+    <li>This agreement shall be governed by the laws of India.</li>
+    <li>Any disputes arising from employment shall fall under the jurisdiction of Kolkata Courts.</li>
+  </ul>
+  <p>We look forward to welcoming you to WE ALLL and wish you a successful professional journey with us.</p>
+
+  <div class="signatures">
+    <div class="sig-columns">
+      <div class="sig-col">
+        <h4>For WE ALLL</h4>
+        <p class="sig-line">Authorized Signatory</p>
+        {{#if signatory}}<p class="sig-line">{{signatory}}</p>{{/if}}
+        <p class="sig-line">Name: __________________</p>
+        <p class="sig-line">Date: __________________</p>
+        {{#if sealDataUrl}}
+        <img src="{{sealDataUrl}}" alt="Company seal" class="company-seal" />
+        {{/if}}
+      </div>
+      <div class="sig-col">
+        <h4>Accepted By Candidate</h4>
+        <p class="sig-line">Candidate Signature</p>
+        <p class="sig-line">{{candidateName}}</p>
+        <p class="sig-line">Name: __________________</p>
+        <p class="sig-line">Date: __________________</p>
+      </div>
+    </div>
+  </div>
+
+  <p class="acknowledgment">Please sign this offer letter, scan the signed copy, and reply to this email with the PDF attached to confirm your acceptance of this offer.</p>
+  <p class="confidential-footer">This document is confidential and intended solely for the addressed candidate.</p>
+</body>
+</html>

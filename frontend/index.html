@@ -50,23 +50,20 @@
       
       // iOS-specific fixes and error detection
       (function() {
+        window.__WEALLL_APP_MOUNTED__ = false;
+
         // Detect if app fails to load within 10 seconds
         var loadTimeout = setTimeout(function() {
+          if (window.__WEALLL_APP_MOUNTED__) return;
           var root = document.getElementById('root');
-          if (root && root.children.length === 1) {
-            // App didn't load, show error message
+          if (root && !window.__WEALLL_APP_MOUNTED__) {
             root.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#f8d7da;font-family:sans-serif;padding:20px;"><div style="text-align:center;color:#721c24;max-width:400px;"><h2 style="margin:0 0 10px;">Loading Error</h2><p>The app failed to load. Please try:</p><ul style="text-align:left;"><li>Refresh the page</li><li>Clear browser cache</li><li>Check your internet connection</li><li>Try a different browser</li></ul><button onclick="location.reload()" style="margin-top:20px;padding:10px 20px;background:#dc3545;color:white;border:none;border-radius:5px;font-size:16px;cursor:pointer;">Reload Page</button></div></div>';
           }
         }, 10000);
         
-        // Clear timeout when app loads successfully
-        window.addEventListener('load', function() {
-          setTimeout(function() {
-            var root = document.getElementById('root');
-            if (root && root.children.length > 1) {
-              clearTimeout(loadTimeout);
-            }
-          }, 1000);
+        // Clear timeout when React mounts (main.jsx sets __WEALLL_APP_MOUNTED__)
+        window.addEventListener('wealll-app-mounted', function() {
+          clearTimeout(loadTimeout);
         });
         
         // Catch and log any errors
