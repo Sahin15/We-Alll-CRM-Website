@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Container, Row, Col, Card, Badge, Button, Modal, Table } from "react-bootstrap";
 import {
   FaUsers,
@@ -31,14 +31,13 @@ import StatCard from "../../components/dashboard/StatCard";
 import RecentActivity from "../../components/dashboard/RecentActivity";
 import QuickActions from "../../components/dashboard/QuickActions";
 import GreetingBanner from "../../components/common/GreetingBanner";
-import AnalyticsCharts from "../../components/dashboard/AnalyticsCharts";
+import AnalyticsCharts from "../../components/dashboard/AnalyticsChartsDeferred";
 import AdminQuickStats from "../../components/dashboard/AdminQuickStats";
 import HolidayManagement from "../../components/hr/HolidayManagement";
 import AdminRecentActivity from "../../components/dashboard/AdminRecentActivity";
 import DocumentQuickAccess from "../../components/dashboard/DocumentQuickAccess";
 import PolicyUpdates from "../../components/dashboard/PolicyUpdates";
 import UpcomingEvents from "../../components/dashboard/UpcomingEvents";
-import FollowUpDashboard from "../../components/leads/FollowUpDashboard";
 import TodoWidget from "../../components/common/TodoWidget";
 // HR Management Components - Admin has full access
 import LeaveManagement from "../../components/hr/LeaveManagement";
@@ -48,8 +47,9 @@ import AttendanceOverview from "../../components/hr/AttendanceOverview";
 import PolicyManagement from "../../components/hr/PolicyManagement";
 import AnnouncementManagement from "../../components/hr/AnnouncementManagement";
 import QuickStatsWidgets from "../../components/hr/QuickStatsWidgets";
-import NotificationCenter from "../../components/hr/NotificationCenter";
-import ReportsAnalytics from "../../components/hr/ReportsAnalytics";
+const NotificationCenter = lazy(() => import("../../components/hr/NotificationCenter"));
+const ReportsAnalytics = lazy(() => import("../../components/hr/ReportsAnalytics"));
+const FollowUpDashboard = lazy(() => import("../../components/leads/FollowUpDashboard"));
 import { userApi } from "../../api/userApi";
 import { projectApi } from "../../api/projectApi";
 import { clientApi } from "../../api/clientApi";
@@ -1300,7 +1300,9 @@ const AdminDashboard = () => {
       {/* Notification Center - High Priority */}
       <Row className="g-4 mb-4">
         <Col lg={12}>
-          <NotificationCenter />
+          <Suspense fallback={null}>
+            <NotificationCenter />
+          </Suspense>
         </Col>
       </Row>
 
@@ -1352,7 +1354,9 @@ const AdminDashboard = () => {
       {/* Reports & Analytics */}
       <Row className="mb-4">
         <Col lg={12}>
-          <ReportsAnalytics />
+          <Suspense fallback={null}>
+            <ReportsAnalytics />
+          </Suspense>
         </Col>
       </Row>
 
@@ -1365,7 +1369,9 @@ const AdminDashboard = () => {
       {/* Follow-Up Dashboard Widget */}
       <Row className="g-4 mt-4">
         <Col lg={12}>
-          <FollowUpDashboard />
+          <Suspense fallback={null}>
+            <FollowUpDashboard />
+          </Suspense>
         </Col>
       </Row>
 

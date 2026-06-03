@@ -16,10 +16,14 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 let vapidKey = null;
 
-// Receive VAPID key from main app
+// Receive VAPID key from main app; support skipWaiting for deploy updates
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SET_VAPID_KEY') {
+  if (!event.data) return;
+  if (event.data.type === 'SET_VAPID_KEY') {
     vapidKey = event.data.vapidKey;
+  }
+  if (event.data.type === 'SKIP_WAITING' && self.skipWaiting) {
+    self.skipWaiting();
   }
 });
 

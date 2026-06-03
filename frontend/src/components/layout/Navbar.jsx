@@ -35,12 +35,17 @@ const withCacheBust = (url) => {
   return `${url}${sep}v=${Date.now()}`;
 };
 import { useNavigate, useLocation } from "react-router-dom";
-import { useState, useEffect, useRef } from "react";
-import CompanySwitcher from "../admin/CompanySwitcher";
-import NotificationBell from "../notifications/NotificationBell";
-import QuickClockInOut from "../attendance/QuickClockInOut";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import api from "../../services/api";
 import workItemApi from "../../api/workItemApi";
+
+const CompanySwitcher = lazy(() => import("../admin/CompanySwitcher"));
+const NotificationBell = lazy(() => import("../notifications/NotificationBell"));
+const QuickClockInOut = lazy(() => import("../attendance/QuickClockInOut"));
+
+const NavbarLazy = ({ children }) => (
+  <Suspense fallback={null}>{children}</Suspense>
+);
 
 const Navbar = ({ toggleSidebar }) => {
   const { user, logout } = useAuth();
@@ -424,7 +429,9 @@ const Navbar = ({ toggleSidebar }) => {
         {/* Company Switcher - visible only on billing pages for authorized users */}
         {showCompanySwitcher && (
           <div className="mx-auto">
-            <CompanySwitcher />
+            <NavbarLazy>
+              <CompanySwitcher />
+            </NavbarLazy>
           </div>
         )}
 
@@ -436,13 +443,17 @@ const Navbar = ({ toggleSidebar }) => {
               {/* Desktop version with labels */}
               <div className="d-none d-lg-flex me-2" style={{ position: 'relative', zIndex: 1 }}>
                 <div style={{ position: 'relative', zIndex: 1 }}>
-                  <QuickClockInOut showLabel={true} />
+                  <NavbarLazy>
+                    <QuickClockInOut showLabel={true} />
+                  </NavbarLazy>
                 </div>
               </div>
               {/* Mobile/Tablet version without labels (icon only) */}
               <div className="d-flex d-lg-none me-1" style={{ position: 'relative', zIndex: 1 }}>
                 <div style={{ position: 'relative', zIndex: 1 }}>
-                  <QuickClockInOut showLabel={false} size="sm" />
+                  <NavbarLazy>
+                    <QuickClockInOut showLabel={false} size="sm" />
+                  </NavbarLazy>
                 </div>
               </div>
             </>
@@ -474,7 +485,9 @@ const Navbar = ({ toggleSidebar }) => {
 
           {/* Notification Bell */}
           <div className="me-1 me-md-2">
-            <NotificationBell />
+            <NavbarLazy>
+              <NotificationBell />
+            </NavbarLazy>
           </div>
 
           {/* Work Mobile App Icon */}

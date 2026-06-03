@@ -2,7 +2,7 @@ import { Outlet } from "react-router-dom";
 import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
 import Footer from "./Footer";
-// import GrowthSummitFloatingButton from "../common/GrowthSummitFloatingButton"; // Removed - event completed
+import { LazyRouteWrapper } from "../RouteWrapper";
 import { useState, useEffect } from "react";
 
 const MainLayout = () => {
@@ -55,7 +55,9 @@ const MainLayout = () => {
         >
           <Navbar toggleSidebar={toggleSidebar} />
           <main className="p-2 p-sm-3 p-md-4 flex-grow-1">
-            <Outlet />
+            <LazyRouteWrapper>
+              <Outlet />
+            </LazyRouteWrapper>
           </main>
         </div>
       </div>

@@ -30,7 +30,7 @@ import WorkLogSubmissionModal from "../../components/worklog/WorkLogSubmissionMo
 import MyOvertimeHistory from "../../components/attendance/MyOvertimeHistory";
 import AttendanceCalendar from "../../components/attendance/AttendanceCalendar";
 import { workLogApi } from "../../api/workLogApi";
-import * as XLSX from "xlsx";
+import { loadXlsx } from "../../utils/lazyLibs";
 import "../../styles/table-mobile.css";
 import "../../styles/modal-mobile.css";
 
@@ -225,7 +225,7 @@ const MyAttendance = () => {
     }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     try {
       const exportData = attendances.map((a) => ({
         Date: formatDate(a.date),
@@ -242,6 +242,7 @@ const MyAttendance = () => {
         Notes: a.notes || "",
       }));
 
+      const XLSX = await loadXlsx();
       const ws = XLSX.utils.json_to_sheet(exportData);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Attendance");

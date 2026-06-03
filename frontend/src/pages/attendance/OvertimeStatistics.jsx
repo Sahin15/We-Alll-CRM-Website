@@ -22,7 +22,7 @@ import {
 import { toast } from 'react-toastify';
 import { getOvertimeStatistics } from '../../api/overtimeApi';
 import { departmentApi } from '../../api/departmentApi';
-import * as XLSX from 'xlsx';
+import { loadXlsx } from '../../utils/lazyLibs';
 
 const OvertimeStatistics = () => {
   const [loading, setLoading] = useState(true);
@@ -72,7 +72,8 @@ const OvertimeStatistics = () => {
     });
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
+    const XLSX = await loadXlsx();
     if (!stats) return;
 
     // Prepare data for export

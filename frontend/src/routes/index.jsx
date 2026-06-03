@@ -1,7 +1,8 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import { lazy, Suspense } from "react";
-import PWAShell from "../pages/app/PWAShell";
-import MobileAppShell from "../pages/mobileapp/MobileAppShell";
+import { Suspense, lazy } from "react";
+
+const PWAShell = lazy(() => import("../pages/app/PWAShell"));
+const MobileAppShell = lazy(() => import("../pages/mobileapp/MobileAppShell"));
 import { useAuth } from "../context/AuthContext";
 import { RouteLoadingFallback } from "../components/RouteWrapper";
 
@@ -13,211 +14,161 @@ import AuthLayout from "../components/layout/AuthLayout";
 import ProtectedRoute from "./ProtectedRoute";
 import RoleBasedRoute from "./RoleBasedRoute";
 
-// Diagnostics
-import NotificationDiagnostics from "../pages/NotificationDiagnostics";
-
-// Auth Pages
+// Auth Pages (eager — small, needed for first paint on /login)
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
 import ForgotPassword from "../pages/auth/ForgotPassword";
 import ResetPassword from "../pages/auth/ResetPassword";
 
-// Dashboard Pages - Lazy load for better performance
-const SuperAdminDashboard = lazy(() => import("../pages/dashboard/SuperAdminDashboard"));
-const AdminDashboard = lazy(() => import("../pages/dashboard/AdminDashboard"));
-const HRDashboard = lazy(() => import("../pages/dashboard/HRDashboard"));
-const AccountsDashboard = lazy(() => import("../pages/dashboard/AccountsDashboard"));
-const EmployeeDashboard = lazy(() => import("../pages/employee/EmployeeDashboard"));
-const ClientDashboard = lazy(() => import("../pages/dashboard/ClientDashboard"));
-const HoDDashboard = lazy(() => import("../pages/hod/HoDDashboard"));
+// All feature pages — lazy-loaded per route (see lazyPages.js)
+import * as Pages from "./lazyPages";
 
-// Employee Pages
-import MyProjects from "../pages/employee/MyProjects";
-import MyWorkPage from "../pages/employee/MyWorkPage";
-import AssignedWorkPage from "../pages/employee/AssignedWorkPage";
-import MyMeetings from "../pages/employee/MyMeetings";
-import TeamDirectory from "../pages/employee/TeamDirectory";
-import MySalarySlips from "../pages/employee/MySalarySlips";
-import MySalaryPreview from "../pages/employee/MySalaryPreview";
-
-// HR Pages
-import SalaryManagement from "../pages/hr/SalaryManagement";
-import HRSalaryPreviewManagement from "../components/salary/HRSalaryPreviewManagement";
-import TemplateManagement from "../components/salary/TemplateManagement";
-import Announcements from "../pages/employee/Announcements";
-import EmployeeMyAttendance from "../pages/employee/MyAttendance";
-import EmployeeMyLeaves from "../pages/employee/MyLeaves";
-import EmployeeAttendanceReport from "../pages/employee/EmployeeAttendanceReport";
-import TimeTracking from "../pages/employee/TimeTracking";
-import Policies from "../pages/employee/Policies";
-import Settings from "../pages/employee/Settings";
-// Removed old imports: MySlots, MyWork, MyTasks, MyProfileEnhanced
-import HRSettings from "../pages/hr/HRSettings";
-import HiringDashboard from "../pages/hr/HiringDashboard";
-import HiringRequestsManagement from "../pages/hr/HiringRequestsManagement";
-import HiringRequestDetail from "../pages/hr/HiringRequestDetail";
-import HiringApplicationDetail from "../pages/hr/HiringApplicationDetail";
-import ApplicantCVBank from "../pages/hr/ApplicantCVBank";
-import HiringOfferLetters from "../pages/hr/HiringOfferLetters";
-import HoDHiringRequests from "../pages/hod/HoDHiringRequests";
-import HoDCreateHiringRequest from "../pages/hod/HoDCreateHiringRequest";
-import HoDHiringRequestDetail from "../pages/hod/HoDHiringRequestDetail";
-import AdminSettings from "../pages/admin/AdminSettings";
-import HODSettings from "../pages/hod/HODSettings";
-
-// User Pages
-import UserList from "../pages/users/UserList";
-import UserDetails from "../pages/users/UserDetails";
-
-// Employee Management Pages
-import EmployeeList from "../pages/employees/EmployeeList";
-import AddEmployee from "../pages/employees/AddEmployee";
-import EnhancedEmployeeWorkView from "../pages/employees/EnhancedEmployeeWorkView";
-import EmployeeProfileManagement from "../components/hr/EmployeeProfileManagement";
-
-// Department Pages
-import DepartmentList from "../pages/departments/DepartmentList";
-import DepartmentDetails from "../pages/departments/DepartmentDetails";
-
-// Leave Pages
-import MyLeaves from "../pages/leaves/MyLeaves";
-import LeaveRequests from "../pages/leaves/LeaveRequests";
-import LeaveManagement from "../pages/leaves/LeaveManagement";
-
-// Attendance Pages
-import MyAttendance from "../pages/attendance/MyAttendance";
-import AttendanceTracking from "../pages/attendance/AttendanceTracking";
-import OvertimeStatistics from "../pages/attendance/OvertimeStatistics";
-
-// Work Log Pages
-import MyWorkLog from "../pages/worklog/MyWorkLog";
-import WorkLogHistory from "../pages/worklog/WorkLogHistory";
-import WorkLogManagement from "../pages/worklog/WorkLogManagement";
-import HoDWorkLogReview from "../pages/worklog/HoDWorkLogReview";
-
-// Client Pages
-import ClientList from "../pages/clients/ClientList";
-import ClientDetails from "../pages/clients/ClientDetails";
-
-// Raw Data Sheet
-import RawDataList from "../pages/raw-data/RawDataList";
-import CallerQueuePage from "../pages/raw-data/CallerQueuePage";
-import RawDataDashboard from "../pages/raw-data/RawDataDashboard";
-
-// Lead Pages
-import LeadList from "../pages/leads/LeadList";
-import LeadDetails from "../pages/leads/LeadDetails";
-
-// Project Pages
-import ProjectList from "../pages/projects/ProjectList";
-import ProjectListPage from "../pages/projects/ProjectListPage";
-import ProjectDetails from "../pages/projects/ProjectDetails";
-import ProjectWorkspace from "../pages/projects/ProjectWorkspace";
-
-// Calendar Pages
-import CalendarPage from "../pages/calendar/CalendarPage";
-// Removed old import: ContentCalendar
-
-// Work Calendar Pages
-import MyWorkCalendar from "../pages/work-calendar/MyWorkCalendar";
-import AdminWorkCalendarOverview from "../pages/work-calendar/AdminWorkCalendarOverview";
-import EnhancedAdminWorkCalendarOverview from "../pages/work-calendar/EnhancedAdminWorkCalendarOverview";
-
-// Profile Pages
-import MyProfile from "../pages/profile/MyProfile";
-
-// Admin Billing Pages
-import AdminBillingDashboard from "../pages/admin/AdminBillingDashboard";
-import ServiceManagement from "../pages/admin/ServiceManagement";
-import PlanManagement from "../pages/admin/PlanManagement";
-import SubscriptionManagement from "../pages/admin/SubscriptionManagement";
-import InvoiceManagement from "../pages/admin/InvoiceManagement";
-import PaymentVerification from "../pages/admin/PaymentVerification";
-
-// Client Billing Pages
-import ClientBillingDashboard from "../pages/client/ClientBillingDashboard";
-import ClientSubscriptions from "../pages/client/ClientSubscriptions";
-import ClientInvoices from "../pages/client/ClientInvoices";
-import ClientPayments from "../pages/client/ClientPayments";
-
-// Notification Management Pages
-import NotificationManagement from "../components/admin/NotificationManagement";
-import NotificationDashboard from "../components/notifications/NotificationDashboard";
-import NotificationSettings from "../components/notifications/NotificationSettings";
-
-// Holiday Management
-import HolidayManagement from "../components/hr/HolidayManagement";
-
-// Expense Pages
-import MyExpenses from "../pages/expenses/MyExpenses";
-import CreateExpense from "../pages/expenses/CreateExpense";
-import ExpenseDetails from "../pages/expenses/ExpenseDetails";
-import EditExpense from "../pages/expenses/EditExpense";
-import ExpenseManagementConsolidated from "../pages/expenses/ExpenseManagementConsolidated";
-import BudgetManagement from "../pages/expenses/BudgetManagement";
-
-// Asset Pages
-import AssetDashboard from "../pages/assets/AssetDashboard";
-import AssetList from "../pages/assets/AssetList";
-import AddAsset from "../pages/assets/AddAsset";
-import EditAsset from "../pages/assets/EditAsset";
-import AssetDetails from "../pages/assets/AssetDetails";
-import AssignAsset from "../pages/assets/AssignAsset";
-import SendToRepair from "../pages/assets/SendToRepair";
-import AssignmentHistory from "../pages/assets/AssignmentHistory";
-import RepairLog from "../pages/assets/RepairLog";
-import WarrantyTracker from "../pages/assets/WarrantyTracker";
-import MyAssets from "../pages/assets/MyAssets";
-import AssetManagement from "../pages/assets/AssetManagement";
-
-// Software License Pages
-import SoftwareLicenseDashboard from "../pages/licenses/SoftwareLicenseDashboard";
-import SoftwareLicenseList from "../pages/licenses/SoftwareLicenseList";
-import AddSoftwareLicense from "../pages/licenses/AddSoftwareLicense";
-import EditSoftwareLicense from "../pages/licenses/EditSoftwareLicense";
-import SoftwareLicenseDetails from "../pages/licenses/SoftwareLicenseDetails";
-import AssignSoftwareLicense from "../pages/licenses/AssignSoftwareLicense";
-import LicenseHistory from "../pages/licenses/LicenseHistory";
-import LicenseExpiryAlerts from "../pages/licenses/LicenseExpiryAlerts";
-import MyLicenses from "../pages/licenses/MyLicenses";
-import SoftwareLicenseManagement from "../pages/licenses/SoftwareLicenseManagement";
-
-// Company Management Pages
-import MeetingManagement from "../pages/meetings/MeetingManagement";
-import PolicyManagement from "../pages/policies/PolicyManagement";
-import AnnouncementManagement from "../pages/announcements/AnnouncementManagement";
-import ReportsAnalytics from "../pages/reports/ReportsAnalytics";
-
-// Error Pages
-import NotFound from "../pages/errors/NotFound";
-import Unauthorized from "../pages/errors/Unauthorized";
-import GrowthSummitFinal from "../pages/GrowthSummitFinal";
-import SupportPage from "../pages/support/SupportPage";
-import SupportManagement from "../pages/support/SupportManagement";
-
-// Procurement Pages
-import ProcurementDashboard from "../pages/procurement/ProcurementDashboard";
-import MyPurchaseRequests from "../pages/procurement/purchase-requests/MyPurchaseRequests";
-import CreatePurchaseRequest from "../pages/procurement/purchase-requests/CreatePurchaseRequest";
-import EditPurchaseRequest from "../pages/procurement/purchase-requests/EditPurchaseRequest";
-import PurchaseRequestDetails from "../pages/procurement/purchase-requests/PurchaseRequestDetails";
-import PurchaseRequestApprovals from "../pages/procurement/purchase-requests/PurchaseRequestApprovals";
-import PurchaseOrderList from "../pages/procurement/purchase-orders/PurchaseOrderList";
-import CreatePurchaseOrder from "../pages/procurement/purchase-orders/CreatePurchaseOrder";
-import PurchaseOrderDetails from "../pages/procurement/purchase-orders/PurchaseOrderDetails";
-import GoodsReceiptList from "../pages/procurement/goods-receipts/GoodsReceiptList";
-import CreateGoodsReceipt from "../pages/procurement/goods-receipts/CreateGoodsReceipt";
-import GoodsReceiptDetails from "../pages/procurement/goods-receipts/GoodsReceiptDetails";
-import VendorList from "../pages/procurement/vendors/VendorList";
-import CreateVendor from "../pages/procurement/vendors/CreateVendor";
-import EditVendor from "../pages/procurement/vendors/EditVendor";
-import VendorDetails from "../pages/procurement/vendors/VendorDetails";
-import ProcurementInvoiceList from "../pages/procurement/invoices/ProcurementInvoiceList";
-import CreateProcurementInvoice from "../pages/procurement/invoices/CreateProcurementInvoice";
-import ProcurementInvoiceDetails from "../pages/procurement/invoices/ProcurementInvoiceDetails";
-import ProcurementPaymentList from "../pages/procurement/payments/ProcurementPaymentList";
-import RecordPayment from "../pages/procurement/payments/RecordPayment";
-import ProcurementReports from "../pages/procurement/reports/ProcurementReports";
+const {
+  NotificationDiagnostics,
+  MyProjects,
+  MyWorkPage,
+  AssignedWorkPage,
+  MyMeetings,
+  TeamDirectory,
+  MySalarySlips,
+  MySalaryPreview,
+  Announcements,
+  EmployeeMyAttendance,
+  EmployeeMyLeaves,
+  EmployeeAttendanceReport,
+  TimeTracking,
+  Policies,
+  Settings,
+  SalaryManagement,
+  HRSalaryPreviewManagement,
+  TemplateManagement,
+  HRSettings,
+  HiringDashboard,
+  HiringRequestsManagement,
+  HiringRequestDetail,
+  HiringApplicationDetail,
+  ApplicantCVBank,
+  HiringOfferLetters,
+  HoDHiringRequests,
+  HoDCreateHiringRequest,
+  HoDHiringRequestDetail,
+  AdminSettings,
+  HODSettings,
+  UserList,
+  UserDetails,
+  EmployeeList,
+  AddEmployee,
+  EnhancedEmployeeWorkView,
+  EmployeeProfileManagement,
+  DepartmentList,
+  DepartmentDetails,
+  MyLeaves,
+  LeaveRequests,
+  LeaveManagement,
+  MyAttendance,
+  AttendanceTracking,
+  OvertimeStatistics,
+  MyWorkLog,
+  WorkLogHistory,
+  WorkLogManagement,
+  HoDWorkLogReview,
+  ClientList,
+  ClientDetails,
+  RawDataList,
+  CallerQueuePage,
+  RawDataDashboard,
+  LeadList,
+  LeadDetails,
+  ProjectList,
+  ProjectListPage,
+  ProjectDetails,
+  ProjectWorkspace,
+  CalendarPage,
+  MyWorkCalendar,
+  AdminWorkCalendarOverview,
+  EnhancedAdminWorkCalendarOverview,
+  MyProfile,
+  AdminBillingDashboard,
+  ServiceManagement,
+  PlanManagement,
+  SubscriptionManagement,
+  InvoiceManagement,
+  PaymentVerification,
+  ClientBillingDashboard,
+  ClientSubscriptions,
+  ClientInvoices,
+  ClientPayments,
+  NotificationManagement,
+  NotificationDashboard,
+  NotificationSettings,
+  HolidayManagement,
+  MyExpenses,
+  CreateExpense,
+  ExpenseDetails,
+  EditExpense,
+  ExpenseManagementConsolidated,
+  BudgetManagement,
+  AssetDashboard,
+  AssetList,
+  AddAsset,
+  EditAsset,
+  AssetDetails,
+  AssignAsset,
+  SendToRepair,
+  AssignmentHistory,
+  RepairLog,
+  WarrantyTracker,
+  MyAssets,
+  AssetManagement,
+  SoftwareLicenseDashboard,
+  SoftwareLicenseList,
+  AddSoftwareLicense,
+  EditSoftwareLicense,
+  SoftwareLicenseDetails,
+  AssignSoftwareLicense,
+  LicenseHistory,
+  LicenseExpiryAlerts,
+  MyLicenses,
+  SoftwareLicenseManagement,
+  MeetingManagement,
+  PolicyManagement,
+  AnnouncementManagement,
+  ReportsAnalytics,
+  NotFound,
+  Unauthorized,
+  GrowthSummitFinal,
+  SupportPage,
+  SupportManagement,
+  ProcurementDashboard,
+  MyPurchaseRequests,
+  CreatePurchaseRequest,
+  EditPurchaseRequest,
+  PurchaseRequestDetails,
+  PurchaseRequestApprovals,
+  PurchaseOrderList,
+  CreatePurchaseOrder,
+  PurchaseOrderDetails,
+  GoodsReceiptList,
+  CreateGoodsReceipt,
+  GoodsReceiptDetails,
+  VendorList,
+  CreateVendor,
+  EditVendor,
+  VendorDetails,
+  ProcurementInvoiceList,
+  CreateProcurementInvoice,
+  ProcurementInvoiceDetails,
+  ProcurementPaymentList,
+  RecordPayment,
+  ProcurementReports,
+  SuperAdminDashboard,
+  AdminDashboard,
+  HRDashboard,
+  AccountsDashboard,
+  EmployeeDashboard,
+  ClientDashboard,
+  HoDDashboard,
+} = Pages;
 
 const AppRoutes = () => {
   const { user } = useAuth();
@@ -259,7 +210,9 @@ const AppRoutes = () => {
         path="/app"
         element={
           <ProtectedRoute>
-            <PWAShell />
+            <Suspense fallback={<RouteLoadingFallback />}>
+              <PWAShell />
+            </Suspense>
           </ProtectedRoute>
         }
       />
@@ -267,7 +220,11 @@ const AppRoutes = () => {
       {/* Work Mobile App Route - outside MainLayout, handles its own auth */}
       <Route
         path="/mobileapp"
-        element={<MobileAppShell />}
+        element={
+          <Suspense fallback={<RouteLoadingFallback />}>
+            <MobileAppShell />
+          </Suspense>
+        }
       />
       
 
@@ -480,7 +437,9 @@ const AppRoutes = () => {
           path="/hr/hiring"
           element={
             <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
-              <HiringDashboard />
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <HiringDashboard />
+              </Suspense>
             </RoleBasedRoute>
           }
         />
@@ -488,7 +447,9 @@ const AppRoutes = () => {
           path="/hr/hiring/requests"
           element={
             <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
-              <HiringRequestsManagement />
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <HiringRequestsManagement />
+              </Suspense>
             </RoleBasedRoute>
           }
         />
@@ -496,7 +457,9 @@ const AppRoutes = () => {
           path="/hr/hiring/requests/:id"
           element={
             <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
-              <HiringRequestDetail />
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <HiringRequestDetail />
+              </Suspense>
             </RoleBasedRoute>
           }
         />
@@ -504,7 +467,9 @@ const AppRoutes = () => {
           path="/hr/hiring/applications/:id"
           element={
             <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
-              <HiringApplicationDetail />
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <HiringApplicationDetail />
+              </Suspense>
             </RoleBasedRoute>
           }
         />
@@ -512,7 +477,9 @@ const AppRoutes = () => {
           path="/hr/hiring/applicants"
           element={
             <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
-              <ApplicantCVBank />
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <ApplicantCVBank />
+              </Suspense>
             </RoleBasedRoute>
           }
         />
@@ -520,7 +487,9 @@ const AppRoutes = () => {
           path="/hr/hiring/offer-letters"
           element={
             <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
-              <HiringOfferLetters />
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <HiringOfferLetters />
+              </Suspense>
             </RoleBasedRoute>
           }
         />
@@ -528,7 +497,9 @@ const AppRoutes = () => {
           path="/hod/hiring/requests"
           element={
             <RoleBasedRoute allowedRoles={["hod"]}>
-              <HoDHiringRequests />
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <HoDHiringRequests />
+              </Suspense>
             </RoleBasedRoute>
           }
         />
@@ -536,7 +507,9 @@ const AppRoutes = () => {
           path="/hod/hiring/requests/:id"
           element={
             <RoleBasedRoute allowedRoles={["hod"]}>
-              <HoDHiringRequestDetail />
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <HoDHiringRequestDetail />
+              </Suspense>
             </RoleBasedRoute>
           }
         />
@@ -544,7 +517,9 @@ const AppRoutes = () => {
           path="/hod/hiring/requests/new"
           element={
             <RoleBasedRoute allowedRoles={["hod"]}>
-              <HoDCreateHiringRequest />
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <HoDCreateHiringRequest />
+              </Suspense>
             </RoleBasedRoute>
           }
         />

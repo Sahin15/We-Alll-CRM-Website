@@ -7,8 +7,7 @@ import { FaSearch, FaUsers, FaDownload, FaFilePdf, FaFileCsv, FaChevronDown } fr
 import { toast } from "react-toastify";
 import { leaveApi } from "../../api/leaveApi";
 import { isPaidLeaveEligibleRow } from "../../utils/leaveEligibility";
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
+import { loadPdfExport } from "../../utils/lazyLibs";
 
 const MONTHS = [
   { value: "", label: "Full Year" },
@@ -120,11 +119,12 @@ const LeaveBalanceOverview = () => {
     URL.revokeObjectURL(url);
   };
 
-  const exportPDF = () => {
+  const exportPDF = async () => {
     const periodLabel = monthLabel
       ? `${monthLabel} ${selectedYear}`
       : `Full Year ${selectedYear}`;
 
+    const { jsPDF, autoTable } = await loadPdfExport();
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
 
     // Title
