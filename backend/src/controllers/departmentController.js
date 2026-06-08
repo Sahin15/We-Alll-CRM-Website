@@ -1,6 +1,10 @@
 import Department from "../models/departmentModel.js";
 import User from "../models/userModel.js";
 import logger from '../utils/logger.js';
+import {
+  isPastMember,
+  mergeActiveEmployeeFilter,
+} from '../utils/employeeQueryUtils.js';
 
 // Simple in-memory cache for departments (they rarely change)
 let departmentCache = null;
@@ -63,7 +67,9 @@ export const getDepartments = async (req, res) => {
     // Get actual employee counts by querying User model
     const departmentsWithCounts = await Promise.all(
       departments.map(async (dept) => {
-        const employeeCount = await User.countDocuments({ department: dept._id });
+        const employeeCount = await User.countDocuments(
+          mergeActiveEmployeeFilter({ department: dept._id })
+        );
         return {
           ...dept,
           employees: [], // Keep empty array for backward compatibility
@@ -112,7 +118,9 @@ export const getDepartmentById = async (req, res) => {
     }
 
     // Query employees directly from User model for accurate data
-    const employees = await User.find({ department: req.params.id })
+    const employees = await User.find(
+      mergeActiveEmployeeFilter({ department: req.params.id })
+    )
       .select("name email position")
       .lean();
 
@@ -360,21 +368,26 @@ export const getDepartmentAnalytics = async (req, res) => {
       .select("name email position role status")
       .lean();
 
+    const currentEmployees = employees.filter((e) => !isPastMember(e.status));
+
     // Calculate analytics
-    const totalEmployees = employees.length;
-    const activeEmployees = employees.filter(
+    const totalEmployees = currentEmployees.length;
+    const activeEmployees = currentEmployees.filter(
       (e) => e.status === "active"
     ).length;
-    const inactiveEmployees = totalEmployees - activeEmployees;
+    const inactiveEmployees = currentEmployees.filter(
+      (e) => e.status === "inactive"
+    ).length;
+    const pastMembers = employees.length - currentEmployees.length;
 
     // Role distribution
-    const roleDistribution = employees.reduce((acc, emp) => {
+    const roleDistribution = currentEmployees.reduce((acc, emp) => {
       acc[emp.role] = (acc[emp.role] || 0) + 1;
       return acc;
     }, {});
 
     // Position distribution
-    const positionDistribution = employees.reduce((acc, emp) => {
+    const positionDistribution = currentEmployees.reduce((acc, emp) => {
       const position = emp.position || "Not Assigned";
       acc[position] = (acc[position] || 0) + 1;
       return acc;
@@ -392,11 +405,12 @@ export const getDepartmentAnalytics = async (req, res) => {
         totalEmployees,
         activeEmployees,
         inactiveEmployees,
+        pastMembers,
         hasHead: !!department.head,
       },
       roleDistribution,
       positionDistribution,
-      employees: employees,
+      employees: currentEmployees,
     };
 
     res.status(200).json(analytics);
@@ -419,13 +433,14 @@ export const getAllDepartmentsAnalytics = async (req, res) => {
         const employees = await User.find({ department: dept._id })
           .select("status")
           .lean();
+        const currentEmployees = employees.filter((e) => !isPastMember(e.status));
 
         return {
           id: dept._id,
           name: dept.name,
           status: dept.status,
-          totalEmployees: employees.length,
-          activeEmployees: employees.filter((e) => e.status === "active").length,
+          totalEmployees: currentEmployees.length,
+          activeEmployees: currentEmployees.filter((e) => e.status === "active").length,
           hasHead: !!dept.head,
           headName: dept.head?.name || "Not Assigned",
         };
@@ -657,7 +672,9 @@ export const getDepartmentMembers = async (req, res) => {
     }
 
     // Query employees directly from User model
-    const members = await User.find({ department: departmentId })
+    const members = await User.find(
+      mergeActiveEmployeeFilter({ department: departmentId })
+    )
       .select("name email designation employeeId status")
       .lean();
 
@@ -703,15 +720,15 @@ export const getDepartmentStats = async (req, res) => {
     }
 
     // Query employees directly from User model
-    const employees = await User.find({ department: departmentId })
+    const employees = await User.find(
+      mergeActiveEmployeeFilter({ department: departmentId })
+    )
       .select("name status")
       .lean();
 
     // Calculate stats
     const totalMembers = employees.length;
-    const activeMembers = employees.filter(
-      (e) => e.status === "active"
-    ).length;
+    const activeMembers = employees.length;
     const totalProjects = department.projects.length;
     const activeProjects = department.projects.filter(
       (p) => p.status === "In Progress" || p.status === "Active"

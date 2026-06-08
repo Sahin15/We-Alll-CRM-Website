@@ -37,10 +37,14 @@ router.get(
       const month = req.query.month ? parseInt(req.query.month) : null;
 
       // Get all active employees
-      const employees = await User.find({
-        status: "active",
-        role: { $in: ["employee", "hod", "hr", "accounts", "manager"] }
-      })
+      const { mergeActiveEmployeeFilter } = await import(
+        "../utils/employeeQueryUtils.js"
+      );
+      const employees = await User.find(
+        mergeActiveEmployeeFilter({
+          role: { $in: ["employee", "hod", "hr", "accounts", "manager"] },
+        })
+      )
         .select("name email employeeId designation department joiningDate employmentType fullTimeStartDate internshipDetails")
         .populate("department", "name")
         .lean();

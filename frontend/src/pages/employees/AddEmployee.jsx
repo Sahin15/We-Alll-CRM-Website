@@ -52,7 +52,7 @@ const AddEmployee = () => {
 
   const fetchManagers = async () => {
     try {
-      const response = await api.get("/users");
+      const response = await api.get("/users", { params: { status: 'active', limit: 1000 } });
       const managerList = response.data.filter(
         (u) => u.role === "hr" || u.role === "hod" || u.role === "admin"
       );

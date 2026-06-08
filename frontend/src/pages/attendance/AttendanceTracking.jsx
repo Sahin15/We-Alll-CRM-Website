@@ -261,7 +261,7 @@ const AttendanceTracking = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await userApi.getAllUsers();
+      const response = await userApi.getAllUsers({ status: 'active', limit: 1000 });
       let employeeList = response.data.filter((u) => 
         u.role === "employee" || u.role === "hod" || u.role === "hr" || u.role === "manager"
       );

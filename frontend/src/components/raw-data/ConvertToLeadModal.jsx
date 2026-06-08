@@ -12,7 +12,7 @@ export default function ConvertToLeadModal({ show, record, onHide, onConverted }
   useEffect(() => {
     if (show) {
       // Fetch only Sales department employees
-      api.get("/users?department=Sales&limit=100")
+      api.get("/users", { params: { department: "Sales", status: "active", limit: 100 } })
         .then(res => {
           const userList = Array.isArray(res.data) ? res.data : (res.data.users || res.data.data || []);
           setUsers(userList);

@@ -30,7 +30,7 @@ const ReportsAnalytics = () => {
       let attendanceRes = { data: [] };
 
       try {
-        usersRes = await userApi.getAllUsers();
+        usersRes = await userApi.getAllUsers({ excludePast: true, limit: 1000 });
       } catch (error) {
         console.error('[ReportsAnalytics] Error fetching users:', error.message);
         toast.warning('Could not fetch user data');

@@ -41,7 +41,7 @@ const EmployeeDirectory = () => {
   const fetchEmployees = async () => {
     try {
       setLoading(true);
-      const response = await userApi.getAllUsers();
+      const response = await userApi.getAllUsers({ excludePast: true, limit: 1000 });
       const employeeList = response.data?.filter((u) => u.role === "employee" || u.role === "hod" || u.role === "hr") || [];
       setEmployees(employeeList);
       setFilteredEmployees(employeeList);

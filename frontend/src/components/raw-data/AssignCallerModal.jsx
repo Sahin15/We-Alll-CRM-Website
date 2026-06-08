@@ -14,7 +14,7 @@ export default function AssignCallerModal({ show, record, onHide, onAssigned }) 
       setCallerId(record?.assignedCaller?._id || "");
       setLoading(true);
       // Fetch users from Telecaller department
-      api.get("/users?department=Telecaller")
+      api.get("/users", { params: { department: "Telecaller", status: "active", limit: 1000 } })
         .then(res => {
           const userList = Array.isArray(res.data) ? res.data : (res.data.users || res.data.data || []);
           setUsers(userList);

@@ -56,7 +56,7 @@ export default function MeetingTab() {
 
   const fetchEmployees = useCallback(async () => {
     try {
-      const res = await api.get('/users');
+      const res = await api.get('/users', { params: { status: 'active', limit: 1000 } });
       setEmployees(res.data || []);
     } catch {}
   }, []);

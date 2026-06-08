@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import logger from '../utils/logger.js';
 import { buildTextSearch } from '../utils/queryOptimizer.js';
+import { mergeExcludePastMembersFilter } from '../utils/employeeQueryUtils.js';
 
 //generate token
 const generateToken = (id) => {
@@ -109,7 +110,7 @@ export const registerUser = async (req, res) => {
 // Get all users (optimized but backward compatible)
 export const getUsers = async (req, res) => {
   try {
-    const { search, role, department, status, limit = 100, skip = 0 } = req.query;
+    const { search, role, department, status, excludePast, limit = 100, skip = 0 } = req.query;
     
     let query = {};
     
@@ -149,6 +150,8 @@ export const getUsers = async (req, res) => {
       if (status === 'active') {
         query.isActive = { $ne: false };
       }
+    } else if (excludePast === 'true') {
+      Object.assign(query, mergeExcludePastMembersFilter());
     }
     
     logger.info('getUsers query:', query);
@@ -555,6 +558,7 @@ export const updateEmployeeStatus = async (req, res) => {
 
     // Update status and audit fields
     user.status = status;
+    user.isActive = status === "active";
     user.statusChangedAt = new Date();
     user.statusChangedBy = req.user._id;
     // Always clear reactivationDate unless explicitly setting to inactive with a date

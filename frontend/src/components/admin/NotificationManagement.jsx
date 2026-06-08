@@ -64,7 +64,7 @@ const NotificationManagement = () => {
       setLoading(true);
       const [notificationsRes, usersRes] = await Promise.all([
         api.get('/notifications'),
-        api.get('/users')
+        api.get('/users', { params: { excludePast: true, limit: 1000 } })
       ]);
       
       setNotifications(notificationsRes.data.notifications || []);

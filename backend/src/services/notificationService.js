@@ -1,6 +1,7 @@
 import Notification from '../models/notificationModel.js';
 import FCMToken from '../models/fcmTokenModel.js';
 import User from '../models/userModel.js';
+import { mergeExcludePastMembersFilter } from '../utils/employeeQueryUtils.js';
 
 class NotificationService {
   /**
@@ -213,7 +214,9 @@ class NotificationService {
    */
   static async sendToRole(role, title, body, options = {}) {
     try {
-      const users = await User.find({ role }).select('_id');
+      const users = await User.find(
+        mergeExcludePastMembersFilter({ role })
+      ).select('_id');
       const userIds = users.map(u => u._id);
       return this.sendToMultiple(userIds, title, body, options);
     } catch (error) {
@@ -227,7 +230,7 @@ class NotificationService {
    */
   static async sendToAll(title, body, options = {}) {
     try {
-      const users = await User.find().select('_id');
+      const users = await User.find(mergeExcludePastMembersFilter()).select('_id');
       const userIds = users.map(u => u._id);
       return this.sendToMultiple(userIds, title, body, options);
     } catch (error) {
@@ -241,7 +244,9 @@ class NotificationService {
    */
   static async sendToDepartment(departmentId, title, body, options = {}) {
     try {
-      const users = await User.find({ department: departmentId }).select('_id');
+      const users = await User.find(
+        mergeExcludePastMembersFilter({ department: departmentId })
+      ).select('_id');
       const userIds = users.map(u => u._id);
       return this.sendToMultiple(userIds, title, body, options);
     } catch (error) {

@@ -128,7 +128,7 @@ const LeadList = () => {
   useEffect(() => {
     if (isManager) {
       import('../../api/userApi').then(({ userApi }) => {
-        userApi.getAllUsers().then(res => {
+        userApi.getAllUsers({ status: 'active', limit: 1000 }).then(res => {
           const users = Array.isArray(res.data) ? res.data : (res.data?.users || []);
           // Only show Sales department members
           const salesMembers = users.filter(u => {

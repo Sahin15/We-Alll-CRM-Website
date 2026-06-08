@@ -7,6 +7,10 @@ import { optimizedProjectPopulate, buildTextSearch } from '../utils/queryOptimiz
 import { canViewAllProjects } from '../utils/permissions.js';
 import NotificationService from "../services/notificationService.js";
 import { encrypt, decrypt } from "../utils/encryption.js";
+import {
+  isPastMember,
+  stripPastMembersFromProject,
+} from "../utils/employeeQueryUtils.js";
 // Temporarily removed imports for debugging
 // import WorkItem from "../models/workItemModel.js";
 // import Slot from "../models/slotModel.js";
@@ -314,6 +318,8 @@ export const getProjects = async (req, res) => {
     
     // Deduplicate assignedUsers and teamMembers in all projects
     projects.forEach(project => {
+      stripPastMembersFromProject(project);
+
       if (project.assignedUsers && project.assignedUsers.length > 0) {
         const seenIds = new Set();
         project.assignedUsers = project.assignedUsers.filter(user => {
@@ -546,9 +552,9 @@ export const getProjectById = async (req, res) => {
       .populate("client", "name email serviceCompany")
       .populate("department", "name")
       .populate("departments", "name")
-      .populate("projectHead", "name email designation")
-      .populate("assignedUsers", "name email role")
-      .populate("teamMembers.user", "name email role designation")
+      .populate("projectHead", "name email designation status")
+      .populate("assignedUsers", "name email role status")
+      .populate("teamMembers.user", "name email role designation status")
       .populate("teamMembers.assignedBy", "name email")
       .populate("createdBy", "name email")
       .populate("tasks.assignedTo", "name email")
@@ -557,6 +563,8 @@ export const getProjectById = async (req, res) => {
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
     }
+
+    stripPastMembersFromProject(project);
 
     // Deduplicate assignedUsers array
     if (project.assignedUsers && project.assignedUsers.length > 0) {
@@ -1214,6 +1222,13 @@ export const addTeamMember = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "User not found",
+      });
+    }
+
+    if (isPastMember(user.status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Terminated or offboarded employees cannot be added to projects",
       });
     }
 

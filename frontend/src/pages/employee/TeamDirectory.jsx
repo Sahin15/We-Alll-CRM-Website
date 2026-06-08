@@ -23,7 +23,7 @@ const TeamDirectory = () => {
   const fetchData = async () => {
     try {
       const [employeesRes, departmentsRes] = await Promise.all([
-        api.get('/users'),
+        api.get('/users', { params: { status: 'active', limit: 1000 } }),
         api.get('/departments')
       ]);
       

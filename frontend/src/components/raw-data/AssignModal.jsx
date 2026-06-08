@@ -11,12 +11,12 @@ export default function AssignModal({ show, recordIds, onHide, onAssigned }) {
 
   useEffect(() => {
     // Fetch users from Telecaller department
-    api.get("/users?limit=100&department=Telecaller")
-      .then(res => setUsers(res.data.users || res.data.data || []))
+    api.get("/users", { params: { limit: 100, department: "Telecaller", status: "active" } })
+      .then(res => setUsers(res.data.users || res.data.data || res.data || []))
       .catch(() => {
-        // Fallback: fetch all users if department filter doesn't work
-        api.get("/users?limit=100")
-          .then(res => setUsers(res.data.users || res.data.data || []))
+        // Fallback: fetch active users if department filter doesn't work
+        api.get("/users", { params: { limit: 100, status: "active" } })
+          .then(res => setUsers(res.data.users || res.data.data || res.data || []))
           .catch(() => {});
       });
   }, []);

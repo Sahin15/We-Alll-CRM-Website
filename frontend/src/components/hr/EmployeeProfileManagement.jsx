@@ -265,7 +265,7 @@ const EmployeeProfileManagement = () => {
 
   const fetchEmployees = async () => {
     try {
-      const response = await api.get('/users');
+      const response = await api.get('/users', { params: { excludePast: true, limit: 1000 } });
       // Filter to get only employees, HR, HOD, admin, superadmin, manager (potential managers)
       const potentialManagers = response.data.filter(emp => 
         emp._id !== userId && // Exclude current user

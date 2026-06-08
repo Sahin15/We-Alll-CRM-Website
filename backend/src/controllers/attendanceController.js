@@ -12,6 +12,7 @@ import {
   getTodayRangeIST,
   logTimezoneInfo 
 } from '../utils/timezone.js';
+import { mergeActiveEmployeeFilter } from '../utils/employeeQueryUtils.js';
 
 // Clock in (HoD is also an employee)
 export const clockIn = async (req, res) => {
@@ -269,9 +270,9 @@ export const getAllAttendance = async (req, res) => {
       
       if (req.user.role === 'hod' && req.user.department) {
         // HoD can only view their department employees + themselves
-        const departmentEmployees = await User.find({
-          department: req.user.department
-        }).select('_id').lean();
+        const departmentEmployees = await User.find(
+          mergeActiveEmployeeFilter({ department: req.user.department })
+        ).select('_id').lean();
         
         const allowedEmployeeIds = departmentEmployees.map(emp => emp._id.toString());
         allowedEmployeeIds.push(req.user._id.toString());
@@ -291,9 +292,9 @@ export const getAllAttendance = async (req, res) => {
       // No specific employee selected - show all based on role
       if (req.user.role === 'hod' && req.user.department) {
         // HoD sees only their department employees
-        const departmentEmployees = await User.find({
-          department: req.user.department
-        }).select('_id').lean();
+        const departmentEmployees = await User.find(
+          mergeActiveEmployeeFilter({ department: req.user.department })
+        ).select('_id').lean();
         
         const employeeIds = departmentEmployees.map(emp => emp._id);
         // Add HoD themselves

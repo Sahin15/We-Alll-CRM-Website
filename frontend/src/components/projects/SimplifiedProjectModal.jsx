@@ -84,7 +84,7 @@ const SimplifiedProjectModal = ({ show, onHide, onSuccess, project = null }) => 
 
   const loadEmployees = async () => {
     try {
-      const response = await userApi.getAllUsers();
+      const response = await userApi.getAllUsers({ status: 'active', limit: 1000 });
       const allUsers = response.data || response.users || [];
       // Filter to only employees (not clients)
       const employeeList = allUsers.filter(u => u.role !== 'client');

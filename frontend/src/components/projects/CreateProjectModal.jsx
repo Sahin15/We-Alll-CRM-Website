@@ -87,7 +87,7 @@ const CreateProjectModal = ({ show, onHide, onSuccess, editProject = null }) => 
       const [clientsRes, deptsRes, usersRes] = await Promise.all([
         clientApi.getAllClients(),
         departmentApi.getAllDepartments(),
-        userApi.getAllUsers()
+        userApi.getAllUsers({ status: 'active', limit: 1000 })
       ]);
       
       // Handle different response formats

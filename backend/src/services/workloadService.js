@@ -2,6 +2,7 @@ import Task from "../models/taskModel.js";
 import Slot from "../models/slotModel.js";
 import User from "../models/userModel.js";
 import Project from "../models/projectModel.js";
+import { mergeActiveEmployeeFilter } from "../utils/employeeQueryUtils.js";
 
 // Default workload thresholds
 const DEFAULT_THRESHOLDS = {
@@ -152,10 +153,12 @@ export const calculateWorkloadForEmployees = async (employeeIds, thresholds = DE
 export const getDepartmentWorkload = async (departmentId, thresholds = DEFAULT_THRESHOLDS) => {
   try {
     // Get all employees in the department
-    const employees = await User.find({
-      department: departmentId,
-      role: { $in: ["employee", "hod"] }
-    }).select("_id name email designation avatar");
+    const employees = await User.find(
+      mergeActiveEmployeeFilter({
+        department: departmentId,
+        role: { $in: ["employee", "hod"] },
+      })
+    ).select("_id name email designation avatar");
     
     // Calculate workload for each employee
     const workloads = await Promise.all(

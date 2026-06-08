@@ -174,7 +174,7 @@ const ProjectDetails = () => {
   const fetchAvailableMembers = async () => {
     try {
       // Fetch all employees from the project's department
-      const response = await userApi.getAllUsers();
+      const response = await userApi.getAllUsers({ status: 'active', limit: 1000 });
       const allUsers = response.data || [];
       
       // Filter out users who are already team members
@@ -267,7 +267,7 @@ const ProjectDetails = () => {
   const fetchAvailableHoPs = async () => {
     try {
       // Fetch all employees from the project's department
-      const response = await userApi.getAllUsers();
+      const response = await userApi.getAllUsers({ status: 'active', limit: 1000 });
       const allUsers = response.data || [];
       
       const projectDeptId = project?.department?._id || project?.department;
@@ -317,7 +317,7 @@ const ProjectDetails = () => {
   // Fetch available users for slot reassignment
   const fetchAvailableUsersForReassignment = async () => {
     try {
-      const response = await userApi.getAllUsers();
+      const response = await userApi.getAllUsers({ status: 'active', limit: 1000 });
       const allUsers = response.data || [];
       
       const projectDeptId = project?.department?._id || project?.department;

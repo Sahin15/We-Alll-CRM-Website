@@ -34,7 +34,7 @@ const QuickStatsWidgets = () => {
   const fetchQuickStats = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/users");
+      const response = await api.get("/users", { params: { excludePast: true, limit: 1000 } });
       // Include ALL users regardless of role
       const allUsers = response.data || [];
       

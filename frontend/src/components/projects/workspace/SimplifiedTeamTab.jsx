@@ -112,7 +112,7 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
 
   const loadAvailableUsers = async () => {
     try {
-      const response = await userApi.getAllUsers();
+      const response = await userApi.getAllUsers({ status: 'active', limit: 1000 });
       const allUsers = response.data || response || [];
       
       // Get all current team member IDs from both teamMembers and assignedUsers

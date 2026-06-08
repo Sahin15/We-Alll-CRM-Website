@@ -173,7 +173,7 @@ const AdminDashboard = () => {
       setLoading(true);
       
       const [usersRes, projectRes, clientRes, departmentRes, leadsRes, announcementsRes, documentsRes, policiesRes, meetingsRes] = await Promise.all([
-        userApi.getAllUsers(),
+        userApi.getAllUsers({ status: 'active', limit: 1000 }),
         projectApi.getAllProjects(),
         clientApi.getAllClients(),
         departmentApi.getAllDepartments().catch(() => ({ data: [] })),
@@ -273,7 +273,7 @@ const AdminDashboard = () => {
       const apiStartTime = Date.now();
       try {
         await Promise.all([
-          userApi.getAllUsers().catch(() => { apiErrors++; }),
+          userApi.getAllUsers({ status: 'active', limit: 1000 }).catch(() => { apiErrors++; }),
           projectApi.getAllProjects().catch(() => { apiErrors++; }),
           clientApi.getAllClients().catch(() => { apiErrors++; })
         ]);
@@ -413,7 +413,7 @@ const AdminDashboard = () => {
 
   const handleUsersCardClick = async () => {
     try {
-      const response = await userApi.getAllUsers();
+      const response = await userApi.getAllUsers({ status: 'active', limit: 1000 });
       setUsersList(response.data || []);
       setShowUsersModal(true);
     } catch (error) {
@@ -475,7 +475,7 @@ const AdminDashboard = () => {
       
       // Fetch user data if needed
       if (todayAttendance.length > 0 && !todayAttendance[0].employee?.name) {
-        const usersRes = await userApi.getAllUsers();
+        const usersRes = await userApi.getAllUsers({ status: 'active', limit: 1000 });
         const usersMap = {};
         usersRes.data?.forEach(u => usersMap[u._id] = u);
         
@@ -503,7 +503,7 @@ const AdminDashboard = () => {
       
       // Fetch user data if needed
       if (pendingLeaves.length > 0 && !pendingLeaves[0].user?.name) {
-        const usersRes = await userApi.getAllUsers();
+        const usersRes = await userApi.getAllUsers({ status: 'active', limit: 1000 });
         const usersMap = {};
         usersRes.data?.forEach(u => usersMap[u._id] = u);
         
@@ -549,7 +549,7 @@ const AdminDashboard = () => {
       }
     } else if (chartType === 'users') {
       try {
-        const response = await userApi.getAllUsers();
+        const response = await userApi.getAllUsers({ status: 'active', limit: 1000 });
         let filteredUsers = response.data || [];
         
         // Filter based on clicked segment
@@ -626,7 +626,7 @@ const AdminDashboard = () => {
       // The backend returns 'employee' field, not 'user'
       // If employee data is not populated, fetch it
       if (lateEmployees.length > 0 && !lateEmployees[0].employee?.name) {
-        const usersRes = await userApi.getAllUsers();
+        const usersRes = await userApi.getAllUsers({ status: 'active', limit: 1000 });
         const usersMap = {};
         usersRes.data?.forEach(u => usersMap[u._id] = u);
         

@@ -101,7 +101,7 @@ const TeamTab = ({ project, onRefresh }) => {
 
   const loadAvailableUsers = async () => {
     try {
-      const response = await userApi.getAllUsers();
+      const response = await userApi.getAllUsers({ status: 'active', limit: 1000 });
       const allUsers = response.data || response.users || [];
       
       // Get current team member IDs

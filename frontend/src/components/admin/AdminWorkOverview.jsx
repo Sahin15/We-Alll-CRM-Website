@@ -67,7 +67,7 @@ const AdminWorkOverview = () => {
         departmentApi.getAllDepartments(),
         projectApi.getAllProjects(),
         clientApi.getAllClients(),
-        userApi.getAllUsers()
+        userApi.getAllUsers({ status: 'active', limit: 1000 })
       ]);
 
       setFilterOptions({

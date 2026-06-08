@@ -15,6 +15,7 @@ import analyticsEngine from "../services/analyticsEngine.js";
 import exportService from "../services/exportService.js";
 import realTimeUpdateService from "../services/realTimeUpdateService.js";
 import slotManagementService from "../services/slotManagementService.js";
+import { mergeActiveEmployeeFilter } from "../utils/employeeQueryUtils.js";
 
 /**
  * Comprehensive Work Calendar Controller
@@ -1477,7 +1478,10 @@ const getFilterOptions = async () => {
     Department.find({}).select('name').lean(),
     Project.find({}).select('name client').populate('client', 'name').lean(),
     Client.find({}).select('name').lean(),
-    User.find({ role: { $in: ['employee', 'hod'] } }).select('name email department').populate('department', 'name').lean()
+    User.find(mergeActiveEmployeeFilter({ role: { $in: ['employee', 'hod'] } }))
+      .select('name email department')
+      .populate('department', 'name')
+      .lean()
   ]);
 
   return {
@@ -2901,10 +2905,13 @@ const getEnhancedFilterOptions = async () => {
     const [clients, projects, employees, departments] = await Promise.all([
       Client.find({ status: 'active' }).select('name email company').sort({ name: 1 }),
       Project.find({ status: 'active' }).populate('client', 'name serviceCompany').select('name client').sort({ name: 1 }),
-      User.find({ 
-        role: { $in: ['employee', 'hod', 'manager'] },
-        status: 'active' 
-      }).select('name email role department').sort({ name: 1 }),
+      User.find(
+        mergeActiveEmployeeFilter({
+          role: { $in: ['employee', 'hod', 'manager'] },
+        })
+      )
+        .select('name email role department')
+        .sort({ name: 1 }),
       Department.find({ status: 'active' }).select('name description').sort({ name: 1 })
     ]);
 

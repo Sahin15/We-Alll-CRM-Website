@@ -35,11 +35,16 @@ router.get("/", protect, getUsers);
 router.get("/employees", protect, async (req, res) => {
   try {
     const User = (await import("../models/userModel.js")).default;
-    // Get all users except superadmin, sorted by name
-    const employees = await User.find({ role: { $ne: 'superadmin' } })
-      .select('-password')
-      .populate('department', 'name')
-      .populate('reportingManager', 'name')
+    const { mergeExcludePastMembersFilter } = await import(
+      "../utils/employeeQueryUtils.js"
+    );
+    // Employable roster: exclude terminated/offboarded past members
+    const employees = await User.find(
+      mergeExcludePastMembersFilter({ role: { $ne: "superadmin" } })
+    )
+      .select("-password")
+      .populate("department", "name")
+      .populate("reportingManager", "name")
       .sort({ name: 1 });
     res.json(employees);
   } catch (error) {

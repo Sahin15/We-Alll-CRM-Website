@@ -2,6 +2,7 @@ import Announcement from "../models/announcementModel.js";
 import Notification from "../models/notificationModel.js";
 import User from "../models/userModel.js";
 import NotificationService from "../services/notificationService.js";
+import { mergeExcludePastMembersFilter } from "../utils/employeeQueryUtils.js";
 
 // @desc    Get all announcements
 // @route   GET /api/announcements
@@ -288,10 +289,12 @@ async function createAnnouncementNotifications(announcement, creator) {
     }
 
     // Get all target users (exclude the creator)
-    const targetUsers = await User.find({
-      ...userQuery,
-      _id: { $ne: creator._id },
-    }).select("_id name");
+    const targetUsers = await User.find(
+      mergeExcludePastMembersFilter({
+        ...userQuery,
+        _id: { $ne: creator._id },
+      })
+    ).select("_id name");
 
     if (targetUsers.length > 0) {
       // Send push notifications using our notification service

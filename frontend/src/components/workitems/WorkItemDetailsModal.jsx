@@ -147,8 +147,9 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
     const fetchTeamMembers = async () => {
       try {
         // Get all users with specific roles
-        const response = await userApi.getAllUsers({ 
-          limit: 1000 // Get all users
+        const response = await userApi.getAllUsers({
+          excludePast: true,
+          limit: 1000,
         });
         
         const allUsers = response.data || [];

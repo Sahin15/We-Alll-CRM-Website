@@ -792,7 +792,7 @@ const EnhancedAdminWorkOverview = () => {
       const [clients, projects, employees, departments] = await Promise.all([
         clientApi.getAllClients(),
         projectApi.getAllProjects(),
-        userApi.getAllUsers(),
+        userApi.getAllUsers({ status: 'active', limit: 1000 }),
         departmentApi.getAllDepartments()
       ]);
 

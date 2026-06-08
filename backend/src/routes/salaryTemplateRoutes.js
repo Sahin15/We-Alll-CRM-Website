@@ -5,6 +5,7 @@ import SalaryStructureTemplate from "../models/salaryStructureTemplateModel.js";
 import SalaryStructure from "../models/salaryStructureModel.js";
 import User from "../models/userModel.js";
 import Department from "../models/departmentModel.js";
+import { mergeActiveEmployeeFilter } from "../utils/employeeQueryUtils.js";
 
 const router = express.Router();
 
@@ -265,7 +266,7 @@ router.post("/:id/bulk-apply", protect, authorizeRoles("admin", "superadmin", "h
     }
 
     // Build query for employees
-    const query = { role: "employee" };
+    const query = mergeActiveEmployeeFilter({ role: "employee" });
     if (department) query.department = department;
     if (designation) query.designation = { $regex: designation, $options: 'i' };
 

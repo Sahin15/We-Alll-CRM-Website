@@ -153,7 +153,7 @@ const DepartmentList = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await userApi.getAllUsers();
+      const response = await userApi.getAllUsers({ status: 'active', limit: 1000 });
       setUsers(response.data);
     } catch (error) {
       console.error("Failed to fetch users:", error);
