@@ -25,6 +25,7 @@ import {
   getAllowedLeaveTypes,
   isFullTimeEmployee,
 } from "../../utils/leaveEligibility";
+import { getLeaveRequestDays } from "../../utils/leaveDays";
 
 const MyLeaves = () => {
   const { user } = useAuth();
@@ -78,12 +79,8 @@ const MyLeaves = () => {
     }
   };
 
-  const calculateDays = (startDate, endDate) => {
-    if (!startDate || !endDate) return 0;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    return Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
-  };
+  const calculateDays = (leaveType, startDate, endDate) =>
+    getLeaveRequestDays(leaveType, startDate, endDate);
 
   const validateAdvanceNotice = (leaveType, startDate) => {
     if (!startDate) return { valid: true };
@@ -123,7 +120,7 @@ const MyLeaves = () => {
     }
 
     // Check leave balance (skip for unpaid leave)
-    const requestedDays = calculateDays(formData.startDate, formData.endDate);
+    const requestedDays = calculateDays(formData.leaveType, formData.startDate, formData.endDate);
     
     if (paidLeaveEligible && formData.leaveType !== 'unpaid') {
       const availableBalance = leaveBalance?.earned?.remaining || 0;
@@ -356,9 +353,14 @@ const MyLeaves = () => {
               <Form.Label>Leave Type *</Form.Label>
               <Form.Select
                 value={formData.leaveType}
-                onChange={(e) =>
-                  setFormData({ ...formData, leaveType: e.target.value })
-                }
+                onChange={(e) => {
+                  const leaveType = e.target.value;
+                  setFormData((prev) => ({
+                    ...prev,
+                    leaveType,
+                    endDate: leaveType === 'half_day' ? prev.startDate : prev.endDate,
+                  }));
+                }}
                 required
               >
                 {Object.entries(LEAVE_TYPE_DETAILS)
@@ -387,9 +389,14 @@ const MyLeaves = () => {
                   <Form.Control
                     type="date"
                     value={formData.startDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, startDate: e.target.value })
-                    }
+                    onChange={(e) => {
+                      const startDate = e.target.value;
+                      setFormData((prev) => ({
+                        ...prev,
+                        startDate,
+                        endDate: prev.leaveType === 'half_day' ? startDate : prev.endDate,
+                      }));
+                    }}
                     required
                   />
                 </Form.Group>
@@ -413,7 +420,7 @@ const MyLeaves = () => {
             {formData.startDate && formData.endDate && (
               <Alert variant="info" className="mb-3">
                 <FaInfoCircle className="me-2" />
-                <strong>Leave Duration:</strong> {calculateDays(formData.startDate, formData.endDate)} day(s)
+                <strong>Leave Duration:</strong> {calculateDays(formData.leaveType, formData.startDate, formData.endDate)} day(s)
                 <br />
                 {formData.leaveType === 'unpaid' ? (
                   <span>
@@ -422,7 +429,7 @@ const MyLeaves = () => {
                 ) : (
                   <>
                     <strong>Available Balance:</strong> {leaveBalance?.earned?.remaining || 0} day(s) (earned leaves)
-                    {calculateDays(formData.startDate, formData.endDate) > (leaveBalance?.earned?.remaining || 0) && (
+                    {calculateDays(formData.leaveType, formData.startDate, formData.endDate) > (leaveBalance?.earned?.remaining || 0) && (
                       <div className="text-danger mt-1">
                         <FaExclamationTriangle className="me-1" />
                         Insufficient earned leave balance! You have earned {leaveBalance?.earned?.earned || 0} out of 24 annual leaves.
@@ -464,7 +471,7 @@ const MyLeaves = () => {
               disabled={
                 isSubmitting ||
                 !validateAdvanceNotice(formData.leaveType, formData.startDate).valid || 
-                (paidLeaveEligible && formData.leaveType !== 'unpaid' && calculateDays(formData.startDate, formData.endDate) > (leaveBalance?.earned?.remaining || 0))
+                (paidLeaveEligible && formData.leaveType !== 'unpaid' && calculateDays(formData.leaveType, formData.startDate, formData.endDate) > (leaveBalance?.earned?.remaining || 0))
               }
             >
               {isSubmitting ? 'Submitting...' : 'Submit Request'}

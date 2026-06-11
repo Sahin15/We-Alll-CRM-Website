@@ -1,6 +1,7 @@
 import LeaveRequest from "../models/leaveRequestModel.js";
 import User from "../models/userModel.js";
 import NotificationService from "../services/notificationService.js";
+import { getLeaveRequestDays } from "../utils/leaveDays.js";
 
 // Create leave request
 export const createLeaveRequest = async (req, res) => {
@@ -43,8 +44,7 @@ export const createLeaveRequest = async (req, res) => {
       });
     }
 
-    // Calculate number of days
-    const numberOfDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+    const numberOfDays = getLeaveRequestDays(leaveType, start, end);
 
     // Validate advance notice requirements
     const daysDifference = Math.ceil((start - today) / (1000 * 60 * 60 * 24));
@@ -631,10 +631,11 @@ export const updateLeaveRequest = async (req, res) => {
 
     const start = new Date(leaveRequest.startDate);
     const end = new Date(leaveRequest.endDate);
-    const numberOfDays =
-      effectiveLeaveType === 'half_day'
-        ? 0.5
-        : Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+    const numberOfDays = getLeaveRequestDays(
+      effectiveLeaveType,
+      leaveRequest.startDate,
+      leaveRequest.endDate
+    );
 
     if (effectiveLeaveType !== 'unpaid') {
       try {

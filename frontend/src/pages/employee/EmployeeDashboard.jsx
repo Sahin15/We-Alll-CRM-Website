@@ -26,6 +26,7 @@ import {
   getAllowedLeaveTypes,
   isFullTimeEmployee,
 } from "../../utils/leaveEligibility";
+import { getLeaveRequestDays } from "../../utils/leaveDays";
 import GreetingBanner from "../../components/common/GreetingBanner";
 import TodoWidget from "../../components/common/TodoWidget";
 import ConfirmModal from "../../components/common/ConfirmModal";
@@ -827,12 +828,8 @@ const EmployeeDashboard = () => {
            (currentYear === SATURDAY_OFF_FROM.year && currentMonth < SATURDAY_OFF_FROM.month);
   };
 
-  const calculateDays = (startDate, endDate) => {
-    if (!startDate || !endDate) return 0;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    return Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
-  };
+  const calculateDays = (leaveType, startDate, endDate) =>
+    getLeaveRequestDays(leaveType, startDate, endDate);
 
   const validateAdvanceNotice = (leaveType, startDate) => {
     if (!startDate) return { valid: true };
@@ -856,10 +853,13 @@ const EmployeeDashboard = () => {
 
   const handleLeaveFormChange = (e) => {
     const { name, value } = e.target;
-    setLeaveFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setLeaveFormData((prev) => {
+      const next = { ...prev, [name]: value };
+      if (next.leaveType === 'half_day' && (name === 'startDate' || name === 'leaveType')) {
+        next.endDate = name === 'startDate' ? value : prev.startDate;
+      }
+      return next;
+    });
   };
 
   const handleLeaveSubmit = async (e) => {
@@ -884,7 +884,11 @@ const EmployeeDashboard = () => {
     }
 
     // Check leave balance (skip for unpaid leave only)
-    const requestedDays = calculateDays(leaveFormData.startDate, leaveFormData.endDate);
+    const requestedDays = calculateDays(
+      leaveFormData.leaveType,
+      leaveFormData.startDate,
+      leaveFormData.endDate
+    );
     
     if (paidLeaveEligible && leaveFormData.leaveType !== 'unpaid') {
       try {
@@ -1867,7 +1871,11 @@ const EmployeeDashboard = () => {
                 <Col md={6}>
                   <Card 
                     className={`leave-type-card ${leaveFormData.leaveType === 'half_day' ? 'selected' : ''}`}
-                    onClick={() => setLeaveFormData(prev => ({ ...prev, leaveType: 'half_day' }))}
+                    onClick={() => setLeaveFormData(prev => ({
+                      ...prev,
+                      leaveType: 'half_day',
+                      endDate: prev.startDate || prev.endDate,
+                    }))}
                     style={{ cursor: 'pointer', border: leaveFormData.leaveType === 'half_day' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
                   >
                     <Card.Body>

@@ -5,6 +5,7 @@ import { leaveApi } from '../../api/leaveApi';
 import { LEAVE_TYPE_DETAILS } from '../../utils/constants';
 import { useAuth } from '../../context/AuthContext';
 import { getAllowedLeaveTypes, isFullTimeEmployee } from '../../utils/leaveEligibility';
+import { getLeaveRequestDays } from '../../utils/leaveDays';
 import moment from 'moment';
 import '../../pages/leaves/LeaveManagement.css';
 
@@ -34,10 +35,13 @@ const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData((prev) => {
+      const next = { ...prev, [name]: value };
+      if (next.leaveType === 'half_day' && (name === 'startDate' || name === 'leaveType')) {
+        next.endDate = name === 'startDate' ? value : prev.startDate;
+      }
+      return next;
+    });
     setError('');
   };
 
@@ -69,15 +73,8 @@ const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const calculateDays = () => {
-    if (formData.startDate && formData.endDate) {
-      const start = moment(formData.startDate);
-      const end = moment(formData.endDate);
-      const days = end.diff(start, 'days') + 1;
-      return days > 0 ? days : 0;
-    }
-    return 0;
-  };
+  const calculateDays = () =>
+    getLeaveRequestDays(formData.leaveType, formData.startDate, formData.endDate);
 
   const validateForm = () => {
     if (!formData.leaveType) {

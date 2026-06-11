@@ -13,6 +13,7 @@ import {
   getAllowedLeaveTypes,
   isFullTimeEmployee,
 } from "../../utils/leaveEligibility";
+import { getLeaveRequestDays } from "../../utils/leaveDays";
 import ApplyWFHModal from "../../components/wfh/ApplyWFHModal";
 import "../../styles/table-mobile.css";
 import "../../styles/modal-mobile.css";
@@ -111,19 +112,23 @@ const MyLeaves = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    setFormData((prev) => {
+      const next = { ...prev, [name]: value };
+      if (next.leaveType === 'half_day') {
+        if (name === 'startDate' || name === 'leaveType') {
+          next.endDate = name === 'startDate' ? value : prev.startDate;
+        }
+      }
+      return next;
+    });
   };
 
   const handleFileChange = (e) => {
     setFormData({ ...formData, document: e.target.files[0] });
   };
 
-  const calculateDays = (startDate, endDate) => {
-    if (!startDate || !endDate) return 0;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    return Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
-  };
+  const calculateDays = (leaveType, startDate, endDate) =>
+    getLeaveRequestDays(leaveType, startDate, endDate);
 
   const validateAdvanceNotice = (leaveType, startDate) => {
     if (!startDate) return { valid: true };
@@ -161,7 +166,7 @@ const MyLeaves = () => {
     }
 
     // Check leave balance (skip for unpaid leave and work from home)
-    const requestedDays = calculateDays(formData.startDate, formData.endDate);
+    const requestedDays = calculateDays(formData.leaveType, formData.startDate, formData.endDate);
     
     if (paidLeaveEligible && formData.leaveType !== 'unpaid') {
       const availableBalance = leaveBalance?.earned?.remaining || 0;
@@ -229,7 +234,7 @@ const MyLeaves = () => {
     return colors[type] || "secondary";
   };
 
-  const requestedDays = calculateDays(formData.startDate, formData.endDate);
+  const requestedDays = calculateDays(formData.leaveType, formData.startDate, formData.endDate);
   const availableBalance = leaveBalance?.earned?.remaining || 0;
   const advanceNoticeCheck = validateAdvanceNotice(formData.leaveType, formData.startDate);
 
@@ -800,7 +805,11 @@ const MyLeaves = () => {
                 <Col md={6}>
                   <Card 
                     className={`leave-type-card ${formData.leaveType === 'half_day' ? 'selected' : ''}`}
-                    onClick={() => setFormData(prev => ({ ...prev, leaveType: 'half_day' }))}
+                    onClick={() => setFormData(prev => ({
+                      ...prev,
+                      leaveType: 'half_day',
+                      endDate: prev.startDate || prev.endDate,
+                    }))}
                     style={{ cursor: 'pointer', border: formData.leaveType === 'half_day' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
                   >
                     <Card.Body>

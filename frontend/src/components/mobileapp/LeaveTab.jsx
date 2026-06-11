@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { leaveApi } from '../../api/leaveApi';
 import { useAuth } from '../../context/AuthContext';
 import { getAllowedLeaveTypes, isFullTimeEmployee } from '../../utils/leaveEligibility';
+import { getLeaveRequestDays } from '../../utils/leaveDays';
 
 const ALL_LEAVE_TYPES = [
   { value: 'personal', label: 'Personal Leave' },
@@ -186,13 +187,33 @@ export default function LeaveTab() {
 
           <div style={{ marginBottom: '12px' }}>
             <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>Leave Type</label>
-            <LeaveTypeSelect value={form.leaveType} onChange={val => setForm({ ...form, leaveType: val })} leaveTypes={leaveTypes} />
+            <LeaveTypeSelect
+              value={form.leaveType}
+              onChange={(val) => setForm((prev) => ({
+                ...prev,
+                leaveType: val,
+                endDate: val === 'half_day' ? prev.startDate : prev.endDate,
+              }))}
+              leaveTypes={leaveTypes}
+            />
           </div>
 
           <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
             <div style={{ flex: 1 }}>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>From *</label>
-              <input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} style={inputStyle} />
+              <input
+                type="date"
+                value={form.startDate}
+                onChange={(e) => {
+                  const startDate = e.target.value;
+                  setForm((prev) => ({
+                    ...prev,
+                    startDate,
+                    endDate: prev.leaveType === 'half_day' ? startDate : prev.endDate,
+                  }));
+                }}
+                style={inputStyle}
+              />
             </div>
             <div style={{ flex: 1 }}>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>To *</label>
