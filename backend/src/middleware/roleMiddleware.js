@@ -1,13 +1,5 @@
-export const authorizeRoles = (...allowedRoles) => {
-  return (req, res, next) => {
-    if (!req.user || !allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({ 
-        message: "Access denied",
-        userRole: req.user?.role,
-        allowedRoles: allowedRoles
-      });
-    }
-    
-    next();
-  };
-};
+/**
+ * Re-exports authorizeRoles from authMiddleware for a single implementation.
+ * All route files importing roleMiddleware receive the canonical guard.
+ */
+export { authorizeRoles, authorize, protect } from './authMiddleware.js';

@@ -75,6 +75,7 @@ import vendorRoutes from "./routes/vendorRoutes.js";
 import procurementInvoiceRoutes from "./routes/procurementInvoiceRoutes.js";
 import procurementPaymentRoutes from "./routes/procurementPaymentRoutes.js";
 import procurementDashboardRoutes from "./routes/procurementDashboardRoutes.js";
+import authzRoutes from "./routes/authzRoutes.js";
 // Legacy routes removed - use workItemRoutes instead
 // Old: taskRoutes, slotRoutes, workRoutes → New: workItemRoutes
 import { initializeCronJobs } from "./config/cronJobs.js";
@@ -265,6 +266,7 @@ app.get("/api/fix-hr-now", protect, authorizeRoles("admin", "superadmin"), async
 
 // API Routes (with rate limiting)
 app.use("/api/users", apiLimiter, userRoutes);
+app.use("/api/v1/authz", apiLimiter, authzRoutes);
 app.use("/api/admin", apiLimiter, adminRoutes);
 app.use("/api/clients", apiLimiter, clientRoutes);
 app.use("/api/clients", apiLimiter, clientWorkRoutes);
