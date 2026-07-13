@@ -21,110 +21,149 @@ import {
 } from "../controllers/clientController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
 
-// Admin, superadmin, hr, manager can manage clients; hod can view
-router.post("/", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), createClient);
-router.get("/", protect, authorizeRoles("admin", "superadmin", "hr", "hod", "manager"), getClients);
+const CLIENT_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
+const CLIENT_LIST_ROLES = ["admin", "superadmin", "hr", "hod", "manager"];
+const CLIENT_EMPLOYEE_ROLES = ["employee", "hod"];
+const CLIENT_ONBOARD_WRITE_ROLES = ["admin", "superadmin", "accounts", "manager"];
+const CLIENT_ONBOARD_READ_ROLES = ["admin", "superadmin", "accounts", "client", "manager"];
+const CLIENT_OVERVIEW_ROLES = ["admin", "superadmin", "accounts", "client"];
+const CLIENT_VIP_LIST_ROLES = ["admin", "superadmin", "hr", "hod", "manager"];
+const CLIENT_ACCOUNT_MANAGER_ROLES = ["admin", "superadmin", "manager"];
+const CLIENT_PLAN_ROLES = ["admin", "superadmin", "accounts", "manager"];
 
-// Employee route - get clients from their assigned projects
-router.get("/my-clients", protect, authorizeRoles("employee", "hod"), getEmployeeClients);
+router.post(
+  "/",
+  protect,
+  authorizeRoles(...CLIENT_MANAGE_ROLES),
+  requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_MANAGE_ROLES }),
+  createClient
+);
+router.get(
+  "/",
+  protect,
+  authorizeRoles(...CLIENT_LIST_ROLES),
+  requireModulePermission("crm", "crm.client.view", { legacyRoles: CLIENT_LIST_ROLES }),
+  getClients
+);
+
+router.get(
+  "/my-clients",
+  protect,
+  authorizeRoles(...CLIENT_EMPLOYEE_ROLES),
+  requireModulePermission("crm", "crm.client.view", { legacyRoles: CLIENT_EMPLOYEE_ROLES }),
+  getEmployeeClients
+);
 
 router.get(
   "/:id",
   protect,
+  requireModulePermission("crm", "crm.client.view", { legacyAllowed: true }),
   getClientById
 );
 router.put(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  authorizeRoles(...CLIENT_MANAGE_ROLES),
+  requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_MANAGE_ROLES }),
   updateClient
 );
 router.delete(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  authorizeRoles(...CLIENT_MANAGE_ROLES),
+  requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_MANAGE_ROLES }),
   deleteClient
 );
 
 router.get(
   "/:id/overview",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "client"),
+  authorizeRoles(...CLIENT_OVERVIEW_ROLES),
+  requireModulePermission("crm", "crm.client.view", { legacyRoles: CLIENT_OVERVIEW_ROLES }),
   getClientOverview
 );
 
-// Client onboarding routes (admin/superadmin/accounts/manager)
 router.post(
   "/:id/onboard",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  authorizeRoles(...CLIENT_ONBOARD_WRITE_ROLES),
+  requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_ONBOARD_WRITE_ROLES }),
   initiateOnboarding
 );
 router.put(
   "/:id/onboarding-status",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  authorizeRoles(...CLIENT_ONBOARD_WRITE_ROLES),
+  requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_ONBOARD_WRITE_ROLES }),
   updateOnboardingStatus
 );
 router.put(
   "/:id/complete-onboarding",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  authorizeRoles(...CLIENT_ONBOARD_WRITE_ROLES),
+  requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_ONBOARD_WRITE_ROLES }),
   completeOnboarding
 );
 router.get(
   "/:id/onboarding",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "client", "manager"),
+  authorizeRoles(...CLIENT_ONBOARD_READ_ROLES),
+  requireModulePermission("crm", "crm.client.view", { legacyRoles: CLIENT_ONBOARD_READ_ROLES }),
   getOnboardingDetails
 );
 router.put(
   "/:id/account-manager",
   protect,
-  authorizeRoles("admin", "superadmin", "manager"),
+  authorizeRoles(...CLIENT_ACCOUNT_MANAGER_ROLES),
+  requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_ACCOUNT_MANAGER_ROLES }),
   assignAccountManager
 );
 router.put(
   "/:id/plan",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  authorizeRoles(...CLIENT_PLAN_ROLES),
+  requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_PLAN_ROLES }),
   updateClientPlan
 );
 router.put(
   "/:id/renew",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  authorizeRoles(...CLIENT_PLAN_ROLES),
+  requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_PLAN_ROLES }),
   renewClientPlan
 );
 
-// VIP Client Management Routes
 router.put(
   "/:id/vip",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  authorizeRoles(...CLIENT_MANAGE_ROLES),
+  requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_MANAGE_ROLES }),
   toggleClientVip
 );
 router.get(
   "/vip/list",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
+  authorizeRoles(...CLIENT_VIP_LIST_ROLES),
+  requireModulePermission("crm", "crm.client.view", { legacyRoles: CLIENT_VIP_LIST_ROLES }),
   getVipClients
 );
 
-// Department Assignment Routes
 router.put(
   "/:id/departments",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  authorizeRoles(...CLIENT_MANAGE_ROLES),
+  requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_MANAGE_ROLES }),
   assignDepartmentsToClient
 );
 router.get(
   "/department/:departmentId",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
+  authorizeRoles(...CLIENT_VIP_LIST_ROLES),
+  requireModulePermission("crm", "crm.client.view", { legacyRoles: CLIENT_VIP_LIST_ROLES }),
   getClientsByDepartment
 );
 

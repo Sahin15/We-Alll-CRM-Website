@@ -1,50 +1,57 @@
 import express from "express";
 import { protect } from "../middleware/authMiddleware.js";
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 import {
-  createRecord, getRecords, getRecord, updateRecord, deleteRecord,
+  createRecord,
+  getRecords,
+  getRecord,
+  updateRecord,
+  deleteRecord,
   checkDuplicate,
-  lockRecord, unlockRecord, updateCallResult, getCallHistory,
+  lockRecord,
+  unlockRecord,
+  updateCallResult,
+  getCallHistory,
   getTodayQueue,
-  assignRecord, bulkAssign, reassignRecord,
+  assignRecord,
+  bulkAssign,
+  reassignRecord,
   convertToLead,
   batchImport,
-  getDashboardSummary, getSourceAnalysis, getCategoryAnalysis,
+  getDashboardSummary,
+  getSourceAnalysis,
+  getCategoryAnalysis,
 } from "../controllers/rawDataController.js";
 
 const router = express.Router();
 
+const crmRawDataManage = requireModulePermission("crm", "crm.rawdata.manage", { legacyAllowed: true });
+
 router.use(protect);
 
-// Dashboard
-router.get("/dashboard/summary", getDashboardSummary);
-router.get("/dashboard/source-analysis", getSourceAnalysis);
-router.get("/dashboard/category-analysis", getCategoryAnalysis);
+router.get("/dashboard/summary", crmRawDataManage, getDashboardSummary);
+router.get("/dashboard/source-analysis", crmRawDataManage, getSourceAnalysis);
+router.get("/dashboard/category-analysis", crmRawDataManage, getCategoryAnalysis);
 
-// Queue
-router.get("/queue/today", getTodayQueue);
+router.get("/queue/today", crmRawDataManage, getTodayQueue);
 
-// Duplicate check & batch import
-router.post("/check-duplicate", checkDuplicate);
-router.post("/batch-import", batchImport);
+router.post("/check-duplicate", crmRawDataManage, checkDuplicate);
+router.post("/batch-import", crmRawDataManage, batchImport);
+router.post("/bulk-assign", crmRawDataManage, bulkAssign);
 
-// Bulk assign
-router.post("/bulk-assign", bulkAssign);
+router.get("/", crmRawDataManage, getRecords);
+router.post("/", crmRawDataManage, createRecord);
+router.get("/:id", crmRawDataManage, getRecord);
+router.put("/:id", crmRawDataManage, updateRecord);
+router.delete("/:id", crmRawDataManage, deleteRecord);
 
-// CRUD
-router.route("/").get(getRecords).post(createRecord);
-router.route("/:id").get(getRecord).put(updateRecord).delete(deleteRecord);
+router.post("/:id/lock", crmRawDataManage, lockRecord);
+router.post("/:id/unlock", crmRawDataManage, unlockRecord);
+router.post("/:id/call-result", crmRawDataManage, updateCallResult);
+router.get("/:id/history", crmRawDataManage, getCallHistory);
 
-// Calling operations
-router.post("/:id/lock", lockRecord);
-router.post("/:id/unlock", unlockRecord);
-router.post("/:id/call-result", updateCallResult);
-router.get("/:id/history", getCallHistory);
-
-// Assignment
-router.post("/:id/assign", assignRecord);
-router.post("/:id/reassign", reassignRecord);
-
-// Conversion
-router.post("/:id/convert-to-lead", convertToLead);
+router.post("/:id/assign", crmRawDataManage, assignRecord);
+router.post("/:id/reassign", crmRawDataManage, reassignRecord);
+router.post("/:id/convert-to-lead", crmRawDataManage, convertToLead);
 
 export default router;

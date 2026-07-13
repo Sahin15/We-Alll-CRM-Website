@@ -756,73 +756,105 @@ const AppRoutes = () => {
           }
         />
 
-        {/* Client Management */}
+        {/* Client Management (Authorization V2 pilot) */}
         <Route
           path="/clients"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "manager"]}>
+            <PermissionRoute
+              permission="crm.client.view"
+              module="crm"
+              fallbackRoles={["admin", "superadmin", "hr", "employee", "hod", "manager"]}
+            >
               <ClientList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/clients/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "manager"]}>
+            <PermissionRoute
+              permission="crm.client.view"
+              module="crm"
+              fallbackRoles={["admin", "superadmin", "hr", "employee", "hod", "manager"]}
+            >
               <ClientDetails />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Raw Data Sheet - Before Leads */}
+        {/* Raw Data Sheet (Authorization V2 pilot) */}
         <Route
           path="/raw-data"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "manager"]}>
+            <PermissionRoute
+              permission="crm.rawdata.manage"
+              module="crm"
+              fallbackRoles={["admin", "superadmin", "hr", "employee", "hod", "manager"]}
+            >
               <RawDataList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/raw-data/queue"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "manager"]}>
+            <PermissionRoute
+              permission="crm.rawdata.manage"
+              module="crm"
+              fallbackRoles={["admin", "superadmin", "hr", "employee", "hod", "manager"]}
+            >
               <CallerQueuePage />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/raw-data/dashboard"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="crm.rawdata.manage"
+              module="crm"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <RawDataDashboard />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Lead Management */}
+        {/* Lead Management (Authorization V2 pilot) */}
         <Route
           path="/leads"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "accounts", "manager"]}>
+            <PermissionRoute
+              permission="crm.lead.view"
+              module="crm"
+              fallbackRoles={["admin", "superadmin", "hr", "employee", "hod", "accounts", "manager"]}
+            >
               <LeadList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/leads/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "accounts", "manager"]}>
+            <PermissionRoute
+              permission="crm.lead.view"
+              module="crm"
+              fallbackRoles={["admin", "superadmin", "hr", "employee", "hod", "accounts", "manager"]}
+            >
               <LeadDetails />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/leads/:id/edit"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "accounts", "manager"]}>
+            <PermissionRoute
+              permission="crm.lead.manage"
+              module="crm"
+              fallbackRoles={["admin", "superadmin", "hr", "employee", "hod", "accounts", "manager"]}
+            >
               <LeadList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
@@ -1407,203 +1439,288 @@ const AppRoutes = () => {
           }
         />
 
-        {/* Procurement Management Routes */}
+        {/* Procurement Management Routes (Authorization V2 pilot) */}
         <Route
           path="/procurement"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hod", "manager", "hr", "employee"]}>
+            <PermissionRoute
+              permission="procurement.pr.create"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts", "hod", "manager", "hr", "employee"]}
+            >
               <ProcurementDashboard />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
-        
-        {/* Purchase Requests - All roles can view/create their own */}
+
         <Route
           path="/procurement/purchase-requests/create"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}>
+            <PermissionRoute
+              permission="procurement.pr.create"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}
+            >
               <CreatePurchaseRequest />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/purchase-requests/approvals"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hod"]}>
+            <PermissionRoute
+              permission="procurement.pr.approve_hod"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts", "hod"]}
+            >
               <PurchaseRequestApprovals />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/purchase-requests/my"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}>
+            <PermissionRoute
+              permission="procurement.pr.create"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}
+            >
               <MyPurchaseRequests />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/purchase-requests/:id/edit"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}>
+            <PermissionRoute
+              permission="procurement.pr.create"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}
+            >
               <EditPurchaseRequest />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/purchase-requests/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}>
+            <PermissionRoute
+              permission="procurement.pr.create"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}
+            >
               <PurchaseRequestDetails />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/purchase-requests"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}>
+            <PermissionRoute
+              permission="procurement.pr.create"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}
+            >
               <MyPurchaseRequests />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Purchase Orders - Admin/Accounts can write; HR/HoD/Manager can read */}
         <Route
           path="/procurement/purchase-orders"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}>
+            <PermissionRoute
+              permission="procurement.pr.view_self"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}
+            >
               <PurchaseOrderList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/purchase-orders/create"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+            <PermissionRoute
+              permission="procurement.po.manage"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts"]}
+            >
               <CreatePurchaseOrder />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/purchase-orders/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}>
+            <PermissionRoute
+              permission="procurement.pr.view_self"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}
+            >
               <PurchaseOrderDetails />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Goods Receipts - Admin/Accounts/HR can create, others read-only */}
         <Route
           path="/procurement/goods-receipts"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}>
+            <PermissionRoute
+              permission="procurement.pr.view_self"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}
+            >
               <GoodsReceiptList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/goods-receipts/create"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hr"]}>
+            <PermissionRoute
+              permission="procurement.po.manage"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts", "hr"]}
+            >
               <CreateGoodsReceipt />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/goods-receipts/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}>
+            <PermissionRoute
+              permission="procurement.pr.view_self"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}
+            >
               <GoodsReceiptDetails />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Vendors - Admin/Accounts only */}
         <Route
           path="/procurement/vendors"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+            <PermissionRoute
+              permission="procurement.vendor.manage"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts"]}
+            >
               <VendorList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/vendors/create"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+            <PermissionRoute
+              permission="procurement.vendor.manage"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts"]}
+            >
               <CreateVendor />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/vendors/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+            <PermissionRoute
+              permission="procurement.vendor.manage"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts"]}
+            >
               <VendorDetails />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/vendors/:id/edit"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+            <PermissionRoute
+              permission="procurement.vendor.manage"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts"]}
+            >
               <EditVendor />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Procurement Invoices - Admin/Accounts can write; HR/HoD/Manager can read */}
         <Route
           path="/procurement/invoices"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}>
+            <PermissionRoute
+              permission="procurement.pr.view_self"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}
+            >
               <ProcurementInvoiceList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/invoices/create"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+            <PermissionRoute
+              permission="procurement.po.manage"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts"]}
+            >
               <CreateProcurementInvoice />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/invoices/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}>
+            <PermissionRoute
+              permission="procurement.pr.view_self"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}
+            >
               <ProcurementInvoiceDetails />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Procurement Payments - Admin/Accounts can write; HR/HoD/Manager can read */}
         <Route
           path="/procurement/payments"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}>
+            <PermissionRoute
+              permission="procurement.pr.view_self"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}
+            >
               <ProcurementPaymentList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/payments/record"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+            <PermissionRoute
+              permission="procurement.po.manage"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts"]}
+            >
               <RecordPayment />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Procurement Reports - Admin/Accounts only */}
         <Route
           path="/procurement/reports"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+            <PermissionRoute
+              permission="procurement.po.manage"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts"]}
+            >
               <ProcurementReports />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
