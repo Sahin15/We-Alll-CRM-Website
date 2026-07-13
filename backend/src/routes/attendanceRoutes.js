@@ -25,7 +25,6 @@ import {
   endBreak,
   initializeBreaksField,
   manualAutoClockOut,
-  // Overtime management
   startOvertimeTimer,
   stopOvertimeTimer,
   getActiveOvertimeTimer,
@@ -38,87 +37,143 @@ import {
 } from "../controllers/attendanceController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 import Attendance from "../models/attendanceModel.js";
 
 const router = express.Router();
 
+const ATTENDANCE_VIEW_ROLES = ["admin", "superadmin", "hr", "hod", "manager"];
+const ATTENDANCE_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
+
 // Test routes (no auth required)
 router.get("/test-logic", testStatusLogic);
 router.get("/test-api", (req, res) => {
-  
-  res.json({ 
-    message: "Attendance API is working", 
+  res.json({
+    message: "Attendance API is working",
     timestamp: new Date().toISOString(),
-    status: "success" 
+    status: "success",
   });
 });
 
 router.get("/test-protected", protect, (req, res) => {
-  
-  res.json({ 
-    message: "Protected attendance API is working", 
+  res.json({
+    message: "Protected attendance API is working",
     user: req.user?.email,
     role: req.user?.role,
     timestamp: new Date().toISOString(),
-    status: "success" 
+    status: "success",
   });
 });
 
 // Debug endpoint to check database contents
-router.get("/debug-db", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), async (req, res) => {
-  try {
-    const totalCount = await Attendance.countDocuments();
-    const recentRecords = await Attendance.find()
-      .populate('employee', 'name email')
-      .sort({ date: -1 })
-      .limit(10)
-      .lean();
-    
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
-    
-    const todayCount = await Attendance.countDocuments({
-      date: { $gte: todayStart, $lte: todayEnd }
-    });
-    
-    res.json({
-      totalRecords: totalCount,
-      todayRecords: todayCount,
-      recentRecords: recentRecords.map(r => ({
-        id: r._id,
-        employee: r.employee?.name || 'Unknown',
-        date: r.date,
-        status: r.status,
-        clockIn: r.clockIn
-      })),
-      dateInfo: {
-        todayStart,
-        todayEnd,
-        serverTime: new Date()
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+router.get(
+  "/debug-db",
+  protect,
+  authorizeRoles(...ATTENDANCE_MANAGE_ROLES),
+  requireModulePermission("attendance", "attendance.record.manage", {
+    legacyRoles: ATTENDANCE_MANAGE_ROLES,
+  }),
+  async (req, res) => {
+    try {
+      const totalCount = await Attendance.countDocuments();
+      const recentRecords = await Attendance.find()
+        .populate("employee", "name email")
+        .sort({ date: -1 })
+        .limit(10)
+        .lean();
 
-// Employee routes
-router.post("/clock-in", protect, clockIn);
-router.post("/clock-out", protect, clockOut);
-router.post("/start-break", protect, startBreak);
-router.post("/end-break", protect, endBreak);
-router.get("/my-attendance", protect, getMyAttendance);
-router.get("/today", protect, getTodayAttendance);
-router.post("/recalculate-today", protect, recalculateTodayStatus);
-router.post("/fix-hr-attendance", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), fixAllHRAttendance);
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+
+      const todayCount = await Attendance.countDocuments({
+        date: { $gte: todayStart, $lte: todayEnd },
+      });
+
+      res.json({
+        totalRecords: totalCount,
+        todayRecords: todayCount,
+        recentRecords: recentRecords.map((r) => ({
+          id: r._id,
+          employee: r.employee?.name || "Unknown",
+          date: r.date,
+          status: r.status,
+          clockIn: r.clockIn,
+        })),
+        dateInfo: {
+          todayStart,
+          todayEnd,
+          serverTime: new Date(),
+        },
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// Employee routes (legacy: any authenticated user)
+router.post(
+  "/clock-in",
+  protect,
+  requireModulePermission("attendance", "attendance.clock", { legacyAllowed: true }),
+  clockIn
+);
+router.post(
+  "/clock-out",
+  protect,
+  requireModulePermission("attendance", "attendance.clock", { legacyAllowed: true }),
+  clockOut
+);
+router.post(
+  "/start-break",
+  protect,
+  requireModulePermission("attendance", "attendance.clock", { legacyAllowed: true }),
+  startBreak
+);
+router.post(
+  "/end-break",
+  protect,
+  requireModulePermission("attendance", "attendance.clock", { legacyAllowed: true }),
+  endBreak
+);
+router.get(
+  "/my-attendance",
+  protect,
+  requireModulePermission("attendance", "attendance.record.view_self", { legacyAllowed: true }),
+  getMyAttendance
+);
+router.get(
+  "/today",
+  protect,
+  requireModulePermission("attendance", "attendance.record.view_self", { legacyAllowed: true }),
+  getTodayAttendance
+);
+router.post(
+  "/recalculate-today",
+  protect,
+  requireModulePermission("attendance", "attendance.record.view_self", { legacyAllowed: true }),
+  recalculateTodayStatus
+);
+router.post(
+  "/fix-hr-attendance",
+  protect,
+  authorizeRoles(...ATTENDANCE_MANAGE_ROLES),
+  requireModulePermission("attendance", "attendance.record.manage", {
+    legacyRoles: ATTENDANCE_MANAGE_ROLES,
+  }),
+  fixAllHRAttendance
+);
 
 // Reports
 router.get(
   "/report",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
+  authorizeRoles(...ATTENDANCE_VIEW_ROLES),
+  requireModulePermission("attendance", "attendance.record.view", {
+    legacyRoles: ATTENDANCE_VIEW_ROLES,
+  }),
   getAttendanceReport
 );
 
@@ -126,134 +181,206 @@ router.get(
 router.get(
   "/download-pdf",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
+  authorizeRoles(...ATTENDANCE_VIEW_ROLES),
+  requireModulePermission("attendance", "attendance.record.view", {
+    legacyRoles: ATTENDANCE_VIEW_ROLES,
+  }),
   downloadAttendancePDF
 );
 
-// Admin/HR routes
+// Admin/HR/HoD view routes
 router.get(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
+  authorizeRoles(...ATTENDANCE_VIEW_ROLES),
+  requireModulePermission("attendance", "attendance.record.view", {
+    legacyRoles: ATTENDANCE_VIEW_ROLES,
+  }),
   getAllAttendance
 );
 router.post(
   "/manual",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  authorizeRoles(...ATTENDANCE_MANAGE_ROLES),
+  requireModulePermission("attendance", "attendance.record.manage", {
+    legacyRoles: ATTENDANCE_MANAGE_ROLES,
+  }),
   createManualAttendance
 );
-router.get("/:id", protect, getAttendanceById);
+router.get(
+  "/:id",
+  protect,
+  requireModulePermission("attendance", "attendance.record.view_self", { legacyAllowed: true }),
+  getAttendanceById
+);
 router.put(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  authorizeRoles(...ATTENDANCE_MANAGE_ROLES),
+  requireModulePermission("attendance", "attendance.record.manage", {
+    legacyRoles: ATTENDANCE_MANAGE_ROLES,
+  }),
   updateManualAttendance
 );
 router.put(
   "/:id/status",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
+  authorizeRoles(...ATTENDANCE_VIEW_ROLES),
+  requireModulePermission("attendance", "attendance.record.view", {
+    legacyRoles: ATTENDANCE_VIEW_ROLES,
+  }),
   updateAttendanceStatus
 );
 router.delete(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  authorizeRoles(...ATTENDANCE_MANAGE_ROLES),
+  requireModulePermission("attendance", "attendance.record.manage", {
+    legacyRoles: ATTENDANCE_MANAGE_ROLES,
+  }),
   deleteAttendance
 );
 router.post(
   "/mark-absence",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
+  authorizeRoles(...ATTENDANCE_VIEW_ROLES),
+  requireModulePermission("attendance", "attendance.record.view", {
+    legacyRoles: ATTENDANCE_VIEW_ROLES,
+  }),
   markAbsence
 );
 router.get(
   "/summary/:employeeId",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
+  authorizeRoles(...ATTENDANCE_VIEW_ROLES),
+  requireModulePermission("attendance", "attendance.record.view", {
+    legacyRoles: ATTENDANCE_VIEW_ROLES,
+  }),
   getAttendanceSummary
 );
 
-// Fix attendance status endpoint
 router.post(
   "/fix-today",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  authorizeRoles(...ATTENDANCE_MANAGE_ROLES),
+  requireModulePermission("attendance", "attendance.record.manage", {
+    legacyRoles: ATTENDANCE_MANAGE_ROLES,
+  }),
   fixTodayAttendance
 );
 
-// Remove duplicate attendance records
 router.post(
   "/remove-duplicates",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  authorizeRoles(...ATTENDANCE_MANAGE_ROLES),
+  requireModulePermission("attendance", "attendance.record.manage", {
+    legacyRoles: ATTENDANCE_MANAGE_ROLES,
+  }),
   removeDuplicateAttendance
 );
 
-// Recalculate work hours for existing records
 router.post(
   "/recalculate-work-hours",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  authorizeRoles(...ATTENDANCE_MANAGE_ROLES),
+  requireModulePermission("attendance", "attendance.record.manage", {
+    legacyRoles: ATTENDANCE_MANAGE_ROLES,
+  }),
   recalculateWorkHours
 );
 
-// Initialize breaks field for existing records
 router.post(
   "/initialize-breaks",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  authorizeRoles(...ATTENDANCE_MANAGE_ROLES),
+  requireModulePermission("attendance", "attendance.record.manage", {
+    legacyRoles: ATTENDANCE_MANAGE_ROLES,
+  }),
   initializeBreaksField
 );
 
-// Manual trigger for auto clock-out (for testing)
 router.post(
   "/manual-auto-clockout",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  authorizeRoles(...ATTENDANCE_MANAGE_ROLES),
+  requireModulePermission("attendance", "attendance.record.manage", {
+    legacyRoles: ATTENDANCE_MANAGE_ROLES,
+  }),
   manualAutoClockOut
 );
 
 // ==================== OVERTIME ROUTES ====================
 
-// Employee overtime timer routes
-router.post("/overtime/start-timer", protect, startOvertimeTimer);
-router.post("/overtime/stop-timer/:entryId", protect, stopOvertimeTimer);
-router.get("/overtime/active-timer", protect, getActiveOvertimeTimer);
+router.post(
+  "/overtime/start-timer",
+  protect,
+  requireModulePermission("attendance", "attendance.clock", { legacyAllowed: true }),
+  startOvertimeTimer
+);
+router.post(
+  "/overtime/stop-timer/:entryId",
+  protect,
+  requireModulePermission("attendance", "attendance.clock", { legacyAllowed: true }),
+  stopOvertimeTimer
+);
+router.get(
+  "/overtime/active-timer",
+  protect,
+  requireModulePermission("attendance", "attendance.record.view_self", { legacyAllowed: true }),
+  getActiveOvertimeTimer
+);
 
-// Employee overtime routes
-router.post("/overtime/add", protect, addOvertimeEntry);
-router.get("/overtime/my-entries", protect, getMyOvertimeEntries);
+router.post(
+  "/overtime/add",
+  protect,
+  requireModulePermission("attendance", "attendance.clock", { legacyAllowed: true }),
+  addOvertimeEntry
+);
+router.get(
+  "/overtime/my-entries",
+  protect,
+  requireModulePermission("attendance", "attendance.record.view_self", { legacyAllowed: true }),
+  getMyOvertimeEntries
+);
 
-// HR/Admin/HoD overtime routes
 router.get(
   "/overtime/pending",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
+  authorizeRoles(...ATTENDANCE_VIEW_ROLES),
+  requireModulePermission("attendance", "attendance.record.view", {
+    legacyRoles: ATTENDANCE_VIEW_ROLES,
+  }),
   getPendingOvertimeEntries
 );
 
 router.post(
   "/overtime/:attendanceId/:entryId/approve",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
+  authorizeRoles(...ATTENDANCE_VIEW_ROLES),
+  requireModulePermission("attendance", "attendance.record.view", {
+    legacyRoles: ATTENDANCE_VIEW_ROLES,
+  }),
   approveOvertimeEntry
 );
 
 router.post(
   "/overtime/:attendanceId/:entryId/reject",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
+  authorizeRoles(...ATTENDANCE_VIEW_ROLES),
+  requireModulePermission("attendance", "attendance.record.view", {
+    legacyRoles: ATTENDANCE_VIEW_ROLES,
+  }),
   rejectOvertimeEntry
 );
 
 router.get(
   "/overtime/statistics",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  authorizeRoles(...ATTENDANCE_MANAGE_ROLES),
+  requireModulePermission("attendance", "attendance.record.manage", {
+    legacyRoles: ATTENDANCE_MANAGE_ROLES,
+  }),
   getOvertimeStatistics
 );
 
 export default router;
-

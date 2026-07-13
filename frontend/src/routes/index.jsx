@@ -353,22 +353,34 @@ const AppRoutes = () => {
           }
         />
 
-        {/* Attendance Management */}
-        <Route path="/attendance/my-attendance" element={<MyAttendance />} />
+        {/* Attendance Management (Authorization V2 pilot) */}
+        <Route path="/attendance/my-attendance" element={
+          <PermissionRoute permission="attendance.record.view_self" module="attendance">
+            <MyAttendance />
+          </PermissionRoute>
+        } />
         <Route
           path="/attendance/tracking"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "hod", "manager"]}>
+            <PermissionRoute
+              permission="attendance.record.view"
+              module="attendance"
+              fallbackRoles={["admin", "superadmin", "hr", "hod", "manager"]}
+            >
               <AttendanceTracking />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/attendance/overtime-statistics"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="attendance.record.manage"
+              module="attendance"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <OvertimeStatistics />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
@@ -418,7 +430,15 @@ const AppRoutes = () => {
           </PermissionRoute>
         } />
         <Route path="/employee/attendance" element={<Navigate to="/attendance/my-attendance" replace />} />
-        <Route path="/employee/attendance-report/:employeeId" element={<EmployeeAttendanceReport />} />
+        <Route path="/employee/attendance-report/:employeeId" element={
+          <PermissionRoute
+            permission="attendance.record.view"
+            module="attendance"
+            fallbackRoles={["admin", "superadmin", "hr", "hod", "manager"]}
+          >
+            <EmployeeAttendanceReport />
+          </PermissionRoute>
+        } />
         <Route path="/employee/leaves" element={<EmployeeMyLeaves />} />
         <Route path="/employee/salary-slips" element={<MySalarySlips />} />
         <Route path="/employee/salary-preview" element={<MySalaryPreview />} />
