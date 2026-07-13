@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import authzApi from '../api/authzApi.js';
-import { isAuthzV2ProfileEnabled } from '../utils/authzFlags.js';
+import { isAuthzV2AnyModuleEnabled, isAuthzV2ModuleEnabled } from '../utils/authzFlags.js';
 
 /**
  * Authorization V2 — Permission hook.
@@ -50,14 +50,14 @@ export function usePermission(options = {}) {
   }, [isAuthenticated, authzEffective]);
 
   useEffect(() => {
-    if (enabled && isAuthenticated && isAuthzV2ProfileEnabled() && !authzEffective) {
+    if (enabled && isAuthenticated && isAuthzV2AnyModuleEnabled() && !authzEffective) {
       refresh();
     }
   }, [enabled, isAuthenticated, authzEffective, refresh]);
 
   const can = useCallback(
-    (permission, legacyRoles = null) => {
-      if (isAuthzV2ProfileEnabled()) {
+    (permission, legacyRoles = null, moduleName = 'profile') => {
+      if (isAuthzV2ModuleEnabled(moduleName)) {
         return contextCanPermission(permission);
       }
       if (legacyRoles?.length) {

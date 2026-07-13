@@ -1133,14 +1133,22 @@ const AppRoutes = () => {
           }
         />
 
-        {/* Support Routes */}
-        <Route path="/support" element={<SupportPage />} />
+        {/* Support Routes (Authorization V2 pilot) */}
+        <Route path="/support" element={
+          <PermissionRoute permission="support.view" module="support">
+            <SupportPage />
+          </PermissionRoute>
+        } />
         <Route
           path="/admin/support-management"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
+            <PermissionRoute
+              permission="support.manage"
+              module="support"
+              fallbackRoles={["admin", "superadmin"]}
+            >
               <SupportManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 

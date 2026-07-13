@@ -1,7 +1,7 @@
 import { createContext, useState, useEffect, useContext, useRef, useCallback } from "react";
 import { authApi } from "../api/authApi";
 import authzApi from "../api/authzApi";
-import { isAuthzV2ProfileEnabled } from "../utils/authzFlags";
+import { isAuthzV2AnyModuleEnabled } from "../utils/authzFlags";
 import toast from "../utils/toast";
 import { startProfilePictureHealthMonitor } from "../utils/profilePictureHealth";
 
@@ -54,7 +54,7 @@ export const AuthProvider = ({ children }) => {
   const healthMonitorCleanup = useRef(null);
 
   const loadAuthzEffective = useCallback(async () => {
-    if (!isAuthzV2ProfileEnabled()) {
+    if (!isAuthzV2AnyModuleEnabled()) {
       setAuthzEffective(null);
       return null;
     }
@@ -224,7 +224,7 @@ export const AuthProvider = ({ children }) => {
    */
   const canPermission = (permission) => {
     if (!user) return false;
-    if (isAuthzV2ProfileEnabled() && authzEffective?.permissions) {
+    if (isAuthzV2AnyModuleEnabled() && authzEffective?.permissions) {
       if (authzEffective.permissions.includes('platform.admin')) {
         return true;
       }

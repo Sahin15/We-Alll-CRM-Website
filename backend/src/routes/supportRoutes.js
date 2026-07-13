@@ -1,6 +1,7 @@
 import express from "express";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 import SupportCategory from "../models/supportContactModel.js";
 
 const router = express.Router();
@@ -46,7 +47,7 @@ const seedDefaults = async () => {
 };
 
 // GET all active categories — all authenticated users
-router.get("/", protect, async (req, res) => {
+router.get("/", protect, requireModulePermission("support", "support.view"), async (req, res) => {
   try {
     await seedDefaults();
     const cats = await SupportCategory.find({ isActive: true }).sort({ order: 1, createdAt: 1 });
@@ -57,7 +58,7 @@ router.get("/", protect, async (req, res) => {
 });
 
 // GET all categories including inactive — admin/superadmin (MUST be before /:category)
-router.get("/all", protect, authorizeRoles("admin", "superadmin"), async (req, res) => {
+router.get("/all", protect, authorizeRoles("admin", "superadmin"), requireModulePermission("support", "support.manage", { legacyRoles: ["admin", "superadmin"] }), async (req, res) => {
   try {
     await seedDefaults();
     const cats = await SupportCategory.find().sort({ order: 1, createdAt: 1 });
@@ -68,7 +69,7 @@ router.get("/all", protect, authorizeRoles("admin", "superadmin"), async (req, r
 });
 
 // POST create a custom category — admin/superadmin
-router.post("/", protect, authorizeRoles("admin", "superadmin"), async (req, res) => {
+router.post("/", protect, authorizeRoles("admin", "superadmin"), requireModulePermission("support", "support.manage", { legacyRoles: ["admin", "superadmin"] }), async (req, res) => {
   try {
     const { label, description, order, section } = req.body;
     if (!label?.trim()) return res.status(400).json({ message: "Label is required" });
@@ -93,7 +94,7 @@ router.post("/", protect, authorizeRoles("admin", "superadmin"), async (req, res
 });
 
 // PUT update a category — admin/superadmin (MUST be after /all)
-router.put("/:category", protect, authorizeRoles("admin", "superadmin"), async (req, res) => {
+router.put("/:category", protect, authorizeRoles("admin", "superadmin"), requireModulePermission("support", "support.manage", { legacyRoles: ["admin", "superadmin"] }), async (req, res) => {
   try {
     const { emails, phones, description, label, isActive, order } = req.body;
     const update = { updatedBy: req.user._id };
@@ -117,7 +118,7 @@ router.put("/:category", protect, authorizeRoles("admin", "superadmin"), async (
 });
 
 // DELETE a custom category — admin/superadmin (MUST be after /all)
-router.delete("/:category", protect, authorizeRoles("admin", "superadmin"), async (req, res) => {
+router.delete("/:category", protect, authorizeRoles("admin", "superadmin"), requireModulePermission("support", "support.manage", { legacyRoles: ["admin", "superadmin"] }), async (req, res) => {
   try {
     const slug = req.params.category;
     const cat = await SupportCategory.findOne({ category: slug });

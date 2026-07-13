@@ -4,6 +4,7 @@
  */
 
 import { can } from './policyEngine.js';
+import { legacyRoleAllows } from './legacyAdapter.js';
 import { logAuthzShadowComparison } from './shadowLogger.js';
 import {
   isAuthzModuleEnabled,
@@ -78,11 +79,11 @@ export const withAuthzShadow = (permission, legacyMiddleware) => {
  *
  * @param {string} moduleName - e.g. 'profile'
  * @param {string} permission
- * @param {{ legacyAllowed?: boolean }} [options]
+ * @param {{ legacyAllowed?: boolean, legacyRoles?: string[] }} [options]
  * @returns {import('express').RequestHandler}
  */
 export const requireModulePermission = (moduleName, permission, options = {}) => {
-  const { legacyAllowed = true } = options;
+  const { legacyAllowed, legacyRoles } = options;
 
   return (req, res, next) => {
     if (!req.user) {
@@ -95,11 +96,19 @@ export const requireModulePermission = (moduleName, permission, options = {}) =>
     const decision = can(req.user, permission, req.authzResource || null);
     req.authz = decision;
 
+    const resolvedLegacyAllowed =
+      typeof legacyAllowed === 'boolean'
+        ? legacyAllowed
+        : legacyRoles?.length
+          ? legacyRoleAllows(req.user, legacyRoles)
+          : true;
+
     if (isAuthzShadowEnabled()) {
       logAuthzShadowComparison({
         user: req.user,
         permission,
-        legacyAllowed,
+        legacyAllowed: resolvedLegacyAllowed,
+        legacyRoles,
         route: req.originalUrl,
         method: req.method,
       });

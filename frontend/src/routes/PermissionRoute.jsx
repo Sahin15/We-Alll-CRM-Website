@@ -1,17 +1,18 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { isAuthzV2ProfileEnabled } from "../utils/authzFlags";
+import { isAuthzV2ModuleEnabled } from "../utils/authzFlags";
 
 /**
- * Permission-based route guard (Authorization V2 pilot).
+ * Permission-based route guard (Authorization V2).
  * When module flag is off, renders children (legacy ProtectedRoute handles auth).
  *
  * @param {object} props
  * @param {React.ReactNode} props.children
  * @param {string} props.permission - Required permission key
+ * @param {string} [props.module] - Module flag name (e.g. profile, support)
  * @param {string[]} [props.fallbackRoles] - Legacy role fallback when V2 off
  */
-const PermissionRoute = ({ children, permission, fallbackRoles }) => {
+const PermissionRoute = ({ children, permission, module = "profile", fallbackRoles }) => {
   const {
     user,
     isAuthenticated,
@@ -21,7 +22,7 @@ const PermissionRoute = ({ children, permission, fallbackRoles }) => {
     checkPermission,
   } = useAuth();
 
-  const v2Enabled = isAuthzV2ProfileEnabled();
+  const v2Enabled = isAuthzV2ModuleEnabled(module);
 
   if (loading || (v2Enabled && authzLoading)) {
     return (
