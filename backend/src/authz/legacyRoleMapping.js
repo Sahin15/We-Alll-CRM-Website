@@ -70,6 +70,8 @@ export const LEGACY_ROLE_TO_ACCESS_ROLES = {
         { permission: 'leave.request.view', scope: SCOPES.COMPANY },
         { permission: 'leave.request.approve', scope: SCOPES.COMPANY },
         { permission: 'worklog.entry.review', scope: SCOPES.COMPANY },
+        { permission: 'worklog.entry.create', scope: SCOPES.SELF },
+        { permission: 'worklog.entry.view_self', scope: SCOPES.SELF },
         { permission: 'projects.project.view', scope: SCOPES.COMPANY },
         { permission: 'projects.project.manage', scope: SCOPES.COMPANY },
         { permission: 'work.item.view', scope: SCOPES.COMPANY },

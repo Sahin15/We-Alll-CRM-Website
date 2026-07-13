@@ -372,23 +372,39 @@ const AppRoutes = () => {
           }
         />
 
-        {/* Work Log Management */}
-        <Route path="/worklog/today" element={<MyWorkLog />} />
-        <Route path="/worklog/history" element={<WorkLogHistory />} />
+        {/* Work Log Management (Authorization V2 pilot) */}
+        <Route path="/worklog/today" element={
+          <PermissionRoute permission="worklog.entry.view_self" module="worklog">
+            <MyWorkLog />
+          </PermissionRoute>
+        } />
+        <Route path="/worklog/history" element={
+          <PermissionRoute permission="worklog.entry.view_self" module="worklog">
+            <WorkLogHistory />
+          </PermissionRoute>
+        } />
         <Route
           path="/admin/worklog-management"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="worklog.entry.review"
+              module="worklog"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <WorkLogManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/hod/worklog-review"
           element={
-            <RoleBasedRoute allowedRoles={["hod"]}>
+            <PermissionRoute
+              permission="worklog.entry.review"
+              module="worklog"
+              fallbackRoles={["hod"]}
+            >
               <HoDWorkLogReview />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
