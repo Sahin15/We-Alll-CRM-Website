@@ -315,15 +315,31 @@ const AppRoutes = () => {
         <Route path="/departments" element={<DepartmentList />} />
         <Route path="/departments/:id" element={<DepartmentDetails />} />
 
-        {/* Leave Management */}
-        <Route path="/leaves" element={<LeaveManagement />} />
-        <Route path="/leaves/my-leaves" element={<MyLeaves />} />
+        {/* Leave Management (Authorization V2 pilot) */}
+        <Route path="/leaves" element={
+          <PermissionRoute
+            permission="leave.request.view"
+            module="leave"
+            fallbackRoles={["admin", "superadmin", "hr", "hod", "manager"]}
+          >
+            <LeaveManagement />
+          </PermissionRoute>
+        } />
+        <Route path="/leaves/my-leaves" element={
+          <PermissionRoute permission="leave.request.view_self" module="leave">
+            <MyLeaves />
+          </PermissionRoute>
+        } />
         <Route
           path="/leaves/requests"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="leave.request.approve"
+              module="leave"
+              fallbackRoles={["admin", "superadmin", "hr", "hod", "manager"]}
+            >
               <LeaveRequests />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
@@ -439,7 +455,11 @@ const AppRoutes = () => {
             <EmployeeAttendanceReport />
           </PermissionRoute>
         } />
-        <Route path="/employee/leaves" element={<EmployeeMyLeaves />} />
+        <Route path="/employee/leaves" element={
+          <PermissionRoute permission="leave.request.view_self" module="leave">
+            <EmployeeMyLeaves />
+          </PermissionRoute>
+        } />
         <Route path="/employee/salary-slips" element={<MySalarySlips />} />
         <Route path="/employee/salary-preview" element={<MySalaryPreview />} />
         <Route path="/employee/projects" element={<MyProjects />} />

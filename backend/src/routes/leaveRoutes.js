@@ -13,30 +13,55 @@ import {
 } from "../controllers/leaveController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 import { uploadDocument, handleDocumentUploadError } from "../middleware/documentMiddleware.js";
 import LeaveRequest from "../models/leaveRequestModel.js";
 import User from "../models/userModel.js";
 
 const router = express.Router();
 
+const LEAVE_VIEW_ROLES = ["admin", "superadmin", "hr", "hod", "manager"];
+const LEAVE_APPROVE_ROLES = ["admin", "superadmin", "hr", "hod", "manager"];
+
 // Specific routes MUST come before parameterized routes
-// Employee routes
-router.get("/my-leaves", protect, getMyLeaveRequests);
-router.get("/balance", protect, getLeaveBalance);
-router.get("/balance/:employeeId", protect, getLeaveBalance);
-router.get("/usage-summary/:employeeId", protect, authorizeRoles("admin", "superadmin", "hr", "hod", "manager"), getLeaveUsageSummary);
+// Employee routes (legacy: any authenticated user)
+router.get(
+  "/my-leaves",
+  protect,
+  requireModulePermission("leave", "leave.request.view_self", { legacyAllowed: true }),
+  getMyLeaveRequests
+);
+router.get(
+  "/balance",
+  protect,
+  requireModulePermission("leave", "leave.request.view_self", { legacyAllowed: true }),
+  getLeaveBalance
+);
+router.get(
+  "/balance/:employeeId",
+  protect,
+  requireModulePermission("leave", "leave.request.view_self", { legacyAllowed: true }),
+  getLeaveBalance
+);
+router.get(
+  "/usage-summary/:employeeId",
+  protect,
+  authorizeRoles(...LEAVE_VIEW_ROLES),
+  requireModulePermission("leave", "leave.request.view", { legacyRoles: LEAVE_VIEW_ROLES }),
+  getLeaveUsageSummary
+);
 
 // Bulk leave balance overview for all employees (HR/Admin)
 router.get(
   "/all-balances",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
+  authorizeRoles(...LEAVE_VIEW_ROLES),
+  requireModulePermission("leave", "leave.request.view", { legacyRoles: LEAVE_VIEW_ROLES }),
   async (req, res) => {
     try {
       const year = parseInt(req.query.year) || new Date().getFullYear();
       const month = req.query.month ? parseInt(req.query.month) : null;
 
-      // Get all active employees
       const { mergeActiveEmployeeFilter } = await import(
         "../utils/employeeQueryUtils.js"
       );
@@ -49,45 +74,37 @@ router.get(
         .populate("department", "name")
         .lean();
 
-      // Build date range for monthly filter
       let monthStart, monthEnd;
       if (month) {
         monthStart = new Date(year, month - 1, 1);
         monthEnd = new Date(year, month, 0, 23, 59, 59);
       }
 
-      // Fetch all approved leaves for the year in one query
       const allApprovedLeaves = await LeaveRequest.find({
         status: "approved",
-        leaveYear: year
+        leaveYear: year,
       }).lean();
 
-      // Fetch attendance stats (late + absent) for the year and optionally the month
       const Attendance = (await import("../models/attendanceModel.js")).default;
 
-      // Use wide UTC ranges to capture IST-midnight stored dates (IST = UTC+5:30)
-      // IST Jan 1 midnight = Dec 31 18:30 UTC, IST Dec 31 midnight = Dec 30 18:30 UTC
-      // So use: start = Dec 31 of prev year 18:30 UTC, end = Dec 31 of year 18:30 UTC
       const yearAttendanceStart = new Date(Date.UTC(year - 1, 11, 31, 18, 30, 0));
-      const yearAttendanceEnd   = new Date(Date.UTC(year,     11, 31, 18, 30, 0));
+      const yearAttendanceEnd = new Date(Date.UTC(year, 11, 31, 18, 30, 0));
 
-      // Aggregate late and absent counts per employee for the full year
       const yearAttendanceStats = await Attendance.aggregate([
         {
           $match: {
             date: { $gte: yearAttendanceStart, $lte: yearAttendanceEnd },
-            status: { $in: ["late", "absent"] }
-          }
+            status: { $in: ["late", "absent"] },
+          },
         },
         {
           $group: {
             _id: { employee: "$employee", status: "$status" },
-            count: { $sum: 1 }
-          }
-        }
+            count: { $sum: 1 },
+          },
+        },
       ]);
 
-      // Build map: employeeId -> { late, absent }
       const yearAttendanceMap = {};
       for (const stat of yearAttendanceStats) {
         const empId = stat._id.employee.toString();
@@ -95,27 +112,24 @@ router.get(
         yearAttendanceMap[empId][stat._id.status] = stat.count;
       }
 
-      // Monthly attendance stats if month filter is active
       let monthAttendanceMap = {};
       if (month) {
-        // IST midnight for first day of month = UTC(year, month-1, 1, 0,0,0) - 5.5h
         const istMonthStart = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0) - 5.5 * 3600000);
-        // IST midnight for last day of month + 24h - 1ms
-        const istMonthEnd   = new Date(Date.UTC(year, month, 0, 0, 0, 0) - 5.5 * 3600000 + 24 * 3600000 - 1);
+        const istMonthEnd = new Date(Date.UTC(year, month, 0, 0, 0, 0) - 5.5 * 3600000 + 24 * 3600000 - 1);
 
         const monthAttendanceStats = await Attendance.aggregate([
           {
             $match: {
               date: { $gte: istMonthStart, $lte: istMonthEnd },
-              status: { $in: ["late", "absent"] }
-            }
+              status: { $in: ["late", "absent"] },
+            },
           },
           {
             $group: {
               _id: { employee: "$employee", status: "$status" },
-              count: { $sum: 1 }
-            }
-          }
+              count: { $sum: 1 },
+            },
+          },
         ]);
         for (const stat of monthAttendanceStats) {
           const empId = stat._id.employee.toString();
@@ -124,7 +138,6 @@ router.get(
         }
       }
 
-      // Build a map: employeeId -> leaves[]
       const leavesByEmployee = {};
       for (const leave of allApprovedLeaves) {
         const empId = leave.employee.toString();
@@ -132,7 +145,6 @@ router.get(
         leavesByEmployee[empId].push(leave);
       }
 
-      // For monthly filter: fetch leaves that overlap the selected month
       let monthlyLeavesByEmployee = {};
       if (month) {
         const monthlyLeaves = await LeaveRequest.find({
@@ -140,8 +152,8 @@ router.get(
           $or: [
             { startDate: { $gte: monthStart, $lte: monthEnd } },
             { endDate: { $gte: monthStart, $lte: monthEnd } },
-            { startDate: { $lte: monthStart }, endDate: { $gte: monthEnd } }
-          ]
+            { startDate: { $lte: monthStart }, endDate: { $gte: monthEnd } },
+          ],
         }).lean();
 
         for (const leave of monthlyLeaves) {
@@ -151,70 +163,81 @@ router.get(
         }
       }
 
-      // Build summary for each employee
-      const summaries = await Promise.all(employees.map(async (emp) => {
-        const empId = emp._id.toString();
-        const monthLeaves = month ? (monthlyLeavesByEmployee[empId] || []) : [];
+      const summaries = await Promise.all(
+        employees.map(async (emp) => {
+          const empId = emp._id.toString();
+          const monthLeaves = month ? monthlyLeavesByEmployee[empId] || [] : [];
 
-        const balance = await LeaveRequest.getLeaveBalance(emp._id, year);
+          const balance = await LeaveRequest.getLeaveBalance(emp._id, year);
 
-        // Month totals
-        const monthTotals = { personal: 0, medical: 0, vacation: 0, unpaid: 0, half_day: 0, total: 0 };
-        if (month) {
-          for (const l of monthLeaves) {
-            let days;
-            if (l.leaveType === 'half_day') {
-              days = l.numberOfDays || 0.5;
-            } else {
-              const leaveStart = new Date(Math.max(new Date(l.startDate), monthStart));
-              const leaveEnd = new Date(Math.min(new Date(l.endDate), monthEnd));
-              days = Math.max(0, Math.ceil((leaveEnd - leaveStart) / (1000 * 60 * 60 * 24)) + 1);
+          const monthTotals = {
+            personal: 0,
+            medical: 0,
+            vacation: 0,
+            unpaid: 0,
+            half_day: 0,
+            total: 0,
+          };
+          if (month) {
+            for (const l of monthLeaves) {
+              let days;
+              if (l.leaveType === "half_day") {
+                days = l.numberOfDays || 0.5;
+              } else {
+                const leaveStart = new Date(Math.max(new Date(l.startDate), monthStart));
+                const leaveEnd = new Date(Math.min(new Date(l.endDate), monthEnd));
+                days = Math.max(0, Math.ceil((leaveEnd - leaveStart) / (1000 * 60 * 60 * 24)) + 1);
+              }
+              if (Object.prototype.hasOwnProperty.call(monthTotals, l.leaveType)) {
+                monthTotals[l.leaveType] += days;
+              }
+              if (l.leaveType !== "unpaid") monthTotals.total += days;
             }
-            if (monthTotals.hasOwnProperty(l.leaveType)) monthTotals[l.leaveType] += days;
-            if (l.leaveType !== "unpaid") monthTotals.total += days;
           }
-        }
 
-        const yearAtt = yearAttendanceMap[empId] || { late: 0, absent: 0 };
-        const monthAtt = month ? (monthAttendanceMap[empId] || { late: 0, absent: 0 }) : null;
+          const yearAtt = yearAttendanceMap[empId] || { late: 0, absent: 0 };
+          const monthAtt = month ? monthAttendanceMap[empId] || { late: 0, absent: 0 } : null;
 
-        return {
-          employee: {
-            _id: emp._id,
-            name: emp.name,
-            email: emp.email,
-            employeeId: emp.employeeId,
-            designation: emp.designation,
-            department: emp.department,
-            employmentType: emp.employmentType ?? null
-          },
-          eligibleForPaidLeave: balance.eligibleForPaidLeave,
-          employmentType: balance.employmentType ?? emp.employmentType ?? null,
-          year: {
-            earned: balance.eligibleForPaidLeave ? balance.earned.earned : 0,
-            totalUsed: balance.eligibleForPaidLeave ? balance.earned.used : 0,
-            remaining: balance.eligibleForPaidLeave ? balance.earned.remaining : 0,
-            personal: balance.personal.used,
-            medical: balance.medical.used,
-            vacation: balance.vacation.used,
-            unpaid: balance.unpaid.used,
-            halfDay: balance.half_day.used,
-            late: yearAtt.late,
-            absent: yearAtt.absent
-          },
-          month: month ? {
-            month,
-            totalUsed: monthTotals.total,
-            personal: monthTotals.personal,
-            medical: monthTotals.medical,
-            vacation: monthTotals.vacation,
-            unpaid: monthTotals.unpaid,
-            halfDay: monthTotals.half_day,
-            late: monthAtt.late,
-            absent: monthAtt.absent
-          } : null
-        };
-      }));
+          return {
+            employee: {
+              _id: emp._id,
+              name: emp.name,
+              email: emp.email,
+              employeeId: emp.employeeId,
+              designation: emp.designation,
+              department: emp.department,
+              employmentType: emp.employmentType ?? null,
+            },
+            eligibleForPaidLeave: balance.eligibleForPaidLeave,
+            employmentType: balance.employmentType ?? emp.employmentType ?? null,
+            year: {
+              earned: balance.eligibleForPaidLeave ? balance.earned.earned : 0,
+              totalUsed: balance.eligibleForPaidLeave ? balance.earned.used : 0,
+              remaining: balance.eligibleForPaidLeave ? balance.earned.remaining : 0,
+              personal: balance.personal.used,
+              medical: balance.medical.used,
+              vacation: balance.vacation.used,
+              unpaid: balance.unpaid.used,
+              halfDay: balance.half_day.used,
+              late: yearAtt.late,
+              absent: yearAtt.absent,
+            },
+            month: month
+              ? {
+                  month,
+                  totalUsed: monthTotals.total,
+                  personal: monthTotals.personal,
+                  medical: monthTotals.medical,
+                  vacation: monthTotals.vacation,
+                  unpaid: monthTotals.unpaid,
+                  halfDay: monthTotals.half_day,
+                  late: monthAtt.late,
+                  absent: monthAtt.absent,
+                }
+              : null,
+          };
+        })
+      );
 
       res.status(200).json({ year, month: month || null, summaries });
     } catch (error) {
@@ -224,31 +247,53 @@ router.get(
   }
 );
 
-// HR/Manager/Admin routes
 router.get(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
+  authorizeRoles(...LEAVE_VIEW_ROLES),
+  requireModulePermission("leave", "leave.request.view", { legacyRoles: LEAVE_VIEW_ROLES }),
   getAllLeaveRequests
 );
 
-// Create leave request
-router.post("/", protect, uploadDocument.array("attachments", 5), handleDocumentUploadError, createLeaveRequest);
+router.post(
+  "/",
+  protect,
+  requireModulePermission("leave", "leave.request.create", { legacyAllowed: true }),
+  uploadDocument.array("attachments", 5),
+  handleDocumentUploadError,
+  createLeaveRequest
+);
 
-// Parameterized routes MUST come after specific routes
-router.get("/:id", protect, getLeaveRequestById);
-router.put("/:id", protect, updateLeaveRequest);
-router.put("/:id/cancel", protect, cancelLeaveRequest);
+router.get(
+  "/:id",
+  protect,
+  requireModulePermission("leave", "leave.request.view_self", { legacyAllowed: true }),
+  getLeaveRequestById
+);
+router.put(
+  "/:id",
+  protect,
+  requireModulePermission("leave", "leave.request.create", { legacyAllowed: true }),
+  updateLeaveRequest
+);
+router.put(
+  "/:id/cancel",
+  protect,
+  requireModulePermission("leave", "leave.request.create", { legacyAllowed: true }),
+  cancelLeaveRequest
+);
 router.put(
   "/:id/approve",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
+  authorizeRoles(...LEAVE_APPROVE_ROLES),
+  requireModulePermission("leave", "leave.request.approve", { legacyRoles: LEAVE_APPROVE_ROLES }),
   approveLeaveRequest
 );
 router.put(
   "/:id/reject",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
+  authorizeRoles(...LEAVE_APPROVE_ROLES),
+  requireModulePermission("leave", "leave.request.approve", { legacyRoles: LEAVE_APPROVE_ROLES }),
   rejectLeaveRequest
 );
 
