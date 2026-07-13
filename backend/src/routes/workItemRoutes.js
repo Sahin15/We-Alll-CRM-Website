@@ -30,6 +30,7 @@ import {
   getEditHistory,
 } from "../controllers/workItemController.js";
 import { protect } from "../middleware/authMiddleware.js";
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 import { createWorkItemLimiter, validateRequest } from "../middleware/securityMiddleware.js";
 import {
   createWorkItemValidation,
@@ -42,101 +43,203 @@ import {
 
 const router = express.Router();
 
-// All routes require authentication
+const WORK_ITEM_ADMIN_VIEW_ROLES = ["admin", "superadmin", "hod", "hr", "manager"];
+const WORK_ITEM_DEBUG_ROLES = ["admin", "superadmin", "hod"];
+const WORK_ITEM_SLOT_ASSIGN_ROLES = ["admin", "superadmin", "hod"];
+const WORK_ITEM_REASSIGN_ROLES = ["admin", "superadmin", "hr", "manager", "hod", "hop"];
+const WORK_ITEM_DELETE_ROLES = ["admin", "superadmin", "hr", "manager"];
+
 router.use(protect);
 
-// Debug endpoint (admin only)
-router.get("/debug", debugWorkItems);
+router.get(
+  "/debug",
+  requireModulePermission("work", "work.item.view", { legacyRoles: WORK_ITEM_DEBUG_ROLES }),
+  debugWorkItems
+);
 
-// My Work - Get all work items for current user
-router.get("/my-work", queryValidation, validateRequest(queryValidation), getMyWorkItems);
+router.get(
+  "/my-work",
+  queryValidation,
+  validateRequest(queryValidation),
+  requireModulePermission("work", "work.item.view", { legacyAllowed: true }),
+  getMyWorkItems
+);
 
-// Created by me - Get all work items created by current user
-router.get("/created-by/me", queryValidation, validateRequest(queryValidation), getCreatedByMe);
+router.get(
+  "/created-by/me",
+  queryValidation,
+  validateRequest(queryValidation),
+  requireModulePermission("work", "work.item.view", { legacyAllowed: true }),
+  getCreatedByMe
+);
 
-// Calendar view - Get work items for calendar
-router.get("/calendar", queryValidation, validateRequest(queryValidation), getCalendarWorkItems);
+router.get(
+  "/calendar",
+  queryValidation,
+  validateRequest(queryValidation),
+  requireModulePermission("work", "work.item.view", { legacyAllowed: true }),
+  getCalendarWorkItems
+);
 
-// Overdue items
-router.get("/overdue", getOverdueWorkItems);
+router.get(
+  "/overdue",
+  requireModulePermission("work", "work.item.view", { legacyAllowed: true }),
+  getOverdueWorkItems
+);
 
-// Get pending work count for a user on a specific due date
-router.get("/pending-count/:userId", getPendingWorkCount);
+router.get(
+  "/pending-count/:userId",
+  requireModulePermission("work", "work.item.view", { legacyAllowed: true }),
+  getPendingWorkCount
+);
 
-// Get work items by project
-router.get("/project/:projectId", queryValidation, validateRequest(queryValidation), getWorkItemsByProject);
+router.get(
+  "/project/:projectId",
+  queryValidation,
+  validateRequest(queryValidation),
+  requireModulePermission("work", "work.item.view", { legacyAllowed: true }),
+  getWorkItemsByProject
+);
 
-// Work item CRUD
-router.route("/")
-  .get(queryValidation, validateRequest(queryValidation), getAllWorkItems) // Get all work items (admin only)
-  .post(
-    createWorkItemLimiter,
-    createWorkItem
-  ); // Create new work item - validator removed for draft support
+router.get(
+  "/",
+  queryValidation,
+  validateRequest(queryValidation),
+  requireModulePermission("work", "work.item.view", {
+    legacyRoles: WORK_ITEM_ADMIN_VIEW_ROLES,
+  }),
+  getAllWorkItems
+);
 
-router.route("/:id")
-  .get(getWorkItemById)    // Get work item by ID
-  .put(
-    updateWorkItemValidation,
-    validateRequest(updateWorkItemValidation),
-    updateWorkItem
-  )     // Update work item
-  .delete(deleteWorkItem); // Soft delete work item
+router.post(
+  "/",
+  createWorkItemLimiter,
+  requireModulePermission("work", "work.item.create", { legacyAllowed: true }),
+  createWorkItem
+);
 
-// Restore soft deleted work item
-router.put("/:id/restore", restoreWorkItem);
+router.get(
+  "/:id",
+  requireModulePermission("work", "work.item.view", { legacyAllowed: true }),
+  getWorkItemById
+);
 
-// Status update
+router.put(
+  "/:id",
+  updateWorkItemValidation,
+  validateRequest(updateWorkItemValidation),
+  requireModulePermission("work", "work.item.update", { legacyAllowed: true }),
+  updateWorkItem
+);
+
+router.delete(
+  "/:id",
+  requireModulePermission("work", "work.item.update", {
+    legacyRoles: WORK_ITEM_DELETE_ROLES,
+  }),
+  deleteWorkItem
+);
+
+router.put(
+  "/:id/restore",
+  requireModulePermission("work", "work.item.update", {
+    legacyRoles: WORK_ITEM_DELETE_ROLES,
+  }),
+  restoreWorkItem
+);
+
 router.patch(
   "/:id/status",
   updateStatusValidation,
   validateRequest(updateStatusValidation),
+  requireModulePermission("work", "work.item.update", { legacyAllowed: true }),
   updateWorkItemStatus
 );
 
-// Activate draft/scheduled work item
-router.patch("/:id/activate", activateWorkItem);
+router.patch(
+  "/:id/activate",
+  requireModulePermission("work", "work.item.update", { legacyAllowed: true }),
+  activateWorkItem
+);
 
-// Bulk operations
 router.post(
   "/bulk-update",
   bulkUpdateValidation,
   validateRequest(bulkUpdateValidation),
+  requireModulePermission("work", "work.item.update", { legacyAllowed: true }),
   bulkUpdateWorkItems
 );
 
-// Comments
 router.post(
   "/:id/comments",
   addCommentValidation,
   validateRequest(addCommentValidation),
+  requireModulePermission("work", "work.item.update", { legacyAllowed: true }),
   addComment
 );
 
-// Delete comment
-router.delete("/:id/comments/:commentId", deleteComment);
+router.delete(
+  "/:id/comments/:commentId",
+  requireModulePermission("work", "work.item.update", { legacyAllowed: true }),
+  deleteComment
+);
 
-// Workflow configuration and progression
-router.get("/workflow-config/:projectId", getWorkflowConfig);
-router.post("/:id/progress-stage", progressWorkflowStage);
-router.get("/:id/workflow-progress", getWorkflowProgress);
+router.get(
+  "/workflow-config/:projectId",
+  requireModulePermission("work", "work.item.view", { legacyAllowed: true }),
+  getWorkflowConfig
+);
 
-// Slot assignment (admin only)
-router.post("/:id/assign-slot", assignWorkItemToSlot);
+router.post(
+  "/:id/progress-stage",
+  requireModulePermission("work", "work.item.update", { legacyAllowed: true }),
+  progressWorkflowStage
+);
 
-// Remove slot assignment
-router.put("/:workItemId/slot/remove", removeSlotAssignment);
+router.get(
+  "/:id/workflow-progress",
+  requireModulePermission("work", "work.item.view", { legacyAllowed: true }),
+  getWorkflowProgress
+);
 
-// Get work items by slot
-router.get("/by-slot/:slotId", getWorkItemsBySlot);
+router.post(
+  "/:id/assign-slot",
+  requireModulePermission("work", "work.item.update", {
+    legacyRoles: WORK_ITEM_SLOT_ASSIGN_ROLES,
+  }),
+  assignWorkItemToSlot
+);
 
-// Work item reassignment (admin/manager only)
-router.put("/:id/reassign", reassignWorkItem);
+router.put(
+  "/:workItemId/slot/remove",
+  requireModulePermission("work", "work.item.update", { legacyAllowed: true }),
+  removeSlotAssignment
+);
 
-// Edit work item with change tracking (creator/project head/admin only)
-router.put("/:id/edit", editWorkItem);
+router.get(
+  "/by-slot/:slotId",
+  requireModulePermission("work", "work.item.view", { legacyAllowed: true }),
+  getWorkItemsBySlot
+);
 
-// Get edit history for a work item
-router.get("/:id/edit-history", getEditHistory);
+router.put(
+  "/:id/reassign",
+  requireModulePermission("work", "work.item.update", {
+    legacyRoles: WORK_ITEM_REASSIGN_ROLES,
+  }),
+  reassignWorkItem
+);
+
+router.put(
+  "/:id/edit",
+  requireModulePermission("work", "work.item.update", { legacyAllowed: true }),
+  editWorkItem
+);
+
+router.get(
+  "/:id/edit-history",
+  requireModulePermission("work", "work.item.view", { legacyAllowed: true }),
+  getEditHistory
+);
 
 export default router;

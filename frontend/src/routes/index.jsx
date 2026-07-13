@@ -501,8 +501,22 @@ const AppRoutes = () => {
 
         {/* Employee Portal Routes */}
         <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
-        <Route path="/employee/my-work" element={<MyWorkPage />} />
-        <Route path="/employee/assigned-work" element={<AssignedWorkPage />} />
+        <Route
+          path="/employee/my-work"
+          element={
+            <PermissionRoute permission="work.item.view" module="work">
+              <MyWorkPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/employee/assigned-work"
+          element={
+            <PermissionRoute permission="work.item.view" module="work">
+              <AssignedWorkPage />
+            </PermissionRoute>
+          }
+        />
         <Route path="/employee/meetings" element={
           <PermissionRoute permission="company.meeting.view" module="company">
             <MyMeetings />
@@ -848,12 +862,33 @@ const AppRoutes = () => {
           }
         />
 
-        {/* Work Items Management - For Notification Links */}
-        <Route path="/work-items/:id" element={<MyWorkPage />} />
-        
+        {/* Work Items Management - For Notification Links (Authorization V2 pilot) */}
+        <Route
+          path="/work-items/:id"
+          element={
+            <PermissionRoute permission="work.item.view" module="work">
+              <MyWorkPage />
+            </PermissionRoute>
+          }
+        />
+
         {/* Employee Slots - For Notification Links */}
-        <Route path="/employee/slots" element={<MyWorkPage />} />
-        <Route path="/employee/slots/:id" element={<MyWorkPage />} />
+        <Route
+          path="/employee/slots"
+          element={
+            <PermissionRoute permission="work.item.view" module="work">
+              <MyWorkPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/employee/slots/:id"
+          element={
+            <PermissionRoute permission="work.item.view" module="work">
+              <MyWorkPage />
+            </PermissionRoute>
+          }
+        />
 
         {/* Calendar Views */}
         <Route path="/calendar" element={<CalendarPage />} />
