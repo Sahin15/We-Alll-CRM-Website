@@ -38,4 +38,15 @@ describe('Authorization V2 — Company pilot parity', () => {
       expect(hasPermission(user, 'company.meeting.manage')).toBe(expected);
     }
   });
+
+  test('employee with direct company.policy.manage grant can manage policies', () => {
+    const user = {
+      _id: 'emp1',
+      role: 'employee',
+      directPermissionGrants: [
+        { permission: 'company.policy.manage', scope: 'COMPANY', effect: 'grant' },
+      ],
+    };
+    expect(hasPermission(user, 'company.policy.manage')).toBe(true);
+  });
 });

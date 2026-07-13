@@ -13,8 +13,9 @@ import {
   changePassword,
   getNextEmployeeIdSequence,
 } from "../controllers/userController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
 import { requireModulePermission } from "../authz/authzMiddleware.js";
 import { uploadDocument, handleDocumentUploadError } from "../middleware/documentMiddleware.js";
 import {
@@ -35,7 +36,6 @@ const USER_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
 router.post(
   "/register",
   protect,
-  authorizeRoles(...USER_MANAGE_ROLES),
   requireModulePermission("team", "team.user.create", { legacyRoles: USER_MANAGE_ROLES }),
   registerUser
 );
@@ -119,7 +119,7 @@ router.get("/official-documents", protect, (req, res, next) => {
 }, getOfficialDocuments);
 router.post("/documents", protect, documentUpload.single('document'), uploadUserDocument);
 router.post("/official-documents", protect, documentUpload.single('document'), uploadOfficialDocument);
-router.post("/:id/official-documents", protect, authorizeRoles(...USER_MANAGE_ROLES), requireModulePermission("team", "team.user.update", { legacyRoles: USER_MANAGE_ROLES }), documentUpload.single('document'), async (req, res, next) => {
+router.post("/:id/official-documents", protect, requireModulePermission("team", "team.user.update", { legacyRoles: USER_MANAGE_ROLES }), documentUpload.single('document'), async (req, res, next) => {
   try {
     const { id: userId } = req.params;
 
@@ -156,7 +156,7 @@ router.post("/:id/official-documents", protect, authorizeRoles(...USER_MANAGE_RO
 router.delete("/documents/:documentId", protect, deleteUserDocument);
 
 // Pending documents endpoint (placeholder for now)
-router.get("/documents/pending", protect, authorizeRoles(...USER_MANAGE_ROLES), requireModulePermission("team", "team.user.view", { legacyRoles: USER_MANAGE_ROLES }), (req, res) => {
+router.get("/documents/pending", protect, requireModulePermission("team", "team.user.view", { legacyRoles: USER_MANAGE_ROLES }), (req, res) => {
   // TODO: Implement pending document approvals functionality
   res.status(200).json([]);
 });
@@ -172,7 +172,6 @@ router.put("/change-password", protect, requireModulePermission("profile", "prof
 router.post(
   "/next-employee-id-sequence",
   protect,
-  authorizeRoles(...USER_MANAGE_ROLES),
   requireModulePermission("team", "team.user.create", { legacyRoles: USER_MANAGE_ROLES }),
   getNextEmployeeIdSequence
 );
@@ -192,7 +191,6 @@ router.patch("/clear-broken-profile-picture", protect, requireModulePermission("
 router.get(
   "/:id/documents",
   protect,
-  authorizeRoles(...USER_MANAGE_ROLES),
   requireModulePermission("team", "team.user.view", { legacyRoles: USER_MANAGE_ROLES }),
   async (req, res) => {
   try {
@@ -230,28 +228,24 @@ router.put("/profile", protect, requireModulePermission("profile", "profile.upda
 router.put(
   "/:id/profile",
   protect,
-  authorizeRoles(...USER_MANAGE_ROLES),
   requireModulePermission("team", "team.user.update", { legacyRoles: USER_MANAGE_ROLES }),
   updateUser
 );
 router.put(
   "/:id/status",
   protect,
-  authorizeRoles(...USER_MANAGE_ROLES),
   requireModulePermission("team", "team.user.update", { legacyRoles: USER_MANAGE_ROLES }),
   updateEmployeeStatus
 );
 router.put(
   "/:id",
   protect,
-  authorizeRoles(...USER_MANAGE_ROLES),
   requireModulePermission("team", "team.user.update", { legacyRoles: USER_MANAGE_ROLES }),
   updateUser
 );
 router.delete(
   "/:id",
   protect,
-  authorizeRoles("superadmin"),
   requireModulePermission("team", "team.user.update", { legacyRoles: ["superadmin"] }),
   async (req, res) => {
     try {
@@ -275,7 +269,6 @@ router.delete(
 router.put(
   "/:id/reset-password",
   protect,
-  authorizeRoles(...USER_MANAGE_ROLES),
   requireModulePermission("team", "team.user.update", { legacyRoles: USER_MANAGE_ROLES }),
   async (req, res) => {
   try {

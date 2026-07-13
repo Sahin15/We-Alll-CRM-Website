@@ -1,5 +1,6 @@
 import express from 'express';
 import { protect } from '../middleware/authMiddleware.js';
+
 import { authorizeRoles } from '../middleware/roleMiddleware.js';
 import { requireModulePermission } from '../authz/authzMiddleware.js';
 import { createGR, listGRs, getGR } from '../controllers/goodsReceiptController.js';
@@ -12,7 +13,6 @@ const readRoles = ['admin', 'superadmin', 'accounts', 'hr', 'hod', 'manager', 'e
 router.post(
   '/',
   protect,
-  authorizeRoles(...writeRoles),
   requireModulePermission('procurement', 'procurement.po.manage', { legacyRoles: writeRoles }),
   createGR
 );

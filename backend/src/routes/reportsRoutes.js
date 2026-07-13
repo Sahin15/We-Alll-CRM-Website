@@ -1,6 +1,7 @@
 import express from "express";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
 import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
@@ -15,7 +16,6 @@ router.use(protect);
  */
 router.get(
   "/access",
-  authorizeRoles(...REPORT_VIEW_ROLES),
   requireModulePermission("reports", "reports.analytics.view", {
     legacyRoles: REPORT_VIEW_ROLES,
   }),

@@ -18,8 +18,9 @@ import {
   getDepartmentMembers,
   getDepartmentStats,
 } from "../controllers/departmentController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
 import { requireModulePermission } from "../authz/authzMiddleware.js";
 import { isHoDOfDepartment } from "../middleware/hodMiddleware.js";
 
@@ -41,7 +42,6 @@ const DEPT_ANALYTICS_DETAIL_ROLES = [
 router.get(
   "/analytics/summary",
   protect,
-  authorizeRoles(...DEPT_ANALYTICS_ROLES),
   requireModulePermission("team", "team.department.view", {
     legacyRoles: DEPT_ANALYTICS_ROLES,
   }),
@@ -50,7 +50,6 @@ router.get(
 router.get(
   "/:id/analytics",
   protect,
-  authorizeRoles(...DEPT_ANALYTICS_DETAIL_ROLES),
   requireModulePermission("team", "team.department.view", {
     legacyRoles: DEPT_ANALYTICS_DETAIL_ROLES,
   }),
@@ -61,7 +60,6 @@ router.get(
 router.post(
   "/",
   protect,
-  authorizeRoles(...DEPT_MANAGE_ROLES),
   requireModulePermission("team", "team.department.manage", {
     legacyRoles: DEPT_MANAGE_ROLES,
   }),
@@ -86,7 +84,6 @@ router.get(
 router.post(
   "/:departmentId/assign-hod",
   protect,
-  authorizeRoles(...DEPT_HOD_OPS_ROLES),
   requireModulePermission("team", "team.user.update", {
     legacyRoles: DEPT_HOD_OPS_ROLES,
   }),
@@ -95,7 +92,6 @@ router.post(
 router.delete(
   "/:departmentId/remove-hod",
   protect,
-  authorizeRoles(...DEPT_HOD_OPS_ROLES),
   requireModulePermission("team", "team.user.update", {
     legacyRoles: DEPT_HOD_OPS_ROLES,
   }),
@@ -129,7 +125,6 @@ router.get(
 router.put(
   "/:departmentId/head/:userId",
   protect,
-  authorizeRoles(...DEPT_MANAGE_ROLES),
   requireModulePermission("team", "team.department.manage", {
     legacyRoles: DEPT_MANAGE_ROLES,
   }),
@@ -146,7 +141,6 @@ router.get(
 router.put(
   "/:id",
   protect,
-  authorizeRoles(...DEPT_MANAGE_ROLES),
   requireModulePermission("team", "team.department.manage", {
     legacyRoles: DEPT_MANAGE_ROLES,
   }),
@@ -155,7 +149,6 @@ router.put(
 router.delete(
   "/:id",
   protect,
-  authorizeRoles(...DEPT_MANAGE_ROLES),
   requireModulePermission("team", "team.department.manage", {
     legacyRoles: DEPT_MANAGE_ROLES,
   }),
@@ -166,7 +159,6 @@ router.delete(
 router.put(
   "/:departmentId/employees/bulk",
   protect,
-  authorizeRoles(...DEPT_MANAGE_ROLES),
   requireModulePermission("team", "team.department.manage", {
     legacyRoles: DEPT_MANAGE_ROLES,
   }),
@@ -175,7 +167,6 @@ router.put(
 router.put(
   "/:departmentId/add/:userId",
   protect,
-  authorizeRoles(...DEPT_MANAGE_ROLES),
   requireModulePermission("team", "team.department.manage", {
     legacyRoles: DEPT_MANAGE_ROLES,
   }),
@@ -184,7 +175,6 @@ router.put(
 router.put(
   "/:departmentId/remove/:userId",
   protect,
-  authorizeRoles(...DEPT_MANAGE_ROLES),
   requireModulePermission("team", "team.department.manage", {
     legacyRoles: DEPT_MANAGE_ROLES,
   }),

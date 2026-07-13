@@ -1,5 +1,6 @@
 import express from 'express';
 import { protect } from '../middleware/authMiddleware.js';
+
 import { authorizeRoles } from '../middleware/roleMiddleware.js';
 import { requireModulePermission } from '../authz/authzMiddleware.js';
 import {
@@ -16,7 +17,6 @@ const viewRoles = ['admin', 'superadmin', 'accounts', 'hr', 'hod', 'manager', 'e
 router.post(
   '/',
   protect,
-  authorizeRoles(...adminRoles),
   requireModulePermission('procurement', 'procurement.po.manage', { legacyRoles: adminRoles }),
   createInvoice
 );

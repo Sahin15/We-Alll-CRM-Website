@@ -30,7 +30,6 @@ router.get('/:id', requireModulePermission('company', 'company.announcement.view
 // Create announcement (Admin/HR/Manager only)
 router.post(
   '/',
-  authorize(...ANNOUNCEMENT_MANAGE_ROLES),
   requireModulePermission('company', 'company.announcement.manage', { legacyRoles: ANNOUNCEMENT_MANAGE_ROLES }),
   createAnnouncement
 );
@@ -38,7 +37,6 @@ router.post(
 // Update announcement (Admin/HR/Manager only)
 router.put(
   '/:id',
-  authorize(...ANNOUNCEMENT_MANAGE_ROLES),
   requireModulePermission('company', 'company.announcement.manage', { legacyRoles: ANNOUNCEMENT_MANAGE_ROLES }),
   updateAnnouncement
 );
@@ -46,7 +44,6 @@ router.put(
 // Delete announcement (Admin/HR/Manager only)
 router.delete(
   '/:id',
-  authorize(...ANNOUNCEMENT_MANAGE_ROLES),
   requireModulePermission('company', 'company.announcement.manage', { legacyRoles: ANNOUNCEMENT_MANAGE_ROLES }),
   deleteAnnouncement
 );

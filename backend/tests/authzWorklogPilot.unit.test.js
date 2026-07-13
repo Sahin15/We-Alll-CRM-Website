@@ -49,4 +49,15 @@ describe('Authorization V2 — Work log pilot parity', () => {
     expect(hasPermission(user, 'worklog.entry.create')).toBe(false);
     expect(hasPermission(user, 'worklog.entry.view_self')).toBe(false);
   });
+
+  test('employee with direct worklog.entry.review grant can review work logs', () => {
+    const user = {
+      _id: 'emp1',
+      role: 'employee',
+      directPermissionGrants: [
+        { permission: 'worklog.entry.review', scope: 'COMPANY', effect: 'grant' },
+      ],
+    };
+    expect(hasPermission(user, 'worklog.entry.review')).toBe(true);
+  });
 });

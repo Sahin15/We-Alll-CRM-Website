@@ -10,8 +10,9 @@ import {
   deleteAllSalaryStructures,
   getSalaryStructureHistory
 } from "../controllers/salaryStructureController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
 import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
@@ -22,7 +23,6 @@ const PAYROLL_DELETE_ALL_ROLES = ["admin", "superadmin"];
 router.post(
   "/",
   protect,
-  authorizeRoles(...PAYROLL_MANAGE_ROLES),
   requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   createSalaryStructure
 );
@@ -30,7 +30,6 @@ router.post(
 router.get(
   "/",
   protect,
-  authorizeRoles(...PAYROLL_MANAGE_ROLES),
   requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   getAllSalaryStructures
 );
@@ -53,7 +52,6 @@ router.get(
 router.get(
   "/employee/:employeeId/history",
   protect,
-  authorizeRoles(...PAYROLL_MANAGE_ROLES),
   requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   getSalaryStructureHistory
 );
@@ -61,7 +59,6 @@ router.get(
 router.get(
   "/:id",
   protect,
-  authorizeRoles(...PAYROLL_MANAGE_ROLES),
   requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   getSalaryStructureById
 );
@@ -69,7 +66,6 @@ router.get(
 router.put(
   "/:id",
   protect,
-  authorizeRoles(...PAYROLL_MANAGE_ROLES),
   requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   updateSalaryStructure
 );
@@ -77,7 +73,6 @@ router.put(
 router.put(
   "/:id/activate",
   protect,
-  authorizeRoles(...PAYROLL_MANAGE_ROLES),
   requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   activateSalaryStructure
 );
@@ -85,7 +80,6 @@ router.put(
 router.delete(
   "/all",
   protect,
-  authorizeRoles(...PAYROLL_DELETE_ALL_ROLES),
   requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_DELETE_ALL_ROLES }),
   deleteAllSalaryStructures
 );
@@ -93,7 +87,6 @@ router.delete(
 router.delete(
   "/:id",
   protect,
-  authorizeRoles(...PAYROLL_MANAGE_ROLES),
   requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   deleteSalaryStructure
 );

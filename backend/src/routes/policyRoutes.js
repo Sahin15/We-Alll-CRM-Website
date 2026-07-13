@@ -8,8 +8,9 @@ import {
   getRecentPolicies,
   getPolicyCategories,
 } from "../controllers/policyController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
 import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
@@ -25,21 +26,18 @@ router.get("/:id", requireModulePermission("company", "company.policy.view"), ge
 
 router.post(
   "/",
-  authorizeRoles(...POLICY_MANAGE_ROLES),
   requireModulePermission("company", "company.policy.manage", { legacyRoles: POLICY_MANAGE_ROLES }),
   createPolicy
 );
 
 router.put(
   "/:id",
-  authorizeRoles(...POLICY_MANAGE_ROLES),
   requireModulePermission("company", "company.policy.manage", { legacyRoles: POLICY_MANAGE_ROLES }),
   updatePolicy
 );
 
 router.delete(
   "/:id",
-  authorizeRoles(...POLICY_MANAGE_ROLES),
   requireModulePermission("company", "company.policy.manage", { legacyRoles: POLICY_MANAGE_ROLES }),
   deletePolicy
 );

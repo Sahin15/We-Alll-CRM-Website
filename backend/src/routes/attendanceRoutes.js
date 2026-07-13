@@ -35,8 +35,9 @@ import {
   rejectOvertimeEntry,
   getOvertimeStatistics,
 } from "../controllers/attendanceController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
 import { requireModulePermission } from "../authz/authzMiddleware.js";
 import Attendance from "../models/attendanceModel.js";
 
@@ -69,7 +70,6 @@ router.get("/test-protected", protect, (req, res) => {
 router.get(
   "/debug-db",
   protect,
-  authorizeRoles(...ATTENDANCE_MANAGE_ROLES),
   requireModulePermission("attendance", "attendance.record.manage", {
     legacyRoles: ATTENDANCE_MANAGE_ROLES,
   }),
@@ -159,7 +159,6 @@ router.post(
 router.post(
   "/fix-hr-attendance",
   protect,
-  authorizeRoles(...ATTENDANCE_MANAGE_ROLES),
   requireModulePermission("attendance", "attendance.record.manage", {
     legacyRoles: ATTENDANCE_MANAGE_ROLES,
   }),
@@ -170,7 +169,6 @@ router.post(
 router.get(
   "/report",
   protect,
-  authorizeRoles(...ATTENDANCE_VIEW_ROLES),
   requireModulePermission("attendance", "attendance.record.view", {
     legacyRoles: ATTENDANCE_VIEW_ROLES,
   }),
@@ -181,7 +179,6 @@ router.get(
 router.get(
   "/download-pdf",
   protect,
-  authorizeRoles(...ATTENDANCE_VIEW_ROLES),
   requireModulePermission("attendance", "attendance.record.view", {
     legacyRoles: ATTENDANCE_VIEW_ROLES,
   }),
@@ -192,7 +189,6 @@ router.get(
 router.get(
   "/",
   protect,
-  authorizeRoles(...ATTENDANCE_VIEW_ROLES),
   requireModulePermission("attendance", "attendance.record.view", {
     legacyRoles: ATTENDANCE_VIEW_ROLES,
   }),
@@ -201,7 +197,6 @@ router.get(
 router.post(
   "/manual",
   protect,
-  authorizeRoles(...ATTENDANCE_MANAGE_ROLES),
   requireModulePermission("attendance", "attendance.record.manage", {
     legacyRoles: ATTENDANCE_MANAGE_ROLES,
   }),
@@ -216,7 +211,6 @@ router.get(
 router.put(
   "/:id",
   protect,
-  authorizeRoles(...ATTENDANCE_MANAGE_ROLES),
   requireModulePermission("attendance", "attendance.record.manage", {
     legacyRoles: ATTENDANCE_MANAGE_ROLES,
   }),
@@ -225,7 +219,6 @@ router.put(
 router.put(
   "/:id/status",
   protect,
-  authorizeRoles(...ATTENDANCE_VIEW_ROLES),
   requireModulePermission("attendance", "attendance.record.view", {
     legacyRoles: ATTENDANCE_VIEW_ROLES,
   }),
@@ -234,7 +227,6 @@ router.put(
 router.delete(
   "/:id",
   protect,
-  authorizeRoles(...ATTENDANCE_MANAGE_ROLES),
   requireModulePermission("attendance", "attendance.record.manage", {
     legacyRoles: ATTENDANCE_MANAGE_ROLES,
   }),
@@ -243,7 +235,6 @@ router.delete(
 router.post(
   "/mark-absence",
   protect,
-  authorizeRoles(...ATTENDANCE_VIEW_ROLES),
   requireModulePermission("attendance", "attendance.record.view", {
     legacyRoles: ATTENDANCE_VIEW_ROLES,
   }),
@@ -252,7 +243,6 @@ router.post(
 router.get(
   "/summary/:employeeId",
   protect,
-  authorizeRoles(...ATTENDANCE_VIEW_ROLES),
   requireModulePermission("attendance", "attendance.record.view", {
     legacyRoles: ATTENDANCE_VIEW_ROLES,
   }),
@@ -262,7 +252,6 @@ router.get(
 router.post(
   "/fix-today",
   protect,
-  authorizeRoles(...ATTENDANCE_MANAGE_ROLES),
   requireModulePermission("attendance", "attendance.record.manage", {
     legacyRoles: ATTENDANCE_MANAGE_ROLES,
   }),
@@ -272,7 +261,6 @@ router.post(
 router.post(
   "/remove-duplicates",
   protect,
-  authorizeRoles(...ATTENDANCE_MANAGE_ROLES),
   requireModulePermission("attendance", "attendance.record.manage", {
     legacyRoles: ATTENDANCE_MANAGE_ROLES,
   }),
@@ -282,7 +270,6 @@ router.post(
 router.post(
   "/recalculate-work-hours",
   protect,
-  authorizeRoles(...ATTENDANCE_MANAGE_ROLES),
   requireModulePermission("attendance", "attendance.record.manage", {
     legacyRoles: ATTENDANCE_MANAGE_ROLES,
   }),
@@ -292,7 +279,6 @@ router.post(
 router.post(
   "/initialize-breaks",
   protect,
-  authorizeRoles(...ATTENDANCE_MANAGE_ROLES),
   requireModulePermission("attendance", "attendance.record.manage", {
     legacyRoles: ATTENDANCE_MANAGE_ROLES,
   }),
@@ -302,7 +288,6 @@ router.post(
 router.post(
   "/manual-auto-clockout",
   protect,
-  authorizeRoles(...ATTENDANCE_MANAGE_ROLES),
   requireModulePermission("attendance", "attendance.record.manage", {
     legacyRoles: ATTENDANCE_MANAGE_ROLES,
   }),
@@ -346,7 +331,6 @@ router.get(
 router.get(
   "/overtime/pending",
   protect,
-  authorizeRoles(...ATTENDANCE_VIEW_ROLES),
   requireModulePermission("attendance", "attendance.record.view", {
     legacyRoles: ATTENDANCE_VIEW_ROLES,
   }),
@@ -356,7 +340,6 @@ router.get(
 router.post(
   "/overtime/:attendanceId/:entryId/approve",
   protect,
-  authorizeRoles(...ATTENDANCE_VIEW_ROLES),
   requireModulePermission("attendance", "attendance.record.view", {
     legacyRoles: ATTENDANCE_VIEW_ROLES,
   }),
@@ -366,7 +349,6 @@ router.post(
 router.post(
   "/overtime/:attendanceId/:entryId/reject",
   protect,
-  authorizeRoles(...ATTENDANCE_VIEW_ROLES),
   requireModulePermission("attendance", "attendance.record.view", {
     legacyRoles: ATTENDANCE_VIEW_ROLES,
   }),
@@ -376,7 +358,6 @@ router.post(
 router.get(
   "/overtime/statistics",
   protect,
-  authorizeRoles(...ATTENDANCE_MANAGE_ROLES),
   requireModulePermission("attendance", "attendance.record.manage", {
     legacyRoles: ATTENDANCE_MANAGE_ROLES,
   }),

@@ -11,8 +11,9 @@ import {
   getLeaveBalance,
   getLeaveUsageSummary,
 } from "../controllers/leaveController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
 import { requireModulePermission } from "../authz/authzMiddleware.js";
 import { uploadDocument, handleDocumentUploadError } from "../middleware/documentMiddleware.js";
 import LeaveRequest from "../models/leaveRequestModel.js";
@@ -46,7 +47,6 @@ router.get(
 router.get(
   "/usage-summary/:employeeId",
   protect,
-  authorizeRoles(...LEAVE_VIEW_ROLES),
   requireModulePermission("leave", "leave.request.view", { legacyRoles: LEAVE_VIEW_ROLES }),
   getLeaveUsageSummary
 );
@@ -55,7 +55,6 @@ router.get(
 router.get(
   "/all-balances",
   protect,
-  authorizeRoles(...LEAVE_VIEW_ROLES),
   requireModulePermission("leave", "leave.request.view", { legacyRoles: LEAVE_VIEW_ROLES }),
   async (req, res) => {
     try {
@@ -250,7 +249,6 @@ router.get(
 router.get(
   "/",
   protect,
-  authorizeRoles(...LEAVE_VIEW_ROLES),
   requireModulePermission("leave", "leave.request.view", { legacyRoles: LEAVE_VIEW_ROLES }),
   getAllLeaveRequests
 );
@@ -285,14 +283,12 @@ router.put(
 router.put(
   "/:id/approve",
   protect,
-  authorizeRoles(...LEAVE_APPROVE_ROLES),
   requireModulePermission("leave", "leave.request.approve", { legacyRoles: LEAVE_APPROVE_ROLES }),
   approveLeaveRequest
 );
 router.put(
   "/:id/reject",
   protect,
-  authorizeRoles(...LEAVE_APPROVE_ROLES),
   requireModulePermission("leave", "leave.request.approve", { legacyRoles: LEAVE_APPROVE_ROLES }),
   rejectLeaveRequest
 );

@@ -8,8 +8,9 @@ import {
   deleteMeeting,
   completeMeeting,
 } from "../controllers/meetingController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
 import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
@@ -31,7 +32,6 @@ router.get("/", requireModulePermission("company", "company.meeting.view"), getA
 // Admin/HR/Manager/Employee routes - get all meetings with role restriction
 router.get(
   "/all",
-  authorizeRoles(...MEETING_LIST_ROLES),
   requireModulePermission("company", "company.meeting.view", { legacyRoles: MEETING_LIST_ROLES }),
   getAllMeetings
 );

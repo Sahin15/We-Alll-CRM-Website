@@ -31,8 +31,9 @@ import {
   setPrimaryContact,
   getLeadHistory,
 } from "../controllers/leadController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
 import { authorizeRolesOrDepartments } from "../middleware/departmentMiddleware.js";
 import { requireModulePermission } from "../authz/authzMiddleware.js";
 
@@ -59,7 +60,6 @@ router.get("/meetings/my-meetings", protect, leadAccess, crmLeadView, getMyMeeti
 router.get(
   "/meetings/team-meetings",
   protect,
-  authorizeRoles(...LEAD_TEAM_MEETING_ROLES),
   requireModulePermission("crm", "crm.lead.view", { legacyRoles: LEAD_TEAM_MEETING_ROLES }),
   getTeamMeetings
 );
@@ -71,7 +71,6 @@ router.delete("/:id/notes/:noteId", protect, leadAccess, crmLeadManage, deleteNo
 router.delete(
   "/:id",
   protect,
-  authorizeRoles(...LEAD_DELETE_ROLES),
   requireModulePermission("crm", "crm.lead.manage", { legacyRoles: LEAD_DELETE_ROLES }),
   deleteLead
 );

@@ -7,8 +7,9 @@ import {
   rejectWorkOnLeaveDayRequest,
   checkTodayWorkOnLeaveRequest,
 } from "../controllers/workOnLeaveDayController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
 import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
@@ -39,21 +40,18 @@ router.get(
 router.get(
   "/",
   protect,
-  authorizeRoles(...WOL_HR_ROLES),
   requireModulePermission("wfh", "leave.request.approve", { legacyRoles: WOL_HR_ROLES }),
   getAllWorkOnLeaveDayRequests
 );
 router.put(
   "/:id/approve",
   protect,
-  authorizeRoles(...WOL_HR_ROLES),
   requireModulePermission("wfh", "leave.request.approve", { legacyRoles: WOL_HR_ROLES }),
   approveWorkOnLeaveDayRequest
 );
 router.put(
   "/:id/reject",
   protect,
-  authorizeRoles(...WOL_HR_ROLES),
   requireModulePermission("wfh", "leave.request.approve", { legacyRoles: WOL_HR_ROLES }),
   rejectWorkOnLeaveDayRequest
 );

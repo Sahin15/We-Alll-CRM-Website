@@ -20,4 +20,15 @@ describe('Authorization V2 — Dashboard pilot parity', () => {
     };
     expect(hasPermission(user, 'dashboard.view')).toBe(true);
   });
+
+  test('employee with direct dashboard.view grant can access admin dashboard stats gate', () => {
+    const user = {
+      _id: 'emp1',
+      role: 'employee',
+      directPermissionGrants: [
+        { permission: 'dashboard.view', scope: 'COMPANY', effect: 'grant' },
+      ],
+    };
+    expect(hasPermission(user, 'dashboard.view')).toBe(true);
+  });
 });

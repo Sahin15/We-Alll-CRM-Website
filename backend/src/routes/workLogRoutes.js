@@ -18,8 +18,9 @@ import {
   raiseConcern,
   raiseDepartmentConcern,
 } from "../controllers/workLogController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
 import { isHoD } from "../middleware/hodMiddleware.js";
 import { requireModulePermission } from "../authz/authzMiddleware.js";
 
@@ -106,7 +107,6 @@ router.put(
 router.get(
   "/all",
   protect,
-  authorizeRoles(...WORKLOG_REVIEW_ROLES),
   requireModulePermission("worklog", "worklog.entry.review", { legacyRoles: WORKLOG_REVIEW_ROLES }),
   getAllWorkLogs
 );
@@ -114,7 +114,6 @@ router.get(
 router.get(
   "/employee/:employeeId",
   protect,
-  authorizeRoles(...WORKLOG_REVIEW_ROLES),
   requireModulePermission("worklog", "worklog.entry.review", { legacyRoles: WORKLOG_REVIEW_ROLES }),
   getEmployeeWorkLogs
 );
@@ -122,7 +121,6 @@ router.get(
 router.put(
   "/:id/review",
   protect,
-  authorizeRoles(...WORKLOG_REVIEW_ROLES),
   requireModulePermission("worklog", "worklog.entry.review", { legacyRoles: WORKLOG_REVIEW_ROLES }),
   reviewWorkLog
 );
@@ -130,7 +128,6 @@ router.put(
 router.put(
   "/:id/raise-concern",
   protect,
-  authorizeRoles(...WORKLOG_REVIEW_ROLES),
   requireModulePermission("worklog", "worklog.entry.review", { legacyRoles: WORKLOG_REVIEW_ROLES }),
   raiseConcern
 );
@@ -138,7 +135,6 @@ router.put(
 router.put(
   "/:id/update",
   protect,
-  authorizeRoles(...WORKLOG_REVIEW_ROLES),
   requireModulePermission("worklog", "worklog.entry.review", { legacyRoles: WORKLOG_REVIEW_ROLES }),
   updateWorkLog
 );
@@ -146,7 +142,6 @@ router.put(
 router.get(
   "/stats",
   protect,
-  authorizeRoles(...WORKLOG_REVIEW_ROLES),
   requireModulePermission("worklog", "worklog.entry.review", { legacyRoles: WORKLOG_REVIEW_ROLES }),
   getWorkLogStats
 );
@@ -154,7 +149,6 @@ router.get(
 router.get(
   "/export",
   protect,
-  authorizeRoles(...WORKLOG_REVIEW_ROLES),
   requireModulePermission("worklog", "worklog.entry.review", { legacyRoles: WORKLOG_REVIEW_ROLES }),
   exportWorkLogs
 );

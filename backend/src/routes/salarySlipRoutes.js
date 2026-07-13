@@ -18,8 +18,9 @@ import {
   recalculateSalarySlip,
   bulkRecalculateSalarySlips
 } from "../controllers/salarySlipController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
 import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
@@ -56,7 +57,6 @@ router.post(
 router.post(
   "/generate",
   protect,
-  authorizeRoles(...PAYROLL_MANAGE_ROLES),
   requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   generateSalarySlip
 );
@@ -64,7 +64,6 @@ router.post(
 router.post(
   "/generate-bulk",
   protect,
-  authorizeRoles(...PAYROLL_MANAGE_ROLES),
   requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   bulkGenerateSalarySlips
 );
@@ -72,7 +71,6 @@ router.post(
 router.put(
   "/:id/recalculate",
   protect,
-  authorizeRoles(...PAYROLL_MANAGE_ROLES),
   requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   recalculateSalarySlip
 );
@@ -80,7 +78,6 @@ router.put(
 router.post(
   "/bulk-recalculate",
   protect,
-  authorizeRoles(...PAYROLL_MANAGE_ROLES),
   requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   bulkRecalculateSalarySlips
 );
@@ -88,7 +85,6 @@ router.post(
 router.post(
   "/:id/send-email",
   protect,
-  authorizeRoles(...PAYROLL_MANAGE_ROLES),
   requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   sendSalarySlipEmail
 );
@@ -96,7 +92,6 @@ router.post(
 router.post(
   "/send-bulk-emails",
   protect,
-  authorizeRoles(...PAYROLL_MANAGE_ROLES),
   requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   sendBulkSalarySlipEmails
 );
@@ -104,7 +99,6 @@ router.post(
 router.get(
   "/employee/:employeeId",
   protect,
-  authorizeRoles(...PAYROLL_MANAGE_ROLES),
   requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   getEmployeeSalarySlips
 );
@@ -112,7 +106,6 @@ router.get(
 router.get(
   "/",
   protect,
-  authorizeRoles(...PAYROLL_MANAGE_ROLES),
   requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   getAllSalarySlips
 );
@@ -120,7 +113,6 @@ router.get(
 router.put(
   "/:id",
   protect,
-  authorizeRoles(...PAYROLL_MANAGE_ROLES),
   requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   updateSalarySlip
 );
@@ -128,7 +120,6 @@ router.put(
 router.delete(
   "/:id",
   protect,
-  authorizeRoles(...PAYROLL_DELETE_ROLES),
   requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_DELETE_ROLES }),
   deleteSalarySlip
 );
@@ -136,7 +127,6 @@ router.delete(
 router.put(
   "/:id/mark-paid",
   protect,
-  authorizeRoles(...PAYROLL_MARK_PAID_ROLES),
   requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MARK_PAID_ROLES }),
   markAsPaid
 );
@@ -144,7 +134,6 @@ router.put(
 router.get(
   "/reports/payroll-summary",
   protect,
-  authorizeRoles(...PAYROLL_MANAGE_ROLES),
   requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   getPayrollSummary
 );
@@ -152,7 +141,6 @@ router.get(
 router.get(
   "/stats/overview",
   protect,
-  authorizeRoles(...PAYROLL_MANAGE_ROLES),
   requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   getOverallStats
 );

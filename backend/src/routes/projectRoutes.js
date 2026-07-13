@@ -36,8 +36,9 @@ import {
   getWorkBoard,
   getProjectTeam as getProjectTeamWorkload,
 } from "../controllers/projectWorkspaceController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
 import { requireModulePermission } from "../authz/authzMiddleware.js";
 import { canManageProject } from "../middleware/hopMiddleware.js";
 import {
@@ -80,7 +81,6 @@ const SLOT_DELETE_ROLES = ["hr", "manager", "admin", "superadmin"];
 router.post(
   "/",
   protect,
-  authorizeRoles(...PROJECT_CREATE_ROLES),
   requireModulePermission("projects", "projects.project.manage", {
     legacyRoles: PROJECT_CREATE_ROLES,
   }),
@@ -91,7 +91,6 @@ router.post(
 router.put(
   "/:id",
   protect,
-  authorizeRoles(...PROJECT_UPDATE_ROLES),
   requireModulePermission("projects", "projects.project.manage", {
     legacyRoles: PROJECT_UPDATE_ROLES,
   }),
@@ -110,7 +109,6 @@ router.get(
 router.put(
   "/:id/status",
   protect,
-  authorizeRoles(...PROJECT_STATUS_ROLES),
   requireModulePermission("projects", "projects.project.manage", {
     legacyRoles: PROJECT_STATUS_ROLES,
   }),
@@ -121,7 +119,6 @@ router.put(
 router.put(
   "/:projectId/assign/:userId",
   protect,
-  authorizeRoles(...PROJECT_ASSIGN_ROLES),
   requireModulePermission("projects", "projects.project.manage", {
     legacyRoles: PROJECT_ASSIGN_ROLES,
   }),
@@ -130,7 +127,6 @@ router.put(
 router.put(
   "/:projectId/remove/:userId",
   protect,
-  authorizeRoles(...PROJECT_ASSIGN_ROLES),
   requireModulePermission("projects", "projects.project.manage", {
     legacyRoles: PROJECT_ASSIGN_ROLES,
   }),
@@ -141,7 +137,6 @@ router.put(
 router.put(
   "/:projectId/project-head",
   protect,
-  authorizeRoles(...PROJECT_HEAD_ROLES),
   requireModulePermission("projects", "projects.project.manage", {
     legacyRoles: PROJECT_HEAD_ROLES,
   }),
@@ -150,7 +145,6 @@ router.put(
 router.delete(
   "/:projectId/project-head",
   protect,
-  authorizeRoles(...PROJECT_HEAD_ROLES),
   requireModulePermission("projects", "projects.project.manage", {
     legacyRoles: PROJECT_HEAD_ROLES,
   }),
@@ -161,7 +155,6 @@ router.delete(
 router.post(
   "/:projectId/assign-department",
   protect,
-  authorizeRoles(...PROJECT_ADMIN_ROLES),
   requireModulePermission("projects", "projects.project.manage", {
     legacyRoles: PROJECT_ADMIN_ROLES,
   }),
@@ -170,7 +163,6 @@ router.post(
 router.post(
   "/:projectId/assign-hop",
   protect,
-  authorizeRoles(...PROJECT_HEAD_ROLES),
   requireModulePermission("projects", "projects.project.manage", {
     legacyRoles: PROJECT_HEAD_ROLES,
   }),
@@ -236,7 +228,6 @@ router.get(
 router.get(
   "/:id",
   protect,
-  authorizeRoles(...PROJECT_VIEW_ROLES),
   requireModulePermission("projects", "projects.project.view", {
     legacyRoles: PROJECT_VIEW_ROLES,
   }),
@@ -247,7 +238,6 @@ router.get(
 router.put(
   "/:id/progress",
   protect,
-  authorizeRoles(...PROJECT_PROGRESS_ROLES),
   requireModulePermission("projects", "projects.project.manage", {
     legacyRoles: PROJECT_PROGRESS_ROLES,
   }),
@@ -258,7 +248,6 @@ router.put(
 router.post(
   "/:id/milestones",
   protect,
-  authorizeRoles(...PROJECT_MILESTONE_ROLES),
   requireModulePermission("projects", "projects.project.manage", {
     legacyRoles: PROJECT_MILESTONE_ROLES,
   }),
@@ -267,7 +256,6 @@ router.post(
 router.put(
   "/:id/milestones/:milestoneId",
   protect,
-  authorizeRoles(...PROJECT_MILESTONE_ROLES),
   requireModulePermission("projects", "projects.project.manage", {
     legacyRoles: PROJECT_MILESTONE_ROLES,
   }),
@@ -278,7 +266,6 @@ router.put(
 router.post(
   "/:id/tasks",
   protect,
-  authorizeRoles(...PROJECT_MILESTONE_ROLES),
   requireModulePermission("projects", "projects.project.manage", {
     legacyRoles: PROJECT_MILESTONE_ROLES,
   }),
@@ -287,7 +274,6 @@ router.post(
 router.put(
   "/:id/tasks/:taskId",
   protect,
-  authorizeRoles(...PROJECT_TASK_UPDATE_ROLES),
   requireModulePermission("projects", "projects.project.manage", {
     legacyRoles: PROJECT_TASK_UPDATE_ROLES,
   }),
@@ -298,7 +284,6 @@ router.put(
 router.post(
   "/:id/deliverables",
   protect,
-  authorizeRoles(...PROJECT_DELIVERABLE_ADD_ROLES),
   requireModulePermission("projects", "projects.project.manage", {
     legacyRoles: PROJECT_DELIVERABLE_ADD_ROLES,
   }),
@@ -307,7 +292,6 @@ router.post(
 router.put(
   "/:id/deliverables/:deliverableId",
   protect,
-  authorizeRoles(...PROJECT_DELIVERABLE_UPDATE_ROLES),
   requireModulePermission("projects", "projects.project.manage", {
     legacyRoles: PROJECT_DELIVERABLE_UPDATE_ROLES,
   }),
@@ -318,7 +302,6 @@ router.put(
 router.delete(
   "/:id",
   protect,
-  authorizeRoles(...PROJECT_DELETE_ROLES),
   requireModulePermission("projects", "projects.project.manage", {
     legacyRoles: PROJECT_DELETE_ROLES,
   }),
@@ -352,7 +335,6 @@ router.get(
 router.post(
   "/:projectId/slots/enable",
   protect,
-  authorizeRoles(...SLOT_ENABLE_ROLES),
   requireModulePermission("projects", "projects.project.manage", {
     legacyRoles: SLOT_ENABLE_ROLES,
   }),
@@ -369,7 +351,6 @@ router.get(
 router.post(
   "/:projectId/slots",
   protect,
-  authorizeRoles(...SLOT_MANAGE_ROLES),
   requireModulePermission("projects", "projects.project.manage", {
     legacyRoles: SLOT_MANAGE_ROLES,
   }),
@@ -379,7 +360,6 @@ router.post(
 router.put(
   "/:projectId/slots/:slotId",
   protect,
-  authorizeRoles(...SLOT_MANAGE_ROLES),
   requireModulePermission("projects", "projects.project.manage", {
     legacyRoles: SLOT_MANAGE_ROLES,
   }),
@@ -389,7 +369,6 @@ router.put(
 router.delete(
   "/:projectId/slots/:slotId",
   protect,
-  authorizeRoles(...SLOT_DELETE_ROLES),
   requireModulePermission("projects", "projects.project.manage", {
     legacyRoles: SLOT_DELETE_ROLES,
   }),

@@ -10,8 +10,9 @@ import {
   updateSubscription,
   deleteSubscription,
 } from "../controllers/subscriptionController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
 import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
@@ -26,7 +27,6 @@ const CLIENT_ROLES = ["client"];
 router.post(
   "/",
   protect,
-  authorizeRoles(...SUBSCRIPTION_CREATE_ROLES),
   requireModulePermission("billing", "billing.subscription.manage", {
     legacyRoles: SUBSCRIPTION_CREATE_ROLES,
   }),
@@ -41,14 +41,12 @@ router.get(
 router.get(
   "/my-subscriptions",
   protect,
-  authorizeRoles(...CLIENT_ROLES),
   requireModulePermission("billing", "billing.subscription.view", { legacyRoles: CLIENT_ROLES }),
   getMySubscriptions
 );
 router.get(
   "/client/:clientId",
   protect,
-  authorizeRoles(...SUBSCRIPTION_READ_ROLES),
   requireModulePermission("billing", "billing.subscription.view", {
     legacyRoles: SUBSCRIPTION_READ_ROLES,
   }),
@@ -57,7 +55,6 @@ router.get(
 router.get(
   "/:id",
   protect,
-  authorizeRoles(...SUBSCRIPTION_READ_ROLES),
   requireModulePermission("billing", "billing.subscription.view", {
     legacyRoles: SUBSCRIPTION_READ_ROLES,
   }),
@@ -66,7 +63,6 @@ router.get(
 router.put(
   "/:id",
   protect,
-  authorizeRoles(...SUBSCRIPTION_MANAGE_ROLES),
   requireModulePermission("billing", "billing.subscription.manage", {
     legacyRoles: SUBSCRIPTION_MANAGE_ROLES,
   }),
@@ -75,7 +71,6 @@ router.put(
 router.patch(
   "/:id/activate",
   protect,
-  authorizeRoles(...SUBSCRIPTION_MANAGE_ROLES),
   requireModulePermission("billing", "billing.subscription.manage", {
     legacyRoles: SUBSCRIPTION_MANAGE_ROLES,
   }),
@@ -84,7 +79,6 @@ router.patch(
 router.patch(
   "/:id/cancel",
   protect,
-  authorizeRoles(...SUBSCRIPTION_CANCEL_ROLES),
   requireModulePermission("billing", "billing.subscription.manage", {
     legacyRoles: SUBSCRIPTION_CANCEL_ROLES,
   }),
@@ -93,7 +87,6 @@ router.patch(
 router.delete(
   "/:id",
   protect,
-  authorizeRoles(...SUBSCRIPTION_DELETE_ROLES),
   requireModulePermission("billing", "billing.subscription.manage", {
     legacyRoles: SUBSCRIPTION_DELETE_ROLES,
   }),

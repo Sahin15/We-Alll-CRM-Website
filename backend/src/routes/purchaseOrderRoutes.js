@@ -1,5 +1,6 @@
 import express from 'express';
 import { protect } from '../middleware/authMiddleware.js';
+
 import { authorizeRoles } from '../middleware/roleMiddleware.js';
 import { requireModulePermission } from '../authz/authzMiddleware.js';
 import {
@@ -20,21 +21,18 @@ const readRoles = ['admin', 'superadmin', 'accounts', 'hr', 'hod', 'manager', 'e
 router.post(
   '/',
   protect,
-  authorizeRoles(...writeRoles),
   requireModulePermission('procurement', 'procurement.po.manage', { legacyRoles: writeRoles }),
   createPO
 );
 router.patch(
   '/:id/issue',
   protect,
-  authorizeRoles(...writeRoles),
   requireModulePermission('procurement', 'procurement.po.manage', { legacyRoles: writeRoles }),
   issuePO
 );
 router.patch(
   '/:id/cancel',
   protect,
-  authorizeRoles(...writeRoles),
   requireModulePermission('procurement', 'procurement.po.manage', { legacyRoles: writeRoles }),
   cancelPO
 );
@@ -62,7 +60,6 @@ router.get(
 router.patch(
   '/:id',
   protect,
-  authorizeRoles(...writeRoles),
   requireModulePermission('procurement', 'procurement.po.manage', { legacyRoles: writeRoles }),
   updatePO
 );

@@ -10,8 +10,9 @@ import {
   checkWFHStatus,
   getWFHStatistics,
 } from "../controllers/wfhController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
 import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
@@ -49,35 +50,30 @@ router.get(
 router.get(
   "/all",
   protect,
-  authorizeRoles(...WFH_VIEW_ROLES),
   requireModulePermission("wfh", "leave.request.view", { legacyRoles: WFH_VIEW_ROLES }),
   getAllWFHRequests
 );
 router.get(
   "/pending",
   protect,
-  authorizeRoles(...WFH_VIEW_ROLES),
   requireModulePermission("wfh", "leave.request.view", { legacyRoles: WFH_VIEW_ROLES }),
   getPendingWFHRequests
 );
 router.put(
   "/:id/approve",
   protect,
-  authorizeRoles(...WFH_APPROVE_ROLES),
   requireModulePermission("wfh", "leave.request.approve", { legacyRoles: WFH_APPROVE_ROLES }),
   approveWFHRequest
 );
 router.put(
   "/:id/reject",
   protect,
-  authorizeRoles(...WFH_APPROVE_ROLES),
   requireModulePermission("wfh", "leave.request.approve", { legacyRoles: WFH_APPROVE_ROLES }),
   rejectWFHRequest
 );
 router.get(
   "/statistics",
   protect,
-  authorizeRoles(...WFH_VIEW_ROLES),
   requireModulePermission("wfh", "leave.request.view", { legacyRoles: WFH_VIEW_ROLES }),
   getWFHStatistics
 );
