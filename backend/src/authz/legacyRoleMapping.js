@@ -89,6 +89,7 @@ export const LEGACY_ROLE_TO_ACCESS_ROLES = {
         { permission: 'company.announcement.view', scope: SCOPES.COMPANY },
         { permission: 'company.announcement.manage', scope: SCOPES.COMPANY },
         { permission: 'hiring.pipeline.manage', scope: SCOPES.COMPANY },
+        { permission: 'hiring.request.view', scope: SCOPES.COMPANY },
         { permission: 'procurement.pr.approve_admin', scope: SCOPES.COMPANY },
         { permission: 'procurement.po.manage', scope: SCOPES.COMPANY },
         { permission: 'procurement.vendor.manage', scope: SCOPES.COMPANY },
@@ -198,6 +199,8 @@ export const LEGACY_ROLE_TO_ACCESS_ROLES = {
         { permission: 'assets.asset.manage', scope: SCOPES.COMPANY },
         { permission: 'company.policy.manage', scope: SCOPES.COMPANY },
         { permission: 'company.announcement.manage', scope: SCOPES.COMPANY },
+        { permission: 'hiring.pipeline.manage', scope: SCOPES.COMPANY },
+        { permission: 'hiring.request.view', scope: SCOPES.COMPANY },
         { permission: 'profile.view', scope: SCOPES.SELF },
         { permission: 'profile.update', scope: SCOPES.SELF },
         ...EMPLOYEE_STANDARD_GRANTS.filter(

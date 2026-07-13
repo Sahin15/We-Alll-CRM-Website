@@ -1,5 +1,6 @@
 import express from "express";
 import { protect } from "../middleware/authMiddleware.js";
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 import {
   getHiringApplication,
   createHiringApplication,
@@ -11,13 +12,51 @@ import {
 
 const router = express.Router();
 
+const HR_PIPELINE_ROLES = ["admin", "superadmin", "hr", "manager"];
+
 router.use(protect);
 
-router.post("/", createHiringApplication);
-router.get("/:id", getHiringApplication);
-router.put("/:id/stage", updateApplicationStage);
-router.post("/:id/interviews", scheduleInterview);
-router.put("/:id/interviews/:interviewId", completeInterview);
-router.post("/:id/create-offer", createOfferFromApplication);
+router.post(
+  "/",
+  requireModulePermission("hiring", "hiring.pipeline.manage", {
+    legacyRoles: HR_PIPELINE_ROLES,
+  }),
+  createHiringApplication
+);
+router.get(
+  "/:id",
+  requireModulePermission("hiring", "hiring.pipeline.manage", {
+    legacyRoles: HR_PIPELINE_ROLES,
+  }),
+  getHiringApplication
+);
+router.put(
+  "/:id/stage",
+  requireModulePermission("hiring", "hiring.pipeline.manage", {
+    legacyRoles: HR_PIPELINE_ROLES,
+  }),
+  updateApplicationStage
+);
+router.post(
+  "/:id/interviews",
+  requireModulePermission("hiring", "hiring.pipeline.manage", {
+    legacyRoles: HR_PIPELINE_ROLES,
+  }),
+  scheduleInterview
+);
+router.put(
+  "/:id/interviews/:interviewId",
+  requireModulePermission("hiring", "hiring.pipeline.manage", {
+    legacyRoles: HR_PIPELINE_ROLES,
+  }),
+  completeInterview
+);
+router.post(
+  "/:id/create-offer",
+  requireModulePermission("hiring", "hiring.pipeline.manage", {
+    legacyRoles: HR_PIPELINE_ROLES,
+  }),
+  createOfferFromApplication
+);
 
 export default router;

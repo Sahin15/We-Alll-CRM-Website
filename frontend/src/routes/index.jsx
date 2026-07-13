@@ -574,94 +574,131 @@ const AppRoutes = () => {
           path="/hr/offers"
           element={<Navigate to="/hr/hiring/offer-letters" replace />}
         />
+        {/* Hiring (Authorization V2 pilot) */}
         <Route
           path="/hr/hiring"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="hiring.pipeline.manage"
+              module="hiring"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <Suspense fallback={<RouteLoadingFallback />}>
                 <HiringDashboard />
               </Suspense>
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/hr/hiring/requests"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="hiring.pipeline.manage"
+              module="hiring"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <Suspense fallback={<RouteLoadingFallback />}>
                 <HiringRequestsManagement />
               </Suspense>
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/hr/hiring/requests/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="hiring.pipeline.manage"
+              module="hiring"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <Suspense fallback={<RouteLoadingFallback />}>
                 <HiringRequestDetail />
               </Suspense>
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/hr/hiring/applications/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="hiring.pipeline.manage"
+              module="hiring"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <Suspense fallback={<RouteLoadingFallback />}>
                 <HiringApplicationDetail />
               </Suspense>
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/hr/hiring/applicants"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="hiring.pipeline.manage"
+              module="hiring"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <Suspense fallback={<RouteLoadingFallback />}>
                 <ApplicantCVBank />
               </Suspense>
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/hr/hiring/offer-letters"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="hiring.pipeline.manage"
+              module="hiring"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <Suspense fallback={<RouteLoadingFallback />}>
                 <HiringOfferLetters />
               </Suspense>
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/hod/hiring/requests"
           element={
-            <RoleBasedRoute allowedRoles={["hod"]}>
+            <PermissionRoute
+              permission="hiring.request.view"
+              module="hiring"
+              fallbackRoles={["hod"]}
+            >
               <Suspense fallback={<RouteLoadingFallback />}>
                 <HoDHiringRequests />
               </Suspense>
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/hod/hiring/requests/:id"
           element={
-            <RoleBasedRoute allowedRoles={["hod"]}>
+            <PermissionRoute
+              permission="hiring.request.view"
+              module="hiring"
+              fallbackRoles={["hod"]}
+            >
               <Suspense fallback={<RouteLoadingFallback />}>
                 <HoDHiringRequestDetail />
               </Suspense>
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/hod/hiring/requests/new"
           element={
-            <RoleBasedRoute allowedRoles={["hod"]}>
+            <PermissionRoute
+              permission="hiring.request.create"
+              module="hiring"
+              fallbackRoles={["hod"]}
+            >
               <Suspense fallback={<RouteLoadingFallback />}>
                 <HoDCreateHiringRequest />
               </Suspense>
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
