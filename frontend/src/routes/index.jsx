@@ -396,7 +396,11 @@ const AppRoutes = () => {
         <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
         <Route path="/employee/my-work" element={<MyWorkPage />} />
         <Route path="/employee/assigned-work" element={<AssignedWorkPage />} />
-        <Route path="/employee/meetings" element={<MyMeetings />} />
+        <Route path="/employee/meetings" element={
+          <PermissionRoute permission="company.meeting.view" module="company">
+            <MyMeetings />
+          </PermissionRoute>
+        } />
         <Route path="/employee/attendance" element={<Navigate to="/attendance/my-attendance" replace />} />
         <Route path="/employee/attendance-report/:employeeId" element={<EmployeeAttendanceReport />} />
         <Route path="/employee/leaves" element={<EmployeeMyLeaves />} />
@@ -405,9 +409,21 @@ const AppRoutes = () => {
         <Route path="/employee/projects" element={<MyProjects />} />
         <Route path="/employee/time-tracking" element={<TimeTracking />} />
         <Route path="/employee/team" element={<TeamDirectory />} />
-        <Route path="/employee/announcements" element={<Announcements />} />
-        <Route path="/employee/notifications" element={<Announcements />} />
-        <Route path="/employee/policies" element={<Policies />} />
+        <Route path="/employee/announcements" element={
+          <PermissionRoute permission="company.announcement.view" module="company">
+            <Announcements />
+          </PermissionRoute>
+        } />
+        <Route path="/employee/notifications" element={
+          <PermissionRoute permission="company.announcement.view" module="company">
+            <Announcements />
+          </PermissionRoute>
+        } />
+        <Route path="/employee/policies" element={
+          <PermissionRoute permission="company.policy.view" module="company">
+            <Policies />
+          </PermissionRoute>
+        } />
         <Route path="/employee/settings" element={<Settings />} />
         <Route path="/employee/profile" element={
           <PermissionRoute permission="profile.view">
@@ -774,25 +790,37 @@ const AppRoutes = () => {
           }
         />
 
-        {/* Company Management Routes */}
+        {/* Company Management Routes (Authorization V2 pilot) */}
         <Route
           path="/meetings"
-          element={<MeetingManagement />}
+          element={
+            <PermissionRoute permission="company.meeting.view" module="company">
+              <MeetingManagement />
+            </PermissionRoute>
+          }
         />
         <Route
           path="/policies"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="company.policy.manage"
+              module="company"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <PolicyManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/announcements"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="company.announcement.manage"
+              module="company"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <AnnouncementManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         

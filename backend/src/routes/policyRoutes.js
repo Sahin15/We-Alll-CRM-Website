@@ -10,31 +10,37 @@ import {
 } from "../controllers/policyController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
 
+const POLICY_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
+
 router.use(protect);
 
-router.get("/", getPolicies);
-router.get("/recent", getRecentPolicies);
-router.get("/categories", getPolicyCategories);
-router.get("/:id", getPolicyById);
+router.get("/", requireModulePermission("company", "company.policy.view"), getPolicies);
+router.get("/recent", requireModulePermission("company", "company.policy.view"), getRecentPolicies);
+router.get("/categories", requireModulePermission("company", "company.policy.view"), getPolicyCategories);
+router.get("/:id", requireModulePermission("company", "company.policy.view"), getPolicyById);
 
 router.post(
   "/",
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  authorizeRoles(...POLICY_MANAGE_ROLES),
+  requireModulePermission("company", "company.policy.manage", { legacyRoles: POLICY_MANAGE_ROLES }),
   createPolicy
 );
 
 router.put(
   "/:id",
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  authorizeRoles(...POLICY_MANAGE_ROLES),
+  requireModulePermission("company", "company.policy.manage", { legacyRoles: POLICY_MANAGE_ROLES }),
   updatePolicy
 );
 
 router.delete(
   "/:id",
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  authorizeRoles(...POLICY_MANAGE_ROLES),
+  requireModulePermission("company", "company.policy.manage", { legacyRoles: POLICY_MANAGE_ROLES }),
   deletePolicy
 );
 

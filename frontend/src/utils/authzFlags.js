@@ -2,7 +2,7 @@
  * Frontend Authorization V2 feature flags.
  */
 
-const AUTHZ_V2_MODULES = ['profile', 'support', 'dashboard'];
+const AUTHZ_V2_MODULES = ['profile', 'support', 'dashboard', 'company'];
 
 /**
  * @param {string} moduleName - e.g. 'profile', 'support'
@@ -39,4 +39,11 @@ export function isAuthzV2SupportEnabled() {
  */
 export function isAuthzV2DashboardEnabled() {
   return isAuthzV2ModuleEnabled('dashboard');
+}
+
+/**
+ * @returns {boolean}
+ */
+export function isAuthzV2CompanyEnabled() {
+  return isAuthzV2ModuleEnabled('company');
 }
