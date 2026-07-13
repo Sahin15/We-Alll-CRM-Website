@@ -1,15 +1,18 @@
 import express from "express";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 import SalaryPreviewService from "../services/salaryPreviewService.js";
 
 const router = express.Router();
+const PAYROLL_MANAGE_ROLES = ["hr", "admin", "superadmin", "manager"];
 const previewService = new SalaryPreviewService();
 
 // Generate salary preview for employee
 router.post("/generate", 
   protect, 
-  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  authorizeRoles(...PAYROLL_MANAGE_ROLES),
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   async (req, res) => {
     try {
       const { employeeId, month, year, additionalData } = req.body;
@@ -44,7 +47,8 @@ router.post("/generate",
 // Bulk generate previews
 router.post("/bulk-generate",
   protect,
-  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  authorizeRoles(...PAYROLL_MANAGE_ROLES),
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   async (req, res) => {
     try {
       const { employeeIds, month, year, additionalData, workingDaysOverride } = req.body;
@@ -79,7 +83,8 @@ router.post("/bulk-generate",
 // Get working days info for a month (used for mid-month preview confirmation)
 router.get("/working-days-info",
   protect,
-  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  authorizeRoles(...PAYROLL_MANAGE_ROLES),
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   async (req, res) => {
     try {
       const month = parseInt(req.query.month);
@@ -134,6 +139,7 @@ router.get("/working-days-info",
 // Get employee's own salary preview
 router.get("/my-preview/:month/:year",
   protect,
+  requireModulePermission("finance", "payroll.slip.view_self", { legacyAllowed: true }),
   async (req, res) => {
     try {
       const { month, year } = req.params;
@@ -157,7 +163,8 @@ router.get("/my-preview/:month/:year",
 // MUST be defined before /:previewId routes to avoid Express matching "bulk-recalculate" as a previewId.
 router.post("/bulk-recalculate",
   protect,
-  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  authorizeRoles(...PAYROLL_MANAGE_ROLES),
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   async (req, res) => {
     try {
       const { month, year } = req.body;
@@ -277,6 +284,7 @@ router.post("/bulk-recalculate",
 // Submit employee query on preview
 router.post("/:previewId/query",
   protect,
+  requireModulePermission("finance", "payroll.slip.view_self", { legacyAllowed: true }),
   async (req, res) => {
     try {
       const { previewId } = req.params;
@@ -312,7 +320,8 @@ router.post("/:previewId/query",
 // HR respond to employee query
 router.post("/:previewId/query/:queryIndex/respond",
   protect,
-  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  authorizeRoles(...PAYROLL_MANAGE_ROLES),
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   async (req, res) => {
     try {
       const { previewId, queryIndex } = req.params;
@@ -349,6 +358,7 @@ router.post("/:previewId/query/:queryIndex/respond",
 // Employee acknowledge preview
 router.post("/:previewId/acknowledge",
   protect,
+  requireModulePermission("finance", "payroll.slip.view_self", { legacyAllowed: true }),
   async (req, res) => {
     try {
       const { previewId } = req.params;
@@ -373,7 +383,8 @@ router.post("/:previewId/acknowledge",
 // HR finalize preview
 router.post("/:previewId/finalize",
   protect,
-  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  authorizeRoles(...PAYROLL_MANAGE_ROLES),
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   async (req, res) => {
     try {
       const { previewId } = req.params;
@@ -398,7 +409,8 @@ router.post("/:previewId/finalize",
 // Get all previews for a month (HR view)
 router.get("/month/:month/:year",
   protect,
-  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  authorizeRoles(...PAYROLL_MANAGE_ROLES),
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   async (req, res) => {
     try {
       const { month, year } = req.params;
@@ -428,7 +440,8 @@ router.get("/month/:month/:year",
 // Get previews requiring HR attention
 router.get("/attention/:month/:year",
   protect,
-  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  authorizeRoles(...PAYROLL_MANAGE_ROLES),
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   async (req, res) => {
     try {
       const { month, year } = req.params;
@@ -452,7 +465,8 @@ router.get("/attention/:month/:year",
 // Get preview statistics
 router.get("/statistics/:month/:year",
   protect,
-  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  authorizeRoles(...PAYROLL_MANAGE_ROLES),
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   async (req, res) => {
     try {
       const { month, year } = req.params;
@@ -476,7 +490,8 @@ router.get("/statistics/:month/:year",
 // Update preview with corrections
 router.put("/:previewId/corrections",
   protect,
-  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  authorizeRoles(...PAYROLL_MANAGE_ROLES),
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   async (req, res) => {
     try {
       const { previewId } = req.params;
@@ -512,7 +527,8 @@ router.put("/:previewId/corrections",
 // Convert finalized preview to salary slip
 router.post("/:previewId/convert-to-slip",
   protect,
-  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  authorizeRoles(...PAYROLL_MANAGE_ROLES),
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   async (req, res) => {
     try {
       const { previewId } = req.params;
@@ -537,7 +553,8 @@ router.post("/:previewId/convert-to-slip",
 // Delete preview
 router.delete("/:previewId",
   protect,
-  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  authorizeRoles(...PAYROLL_MANAGE_ROLES),
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   async (req, res) => {
     try {
       const { previewId } = req.params;

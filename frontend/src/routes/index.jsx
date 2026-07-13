@@ -410,25 +410,37 @@ const AppRoutes = () => {
         <Route
           path="/salary-management"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "accounts", "manager"]}>
+            <PermissionRoute
+              permission="payroll.slip.manage"
+              module="finance"
+              fallbackRoles={["admin", "superadmin", "hr", "accounts", "manager"]}
+            >
               <SalaryManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/salary-preview-management"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "accounts", "manager"]}>
+            <PermissionRoute
+              permission="payroll.slip.manage"
+              module="finance"
+              fallbackRoles={["admin", "superadmin", "hr", "accounts", "manager"]}
+            >
               <HRSalaryPreviewManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/salary-templates"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "accounts", "manager"]}>
+            <PermissionRoute
+              permission="payroll.structure.manage"
+              module="finance"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <TemplateManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
@@ -537,8 +549,16 @@ const AppRoutes = () => {
             <EmployeeMyLeaves />
           </PermissionRoute>
         } />
-        <Route path="/employee/salary-slips" element={<MySalarySlips />} />
-        <Route path="/employee/salary-preview" element={<MySalaryPreview />} />
+        <Route path="/employee/salary-slips" element={
+          <PermissionRoute permission="payroll.slip.view_self" module="finance">
+            <MySalarySlips />
+          </PermissionRoute>
+        } />
+        <Route path="/employee/salary-preview" element={
+          <PermissionRoute permission="payroll.slip.view_self" module="finance">
+            <MySalaryPreview />
+          </PermissionRoute>
+        } />
         <Route
           path="/employee/projects"
           element={
@@ -1176,97 +1196,129 @@ const AppRoutes = () => {
         <Route
           path="/expenses/my-expenses"
           element={
-            <RoleBasedRoute allowedRoles={["employee", "hod", "manager", "hr", "admin", "superadmin"]}>
+            <PermissionRoute permission="expense.claim.create" module="finance">
               <MyExpenses />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/expenses/create"
           element={
-            <RoleBasedRoute allowedRoles={["employee", "hod", "manager", "hr", "admin", "superadmin"]}>
+            <PermissionRoute permission="expense.claim.create" module="finance">
               <CreateExpense />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/expenses/:id"
           element={
-            <RoleBasedRoute allowedRoles={["employee", "hod", "manager", "hr", "admin", "superadmin"]}>
+            <PermissionRoute permission="expense.claim.create" module="finance">
               <ExpenseDetails />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/expenses/:id/edit"
           element={
-            <RoleBasedRoute allowedRoles={["employee", "hod", "manager", "hr", "admin", "superadmin"]}>
+            <PermissionRoute permission="expense.claim.create" module="finance">
               <EditExpense />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/expenses/approvals"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="expense.claim.approve"
+              module="finance"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <ExpenseManagementConsolidated />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/expenses/management"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="expense.claim.approve"
+              module="finance"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <ExpenseManagementConsolidated />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/expenses/reimbursement"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="expense.claim.approve"
+              module="finance"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <ExpenseManagementConsolidated />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/expenses/search"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="expense.claim.approve"
+              module="finance"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <ExpenseManagementConsolidated />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/expenses/analytics"
           element={
-            <RoleBasedRoute allowedRoles={["employee", "hod", "manager", "hr", "admin", "superadmin"]}>
+            <PermissionRoute
+              permission="expense.claim.approve"
+              module="finance"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <ExpenseManagementConsolidated />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/expenses/budget"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="expense.claim.approve"
+              module="finance"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <ExpenseManagementConsolidated />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/expenses/reports"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="expense.claim.approve"
+              module="finance"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <ExpenseManagementConsolidated />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/expenses/budget-management"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="expense.claim.approve"
+              module="finance"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <BudgetManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 

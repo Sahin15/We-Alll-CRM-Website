@@ -1,6 +1,7 @@
 import express from "express";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 import SalaryStructureTemplate from "../models/salaryStructureTemplateModel.js";
 import SalaryStructure from "../models/salaryStructureModel.js";
 import User from "../models/userModel.js";
@@ -9,8 +10,10 @@ import { mergeActiveEmployeeFilter } from "../utils/employeeQueryUtils.js";
 
 const router = express.Router();
 
+const PAYROLL_STRUCTURE_ROLES = ["admin", "superadmin", "hr", "manager"];
+
 // Get all templates
-router.get("/", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), async (req, res) => {
+router.get("/", protect, authorizeRoles(...PAYROLL_STRUCTURE_ROLES), requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_STRUCTURE_ROLES }), async (req, res) => {
   try {
     const templates = await SalaryStructureTemplate.find()
       .populate('department', 'name')
@@ -26,7 +29,7 @@ router.get("/", protect, authorizeRoles("admin", "superadmin", "hr", "manager"),
 });
 
 // Get template by ID
-router.get("/:id", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), async (req, res) => {
+router.get("/:id", protect, authorizeRoles(...PAYROLL_STRUCTURE_ROLES), requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_STRUCTURE_ROLES }), async (req, res) => {
   try {
     const template = await SalaryStructureTemplate.findById(req.params.id)
       .populate('department', 'name')
@@ -45,7 +48,7 @@ router.get("/:id", protect, authorizeRoles("admin", "superadmin", "hr", "manager
 });
 
 // Create new template
-router.post("/", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), async (req, res) => {
+router.post("/", protect, authorizeRoles(...PAYROLL_STRUCTURE_ROLES), requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_STRUCTURE_ROLES }), async (req, res) => {
   try {
     const {
       name,
@@ -120,7 +123,7 @@ router.post("/", protect, authorizeRoles("admin", "superadmin", "hr", "manager")
 });
 
 // Update template
-router.put("/:id", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), async (req, res) => {
+router.put("/:id", protect, authorizeRoles(...PAYROLL_STRUCTURE_ROLES), requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_STRUCTURE_ROLES }), async (req, res) => {
   try {
     const template = await SalaryStructureTemplate.findById(req.params.id);
     if (!template) {
@@ -186,7 +189,7 @@ router.put("/:id", protect, authorizeRoles("admin", "superadmin", "hr", "manager
 });
 
 // Apply template to specific employees
-router.post("/:id/apply", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), async (req, res) => {
+router.post("/:id/apply", protect, authorizeRoles(...PAYROLL_STRUCTURE_ROLES), requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_STRUCTURE_ROLES }), async (req, res) => {
   try {
     const { employeeIds, effectiveDate } = req.body;
 
@@ -256,7 +259,7 @@ router.post("/:id/apply", protect, authorizeRoles("admin", "superadmin", "hr", "
 });
 
 // Bulk apply template to department/designation
-router.post("/:id/bulk-apply", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), async (req, res) => {
+router.post("/:id/bulk-apply", protect, authorizeRoles(...PAYROLL_STRUCTURE_ROLES), requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_STRUCTURE_ROLES }), async (req, res) => {
   try {
     const { department, designation, effectiveDate } = req.body;
 
@@ -326,7 +329,7 @@ router.post("/:id/bulk-apply", protect, authorizeRoles("admin", "superadmin", "h
 });
 
 // Delete template
-router.delete("/:id", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), async (req, res) => {
+router.delete("/:id", protect, authorizeRoles(...PAYROLL_STRUCTURE_ROLES), requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_STRUCTURE_ROLES }), async (req, res) => {
   try {
     const template = await SalaryStructureTemplate.findById(req.params.id);
     if (!template) {
@@ -350,7 +353,7 @@ router.delete("/:id", protect, authorizeRoles("admin", "superadmin", "hr", "mana
 });
 
 // Get template usage statistics
-router.get("/:id/usage-stats", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), async (req, res) => {
+router.get("/:id/usage-stats", protect, authorizeRoles(...PAYROLL_STRUCTURE_ROLES), requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_STRUCTURE_ROLES }), async (req, res) => {
   try {
     const template = await SalaryStructureTemplate.findById(req.params.id);
     if (!template) {
@@ -404,7 +407,7 @@ router.get("/:id/usage-stats", protect, authorizeRoles("admin", "superadmin", "h
 });
 
 // Get template version history
-router.get("/:id/versions", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), async (req, res) => {
+router.get("/:id/versions", protect, authorizeRoles(...PAYROLL_STRUCTURE_ROLES), requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_STRUCTURE_ROLES }), async (req, res) => {
   try {
     const template = await SalaryStructureTemplate.findById(req.params.id);
     if (!template) {
