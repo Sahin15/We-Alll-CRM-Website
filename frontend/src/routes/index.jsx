@@ -525,7 +525,14 @@ const AppRoutes = () => {
         } />
         <Route path="/employee/salary-slips" element={<MySalarySlips />} />
         <Route path="/employee/salary-preview" element={<MySalaryPreview />} />
-        <Route path="/employee/projects" element={<MyProjects />} />
+        <Route
+          path="/employee/projects"
+          element={
+            <PermissionRoute permission="projects.project.view" module="projects">
+              <MyProjects />
+            </PermissionRoute>
+          }
+        />
         <Route path="/employee/time-tracking" element={<TimeTracking />} />
         <Route path="/employee/team" element={<TeamDirectory />} />
         <Route path="/employee/announcements" element={
@@ -807,11 +814,39 @@ const AppRoutes = () => {
 
 
 
-        {/* Project Management */}
-        <Route path="/projects" element={<ProjectListPage />} />
-        <Route path="/projects-old" element={<ProjectList />} />
-        <Route path="/projects/:id" element={<ProjectWorkspace />} />
-        <Route path="/projects/:id/old" element={<ProjectDetails />} />
+        {/* Project Management (Authorization V2 pilot) */}
+        <Route
+          path="/projects"
+          element={
+            <PermissionRoute permission="projects.project.view" module="projects">
+              <ProjectListPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/projects-old"
+          element={
+            <PermissionRoute permission="projects.project.view" module="projects">
+              <ProjectList />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/projects/:id"
+          element={
+            <PermissionRoute permission="projects.project.view" module="projects">
+              <ProjectWorkspace />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/projects/:id/old"
+          element={
+            <PermissionRoute permission="projects.project.view" module="projects">
+              <ProjectDetails />
+            </PermissionRoute>
+          }
+        />
 
         {/* Work Items Management - For Notification Links */}
         <Route path="/work-items/:id" element={<MyWorkPage />} />

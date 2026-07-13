@@ -253,6 +253,7 @@ export const LEGACY_ROLE_TO_ACCESS_ROLES = {
         { permission: 'company.announcement.view', scope: SCOPES.COMPANY },
         { permission: 'billing.invoice.view', scope: SCOPES.CLIENT_PORTFOLIO },
         { permission: 'billing.subscription.view', scope: SCOPES.CLIENT_PORTFOLIO },
+        { permission: 'projects.project.view', scope: SCOPES.CLIENT_PORTFOLIO },
       ],
     },
   ],

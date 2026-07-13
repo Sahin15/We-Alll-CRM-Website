@@ -38,30 +38,82 @@ import {
 } from "../controllers/projectWorkspaceController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
-import { canAssignHoP } from "../middleware/hodMiddleware.js";
-import { isHoPOfProject, canManageProject } from "../middleware/hopMiddleware.js";
+import { requireModulePermission } from "../authz/authzMiddleware.js";
+import { canManageProject } from "../middleware/hopMiddleware.js";
+import {
+  enableSlotsForProject,
+  getProjectSlots,
+  createProjectSlot,
+  updateProjectSlot,
+  deleteProjectSlot,
+} from "../controllers/workCalendarController.js";
+import { getWorkItemsGroupedBySlots } from "../controllers/workItemController.js";
 
 const router = express.Router();
 
+const PROJECT_CREATE_ROLES = ["admin", "superadmin", "hr", "manager", "hod"];
+const PROJECT_UPDATE_ROLES = ["admin", "superadmin", "hr", "manager", "hod"];
+const PROJECT_STATUS_ROLES = ["admin", "superadmin", "manager", "hod"];
+const PROJECT_ASSIGN_ROLES = ["admin", "superadmin", "manager", "hod"];
+const PROJECT_HEAD_ROLES = ["admin", "superadmin", "hr", "manager"];
+const PROJECT_ADMIN_ROLES = ["admin", "superadmin", "manager"];
+const PROJECT_VIEW_ROLES = [
+  "admin",
+  "superadmin",
+  "hr",
+  "manager",
+  "hod",
+  "employee",
+  "client",
+];
+const PROJECT_PROGRESS_ROLES = ["admin", "superadmin", "manager", "employee", "hod"];
+const PROJECT_MILESTONE_ROLES = ["admin", "superadmin", "manager", "hod"];
+const PROJECT_TASK_UPDATE_ROLES = ["admin", "superadmin", "manager", "employee"];
+const PROJECT_DELIVERABLE_ADD_ROLES = ["admin", "superadmin", "manager", "employee"];
+const PROJECT_DELIVERABLE_UPDATE_ROLES = ["admin", "superadmin", "manager", "hod"];
+const PROJECT_DELETE_ROLES = ["admin", "superadmin", "hr", "manager"];
+const SLOT_ENABLE_ROLES = ["admin", "superadmin", "hr", "manager"];
+const SLOT_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager", "hod", "hop"];
+const SLOT_DELETE_ROLES = ["hr", "manager", "admin", "superadmin"];
+
 // Create new project (Admin / SuperAdmin / HR / Manager / HoD)
-router.post("/", protect, authorizeRoles("admin", "superadmin", "hr", "manager", "hod"), createProject);
+router.post(
+  "/",
+  protect,
+  authorizeRoles(...PROJECT_CREATE_ROLES),
+  requireModulePermission("projects", "projects.project.manage", {
+    legacyRoles: PROJECT_CREATE_ROLES,
+  }),
+  createProject
+);
 
 // Update project (full update) - HoD can edit their own projects
 router.put(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager", "hod"),
+  authorizeRoles(...PROJECT_UPDATE_ROLES),
+  requireModulePermission("projects", "projects.project.manage", {
+    legacyRoles: PROJECT_UPDATE_ROLES,
+  }),
   updateProject
 );
 
-// Get all projects (Admin / Manager / User)
-router.get("/", protect, getProjects);
+// Get all projects (controller filters by role)
+router.get(
+  "/",
+  protect,
+  requireModulePermission("projects", "projects.project.view", { legacyAllowed: true }),
+  getProjects
+);
 
 // Update project status
 router.put(
   "/:id/status",
   protect,
-  authorizeRoles("admin", "superadmin", "manager", "hod"),
+  authorizeRoles(...PROJECT_STATUS_ROLES),
+  requireModulePermission("projects", "projects.project.manage", {
+    legacyRoles: PROJECT_STATUS_ROLES,
+  }),
   updateProjectStatus
 );
 
@@ -69,81 +121,125 @@ router.put(
 router.put(
   "/:projectId/assign/:userId",
   protect,
-  authorizeRoles("admin", "superadmin", "manager", "hod"),
+  authorizeRoles(...PROJECT_ASSIGN_ROLES),
+  requireModulePermission("projects", "projects.project.manage", {
+    legacyRoles: PROJECT_ASSIGN_ROLES,
+  }),
   assignUserToProject
 );
 router.put(
   "/:projectId/remove/:userId",
   protect,
-  authorizeRoles("admin", "superadmin", "manager", "hod"),
+  authorizeRoles(...PROJECT_ASSIGN_ROLES),
+  requireModulePermission("projects", "projects.project.manage", {
+    legacyRoles: PROJECT_ASSIGN_ROLES,
+  }),
   removeUserFromProject
 );
 
-// Assign and remove project head (SIMPLIFIED - HR/Admin/Manager can assign directly)
+// Assign and remove project head
 router.put(
   "/:projectId/project-head",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  authorizeRoles(...PROJECT_HEAD_ROLES),
+  requireModulePermission("projects", "projects.project.manage", {
+    legacyRoles: PROJECT_HEAD_ROLES,
+  }),
   assignProjectHead
 );
 router.delete(
   "/:projectId/project-head",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  authorizeRoles(...PROJECT_HEAD_ROLES),
+  requireModulePermission("projects", "projects.project.manage", {
+    legacyRoles: PROJECT_HEAD_ROLES,
+  }),
   removeProjectHead
 );
 
-// HoP/Project Manager Management Routes (SIMPLIFIED)
+// HoP/Project Manager Management Routes
 router.post(
   "/:projectId/assign-department",
   protect,
-  authorizeRoles("admin", "superadmin", "manager"),
+  authorizeRoles(...PROJECT_ADMIN_ROLES),
+  requireModulePermission("projects", "projects.project.manage", {
+    legacyRoles: PROJECT_ADMIN_ROLES,
+  }),
   assignProjectToDepartment
 );
 router.post(
   "/:projectId/assign-hop",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  authorizeRoles(...PROJECT_HEAD_ROLES),
+  requireModulePermission("projects", "projects.project.manage", {
+    legacyRoles: PROJECT_HEAD_ROLES,
+  }),
   assignHoP
 );
 
-// Team Management (HoP, HoD, Admin)
+// Team Management (HoP, HoD, Admin — custom middleware in controller)
 router.post(
   "/:projectId/team/add",
   protect,
   canManageProject,
+  requireModulePermission("projects", "projects.project.manage", { legacyAllowed: true }),
   addTeamMember
 );
 router.delete(
   "/:projectId/team/:userId",
   protect,
   canManageProject,
+  requireModulePermission("projects", "projects.project.manage", { legacyAllowed: true }),
   removeTeamMember
 );
 router.get(
   "/:projectId/team",
   protect,
   canManageProject,
+  requireModulePermission("projects", "projects.project.view", { legacyAllowed: true }),
   getProjectTeam
 );
 
 // Get logged-in user's projects
-router.get("/my-projects", protect, getProjectsForUser);
+router.get(
+  "/my-projects",
+  protect,
+  requireModulePermission("projects", "projects.project.view", { legacyAllowed: true }),
+  getProjectsForUser
+);
 
 // Get projects for a specific employee (HR/Admin viewing)
-router.get("/employee/:employeeId", protect, getProjectsForEmployee);
+router.get(
+  "/employee/:employeeId",
+  protect,
+  requireModulePermission("projects", "projects.project.view", { legacyAllowed: true }),
+  getProjectsForEmployee
+);
 
 // HoP Routes - Get projects where I'm the head
-router.get("/my-leading", protect, getMyLeadingProjects);
+router.get(
+  "/my-leading",
+  protect,
+  requireModulePermission("projects", "projects.project.view", { legacyAllowed: true }),
+  getMyLeadingProjects
+);
 
 // HoD Routes - Get projects in my department
-router.get("/my-department", protect, getMyDepartmentProjects);
+router.get(
+  "/my-department",
+  protect,
+  requireModulePermission("projects", "projects.project.view", { legacyAllowed: true }),
+  getMyDepartmentProjects
+);
 
-// Get single project (clients restricted to own)
+// Get single project (clients restricted to own in controller)
 router.get(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager", "hod", "employee", "client"),
+  authorizeRoles(...PROJECT_VIEW_ROLES),
+  requireModulePermission("projects", "projects.project.view", {
+    legacyRoles: PROJECT_VIEW_ROLES,
+  }),
   getProjectById
 );
 
@@ -151,7 +247,10 @@ router.get(
 router.put(
   "/:id/progress",
   protect,
-  authorizeRoles("admin", "superadmin", "manager", "employee", "hod"),
+  authorizeRoles(...PROJECT_PROGRESS_ROLES),
+  requireModulePermission("projects", "projects.project.manage", {
+    legacyRoles: PROJECT_PROGRESS_ROLES,
+  }),
   updateProjectProgress
 );
 
@@ -159,13 +258,19 @@ router.put(
 router.post(
   "/:id/milestones",
   protect,
-  authorizeRoles("admin", "superadmin", "manager", "hod"),
+  authorizeRoles(...PROJECT_MILESTONE_ROLES),
+  requireModulePermission("projects", "projects.project.manage", {
+    legacyRoles: PROJECT_MILESTONE_ROLES,
+  }),
   addMilestone
 );
 router.put(
   "/:id/milestones/:milestoneId",
   protect,
-  authorizeRoles("admin", "superadmin", "manager", "hod"),
+  authorizeRoles(...PROJECT_MILESTONE_ROLES),
+  requireModulePermission("projects", "projects.project.manage", {
+    legacyRoles: PROJECT_MILESTONE_ROLES,
+  }),
   updateMilestone
 );
 
@@ -173,13 +278,19 @@ router.put(
 router.post(
   "/:id/tasks",
   protect,
-  authorizeRoles("admin", "superadmin", "manager", "hod"),
+  authorizeRoles(...PROJECT_MILESTONE_ROLES),
+  requireModulePermission("projects", "projects.project.manage", {
+    legacyRoles: PROJECT_MILESTONE_ROLES,
+  }),
   addTask
 );
 router.put(
   "/:id/tasks/:taskId",
   protect,
-  authorizeRoles("admin", "superadmin", "manager", "employee"),
+  authorizeRoles(...PROJECT_TASK_UPDATE_ROLES),
+  requireModulePermission("projects", "projects.project.manage", {
+    legacyRoles: PROJECT_TASK_UPDATE_ROLES,
+  }),
   updateTask
 );
 
@@ -187,13 +298,19 @@ router.put(
 router.post(
   "/:id/deliverables",
   protect,
-  authorizeRoles("admin", "superadmin", "manager", "employee"),
+  authorizeRoles(...PROJECT_DELIVERABLE_ADD_ROLES),
+  requireModulePermission("projects", "projects.project.manage", {
+    legacyRoles: PROJECT_DELIVERABLE_ADD_ROLES,
+  }),
   addDeliverable
 );
 router.put(
   "/:id/deliverables/:deliverableId",
   protect,
-  authorizeRoles("admin", "superadmin", "manager", "hod"),
+  authorizeRoles(...PROJECT_DELIVERABLE_UPDATE_ROLES),
+  requireModulePermission("projects", "projects.project.manage", {
+    legacyRoles: PROJECT_DELIVERABLE_UPDATE_ROLES,
+  }),
   updateDeliverable
 );
 
@@ -201,77 +318,88 @@ router.put(
 router.delete(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  authorizeRoles(...PROJECT_DELETE_ROLES),
+  requireModulePermission("projects", "projects.project.manage", {
+    legacyRoles: PROJECT_DELETE_ROLES,
+  }),
   deleteProject
 );
 
 // Project Workspace endpoints
-router.get("/:id/workspace", protect, getProjectWorkspace);
-router.get("/:id/work-board", protect, getWorkBoard);
-router.get("/:id/team-workload", protect, getProjectTeamWorkload);
-
-
-
+router.get(
+  "/:id/workspace",
+  protect,
+  requireModulePermission("projects", "projects.project.view", { legacyAllowed: true }),
+  getProjectWorkspace
+);
+router.get(
+  "/:id/work-board",
+  protect,
+  requireModulePermission("projects", "projects.project.view", { legacyAllowed: true }),
+  getWorkBoard
+);
+router.get(
+  "/:id/team-workload",
+  protect,
+  requireModulePermission("projects", "projects.project.view", { legacyAllowed: true }),
+  getProjectTeamWorkload
+);
 
 // ============================================
 // SLOT-BASED PROJECT TRACKING ROUTES
 // ============================================
 
-import {
-  enableSlotsForProject,
-  getProjectSlots,
-  createProjectSlot,
-  updateProjectSlot,
-  deleteProjectSlot
-} from "../controllers/workCalendarController.js";
-
-import {
-  getWorkItemsGroupedBySlots
-} from "../controllers/workItemController.js";
-
-// Enable slot system for existing project
 router.post(
   "/:projectId/slots/enable",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  authorizeRoles(...SLOT_ENABLE_ROLES),
+  requireModulePermission("projects", "projects.project.manage", {
+    legacyRoles: SLOT_ENABLE_ROLES,
+  }),
   enableSlotsForProject
 );
 
-// Get all slots for a project
 router.get(
   "/:projectId/slots",
   protect,
+  requireModulePermission("projects", "projects.project.view", { legacyAllowed: true }),
   getProjectSlots
 );
 
-// Create a new slot for a project
 router.post(
   "/:projectId/slots",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager", "hod", "hop"),
+  authorizeRoles(...SLOT_MANAGE_ROLES),
+  requireModulePermission("projects", "projects.project.manage", {
+    legacyRoles: SLOT_MANAGE_ROLES,
+  }),
   createProjectSlot
 );
 
-// Update slot details
 router.put(
   "/:projectId/slots/:slotId",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager", "hod", "hop"),
+  authorizeRoles(...SLOT_MANAGE_ROLES),
+  requireModulePermission("projects", "projects.project.manage", {
+    legacyRoles: SLOT_MANAGE_ROLES,
+  }),
   updateProjectSlot
 );
 
-// Delete a slot (restricted to HR, Manager, Admin, SuperAdmin)
 router.delete(
   "/:projectId/slots/:slotId",
   protect,
-  authorizeRoles("hr", "manager", "admin", "superadmin"),
+  authorizeRoles(...SLOT_DELETE_ROLES),
+  requireModulePermission("projects", "projects.project.manage", {
+    legacyRoles: SLOT_DELETE_ROLES,
+  }),
   deleteProjectSlot
 );
 
-// Get work items grouped by slots
 router.get(
   "/:projectId/workitems/grouped-by-slots",
   protect,
+  requireModulePermission("projects", "projects.project.view", { legacyAllowed: true }),
   getWorkItemsGroupedBySlots
 );
 
@@ -282,24 +410,28 @@ router.get(
 router.get(
   "/:id/credentials",
   protect,
+  requireModulePermission("projects", "projects.project.view", { legacyAllowed: true }),
   getProjectCredentials
 );
 
 router.post(
   "/:id/credentials",
   protect,
+  requireModulePermission("projects", "projects.project.manage", { legacyAllowed: true }),
   addProjectCredential
 );
 
 router.put(
   "/:id/credentials/:credentialId",
   protect,
+  requireModulePermission("projects", "projects.project.manage", { legacyAllowed: true }),
   updateProjectCredential
 );
 
 router.delete(
   "/:id/credentials/:credentialId",
   protect,
+  requireModulePermission("projects", "projects.project.manage", { legacyAllowed: true }),
   deleteProjectCredential
 );
 
