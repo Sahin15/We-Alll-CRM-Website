@@ -171,29 +171,28 @@ const {
   HoDDashboard,
 } = Pages;
 
-const AppRoutes = () => {
+const RoleDashboard = () => {
   const { user } = useAuth();
 
-  const getDashboardByRole = () => {
-    if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/login" replace />;
 
-    switch (user.role) {
-      case "superadmin":
-        return <SuperAdminDashboard />;
-      case "admin":
-        return <AdminDashboard />;
-      case "hr":
-        return <HRDashboard />;
-      case "accounts":
-        return <AccountsDashboard />;
-      case "client":
-        return <ClientDashboard />;
-      default:
-        // Employee, HoD, Manager all use EmployeeDashboard (it has role-specific sections built in)
-        return <EmployeeDashboard />;
-    }
-  };
+  switch (user.role) {
+    case "superadmin":
+      return <SuperAdminDashboard />;
+    case "admin":
+      return <AdminDashboard />;
+    case "hr":
+      return <HRDashboard />;
+    case "accounts":
+      return <AccountsDashboard />;
+    case "client":
+      return <ClientDashboard />;
+    default:
+      return <EmployeeDashboard />;
+  }
+};
 
+const AppRoutes = () => {
   return (
     <Routes>
       {/* Public Routes */}
@@ -241,11 +240,13 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       >
-        {/* Dashboard - Role-based */}
+        {/* Dashboard - Role-based (Authorization V2 pilot) */}
         <Route path="/dashboard" element={
-          <Suspense fallback={<RouteLoadingFallback />}>
-            {getDashboardByRole()}
-          </Suspense>
+          <PermissionRoute permission="dashboard.view" module="dashboard">
+            <Suspense fallback={<RouteLoadingFallback />}>
+              <RoleDashboard />
+            </Suspense>
+          </PermissionRoute>
         } />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
