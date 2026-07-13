@@ -45,6 +45,7 @@ const DEPARTMENT_HEAD_GRANTS = [
   { permission: 'procurement.pr.view', scope: SCOPES.OWN_DEPARTMENT },
   { permission: 'work.item.approve', scope: SCOPES.OWN_DEPARTMENT },
   { permission: 'projects.project.manage', scope: SCOPES.OWN_DEPARTMENT },
+  { permission: 'reports.analytics.view', scope: SCOPES.OWN_DEPARTMENT },
 ];
 
 /** @type {Record<string, AccessRoleDefinition[]>} */
@@ -158,6 +159,7 @@ export const LEGACY_ROLE_TO_ACCESS_ROLES = {
         { permission: 'company.policy.manage', scope: SCOPES.COMPANY },
         { permission: 'company.announcement.manage', scope: SCOPES.COMPANY },
         { permission: 'expense.claim.approve', scope: SCOPES.COMPANY },
+        { permission: 'reports.analytics.view', scope: SCOPES.COMPANY },
         { permission: 'profile.view', scope: SCOPES.SELF },
         { permission: 'profile.update', scope: SCOPES.SELF },
         ...EMPLOYEE_STANDARD_GRANTS.filter(

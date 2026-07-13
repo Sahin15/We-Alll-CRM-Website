@@ -1146,9 +1146,13 @@ const AppRoutes = () => {
         <Route
           path="/reports"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="reports.analytics.view"
+              module="reports"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <ReportsAnalytics />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
