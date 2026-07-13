@@ -6,6 +6,7 @@
 import { PERMISSION_CATALOG, VALID_PERMISSION_KEYS } from './permissionCatalog.js';
 import { LEGACY_ROLE_TO_ACCESS_ROLES } from './legacyRoleMapping.js';
 import { SCOPES } from './scopes.js';
+import { mergeDirectGrants } from './grantMerge.js';
 
 /**
  * Resolve access role definitions for a user (legacy path).
@@ -34,12 +35,12 @@ export function getAccessRolesForUser(user) {
 }
 
 /**
- * Union grants from all access roles; later deny overrides will be applied here.
+ * Role-based grants only (excludes direct user assignments).
  *
  * @param {object} user
  * @returns {import('./scopes.js').PermissionGrant[]}
  */
-export function getEffectiveGrants(user) {
+export function getLegacyRoleGrants(user) {
   const accessRoles = getAccessRolesForUser(user);
   const grantMap = new Map();
 
@@ -62,6 +63,23 @@ export function getEffectiveGrants(user) {
   }
 
   return Array.from(grantMap.values());
+}
+
+/**
+ * Union grants from all access roles; merges direct user assignments when present.
+ *
+ * @param {object} user
+ * @returns {import('./scopes.js').PermissionGrant[]}
+ */
+export function getEffectiveGrants(user) {
+  const legacyGrants = getLegacyRoleGrants(user);
+  const directGrants = user?.directPermissionGrants || [];
+
+  if (!directGrants.length) {
+    return legacyGrants;
+  }
+
+  return mergeDirectGrants(legacyGrants, directGrants);
 }
 
 /**
@@ -111,7 +129,8 @@ export function buildEffectivePermissions(user) {
     permissions,
     scopes,
     grants,
-    source: 'legacy_adapter',
+    directAssignments: user?.directPermissionGrants?.filter((g) => g.effect !== 'deny') || [],
+    source: user?.directPermissionGrants?.length ? 'legacy_adapter+direct' : 'legacy_adapter',
   };
 }
 

@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/userModel.js";
+import { attachDirectPermissionGrants } from "../authz/attachDirectGrants.js";
 
 export const protect = async (req, res, next) => {
   try {
@@ -32,8 +33,8 @@ export const protect = async (req, res, next) => {
     // Set both _id and id for compatibility
     req.user = user;
     req.user.id = user._id.toString();
-    
-    next();
+
+    await attachDirectPermissionGrants(req, res, next);
   } catch (error) {
     // Only log actual errors, not routine auth failures
     if (error.name !== 'JsonWebTokenError' && error.name !== 'TokenExpiredError') {

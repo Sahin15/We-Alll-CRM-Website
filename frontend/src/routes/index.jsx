@@ -54,6 +54,7 @@ const {
   HoDCreateHiringRequest,
   HoDHiringRequestDetail,
   AdminSettings,
+  PermissionAssignment,
   HODSettings,
   UserList,
   UserDetails,
@@ -1615,6 +1616,18 @@ const AppRoutes = () => {
               fallbackRoles={["admin", "superadmin"]}
             >
               <SupportManagement />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/admin/permission-assignments"
+          element={
+            <PermissionRoute
+              permission="auth.permission.assign"
+              module="auth"
+              fallbackRoles={["admin", "superadmin"]}
+            >
+              <PermissionAssignment />
             </PermissionRoute>
           }
         />

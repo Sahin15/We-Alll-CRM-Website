@@ -588,6 +588,13 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       roles: ["admin", "superadmin"],
       onlyForRoles: ["admin", "superadmin"],
     },
+    {
+      path: "/admin/permission-assignments",
+      icon: <FaShieldAlt />,
+      label: "Permission Assignment",
+      roles: ["admin", "superadmin"],
+      onlyForRoles: ["admin", "superadmin"],
+    },
   ];
 
   const filteredMenu = menuItems.filter((item) => {

@@ -39,6 +39,7 @@ export const HoDHiringRequests = lp(() => import("../pages/hod/HoDHiringRequests
 export const HoDCreateHiringRequest = lp(() => import("../pages/hod/HoDCreateHiringRequest"));
 export const HoDHiringRequestDetail = lp(() => import("../pages/hod/HoDHiringRequestDetail"));
 export const AdminSettings = lp(() => import("../pages/admin/AdminSettings"));
+export const PermissionAssignment = lp(() => import("../pages/admin/PermissionAssignment"));
 export const HODSettings = lp(() => import("../pages/hod/HODSettings"));
 
 // Users

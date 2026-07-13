@@ -1,33 +1,39 @@
 import api from './axios.js';
 
 /**
- * Authorization V2 — Effective permissions API
+ * Authorization V2 — Effective permissions & assignment API
  */
 export const authzApi = {
-  /**
-   * Get effective permissions for the current user (legacy adapter).
-   * @returns {Promise<{ legacyRole, accessRoles, permissions, scopes, grants, source }>}
-   */
   getEffective: async () => {
     const { data } = await api.get('/v1/authz/effective');
     return data?.data ?? data;
   },
 
-  /**
-   * Check a single permission (debug).
-   * @param {string} permission
-   * @param {object} [resource]
-   */
   check: async (permission, resource = null) => {
     const { data } = await api.post('/v1/authz/check', { permission, resource });
     return data?.data ?? data;
   },
 
-  /**
-   * Permission catalog (admin only).
-   */
   getCatalog: async () => {
     const { data } = await api.get('/v1/authz/catalog');
+    return data?.data ?? data;
+  },
+
+  /**
+   * @param {string} userId
+   * @returns {Promise<object>}
+   */
+  getUserAssignments: async (userId) => {
+    const { data } = await api.get(`/v1/authz/users/${userId}/assignments`);
+    return data?.data ?? data;
+  },
+
+  /**
+   * @param {string} userId
+   * @param {Array<{ permission: string, scope?: string, effect?: string, note?: string }>} assignments
+   */
+  updateUserAssignments: async (userId, assignments) => {
+    const { data } = await api.put(`/v1/authz/users/${userId}/assignments`, { assignments });
     return data?.data ?? data;
   },
 };

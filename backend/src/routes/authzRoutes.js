@@ -7,6 +7,10 @@ import {
   checkPermission,
   getPermissionCatalog,
 } from '../controllers/authzController.js';
+import {
+  getUserAssignments,
+  updateUserAssignments,
+} from '../controllers/authzAssignmentController.js';
 
 const router = express.Router();
 
@@ -33,6 +37,22 @@ router.get(
   authorizeRoles(...AUTH_ADMIN_ROLES),
   requireModulePermission('auth', 'auth.role.manage', { legacyRoles: AUTH_ADMIN_ROLES }),
   getPermissionCatalog
+);
+
+router.get(
+  '/users/:userId/assignments',
+  protect,
+  authorizeRoles(...AUTH_ADMIN_ROLES),
+  requireModulePermission('auth', 'auth.permission.assign', { legacyRoles: AUTH_ADMIN_ROLES }),
+  getUserAssignments
+);
+
+router.put(
+  '/users/:userId/assignments',
+  protect,
+  authorizeRoles(...AUTH_ADMIN_ROLES),
+  requireModulePermission('auth', 'auth.permission.assign', { legacyRoles: AUTH_ADMIN_ROLES }),
+  updateUserAssignments
 );
 
 export default router;
