@@ -108,7 +108,7 @@ input[type="radio"],
 }
 
 /* Exception for inline text links */
-a:not(.btn):not([role="button"]) {
+a:not(.btn):not([role="button"]):not(.sidebar-link):not(.sidebar-sublink) {
   min-height: auto;
   min-width: auto;
   display: inline;

@@ -1,18 +1,18 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { isAuthzV2ModuleEnabled } from "../utils/authzFlags";
+import { hasPermissionAccess } from "../utils/authzAccess";
 
 /**
  * Permission-based route guard (Authorization V2).
- * When module flag is off, renders children (legacy ProtectedRoute handles auth).
+ * Uses effective permissions (role + direct grants) when loaded.
  *
  * @param {object} props
  * @param {React.ReactNode} props.children
  * @param {string} props.permission - Required permission key
- * @param {string} [props.module] - Module flag name (e.g. profile, support)
- * @param {string[]} [props.fallbackRoles] - Legacy role fallback when V2 off
+ * @param {string} [props.module] - Module flag name (legacy, optional)
+ * @param {string[]} [props.fallbackRoles] - Legacy role fallback
  */
-const PermissionRoute = ({ children, permission, module = "profile", fallbackRoles }) => {
+const PermissionRoute = ({ children, permission, fallbackRoles }) => {
   const {
     user,
     isAuthenticated,
@@ -20,11 +20,10 @@ const PermissionRoute = ({ children, permission, module = "profile", fallbackRol
     authzLoading,
     canPermission,
     checkPermission,
+    authzEffective,
   } = useAuth();
 
-  const v2Enabled = isAuthzV2ModuleEnabled(module);
-
-  if (loading || (v2Enabled && authzLoading)) {
+  if (loading || authzLoading) {
     return (
       <div
         className="d-flex justify-content-center align-items-center"
@@ -41,14 +40,21 @@ const PermissionRoute = ({ children, permission, module = "profile", fallbackRol
     return <Navigate to="/login" replace />;
   }
 
-  if (v2Enabled && permission) {
-    if (!canPermission(permission)) {
+  if (permission) {
+    const allowed = hasPermissionAccess({
+      user,
+      canPermission,
+      checkPermission,
+      authzEffective,
+      authzLoading,
+      permission,
+      fallbackRoles,
+    });
+
+    if (!allowed) {
       return <Navigate to="/unauthorized" replace />;
     }
-    return children;
-  }
-
-  if (fallbackRoles?.length && !checkPermission(fallbackRoles)) {
+  } else if (fallbackRoles?.length && !checkPermission(fallbackRoles)) {
     return <Navigate to="/unauthorized" replace />;
   }
 

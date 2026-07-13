@@ -22,4 +22,15 @@ describe('Authorization V2 — Support pilot parity', () => {
     expect(hasPermission(user, 'support.manage')).toBe(false);
     expect(hasPermission(user, 'support.view')).toBe(true);
   });
+
+  test('employee with direct support.manage grant can manage support contacts', () => {
+    const user = {
+      _id: 'emp1',
+      role: 'employee',
+      directPermissionGrants: [
+        { permission: 'support.manage', scope: 'COMPANY', effect: 'grant' },
+      ],
+    };
+    expect(hasPermission(user, 'support.manage')).toBe(true);
+  });
 });

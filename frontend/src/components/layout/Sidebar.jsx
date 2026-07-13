@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Nav } from "react-bootstrap";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   FaTachometerAlt,
@@ -35,12 +34,13 @@ import {
   FaUserPlus,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
+import { hasPermissionAccess } from "../../utils/authzAccess";
 import "./Sidebar.css";
 
 const Sidebar = ({ collapsed, toggleSidebar }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, canPermission, checkPermission, authzEffective, authzLoading } = useAuth();
   const [expandedGroups, setExpandedGroups] = useState({});
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 991);
 
@@ -585,21 +585,33 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       path: "/admin/support-management",
       icon: <FaPhone />,
       label: "Support Contacts",
-      roles: ["admin", "superadmin"],
-      onlyForRoles: ["admin", "superadmin"],
+      permission: "support.manage",
+      fallbackRoles: ["admin", "superadmin"],
     },
     {
       path: "/admin/permission-assignments",
       icon: <FaShieldAlt />,
       label: "Permission Assignment",
-      roles: ["admin", "superadmin"],
-      onlyForRoles: ["admin", "superadmin"],
+      permission: "auth.permission.assign",
+      fallbackRoles: ["admin", "superadmin"],
     },
   ];
 
   const filteredMenu = menuItems.filter((item) => {
     // Helper function to check if user has access
     const hasAccess = (menuItem) => {
+      if (menuItem.permission) {
+        return hasPermissionAccess({
+          user,
+          canPermission,
+          checkPermission,
+          authzEffective,
+          authzLoading,
+          permission: menuItem.permission,
+          fallbackRoles: menuItem.fallbackRoles,
+        });
+      }
+
       // If onlyForRoles is specified, ONLY those roles can see it
       // Exception: hod role is checked separately via hodDepartments
       if (menuItem.onlyForRoles && menuItem.onlyForRoles.length > 0) {
@@ -688,7 +700,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           </div>
         </div>
 
-        <Nav className="flex-column">
+        <div className="sidebar-nav flex-column">
           {filteredMenu.map((item) => {
             if (item.isGroup) {
               const isExpanded = expandedGroups[item.id];
@@ -709,9 +721,8 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
                   {!collapsed && isExpanded && (
                     <div className="sidebar-submenu">
                       {item.children.map((child) => (
-                        <Nav.Link
+                        <Link
                           key={child.path}
-                          as={Link}
                           to={child.path}
                           className={`sidebar-link sidebar-sublink ${
                             location.pathname === child.path ? "active" : ""
@@ -720,7 +731,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
                         >
                           <span className="sidebar-icon">{child.icon}</span>
                           <span className="sidebar-label">{child.label}</span>
-                        </Nav.Link>
+                        </Link>
                       ))}
                     </div>
                   )}
@@ -729,9 +740,8 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
             }
             
             return (
-              <Nav.Link
+              <Link
                 key={item.path}
-                as={Link}
                 to={item.path}
                 className={`sidebar-link ${
                   location.pathname === item.path ? "active" : ""
@@ -745,10 +755,10 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
                     {item.roleLabels ? (item.roleLabels[user?.role] || item.roleLabels.default || item.label) : item.label}
                   </span>
                 )}
-              </Nav.Link>
+              </Link>
             );
           })}
-        </Nav>
+        </div>
       </div>
 
       {/* Mobile overlay */}

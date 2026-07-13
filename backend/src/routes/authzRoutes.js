@@ -1,6 +1,5 @@
 import express from 'express';
 import { protect } from '../middleware/authMiddleware.js';
-import { authorizeRoles } from '../middleware/roleMiddleware.js';
 import { requireModulePermission } from '../authz/authzMiddleware.js';
 import {
   getEffectivePermissions,
@@ -16,6 +15,14 @@ const router = express.Router();
 
 const AUTH_ADMIN_ROLES = ['admin', 'superadmin'];
 
+const manageAuthRoles = requireModulePermission('auth', 'auth.role.manage', {
+  legacyRoles: AUTH_ADMIN_ROLES,
+});
+
+const assignPermissions = requireModulePermission('auth', 'auth.permission.assign', {
+  legacyRoles: AUTH_ADMIN_ROLES,
+});
+
 router.get(
   '/effective',
   protect,
@@ -23,36 +30,12 @@ router.get(
   getEffectivePermissions
 );
 
-router.post(
-  '/check',
-  protect,
-  authorizeRoles(...AUTH_ADMIN_ROLES),
-  requireModulePermission('auth', 'auth.role.manage', { legacyRoles: AUTH_ADMIN_ROLES }),
-  checkPermission
-);
+router.post('/check', protect, manageAuthRoles, checkPermission);
 
-router.get(
-  '/catalog',
-  protect,
-  authorizeRoles(...AUTH_ADMIN_ROLES),
-  requireModulePermission('auth', 'auth.role.manage', { legacyRoles: AUTH_ADMIN_ROLES }),
-  getPermissionCatalog
-);
+router.get('/catalog', protect, manageAuthRoles, getPermissionCatalog);
 
-router.get(
-  '/users/:userId/assignments',
-  protect,
-  authorizeRoles(...AUTH_ADMIN_ROLES),
-  requireModulePermission('auth', 'auth.permission.assign', { legacyRoles: AUTH_ADMIN_ROLES }),
-  getUserAssignments
-);
+router.get('/users/:userId/assignments', protect, assignPermissions, getUserAssignments);
 
-router.put(
-  '/users/:userId/assignments',
-  protect,
-  authorizeRoles(...AUTH_ADMIN_ROLES),
-  requireModulePermission('auth', 'auth.permission.assign', { legacyRoles: AUTH_ADMIN_ROLES }),
-  updateUserAssignments
-);
+router.put('/users/:userId/assignments', protect, assignPermissions, updateUserAssignments);
 
 export default router;

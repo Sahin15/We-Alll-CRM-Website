@@ -124,6 +124,14 @@ export const requireModulePermission = (moduleName, permission, options = {}) =>
       });
     }
 
+    // Restricted routes: require legacy role OR effective permission (includes direct grants)
+    if (legacyRoles?.length && !resolvedLegacyAllowed && !decision.allowed) {
+      return res.status(403).json({
+        success: false,
+        error: `Permission denied: ${permission}`,
+      });
+    }
+
     next();
   };
 };

@@ -34,7 +34,11 @@ export const authzApi = {
    */
   updateUserAssignments: async (userId, assignments) => {
     const { data } = await api.put(`/v1/authz/users/${userId}/assignments`, { assignments });
-    return data?.data ?? data;
+    const payload = data?.data ?? data;
+    if (!payload?.user) {
+      throw new Error(data?.message || 'Invalid response from permission assignment API');
+    }
+    return payload;
   },
 };
 

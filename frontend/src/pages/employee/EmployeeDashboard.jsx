@@ -14,7 +14,8 @@ import {
   FaEye, 
   FaEdit, 
   FaCheckCircle, 
-  FaPlus 
+  FaPlus,
+  FaPhone,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import toast from "../../utils/toast";
@@ -120,7 +121,7 @@ const MeetingRow = ({ meeting, user, onEdit, onComplete, showDate }) => {
 };
 
 const EmployeeDashboard = () => {
-  const { user } = useAuth();
+  const { user, canPermission } = useAuth();
   const paidLeaveEligible = canApplyPaidLeave(user);
   const allowedLeaveTypes = getAllowedLeaveTypes(user);
   const [loading, setLoading] = useState(true);
@@ -1266,6 +1267,12 @@ const EmployeeDashboard = () => {
                   <FaChartLine className="me-2" />
                   Track Time
                 </Button>
+                {canPermission("support.manage") && (
+                  <Button variant="outline-primary" size="lg" href="/admin/support-management">
+                    <FaPhone className="me-2" />
+                    Support Contacts
+                  </Button>
+                )}
               </div>
             </Card.Body>
           </Card>

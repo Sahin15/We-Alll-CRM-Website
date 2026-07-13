@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Accordion,
   Alert,
@@ -14,6 +14,7 @@ import {
 import { FaSave, FaShieldAlt, FaUser } from "react-icons/fa";
 import authzApi from "../../api/authzApi";
 import { userApi } from "../../api/userApi";
+import SearchableUserSelect from "../../components/shared/SearchableUserSelect";
 import toast from "../../utils/toast";
 
 const SCOPE_OPTIONS = [
@@ -52,6 +53,37 @@ function draftToAssignments(draft) {
   return Object.values(draft);
 }
 
+/**
+ * Normalize authz API payloads ({ success, data }) and plain data objects.
+ * @param {unknown} response
+ * @returns {object|null}
+ */
+function unwrapAuthzPayload(response) {
+  if (!response || typeof response !== "object") return null;
+  if (response.data && typeof response.data === "object" && !Array.isArray(response.data)) {
+    return response.data;
+  }
+  return response;
+}
+
+/**
+ * @param {Array<{ permission: string, scope: string, effect: string, note?: string }>} rows
+ * @returns {Record<string, { permission: string, scope: string, effect: string, note?: string }>}
+ */
+function rowsToDraft(rows = []) {
+  const nextDraft = {};
+  for (const row of rows) {
+    if (!row?.permission) continue;
+    nextDraft[row.permission] = {
+      permission: row.permission,
+      scope: row.scope,
+      effect: row.effect === "deny" ? "deny" : "grant",
+      note: row.note || "",
+    };
+  }
+  return nextDraft;
+}
+
 const PermissionAssignment = () => {
   const [users, setUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState("");
@@ -61,6 +93,12 @@ const PermissionAssignment = () => {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [saving, setSaving] = useState(false);
+  const draftRef = useRef({});
+  const loadRequestRef = useRef(0);
+
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
 
   useEffect(() => {
     const load = async () => {
@@ -98,31 +136,36 @@ const PermissionAssignment = () => {
     if (!userId) {
       setPayload(null);
       setDraft({});
+      draftRef.current = {};
       return;
     }
 
+    const requestId = ++loadRequestRef.current;
+
     try {
       setLoadingDetail(true);
-      const data = await authzApi.getUserAssignments(userId);
-      setPayload(data);
+      const data = unwrapAuthzPayload(await authzApi.getUserAssignments(userId));
+      if (requestId !== loadRequestRef.current) return;
 
-      const nextDraft = {};
-      for (const row of data.directAssignments || []) {
-        nextDraft[row.permission] = {
-          permission: row.permission,
-          scope: row.scope,
-          effect: row.effect,
-          note: row.note || "",
-        };
-      }
+      setPayload(data);
+      const nextDraft = rowsToDraft(data?.directAssignments);
       setDraft(nextDraft);
+      draftRef.current = nextDraft;
     } catch (error) {
+      if (requestId !== loadRequestRef.current) return;
       console.error("[PermissionAssignment] user load failed:", error);
-      toast.error(error.response?.data?.error || "Failed to load user permissions");
+      toast.error(
+        error.response?.data?.error ||
+          error.response?.data?.message ||
+          "Failed to load user permissions"
+      );
       setPayload(null);
       setDraft({});
+      draftRef.current = {};
     } finally {
-      setLoadingDetail(false);
+      if (requestId === loadRequestRef.current) {
+        setLoadingDetail(false);
+      }
     }
   }, []);
 
@@ -165,34 +208,60 @@ const PermissionAssignment = () => {
   const handleSave = async () => {
     if (!selectedUserId) return;
 
+    const assignments = draftToAssignments(draftRef.current);
+    const effectiveBefore = payload?.effective?.permissions?.length || 0;
+
     try {
       setSaving(true);
-      const updated = await authzApi.updateUserAssignments(
-        selectedUserId,
-        draftToAssignments(draft)
+      const updated = unwrapAuthzPayload(
+        await authzApi.updateUserAssignments(selectedUserId, assignments)
       );
-      setPayload(updated);
 
-      const nextDraft = {};
-      for (const row of updated.directAssignments || []) {
-        nextDraft[row.permission] = {
-          permission: row.permission,
-          scope: row.scope,
-          effect: row.effect,
-          note: row.note || "",
-        };
+      if (!updated?.user?._id) {
+        throw new Error("Save succeeded but the server returned an invalid response");
       }
+
+      setPayload(updated);
+      const nextDraft = rowsToDraft(updated.directAssignments);
       setDraft(nextDraft);
-      toast.success("Permission assignments saved");
+      draftRef.current = nextDraft;
+
+      const effectiveAfter = updated.effective?.permissions?.length || 0;
+      const grantCount = assignments.filter((item) => item.effect !== "deny").length;
+      const denialCount = assignments.filter((item) => item.effect === "deny").length;
+      const effectiveDelta = effectiveAfter - effectiveBefore;
+
+      let summary = `Saved ${assignments.length} override${assignments.length === 1 ? "" : "s"}`;
+      if (grantCount || denialCount) {
+        summary += ` (${grantCount} grant${grantCount === 1 ? "" : "s"}, ${denialCount} denial${denialCount === 1 ? "" : "s"})`;
+      }
+      if (effectiveDelta !== 0) {
+        summary += `. Effective permissions: ${effectiveBefore} → ${effectiveAfter}`;
+      } else if (assignments.length > 0) {
+        summary += ". Effective permissions unchanged (role already included these or denials offset grants).";
+      }
+
+      toast.success(summary);
     } catch (error) {
-      toast.error(error.response?.data?.error || "Failed to save assignments");
+      console.error("[PermissionAssignment] save failed:", error);
+      toast.error(
+        error.response?.data?.error ||
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to save assignments"
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  const customGrantCount = Object.values(draft).filter((d) => d.effect === "grant").length;
   const denyCount = Object.values(draft).filter((d) => d.effect === "deny").length;
+  const savedOverrideCount = payload?.directAssignments?.length || 0;
+  const netCustomPermissions = payload?.effective?.customPermissions?.length || 0;
+  const hasUnsavedChanges = useMemo(() => {
+    const savedDraft = rowsToDraft(payload?.directAssignments);
+    return JSON.stringify(savedDraft) !== JSON.stringify(draft);
+  }, [payload?.directAssignments, draft]);
 
   return (
     <Container fluid className="py-4">
@@ -204,6 +273,8 @@ const PermissionAssignment = () => {
           </h4>
           <p className="text-muted mb-0">
             Grant or revoke specific permissions for a user on top of their role defaults.
+            Use <strong>Deny</strong> to remove an inherited permission, or grant permissions the role does not include.
+            Granting a permission the role already has saves an override but may not change the effective count.
           </p>
         </Col>
       </Row>
@@ -213,21 +284,13 @@ const PermissionAssignment = () => {
           <Row className="g-3 align-items-end">
             <Col md={6}>
               <Form.Label>Select user</Form.Label>
-              {loadingUsers ? (
-                <Spinner size="sm" animation="border" />
-              ) : (
-                <Form.Select
-                  value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
-                >
-                  <option value="">Choose a user…</option>
-                  {users.map((u) => (
-                    <option key={u._id} value={u._id}>
-                      {u.name} ({u.email}) — {u.role}
-                    </option>
-                  ))}
-                </Form.Select>
-              )}
+              <SearchableUserSelect
+                users={users}
+                value={selectedUserId}
+                onChange={setSelectedUserId}
+                loading={loadingUsers}
+                placeholder="Type a name to search…"
+              />
             </Col>
             <Col md="auto">
               <Button
@@ -281,7 +344,10 @@ const PermissionAssignment = () => {
                     Inherited: {payload.inherited?.permissions?.length || 0}
                   </Badge>
                   <Badge bg="primary" className="px-3 py-2">
-                    Custom grants: {customGrantCount}
+                    Overrides: {savedOverrideCount}
+                  </Badge>
+                  <Badge bg="info" className="px-3 py-2">
+                    Net new grants: {netCustomPermissions}
                   </Badge>
                   <Badge bg="danger" className="px-3 py-2">
                     Denials: {denyCount}
@@ -289,6 +355,11 @@ const PermissionAssignment = () => {
                   <Badge bg="success" className="px-3 py-2">
                     Effective: {payload.effective?.permissions?.length || 0}
                   </Badge>
+                  {hasUnsavedChanges && (
+                    <Badge bg="warning" text="dark" className="px-3 py-2">
+                      Unsaved changes
+                    </Badge>
+                  )}
                 </Card.Body>
               </Card>
             </Col>

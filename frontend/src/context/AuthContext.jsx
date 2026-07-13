@@ -211,6 +211,25 @@ export const AuthProvider = ({ children }) => {
     };
   }, [user, token]);
 
+  useEffect(() => {
+    if (!token || !isAuthzV2AnyModuleEnabled()) return undefined;
+
+    const refreshOnFocus = () => {
+      loadAuthzEffective();
+    };
+
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        refreshOnFocus();
+      }
+    });
+
+    return () => {
+      window.removeEventListener("focus", refreshOnFocus);
+    };
+  }, [token, loadAuthzEffective]);
+
   const checkPermission = (allowedRoles) => {
     if (!user) return false;
     if (!allowedRoles || allowedRoles.length === 0) return true;
@@ -224,11 +243,14 @@ export const AuthProvider = ({ children }) => {
    */
   const canPermission = (permission) => {
     if (!user) return false;
-    if (isAuthzV2AnyModuleEnabled() && authzEffective?.permissions) {
-      if (authzEffective.permissions.includes('platform.admin')) {
+    if (authzEffective?.permissions) {
+      if (authzEffective.permissions.includes("platform.admin")) {
         return true;
       }
       return authzEffective.permissions.includes(permission);
+    }
+    if (isAuthzV2AnyModuleEnabled()) {
+      return false;
     }
     return true;
   };
