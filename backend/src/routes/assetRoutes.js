@@ -1,58 +1,130 @@
 import express from "express";
 import assetController from "../controllers/assetController.js";
 import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
 
-// All routes require authentication
+const ASSET_VIEW_ROLES = ["admin", "hr", "superadmin", "hod", "manager"];
+const ASSET_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
+
 router.use(protect);
 
-// ============================================
-// STATIC ROUTES - MUST come before /:id routes
-// ============================================
+router.get(
+  "/dashboard",
+  authorizeRoles(...ASSET_VIEW_ROLES),
+  requireModulePermission("resources", "assets.asset.view", { legacyRoles: ASSET_VIEW_ROLES }),
+  assetController.getDashboard
+);
 
-// Dashboard
-router.get("/dashboard", authorizeRoles("admin", "hr", "superadmin", "hod", "manager"), assetController.getDashboard);
+router.get(
+  "/my-assets",
+  requireModulePermission("resources", "assets.asset.view", { legacyAllowed: true }),
+  assetController.getMyAssets
+);
 
-// My Assets (Employee)
-router.get("/my-assets", assetController.getMyAssets);
+router.get(
+  "/warranty",
+  authorizeRoles(...ASSET_VIEW_ROLES),
+  requireModulePermission("resources", "assets.asset.view", { legacyRoles: ASSET_VIEW_ROLES }),
+  assetController.getWarrantyAssets
+);
 
-// Warranty
-router.get("/warranty", authorizeRoles("admin", "hr", "superadmin", "hod", "manager"), assetController.getWarrantyAssets);
+router.get(
+  "/history",
+  authorizeRoles(...ASSET_VIEW_ROLES),
+  requireModulePermission("resources", "assets.asset.view", { legacyRoles: ASSET_VIEW_ROLES }),
+  assetController.getAssignmentHistory
+);
 
-// History
-router.get("/history", authorizeRoles("admin", "hr", "superadmin", "hod", "manager"), assetController.getAssignmentHistory);
+router.get(
+  "/repairs",
+  authorizeRoles(...ASSET_VIEW_ROLES),
+  requireModulePermission("resources", "assets.asset.view", { legacyRoles: ASSET_VIEW_ROLES }),
+  assetController.getAllRepairs
+);
+router.post(
+  "/repairs",
+  authorizeRoles(...ASSET_MANAGE_ROLES),
+  requireModulePermission("resources", "assets.asset.manage", { legacyRoles: ASSET_MANAGE_ROLES }),
+  assetController.createRepair
+);
+router.put(
+  "/repairs/:repairId",
+  authorizeRoles(...ASSET_MANAGE_ROLES),
+  requireModulePermission("resources", "assets.asset.manage", { legacyRoles: ASSET_MANAGE_ROLES }),
+  assetController.updateRepair
+);
+router.post(
+  "/repairs/:repairId/complete",
+  authorizeRoles(...ASSET_MANAGE_ROLES),
+  requireModulePermission("resources", "assets.asset.manage", { legacyRoles: ASSET_MANAGE_ROLES }),
+  assetController.completeRepair
+);
 
-// Repair Operations
-router.get("/repairs", authorizeRoles("admin", "hr", "superadmin", "hod", "manager"), assetController.getAllRepairs);
-router.post("/repairs", authorizeRoles("admin", "superadmin", "hr", "manager"), assetController.createRepair);
-router.put("/repairs/:repairId", authorizeRoles("admin", "superadmin", "hr", "manager"), assetController.updateRepair);
-router.post("/repairs/:repairId/complete", authorizeRoles("admin", "superadmin", "hr", "manager"), assetController.completeRepair);
+router.get(
+  "/",
+  authorizeRoles(...ASSET_VIEW_ROLES),
+  requireModulePermission("resources", "assets.asset.view", { legacyRoles: ASSET_VIEW_ROLES }),
+  assetController.getAllAssets
+);
+router.post(
+  "/",
+  authorizeRoles(...ASSET_MANAGE_ROLES),
+  requireModulePermission("resources", "assets.asset.manage", { legacyRoles: ASSET_MANAGE_ROLES }),
+  assetController.createAsset
+);
 
-// ============================================
-// ASSET CRUD - List all assets
-// ============================================
-router.get("/", authorizeRoles("admin", "hr", "superadmin", "hod", "manager"), assetController.getAllAssets);
-router.post("/", authorizeRoles("admin", "superadmin", "hr", "manager"), assetController.createAsset);
+router.get(
+  "/:id",
+  authorizeRoles(...ASSET_VIEW_ROLES),
+  requireModulePermission("resources", "assets.asset.view", { legacyRoles: ASSET_VIEW_ROLES }),
+  assetController.getAssetById
+);
 
-// ============================================
-// DYNAMIC ROUTES - MUST come last
-// ============================================
+router.put(
+  "/:id",
+  authorizeRoles(...ASSET_MANAGE_ROLES),
+  requireModulePermission("resources", "assets.asset.manage", { legacyRoles: ASSET_MANAGE_ROLES }),
+  assetController.updateAsset
+);
+router.delete(
+  "/:id",
+  authorizeRoles(...ASSET_MANAGE_ROLES),
+  requireModulePermission("resources", "assets.asset.manage", { legacyRoles: ASSET_MANAGE_ROLES }),
+  assetController.deleteAsset
+);
 
-// Get single asset by ID
-router.get("/:id", authorizeRoles("admin", "hr", "superadmin", "hod", "manager"), assetController.getAssetById);
+router.get(
+  "/:id/history",
+  authorizeRoles(...ASSET_VIEW_ROLES),
+  requireModulePermission("resources", "assets.asset.view", { legacyRoles: ASSET_VIEW_ROLES }),
+  assetController.getAssetHistory
+);
 
-// Update/Delete asset
-router.put("/:id", authorizeRoles("admin", "superadmin", "hr", "manager"), assetController.updateAsset);
-router.delete("/:id", authorizeRoles("admin", "superadmin", "hr", "manager"), assetController.deleteAsset);
-
-// Asset history by ID
-router.get("/:id/history", authorizeRoles("admin", "hr", "superadmin", "hod", "manager"), assetController.getAssetHistory);
-
-// Assignment Operations
-router.post("/:id/assign", authorizeRoles("admin", "hr", "superadmin", "manager"), assetController.assignAsset);
-router.post("/:id/return", authorizeRoles("admin", "hr", "superadmin", "manager"), assetController.returnAsset);
-router.post("/:id/mark-lost", authorizeRoles("admin", "hr", "superadmin", "manager"), assetController.markAsLost);
-router.post("/:id/send-to-repair", authorizeRoles("admin", "hr", "superadmin", "manager"), assetController.sendToRepair);
+router.post(
+  "/:id/assign",
+  authorizeRoles(...ASSET_MANAGE_ROLES),
+  requireModulePermission("resources", "assets.asset.manage", { legacyRoles: ASSET_MANAGE_ROLES }),
+  assetController.assignAsset
+);
+router.post(
+  "/:id/return",
+  authorizeRoles(...ASSET_MANAGE_ROLES),
+  requireModulePermission("resources", "assets.asset.manage", { legacyRoles: ASSET_MANAGE_ROLES }),
+  assetController.returnAsset
+);
+router.post(
+  "/:id/mark-lost",
+  authorizeRoles(...ASSET_MANAGE_ROLES),
+  requireModulePermission("resources", "assets.asset.manage", { legacyRoles: ASSET_MANAGE_ROLES }),
+  assetController.markAsLost
+);
+router.post(
+  "/:id/send-to-repair",
+  authorizeRoles(...ASSET_MANAGE_ROLES),
+  requireModulePermission("resources", "assets.asset.manage", { legacyRoles: ASSET_MANAGE_ROLES }),
+  assetController.sendToRepair
+);
 
 export default router;

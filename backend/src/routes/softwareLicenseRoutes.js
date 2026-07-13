@@ -1,46 +1,91 @@
 import express from "express";
 import softwareLicenseController from "../controllers/softwareLicenseController.js";
 import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
 
-// Protect all routes
+const LICENSE_VIEW_ROLES = ["admin", "superadmin", "hr", "manager", "hod"];
+const LICENSE_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
+
 router.use(protect);
 
-// ============================================
-// STATIC ROUTES - MUST come FIRST before ANY dynamic routes
-// ============================================
+router.get(
+  "/dashboard",
+  authorizeRoles(...LICENSE_VIEW_ROLES),
+  requireModulePermission("resources", "licenses.license.view", { legacyRoles: LICENSE_VIEW_ROLES }),
+  softwareLicenseController.getLicenseDashboard
+);
 
-// Dashboard
-router.get("/dashboard", authorizeRoles("admin", "superadmin", "hr", "manager", "hod"), softwareLicenseController.getLicenseDashboard);
+router.get(
+  "/expiring",
+  authorizeRoles(...LICENSE_VIEW_ROLES),
+  requireModulePermission("resources", "licenses.license.view", { legacyRoles: LICENSE_VIEW_ROLES }),
+  softwareLicenseController.getExpiringLicenses
+);
 
-// Expiring licenses
-router.get("/expiring", authorizeRoles("admin", "superadmin", "hr", "manager", "hod"), softwareLicenseController.getExpiringLicenses);
+router.get(
+  "/assignments",
+  authorizeRoles(...LICENSE_VIEW_ROLES),
+  requireModulePermission("resources", "licenses.license.view", { legacyRoles: LICENSE_VIEW_ROLES }),
+  softwareLicenseController.getAssignments
+);
+router.post(
+  "/assign",
+  authorizeRoles(...LICENSE_MANAGE_ROLES),
+  requireModulePermission("resources", "licenses.license.manage", { legacyRoles: LICENSE_MANAGE_ROLES }),
+  softwareLicenseController.assignLicense
+);
+router.put(
+  "/assignments/:assignmentId/revoke",
+  authorizeRoles(...LICENSE_MANAGE_ROLES),
+  requireModulePermission("resources", "licenses.license.manage", { legacyRoles: LICENSE_MANAGE_ROLES }),
+  softwareLicenseController.revokeLicense
+);
 
-// Assignments
-router.get("/assignments", authorizeRoles("admin", "superadmin", "hr", "manager", "hod"), softwareLicenseController.getAssignments);
-router.post("/assign", authorizeRoles("admin", "superadmin", "hr", "manager"), softwareLicenseController.assignLicense);
-router.put("/assignments/:assignmentId/revoke", authorizeRoles("admin", "superadmin", "hr", "manager"), softwareLicenseController.revokeLicense);
+router.get(
+  "/user/my-licenses",
+  requireModulePermission("resources", "licenses.license.view", { legacyAllowed: true }),
+  softwareLicenseController.getUserLicenses
+);
 
-// User licenses - MUST come before /user/:userId
-router.get("/user/my-licenses", softwareLicenseController.getUserLicenses);
+router.get(
+  "/",
+  authorizeRoles(...LICENSE_VIEW_ROLES),
+  requireModulePermission("resources", "licenses.license.view", { legacyRoles: LICENSE_VIEW_ROLES }),
+  softwareLicenseController.getAllLicenses
+);
+router.post(
+  "/",
+  authorizeRoles(...LICENSE_MANAGE_ROLES),
+  requireModulePermission("resources", "licenses.license.manage", { legacyRoles: LICENSE_MANAGE_ROLES }),
+  softwareLicenseController.createLicense
+);
 
-// ============================================
-// LICENSE CRUD - List all licenses
-// ============================================
-router.get("/", authorizeRoles("admin", "superadmin", "hr", "manager", "hod"), softwareLicenseController.getAllLicenses);
-router.post("/", authorizeRoles("admin", "superadmin", "hr", "manager"), softwareLicenseController.createLicense);
+router.get(
+  "/user/:userId",
+  authorizeRoles(...LICENSE_VIEW_ROLES),
+  requireModulePermission("resources", "licenses.license.view", { legacyRoles: LICENSE_VIEW_ROLES }),
+  softwareLicenseController.getUserLicenses
+);
 
-// ============================================
-// DYNAMIC ROUTES - MUST come LAST
-// ============================================
-
-// User licenses by ID - MUST come after /user/my-licenses
-router.get("/user/:userId", authorizeRoles("admin", "superadmin", "hr", "manager", "hod"), softwareLicenseController.getUserLicenses);
-
-// License by ID
-router.get("/:id", authorizeRoles("admin", "superadmin", "hr", "manager", "hod"), softwareLicenseController.getLicenseById);
-router.put("/:id", authorizeRoles("admin", "superadmin", "hr", "manager"), softwareLicenseController.updateLicense);
-router.delete("/:id", authorizeRoles("admin", "superadmin", "hr", "manager"), softwareLicenseController.deleteLicense);
+router.get(
+  "/:id",
+  authorizeRoles(...LICENSE_VIEW_ROLES),
+  requireModulePermission("resources", "licenses.license.view", { legacyRoles: LICENSE_VIEW_ROLES }),
+  softwareLicenseController.getLicenseById
+);
+router.put(
+  "/:id",
+  authorizeRoles(...LICENSE_MANAGE_ROLES),
+  requireModulePermission("resources", "licenses.license.manage", { legacyRoles: LICENSE_MANAGE_ROLES }),
+  softwareLicenseController.updateLicense
+);
+router.delete(
+  "/:id",
+  authorizeRoles(...LICENSE_MANAGE_ROLES),
+  requireModulePermission("resources", "licenses.license.manage", { legacyRoles: LICENSE_MANAGE_ROLES }),
+  softwareLicenseController.deleteLicense
+);
 
 export default router;

@@ -1327,106 +1327,154 @@ const AppRoutes = () => {
         <Route
           path="/assets/dashboard"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute
+              permission="assets.asset.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
+            >
               <AssetDashboard />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/assets/add"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="assets.asset.manage"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <AddAsset />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/assets/assignments/history"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute
+              permission="assets.asset.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
+            >
               <AssignmentHistory />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/assets/history"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute
+              permission="assets.asset.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
+            >
               <AssignmentHistory />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/assets/repairs"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute
+              permission="assets.asset.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
+            >
               <RepairLog />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/assets/warranty"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute
+              permission="assets.asset.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
+            >
               <WarrantyTracker />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/assets/my-assets"
           element={
-            <RoleBasedRoute allowedRoles={["employee", "admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute permission="assets.asset.view" module="resources">
               <MyAssets />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/assets/management"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "employee", "hod"]}>
+            <PermissionRoute
+              permission="assets.asset.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "employee", "hod"]}
+            >
               <AssetManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         {/* Dynamic routes MUST come after static routes */}
         <Route
           path="/assets/:id/assign"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="assets.asset.manage"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <AssignAsset />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/assets/:id/repair"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="assets.asset.manage"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <SendToRepair />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/assets/:id/edit"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="assets.asset.manage"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <EditAsset />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/assets/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute
+              permission="assets.asset.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
+            >
               <AssetDetails />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/assets"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute
+              permission="assets.asset.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
+            >
               <AssetList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
@@ -1434,81 +1482,117 @@ const AppRoutes = () => {
         <Route
           path="/licenses/dashboard"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute
+              permission="licenses.license.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
+            >
               <SoftwareLicenseDashboard />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/licenses"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute
+              permission="licenses.license.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
+            >
               <SoftwareLicenseList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/licenses/add"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="licenses.license.manage"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <AddSoftwareLicense />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/licenses/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute
+              permission="licenses.license.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
+            >
               <SoftwareLicenseDetails />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/licenses/:id/edit"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="licenses.license.manage"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <EditSoftwareLicense />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/licenses/:id/assign"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="licenses.license.manage"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <AssignSoftwareLicense />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/licenses/:id/history"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="licenses.license.manage"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <LicenseHistory />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/licenses/expiry-alerts"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute
+              permission="licenses.license.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
+            >
               <LicenseExpiryAlerts />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/licenses/my-licenses"
           element={
-            <RoleBasedRoute allowedRoles={["employee", "admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute permission="licenses.license.view" module="resources">
               <MyLicenses />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/licenses/management"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "employee", "hod"]}>
+            <PermissionRoute
+              permission="licenses.license.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "employee", "hod"]}
+            >
               <SoftwareLicenseManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
