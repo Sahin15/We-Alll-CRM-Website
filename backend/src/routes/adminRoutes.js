@@ -6,12 +6,32 @@ import {
 } from "../controllers/adminController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
 
-// Only admin can manage users
-router.get("/users", protect, authorizeRoles("admin", "superadmin"), getAllUsers);
-router.put("/users/:id", protect, authorizeRoles("admin", "superadmin"), updateUserRole);
-router.delete("/users/:id", protect, authorizeRoles("admin", "superadmin"), deleteUser);
+const AUTH_ADMIN_ROLES = ["admin", "superadmin"];
+
+router.get(
+  "/users",
+  protect,
+  authorizeRoles(...AUTH_ADMIN_ROLES),
+  requireModulePermission("auth", "auth.role.manage", { legacyRoles: AUTH_ADMIN_ROLES }),
+  getAllUsers
+);
+router.put(
+  "/users/:id",
+  protect,
+  authorizeRoles(...AUTH_ADMIN_ROLES),
+  requireModulePermission("auth", "auth.role.manage", { legacyRoles: AUTH_ADMIN_ROLES }),
+  updateUserRole
+);
+router.delete(
+  "/users/:id",
+  protect,
+  authorizeRoles(...AUTH_ADMIN_ROLES),
+  requireModulePermission("auth", "auth.role.manage", { legacyRoles: AUTH_ADMIN_ROLES }),
+  deleteUser
+);
 
 export default router;

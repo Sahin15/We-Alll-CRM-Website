@@ -119,6 +119,7 @@ export const LEGACY_ROLE_TO_ACCESS_ROLES = {
         { permission: 'profile.view', scope: SCOPES.SELF },
         { permission: 'profile.update', scope: SCOPES.SELF },
         { permission: 'auth.role.manage', scope: SCOPES.COMPANY },
+        { permission: 'auth.permission.assign', scope: SCOPES.COMPANY },
       ],
     },
   ],

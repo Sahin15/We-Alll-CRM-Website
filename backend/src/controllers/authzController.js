@@ -37,13 +37,6 @@ export const checkPermission = asyncHandler(async (req, res) => {
  * Returns permission catalog (admin/superadmin only via legacy role for now).
  */
 export const getPermissionCatalog = asyncHandler(async (req, res) => {
-  if (!['admin', 'superadmin'].includes(req.user.role)) {
-    return res.status(403).json({
-      success: false,
-      error: 'Not authorized to view permission catalog',
-    });
-  }
-
   sendSuccess(
     res,
     {
