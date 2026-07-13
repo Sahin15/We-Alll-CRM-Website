@@ -12,6 +12,7 @@ import { legacyRoleAllows } from './legacyAdapter.js';
  * @param {object} params.user
  * @param {string} [params.permission]
  * @param {string[]} [params.legacyRoles]
+ * @param {boolean} [params.legacyAllowed] - explicit override (e.g. protect-only routes)
  * @param {string} [params.route]
  * @param {string} [params.method]
  */
@@ -19,6 +20,7 @@ export function logAuthzShadowComparison({
   user,
   permission,
   legacyRoles,
+  legacyAllowed: legacyAllowedOverride,
   route,
   method,
 }) {
@@ -26,9 +28,12 @@ export function logAuthzShadowComparison({
     return;
   }
 
-  const legacyAllowed = legacyRoles?.length
-    ? legacyRoleAllows(user, legacyRoles)
-    : null;
+  const legacyAllowed =
+    typeof legacyAllowedOverride === 'boolean'
+      ? legacyAllowedOverride
+      : legacyRoles?.length
+        ? legacyRoleAllows(user, legacyRoles)
+        : null;
 
   const v2Decision = permission ? can(user, permission) : null;
   const v2Allowed = v2Decision?.allowed ?? null;

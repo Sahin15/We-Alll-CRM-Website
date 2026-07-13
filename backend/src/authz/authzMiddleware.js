@@ -4,7 +4,12 @@
  */
 
 import { can } from './policyEngine.js';
-import { shadowLegacyRouteCheck } from './shadowLogger.js';
+import { logAuthzShadowComparison } from './shadowLogger.js';
+import {
+  isAuthzModuleEnabled,
+  isAuthzEnforceEnabled,
+  isAuthzShadowEnabled,
+} from './moduleFlags.js';
 
 /**
  * Require a permission key via policy engine.
@@ -54,9 +59,62 @@ export const withAuthzShadow = (permission, legacyMiddleware) => {
       if (err) return next(err);
       if (req.user && permission) {
         const legacyAllowed = res.statusCode < 400;
-        shadowLegacyRouteCheck(permission, [], legacyAllowed, req);
+        logAuthzShadowComparison({
+          user: req.user,
+          permission,
+          legacyRoles: [],
+          route: req.originalUrl,
+          method: req.method,
+        });
       }
       next();
     });
+  };
+};
+
+/**
+ * Module-scoped permission check for incremental migration.
+ * Legacy allow: any authenticated user (protect only).
+ *
+ * @param {string} moduleName - e.g. 'profile'
+ * @param {string} permission
+ * @param {{ legacyAllowed?: boolean }} [options]
+ * @returns {import('express').RequestHandler}
+ */
+export const requireModulePermission = (moduleName, permission, options = {}) => {
+  const { legacyAllowed = true } = options;
+
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        error: 'Not authenticated',
+      });
+    }
+
+    const decision = can(req.user, permission, req.authzResource || null);
+    req.authz = decision;
+
+    if (isAuthzShadowEnabled()) {
+      logAuthzShadowComparison({
+        user: req.user,
+        permission,
+        legacyAllowed,
+        route: req.originalUrl,
+        method: req.method,
+      });
+    }
+
+    const shouldEnforce =
+      isAuthzModuleEnabled(moduleName) && isAuthzEnforceEnabled();
+
+    if (shouldEnforce && !decision.allowed) {
+      return res.status(403).json({
+        success: false,
+        error: `Permission denied: ${permission}`,
+      });
+    }
+
+    next();
   };
 };

@@ -1,62 +1,71 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import authzApi from '../api/authzApi.js';
+import { isAuthzV2ProfileEnabled } from '../utils/authzFlags.js';
 
 /**
- * Authorization V2 — Permission hook (foundation).
- * Falls back to legacy checkPermission(roles) until effective API is loaded.
+ * Authorization V2 — Permission hook.
+ * Prefers AuthContext effective permissions when loaded.
  *
  * @param {{ enabled?: boolean }} [options]
  */
 export function usePermission(options = {}) {
   const { enabled = true } = options;
-  const { user, isAuthenticated, checkPermission: legacyCheck } = useAuth();
-  const [effective, setEffective] = useState(null);
+  const {
+    user,
+    isAuthenticated,
+    checkPermission: legacyCheck,
+    authzEffective,
+    authzLoading,
+    loadAuthzEffective,
+    canPermission: contextCanPermission,
+  } = useAuth();
+  const [localEffective, setLocalEffective] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const effective = authzEffective || localEffective;
+
   const refresh = useCallback(async () => {
     if (!isAuthenticated) {
-      setEffective(null);
-      return;
+      setLocalEffective(null);
+      return null;
+    }
+    if (authzEffective) {
+      return authzEffective;
     }
     setLoading(true);
     setError(null);
     try {
       const data = await authzApi.getEffective();
-      setEffective(data);
+      setLocalEffective(data);
+      return data;
     } catch (err) {
       setError(err);
-      setEffective(null);
+      setLocalEffective(null);
+      return null;
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, authzEffective]);
 
   useEffect(() => {
-    if (enabled && isAuthenticated) {
+    if (enabled && isAuthenticated && isAuthzV2ProfileEnabled() && !authzEffective) {
       refresh();
     }
-  }, [enabled, isAuthenticated, refresh]);
+  }, [enabled, isAuthenticated, authzEffective, refresh]);
 
-  /**
-   * @param {string} permission
-   * @param {string[]} [legacyRoles] - fallback role allowlist
-   */
   const can = useCallback(
     (permission, legacyRoles = null) => {
-      if (effective?.permissions?.includes(permission)) {
-        return true;
-      }
-      if (effective?.permissions?.includes('platform.admin')) {
-        return true;
+      if (isAuthzV2ProfileEnabled()) {
+        return contextCanPermission(permission);
       }
       if (legacyRoles?.length) {
         return legacyCheck(legacyRoles);
       }
-      return false;
+      return effective?.permissions?.includes(permission) ?? false;
     },
-    [effective, legacyCheck]
+    [contextCanPermission, effective, legacyCheck]
   );
 
   const getScope = useCallback(
@@ -66,9 +75,9 @@ export function usePermission(options = {}) {
 
   return {
     effective,
-    loading,
+    loading: loading || authzLoading,
     error,
-    refresh,
+    refresh: loadAuthzEffective || refresh,
     can,
     getScope,
     permissions: effective?.permissions ?? [],

@@ -6,5 +6,6 @@ export { buildEffectivePermissions, getEffectiveGrants, legacyRoleAllows } from 
 export { PERMISSION_CATALOG, isValidPermissionKey, getPermissionsByModule } from './permissionCatalog.js';
 export { SCOPES } from './scopes.js';
 export { resolveScopeFilter, resourceMatchesScope } from './scopeResolver.js';
-export { requirePermissionKey } from './authzMiddleware.js';
+export { requirePermissionKey, requireModulePermission } from './authzMiddleware.js';
+export { isAuthzModuleEnabled, isAuthzEnforceEnabled, isAuthzShadowEnabled } from './moduleFlags.js';
 export { logAuthzShadowComparison } from './shadowLogger.js';

@@ -1,5 +1,7 @@
-import { createContext, useState, useEffect, useContext, useRef } from "react";
+import { createContext, useState, useEffect, useContext, useRef, useCallback } from "react";
 import { authApi } from "../api/authApi";
+import authzApi from "../api/authzApi";
+import { isAuthzV2ProfileEnabled } from "../utils/authzFlags";
 import toast from "../utils/toast";
 import { startProfilePictureHealthMonitor } from "../utils/profilePictureHealth";
 
@@ -47,7 +49,27 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(safeLocalStorage.getItem("token"));
   const [loading, setLoading] = useState(true);
+  const [authzEffective, setAuthzEffective] = useState(null);
+  const [authzLoading, setAuthzLoading] = useState(false);
   const healthMonitorCleanup = useRef(null);
+
+  const loadAuthzEffective = useCallback(async () => {
+    if (!isAuthzV2ProfileEnabled()) {
+      setAuthzEffective(null);
+      return null;
+    }
+    setAuthzLoading(true);
+    try {
+      const data = await authzApi.getEffective();
+      setAuthzEffective(data);
+      return data;
+    } catch {
+      setAuthzEffective(null);
+      return null;
+    } finally {
+      setAuthzLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -72,6 +94,7 @@ export const AuthProvider = ({ children }) => {
             } catch {
               // Keep cached user if refresh fails (offline, etc.)
             }
+            await loadAuthzEffective();
           } catch (parseError) {
             safeLocalStorage.removeItem("token");
             safeLocalStorage.removeItem("user");
@@ -86,7 +109,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     initAuth();
-  }, []);
+  }, [loadAuthzEffective]);
 
   const login = async (credentials) => {
     try {
@@ -111,6 +134,8 @@ export const AuthProvider = ({ children }) => {
           setUser(completeUser);
         })
         .catch(() => {});
+
+      await loadAuthzEffective();
 
       return { success: true, data: { token, user } };
     } catch (error) {
@@ -139,6 +164,7 @@ export const AuthProvider = ({ children }) => {
     safeLocalStorage.removeItem("user");
     setToken(null);
     setUser(null);
+    setAuthzEffective(null);
     // No toast notification - clean logout experience
   };
 
@@ -191,17 +217,37 @@ export const AuthProvider = ({ children }) => {
     return allowedRoles.includes(user.role);
   };
 
+  /**
+   * Authorization V2 permission check (uses effective API when flag enabled).
+   * @param {string} permission
+   * @returns {boolean}
+   */
+  const canPermission = (permission) => {
+    if (!user) return false;
+    if (isAuthzV2ProfileEnabled() && authzEffective?.permissions) {
+      if (authzEffective.permissions.includes('platform.admin')) {
+        return true;
+      }
+      return authzEffective.permissions.includes(permission);
+    }
+    return true;
+  };
+
   const value = {
     user,
     token,
     loading,
     isAuthenticated: !!token,
+    authzEffective,
+    authzLoading,
     login,
     register,
     logout,
     updateProfile,
     refreshUser,
     checkPermission,
+    canPermission,
+    loadAuthzEffective,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

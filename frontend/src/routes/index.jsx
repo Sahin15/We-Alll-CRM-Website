@@ -13,6 +13,7 @@ import AuthLayout from "../components/layout/AuthLayout";
 // Protected Routes
 import ProtectedRoute from "./ProtectedRoute";
 import RoleBasedRoute from "./RoleBasedRoute";
+import PermissionRoute from "./PermissionRoute";
 
 // Auth Pages (eager — small, needed for first paint on /login)
 import Login from "../pages/auth/Login";
@@ -407,7 +408,11 @@ const AppRoutes = () => {
         <Route path="/employee/notifications" element={<Announcements />} />
         <Route path="/employee/policies" element={<Policies />} />
         <Route path="/employee/settings" element={<Settings />} />
-        <Route path="/employee/profile" element={<MyProfile />} />
+        <Route path="/employee/profile" element={
+          <PermissionRoute permission="profile.view">
+            <MyProfile />
+          </PermissionRoute>
+        } />
         {/* Removed old routes: /my-work-old, /slots, /tasks */}
 
         {/* Settings Routes for Different Roles */}
@@ -671,9 +676,17 @@ const AppRoutes = () => {
           }
         />
 
-        {/* Profile - Unified */}
-        <Route path="/profile" element={<MyProfile />} />
-        <Route path="/my-profile" element={<MyProfile />} />
+        {/* Profile - Unified (Authorization V2 pilot) */}
+        <Route path="/profile" element={
+          <PermissionRoute permission="profile.view">
+            <MyProfile />
+          </PermissionRoute>
+        } />
+        <Route path="/my-profile" element={
+          <PermissionRoute permission="profile.view">
+            <MyProfile />
+          </PermissionRoute>
+        } />
         {/* Removed old routes: /content-calendar, MyProfileEnhanced */}
 
         {/* Admin Billing Routes */}

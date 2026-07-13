@@ -15,6 +15,7 @@ import {
 } from "../controllers/userController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 import { uploadDocument, handleDocumentUploadError } from "../middleware/documentMiddleware.js";
 import {
   upload as documentUpload,
@@ -51,7 +52,7 @@ router.get("/employees", protect, async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
-router.get("/me", protect, async (req, res) => {
+router.get("/me", protect, requireModulePermission("profile", "profile.view"), async (req, res) => {
   try {
     const User = (await import("../models/userModel.js")).default;
     const user = await User.findById(req.user._id)
@@ -148,13 +149,13 @@ router.post("/request-password-reset", requestPasswordReset);
 router.post("/reset-password/:token", resetPassword);
 
 // Change password route (for authenticated users to change their own password)
-router.put("/change-password", protect, changePassword);
+router.put("/change-password", protect, requireModulePermission("profile", "profile.update"), changePassword);
 
 // Generate next employee ID sequence
 router.post("/next-employee-id-sequence", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), getNextEmployeeIdSequence);
 
 // Clear broken profile picture
-router.patch("/clear-broken-profile-picture", protect, async (req, res) => {
+router.patch("/clear-broken-profile-picture", protect, requireModulePermission("profile", "profile.update"), async (req, res) => {
   try {
     const { clearBrokenProfilePicture } = await import("../controllers/uploadController.js");
     await clearBrokenProfilePicture(req, res);
@@ -192,7 +193,7 @@ router.get("/:id/documents", protect, authorizeRoles("admin", "superadmin", "hr"
 });
 
 router.get("/:id", protect, getUserById);
-router.put("/profile", protect, updateUserProfile);
+router.put("/profile", protect, requireModulePermission("profile", "profile.update"), updateUserProfile);
 router.put("/:id/profile", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), updateUser);
 router.put(
   "/:id/status",
