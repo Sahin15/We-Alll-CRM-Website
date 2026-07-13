@@ -964,87 +964,127 @@ const AppRoutes = () => {
         } />
         {/* Removed old routes: /content-calendar, MyProfileEnhanced */}
 
-        {/* Admin Billing Routes */}
+        {/* Admin Billing Routes (Authorization V2 pilot) */}
         <Route
           path="/admin/billing"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager", "hod"]}>
+            <PermissionRoute
+              permission="billing.invoice.view"
+              module="billing"
+              fallbackRoles={["admin", "superadmin", "accounts", "manager", "hod"]}
+            >
               <AdminBillingDashboard />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/admin/services"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager", "hod"]}>
+            <PermissionRoute
+              permission="billing.subscription.manage"
+              module="billing"
+              fallbackRoles={["admin", "superadmin", "accounts", "manager", "hod"]}
+            >
               <ServiceManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/admin/plans"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager", "hod"]}>
+            <PermissionRoute
+              permission="billing.subscription.manage"
+              module="billing"
+              fallbackRoles={["admin", "superadmin", "accounts", "manager", "hod"]}
+            >
               <PlanManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/admin/subscriptions"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager", "hod"]}>
+            <PermissionRoute
+              permission="billing.subscription.view"
+              module="billing"
+              fallbackRoles={["admin", "superadmin", "accounts", "manager", "hod"]}
+            >
               <SubscriptionManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/admin/invoices"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager", "hod"]}>
+            <PermissionRoute
+              permission="billing.invoice.view"
+              module="billing"
+              fallbackRoles={["admin", "superadmin", "accounts", "manager", "hod"]}
+            >
               <InvoiceManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/admin/payments"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager", "hod"]}>
+            <PermissionRoute
+              permission="billing.payment.verify"
+              module="billing"
+              fallbackRoles={["admin", "superadmin", "accounts", "manager", "hod"]}
+            >
               <PaymentVerification />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Client Billing Routes */}
+        {/* Client Billing Routes (Authorization V2 pilot) */}
         <Route
           path="/client/billing"
           element={
-            <RoleBasedRoute allowedRoles={["client"]}>
+            <PermissionRoute
+              permission="billing.invoice.view"
+              module="billing"
+              fallbackRoles={["client"]}
+            >
               <ClientBillingDashboard />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/client/subscriptions"
           element={
-            <RoleBasedRoute allowedRoles={["client"]}>
+            <PermissionRoute
+              permission="billing.subscription.view"
+              module="billing"
+              fallbackRoles={["client"]}
+            >
               <ClientSubscriptions />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/client/invoices"
           element={
-            <RoleBasedRoute allowedRoles={["client"]}>
+            <PermissionRoute
+              permission="billing.invoice.view"
+              module="billing"
+              fallbackRoles={["client"]}
+            >
               <ClientInvoices />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/client/payments"
           element={
-            <RoleBasedRoute allowedRoles={["client"]}>
+            <PermissionRoute
+              permission="billing.invoice.view"
+              module="billing"
+              fallbackRoles={["client"]}
+            >
               <ClientPayments />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 

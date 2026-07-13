@@ -12,77 +12,91 @@ import {
 } from "../controllers/subscriptionController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
 
-// Create subscription (client or admin)
+const SUBSCRIPTION_MANAGE_ROLES = ["admin", "superadmin", "accounts", "manager", "hod"];
+const SUBSCRIPTION_CREATE_ROLES = ["admin", "superadmin", "client", "accounts", "hod"];
+const SUBSCRIPTION_READ_ROLES = ["admin", "superadmin", "accounts", "client", "hod"];
+const SUBSCRIPTION_CANCEL_ROLES = ["admin", "superadmin", "client"];
+const SUBSCRIPTION_DELETE_ROLES = ["admin", "superadmin", "manager"];
+const CLIENT_ROLES = ["client"];
+
 router.post(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "client", "accounts", "hod"),
+  authorizeRoles(...SUBSCRIPTION_CREATE_ROLES),
+  requireModulePermission("billing", "billing.subscription.manage", {
+    legacyRoles: SUBSCRIPTION_CREATE_ROLES,
+  }),
   createSubscription
 );
-
-// Get all subscriptions (admin only, or employees for their assigned clients)
 router.get(
   "/",
   protect,
+  requireModulePermission("billing", "billing.subscription.view", { legacyAllowed: true }),
   getAllSubscriptions
 );
-
-// Get logged-in client's own subscriptions
 router.get(
   "/my-subscriptions",
   protect,
-  authorizeRoles("client"),
+  authorizeRoles(...CLIENT_ROLES),
+  requireModulePermission("billing", "billing.subscription.view", { legacyRoles: CLIENT_ROLES }),
   getMySubscriptions
 );
-
-// Get client subscriptions (admin viewing specific client)
 router.get(
   "/client/:clientId",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "client", "hod"),
+  authorizeRoles(...SUBSCRIPTION_READ_ROLES),
+  requireModulePermission("billing", "billing.subscription.view", {
+    legacyRoles: SUBSCRIPTION_READ_ROLES,
+  }),
   getClientSubscriptions
 );
-
-// Get subscription by ID (must come after specific routes)
 router.get(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "client", "hod"),
+  authorizeRoles(...SUBSCRIPTION_READ_ROLES),
+  requireModulePermission("billing", "billing.subscription.view", {
+    legacyRoles: SUBSCRIPTION_READ_ROLES,
+  }),
   getSubscriptionById
 );
-
-// Update subscription
 router.put(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"),
+  authorizeRoles(...SUBSCRIPTION_MANAGE_ROLES),
+  requireModulePermission("billing", "billing.subscription.manage", {
+    legacyRoles: SUBSCRIPTION_MANAGE_ROLES,
+  }),
   updateSubscription
 );
-
-// Activate subscription (admin/accounts after payment verification)
 router.patch(
   "/:id/activate",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"),
+  authorizeRoles(...SUBSCRIPTION_MANAGE_ROLES),
+  requireModulePermission("billing", "billing.subscription.manage", {
+    legacyRoles: SUBSCRIPTION_MANAGE_ROLES,
+  }),
   activateSubscription
 );
-
-// Cancel subscription
 router.patch(
   "/:id/cancel",
   protect,
-  authorizeRoles("admin", "superadmin", "client"),
+  authorizeRoles(...SUBSCRIPTION_CANCEL_ROLES),
+  requireModulePermission("billing", "billing.subscription.manage", {
+    legacyRoles: SUBSCRIPTION_CANCEL_ROLES,
+  }),
   cancelSubscription
 );
-
-// Delete subscription
 router.delete(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "manager"),
+  authorizeRoles(...SUBSCRIPTION_DELETE_ROLES),
+  requireModulePermission("billing", "billing.subscription.manage", {
+    legacyRoles: SUBSCRIPTION_DELETE_ROLES,
+  }),
   deleteSubscription
 );
 

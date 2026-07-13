@@ -101,7 +101,10 @@ export const LEGACY_ROLE_TO_ACCESS_ROLES = {
         { permission: 'procurement.pr.create', scope: SCOPES.COMPANY },
         { permission: 'procurement.pr.view_self', scope: SCOPES.COMPANY },
         { permission: 'billing.invoice.manage', scope: SCOPES.COMPANY },
+        { permission: 'billing.invoice.view', scope: SCOPES.COMPANY },
         { permission: 'billing.subscription.manage', scope: SCOPES.COMPANY },
+        { permission: 'billing.subscription.view', scope: SCOPES.COMPANY },
+        { permission: 'billing.payment.verify', scope: SCOPES.COMPANY },
         { permission: 'expense.claim.approve', scope: SCOPES.COMPANY },
         { permission: 'payroll.structure.manage', scope: SCOPES.COMPANY },
         { permission: 'payroll.slip.manage', scope: SCOPES.COMPANY },
@@ -210,7 +213,10 @@ export const LEGACY_ROLE_TO_ACCESS_ROLES = {
         { permission: 'crm.client.view', scope: SCOPES.COMPANY },
         { permission: 'procurement.pr.view', scope: SCOPES.COMPANY },
         { permission: 'billing.invoice.view', scope: SCOPES.COMPANY },
+        { permission: 'billing.invoice.manage', scope: SCOPES.COMPANY },
         { permission: 'billing.subscription.view', scope: SCOPES.COMPANY },
+        { permission: 'billing.subscription.manage', scope: SCOPES.COMPANY },
+        { permission: 'billing.payment.verify', scope: SCOPES.COMPANY },
         { permission: 'expense.claim.approve', scope: SCOPES.COMPANY },
         { permission: 'reports.analytics.view', scope: SCOPES.COMPANY },
         { permission: 'assets.asset.manage', scope: SCOPES.COMPANY },
@@ -235,7 +241,12 @@ export const LEGACY_ROLE_TO_ACCESS_ROLES = {
   hod: [
     {
       accessRole: 'employee_standard',
-      grants: EMPLOYEE_STANDARD_GRANTS,
+      grants: [
+        ...EMPLOYEE_STANDARD_GRANTS,
+        { permission: 'billing.invoice.view', scope: SCOPES.COMPANY },
+        { permission: 'billing.invoice.manage', scope: SCOPES.COMPANY },
+        { permission: 'billing.subscription.view', scope: SCOPES.COMPANY },
+      ],
     },
     {
       accessRole: 'department_head',
@@ -270,6 +281,7 @@ export const LEGACY_ROLE_TO_ACCESS_ROLES = {
         { permission: 'company.announcement.view', scope: SCOPES.COMPANY },
         { permission: 'billing.invoice.view', scope: SCOPES.CLIENT_PORTFOLIO },
         { permission: 'billing.subscription.view', scope: SCOPES.CLIENT_PORTFOLIO },
+        { permission: 'billing.subscription.manage', scope: SCOPES.CLIENT_PORTFOLIO },
         { permission: 'projects.project.view', scope: SCOPES.CLIENT_PORTFOLIO },
       ],
     },
