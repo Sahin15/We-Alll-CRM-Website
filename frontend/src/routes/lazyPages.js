@@ -60,6 +60,10 @@ export const MyLeaves = lp(() => import("../pages/leaves/MyLeaves"));
 export const LeaveRequests = lp(() => import("../pages/leaves/LeaveRequests"));
 export const LeaveManagement = lp(() => import("../pages/leaves/LeaveManagement"));
 
+// WFH & work-on-leave
+export const WFHManagement = lp(() => import("../pages/wfh/WFHManagement"));
+export const WorkOnLeaveDayManagement = lp(() => import("../pages/hr/WorkOnLeaveDayManagement"));
+
 // Attendance
 export const MyAttendance = lp(() => import("../pages/attendance/MyAttendance"));
 export const AttendanceTracking = lp(() => import("../pages/attendance/AttendanceTracking"));

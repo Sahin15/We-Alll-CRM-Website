@@ -66,6 +66,8 @@ const {
   MyLeaves,
   LeaveRequests,
   LeaveManagement,
+  WFHManagement,
+  WorkOnLeaveDayManagement,
   MyAttendance,
   AttendanceTracking,
   OvertimeStatistics,
@@ -339,6 +341,25 @@ const AppRoutes = () => {
               fallbackRoles={["admin", "superadmin", "hr", "hod", "manager"]}
             >
               <LeaveRequests />
+            </PermissionRoute>
+          }
+        />
+
+        {/* WFH & Work-on-Leave (Authorization V2 pilot — wired orphaned pages) */}
+        <Route path="/wfh" element={
+          <PermissionRoute permission="leave.request.view_self" module="wfh">
+            <WFHManagement />
+          </PermissionRoute>
+        } />
+        <Route
+          path="/admin/work-on-leave-day"
+          element={
+            <PermissionRoute
+              permission="leave.request.approve"
+              module="wfh"
+              fallbackRoles={["admin", "superadmin", "hr"]}
+            >
+              <WorkOnLeaveDayManagement />
             </PermissionRoute>
           }
         />
