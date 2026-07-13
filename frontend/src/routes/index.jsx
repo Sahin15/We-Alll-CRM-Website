@@ -252,70 +252,112 @@ const AppRoutes = () => {
         } />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-        {/* User Management - Admin/SuperAdmin */}
+        {/* User Management (Authorization V2 pilot) */}
         <Route
           path="/users"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="team.user.view"
+              module="team"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <UserList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/users/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="team.user.view"
+              module="team"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <UserDetails />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Employee Management - HR/Admin */}
+        {/* Employee Management (Authorization V2 pilot) */}
         <Route
           path="/employees"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="team.user.view"
+              module="team"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <EmployeeList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/employees/add"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="team.user.create"
+              module="team"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <AddEmployee />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
         <Route
           path="/employees/:userId/profile"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="team.user.view"
+              module="team"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <EmployeeProfileManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/employees/:userId/work"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="team.user.view"
+              module="team"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <EnhancedEmployeeWorkView />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/employees/:userId"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="team.user.view"
+              module="team"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <EmployeeProfileManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Department Management */}
-        <Route path="/departments" element={<DepartmentList />} />
-        <Route path="/departments/:id" element={<DepartmentDetails />} />
+        {/* Department Management (Authorization V2 pilot) */}
+        <Route
+          path="/departments"
+          element={
+            <PermissionRoute permission="team.department.view" module="team">
+              <DepartmentList />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/departments/:id"
+          element={
+            <PermissionRoute permission="team.department.view" module="team">
+              <DepartmentDetails />
+            </PermissionRoute>
+          }
+        />
 
         {/* Leave Management (Authorization V2 pilot) */}
         <Route path="/leaves" element={

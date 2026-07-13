@@ -25,6 +25,7 @@ const EMPLOYEE_STANDARD_GRANTS = [
   { permission: 'company.meeting.view', scope: SCOPES.COMPANY },
   { permission: 'company.policy.view', scope: SCOPES.COMPANY },
   { permission: 'company.announcement.view', scope: SCOPES.COMPANY },
+  { permission: 'team.department.view', scope: SCOPES.COMPANY },
   { permission: 'procurement.pr.create', scope: SCOPES.SELF },
   { permission: 'procurement.pr.view_self', scope: SCOPES.SELF },
   { permission: 'expense.claim.create', scope: SCOPES.SELF },
@@ -176,6 +177,8 @@ export const LEGACY_ROLE_TO_ACCESS_ROLES = {
       grants: [
         { permission: 'dashboard.view', scope: SCOPES.COMPANY },
         { permission: 'team.user.view', scope: SCOPES.COMPANY },
+        { permission: 'team.user.create', scope: SCOPES.COMPANY },
+        { permission: 'team.user.update', scope: SCOPES.COMPANY },
         { permission: 'team.department.view', scope: SCOPES.COMPANY },
         { permission: 'attendance.record.view', scope: SCOPES.COMPANY },
         { permission: 'attendance.record.manage', scope: SCOPES.COMPANY },
