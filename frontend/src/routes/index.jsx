@@ -12,7 +12,6 @@ import AuthLayout from "../components/layout/AuthLayout";
 
 // Protected Routes
 import ProtectedRoute from "./ProtectedRoute";
-import RoleBasedRoute from "./RoleBasedRoute";
 import PermissionRoute from "./PermissionRoute";
 
 // Auth Pages (eager — small, needed for first paint on /login)
@@ -597,17 +596,21 @@ const AppRoutes = () => {
         <Route
           path="/hr/settings"
           element={
-            <RoleBasedRoute allowedRoles={["hr"]}>
+            <PermissionRoute permission="dashboard.view" module="dashboard" fallbackRoles={["hr"]}>
               <HRSettings />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/admin/settings"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager"]}>
+            <PermissionRoute
+              permission="dashboard.view"
+              module="dashboard"
+              fallbackRoles={["admin", "superadmin", "manager"]}
+            >
               <AdminSettings />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         
@@ -746,34 +749,38 @@ const AppRoutes = () => {
         <Route
           path="/hr/holidays"
           element={
-            <RoleBasedRoute allowedRoles={["hr"]}>
+            <PermissionRoute permission="leave.request.approve" module="leave" fallbackRoles={["hr"]}>
               <HolidayManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/admin/holidays"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager"]}>
+            <PermissionRoute
+              permission="leave.request.approve"
+              module="leave"
+              fallbackRoles={["admin", "superadmin", "manager"]}
+            >
               <HolidayManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         
         <Route
           path="/hod/settings"
           element={
-            <RoleBasedRoute allowedRoles={["hod"]}>
+            <PermissionRoute permission="dashboard.view" module="dashboard" fallbackRoles={["hod"]}>
               <HODSettings />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/hod/dashboard"
           element={
-            <RoleBasedRoute allowedRoles={["hod"]}>
+            <PermissionRoute permission="dashboard.view" module="dashboard" fallbackRoles={["hod"]}>
               <HoDDashboard />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
@@ -950,25 +957,37 @@ const AppRoutes = () => {
         <Route
           path="/work-calendar/my-calendar"
           element={
-            <RoleBasedRoute allowedRoles={["employee", "admin", "superadmin", "hr", "hod", "manager"]}>
+            <PermissionRoute
+              permission="work.item.view"
+              module="work"
+              fallbackRoles={["employee", "admin", "superadmin", "hr", "hod", "manager"]}
+            >
               <MyWorkCalendar />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/work-calendar/admin-overview"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="reports.analytics.view"
+              module="reports"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <AdminWorkCalendarOverview />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/work-calendar/enhanced-admin-overview"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="reports.analytics.view"
+              module="reports"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <EnhancedAdminWorkCalendarOverview />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
@@ -1161,33 +1180,49 @@ const AppRoutes = () => {
         <Route
           path="/admin/notifications/manage"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager"]}>
+            <PermissionRoute
+              permission="company.announcement.manage"
+              module="company"
+              fallbackRoles={["admin", "superadmin", "manager"]}
+            >
               <NotificationManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/admin/notifications/create"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager"]}>
+            <PermissionRoute
+              permission="company.announcement.manage"
+              module="company"
+              fallbackRoles={["admin", "superadmin", "manager"]}
+            >
               <NotificationManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/admin/notifications/dashboard"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager"]}>
+            <PermissionRoute
+              permission="company.announcement.manage"
+              module="company"
+              fallbackRoles={["admin", "superadmin", "manager"]}
+            >
               <NotificationDashboard />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/admin/notifications/settings"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager"]}>
+            <PermissionRoute
+              permission="company.announcement.manage"
+              module="company"
+              fallbackRoles={["admin", "superadmin", "manager"]}
+            >
               <NotificationSettings />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
