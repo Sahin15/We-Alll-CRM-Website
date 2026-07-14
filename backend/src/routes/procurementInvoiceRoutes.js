@@ -1,7 +1,5 @@
 import express from 'express';
 import { protect } from '../middleware/authMiddleware.js';
-
-import { authorizeRoles } from '../middleware/roleMiddleware.js';
 import { requireModulePermission } from '../authz/authzMiddleware.js';
 import {
   createInvoice,
@@ -14,25 +12,17 @@ const router = express.Router();
 const adminRoles = ['admin', 'superadmin', 'accounts'];
 const viewRoles = ['admin', 'superadmin', 'accounts', 'hr', 'hod', 'manager', 'employee'];
 
+const procurementRead = requireModulePermission('procurement', 'procurement.pr.view_self', {
+  legacyRoles: viewRoles,
+});
+
 router.post(
   '/',
   protect,
   requireModulePermission('procurement', 'procurement.po.manage', { legacyRoles: adminRoles }),
   createInvoice
 );
-router.get(
-  '/',
-  protect,
-  authorizeRoles(...viewRoles),
-  requireModulePermission('procurement', 'procurement.pr.view_self', { legacyAllowed: true }),
-  listInvoices
-);
-router.get(
-  '/:id',
-  protect,
-  authorizeRoles(...viewRoles),
-  requireModulePermission('procurement', 'procurement.pr.view_self', { legacyAllowed: true }),
-  getInvoice
-);
+router.get('/', protect, procurementRead, listInvoices);
+router.get('/:id', protect, procurementRead, getInvoice);
 
 export default router;

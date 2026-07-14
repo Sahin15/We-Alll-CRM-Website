@@ -1,6 +1,5 @@
 import express from 'express';
 import { protect } from '../middleware/authMiddleware.js';
-import { authorizeRoles } from '../middleware/roleMiddleware.js';
 import { requireModulePermission } from '../authz/authzMiddleware.js';
 import {
   createPR,
@@ -19,32 +18,20 @@ const ALL_ROLES = ['employee', 'hod', 'manager', 'hr', 'admin', 'superadmin', 'a
 const APPROVER_ROLES = ['hod', 'admin', 'superadmin', 'accounts'];
 
 const prSelfService = requireModulePermission('procurement', 'procurement.pr.create', {
-  legacyAllowed: true,
+  legacyRoles: ALL_ROLES,
 });
 const prApprove = requireModulePermission('procurement', 'procurement.pr.approve_hod', {
-  legacyAllowed: true,
+  legacyRoles: APPROVER_ROLES,
 });
 
-router.post('/', protect, authorizeRoles(...ALL_ROLES), prSelfService, createPR);
-router.get('/my', protect, authorizeRoles(...ALL_ROLES), prSelfService, listPRs);
-router.patch('/:id/submit', protect, authorizeRoles(...ALL_ROLES), prSelfService, submitPR);
-router.patch(
-  '/:id/approve',
-  protect,
-  authorizeRoles(...APPROVER_ROLES),
-  prApprove,
-  approvePR
-);
-router.patch(
-  '/:id/reject',
-  protect,
-  authorizeRoles(...APPROVER_ROLES),
-  prApprove,
-  rejectPR
-);
-router.get('/', protect, authorizeRoles(...ALL_ROLES), prSelfService, listPRs);
-router.get('/:id', protect, authorizeRoles(...ALL_ROLES), prSelfService, getPR);
-router.patch('/:id', protect, authorizeRoles(...ALL_ROLES), prSelfService, updatePR);
-router.delete('/:id', protect, authorizeRoles(...ALL_ROLES), prSelfService, deletePR);
+router.post('/', protect, prSelfService, createPR);
+router.get('/my', protect, prSelfService, listPRs);
+router.patch('/:id/submit', protect, prSelfService, submitPR);
+router.patch('/:id/approve', protect, prApprove, approvePR);
+router.patch('/:id/reject', protect, prApprove, rejectPR);
+router.get('/', protect, prSelfService, listPRs);
+router.get('/:id', protect, prSelfService, getPR);
+router.patch('/:id', protect, prSelfService, updatePR);
+router.delete('/:id', protect, prSelfService, deletePR);
 
 export default router;

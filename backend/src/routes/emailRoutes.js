@@ -10,70 +10,34 @@ import {
   getRecentEmailCampaigns,
 } from "../controllers/emailController.js";
 import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
 
-// Bulk email sending (temporarily allow all authenticated users)
-router.post(
-  "/bulk-send",
-  protect,
-  // authorizeRoles("admin", "superadmin", "hr", "manager"), // Temporarily commented out for testing
-  sendBulkEmail
-);
+const CRM_EMAIL_ROLES = ["admin", "superadmin", "hr", "manager"];
+const EMAIL_ADMIN_ROLES = ["admin", "superadmin"];
 
-// Get available email templates (public endpoint for template metadata)
-router.get(
-  "/templates",
-  // Temporarily allow public access for template metadata
-  getEmailTemplates
-);
+const crmEmailAccess = requireModulePermission("crm", "crm.lead.manage", {
+  legacyRoles: CRM_EMAIL_ROLES,
+});
+const emailAdminAccess = requireModulePermission("auth", "auth.role.manage", {
+  legacyRoles: EMAIL_ADMIN_ROLES,
+});
 
-// Preview email template
-router.post(
-  "/preview",
-  protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
-  previewEmail
-);
+router.post("/bulk-send", protect, crmEmailAccess, sendBulkEmail);
 
-// Test email configuration (Admin/SuperAdmin only)
-router.get(
-  "/test-config",
-  protect,
-  authorizeRoles("admin", "superadmin"),
-  testEmailConfig
-);
+router.get("/templates", getEmailTemplates);
 
-// Send test email (Admin/SuperAdmin only)
-router.post(
-  "/test-send",
-  protect,
-  authorizeRoles("admin", "superadmin"),
-  sendTestEmail
-);
+router.post("/preview", protect, crmEmailAccess, previewEmail);
 
-// Get email history for a specific lead
-router.get(
-  "/lead/:leadId/history",
-  protect,
-  getLeadEmailHistory
-);
+router.get("/test-config", protect, emailAdminAccess, testEmailConfig);
 
-// Get email campaign statistics
-router.get(
-  "/campaigns/stats",
-  protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
-  getEmailCampaignStats
-);
+router.post("/test-send", protect, emailAdminAccess, sendTestEmail);
 
-// Get recent email campaigns
-router.get(
-  "/campaigns/recent",
-  protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
-  getRecentEmailCampaigns
-);
+router.get("/lead/:leadId/history", protect, getLeadEmailHistory);
+
+router.get("/campaigns/stats", protect, crmEmailAccess, getEmailCampaignStats);
+
+router.get("/campaigns/recent", protect, crmEmailAccess, getRecentEmailCampaigns);
 
 export default router;

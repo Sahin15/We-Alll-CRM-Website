@@ -13,11 +13,20 @@ import {
 import { upload, handleMulterError } from "../middleware/uploadMiddleware.js";
 import { uploadDocument as uploadDocMiddleware, handleDocumentUploadError } from "../middleware/documentMiddleware.js";
 import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
 
-// Upload expense receipt
+const PAYMENT_PROOF_ROLES = ["admin", "superadmin", "client", "accounts"];
+const BILLING_UPLOAD_ROLES = ["admin", "superadmin", "accounts"];
+
+const paymentProofAccess = requireModulePermission("billing", "billing.subscription.manage", {
+  legacyRoles: PAYMENT_PROOF_ROLES,
+});
+const billingUploadAccess = requireModulePermission("billing", "billing.payment.verify", {
+  legacyRoles: BILLING_UPLOAD_ROLES,
+});
+
 router.post(
   "/expense-receipt",
   protect,
@@ -26,17 +35,15 @@ router.post(
   uploadExpenseReceipt
 );
 
-// Upload single payment proof image
 router.post(
   "/payment-proof",
   protect,
-  authorizeRoles("admin", "superadmin", "client", "accounts"),
+  paymentProofAccess,
   upload.single("image"),
   handleMulterError,
   uploadPaymentProof
 );
 
-// Upload profile picture
 router.post(
   "/profile-picture",
   protect,
@@ -45,7 +52,6 @@ router.post(
   uploadProfilePicture
 );
 
-// Check profile picture health (must be before :fileName route)
 router.get(
   "/profile-picture/health",
   protect,
@@ -54,44 +60,26 @@ router.get(
       const { checkProfilePictureHealth } = await import("../controllers/uploadController.js");
       await checkProfilePictureHealth(req, res);
     } catch (error) {
-      
       res.status(500).json({ message: "Server error", error: error.message });
     }
   }
 );
 
-// Serve profile picture through backend (public read; filenames are unguessable UUIDs)
-router.get(
-  "/profile-picture/:fileName",
-  serveProfilePicture
-);
+router.get("/profile-picture/:fileName", serveProfilePicture);
 
-// Delete profile picture
-router.delete(
-  "/profile-picture",
-  protect,
-  deleteProfilePicture
-);
+router.delete("/profile-picture", protect, deleteProfilePicture);
 
-// Delete payment proof image
-router.delete(
-  "/payment-proof",
-  protect,
-  authorizeRoles("admin", "superadmin", "client", "accounts"),
-  deletePaymentProof
-);
+router.delete("/payment-proof", protect, paymentProofAccess, deletePaymentProof);
 
-// Upload multiple images (for future use)
 router.post(
   "/multiple",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
-  upload.array("images", 5), // Max 5 images
+  billingUploadAccess,
+  upload.array("images", 5),
   handleMulterError,
   uploadMultipleImages
 );
 
-// Upload employee document
 router.post(
   "/document",
   protect,
@@ -100,11 +88,6 @@ router.post(
   uploadDocument
 );
 
-// Delete employee document
-router.delete(
-  "/document",
-  protect,
-  deleteDocument
-);
+router.delete("/document", protect, deleteDocument);
 
 export default router;

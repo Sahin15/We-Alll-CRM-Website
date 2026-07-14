@@ -1,7 +1,5 @@
 import express from 'express';
 import { protect } from '../middleware/authMiddleware.js';
-
-import { authorizeRoles } from '../middleware/roleMiddleware.js';
 import { requireModulePermission } from '../authz/authzMiddleware.js';
 import {
   createPO,
@@ -17,6 +15,10 @@ const router = express.Router();
 
 const writeRoles = ['admin', 'superadmin', 'accounts'];
 const readRoles = ['admin', 'superadmin', 'accounts', 'hr', 'hod', 'manager', 'employee'];
+
+const procurementRead = requireModulePermission('procurement', 'procurement.pr.view_self', {
+  legacyRoles: readRoles,
+});
 
 router.post(
   '/',
@@ -36,27 +38,9 @@ router.patch(
   requireModulePermission('procurement', 'procurement.po.manage', { legacyRoles: writeRoles }),
   cancelPO
 );
-router.get(
-  '/:id/pdf',
-  protect,
-  authorizeRoles(...readRoles),
-  requireModulePermission('procurement', 'procurement.pr.view_self', { legacyAllowed: true }),
-  getPOPdf
-);
-router.get(
-  '/',
-  protect,
-  authorizeRoles(...readRoles),
-  requireModulePermission('procurement', 'procurement.pr.view_self', { legacyAllowed: true }),
-  listPOs
-);
-router.get(
-  '/:id',
-  protect,
-  authorizeRoles(...readRoles),
-  requireModulePermission('procurement', 'procurement.pr.view_self', { legacyAllowed: true }),
-  getPO
-);
+router.get('/:id/pdf', protect, procurementRead, getPOPdf);
+router.get('/', protect, procurementRead, listPOs);
+router.get('/:id', protect, procurementRead, getPO);
 router.patch(
   '/:id',
   protect,

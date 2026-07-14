@@ -39,16 +39,18 @@ import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
 
+const LEAD_ACCESS_ROLES = ["admin", "superadmin", "manager", "hr", "employee", "hod"];
 const LEAD_DELETE_ROLES = ["admin", "superadmin"];
 const LEAD_TEAM_MEETING_ROLES = ["admin", "superadmin", "manager"];
 
-const leadAccess = authorizeRolesOrDepartments(
-  ["admin", "superadmin", "manager", "hr", "employee", "hod"],
-  ["Sales"]
-);
+const leadAccess = authorizeRolesOrDepartments(LEAD_ACCESS_ROLES, ["Sales"]);
 
-const crmLeadManage = requireModulePermission("crm", "crm.lead.manage", { legacyAllowed: true });
-const crmLeadView = requireModulePermission("crm", "crm.lead.view", { legacyAllowed: true });
+const crmLeadManage = requireModulePermission("crm", "crm.lead.manage", {
+  legacyRoles: LEAD_ACCESS_ROLES,
+});
+const crmLeadView = requireModulePermission("crm", "crm.lead.view", {
+  legacyRoles: LEAD_ACCESS_ROLES,
+});
 
 router.post("/public", createLead);
 

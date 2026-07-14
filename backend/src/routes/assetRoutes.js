@@ -1,6 +1,6 @@
 import express from "express";
 import assetController from "../controllers/assetController.js";
-import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
+import { protect } from '../middleware/authMiddleware.js';
 
 import { requireModulePermission } from "../authz/authzMiddleware.js";
 
@@ -8,6 +8,7 @@ const router = express.Router();
 
 const ASSET_VIEW_ROLES = ["admin", "hr", "superadmin", "hod", "manager"];
 const ASSET_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
+const ASSET_SELF_ROLES = ["employee", "admin", "superadmin", "hr", "hod", "manager", "accounts"];
 
 router.use(protect);
 
@@ -19,7 +20,7 @@ router.get(
 
 router.get(
   "/my-assets",
-  requireModulePermission("resources", "assets.asset.view", { legacyAllowed: true }),
+  requireModulePermission("resources", "assets.asset.view", { legacyRoles: ASSET_SELF_ROLES }),
   assetController.getMyAssets
 );
 

@@ -1,6 +1,6 @@
 import express from "express";
 import softwareLicenseController from "../controllers/softwareLicenseController.js";
-import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
+import { protect } from '../middleware/authMiddleware.js';
 
 import { requireModulePermission } from "../authz/authzMiddleware.js";
 
@@ -8,6 +8,7 @@ const router = express.Router();
 
 const LICENSE_VIEW_ROLES = ["admin", "superadmin", "hr", "manager", "hod"];
 const LICENSE_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
+const LICENSE_SELF_ROLES = ["employee", "admin", "superadmin", "hr", "hod", "manager", "accounts"];
 
 router.use(protect);
 
@@ -41,7 +42,7 @@ router.put(
 
 router.get(
   "/user/my-licenses",
-  requireModulePermission("resources", "licenses.license.view", { legacyAllowed: true }),
+  requireModulePermission("resources", "licenses.license.view", { legacyRoles: LICENSE_SELF_ROLES }),
   softwareLicenseController.getUserLicenses
 );
 
