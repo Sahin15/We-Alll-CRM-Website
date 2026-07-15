@@ -35,6 +35,15 @@ const CLIENT_OVERVIEW_ROLES = ["admin", "superadmin", "accounts", "client"];
 const CLIENT_VIP_LIST_ROLES = ["admin", "superadmin", "hr", "hod", "manager"];
 const CLIENT_ACCOUNT_MANAGER_ROLES = ["admin", "superadmin", "manager"];
 const CLIENT_PLAN_ROLES = ["admin", "superadmin", "accounts", "manager"];
+const CLIENT_DETAIL_VIEW_ROLES = [
+  "admin",
+  "superadmin",
+  "hr",
+  "hod",
+  "manager",
+  "accounts",
+  "sales",
+];
 
 router.post(
   "/",
@@ -59,7 +68,7 @@ router.get(
 router.get(
   "/:id",
   protect,
-  requireModulePermission("crm", "crm.client.view", { legacyAllowed: true }),
+  requireModulePermission("crm", "crm.client.view", { legacyRoles: CLIENT_DETAIL_VIEW_ROLES }),
   getClientById
 );
 router.put(

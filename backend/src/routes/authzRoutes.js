@@ -1,6 +1,7 @@
 import express from 'express';
 import { protect } from '../middleware/authMiddleware.js';
 import { requireModulePermission } from '../authz/authzMiddleware.js';
+import { ALL_LEGACY_ROLES } from '../authz/legacyRoleMapping.js';
 import {
   getEffectivePermissions,
   checkPermission,
@@ -23,12 +24,11 @@ const assignPermissions = requireModulePermission('auth', 'auth.permission.assig
   legacyRoles: AUTH_ADMIN_ROLES,
 });
 
-router.get(
-  '/effective',
-  protect,
-  requireModulePermission('auth', 'dashboard.view', { legacyAllowed: true }),
-  getEffectivePermissions
-);
+const effectivePermissions = requireModulePermission('auth', 'dashboard.view', {
+  legacyRoles: ALL_LEGACY_ROLES,
+});
+
+router.get('/effective', protect, effectivePermissions, getEffectivePermissions);
 
 router.post('/check', protect, manageAuthRoles, checkPermission);
 

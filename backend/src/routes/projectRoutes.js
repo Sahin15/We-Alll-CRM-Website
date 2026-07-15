@@ -65,6 +65,7 @@ const PROJECT_VIEW_ROLES = [
   "manager",
   "hod",
   "employee",
+  "sales",
   "client",
 ];
 const PROJECT_PROGRESS_ROLES = ["admin", "superadmin", "manager", "employee", "hod"];
@@ -101,7 +102,7 @@ router.put(
 router.get(
   "/",
   protect,
-  requireModulePermission("projects", "projects.project.view", { legacyAllowed: true }),
+  requireModulePermission("projects", "projects.project.view", { legacyRoles: PROJECT_VIEW_ROLES }),
   getProjects
 );
 
@@ -174,21 +175,21 @@ router.post(
   "/:projectId/team/add",
   protect,
   canManageProject,
-  requireModulePermission("projects", "projects.project.manage", { legacyAllowed: true }),
+  requireModulePermission("projects", "projects.project.manage", { legacyRoles: PROJECT_UPDATE_ROLES }),
   addTeamMember
 );
 router.delete(
   "/:projectId/team/:userId",
   protect,
   canManageProject,
-  requireModulePermission("projects", "projects.project.manage", { legacyAllowed: true }),
+  requireModulePermission("projects", "projects.project.manage", { legacyRoles: PROJECT_UPDATE_ROLES }),
   removeTeamMember
 );
 router.get(
   "/:projectId/team",
   protect,
   canManageProject,
-  requireModulePermission("projects", "projects.project.view", { legacyAllowed: true }),
+  requireModulePermission("projects", "projects.project.view", { legacyRoles: PROJECT_VIEW_ROLES }),
   getProjectTeam
 );
 
@@ -196,7 +197,7 @@ router.get(
 router.get(
   "/my-projects",
   protect,
-  requireModulePermission("projects", "projects.project.view", { legacyAllowed: true }),
+  requireModulePermission("projects", "projects.project.view", { legacyRoles: PROJECT_VIEW_ROLES }),
   getProjectsForUser
 );
 
@@ -204,7 +205,7 @@ router.get(
 router.get(
   "/employee/:employeeId",
   protect,
-  requireModulePermission("projects", "projects.project.view", { legacyAllowed: true }),
+  requireModulePermission("projects", "projects.project.view", { legacyRoles: PROJECT_VIEW_ROLES }),
   getProjectsForEmployee
 );
 
@@ -212,7 +213,7 @@ router.get(
 router.get(
   "/my-leading",
   protect,
-  requireModulePermission("projects", "projects.project.view", { legacyAllowed: true }),
+  requireModulePermission("projects", "projects.project.view", { legacyRoles: PROJECT_VIEW_ROLES }),
   getMyLeadingProjects
 );
 
@@ -220,7 +221,7 @@ router.get(
 router.get(
   "/my-department",
   protect,
-  requireModulePermission("projects", "projects.project.view", { legacyAllowed: true }),
+  requireModulePermission("projects", "projects.project.view", { legacyRoles: PROJECT_VIEW_ROLES }),
   getMyDepartmentProjects
 );
 
@@ -312,19 +313,19 @@ router.delete(
 router.get(
   "/:id/workspace",
   protect,
-  requireModulePermission("projects", "projects.project.view", { legacyAllowed: true }),
+  requireModulePermission("projects", "projects.project.view", { legacyRoles: PROJECT_VIEW_ROLES }),
   getProjectWorkspace
 );
 router.get(
   "/:id/work-board",
   protect,
-  requireModulePermission("projects", "projects.project.view", { legacyAllowed: true }),
+  requireModulePermission("projects", "projects.project.view", { legacyRoles: PROJECT_VIEW_ROLES }),
   getWorkBoard
 );
 router.get(
   "/:id/team-workload",
   protect,
-  requireModulePermission("projects", "projects.project.view", { legacyAllowed: true }),
+  requireModulePermission("projects", "projects.project.view", { legacyRoles: PROJECT_VIEW_ROLES }),
   getProjectTeamWorkload
 );
 
@@ -344,7 +345,7 @@ router.post(
 router.get(
   "/:projectId/slots",
   protect,
-  requireModulePermission("projects", "projects.project.view", { legacyAllowed: true }),
+  requireModulePermission("projects", "projects.project.view", { legacyRoles: PROJECT_VIEW_ROLES }),
   getProjectSlots
 );
 
@@ -378,7 +379,7 @@ router.delete(
 router.get(
   "/:projectId/workitems/grouped-by-slots",
   protect,
-  requireModulePermission("projects", "projects.project.view", { legacyAllowed: true }),
+  requireModulePermission("projects", "projects.project.view", { legacyRoles: PROJECT_VIEW_ROLES }),
   getWorkItemsGroupedBySlots
 );
 
@@ -389,28 +390,28 @@ router.get(
 router.get(
   "/:id/credentials",
   protect,
-  requireModulePermission("projects", "projects.project.view", { legacyAllowed: true }),
+  requireModulePermission("projects", "projects.project.view", { legacyRoles: PROJECT_VIEW_ROLES }),
   getProjectCredentials
 );
 
 router.post(
   "/:id/credentials",
   protect,
-  requireModulePermission("projects", "projects.project.manage", { legacyAllowed: true }),
+  requireModulePermission("projects", "projects.project.manage", { legacyRoles: PROJECT_UPDATE_ROLES }),
   addProjectCredential
 );
 
 router.put(
   "/:id/credentials/:credentialId",
   protect,
-  requireModulePermission("projects", "projects.project.manage", { legacyAllowed: true }),
+  requireModulePermission("projects", "projects.project.manage", { legacyRoles: PROJECT_UPDATE_ROLES }),
   updateProjectCredential
 );
 
 router.delete(
   "/:id/credentials/:credentialId",
   protect,
-  requireModulePermission("projects", "projects.project.manage", { legacyAllowed: true }),
+  requireModulePermission("projects", "projects.project.manage", { legacyRoles: PROJECT_UPDATE_ROLES }),
   deleteProjectCredential
 );
 

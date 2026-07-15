@@ -15,6 +15,15 @@ import {
 const router = express.Router();
 
 const HR_PIPELINE_ROLES = ["admin", "superadmin", "hr", "manager"];
+const HIRING_REQUEST_VIEW_ROLES = ["admin", "superadmin", "hr", "manager", "hod"];
+const HIRING_REQUEST_CREATE_ROLES = ["admin", "superadmin", "hod"];
+
+const hiringRequestView = requireModulePermission("hiring", "hiring.request.view", {
+  legacyRoles: HIRING_REQUEST_VIEW_ROLES,
+});
+const hiringRequestCreate = requireModulePermission("hiring", "hiring.request.create", {
+  legacyRoles: HIRING_REQUEST_CREATE_ROLES,
+});
 
 router.use(protect);
 
@@ -25,36 +34,12 @@ router.get(
   }),
   getPendingCount
 );
-router.get(
-  "/",
-  requireModulePermission("hiring", "hiring.request.view", { legacyAllowed: true }),
-  listHiringRequests
-);
-router.post(
-  "/",
-  requireModulePermission("hiring", "hiring.request.create", { legacyAllowed: true }),
-  createHiringRequest
-);
-router.get(
-  "/:id/applications",
-  requireModulePermission("hiring", "hiring.request.view", { legacyAllowed: true }),
-  getHiringRequestApplications
-);
-router.get(
-  "/:id",
-  requireModulePermission("hiring", "hiring.request.view", { legacyAllowed: true }),
-  getHiringRequest
-);
-router.put(
-  "/:id",
-  requireModulePermission("hiring", "hiring.request.view", { legacyAllowed: true }),
-  updateHiringRequest
-);
-router.post(
-  "/:id/submit",
-  requireModulePermission("hiring", "hiring.request.create", { legacyAllowed: true }),
-  submitHiringRequest
-);
+router.get("/", hiringRequestView, listHiringRequests);
+router.post("/", hiringRequestCreate, createHiringRequest);
+router.get("/:id/applications", hiringRequestView, getHiringRequestApplications);
+router.get("/:id", hiringRequestView, getHiringRequest);
+router.put("/:id", hiringRequestView, updateHiringRequest);
+router.post("/:id/submit", hiringRequestCreate, submitHiringRequest);
 router.put(
   "/:id/review",
   requireModulePermission("hiring", "hiring.pipeline.manage", {

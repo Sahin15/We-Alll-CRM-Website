@@ -25,7 +25,11 @@ import {
 
 const router = express.Router();
 
-const crmRawDataManage = requireModulePermission("crm", "crm.rawdata.manage", { legacyAllowed: true });
+const CRM_RAWDATA_ROLES = ["admin", "superadmin", "sales"];
+
+const crmRawDataManage = requireModulePermission("crm", "crm.rawdata.manage", {
+  legacyRoles: CRM_RAWDATA_ROLES,
+});
 
 router.use(protect);
 

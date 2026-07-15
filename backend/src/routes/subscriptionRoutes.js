@@ -35,7 +35,9 @@ router.post(
 router.get(
   "/",
   protect,
-  requireModulePermission("billing", "billing.subscription.view", { legacyAllowed: true }),
+  requireModulePermission("billing", "billing.subscription.view", {
+    legacyRoles: SUBSCRIPTION_READ_ROLES,
+  }),
   getAllSubscriptions
 );
 router.get(

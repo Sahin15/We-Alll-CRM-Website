@@ -26,6 +26,20 @@ import { isHoDOfDepartment } from "../middleware/hodMiddleware.js";
 
 const router = express.Router();
 
+const DEPT_VIEW_ROLES = [
+  "employee",
+  "hod",
+  "sales",
+  "manager",
+  "hr",
+  "admin",
+  "superadmin",
+];
+
+const deptView = requireModulePermission("team", "team.department.view", {
+  legacyRoles: DEPT_VIEW_ROLES,
+});
+
 const DEPT_MANAGE_ROLES = ["admin", "superadmin"];
 const DEPT_HOD_OPS_ROLES = ["admin", "superadmin", "hr", "manager"];
 const DEPT_ANALYTICS_ROLES = ["admin", "superadmin", "hr", "manager"];
@@ -65,20 +79,9 @@ router.post(
   }),
   createDepartment
 );
-router.get(
-  "/",
-  protect,
-  requireModulePermission("team", "team.department.view", { legacyAllowed: true }),
-  getDepartments
-);
+router.get("/", protect, deptView, getDepartments);
 
-// Get only operational departments (for client assignment)
-router.get(
-  "/operational",
-  protect,
-  requireModulePermission("team", "team.department.view", { legacyAllowed: true }),
-  getOperationalDepartments
-);
+router.get("/operational", protect, deptView, getOperationalDepartments);
 
 // HoD Management (New) - MUST come before /:id route
 router.post(
@@ -99,27 +102,9 @@ router.delete(
 );
 
 // HoD Access Routes - MUST come before /:id route
-router.get(
-  "/:departmentId/projects",
-  protect,
-  isHoDOfDepartment,
-  requireModulePermission("team", "team.department.view", { legacyAllowed: true }),
-  getDepartmentProjects
-);
-router.get(
-  "/:departmentId/members",
-  protect,
-  isHoDOfDepartment,
-  requireModulePermission("team", "team.department.view", { legacyAllowed: true }),
-  getDepartmentMembers
-);
-router.get(
-  "/:departmentId/stats",
-  protect,
-  isHoDOfDepartment,
-  requireModulePermission("team", "team.department.view", { legacyAllowed: true }),
-  getDepartmentStats
-);
+router.get("/:departmentId/projects", protect, isHoDOfDepartment, deptView, getDepartmentProjects);
+router.get("/:departmentId/members", protect, isHoDOfDepartment, deptView, getDepartmentMembers);
+router.get("/:departmentId/stats", protect, isHoDOfDepartment, deptView, getDepartmentStats);
 
 // Department head management
 router.put(
@@ -132,12 +117,7 @@ router.put(
 );
 
 // Generic /:id routes - MUST come AFTER specific routes
-router.get(
-  "/:id",
-  protect,
-  requireModulePermission("team", "team.department.view", { legacyAllowed: true }),
-  getDepartmentById
-);
+router.get("/:id", protect, deptView, getDepartmentById);
 router.put(
   "/:id",
   protect,

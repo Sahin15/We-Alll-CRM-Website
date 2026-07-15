@@ -44,6 +44,15 @@ import {
 const router = express.Router();
 
 const WORK_ITEM_ADMIN_VIEW_ROLES = ["admin", "superadmin", "hod", "hr", "manager"];
+const WORK_ITEM_SELF_ROLES = [
+  "employee",
+  "hod",
+  "sales",
+  "manager",
+  "hr",
+  "admin",
+  "superadmin",
+];
 const WORK_ITEM_DEBUG_ROLES = ["admin", "superadmin", "hod"];
 const WORK_ITEM_SLOT_ASSIGN_ROLES = ["admin", "superadmin", "hod"];
 const WORK_ITEM_REASSIGN_ROLES = ["admin", "superadmin", "hr", "manager", "hod", "hop"];
@@ -61,7 +70,7 @@ router.get(
   "/my-work",
   queryValidation,
   validateRequest(queryValidation),
-  requireModulePermission("work", "work.item.view", { legacyAllowed: true }),
+  requireModulePermission("work", "work.item.view", { legacyRoles: WORK_ITEM_SELF_ROLES }),
   getMyWorkItems
 );
 
@@ -69,7 +78,7 @@ router.get(
   "/created-by/me",
   queryValidation,
   validateRequest(queryValidation),
-  requireModulePermission("work", "work.item.view", { legacyAllowed: true }),
+  requireModulePermission("work", "work.item.view", { legacyRoles: WORK_ITEM_SELF_ROLES }),
   getCreatedByMe
 );
 
@@ -77,19 +86,19 @@ router.get(
   "/calendar",
   queryValidation,
   validateRequest(queryValidation),
-  requireModulePermission("work", "work.item.view", { legacyAllowed: true }),
+  requireModulePermission("work", "work.item.view", { legacyRoles: WORK_ITEM_SELF_ROLES }),
   getCalendarWorkItems
 );
 
 router.get(
   "/overdue",
-  requireModulePermission("work", "work.item.view", { legacyAllowed: true }),
+  requireModulePermission("work", "work.item.view", { legacyRoles: WORK_ITEM_SELF_ROLES }),
   getOverdueWorkItems
 );
 
 router.get(
   "/pending-count/:userId",
-  requireModulePermission("work", "work.item.view", { legacyAllowed: true }),
+  requireModulePermission("work", "work.item.view", { legacyRoles: WORK_ITEM_SELF_ROLES }),
   getPendingWorkCount
 );
 
@@ -97,7 +106,7 @@ router.get(
   "/project/:projectId",
   queryValidation,
   validateRequest(queryValidation),
-  requireModulePermission("work", "work.item.view", { legacyAllowed: true }),
+  requireModulePermission("work", "work.item.view", { legacyRoles: WORK_ITEM_SELF_ROLES }),
   getWorkItemsByProject
 );
 
@@ -114,13 +123,13 @@ router.get(
 router.post(
   "/",
   createWorkItemLimiter,
-  requireModulePermission("work", "work.item.create", { legacyAllowed: true }),
+  requireModulePermission("work", "work.item.create", { legacyRoles: WORK_ITEM_SELF_ROLES }),
   createWorkItem
 );
 
 router.get(
   "/:id",
-  requireModulePermission("work", "work.item.view", { legacyAllowed: true }),
+  requireModulePermission("work", "work.item.view", { legacyRoles: WORK_ITEM_SELF_ROLES }),
   getWorkItemById
 );
 
@@ -128,7 +137,7 @@ router.put(
   "/:id",
   updateWorkItemValidation,
   validateRequest(updateWorkItemValidation),
-  requireModulePermission("work", "work.item.update", { legacyAllowed: true }),
+  requireModulePermission("work", "work.item.update", { legacyRoles: WORK_ITEM_SELF_ROLES }),
   updateWorkItem
 );
 
@@ -152,13 +161,13 @@ router.patch(
   "/:id/status",
   updateStatusValidation,
   validateRequest(updateStatusValidation),
-  requireModulePermission("work", "work.item.update", { legacyAllowed: true }),
+  requireModulePermission("work", "work.item.update", { legacyRoles: WORK_ITEM_SELF_ROLES }),
   updateWorkItemStatus
 );
 
 router.patch(
   "/:id/activate",
-  requireModulePermission("work", "work.item.update", { legacyAllowed: true }),
+  requireModulePermission("work", "work.item.update", { legacyRoles: WORK_ITEM_SELF_ROLES }),
   activateWorkItem
 );
 
@@ -166,7 +175,7 @@ router.post(
   "/bulk-update",
   bulkUpdateValidation,
   validateRequest(bulkUpdateValidation),
-  requireModulePermission("work", "work.item.update", { legacyAllowed: true }),
+  requireModulePermission("work", "work.item.update", { legacyRoles: WORK_ITEM_SELF_ROLES }),
   bulkUpdateWorkItems
 );
 
@@ -174,31 +183,31 @@ router.post(
   "/:id/comments",
   addCommentValidation,
   validateRequest(addCommentValidation),
-  requireModulePermission("work", "work.item.update", { legacyAllowed: true }),
+  requireModulePermission("work", "work.item.update", { legacyRoles: WORK_ITEM_SELF_ROLES }),
   addComment
 );
 
 router.delete(
   "/:id/comments/:commentId",
-  requireModulePermission("work", "work.item.update", { legacyAllowed: true }),
+  requireModulePermission("work", "work.item.update", { legacyRoles: WORK_ITEM_SELF_ROLES }),
   deleteComment
 );
 
 router.get(
   "/workflow-config/:projectId",
-  requireModulePermission("work", "work.item.view", { legacyAllowed: true }),
+  requireModulePermission("work", "work.item.view", { legacyRoles: WORK_ITEM_SELF_ROLES }),
   getWorkflowConfig
 );
 
 router.post(
   "/:id/progress-stage",
-  requireModulePermission("work", "work.item.update", { legacyAllowed: true }),
+  requireModulePermission("work", "work.item.update", { legacyRoles: WORK_ITEM_SELF_ROLES }),
   progressWorkflowStage
 );
 
 router.get(
   "/:id/workflow-progress",
-  requireModulePermission("work", "work.item.view", { legacyAllowed: true }),
+  requireModulePermission("work", "work.item.view", { legacyRoles: WORK_ITEM_SELF_ROLES }),
   getWorkflowProgress
 );
 
@@ -212,13 +221,13 @@ router.post(
 
 router.put(
   "/:workItemId/slot/remove",
-  requireModulePermission("work", "work.item.update", { legacyAllowed: true }),
+  requireModulePermission("work", "work.item.update", { legacyRoles: WORK_ITEM_SELF_ROLES }),
   removeSlotAssignment
 );
 
 router.get(
   "/by-slot/:slotId",
-  requireModulePermission("work", "work.item.view", { legacyAllowed: true }),
+  requireModulePermission("work", "work.item.view", { legacyRoles: WORK_ITEM_SELF_ROLES }),
   getWorkItemsBySlot
 );
 
@@ -232,13 +241,13 @@ router.put(
 
 router.put(
   "/:id/edit",
-  requireModulePermission("work", "work.item.update", { legacyAllowed: true }),
+  requireModulePermission("work", "work.item.update", { legacyRoles: WORK_ITEM_SELF_ROLES }),
   editWorkItem
 );
 
 router.get(
   "/:id/edit-history",
-  requireModulePermission("work", "work.item.view", { legacyAllowed: true }),
+  requireModulePermission("work", "work.item.view", { legacyRoles: WORK_ITEM_SELF_ROLES }),
   getEditHistory
 );
 

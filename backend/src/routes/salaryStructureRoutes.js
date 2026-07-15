@@ -19,6 +19,14 @@ const router = express.Router();
 
 const PAYROLL_MANAGE_ROLES = ["admin", "superadmin", "hr", "accounts", "manager"];
 const PAYROLL_DELETE_ALL_ROLES = ["admin", "superadmin"];
+const PAYROLL_SELF_ROLES = [
+  "employee",
+  "hod",
+  "sales",
+  "hr",
+  "admin",
+  "superadmin",
+];
 
 router.post(
   "/",
@@ -45,7 +53,7 @@ router.get(
     }
     return res.status(403).json({ message: "Access denied" });
   },
-  requireModulePermission("finance", "payroll.slip.view_self", { legacyAllowed: true }),
+  requireModulePermission("finance", "payroll.slip.view_self", { legacyRoles: PAYROLL_SELF_ROLES }),
   getActiveSalaryStructure
 );
 

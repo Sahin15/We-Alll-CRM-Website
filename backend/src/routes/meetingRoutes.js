@@ -16,6 +16,11 @@ import { requireModulePermission } from "../authz/authzMiddleware.js";
 const router = express.Router();
 
 const MEETING_LIST_ROLES = ["admin", "superadmin", "hr", "manager", "hod", "employee"];
+const MEETING_MANAGE_ROLES = ["admin", "superadmin"];
+
+const meetingManage = requireModulePermission("company", "company.meeting.manage", {
+  legacyRoles: MEETING_MANAGE_ROLES,
+});
 
 // All routes require authentication
 router.use(protect);
@@ -36,32 +41,9 @@ router.get(
   getAllMeetings
 );
 
-// Create meeting (legacy: any authenticated user)
-router.post(
-  "/",
-  requireModulePermission("company", "company.meeting.manage", { legacyAllowed: true }),
-  createMeeting
-);
-
-// Update meeting (legacy: any authenticated user)
-router.put(
-  "/:id",
-  requireModulePermission("company", "company.meeting.manage", { legacyAllowed: true }),
-  updateMeeting
-);
-
-// Complete meeting (legacy: any authenticated user)
-router.patch(
-  "/:id/complete",
-  requireModulePermission("company", "company.meeting.manage", { legacyAllowed: true }),
-  completeMeeting
-);
-
-// Delete meeting (legacy: any authenticated user)
-router.delete(
-  "/:id",
-  requireModulePermission("company", "company.meeting.manage", { legacyAllowed: true }),
-  deleteMeeting
-);
+router.post("/", meetingManage, createMeeting);
+router.put("/:id", meetingManage, updateMeeting);
+router.patch("/:id/complete", meetingManage, completeMeeting);
+router.delete("/:id", meetingManage, deleteMeeting);
 
 export default router;

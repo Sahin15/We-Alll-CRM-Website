@@ -38,32 +38,41 @@ const router = express.Router();
 
 const EXPENSE_APPROVE_ROLES = ["admin", "hr", "superadmin", "manager"];
 const EXPENSE_BUDGET_ADMIN_ROLES = ["admin", "superadmin"];
+const EXPENSE_SELF_ROLES = [
+  "employee",
+  "hod",
+  "sales",
+  "manager",
+  "hr",
+  "admin",
+  "superadmin",
+];
 
 router.use(protect);
 
 router.get(
   "/my-expenses",
-  requireModulePermission("finance", "expense.claim.create", { legacyAllowed: true }),
+  requireModulePermission("finance", "expense.claim.create", { legacyRoles: EXPENSE_SELF_ROLES }),
   getMyExpenses
 );
 router.get(
   "/stats",
-  requireModulePermission("finance", "expense.claim.create", { legacyAllowed: true }),
+  requireModulePermission("finance", "expense.claim.create", { legacyRoles: EXPENSE_SELF_ROLES }),
   getExpenseStats
 );
 router.get(
   "/category/stats",
-  requireModulePermission("finance", "expense.claim.create", { legacyAllowed: true }),
+  requireModulePermission("finance", "expense.claim.create", { legacyRoles: EXPENSE_SELF_ROLES }),
   getCategoryStats
 );
 router.get(
   "/purposes",
-  requireModulePermission("finance", "expense.claim.create", { legacyAllowed: true }),
+  requireModulePermission("finance", "expense.claim.create", { legacyRoles: EXPENSE_SELF_ROLES }),
   getExpensePurposes
 );
 router.get(
   "/types",
-  requireModulePermission("finance", "expense.claim.create", { legacyAllowed: true }),
+  requireModulePermission("finance", "expense.claim.create", { legacyRoles: EXPENSE_SELF_ROLES }),
   getExpenseTypes
 );
 router.get(
@@ -114,7 +123,7 @@ router.get(
 
 router.post(
   "/",
-  requireModulePermission("finance", "expense.claim.create", { legacyAllowed: true }),
+  requireModulePermission("finance", "expense.claim.create", { legacyRoles: EXPENSE_SELF_ROLES }),
   createExpense
 );
 router.get(
@@ -125,7 +134,7 @@ router.get(
 
 router.post(
   "/search/advanced",
-  requireModulePermission("finance", "expense.claim.create", { legacyAllowed: true }),
+  requireModulePermission("finance", "expense.claim.create", { legacyRoles: EXPENSE_SELF_ROLES }),
   searchExpenses
 );
 router.post(
@@ -156,17 +165,17 @@ router.post(
 
 router.get(
   "/:id",
-  requireModulePermission("finance", "expense.claim.create", { legacyAllowed: true }),
+  requireModulePermission("finance", "expense.claim.create", { legacyRoles: EXPENSE_SELF_ROLES }),
   getExpenseById
 );
 router.put(
   "/:id",
-  requireModulePermission("finance", "expense.claim.create", { legacyAllowed: true }),
+  requireModulePermission("finance", "expense.claim.create", { legacyRoles: EXPENSE_SELF_ROLES }),
   updateExpense
 );
 router.delete(
   "/:id",
-  requireModulePermission("finance", "expense.claim.create", { legacyAllowed: true }),
+  requireModulePermission("finance", "expense.claim.create", { legacyRoles: EXPENSE_SELF_ROLES }),
   deleteExpense
 );
 router.patch(

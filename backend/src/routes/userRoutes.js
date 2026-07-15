@@ -32,6 +32,10 @@ const router = express.Router();
 
 const USER_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
 
+const userView = requireModulePermission("team", "team.user.view", {
+  legacyRoles: USER_MANAGE_ROLES,
+});
+
 // Registration endpoint - used by admins to add users (not public)
 router.post(
   "/register",
@@ -40,16 +44,11 @@ router.post(
   registerUser
 );
 router.post("/login", loginUser);
-router.get(
-  "/",
-  protect,
-  requireModulePermission("team", "team.user.view", { legacyAllowed: true }),
-  getUsers
-);
+router.get("/", protect, userView, getUsers);
 router.get(
   "/employees",
   protect,
-  requireModulePermission("team", "team.user.view", { legacyAllowed: true }),
+  userView,
   async (req, res) => {
   try {
     const User = (await import("../models/userModel.js")).default;
@@ -218,12 +217,7 @@ router.get(
   }
 });
 
-router.get(
-  "/:id",
-  protect,
-  requireModulePermission("team", "team.user.view", { legacyAllowed: true }),
-  getUserById
-);
+router.get("/:id", protect, userView, getUserById);
 router.put("/profile", protect, requireModulePermission("profile", "profile.update"), updateUserProfile);
 router.put(
   "/:id/profile",

@@ -7,6 +7,14 @@ import SalaryPreviewService from "../services/salaryPreviewService.js";
 
 const router = express.Router();
 const PAYROLL_MANAGE_ROLES = ["hr", "admin", "superadmin", "manager"];
+const PAYROLL_SELF_ROLES = [
+  "employee",
+  "hod",
+  "sales",
+  "hr",
+  "admin",
+  "superadmin",
+];
 const previewService = new SalaryPreviewService();
 
 // Generate salary preview for employee
@@ -137,7 +145,7 @@ router.get("/working-days-info",
 // Get employee's own salary preview
 router.get("/my-preview/:month/:year",
   protect,
-  requireModulePermission("finance", "payroll.slip.view_self", { legacyAllowed: true }),
+  requireModulePermission("finance", "payroll.slip.view_self", { legacyRoles: PAYROLL_SELF_ROLES }),
   async (req, res) => {
     try {
       const { month, year } = req.params;
@@ -281,7 +289,7 @@ router.post("/bulk-recalculate",
 // Submit employee query on preview
 router.post("/:previewId/query",
   protect,
-  requireModulePermission("finance", "payroll.slip.view_self", { legacyAllowed: true }),
+  requireModulePermission("finance", "payroll.slip.view_self", { legacyRoles: PAYROLL_SELF_ROLES }),
   async (req, res) => {
     try {
       const { previewId } = req.params;
@@ -354,7 +362,7 @@ router.post("/:previewId/query/:queryIndex/respond",
 // Employee acknowledge preview
 router.post("/:previewId/acknowledge",
   protect,
-  requireModulePermission("finance", "payroll.slip.view_self", { legacyAllowed: true }),
+  requireModulePermission("finance", "payroll.slip.view_self", { legacyRoles: PAYROLL_SELF_ROLES }),
   async (req, res) => {
     try {
       const { previewId } = req.params;

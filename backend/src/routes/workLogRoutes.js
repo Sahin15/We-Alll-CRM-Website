@@ -26,82 +26,39 @@ import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
 
-const WORKLOG_REVIEW_ROLES = ["admin", "superadmin", "hr", "manager"];
+const WORKLOG_REVIEW_ROLES = ["admin", "superadmin", "hr", "manager", "hod"];
+const WORKLOG_SELF_ROLES = [
+  "employee",
+  "hod",
+  "sales",
+  "manager",
+  "hr",
+  "admin",
+  "superadmin",
+];
 
-// Employee routes (protected — legacy: any authenticated user)
-router.post(
-  "/submit",
-  protect,
-  requireModulePermission("worklog", "worklog.entry.create", { legacyAllowed: true }),
-  submitWorkLog
-);
-router.post(
-  "/save-draft",
-  protect,
-  requireModulePermission("worklog", "worklog.entry.create", { legacyAllowed: true }),
-  saveDraft
-);
-router.get(
-  "/today",
-  protect,
-  requireModulePermission("worklog", "worklog.entry.view_self", { legacyAllowed: true }),
-  getTodayWorkLog
-);
-router.get(
-  "/check-status",
-  protect,
-  requireModulePermission("worklog", "worklog.entry.view_self", { legacyAllowed: true }),
-  checkWorkLogStatus
-);
-router.get(
-  "/my-logs/export",
-  protect,
-  requireModulePermission("worklog", "worklog.entry.view_self", { legacyAllowed: true }),
-  exportWorkLogs
-);
-router.put(
-  "/my-logs/:id",
-  protect,
-  requireModulePermission("worklog", "worklog.entry.create", { legacyAllowed: true }),
-  updateMyWorkLog
-);
-router.get(
-  "/my-logs",
-  protect,
-  requireModulePermission("worklog", "worklog.entry.view_self", { legacyAllowed: true }),
-  getMyWorkLogs
-);
-router.post(
-  "/late-submission",
-  protect,
-  requireModulePermission("worklog", "worklog.entry.create", { legacyAllowed: true }),
-  lateSubmission
-);
+const worklogCreate = requireModulePermission("worklog", "worklog.entry.create", {
+  legacyRoles: WORKLOG_SELF_ROLES,
+});
+const worklogViewSelf = requireModulePermission("worklog", "worklog.entry.view_self", {
+  legacyRoles: WORKLOG_SELF_ROLES,
+});
+const worklogReview = requireModulePermission("worklog", "worklog.entry.review", {
+  legacyRoles: WORKLOG_REVIEW_ROLES,
+});
 
-// HOD routes — legacy gated by isHoD middleware
-router.get(
-  "/department/logs",
-  protect,
-  isHoD,
-  requireModulePermission("worklog", "worklog.entry.review", { legacyAllowed: true }),
-  getDepartmentWorkLogs
-);
+router.post("/submit", protect, worklogCreate, submitWorkLog);
+router.post("/save-draft", protect, worklogCreate, saveDraft);
+router.get("/today", protect, worklogViewSelf, getTodayWorkLog);
+router.get("/check-status", protect, worklogViewSelf, checkWorkLogStatus);
+router.get("/my-logs/export", protect, worklogViewSelf, exportWorkLogs);
+router.put("/my-logs/:id", protect, worklogCreate, updateMyWorkLog);
+router.get("/my-logs", protect, worklogViewSelf, getMyWorkLogs);
+router.post("/late-submission", protect, worklogCreate, lateSubmission);
 
-router.put(
-  "/department/:id/review",
-  protect,
-  isHoD,
-  requireModulePermission("worklog", "worklog.entry.review", { legacyAllowed: true }),
-  reviewDepartmentWorkLog
-);
-
-router.put(
-  "/department/:id/raise-concern",
-  protect,
-  isHoD,
-  requireModulePermission("worklog", "worklog.entry.review", { legacyAllowed: true }),
-  raiseDepartmentConcern
-);
+router.get("/department/logs", protect, isHoD, worklogReview, getDepartmentWorkLogs);
+router.put("/department/:id/review", protect, isHoD, worklogReview, reviewDepartmentWorkLog);
+router.put("/department/:id/raise-concern", protect, isHoD, worklogReview, raiseDepartmentConcern);
 
 // Admin/HR/Manager routes
 router.get(

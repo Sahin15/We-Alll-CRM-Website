@@ -28,31 +28,23 @@ const router = express.Router();
 const PAYROLL_MANAGE_ROLES = ["admin", "superadmin", "hr", "accounts", "manager"];
 const PAYROLL_DELETE_ROLES = ["admin", "superadmin", "hr", "manager"];
 const PAYROLL_MARK_PAID_ROLES = ["admin", "superadmin", "accounts", "manager"];
+const PAYROLL_SELF_ROLES = [
+  "employee",
+  "hod",
+  "sales",
+  "hr",
+  "admin",
+  "superadmin",
+];
 
-router.get(
-  "/my-slips",
-  protect,
-  requireModulePermission("finance", "payroll.slip.view_self", { legacyAllowed: true }),
-  getMySalarySlips
-);
-router.get(
-  "/:id",
-  protect,
-  requireModulePermission("finance", "payroll.slip.view_self", { legacyAllowed: true }),
-  getSalarySlipById
-);
-router.get(
-  "/:id/download-pdf",
-  protect,
-  requireModulePermission("finance", "payroll.slip.view_self", { legacyAllowed: true }),
-  downloadSalarySlipPDF
-);
-router.post(
-  "/:id/track-download",
-  protect,
-  requireModulePermission("finance", "payroll.slip.view_self", { legacyAllowed: true }),
-  trackDownload
-);
+const payrollViewSelf = requireModulePermission("finance", "payroll.slip.view_self", {
+  legacyRoles: PAYROLL_SELF_ROLES,
+});
+
+router.get("/my-slips", protect, payrollViewSelf, getMySalarySlips);
+router.get("/:id", protect, payrollViewSelf, getSalarySlipById);
+router.get("/:id/download-pdf", protect, payrollViewSelf, downloadSalarySlipPDF);
+router.post("/:id/track-download", protect, payrollViewSelf, trackDownload);
 
 router.post(
   "/generate",
