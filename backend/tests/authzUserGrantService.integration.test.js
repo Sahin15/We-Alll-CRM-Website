@@ -56,6 +56,7 @@ describe('Authorization V2 — userGrantService (integration)', () => {
 
     expect(updated.directAssignments).toHaveLength(1);
     expect(updated.directAssignments[0].permission).toBe('support.manage');
+    expect(updated.directAssignments[0].assignedBy?.name).toBe('Test Admin');
     expect(updated.effective.permissions).toContain('support.manage');
 
     const inDb = await UserPermissionGrant.countDocuments({ user: employee._id });
@@ -127,5 +128,83 @@ describe('Authorization V2 — userGrantService (integration)', () => {
 
     const inDb = await UserPermissionGrant.countDocuments({ user: employee._id });
     expect(inDb).toBe(0);
+  });
+
+  test('getUserAssignmentPayload includes HoD flag for department heads', async () => {
+    const hodUser = await User.create({
+      name: 'Test HoD',
+      email: 'hod-grant-test@example.com',
+      password: 'hashed',
+      role: 'employee',
+      status: 'active',
+      isHeadOfDepartment: true,
+    });
+
+    const payload = await getUserAssignmentPayload(hodUser._id);
+    expect(payload.user.isHeadOfDepartment).toBe(true);
+    expect(payload.inherited.permissions).toContain('leave.request.approve');
+  });
+
+  test('expired direct grants stay in audit trail but not in effective permissions', async () => {
+    const admin = await User.create({
+      name: 'Test Admin Expiry',
+      email: 'admin-grant-expiry@example.com',
+      password: 'hashed',
+      role: 'admin',
+      status: 'active',
+    });
+
+    const employee = await User.create({
+      name: 'Test Employee Expiry',
+      email: 'employee-grant-expiry@example.com',
+      password: 'hashed',
+      role: 'employee',
+      status: 'active',
+    });
+
+    const past = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    await UserPermissionGrant.create({
+      user: employee._id,
+      permission: 'support.manage',
+      scope: 'COMPANY',
+      effect: 'grant',
+      assignedBy: admin._id,
+      expiresAt: past,
+    });
+
+    const payload = await getUserAssignmentPayload(employee._id);
+    expect(payload.directAssignments).toHaveLength(1);
+    expect(payload.directAssignments[0].isExpired).toBe(true);
+    expect(payload.expiredAssignments).toHaveLength(1);
+    expect(payload.effective.permissions).not.toContain('support.manage');
+  });
+
+  test('replaceUserAssignments rejects past expiresAt', async () => {
+    const admin = await User.create({
+      name: 'Test Admin Expiry 2',
+      email: 'admin-grant-expiry2@example.com',
+      password: 'hashed',
+      role: 'admin',
+      status: 'active',
+    });
+
+    const employee = await User.create({
+      name: 'Test Employee Expiry 2',
+      email: 'employee-grant-expiry2@example.com',
+      password: 'hashed',
+      role: 'employee',
+      status: 'active',
+    });
+
+    const past = new Date(Date.now() - 60 * 1000).toISOString();
+
+    await expect(
+      replaceUserAssignments(
+        employee._id,
+        [{ permission: 'support.manage', scope: 'COMPANY', effect: 'grant', expiresAt: past }],
+        admin._id
+      )
+    ).rejects.toMatchObject({ statusCode: 400 });
   });
 });

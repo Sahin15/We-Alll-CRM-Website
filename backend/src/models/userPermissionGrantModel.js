@@ -42,10 +42,15 @@ const userPermissionGrantSchema = new mongoose.Schema(
       maxlength: 500,
       default: '',
     },
+    expiresAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );
 
 userPermissionGrantSchema.index({ user: 1, permission: 1 }, { unique: true });
+userPermissionGrantSchema.index({ expiresAt: 1 }, { sparse: true });
 
 export default mongoose.model('UserPermissionGrant', userPermissionGrantSchema);

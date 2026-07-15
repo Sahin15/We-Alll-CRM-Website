@@ -3,6 +3,7 @@
  */
 
 import UserPermissionGrant from '../models/userPermissionGrantModel.js';
+import { isDirectGrantActive } from './userGrantService.js';
 
 /**
  * @param {import('express').Request} req
@@ -16,14 +17,16 @@ export async function attachDirectPermissionGrants(req, res, next) {
     }
 
     const rows = await UserPermissionGrant.find({ user: req.user._id })
-      .select('permission scope effect')
+      .select('permission scope effect expiresAt')
       .lean();
 
-    req.user.directPermissionGrants = rows.map((row) => ({
-      permission: row.permission,
-      scope: row.scope,
-      effect: row.effect,
-    }));
+    req.user.directPermissionGrants = rows
+      .filter((row) => isDirectGrantActive(row))
+      .map((row) => ({
+        permission: row.permission,
+        scope: row.scope,
+        effect: row.effect,
+      }));
 
     next();
   } catch (error) {

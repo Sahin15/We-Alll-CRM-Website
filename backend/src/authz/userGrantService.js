@@ -21,24 +21,45 @@ export function getEffectiveGrantsWithDirect(user, directGrants = []) {
 }
 
 /**
- * @param {import('mongoose').Types.ObjectId | string} userId
- * @returns {Promise<Array<{ permission: string, scope: string, effect: string, note?: string, assignedBy?: object, updatedAt?: Date }>>}
+ * @param {{ expiresAt?: Date | string | null }} row
+ * @param {Date} [now]
+ * @returns {boolean}
  */
-export async function loadDirectGrantsForUser(userId) {
+export function isDirectGrantActive(row, now = new Date()) {
+  if (!row?.expiresAt) return true;
+  return new Date(row.expiresAt) > now;
+}
+
+/**
+ * @param {import('mongoose').Types.ObjectId | string} userId
+ * @param {{ includeExpired?: boolean }} [options]
+ * @returns {Promise<Array<object>>}
+ */
+export async function loadDirectGrantsForUser(userId, options = {}) {
+  const { includeExpired = true } = options;
   const rows = await UserPermissionGrant.find({ user: userId })
     .populate('assignedBy', 'name email role')
     .sort({ permission: 1 })
     .lean();
 
-  return rows.map((row) => ({
+  const mapped = rows.map((row) => ({
     _id: row._id,
     permission: row.permission,
     scope: row.scope,
     effect: row.effect,
     note: row.note || '',
     assignedBy: row.assignedBy,
+    createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+    expiresAt: row.expiresAt || null,
+    isExpired: !isDirectGrantActive(row),
   }));
+
+  if (includeExpired) {
+    return mapped;
+  }
+
+  return mapped.filter((row) => !row.isExpired);
 }
 
 /**
@@ -101,8 +122,9 @@ export async function getUserAssignmentPayload(userId) {
     throw err;
   }
 
-  const directRows = await loadDirectGrantsForUser(userId);
-  const directGrants = directRows.map((row) => ({
+  const directRows = await loadDirectGrantsForUser(userId, { includeExpired: true });
+  const activeDirectRows = directRows.filter((row) => !row.isExpired);
+  const directGrants = activeDirectRows.map((row) => ({
     permission: row.permission,
     scope: row.scope,
     effect: row.effect,
@@ -118,8 +140,10 @@ export async function getUserAssignmentPayload(userId) {
       role: user.role,
       department: user.department,
       status: user.status,
+      isHeadOfDepartment: Boolean(user.isHeadOfDepartment),
     },
     directAssignments: directRows,
+    expiredAssignments: directRows.filter((row) => row.isExpired),
     inherited: {
       permissions: getLegacyRoleGrants(user).map((g) => g.permission),
       scopes: getLegacyRoleGrants(user).reduce((acc, g) => {
@@ -176,11 +200,28 @@ export async function replaceUserAssignments(userId, assignments, assignedById) 
     }
 
     const effect = item.effect === 'deny' ? 'deny' : 'grant';
+    let expiresAt = null;
+    if (item.expiresAt) {
+      const parsed = new Date(item.expiresAt);
+      if (Number.isNaN(parsed.getTime())) {
+        const err = new Error(`Invalid expiresAt for ${permission}`);
+        err.statusCode = 400;
+        throw err;
+      }
+      if (parsed <= new Date()) {
+        const err = new Error(`expiresAt must be in the future for ${permission}`);
+        err.statusCode = 400;
+        throw err;
+      }
+      expiresAt = parsed;
+    }
+
     normalized.push({
       permission,
       scope,
       effect,
       note: typeof item.note === 'string' ? item.note.trim().slice(0, 500) : '',
+      expiresAt,
     });
   }
 
@@ -194,6 +235,7 @@ export async function replaceUserAssignments(userId, assignments, assignedById) 
         scope: row.scope,
         effect: row.effect,
         note: row.note,
+        expiresAt: row.expiresAt,
         assignedBy: assignedById,
       }))
     );
