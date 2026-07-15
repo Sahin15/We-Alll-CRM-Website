@@ -244,7 +244,19 @@ const AppRoutes = () => {
       >
         {/* Dashboard - Role-based (Authorization V2 pilot) */}
         <Route path="/dashboard" element={
-          <PermissionRoute permission="dashboard.view" module="dashboard">
+          <PermissionRoute
+            permission="dashboard.view"
+            fallbackRoles={[
+              "superadmin",
+              "admin",
+              "hr",
+              "accounts",
+              "employee",
+              "client",
+              "hod",
+              "manager",
+            ]}
+          >
             <Suspense fallback={<RouteLoadingFallback />}>
               <RoleDashboard />
             </Suspense>

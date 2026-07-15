@@ -1,6 +1,10 @@
 /**
  * Shared Authorization V2 access checks for sidebar and routes.
- *
+ */
+
+import { isAuthzV2AnyModuleEnabled } from './authzFlags.js';
+
+/**
  * @param {object} params
  * @param {object|null} params.user
  * @param {(permission: string) => boolean} params.canPermission
@@ -30,6 +34,12 @@ export function hasPermissionAccess({
 
   if (authzLoading) {
     return fallbackRoles.length > 0 && checkPermission(fallbackRoles);
+  }
+
+  // V2 flags off: legacy passthrough for authenticated users (pre-wave behavior)
+  if (!isAuthzV2AnyModuleEnabled()) {
+    if (fallbackRoles.length) return checkPermission(fallbackRoles);
+    return true;
   }
 
   if (fallbackRoles.length && checkPermission(fallbackRoles)) return true;
