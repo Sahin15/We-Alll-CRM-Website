@@ -75,7 +75,7 @@ export function usePermission(options = {}) {
 
   return {
     effective,
-    loading: loading || authzLoading,
+    loading: loading || (authzLoading && !authzEffective),
     error,
     refresh: loadAuthzEffective || refresh,
     can,

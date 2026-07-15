@@ -24,7 +24,7 @@ const PermissionRoute = ({ children, permission, fallbackRoles, requiresDepartme
     authzEffective,
   } = useAuth();
 
-  if (loading || authzLoading) {
+  if (loading) {
     return (
       <div
         className="d-flex justify-content-center align-items-center"
@@ -54,6 +54,19 @@ const PermissionRoute = ({ children, permission, fallbackRoles, requiresDepartme
     });
 
     if (!allowed) {
+      // Wait only on first authz resolution when no legacy fallback applies
+      if (authzLoading && !authzEffective) {
+        return (
+          <div
+            className="d-flex justify-content-center align-items-center"
+            style={{ minHeight: "40vh" }}
+          >
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        );
+      }
       return <Navigate to="/unauthorized" replace />;
     }
   } else if (fallbackRoles?.length && !checkPermission(fallbackRoles)) {

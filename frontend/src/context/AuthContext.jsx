@@ -54,12 +54,15 @@ export const AuthProvider = ({ children }) => {
   const [authzLoading, setAuthzLoading] = useState(false);
   const healthMonitorCleanup = useRef(null);
 
-  const loadAuthzEffective = useCallback(async () => {
+  const loadAuthzEffective = useCallback(async (options = {}) => {
+    const { silent = false } = options;
     if (!isAuthzV2AnyModuleEnabled()) {
       setAuthzEffective(null);
       return null;
     }
-    setAuthzLoading(true);
+    if (!silent) {
+      setAuthzLoading(true);
+    }
     try {
       const data = await authzApi.getEffective();
       setAuthzEffective(data);
@@ -68,7 +71,9 @@ export const AuthProvider = ({ children }) => {
       setAuthzEffective(null);
       return null;
     } finally {
-      setAuthzLoading(false);
+      if (!silent) {
+        setAuthzLoading(false);
+      }
     }
   }, []);
 
@@ -95,7 +100,7 @@ export const AuthProvider = ({ children }) => {
             } catch {
               // Keep cached user if refresh fails (offline, etc.)
             }
-            await loadAuthzEffective();
+            loadAuthzEffective();
           } catch (parseError) {
             safeLocalStorage.removeItem("token");
             safeLocalStorage.removeItem("user");
@@ -216,7 +221,7 @@ export const AuthProvider = ({ children }) => {
     if (!token || !isAuthzV2AnyModuleEnabled()) return undefined;
 
     const refreshOnFocus = () => {
-      loadAuthzEffective();
+      loadAuthzEffective({ silent: true });
     };
 
     window.addEventListener("focus", refreshOnFocus);
