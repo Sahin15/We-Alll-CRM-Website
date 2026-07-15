@@ -13,7 +13,7 @@ for (const file of fs.readdirSync(routesDir).filter((f) => f.endsWith('.js'))) {
   if (uses > 0) continue;
 
   content = content.replace(
-    /import \{ authorizeRoles \} from ['"]\.\.\/middleware\/roleMiddleware\.js['"];\n?/g,
+    /import \{ authorizeRoles \} from ['"]\.\.\/middleware\/authMiddleware\.js['"];\n?/g,
     ''
   );
   content = content.replace(/\nimport \{ protect \} from '\.\.\/middleware\/authMiddleware\.js';\n\n/g, '\nimport { protect } from "../middleware/authMiddleware.js";\n');

@@ -92,7 +92,7 @@ function stripDuplicateAuthorizeLines(content) {
 
   if (!/authorizeRoles/.test(result)) {
     result = result.replace(
-      /import \{ authorizeRoles \} from ['"]\.\.\/middleware\/roleMiddleware\.js['"];\n?/g,
+      /import \{ authorizeRoles \} from ['"]\.\.\/middleware\/authMiddleware\.js['"];\n?/g,
       ''
     );
   }

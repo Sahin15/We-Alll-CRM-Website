@@ -13,7 +13,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
 import { protect } from "./middleware/authMiddleware.js";
-import { authorizeRoles } from "./middleware/roleMiddleware.js";
+import { requireModulePermission } from "./authz/authzMiddleware.js";
 import userRoutes from "./routes/userRoutes.js";
 import connectDB from "./config/db.js";
 // Firebase Admin is initialized via firebaseAdmin.js (imported by notificationService)
@@ -185,7 +185,13 @@ app.get("/api/health", (_req, res) => {
 });
 
 // Quick fix for HR attendance (requires admin authentication)
-app.get("/api/fix-hr-now", protect, authorizeRoles("admin", "superadmin"), async (_req, res) => {
+app.get(
+  "/api/fix-hr-now",
+  protect,
+  requireModulePermission("attendance", "attendance.record.manage", {
+    legacyRoles: ["admin", "superadmin"],
+  }),
+  async (_req, res) => {
   try {
     const { default: Attendance } = await import('./models/attendanceModel.js');
     const { default: User } = await import('./models/userModel.js');
