@@ -3,6 +3,7 @@ import { Container, Row, Col, Card, Button, ButtonGroup, Badge } from 'react-boo
 import { FaPlus, FaTh, FaList, FaEye, FaEdit, FaTrash } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
+import { PAGE_ACCESS, checkPageAccess } from '../../constants/pageAccess';
 import projectApi from '../../api/projectApi';
 import clientApi from '../../api/clientApi';
 import { departmentApi } from '../../api/departmentApi';
@@ -22,7 +23,14 @@ import SimplifiedProjectModal from '../../components/projects/SimplifiedProjectM
  * - Cached data to avoid unnecessary reloads
  */
 const ProjectListPage = () => {
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
+  const canViewAllProjects = canAccess(
+    PAGE_ACCESS.projectManage.permission,
+    ['admin', 'superadmin', 'hr', 'manager']
+  );
+  const canFilterProjectsAdmin = checkPageAccess(canAccess, PAGE_ACCESS.projectFilterAdmin);
+  const canManageProjects = checkPageAccess(canAccess, PAGE_ACCESS.projectManage);
+  const isPlatformAdmin = checkPageAccess(canAccess, PAGE_ACCESS.platformAdmin);
   const [projects, setProjects] = useState([]);
   const [clients, setClients] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -55,10 +63,10 @@ const ProjectListPage = () => {
       
       // Parallel API calls for better performance
       const projectsPromise = getProjectsByRole();
-      const clientsPromise = ['admin', 'superadmin', 'hr', 'hod', 'manager'].includes(user?.role)
+      const clientsPromise = canFilterProjectsAdmin
         ? clientApi.getAllClients()
         : Promise.resolve({ data: [], clients: [] });
-      const departmentsPromise = ['admin', 'superadmin', 'hr', 'hod', 'manager'].includes(user?.role)
+      const departmentsPromise = canFilterProjectsAdmin
         ? departmentApi.getAllDepartments()
         : Promise.resolve({ data: [], departments: [] });
 
@@ -85,7 +93,7 @@ const ProjectListPage = () => {
   }, [user?.role]);
 
   const getProjectsByRole = useCallback(async () => {
-    if (['admin', 'superadmin', 'hr', 'manager'].includes(user?.role)) {
+    if (canViewAllProjects) {
       return projectApi.getAllProjects();
     } else if (user?.role === 'hod') {
       const [deptProjectsRes, myProjectsRes] = await Promise.allSettled([
@@ -227,7 +235,7 @@ const ProjectListPage = () => {
     setDisplayLimit(50); // Reset pagination
   }, []);
 
-  const canCreateProject = ['admin', 'superadmin', 'hod', 'hr', 'manager'].includes(user?.role);
+  const canCreateProject = canManageProjects;
 
   if (loading) {
     return (
@@ -248,7 +256,7 @@ const ProjectListPage = () => {
         <Col>
           <h2>Projects</h2>
           <p className="text-muted">
-            {['admin', 'superadmin', 'hr', 'manager'].includes(user?.role) 
+            {canViewAllProjects 
               ? 'View and manage all projects'
               : user?.role === 'hod'
               ? 'View and manage your department\'s projects'
@@ -437,7 +445,7 @@ const ProjectListPage = () => {
                                   >
                                     <FaEye />
                                   </Button>
-                                  {['admin', 'superadmin', 'hr', 'hod', 'manager'].includes(user?.role) && (
+                                  {canFilterProjectsAdmin && (
                                     <Button
                                       variant="outline-secondary"
                                       size="sm"
@@ -450,7 +458,7 @@ const ProjectListPage = () => {
                                       <FaEdit />
                                     </Button>
                                   )}
-                                  {['admin', 'superadmin'].includes(user?.role) && (
+                                  {isPlatformAdmin && (
                                     <Button
                                       variant="outline-danger"
                                       size="sm"
@@ -579,7 +587,7 @@ const ProjectListPage = () => {
                                   >
                                     <FaEye />
                                   </Button>
-                                  {['admin', 'superadmin', 'hr', 'hod', 'manager'].includes(user?.role) && (
+                                  {canFilterProjectsAdmin && (
                                     <Button
                                       variant="outline-secondary"
                                       size="sm"
@@ -592,7 +600,7 @@ const ProjectListPage = () => {
                                       <FaEdit />
                                     </Button>
                                   )}
-                                  {['admin', 'superadmin'].includes(user?.role) && (
+                                  {isPlatformAdmin && (
                                     <Button
                                       variant="outline-danger"
                                       size="sm"

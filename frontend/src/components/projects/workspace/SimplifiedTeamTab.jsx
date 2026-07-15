@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import projectApi from '../../../api/projectApi';
 import userApi from '../../../api/userApi';
 import { useAuth } from '../../../context/AuthContext';
+import { checkPageAccess, PAGE_ACCESS } from '../../../constants/pageAccess';
 import AssignWorkModal from '../../work/AssignWorkModal';
 
 /**
@@ -12,7 +13,7 @@ import AssignWorkModal from '../../work/AssignWorkModal';
  * No work assignment here - that's in Work tab
  */
 const SimplifiedTeamTab = ({ project, onRefresh }) => {
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
   const [currentProject, setCurrentProject] = useState(project);
   const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,8 +30,8 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
   const [memberToRemove, setMemberToRemove] = useState(null);
 
   // Check if user can manage team - updated to match backend logic
-  const canManageTeam = 
-    ['admin', 'superadmin', 'hr'].includes(user?.role) ||
+  const canManageTeam =
+    canAccess('team.user.update', ['admin', 'superadmin', 'hr']) ||
     user?._id === currentProject.projectHead?._id ||
     (currentProject.department?.head && user?._id === currentProject.department.head._id) ||
     currentProject.assignedUsers?.some(u => (u._id || u) === user?._id);

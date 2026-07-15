@@ -4,6 +4,7 @@ import { FaBullhorn, FaBell, FaEye, FaCalendarAlt, FaUser, FaBuilding, FaExclama
 import { toast } from 'react-toastify';
 import { useNotifications } from '../../context/NotificationContext';
 import { useAuth } from '../../context/AuthContext';
+import { PAGE_ACCESS, checkPageAccess } from '../../constants/pageAccess';
 import HolidaySection from '../../components/common/HolidaySection';
 import FeedbackForm from '../../components/feedback/FeedbackForm';
 import FeedbackList from '../../components/feedback/FeedbackList';
@@ -12,7 +13,7 @@ import { announcementApi } from '../../api/announcementApi';
 import { useSearchParams } from 'react-router-dom';
 
 const Announcements = () => {
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
   const [searchParams] = useSearchParams();
   const [announcements, setAnnouncements] = useState([]);
   const [filteredItems, setFilteredItems] = useState([]);
@@ -32,7 +33,7 @@ const Announcements = () => {
   const [submittingAnnouncement, setSubmittingAnnouncement] = useState(false);
 
   const { notifications, loading: notificationsLoading, fetchNotifications, markAsRead: markNotificationAsRead, deleteNotification } = useNotifications();
-  const isAdminUser = ['admin', 'superadmin', 'hr'].includes(user?.role);
+  const isAdminUser = checkPageAccess(canAccess, PAGE_ACCESS.companyAnnounceManage);
 
   useEffect(() => { fetchData(); fetchNotifications(); }, []); // eslint-disable-line
 

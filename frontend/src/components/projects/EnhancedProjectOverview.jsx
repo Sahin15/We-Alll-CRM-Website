@@ -14,6 +14,7 @@ import SlotConflictResolution from './SlotConflictResolution';
 // Import existing components and APIs
 import { projectApi } from '../../api/projectApi';
 import { useAuth } from '../../context/AuthContext';
+import { checkPageAccess, PAGE_ACCESS } from '../../constants/pageAccess';
 
 /**
  * EnhancedProjectOverview Component
@@ -24,7 +25,7 @@ import { useAuth } from '../../context/AuthContext';
 const EnhancedProjectOverview = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
 
   // State management
   const [project, setProject] = useState(null);
@@ -37,7 +38,7 @@ const EnhancedProjectOverview = () => {
 
   // Permission checks
   const isProjectHead = project?.projectHead?._id === user?._id;
-  const canManage = ['admin', 'superadmin', 'hod'].includes(user?.role) || isProjectHead;
+  const canManage = canAccess('projects.project.manage', ['admin', 'superadmin', 'hod']) || isProjectHead;
 
   useEffect(() => {
     if (id) {

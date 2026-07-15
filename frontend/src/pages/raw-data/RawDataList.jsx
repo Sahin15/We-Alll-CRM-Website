@@ -3,6 +3,7 @@ import { Container, Row, Col, Card, Table, Button, Badge, Form, InputGroup, Spin
 import { FaPlus, FaSearch, FaFilter, FaUpload, FaPhone, FaEye, FaTrash, FaUserCheck, FaEdit, FaCheck } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
+import { PAGE_ACCESS, checkPageAccess } from "../../constants/pageAccess";
 import { rawDataApi } from "../../api/rawDataApi";
 import RawDataFormModal from "../../components/raw-data/RawDataFormModal";
 import CallLogModal from "../../components/raw-data/CallLogModal";
@@ -31,7 +32,8 @@ const CATEGORIES = ["Makeup Artist", "Salon", "Bridal Clients", "Tattoo Artists"
 const SOURCES = ["Instagram", "Facebook", "Referral", "Manual", "Website", "Justdial", "Event", "Existing Contact", "Other"];
 
 export default function RawDataList() {
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
+  const canManageRawData = checkPageAccess(canAccess, PAGE_ACCESS.crmRawDataManage);
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0, pages: 1 });
@@ -54,8 +56,7 @@ export default function RawDataList() {
   const [assigningRecord, setAssigningRecord] = useState(null);
   const [convertingRecord, setConvertingRecord] = useState(null);
 
-  // Check if user is manager
-  const isManager = ['admin', 'superadmin', 'manager', 'hod'].includes(user?.role);
+  const isManager = canManageRawData;
 
   const fetchRecords = useCallback(async (page = 1) => {
     setLoading(true);

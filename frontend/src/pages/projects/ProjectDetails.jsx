@@ -29,6 +29,7 @@ import { projectApi } from "../../api/projectApi";
 import { workItemApi } from "../../api/workItemApi";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
 import { useAuth } from "../../context/AuthContext";
+import { PAGE_ACCESS, checkPageAccess } from "../../constants/pageAccess";
 import { userApi } from "../../api/userApi";
 import SlotProgressDisplay from "../../components/projects/SlotProgressDisplay";
 import SlotStatisticsCards from "../../components/projects/SlotStatisticsCards";
@@ -37,7 +38,11 @@ import ProjectCredentials from "../../components/projects/ProjectCredentials";
 const ProjectDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
+  const canEditByRole = canAccess(
+    PAGE_ACCESS.projectManage.permission,
+    ['admin', 'superadmin', 'hod']
+  );
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showStatusModal, setShowStatusModal] = useState(false);
@@ -67,10 +72,10 @@ const ProjectDetails = () => {
 
 
   // Check if user can edit (admin, superadmin, hod)
-  const canEdit = ["admin", "superadmin", "hod"].includes(user?.role);
+  const canEdit = canEditByRole;
 
   // Check if user is project head
-  const isProjectHead = canEdit || (project?.projectHead?._id === user?._id);
+  const isProjectHead = canEditByRole || (project?.projectHead?._id === user?._id);
   
   // Check if user is a team member
   const isTeamMember = project?.teamMembers?.some(

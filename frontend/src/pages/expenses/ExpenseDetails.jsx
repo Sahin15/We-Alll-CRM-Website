@@ -5,13 +5,15 @@ import { useParams, useNavigate } from "react-router-dom";
 import toast from "../../utils/toast";
 import { expenseApi, bulkApproveExpenses, bulkRejectExpenses } from "../../api/expenseApi";
 import { useAuth } from "../../context/AuthContext";
+import { PAGE_ACCESS, checkPageAccess } from "../../constants/pageAccess";
 import { formatDate, formatCurrency } from "../../utils/helpers";
 import { getPurposeLabel, getTypeLabel, getPurposeColor, getTypeColor } from "../../utils/expenseConstants";
 
 const ExpenseDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
+  const canApproveExpense = checkPageAccess(canAccess, PAGE_ACCESS.expenseApprove);
   const [expense, setExpense] = useState(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
@@ -149,7 +151,7 @@ const ExpenseDetails = () => {
           <h2 className="mb-0">Expense Details</h2>
         </div>
         <div className="d-flex gap-2">
-          {expense.status === "pending" && ['admin', 'superadmin', 'hr', 'manager'].includes(user?.role) && (
+          {expense.status === "pending" && canApproveExpense && (
             <>
               <Button 
                 variant="success"

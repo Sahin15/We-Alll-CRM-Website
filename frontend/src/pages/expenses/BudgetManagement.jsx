@@ -4,6 +4,7 @@ import { FaArrowLeft, FaDownload } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { getFinancialYears, getCategoryStats } from "../../api/expenseApi";
 import { useAuth } from "../../context/AuthContext";
+import { PAGE_ACCESS, checkPageAccess } from "../../constants/pageAccess";
 import toast from "../../utils/toast";
 import { getPurposeLabel, getTypeLabel } from "../../utils/expenseConstants";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
@@ -11,10 +12,11 @@ import "./ExpenseManagement.css";
 
 const BudgetManagement = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  
+  const { user, canAccess } = useAuth();
+  const canViewBudget = checkPageAccess(canAccess, PAGE_ACCESS.expenseApprove);
+
   // Role-based access control
-  if (!user || (user.role !== "admin" && user.role !== "superadmin" && user.role !== "hr" && user.role !== "manager")) {
+  if (!user || !canViewBudget) {
     return (
       <Container className="py-5 text-center">
         <Alert variant="danger">

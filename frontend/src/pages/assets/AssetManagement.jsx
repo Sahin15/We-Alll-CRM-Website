@@ -4,6 +4,7 @@ import {
   FaCalendarAlt, FaLaptop, FaTools, FaHistory
 } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
+import { PAGE_ACCESS, checkPageAccess } from '../../constants/pageAccess';
 import useScrollToTop from '../../hooks/useScrollToTop';
 import AssetDashboard from './AssetDashboard';
 import AssetList from './AssetList';
@@ -15,10 +16,10 @@ import MyAssets from './MyAssets';
 import './PremiumAssetManagement.css';
 
 const AssetManagement = () => {
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
   useScrollToTop();
 
-  const isHROrAdmin = ['hr', 'admin', 'superadmin', 'manager', 'hod'].includes(user?.role);
+  const isHROrAdmin = checkPageAccess(canAccess, PAGE_ACCESS.assetsManage);
   const isEmployee = user?.role === 'employee';
 
   // Employees cannot access the admin dashboard endpoint, so default them to My Assets

@@ -26,9 +26,10 @@ import {
 import { toast } from 'react-toastify';
 import { feedbackApi } from '../../api/feedbackApi';
 import { useAuth } from '../../context/AuthContext';
+import { checkPageAccess, PAGE_ACCESS } from '../../constants/pageAccess';
 
 const FeedbackDetailModal = ({ show, onHide, feedback, isAdminView, onUpdate }) => {
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
   const [loading, setLoading] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -149,8 +150,8 @@ const FeedbackDetailModal = ({ show, onHide, feedback, isAdminView, onUpdate }) 
   const priorityInfo = getPriorityInfo(feedback.priority);
   const statusInfo = getStatusInfo(feedback.status);
   const isOwner = feedback.employee?._id === user?.id;
-  const canEdit = isAdminView && ['admin', 'superadmin', 'hr'].includes(user?.role);
-  const canDelete = (isOwner && !feedback.adminResponse) || ['admin', 'superadmin'].includes(user?.role);
+  const canEdit = isAdminView && checkPageAccess(canAccess, PAGE_ACCESS.feedbackAdmin);
+  const canDelete = (isOwner && !feedback.adminResponse) || checkPageAccess(canAccess, PAGE_ACCESS.platformAdmin);
 
   return (
     <Modal show={show} onHide={onHide} size="lg" centered>

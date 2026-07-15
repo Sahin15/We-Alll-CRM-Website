@@ -5,12 +5,13 @@ import { toast } from "react-toastify";
 import { leadApi } from "../../api/leadApi";
 import { formatDate } from "../../utils/helpers";
 import { useAuth } from "../../context/AuthContext";
+import { checkPageAccess, PAGE_ACCESS } from "../../constants/pageAccess";
 import { useNavigate } from "react-router-dom";
 
 const LeadMeetingsDashboard = () => {
-  const { user } = useAuth();
+  const { canAccess } = useAuth();
   const navigate = useNavigate();
-  const isManager = ['admin', 'superadmin', 'manager', 'hod'].includes(user?.role);
+  const isManager = checkPageAccess(canAccess, PAGE_ACCESS.crmLeadManage);
   // Sales employees default to "Mine", managers default to "All"
   const [myOnly, setMyOnly] = useState(!isManager);
   const [meetings, setMeetings] = useState([]);

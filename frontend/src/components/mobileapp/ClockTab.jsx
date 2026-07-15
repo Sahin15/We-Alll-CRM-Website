@@ -230,8 +230,8 @@ function BreakHistory({ breaks, breakSeconds, totalBreakTime }) {
 
 // ─── Main ClockTab ────────────────────────────────────────────────────────────
 export default function ClockTab() {
-  const { user } = useAuth();
-  const isManager = ['manager', 'admin', 'superadmin', 'hr', 'hod'].includes(user?.role);
+  const { user, canAccess } = useAuth();
+  const isManager = canAccess('worklog.entry.review', ['manager', 'admin', 'superadmin', 'hr', 'hod']);
   const [attendance, setAttendance] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);

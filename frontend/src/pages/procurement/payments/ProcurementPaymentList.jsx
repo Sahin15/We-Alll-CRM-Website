@@ -6,6 +6,7 @@ import {
 import { toast } from 'react-toastify';
 import { FaPlus } from 'react-icons/fa';
 import { useAuth } from '../../../context/AuthContext';
+import { PAGE_ACCESS, checkPageAccess } from '../../../constants/pageAccess';
 import { listPayments } from '../../../api/procurementApi';
 import ProcurementBreadcrumb from '../../../components/procurement/ProcurementBreadcrumb';
 
@@ -55,9 +56,9 @@ const METHOD_FILTERS = [
 
 export default function ProcurementPaymentList() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { canAccess } = useAuth();
 
-  const canWrite = ['admin', 'superadmin', 'accounts'].includes(user?.role);
+  const canWrite = checkPageAccess(canAccess, PAGE_ACCESS.procurementWrite);
 
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);

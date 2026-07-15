@@ -47,11 +47,12 @@ import { departmentApi } from "../../api/departmentApi";
 import { userApi } from "../../api/userApi";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { PAGE_ACCESS, checkPageAccess } from "../../constants/pageAccess";
 import "./DepartmentList.css";
 
 const DepartmentList = () => {
-  const { user, checkPermission } = useAuth();
-  const isAdmin = checkPermission(["admin", "superadmin"]);
+  const { user, canAccess } = useAuth();
+  const isAdmin = checkPageAccess(canAccess, PAGE_ACCESS.platformAdmin);
   const isHOD = user?.role === "hod";
   const isEmployee = user?.role === "employee";
   const [departments, setDepartments] = useState([]);

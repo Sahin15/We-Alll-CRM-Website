@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { leadApi } from '../../api/leadApi';
 import { LEADS_ROLES } from '../../utils/pwaUtils';
 import { useAuth } from '../../context/AuthContext';
+import { checkPageAccess, PAGE_ACCESS } from '../../constants/pageAccess';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 const STATUS_COLORS = {
@@ -210,8 +211,8 @@ function FollowUpDashboard() {
 
 // ─── Lead Meetings sub-tab ───────────────────────────────────────────────────
 function LeadMeetings() {
-  const { user } = useAuth();
-  const isManager = ['admin', 'superadmin', 'manager', 'hod'].includes(user?.role);
+  const { canAccess } = useAuth();
+  const isManager = checkPageAccess(canAccess, PAGE_ACCESS.crmLeadManage);
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -316,9 +317,9 @@ const SUB_TABS = [
 ];
 
 export default function FollowUpTab() {
-  const { user } = useAuth();
+  const { canAccess } = useAuth();
   const [sub, setSub] = useState('followup');
-  const hasAccess = user?.role && LEADS_ROLES.includes(user.role);
+  const hasAccess = canAccess('crm.lead.view', LEADS_ROLES);
 
   if (!hasAccess) {
     return (

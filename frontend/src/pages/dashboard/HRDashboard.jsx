@@ -42,6 +42,7 @@ import ReportsAnalytics from "../../components/hr/ReportsAnalytics";
 import OvertimeApprovalPanel from "../../components/hr/OvertimeApprovalPanel";
 import WFHApprovalPanel from "../../components/wfh/WFHApprovalPanel";
 import { useAuth } from "../../context/AuthContext";
+import { PAGE_ACCESS, checkPageAccess } from "../../constants/pageAccess";
 import { userApi } from "../../api/userApi";
 import { leaveApi } from "../../api/leaveApi";
 import { attendanceApi } from "../../api/attendanceApi";
@@ -55,7 +56,8 @@ import toast from "../../utils/toast";
 import TodoWidget from "../../components/common/TodoWidget";
 
 const HRDashboard = () => {
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
+  const hasReportsAccess = checkPageAccess(canAccess, PAGE_ACCESS.reportsAnalytics);
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     employees: 0,
@@ -106,7 +108,7 @@ const HRDashboard = () => {
       const departmentRes = await departmentApi.getAllDepartments();
       // Fetch leads data (only for roles with access: admin, superadmin, manager, or Sales department)
       let leadsRes = { data: [] };
-      if (['admin', 'superadmin', 'manager'].includes(user?.role) || user?.department === 'Sales') {
+      if (hasReportsAccess || user?.department === 'Sales') {
         try {
           leadsRes = await leadApi.getAllLeads();
         } catch (error) {

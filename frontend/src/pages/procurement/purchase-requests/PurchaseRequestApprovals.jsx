@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { FaEye, FaCheck, FaTimes, FaFilter } from 'react-icons/fa';
 import { useAuth } from '../../../context/AuthContext';
+import { PAGE_ACCESS, checkPageAccess } from '../../../constants/pageAccess';
 import { listPRs, approvePR, rejectPR } from '../../../api/procurementApi';
 import PRStatusBadge from '../../../components/procurement/PRStatusBadge';
 import ProcurementBreadcrumb from '../../../components/procurement/ProcurementBreadcrumb';
@@ -156,13 +157,13 @@ function ApproveModal({ show, pr, onHide, onConfirm, loading }) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function PurchaseRequestApprovals() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { canAccess } = useAuth();
 
   // HoD can only approve pending_hod PRs (their department's first-level approvals).
   // admin/superadmin/accounts approve pending_admin (second-level approvals).
   // HoD can also see pending_admin for visibility but cannot act on them.
-  const isHoD = user?.role === 'hod';
-  const isAdminOrAccounts = ['admin', 'superadmin', 'accounts'].includes(user?.role);
+  const isHoD = canAccess('procurement.pr.approve_hod', ['hod']);
+  const isAdminOrAccounts = checkPageAccess(canAccess, PAGE_ACCESS.procurementWrite);
 
   // Default filter based on role: HoD sees pending_hod, admin/accounts see pending_admin
   const defaultFilter = isHoD ? 'pending_hod' : 'pending_admin';

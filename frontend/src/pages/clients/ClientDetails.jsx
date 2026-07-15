@@ -14,6 +14,7 @@ import {
 } from "react-bootstrap";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { PAGE_ACCESS, checkPageAccess } from "../../constants/pageAccess";
 import {
   FaArrowLeft,
   FaEdit,
@@ -37,7 +38,12 @@ import { decodeObjectHtmlEntities } from "../../utils/htmlDecoder";
 const ClientDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
+  const canManageClients = checkPageAccess(canAccess, PAGE_ACCESS.crmClientManage);
+  const canViewAllProjects = canAccess(
+    PAGE_ACCESS.projectManage.permission,
+    ['admin', 'superadmin', 'hr', 'manager']
+  );
   const [client, setClient] = useState(null);
   const [projects, setProjects] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
@@ -139,7 +145,7 @@ const ClientDetails = () => {
       await clientApi.updateClient(id, editFormData);
       
       // Update department assignments if user has permission
-      if (['hr', 'manager', 'admin', 'superadmin'].includes(user?.role)) {
+      if (canManageClients) {
         try {
           await clientApi.assignDepartments(id, selectedDepartments);
         } catch (deptError) {
@@ -212,7 +218,7 @@ const ClientDetails = () => {
     try {
       // Use appropriate API method based on user role
       let response;
-      if (['admin', 'superadmin', 'hr', 'manager'].includes(user?.role)) {
+      if (canViewAllProjects) {
         // Admin roles can see all projects
         response = await projectApi.getAllProjects();
       } else if (user?.role === 'hod') {
@@ -977,7 +983,7 @@ const ClientDetails = () => {
             </Row>
 
             {/* Department Assignment Section - Only for HR/Manager/Admin */}
-            {['hr', 'manager', 'admin', 'superadmin'].includes(user?.role) && (
+            {canManageClients && (
               <Row>
                 <Col md={12}>
                   <Form.Group className="mb-3">

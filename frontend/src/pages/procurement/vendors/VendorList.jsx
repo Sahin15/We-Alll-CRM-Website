@@ -33,9 +33,9 @@ const StarRating = ({ rating }) => {
 
 const VendorList = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { canAccess } = useAuth();
 
-  const canWrite = ['admin', 'superadmin', 'accounts'].includes(user?.role);
+  const canWrite = canAccess('procurement.vendor.manage', ['admin', 'superadmin', 'accounts']);
 
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);

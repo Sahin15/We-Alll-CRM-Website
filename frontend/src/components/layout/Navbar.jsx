@@ -27,6 +27,7 @@ import {
   FaExclamationTriangle,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
+import { checkPageAccess, PAGE_ACCESS } from "../../constants/pageAccess";
 import { resolveProfilePictureUrl } from "../../utils/profilePictureUrl";
 
 const withCacheBust = (url) => {
@@ -48,7 +49,7 @@ const NavbarLazy = ({ children }) => (
 );
 
 const Navbar = ({ toggleSidebar }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, canAccess } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
@@ -68,10 +69,7 @@ const Navbar = ({ toggleSidebar }) => {
   }, [user?.profilePicture]);
 
   // Check if user has permission to see company switcher
-  const canSwitchCompany =
-    user?.role === "admin" ||
-    user?.role === "superadmin" ||
-    user?.role === "accounts";
+  const canSwitchCompany = canAccess('billing.invoice.view', ['admin', 'superadmin', 'accounts']);
 
   // Define billing-related routes where company switcher should appear
   const BILLING_ROUTES = [
@@ -137,7 +135,7 @@ const Navbar = ({ toggleSidebar }) => {
       const results = [];
 
       // Search Users (for HR, Admin, SuperAdmin)
-      if (['hr', 'admin', 'superadmin'].includes(user?.role)) {
+      if (checkPageAccess(canAccess, PAGE_ACCESS.profileHrView)) {
         try {
           const usersRes = await api.get(`/users`);
           const users = usersRes.data
@@ -438,7 +436,7 @@ const Navbar = ({ toggleSidebar }) => {
         {/* Right Section: Quick Actions, Notifications, User Menu */}
         <Nav className="ms-auto align-items-center gap-1 gap-md-2" style={{ overflow: 'visible' }}>
           {/* Clock In/Out for Employees, HR, HOD, Accounts, and Manager */}
-          {['employee', 'hr', 'hod', 'accounts', 'manager'].includes(user?.role) && (
+          {checkPageAccess(canAccess, PAGE_ACCESS.navbarStaffMenu) && (
             <>
               {/* Desktop version with labels */}
               <div className="d-none d-lg-flex me-2" style={{ position: 'relative', zIndex: 1 }}>

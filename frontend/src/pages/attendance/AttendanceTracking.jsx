@@ -6,6 +6,7 @@ import { attendanceApi } from "../../api/attendanceApi";
 import { userApi } from "../../api/userApi";
 import holidayApi from "../../api/holidayApi";
 import { useAuth } from "../../context/AuthContext";
+import { PAGE_ACCESS, checkPageAccess } from "../../constants/pageAccess";
 import {
   formatDate,
   formatTime,
@@ -20,7 +21,9 @@ import "../../styles/pages-mobile.css";
 import "../../styles/table-mobile.css";
 
 const AttendanceTracking = () => {
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
+  const canEditAttendanceRecords = checkPageAccess(canAccess, PAGE_ACCESS.attendanceHrManage);
+  const canViewAttendanceDetails = checkPageAccess(canAccess, PAGE_ACCESS.attendanceHodView);
   
   // Add CSS for dropdown visibility
   const dropdownStyles = `
@@ -619,15 +622,9 @@ const AttendanceTracking = () => {
     }
   };
 
-  // Check if user can edit attendance (HR, Admin, SuperAdmin)
-  const canEditAttendance = () => {
-    return ['hr', 'admin', 'superadmin'].includes(user?.role);
-  };
+  const canEditAttendance = () => canEditAttendanceRecords;
 
-  // Check if user can view attendance details (HR, Admin, SuperAdmin, HOD)
-  const canViewDetails = () => {
-    return ['hr', 'admin', 'superadmin', 'hod'].includes(user?.role);
-  };
+  const canViewDetails = () => canViewAttendanceDetails;
 
   // Handle PDF export for attendance records
   const handleExportPDF = () => {

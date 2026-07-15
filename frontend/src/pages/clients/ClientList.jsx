@@ -42,6 +42,7 @@ import {
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
+import { PAGE_ACCESS, checkPageAccess } from "../../constants/pageAccess";
 import { clientApi } from "../../api/clientApi";
 import { departmentApi } from "../../api/departmentApi";
 import { formatDate } from "../../utils/helpers";
@@ -77,7 +78,8 @@ const dropdownStyles = `
 const ClientList = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
+  const canManageClients = checkPageAccess(canAccess, PAGE_ACCESS.crmClientManage);
   const [clients, setClients] = useState([]);
   const [filteredClients, setFilteredClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -347,7 +349,7 @@ const ClientList = () => {
         await clientApi.updateClient(currentClient._id, formData);
         
         // Update department assignments if user has permission
-        if (['hr', 'manager', 'admin', 'superadmin'].includes(user?.role) && selectedDepartments.length > 0) {
+        if (canManageClients && selectedDepartments.length > 0) {
           try {
             await clientApi.assignDepartments(currentClient._id, selectedDepartments);
           } catch (deptError) {
@@ -364,7 +366,7 @@ const ClientList = () => {
         console.log('Client creation response:', response);
         
         // Assign departments if user has permission and departments are selected
-        if (['hr', 'manager', 'admin', 'superadmin'].includes(user?.role) && selectedDepartments.length > 0) {
+        if (canManageClients && selectedDepartments.length > 0) {
           try {
             await clientApi.assignDepartments(response.data.client._id, selectedDepartments);
           } catch (deptError) {
@@ -1333,7 +1335,7 @@ const ClientList = () => {
             </Row>
 
             {/* Department Assignment Section - Only for HR/Manager/Admin */}
-            {['hr', 'manager', 'admin', 'superadmin'].includes(user?.role) && (
+            {canManageClients && (
               <Row>
                 <Col md={12}>
                   <Form.Group className="mb-3">

@@ -25,9 +25,10 @@ import {
 import toast from "../../utils/toast";
 import holidayApi from '../../api/holidayApi';
 import { useAuth } from '../../context/AuthContext';
+import { checkPageAccess, PAGE_ACCESS } from '../../constants/pageAccess';
 
 const HolidayManagement = () => {
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
   const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -135,7 +136,7 @@ const HolidayManagement = () => {
   );
 
   // Check if user has permission to manage holidays
-  const canManage = ['admin', 'superadmin', 'hr'].includes(user?.role);
+  const canManage = checkPageAccess(canAccess, PAGE_ACCESS.companyHolidayManage);
 
   if (!canManage) {
     return (

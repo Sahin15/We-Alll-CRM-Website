@@ -86,7 +86,7 @@ const REPORTS_ROLES = ["admin", "superadmin", "hr", "manager"];
 const Sidebar = ({ collapsed, toggleSidebar }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, canPermission, checkPermission, authzEffective, authzLoading } = useAuth();
+  const { user, canPermission, checkPermission, authzEffective, authzLoading, canAccess } = useAuth();
   const [expandedGroups, setExpandedGroups] = useState({});
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 991);
 
@@ -735,7 +735,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
         }
       }
 
-      const isPrivilegedRole = ["admin", "superadmin", "manager"].includes(user.role);
+      const isPrivilegedRole = canAccess('team.user.update', ['admin', 'superadmin', 'manager']);
 
       if (menuItem.departments?.length > 0 && !isPrivilegedRole) {
         if (!user?.department?.name) return false;

@@ -2,6 +2,7 @@ import { createContext, useState, useEffect, useContext, useRef, useCallback } f
 import { authApi } from "../api/authApi";
 import authzApi from "../api/authzApi";
 import { isAuthzV2AnyModuleEnabled } from "../utils/authzFlags";
+import { hasPermissionAccess } from "../utils/authzAccess";
 import toast from "../utils/toast";
 import { startProfilePictureHealthMonitor } from "../utils/profilePictureHealth";
 
@@ -255,6 +256,24 @@ export const AuthProvider = ({ children }) => {
     return true;
   };
 
+  /**
+   * Page-level access: V2 permission when effective permissions are loaded, else legacy roles.
+   * @param {string} permission
+   * @param {string[]} [fallbackRoles]
+   * @returns {boolean}
+   */
+  const canAccess = (permission, fallbackRoles = []) => {
+    return hasPermissionAccess({
+      user,
+      canPermission,
+      checkPermission,
+      authzEffective,
+      authzLoading,
+      permission,
+      fallbackRoles,
+    });
+  };
+
   const value = {
     user,
     token,
@@ -269,6 +288,7 @@ export const AuthProvider = ({ children }) => {
     refreshUser,
     checkPermission,
     canPermission,
+    canAccess,
     loadAuthzEffective,
   };
 

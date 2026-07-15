@@ -11,6 +11,7 @@ import KanbanTab from '../../components/projects/workspace/KanbanTab';
 import SlotHistory from '../../components/projects/workspace/SlotHistory';
 import ProjectCredentials from '../../components/projects/ProjectCredentials';
 import { useAuth } from '../../context/AuthContext';
+import { PAGE_ACCESS, checkPageAccess } from '../../constants/pageAccess';
 
 /**
  * ProjectWorkspace Component
@@ -24,10 +25,14 @@ const ProjectWorkspace = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [refreshKey, setRefreshKey] = useState(0); // Add refresh key to force component updates
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
+  const canEditByRole = canAccess(
+    PAGE_ACCESS.projectManage.permission,
+    ['admin', 'superadmin', 'hod']
+  );
 
-  const canEdit = ["admin", "superadmin", "hod"].includes(user?.role) || 
-                  (project?.projectHead?._id === user?._id) || 
+  const canEdit = canEditByRole ||
+                  (project?.projectHead?._id === user?._id) ||
                   (project?.projectHead === user?._id);
   
   const isTeamMember = project?.teamMembers?.some(

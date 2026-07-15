@@ -9,6 +9,7 @@ import {
   FaUniversity, FaCreditCard, FaMoneyBillWave, FaFileContract, FaVolumeUp, FaTimes
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
+import { PAGE_ACCESS, checkPageAccess } from "../../constants/pageAccess";
 import ProfilePictureUpload from "../../components/profile/ProfilePictureUpload";
 import NotificationSettings from "../../components/notifications/NotificationSettings";
 import api from "../../services/api";
@@ -18,7 +19,7 @@ import "../../styles/modal-mobile.css";
 import "../../styles/profile-tabs.css";
 
 const MyProfile = () => {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, canAccess } = useAuth();
   const [activeTab, setActiveTab] = useState(
     ['admin', 'superadmin'].includes(user?.role) ? 'personal' : 'personal'
   );
@@ -72,7 +73,7 @@ const MyProfile = () => {
 
   // Document categories based on user role
   const getDocumentCategories = () => {
-    const isHROrAdmin = ['hr', 'admin', 'superadmin'].includes(user?.role);
+    const isHROrAdmin = checkPageAccess(canAccess, PAGE_ACCESS.profileHrView);
     
     const employeeCategories = [
       { value: 'aadhaar', label: 'Aadhaar Card', icon: <FaIdCard />, oneTime: true },
@@ -544,9 +545,9 @@ const MyProfile = () => {
   };
 
   const roleBadge = getRoleBadge(user?.role, user?.funBadge);
-  const isHROrAdmin = ['hr', 'admin', 'superadmin'].includes(user?.role);
-  const isAdmin = ['admin', 'superadmin'].includes(user?.role);
-  const isEmployee = ['employee', 'hod', 'hr', 'manager'].includes(user?.role);
+  const isHROrAdmin = checkPageAccess(canAccess, PAGE_ACCESS.profileHrView);
+  const isAdmin = checkPageAccess(canAccess, PAGE_ACCESS.platformAdmin);
+  const isEmployee = checkPageAccess(canAccess, PAGE_ACCESS.profileStaffView);
 
   const openDocumentModal = (category = '', documentId = null) => {
     setDocumentType(category);

@@ -9,6 +9,7 @@ import {
   FaPlus, FaEye, FaPaperPlane, FaTimes, FaFilePdf,
 } from 'react-icons/fa';
 import { useAuth } from '../../../context/AuthContext';
+import { PAGE_ACCESS, checkPageAccess } from '../../../constants/pageAccess';
 import { listPOs, issuePO, cancelPO, getPOPdf } from '../../../api/procurementApi';
 import POStatusBadge from '../../../components/procurement/POStatusBadge';
 import ProcurementBreadcrumb from '../../../components/procurement/ProcurementBreadcrumb';
@@ -33,9 +34,9 @@ const STATUS_FILTERS = [
 
 export default function PurchaseOrderList() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { canAccess } = useAuth();
 
-  const canWrite = ['admin', 'superadmin', 'accounts'].includes(user?.role);
+  const canWrite = checkPageAccess(canAccess, PAGE_ACCESS.procurementWrite);
 
   const [pos, setPos] = useState([]);
   const [loading, setLoading] = useState(true);

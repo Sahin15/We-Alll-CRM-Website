@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Card, Button, Table, Badge, Modal, Form, Row, Col, Spinner } from 'react-bootstrap';
 import { FaPlus, FaEdit, FaTrash, FaEye, FaUser } from 'react-icons/fa';
 import { toast } from 'react-toastify';
-import { useAuth } from '../../../context/AuthContext';
+import { useAuth } from "../../../context/AuthContext";
+import { checkPageAccess, PAGE_ACCESS } from "../../../constants/pageAccess";
 import workItemApi from '../../../api/workItemApi';
 import moment from 'moment';
 
@@ -11,7 +12,7 @@ import moment from 'moment';
  * Shows all work assigned in the project with full CRUD operations
  */
 const SimplifiedWorkTab = ({ project, onRefresh }) => {
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
   const [loading, setLoading] = useState(true);
   const [workItems, setWorkItems] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -30,13 +31,12 @@ const SimplifiedWorkTab = ({ project, onRefresh }) => {
   });
 
   // Check if user can manage work (project head or team member)
-  const canManageWork = 
-    ['admin', 'superadmin', 'hr', 'manager'].includes(user?.role) ||
+  const canManageWork =
+    checkPageAccess(canAccess, PAGE_ACCESS.workManage) ||
     user?._id === project.projectHead?._id ||
     project.assignedUsers?.some(u => (u._id || u) === user?._id);
 
-  // Only HR, Manager, Admin, SuperAdmin can delete
-  const canDeleteWork = ['admin', 'superadmin', 'hr', 'manager'].includes(user?.role);
+  const canDeleteWork = checkPageAccess(canAccess, PAGE_ACCESS.workManage);
 
   useEffect(() => {
     loadWorkItems();
