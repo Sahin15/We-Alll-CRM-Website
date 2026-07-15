@@ -6,6 +6,7 @@ import {
   getEffectivePermissions,
   checkPermission,
   getPermissionCatalog,
+  getRolloutStatus,
 } from '../controllers/authzController.js';
 import {
   getUserAssignments,
@@ -33,6 +34,8 @@ router.get('/effective', protect, effectivePermissions, getEffectivePermissions)
 router.post('/check', protect, manageAuthRoles, checkPermission);
 
 router.get('/catalog', protect, manageAuthRoles, getPermissionCatalog);
+
+router.get('/rollout-status', protect, manageAuthRoles, getRolloutStatus);
 
 router.get('/users/:userId/assignments', protect, assignPermissions, getUserAssignments);
 

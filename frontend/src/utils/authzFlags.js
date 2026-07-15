@@ -1,8 +1,29 @@
 /**
  * Frontend Authorization V2 feature flags.
+ * Keep AUTHZ_V2_MODULES in sync with backend `rolloutManifest.js`.
  */
 
-const AUTHZ_V2_MODULES = ['profile', 'support', 'dashboard', 'company', 'worklog', 'attendance', 'leave', 'wfh', 'team', 'hiring', 'projects', 'work', 'crm', 'procurement', 'billing', 'finance', 'resources', 'reports', 'auth'];
+const AUTHZ_V2_MODULES = [
+  'profile',
+  'support',
+  'dashboard',
+  'company',
+  'worklog',
+  'attendance',
+  'leave',
+  'wfh',
+  'team',
+  'hiring',
+  'projects',
+  'work',
+  'crm',
+  'procurement',
+  'billing',
+  'finance',
+  'resources',
+  'reports',
+  'auth',
+];
 
 /**
  * @param {string} moduleName - e.g. 'profile', 'support'
