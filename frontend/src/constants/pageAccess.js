@@ -75,6 +75,10 @@ export const PAGE_ACCESS = {
     permission: 'attendance.record.view',
     fallbackRoles: ['hr', 'admin', 'superadmin', 'hod'],
   },
+  wfhManage: {
+    permission: 'leave.request.approve',
+    fallbackRoles: ['admin', 'superadmin', 'hr', 'manager', 'hod'],
+  },
   companyAnnounceManage: {
     permission: 'company.announcement.manage',
     fallbackRoles: ['admin', 'superadmin', 'hr'],
