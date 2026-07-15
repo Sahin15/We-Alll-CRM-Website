@@ -37,6 +37,52 @@ import { useAuth } from "../../context/AuthContext";
 import { hasPermissionAccess } from "../../utils/authzAccess";
 import "./Sidebar.css";
 
+/** Shared fallback role lists aligned with backend authz pilot parity */
+const ALL_APP_ROLES = [
+  "superadmin",
+  "admin",
+  "hr",
+  "accounts",
+  "employee",
+  "client",
+  "hod",
+  "manager",
+];
+const STAFF_ROLES = ["employee", "admin", "superadmin", "hr", "hod", "manager"];
+const CRM_STAFF_ROLES = ["admin", "superadmin", "manager", "hr", "employee", "hod"];
+const CRM_RAWDATA_ROLES = ["admin", "superadmin", "manager", "employee", "hod"];
+const CRM_RAWDATA_ANALYTICS_ROLES = ["admin", "superadmin", "manager"];
+const CRM_LEAD_ROLES = ["admin", "superadmin", "manager", "employee", "hod"];
+const CRM_CLIENT_ROLES = ["admin", "superadmin", "hr", "employee", "hod", "manager"];
+const BILLING_ROLES = ["admin", "superadmin", "accounts", "manager", "hod"];
+const WORK_SELF_ROLES = ["employee", "admin", "superadmin", "hr", "hod", "manager"];
+const WORKLOG_SELF_ROLES = ["employee", "admin", "superadmin", "hr", "hod", "manager"];
+const PROJECT_VIEW_ROLES = ["admin", "superadmin", "hr", "employee", "hod", "manager"];
+const RESOURCE_ROLES = ["admin", "superadmin", "hr", "manager", "employee", "hod"];
+const PROCUREMENT_ALL_ROLES = [
+  "admin",
+  "superadmin",
+  "hr",
+  "accounts",
+  "employee",
+  "hod",
+  "manager",
+];
+const PROCUREMENT_ADMIN_ROLES = ["admin", "superadmin", "accounts"];
+const PROCUREMENT_APPROVER_ROLES = ["hod", "admin", "superadmin", "accounts"];
+const PROCUREMENT_READ_ROLES = ["admin", "superadmin", "accounts", "hr", "hod", "manager"];
+const COMPANY_VIEW_ROLES = ["employee", "hod", "admin", "superadmin", "hr", "manager"];
+const COMPANY_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
+const HIRING_PIPELINE_ROLES = ["admin", "superadmin", "hr", "manager"];
+const TEAM_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
+const TEAM_USER_ADMIN_ROLES = ["admin", "superadmin", "manager"];
+const COMPENSATION_SELF_ROLES = ["employee", "hod", "manager", "hr"];
+const LEAVE_APPROVE_ROLES = ["admin", "superadmin", "hr", "manager"];
+const ATTENDANCE_SELF_ROLES = ["employee", "manager", "hr", "hod"];
+const ATTENDANCE_VIEW_ROLES = ["admin", "superadmin", "hr", "hod", "manager"];
+const FINANCE_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
+const REPORTS_ROLES = ["admin", "superadmin", "hr", "manager"];
+
 const Sidebar = ({ collapsed, toggleSidebar }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -94,53 +140,59 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       path: "/dashboard",
       icon: <FaTachometerAlt />,
       label: "Dashboard",
-      roles: ["superadmin", "admin", "hr", "accounts", "employee", "client", "hod", "manager"],
+      permission: "dashboard.view",
+      fallbackRoles: ALL_APP_ROLES,
     },
     {
       id: "business-management",
       icon: <FaUserTie />,
       label: "Business Management",
-      roles: ["admin", "superadmin", "manager", "hr", "employee", "hod"],
+      permission: "crm.lead.view",
+      fallbackRoles: CRM_STAFF_ROLES,
       isGroup: true,
       children: [
         {
           path: "/raw-data",
           icon: <FaClipboardList />,
           label: "Raw Data Sheet",
-          roles: ["admin", "superadmin", "manager", "employee", "hod"],
+          permission: "crm.rawdata.manage",
+          fallbackRoles: CRM_RAWDATA_ROLES,
           departments: ["Sales", "Telecaller"],
         },
         {
           path: "/raw-data/queue",
           icon: <FaPhone />,
           label: "Calling Queue",
-          roles: ["admin", "superadmin", "manager", "employee", "hod"],
+          permission: "crm.rawdata.manage",
+          fallbackRoles: CRM_RAWDATA_ROLES,
           departments: ["Sales", "Telecaller"],
         },
         {
           path: "/raw-data/dashboard",
           icon: <FaChartBar />,
           label: "Raw Data Analytics",
-          roles: ["admin", "superadmin", "manager"],
+          permission: "reports.analytics.view",
+          fallbackRoles: CRM_RAWDATA_ANALYTICS_ROLES,
         },
         {
           path: "/leads",
           icon: <FaUserTie />,
           label: "Leads",
-          roles: ["admin", "superadmin", "manager", "employee", "hod"],
-          departments: ["Sales"], // Only Sales department employees can see Leads
+          permission: "crm.lead.view",
+          fallbackRoles: CRM_LEAD_ROLES,
+          departments: ["Sales"],
         },
         {
           path: "/clients",
           icon: <FaUsers />,
           label: "Clients",
-          roles: ["admin", "superadmin", "hr", "employee", "hod", "manager"],
-          // No department restriction - all employees can see their assigned clients
+          permission: "crm.client.view",
+          fallbackRoles: CRM_CLIENT_ROLES,
           roleLabels: {
             employee: "My Clients",
             hod: "My Clients",
-            default: "Clients"
-          }
+            default: "Clients",
+          },
         },
       ],
     },
@@ -148,47 +200,54 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       id: "billing",
       icon: <FaMoneyBillWave />,
       label: "Billing & Finance",
-      roles: ["admin", "superadmin", "accounts", "manager", "hod"],
-      excludeDepartments: ["HR"], // HR department employees should not see this
-      onlyForRoles: ["admin", "superadmin", "accounts", "manager"], // hod handled separately via department check
-      hodDepartments: ["Sales"], // Only HoDs of these departments can see this
+      permission: "billing.invoice.view",
+      fallbackRoles: BILLING_ROLES,
+      excludeDepartments: ["HR"],
+      onlyForRoles: ["admin", "superadmin", "accounts", "manager"],
+      hodDepartments: ["Sales"],
       isGroup: true,
       children: [
         {
           path: "/admin/billing",
           icon: <FaFileInvoiceDollar />,
           label: "Overview",
-          roles: ["admin", "superadmin", "accounts", "manager", "hod"],
+          permission: "billing.invoice.view",
+          fallbackRoles: BILLING_ROLES,
         },
         {
           path: "/admin/services",
           icon: <FaBoxes />,
           label: "Services",
-          roles: ["admin", "superadmin", "accounts", "manager", "hod"],
+          permission: "billing.invoice.manage",
+          fallbackRoles: BILLING_ROLES,
         },
         {
           path: "/admin/plans",
           icon: <FaClipboardList />,
           label: "Plans",
-          roles: ["admin", "superadmin", "accounts", "manager", "hod"],
+          permission: "billing.subscription.view",
+          fallbackRoles: BILLING_ROLES,
         },
         {
           path: "/admin/subscriptions",
           icon: <FaReceipt />,
           label: "Subscriptions",
-          roles: ["admin", "superadmin", "accounts", "manager", "hod"],
+          permission: "billing.subscription.view",
+          fallbackRoles: BILLING_ROLES,
         },
         {
           path: "/admin/invoices",
           icon: <FaFileInvoiceDollar />,
           label: "Invoices",
-          roles: ["admin", "superadmin", "accounts", "manager", "hod"],
+          permission: "billing.invoice.view",
+          fallbackRoles: BILLING_ROLES,
         },
         {
           path: "/admin/payments",
           icon: <FaCreditCard />,
           label: "Payments",
-          roles: ["admin", "superadmin", "accounts", "manager", "hod"],
+          permission: "billing.payment.verify",
+          fallbackRoles: BILLING_ROLES,
         },
       ],
     },
@@ -196,7 +255,8 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       id: "work-management",
       icon: <FaTasks />,
       label: "Work Management",
-      roles: ["employee", "admin", "superadmin", "hr", "hod", "manager"],
+      permission: "work.item.view",
+      fallbackRoles: WORK_SELF_ROLES,
       defaultPath: "/employee/my-work",
       isGroup: true,
       children: [
@@ -204,27 +264,29 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           path: "/employee/my-work",
           icon: <FaTasks />,
           label: "My Work Items",
-          roles: ["employee", "admin", "superadmin", "hr", "hod", "manager"],
+          permission: "work.item.view",
+          fallbackRoles: WORK_SELF_ROLES,
         },
         {
           path: "/employee/assigned-work",
           icon: <FaTasks />,
           label: "Assigned Work",
-          roles: ["employee", "admin", "superadmin", "hr", "hod", "manager"],
+          permission: "work.item.view",
+          fallbackRoles: WORK_SELF_ROLES,
         },
         {
           path: "/work-calendar/my-calendar",
           icon: <FaCalendarAlt />,
           label: "My Work Calendar",
           permission: "work.item.view",
-          fallbackRoles: ["employee", "admin", "superadmin", "hr", "hod", "manager"],
+          fallbackRoles: WORK_SELF_ROLES,
         },
         {
           path: "/work-calendar/enhanced-admin-overview",
           icon: <FaChartBar />,
           label: "Work Dashboard",
           permission: "reports.analytics.view",
-          fallbackRoles: ["admin", "superadmin", "hr", "manager"],
+          fallbackRoles: REPORTS_ROLES,
         },
       ],
     },
@@ -232,7 +294,8 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       id: "daily-work-log",
       icon: <FaClipboardList />,
       label: "Daily Work Log",
-      roles: ["employee", "admin", "superadmin", "hr", "hod", "manager"],
+      permission: "worklog.entry.view_self",
+      fallbackRoles: WORKLOG_SELF_ROLES,
       defaultPath: "/worklog/today",
       isGroup: true,
       children: [
@@ -240,25 +303,29 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           path: "/worklog/today",
           icon: <FaClock />,
           label: "Today's Log",
-          roles: ["employee", "admin", "superadmin", "hr", "hod", "manager"],
+          permission: "worklog.entry.view_self",
+          fallbackRoles: WORKLOG_SELF_ROLES,
         },
         {
           path: "/worklog/history",
           icon: <FaCalendarAlt />,
           label: "Log History",
-          roles: ["employee", "admin", "superadmin", "hr", "hod", "manager"],
+          permission: "worklog.entry.view_self",
+          fallbackRoles: WORKLOG_SELF_ROLES,
         },
         {
           path: "/hod/worklog-review",
           icon: <FaClipboardList />,
           label: "Department Review",
-          roles: ["hod"],
+          permission: "worklog.entry.review",
+          fallbackRoles: ["hod"],
         },
         {
           path: "/hod/hiring/requests",
           icon: <FaUserPlus />,
           label: "Hiring Requests",
-          roles: ["hod"],
+          permission: "hiring.request.view",
+          fallbackRoles: ["hod"],
         },
       ],
     },
@@ -266,26 +333,30 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       path: "/projects",
       icon: <FaProjectDiagram />,
       label: "Projects",
-      roles: ["admin", "superadmin", "hr", "employee", "hod", "manager"],
+      permission: "projects.project.view",
+      fallbackRoles: PROJECT_VIEW_ROLES,
     },
     {
       id: "resources",
       icon: <FaLaptop />,
       label: "Resources",
-      roles: ["admin", "superadmin", "hr", "manager", "employee", "hod"],
+      permission: "assets.asset.view",
+      fallbackRoles: RESOURCE_ROLES,
       isGroup: true,
       children: [
         {
           path: "/assets/management",
           icon: <FaLaptop />,
           label: "Assets",
-          roles: ["admin", "superadmin", "hr", "manager", "employee", "hod"],
+          permission: "assets.asset.view",
+          fallbackRoles: RESOURCE_ROLES,
         },
         {
           path: "/licenses/management",
           icon: <FaFileCode />,
           label: "Software Licenses",
-          roles: ["admin", "superadmin", "hr", "manager", "employee", "hod"],
+          permission: "licenses.license.view",
+          fallbackRoles: RESOURCE_ROLES,
         },
       ],
     },
@@ -293,83 +364,79 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       id: "procurement",
       icon: <FaShoppingCart />,
       label: "Procurement",
-      roles: ["admin", "superadmin", "hr", "accounts", "employee", "hod", "manager"],
+      permission: "procurement.pr.create",
+      fallbackRoles: PROCUREMENT_ALL_ROLES,
       isGroup: true,
       children: [
-        // Dashboard — admin/superadmin/accounts only (calls restricted analytics endpoints)
         {
           path: "/procurement",
           icon: <FaChartBar />,
           label: "Dashboard",
-          roles: ["admin", "superadmin", "accounts"],
+          permission: "procurement.pr.view",
+          fallbackRoles: PROCUREMENT_ADMIN_ROLES,
           onlyForRoles: ["admin", "superadmin", "accounts"],
         },
-        // My Purchase Requests — ALL roles can raise and track their own PRs
         {
           path: "/procurement/purchase-requests/my",
           icon: <FaFileAlt />,
           label: "My Requests",
-          roles: ["admin", "superadmin", "hr", "accounts", "employee", "hod", "manager"],
+          permission: "procurement.pr.create",
+          fallbackRoles: PROCUREMENT_ALL_ROLES,
         },
-        // PR Approvals — HoD approves pending_hod; admin/accounts approve pending_admin
-        // manager is NOT an approver per the backend APPROVER_ROLES
         {
           path: "/procurement/purchase-requests/approvals",
           icon: <FaCheckSquare />,
           label: "PR Approvals",
-          roles: ["hod", "admin", "superadmin", "accounts"],
+          permission: "procurement.pr.approve_hod",
+          fallbackRoles: PROCUREMENT_APPROVER_ROLES,
           onlyForRoles: ["hod", "admin", "superadmin", "accounts"],
         },
-        // Vendors — admin/superadmin/accounts only (write + read)
         {
           path: "/procurement/vendors",
           icon: <FaBuilding />,
           label: "Vendors",
-          roles: ["admin", "superadmin", "accounts"],
+          permission: "procurement.vendor.manage",
+          fallbackRoles: PROCUREMENT_ADMIN_ROLES,
           onlyForRoles: ["admin", "superadmin", "accounts"],
         },
-        // Purchase Orders — admin/superadmin/accounts create; hr/hod/manager view only
-        // employee does NOT see POs (spec: employees only see their own PRs)
         {
           path: "/procurement/purchase-orders",
           icon: <FaClipboardList />,
           label: "Purchase Orders",
-          roles: ["admin", "superadmin", "accounts", "hr", "hod", "manager"],
+          permission: "procurement.pr.view_self",
+          fallbackRoles: PROCUREMENT_READ_ROLES,
           onlyForRoles: ["admin", "superadmin", "accounts", "hr", "hod", "manager"],
         },
-        // Goods Receipts — admin/superadmin/accounts/hr/manager can create; hod view only
-        // employee does NOT see GRs
         {
           path: "/procurement/goods-receipts",
           icon: <FaBoxOpen />,
           label: "Goods Receipts",
-          roles: ["admin", "superadmin", "accounts", "hr", "hod", "manager"],
+          permission: "procurement.pr.view_self",
+          fallbackRoles: PROCUREMENT_READ_ROLES,
           onlyForRoles: ["admin", "superadmin", "accounts", "hr", "hod", "manager"],
         },
-        // Invoices — admin/superadmin/accounts create; hr/hod/manager view only
-        // employee does NOT see invoices
         {
           path: "/procurement/invoices",
           icon: <FaFileInvoiceDollar />,
           label: "Invoices",
-          roles: ["admin", "superadmin", "accounts", "hr", "hod", "manager"],
+          permission: "procurement.pr.view_self",
+          fallbackRoles: PROCUREMENT_READ_ROLES,
           onlyForRoles: ["admin", "superadmin", "accounts", "hr", "hod", "manager"],
         },
-        // Payments — admin/superadmin/accounts create; hr/hod/manager view only
-        // employee does NOT see payments
         {
           path: "/procurement/payments",
           icon: <FaMoneyBillWave />,
           label: "Payments",
-          roles: ["admin", "superadmin", "accounts", "hr", "hod", "manager"],
+          permission: "procurement.pr.view_self",
+          fallbackRoles: PROCUREMENT_READ_ROLES,
           onlyForRoles: ["admin", "superadmin", "accounts", "hr", "hod", "manager"],
         },
-        // Reports — admin/superadmin/accounts only
         {
           path: "/procurement/reports",
           icon: <FaChartBar />,
           label: "Reports",
-          roles: ["admin", "superadmin", "accounts"],
+          permission: "procurement.pr.view",
+          fallbackRoles: PROCUREMENT_ADMIN_ROLES,
           onlyForRoles: ["admin", "superadmin", "accounts"],
         },
       ],
@@ -378,32 +445,37 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       id: "company",
       icon: <FaHandshake />,
       label: "Company",
-      roles: ["admin", "superadmin", "hr", "employee", "hod", "manager"],
+      permission: "company.meeting.view",
+      fallbackRoles: COMPANY_VIEW_ROLES,
       isGroup: true,
       children: [
         {
           path: "/meetings",
           icon: <FaCalendarAlt />,
           label: "Meetings",
-          roles: ["employee", "hod", "admin", "superadmin", "hr", "manager"],
+          permission: "company.meeting.view",
+          fallbackRoles: COMPANY_VIEW_ROLES,
         },
         {
           path: "/employee/policies",
           icon: <FaShieldAlt />,
           label: "Policies",
-          roles: ["employee", "hod", "admin", "superadmin", "hr", "manager"],
+          permission: "company.policy.view",
+          fallbackRoles: COMPANY_VIEW_ROLES,
         },
         {
           path: "/employee/announcements",
           icon: <FaBullhorn />,
           label: "News & Alerts",
-          roles: ["employee", "hod", "admin", "superadmin", "hr", "manager"],
+          permission: "company.announcement.view",
+          fallbackRoles: COMPANY_VIEW_ROLES,
         },
         {
           path: "/policies",
           icon: <FaShieldAlt />,
           label: "Policy Management",
-          roles: ["admin", "superadmin", "hr", "manager"],
+          permission: "company.policy.manage",
+          fallbackRoles: COMPANY_MANAGE_ROLES,
           onlyForRoles: ["admin", "superadmin", "hr", "manager"],
         },
       ],
@@ -412,7 +484,8 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       id: "hiring",
       icon: <FaUserPlus />,
       label: "Hiring",
-      roles: ["admin", "superadmin", "hr", "manager"],
+      permission: "hiring.pipeline.manage",
+      fallbackRoles: HIRING_PIPELINE_ROLES,
       onlyForRoles: ["admin", "superadmin", "hr", "manager"],
       isGroup: true,
       children: [
@@ -420,25 +493,29 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           path: "/hr/hiring",
           icon: <FaTachometerAlt />,
           label: "Overview",
-          roles: ["admin", "superadmin", "hr", "manager"],
+          permission: "hiring.pipeline.manage",
+          fallbackRoles: HIRING_PIPELINE_ROLES,
         },
         {
           path: "/hr/hiring/requests",
           icon: <FaClipboardList />,
           label: "Requests & Pipeline",
-          roles: ["admin", "superadmin", "hr", "manager"],
+          permission: "hiring.pipeline.manage",
+          fallbackRoles: HIRING_PIPELINE_ROLES,
         },
         {
           path: "/hr/hiring/applicants",
           icon: <FaFileAlt />,
           label: "CV Bank",
-          roles: ["admin", "superadmin", "hr", "manager"],
+          permission: "hiring.pipeline.manage",
+          fallbackRoles: HIRING_PIPELINE_ROLES,
         },
         {
           path: "/hr/hiring/offer-letters",
           icon: <FaFileInvoiceDollar />,
           label: "Offer Letters",
-          roles: ["admin", "superadmin", "hr", "manager"],
+          permission: "hiring.pipeline.manage",
+          fallbackRoles: HIRING_PIPELINE_ROLES,
         },
       ],
     },
@@ -446,33 +523,38 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       id: "team",
       icon: <FaUsers />,
       label: "Team",
-      roles: ["superadmin", "admin", "hr", "manager"],
-      onlyForRoles: ["admin", "superadmin", "hr", "manager"], // Manager has full access
+      permission: "team.user.view",
+      fallbackRoles: TEAM_MANAGE_ROLES,
+      onlyForRoles: ["admin", "superadmin", "hr", "manager"],
       isGroup: true,
       children: [
         {
           path: "/users",
           icon: <FaUsers />,
           label: "Users",
-          roles: ["admin", "superadmin", "manager"],
+          permission: "team.user.view",
+          fallbackRoles: TEAM_USER_ADMIN_ROLES,
         },
         {
           path: "/employees",
           icon: <FaUsers />,
           label: "Employees",
-          roles: ["admin", "superadmin", "hr", "manager"],
+          permission: "team.user.view",
+          fallbackRoles: TEAM_MANAGE_ROLES,
         },
         {
           path: "/departments",
           icon: <FaBuilding />,
           label: "Departments",
-          roles: ["admin", "superadmin", "hr", "manager"],
+          permission: "team.department.view",
+          fallbackRoles: TEAM_MANAGE_ROLES,
         },
         {
           path: "/admin/worklog-management",
           icon: <FaClipboardList />,
           label: "Work Log Management",
-          roles: ["admin", "superadmin", "hr", "manager"],
+          permission: "worklog.entry.review",
+          fallbackRoles: TEAM_MANAGE_ROLES,
         },
       ],
     },
@@ -480,32 +562,37 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       path: "/employee/leaves",
       icon: <FaCalendarAlt />,
       label: "My Leaves",
-      roles: ["employee", "hod", "manager", "hr"],
+      permission: "leave.request.view_self",
+      fallbackRoles: COMPENSATION_SELF_ROLES,
     },
     {
       id: "my-compensation",
       icon: <FaMoneyBillWave />,
       label: "My Compensation",
-      roles: ["employee", "hod", "manager", "hr"],
+      permission: "payroll.slip.view_self",
+      fallbackRoles: COMPENSATION_SELF_ROLES,
       isGroup: true,
       children: [
         {
           path: "/employee/salary-slips",
           icon: <FaFileInvoiceDollar />,
           label: "Salary Slips",
-          roles: ["employee", "hod", "manager", "hr"],
+          permission: "payroll.slip.view_self",
+          fallbackRoles: COMPENSATION_SELF_ROLES,
         },
         {
           path: "/employee/salary-preview",
           icon: <FaMoneyBillWave />,
           label: "Salary Breakdown",
-          roles: ["employee", "hod", "manager", "hr"],
+          permission: "payroll.slip.view_self",
+          fallbackRoles: COMPENSATION_SELF_ROLES,
         },
         {
           path: "/expenses/my-expenses",
           icon: <FaReceipt />,
           label: "Expenses",
-          roles: ["employee", "hod", "manager", "hr"],
+          permission: "expense.claim.create",
+          fallbackRoles: COMPENSATION_SELF_ROLES,
         },
       ],
     },
@@ -513,21 +600,24 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       id: "leave-management",
       icon: <FaCalendarAlt />,
       label: "Leave Management",
-      roles: ["admin", "superadmin", "hr", "manager"],
-      onlyForRoles: ["admin", "superadmin", "hr", "manager"], // Manager has full access
+      permission: "leave.request.view",
+      fallbackRoles: LEAVE_APPROVE_ROLES,
+      onlyForRoles: ["admin", "superadmin", "hr", "manager"],
       isGroup: true,
       children: [
         {
           path: "/leaves",
           icon: <FaCalendarAlt />,
           label: "All Leaves",
-          roles: ["admin", "superadmin", "hr", "manager"],
+          permission: "leave.request.view",
+          fallbackRoles: LEAVE_APPROVE_ROLES,
         },
         {
           path: "/leaves/requests",
           icon: <FaCheck />,
           label: "Approve Leaves",
-          roles: ["admin", "superadmin", "hr", "manager"],
+          permission: "leave.request.approve",
+          fallbackRoles: LEAVE_APPROVE_ROLES,
         },
       ],
     },
@@ -535,19 +625,22 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       path: "/attendance/my-attendance",
       icon: <FaClock />,
       label: "My Attendance",
-      roles: ["employee", "manager", "hr", "hod"], // Manager, HR, HoD can access their own attendance
+      permission: "attendance.record.view_self",
+      fallbackRoles: ATTENDANCE_SELF_ROLES,
     },
     {
       path: "/attendance/tracking",
       icon: <FaClock />,
       label: "Attendance",
-      roles: ["admin", "superadmin", "hr", "hod", "manager"],
+      permission: "attendance.record.view",
+      fallbackRoles: ATTENDANCE_VIEW_ROLES,
     },
     {
       id: "finance-management",
       icon: <FaMoneyBillWave />,
       label: "Finance Management",
-      roles: ["admin", "superadmin", "hr", "manager"],
+      permission: "expense.claim.approve",
+      fallbackRoles: FINANCE_MANAGE_ROLES,
       onlyForRoles: ["admin", "superadmin", "hr", "manager"],
       isGroup: true,
       children: [
@@ -555,19 +648,22 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           path: "/expenses/management",
           icon: <FaReceipt />,
           label: "Expense Management",
-          roles: ["admin", "superadmin", "hr", "manager"],
+          permission: "expense.claim.approve",
+          fallbackRoles: FINANCE_MANAGE_ROLES,
         },
         {
           path: "/expenses/budget-management",
           icon: <FaMoneyBillWave />,
           label: "Budget Management",
-          roles: ["admin", "superadmin"],
+          permission: "expense.claim.approve",
+          fallbackRoles: ["admin", "superadmin"],
         },
         {
           path: "/salary-management",
           icon: <FaMoneyBillWave />,
           label: "Salary Management",
-          roles: ["admin", "superadmin", "hr", "manager"],
+          permission: "payroll.slip.manage",
+          fallbackRoles: FINANCE_MANAGE_ROLES,
         },
       ],
     },
@@ -575,13 +671,15 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       path: "/reports",
       icon: <FaChartBar />,
       label: "Reports & Analytics",
-      roles: ["admin", "superadmin", "hr", "manager"],
+      permission: "reports.analytics.view",
+      fallbackRoles: REPORTS_ROLES,
     },
     {
       path: "/profile",
       icon: <FaUser />,
       label: "My Profile",
-      roles: ["superadmin", "admin", "hr", "accounts", "employee", "client", "hod", "manager"],
+      permission: "profile.view",
+      fallbackRoles: ALL_APP_ROLES,
     },
     {
       path: "/admin/support-management",
@@ -600,76 +698,66 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
   ];
 
   const filteredMenu = menuItems.filter((item) => {
-    // Helper function to check if user has access
     const hasAccess = (menuItem) => {
+      if (!user) return false;
+
+      let permitted = false;
+
       if (menuItem.permission) {
-        return hasPermissionAccess({
+        permitted = hasPermissionAccess({
           user,
           canPermission,
           checkPermission,
           authzEffective,
           authzLoading,
           permission: menuItem.permission,
-          fallbackRoles: menuItem.fallbackRoles,
+          fallbackRoles: menuItem.fallbackRoles || [],
         });
+      } else {
+        permitted = false;
       }
 
-      // If onlyForRoles is specified, ONLY those roles can see it
-      // Exception: hod role is checked separately via hodDepartments
-      if (menuItem.onlyForRoles && menuItem.onlyForRoles.length > 0) {
-        if (menuItem.onlyForRoles.includes(user?.role)) return true;
-        // Allow hod if their department is in hodDepartments
-        if (user?.role === 'hod' && menuItem.hodDepartments?.length > 0) {
-          return menuItem.hodDepartments.some(
-            d => d.toLowerCase() === user?.department?.name?.toLowerCase()
-          );
+      if (!permitted) return false;
+
+      if (menuItem.onlyForRoles?.length > 0) {
+        if (menuItem.onlyForRoles.includes(user.role)) {
+          // allowed
+        } else if (
+          user.role === "hod" &&
+          menuItem.hodDepartments?.length > 0 &&
+          menuItem.hodDepartments.some(
+            (d) => d.toLowerCase() === user?.department?.name?.toLowerCase()
+          )
+        ) {
+          // HoD of allowed department
+        } else {
+          return false;
         }
-        return false;
       }
-      
-      // Check role-based access
-      const hasRoleAccess = !menuItem.roles || menuItem.roles.includes(user?.role);
-      
-      // If no role access, return false immediately
-      if (!hasRoleAccess) {
-        return false;
-      }
-      
-      // Privileged roles (admin, superadmin, manager) bypass department restrictions
-      const isPrivilegedRole = ['admin', 'superadmin', 'manager'].includes(user?.role);
-      
-      // Check department-based access (for items that specify allowed departments)
-      if (menuItem.departments && menuItem.departments.length > 0 && !isPrivilegedRole) {
-        // For non-privileged roles, check if user's department is in the allowed list
-        if (!user?.department?.name) {
-          return false; // No department assigned
-        }
-        
+
+      const isPrivilegedRole = ["admin", "superadmin", "manager"].includes(user.role);
+
+      if (menuItem.departments?.length > 0 && !isPrivilegedRole) {
+        if (!user?.department?.name) return false;
+
         const hasDepartmentAccess = menuItem.departments.some(
-          dept => dept.toLowerCase() === user.department.name.toLowerCase()
+          (dept) => dept.toLowerCase() === user.department.name.toLowerCase()
         );
-        
-        if (!hasDepartmentAccess) {
-          return false; // User's department not in allowed list
-        }
+        if (!hasDepartmentAccess) return false;
       }
-      
-      // Check if user's department is excluded
-      if (menuItem.excludeDepartments && user?.department?.name && !isPrivilegedRole) {
+
+      if (menuItem.excludeDepartments?.length > 0 && user?.department?.name && !isPrivilegedRole) {
         const isExcluded = menuItem.excludeDepartments.some(
-          dept => dept.toLowerCase() === user.department.name.toLowerCase()
+          (dept) => dept.toLowerCase() === user.department.name.toLowerCase()
         );
-        if (isExcluded) {
-          return false; // Explicitly exclude this department
-        }
+        if (isExcluded) return false;
       }
-      
+
       return true;
     };
 
     if (item.isGroup) {
-      // Filter children based on roles and departments
-      item.children = item.children.filter(child => hasAccess(child));
+      item.children = item.children.filter((child) => hasAccess(child));
       return hasAccess(item) && item.children.length > 0;
     }
     return hasAccess(item);
