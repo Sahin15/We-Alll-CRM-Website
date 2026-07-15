@@ -8,7 +8,7 @@ import { resolveProfilePictureUrl } from '../../utils/profilePictureUrl';
 import { useNotifications } from '../../context/NotificationContext';
 import { leadApi } from '../../api/leadApi';
 import { meetingApi } from '../../api/meetingApi';
-import { playNotificationSound } from '../../utils/notificationSound';
+import { BRAND_LOGO_MINI } from '../../constants/branding';
 
 // ─── Notification Sheet ───────────────────────────────────────────────────────
 const ICON_MAP = {
@@ -151,7 +151,7 @@ export default function AppHeader() {
             playNotificationSound();
             toast.info(`📅 Meeting in 5 minutes: "${m.title}"${m.meetingLink ? ' — ' + m.meetingLink : ''}`, { autoClose: 10000 });
             if (Notification.permission === 'granted') {
-              new Notification('Meeting in 5 minutes', { body: m.title, icon: '/Wealll_mini.png' });
+              new Notification('Meeting in 5 minutes', { body: m.title, icon: BRAND_LOGO_MINI });
             }
           }
         });
@@ -168,7 +168,7 @@ export default function AppHeader() {
     <>
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100 }}>
         <div style={{ height: '56px', background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)', display: 'flex', alignItems: 'center', padding: '0 16px', gap: '10px' }}>
-          <img loading="lazy" src="/Wealll_mini.png" alt="We Alll logo" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
+          <img loading="lazy" src={BRAND_LOGO_MINI} alt="We Alll logo" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
           <span style={{ color: '#ffffff', fontWeight: '700', fontSize: '1.1rem', letterSpacing: '0.01em', flex: 1 }}>WeAlll Office</span>
 
           {/* Notification Bell */}

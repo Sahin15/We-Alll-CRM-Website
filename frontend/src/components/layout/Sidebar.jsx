@@ -35,6 +35,7 @@ import {
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import { hasPermissionAccess } from "../../utils/authzAccess";
+import { BRAND_LOGO_FULL, BRAND_NAME } from "../../constants/branding";
 import "./Sidebar.css";
 
 /** Shared fallback role lists aligned with backend authz pilot parity */
@@ -51,7 +52,7 @@ const ALL_APP_ROLES = [
 const STAFF_ROLES = ["employee", "admin", "superadmin", "hr", "hod", "manager"];
 const CRM_STAFF_ROLES = ["admin", "superadmin", "manager", "hr", "employee", "hod"];
 const CRM_RAWDATA_ROLES = ["admin", "superadmin", "manager", "employee", "hod"];
-const CRM_RAWDATA_ANALYTICS_ROLES = ["admin", "superadmin", "manager"];
+const CRM_RAWDATA_ANALYTICS_ROLES = ["admin", "superadmin", "hr", "manager"];
 const CRM_LEAD_ROLES = ["admin", "superadmin", "manager", "employee", "hod"];
 const CRM_CLIENT_ROLES = ["admin", "superadmin", "hr", "employee", "hod", "manager"];
 const BILLING_ROLES = ["admin", "superadmin", "accounts", "manager", "hod"];
@@ -772,23 +773,13 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
         <div className="sidebar-header">
           <div className="sidebar-logo">
             <div className="logo-container">
-              {collapsed ? (
-                /* Collapsed: Show only mini logo */
-                <div className="logo-mini-container">
-                  <img loading="lazy" src="/Wealll_mini.png" 
-                    alt="We Alll Office" 
-                    className="logo-img-mini"
-                  />
-                </div>
-              ) : (
-                /* Expanded: Show full We Alll Office logo */
-                <div className="logo-full-container">
-                  <img loading="lazy" src="/We Alll Office Logo.png" 
-                    alt="We Alll Office" 
-                    className="logo-img-full"
-                  />
-                </div>
-              )}
+              <div className="sidebar-logo-full-container">
+                <img
+                  src={BRAND_LOGO_FULL}
+                  alt={BRAND_NAME}
+                  className="sidebar-logo-full-img"
+                />
+              </div>
             </div>
           </div>
         </div>

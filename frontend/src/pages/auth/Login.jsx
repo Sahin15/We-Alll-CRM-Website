@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Form, Alert } from "react-bootstrap";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
+import { BRAND_LOGO_FULL, BRAND_NAME } from "../../constants/branding";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -95,8 +96,8 @@ const Login = () => {
         <div className="welcome-content">
           <div className="logo-animation">
             <div className="logo-full-container">
-              <img loading="lazy" src="/We Alll Office Logo.png" 
-                alt="We Alll Office" 
+              <img loading="lazy" src={BRAND_LOGO_FULL}
+                alt={BRAND_NAME}
                 className="logo-img-full"
               />
             </div>
@@ -482,8 +483,8 @@ const Login = () => {
         {/* Logo Section */}
         <div className="logo-section">
           <div className="logo-full-container" style={{ width: '160px', height: '50px', margin: '0 auto 1rem' }}>
-            <img loading="lazy" src="/We Alll Office Logo.png" 
-              alt="We Alll Office" 
+            <img loading="lazy" src={BRAND_LOGO_FULL}
+              alt={BRAND_NAME}
               className="logo-img-full"
             />
           </div>

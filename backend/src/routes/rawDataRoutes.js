@@ -31,11 +31,15 @@ const crmRawDataManage = requireModulePermission("crm", "crm.rawdata.manage", {
   legacyRoles: CRM_RAWDATA_ROLES,
 });
 
+const rawDataAnalytics = requireModulePermission("reports", "reports.analytics.view", {
+  legacyRoles: ["admin", "superadmin", "hr", "manager"],
+});
+
 router.use(protect);
 
-router.get("/dashboard/summary", crmRawDataManage, getDashboardSummary);
-router.get("/dashboard/source-analysis", crmRawDataManage, getSourceAnalysis);
-router.get("/dashboard/category-analysis", crmRawDataManage, getCategoryAnalysis);
+router.get("/dashboard/summary", rawDataAnalytics, getDashboardSummary);
+router.get("/dashboard/source-analysis", rawDataAnalytics, getSourceAnalysis);
+router.get("/dashboard/category-analysis", rawDataAnalytics, getCategoryAnalysis);
 
 router.get("/queue/today", crmRawDataManage, getTodayQueue);
 

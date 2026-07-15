@@ -17,7 +17,6 @@ import {
   FaUserCircle, 
   FaSearch, 
   FaClock, 
-  FaPlus,
   FaHome,
   FaUsers,
   FaTasks,
@@ -247,16 +246,15 @@ const Navbar = ({ toggleSidebar }) => {
   const getQuickActions = () => {
     if (user?.role === 'hr') {
       return []; // Removed Add Employee and Approve Leaves buttons from navbar
-    } else if (user?.role === 'admin' || user?.role === 'superadmin') {
-      return [
-        { label: 'Add Employee', icon: <FaPlus />, action: () => navigate('/employees/add') },
-        { label: 'View Reports', icon: <FaClock />, action: () => navigate('/dashboard') },
-      ];
     }
     return [];
   };
 
   const quickActions = getQuickActions();
+  const showStaffNavbarActions =
+    user?.role !== "admin" &&
+    user?.role !== "superadmin" &&
+    checkPageAccess(canAccess, PAGE_ACCESS.navbarStaffMenu);
 
   return (
     <BSNavbar 
@@ -436,7 +434,7 @@ const Navbar = ({ toggleSidebar }) => {
         {/* Right Section: Quick Actions, Notifications, User Menu */}
         <Nav className="ms-auto align-items-center gap-1 gap-md-2" style={{ overflow: 'visible' }}>
           {/* Clock In/Out for Employees, HR, HOD, Accounts, and Manager */}
-          {checkPageAccess(canAccess, PAGE_ACCESS.navbarStaffMenu) && (
+          {showStaffNavbarActions && (
             <>
               {/* Desktop version with labels */}
               <div className="d-none d-lg-flex me-2" style={{ position: 'relative', zIndex: 1 }}>

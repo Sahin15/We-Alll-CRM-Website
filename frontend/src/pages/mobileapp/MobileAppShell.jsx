@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import MobileAppLayout from '../../components/mobileapp/MobileAppLayout';
 import MobileAppLogin from './MobileAppLogin';
+import { BRAND_LOGO_MINI } from '../../constants/branding';
 
 export default function MobileAppShell() {
   const { isAuthenticated, loading } = useAuth();
@@ -28,7 +29,7 @@ export default function MobileAppShell() {
         background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '16px',
       }}>
-        <img loading="lazy" src="/Wealll_mini.png" alt="WeAlll" style={{ width: '64px', height: '64px', objectFit: 'contain', borderRadius: '16px', background: 'rgba(255,255,255,0.2)', padding: '10px' }} />
+        <img loading="lazy" src={BRAND_LOGO_MINI} alt="WeAlll" style={{ width: '64px', height: '64px', objectFit: 'contain', borderRadius: '16px', background: 'rgba(255,255,255,0.2)', padding: '10px' }} />
         <div style={{ width: '36px', height: '36px', border: '3px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>

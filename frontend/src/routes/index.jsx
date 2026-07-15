@@ -855,8 +855,8 @@ const AppRoutes = () => {
           path="/raw-data/dashboard"
           element={
             <PermissionRoute
-              permission="crm.rawdata.manage"
-              module="crm"
+              permission="reports.analytics.view"
+              module="reports"
               fallbackRoles={["admin", "superadmin", "hr", "manager"]}
             >
               <RawDataDashboard />

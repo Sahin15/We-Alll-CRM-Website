@@ -8,16 +8,18 @@ import {
   Col,
   Container,
   Form,
+  InputGroup,
   Modal,
   Row,
   Spinner,
   Table,
 } from "react-bootstrap";
-import { FaHistory, FaSave, FaShieldAlt, FaUndo, FaUser } from "react-icons/fa";
+import { FaHistory, FaSave, FaShieldAlt, FaUndo, FaUser, FaUsers, FaCheckCircle, FaBan, FaPlus, FaSearch } from "react-icons/fa";
 import authzApi from "../../api/authzApi";
 import { userApi } from "../../api/userApi";
 import SearchableUserSelect from "../../components/shared/SearchableUserSelect";
 import toast from "../../utils/toast";
+import "./PermissionAssignment.css";
 
 const SCOPE_OPTIONS = [
   { value: "SELF", label: "Self only" },
@@ -56,6 +58,8 @@ const VIEW_FILTERS = [
   { value: "overrides", label: "Overrides only" },
   { value: "unsaved", label: "Unsaved changes" },
 ];
+
+const BROWSE_PAGE_SIZE = 24;
 
 /**
  * @param {Record<string, { permission: string, scope: string, effect: string, note?: string }>} draft
@@ -98,6 +102,29 @@ function formatAuditDate(value) {
   } catch {
     return "—";
   }
+}
+
+function getInitials(name = "") {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("") || "?";
+}
+
+function roleBadgeVariant(role) {
+  const map = {
+    admin: "primary",
+    hr: "info",
+    manager: "success",
+    hod: "warning",
+    employee: "secondary",
+    accounts: "dark",
+    sales: "danger",
+    client: "light",
+  };
+  return map[role] || "secondary";
 }
 
 /**
@@ -168,12 +195,19 @@ const PermissionAssignment = () => {
   const [permissionSearch, setPermissionSearch] = useState("");
   const [viewFilter, setViewFilter] = useState("all");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [browseRoleFilter, setBrowseRoleFilter] = useState("all");
+  const [browseSearch, setBrowseSearch] = useState("");
+  const [browseVisibleCount, setBrowseVisibleCount] = useState(BROWSE_PAGE_SIZE);
   const draftRef = useRef({});
   const loadRequestRef = useRef(0);
 
   useEffect(() => {
     draftRef.current = draft;
   }, [draft]);
+
+  useEffect(() => {
+    setBrowseVisibleCount(BROWSE_PAGE_SIZE);
+  }, [browseRoleFilter, browseSearch]);
 
   useEffect(() => {
     const load = async () => {
@@ -448,36 +482,100 @@ const PermissionAssignment = () => {
   const savedOverrideCount = payload?.directAssignments?.length || 0;
   const netCustomPermissions = payload?.effective?.customPermissions?.length || 0;
 
+  const catalogStats = useMemo(() => {
+    const modules = Object.keys(catalogByModule).filter((key) => key !== "platform");
+    const permissionCount = modules.reduce(
+      (sum, key) => sum + (catalogByModule[key]?.length || 0),
+      0
+    );
+    return { modules: modules.length, permissionCount };
+  }, [catalogByModule]);
+
+  const roleCounts = useMemo(() => {
+    const counts = {};
+    for (const user of users) {
+      counts[user.role] = (counts[user.role] || 0) + 1;
+    }
+    return counts;
+  }, [users]);
+
+  const filteredBrowseUsers = useMemo(() => {
+    const term = browseSearch.trim().toLowerCase();
+    return users.filter((user) => {
+      if (browseRoleFilter !== "all" && user.role !== browseRoleFilter) return false;
+      if (!term) return true;
+      const haystack = `${user.name || ""} ${user.email || ""} ${user.role || ""}`.toLowerCase();
+      return haystack.includes(term);
+    });
+  }, [users, browseRoleFilter, browseSearch]);
+
+  const browseUsers = useMemo(
+    () => filteredBrowseUsers.slice(0, browseVisibleCount),
+    [filteredBrowseUsers, browseVisibleCount]
+  );
+
+  const hasMoreBrowseUsers = browseVisibleCount < filteredBrowseUsers.length;
+
   return (
-    <Container fluid className="py-4">
-      <Row className="mb-4 align-items-center">
-        <Col>
-          <h4 className="mb-1 d-flex align-items-center gap-2">
-            <FaShieldAlt className="text-primary" />
-            Permission Assignment
-          </h4>
-          <p className="text-muted mb-0">
-            Grant or revoke permissions on top of role defaults. Denials remove inherited access;
-            grants add permissions the role does not include. Changes apply after the user&apos;s
-            next login or token refresh.
-          </p>
-        </Col>
-      </Row>
+    <Container fluid className="py-4 permission-assignment-page">
+      <Card className="permission-hero shadow-sm mb-4">
+        <Card.Body className="hero-content p-4 p-md-5">
+          <Row className="align-items-center g-4">
+            <Col lg={8}>
+              <h4 className="mb-2 d-flex align-items-center gap-2 fw-bold">
+                <FaShieldAlt />
+                Permission Assignment
+              </h4>
+              <p className="mb-0 opacity-90">
+                Grant or revoke permissions on top of role defaults. Denials remove inherited access;
+                grants add permissions the role does not include. Changes apply after the user&apos;s
+                next login or token refresh.
+              </p>
+            </Col>
+            <Col lg={4}>
+              <div className="d-flex flex-wrap gap-2 justify-content-lg-end">
+                <span className="permission-stat-pill d-inline-flex align-items-center gap-2">
+                  <FaUsers />
+                  {loadingUsers ? "…" : `${users.length} users`}
+                </span>
+                <span className="permission-stat-pill">
+                  {catalogStats.modules} modules
+                </span>
+                <span className="permission-stat-pill">
+                  {catalogStats.permissionCount} permissions
+                </span>
+              </div>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
 
       <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: "12px" }}>
-        <Card.Body>
+        <Card.Body className="p-4">
           <Row className="g-3 align-items-end">
-            <Col md={6}>
-              <Form.Label>Select user</Form.Label>
+            <Col lg={7}>
+              <div className="d-flex justify-content-between align-items-center mb-1">
+                <Form.Label className="fw-semibold mb-0">Select user</Form.Label>
+                {selectedUserId && (
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="p-0 text-decoration-none"
+                    onClick={() => setSelectedUserId("")}
+                  >
+                    Change user
+                  </Button>
+                )}
+              </div>
               <SearchableUserSelect
                 users={users}
                 value={selectedUserId}
                 onChange={setSelectedUserId}
                 loading={loadingUsers}
-                placeholder="Type a name to search…"
+                placeholder="Search by name, email, or role…"
               />
             </Col>
-            <Col md="auto" className="d-flex gap-2 flex-wrap">
+            <Col lg="auto" className="ms-lg-auto d-flex gap-2 flex-wrap">
               <Button
                 variant="outline-secondary"
                 disabled={!hasUnsavedChanges || saving || loadingDetail}
@@ -504,7 +602,194 @@ const PermissionAssignment = () => {
       </Card>
 
       {!selectedUserId && (
-        <Alert variant="info">Select a user to view and edit their permission overrides.</Alert>
+        <Row className="g-4">
+          <Col lg={4}>
+            <Card className="border-0 shadow-sm permission-legend-card mb-4 mb-lg-0">
+              <Card.Body className="p-4">
+                <h6 className="fw-bold mb-3">How it works</h6>
+                <div className="permission-step mb-3">
+                  <div className="small text-muted">Step 1</div>
+                  <strong>Pick a user</strong>
+                  <p className="small text-muted mb-0 mt-1">
+                    Search above or choose from the directory below.
+                  </p>
+                </div>
+                <div className="permission-step mb-3">
+                  <div className="small text-muted">Step 2</div>
+                  <strong>Review permissions</strong>
+                  <p className="small text-muted mb-0 mt-1">
+                    Expand modules and grant, deny, or clear overrides per permission.
+                  </p>
+                </div>
+                <div className="permission-step mb-4">
+                  <div className="small text-muted">Step 3</div>
+                  <strong>Save changes</strong>
+                  <p className="small text-muted mb-0 mt-1">
+                    Confirm when prompted. The user picks up changes on next login.
+                  </p>
+                </div>
+
+                <h6 className="fw-bold mb-3">Override types</h6>
+                <div className="d-flex flex-column gap-2">
+                  <div className="d-flex align-items-start gap-2">
+                    <FaPlus className="text-primary mt-1" />
+                    <div>
+                      <strong className="small">Grant</strong>
+                      <p className="small text-muted mb-0">Adds access beyond the role default.</p>
+                    </div>
+                  </div>
+                  <div className="d-flex align-items-start gap-2">
+                    <FaBan className="text-danger mt-1" />
+                    <div>
+                      <strong className="small">Deny</strong>
+                      <p className="small text-muted mb-0">Blocks an inherited permission.</p>
+                    </div>
+                  </div>
+                  <div className="d-flex align-items-start gap-2">
+                    <FaCheckCircle className="text-success mt-1" />
+                    <div>
+                      <strong className="small">Clear</strong>
+                      <p className="small text-muted mb-0">Removes the override; role default applies.</p>
+                    </div>
+                  </div>
+                </div>
+              </Card.Body>
+            </Card>
+          </Col>
+
+          <Col lg={8}>
+            <Card className="border-0 shadow-sm">
+              <Card.Header className="bg-white border-0 pt-4 px-4 pb-0">
+                <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                  <div>
+                    <h5 className="mb-1 fw-bold">User directory</h5>
+                    <p className="text-muted small mb-0">
+                      Click a user to load their permission overrides
+                    </p>
+                  </div>
+                </div>
+                <div className="d-flex flex-wrap gap-2 mb-3">
+                  <button
+                    type="button"
+                    className={`permission-role-chip border-0 ${browseRoleFilter === "all" ? "active" : ""}`}
+                    onClick={() => setBrowseRoleFilter("all")}
+                  >
+                    All ({users.length})
+                  </button>
+                  {Object.entries(roleCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([role, count]) => (
+                      <button
+                        key={role}
+                        type="button"
+                        className={`permission-role-chip border-0 ${browseRoleFilter === role ? "active" : ""}`}
+                        onClick={() => setBrowseRoleFilter(role)}
+                      >
+                        {role} ({count})
+                      </button>
+                    ))}
+                </div>
+                <InputGroup className="mb-3">
+                  <InputGroup.Text>
+                    <FaSearch />
+                  </InputGroup.Text>
+                  <Form.Control
+                    type="search"
+                    placeholder="Filter directory…"
+                    value={browseSearch}
+                    onChange={(e) => setBrowseSearch(e.target.value)}
+                  />
+                </InputGroup>
+              </Card.Header>
+              <Card.Body className="px-4 pb-4">
+                {loadingUsers ? (
+                  <div className="text-center py-5">
+                    <Spinner animation="border" variant="primary" />
+                    <p className="text-muted small mt-3 mb-0">Loading users…</p>
+                  </div>
+                ) : browseUsers.length === 0 ? (
+                  <div className="text-center py-5 text-muted">
+                    <FaUsers size={40} className="mb-3 opacity-50" />
+                    <p className="mb-0">No users match your filter.</p>
+                  </div>
+                ) : (
+                  <Row className="g-3">
+                    {browseUsers.map((user) => (
+                      <Col key={user._id} sm={6} xl={4}>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          className="permission-user-card p-3 bg-white"
+                          onClick={() => setSelectedUserId(user._id)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setSelectedUserId(user._id);
+                            }
+                          }}
+                        >
+                          <div className="d-flex align-items-center gap-3">
+                            <div className="permission-user-avatar">{getInitials(user.name)}</div>
+                            <div className="min-w-0 flex-grow-1">
+                              <div className="fw-semibold text-truncate">{user.name}</div>
+                              <div className="small text-muted text-truncate">{user.email}</div>
+                              <Badge
+                                bg={roleBadgeVariant(user.role)}
+                                className="text-uppercase mt-2"
+                                style={{ fontSize: "0.65rem" }}
+                              >
+                                {user.role}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      </Col>
+                    ))}
+                  </Row>
+                )}
+                {!loadingUsers && filteredBrowseUsers.length > 0 && (
+                  <div className="text-center mt-3">
+                    <p className="text-muted small mb-2">
+                      Showing {browseUsers.length} of {filteredBrowseUsers.length} user
+                      {filteredBrowseUsers.length === 1 ? "" : "s"}
+                      {filteredBrowseUsers.length !== users.length
+                        ? ` (${users.length} in directory)`
+                        : ""}
+                    </p>
+                    {hasMoreBrowseUsers && (
+                      <div className="d-flex justify-content-center gap-2 flex-wrap">
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          onClick={() =>
+                            setBrowseVisibleCount((count) =>
+                              Math.min(count + BROWSE_PAGE_SIZE, filteredBrowseUsers.length)
+                            )
+                          }
+                        >
+                          Show more (
+                          {Math.min(
+                            BROWSE_PAGE_SIZE,
+                            filteredBrowseUsers.length - browseVisibleCount
+                          )}{" "}
+                          more)
+                        </Button>
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="text-decoration-none"
+                          onClick={() => setBrowseVisibleCount(filteredBrowseUsers.length)}
+                        >
+                          Show all {filteredBrowseUsers.length}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
       )}
 
       {selectedUserId && loadingDetail && (

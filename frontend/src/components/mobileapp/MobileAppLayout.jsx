@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { toast } from 'react-toastify';
 import { playNotificationSound } from '../../utils/notificationSound';
+import { BRAND_LOGO_MINI } from '../../constants/branding';
 
 const HomeTab    = lazy(() => import('./HomeTab'));
 const TodoTab    = lazy(() => import('./TodoTab'));
@@ -74,7 +75,7 @@ export default function MobileAppLayout() {
             if (Notification.permission === 'granted') {
               new Notification('Meeting in 5 minutes', {
                 body: m.title,
-                icon: '/Wealll_mini.png',
+                icon: BRAND_LOGO_MINI,
               });
             }
           }
