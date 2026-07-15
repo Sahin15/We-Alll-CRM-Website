@@ -45,6 +45,22 @@ const router = express.Router();
 
 const ATTENDANCE_VIEW_ROLES = ["admin", "superadmin", "hr", "hod", "manager"];
 const ATTENDANCE_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
+const ATTENDANCE_SELF_ROLES = [
+  "employee",
+  "hod",
+  "sales",
+  "manager",
+  "hr",
+  "admin",
+  "superadmin",
+];
+
+const attendanceClock = requireModulePermission("attendance", "attendance.clock", {
+  legacyRoles: ATTENDANCE_SELF_ROLES,
+});
+const attendanceViewSelf = requireModulePermission("attendance", "attendance.record.view_self", {
+  legacyRoles: ATTENDANCE_SELF_ROLES,
+});
 
 // Test routes (no auth required)
 router.get("/test-logic", testStatusLogic);
@@ -113,49 +129,13 @@ router.get(
   }
 );
 
-// Employee routes (legacy: any authenticated user)
-router.post(
-  "/clock-in",
-  protect,
-  requireModulePermission("attendance", "attendance.clock", { legacyAllowed: true }),
-  clockIn
-);
-router.post(
-  "/clock-out",
-  protect,
-  requireModulePermission("attendance", "attendance.clock", { legacyAllowed: true }),
-  clockOut
-);
-router.post(
-  "/start-break",
-  protect,
-  requireModulePermission("attendance", "attendance.clock", { legacyAllowed: true }),
-  startBreak
-);
-router.post(
-  "/end-break",
-  protect,
-  requireModulePermission("attendance", "attendance.clock", { legacyAllowed: true }),
-  endBreak
-);
-router.get(
-  "/my-attendance",
-  protect,
-  requireModulePermission("attendance", "attendance.record.view_self", { legacyAllowed: true }),
-  getMyAttendance
-);
-router.get(
-  "/today",
-  protect,
-  requireModulePermission("attendance", "attendance.record.view_self", { legacyAllowed: true }),
-  getTodayAttendance
-);
-router.post(
-  "/recalculate-today",
-  protect,
-  requireModulePermission("attendance", "attendance.record.view_self", { legacyAllowed: true }),
-  recalculateTodayStatus
-);
+router.post("/clock-in", protect, attendanceClock, clockIn);
+router.post("/clock-out", protect, attendanceClock, clockOut);
+router.post("/start-break", protect, attendanceClock, startBreak);
+router.post("/end-break", protect, attendanceClock, endBreak);
+router.get("/my-attendance", protect, attendanceViewSelf, getMyAttendance);
+router.get("/today", protect, attendanceViewSelf, getTodayAttendance);
+router.post("/recalculate-today", protect, attendanceViewSelf, recalculateTodayStatus);
 router.post(
   "/fix-hr-attendance",
   protect,
@@ -202,12 +182,7 @@ router.post(
   }),
   createManualAttendance
 );
-router.get(
-  "/:id",
-  protect,
-  requireModulePermission("attendance", "attendance.record.view_self", { legacyAllowed: true }),
-  getAttendanceById
-);
+router.get("/:id", protect, attendanceViewSelf, getAttendanceById);
 router.put(
   "/:id",
   protect,
@@ -296,37 +271,11 @@ router.post(
 
 // ==================== OVERTIME ROUTES ====================
 
-router.post(
-  "/overtime/start-timer",
-  protect,
-  requireModulePermission("attendance", "attendance.clock", { legacyAllowed: true }),
-  startOvertimeTimer
-);
-router.post(
-  "/overtime/stop-timer/:entryId",
-  protect,
-  requireModulePermission("attendance", "attendance.clock", { legacyAllowed: true }),
-  stopOvertimeTimer
-);
-router.get(
-  "/overtime/active-timer",
-  protect,
-  requireModulePermission("attendance", "attendance.record.view_self", { legacyAllowed: true }),
-  getActiveOvertimeTimer
-);
-
-router.post(
-  "/overtime/add",
-  protect,
-  requireModulePermission("attendance", "attendance.clock", { legacyAllowed: true }),
-  addOvertimeEntry
-);
-router.get(
-  "/overtime/my-entries",
-  protect,
-  requireModulePermission("attendance", "attendance.record.view_self", { legacyAllowed: true }),
-  getMyOvertimeEntries
-);
+router.post("/overtime/start-timer", protect, attendanceClock, startOvertimeTimer);
+router.post("/overtime/stop-timer/:entryId", protect, attendanceClock, stopOvertimeTimer);
+router.get("/overtime/active-timer", protect, attendanceViewSelf, getActiveOvertimeTimer);
+router.post("/overtime/add", protect, attendanceClock, addOvertimeEntry);
+router.get("/overtime/my-entries", protect, attendanceViewSelf, getMyOvertimeEntries);
 
 router.get(
   "/overtime/pending",

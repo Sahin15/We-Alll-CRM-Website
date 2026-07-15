@@ -19,32 +19,27 @@ const router = express.Router();
 
 const WFH_VIEW_ROLES = ["admin", "superadmin", "hr", "manager", "hod"];
 const WFH_APPROVE_ROLES = ["admin", "superadmin", "hr", "manager", "hod"];
+const WFH_SELF_ROLES = [
+  "employee",
+  "hod",
+  "sales",
+  "manager",
+  "hr",
+  "admin",
+  "superadmin",
+];
 
-// Employee routes (legacy: any authenticated user — uses leave self-service permissions)
-router.post(
-  "/apply",
-  protect,
-  requireModulePermission("wfh", "leave.request.create", { legacyAllowed: true }),
-  applyWFH
-);
-router.get(
-  "/my-requests",
-  protect,
-  requireModulePermission("wfh", "leave.request.view_self", { legacyAllowed: true }),
-  getMyWFHRequests
-);
-router.delete(
-  "/:id",
-  protect,
-  requireModulePermission("wfh", "leave.request.create", { legacyAllowed: true }),
-  cancelWFHRequest
-);
-router.get(
-  "/check/:date",
-  protect,
-  requireModulePermission("wfh", "leave.request.view_self", { legacyAllowed: true }),
-  checkWFHStatus
-);
+const wfhCreate = requireModulePermission("wfh", "leave.request.create", {
+  legacyRoles: WFH_SELF_ROLES,
+});
+const wfhViewSelf = requireModulePermission("wfh", "leave.request.view_self", {
+  legacyRoles: WFH_SELF_ROLES,
+});
+
+router.post("/apply", protect, wfhCreate, applyWFH);
+router.get("/my-requests", protect, wfhViewSelf, getMyWFHRequests);
+router.delete("/:id", protect, wfhCreate, cancelWFHRequest);
+router.get("/check/:date", protect, wfhViewSelf, checkWFHStatus);
 
 // HR/Admin/Manager/HoD routes
 router.get(

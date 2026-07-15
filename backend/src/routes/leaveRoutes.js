@@ -23,27 +23,26 @@ const router = express.Router();
 
 const LEAVE_VIEW_ROLES = ["admin", "superadmin", "hr", "hod", "manager"];
 const LEAVE_APPROVE_ROLES = ["admin", "superadmin", "hr", "hod", "manager"];
+const LEAVE_SELF_ROLES = [
+  "employee",
+  "hod",
+  "sales",
+  "manager",
+  "hr",
+  "admin",
+  "superadmin",
+];
 
-// Specific routes MUST come before parameterized routes
-// Employee routes (legacy: any authenticated user)
-router.get(
-  "/my-leaves",
-  protect,
-  requireModulePermission("leave", "leave.request.view_self", { legacyAllowed: true }),
-  getMyLeaveRequests
-);
-router.get(
-  "/balance",
-  protect,
-  requireModulePermission("leave", "leave.request.view_self", { legacyAllowed: true }),
-  getLeaveBalance
-);
-router.get(
-  "/balance/:employeeId",
-  protect,
-  requireModulePermission("leave", "leave.request.view_self", { legacyAllowed: true }),
-  getLeaveBalance
-);
+const leaveViewSelf = requireModulePermission("leave", "leave.request.view_self", {
+  legacyRoles: LEAVE_SELF_ROLES,
+});
+const leaveCreate = requireModulePermission("leave", "leave.request.create", {
+  legacyRoles: LEAVE_SELF_ROLES,
+});
+
+router.get("/my-leaves", protect, leaveViewSelf, getMyLeaveRequests);
+router.get("/balance", protect, leaveViewSelf, getLeaveBalance);
+router.get("/balance/:employeeId", protect, leaveViewSelf, getLeaveBalance);
 router.get(
   "/usage-summary/:employeeId",
   protect,
@@ -256,30 +255,15 @@ router.get(
 router.post(
   "/",
   protect,
-  requireModulePermission("leave", "leave.request.create", { legacyAllowed: true }),
+  leaveCreate,
   uploadDocument.array("attachments", 5),
   handleDocumentUploadError,
   createLeaveRequest
 );
 
-router.get(
-  "/:id",
-  protect,
-  requireModulePermission("leave", "leave.request.view_self", { legacyAllowed: true }),
-  getLeaveRequestById
-);
-router.put(
-  "/:id",
-  protect,
-  requireModulePermission("leave", "leave.request.create", { legacyAllowed: true }),
-  updateLeaveRequest
-);
-router.put(
-  "/:id/cancel",
-  protect,
-  requireModulePermission("leave", "leave.request.create", { legacyAllowed: true }),
-  cancelLeaveRequest
-);
+router.get("/:id", protect, leaveViewSelf, getLeaveRequestById);
+router.put("/:id", protect, leaveCreate, updateLeaveRequest);
+router.put("/:id/cancel", protect, leaveCreate, cancelLeaveRequest);
 router.put(
   "/:id/approve",
   protect,

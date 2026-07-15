@@ -15,26 +15,26 @@ import { requireModulePermission } from "../authz/authzMiddleware.js";
 const router = express.Router();
 
 const WOL_HR_ROLES = ["admin", "superadmin", "hr"];
+const WOL_SELF_ROLES = [
+  "employee",
+  "hod",
+  "sales",
+  "manager",
+  "hr",
+  "admin",
+  "superadmin",
+];
 
-// Employee routes (legacy: any authenticated user)
-router.post(
-  "/",
-  protect,
-  requireModulePermission("wfh", "leave.request.create", { legacyAllowed: true }),
-  createWorkOnLeaveDayRequest
-);
-router.get(
-  "/my-requests",
-  protect,
-  requireModulePermission("wfh", "leave.request.view_self", { legacyAllowed: true }),
-  getMyWorkOnLeaveDayRequests
-);
-router.get(
-  "/check-today",
-  protect,
-  requireModulePermission("wfh", "leave.request.view_self", { legacyAllowed: true }),
-  checkTodayWorkOnLeaveRequest
-);
+const wolCreate = requireModulePermission("wfh", "leave.request.create", {
+  legacyRoles: WOL_SELF_ROLES,
+});
+const wolViewSelf = requireModulePermission("wfh", "leave.request.view_self", {
+  legacyRoles: WOL_SELF_ROLES,
+});
+
+router.post("/", protect, wolCreate, createWorkOnLeaveDayRequest);
+router.get("/my-requests", protect, wolViewSelf, getMyWorkOnLeaveDayRequests);
+router.get("/check-today", protect, wolViewSelf, checkTodayWorkOnLeaveRequest);
 
 // HR/Admin routes
 router.get(
