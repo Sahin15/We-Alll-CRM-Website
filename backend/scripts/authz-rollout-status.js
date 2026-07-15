@@ -1,15 +1,23 @@
 #!/usr/bin/env node
 /**
- * Print Authorization V2 Phase 9 rollout status from current process env.
- * Usage: node scripts/authz-rollout-status.js
+ * Print Authorization V2 Phase 9 rollout status from backend/.env.
+ * Usage: npm run authz:rollout-status
  */
 
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { getAuthzRolloutStatus } from '../src/authz/rolloutStatus.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const envPath = path.join(__dirname, '../.env');
+dotenv.config({ path: envPath });
 
 const status = getAuthzRolloutStatus();
 
 console.log('Authorization V2 — Rollout Status');
 console.log('================================');
+console.log(`Env file:     ${envPath}`);
 console.log(`Enforce:      ${status.enforce ? 'ON' : 'off'}`);
 console.log(`Shadow mode:  ${status.shadowMode ? 'ON' : 'off'}`);
 console.log(`Modules:      ${status.enabledModuleCount}/${status.totalModules} enabled`);

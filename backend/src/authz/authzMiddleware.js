@@ -4,7 +4,7 @@
  */
 
 import { can } from './policyEngine.js';
-import { legacyRoleAllows } from './legacyAdapter.js';
+import { legacyRoleAllows, legacyRolesOrDepartmentsAllows } from './legacyAdapter.js';
 import { logAuthzShadowComparison } from './shadowLogger.js';
 import {
   isAuthzModuleEnabled,
@@ -79,11 +79,11 @@ export const withAuthzShadow = (permission, legacyMiddleware) => {
  *
  * @param {string} moduleName - e.g. 'profile'
  * @param {string} permission
- * @param {{ legacyAllowed?: boolean, legacyRoles?: string[] }} [options]
+ * @param {{ legacyAllowed?: boolean, legacyRoles?: string[], legacyDepartments?: string[] }} [options]
  * @returns {import('express').RequestHandler}
  */
 export const requireModulePermission = (moduleName, permission, options = {}) => {
-  const { legacyAllowed, legacyRoles } = options;
+  const { legacyAllowed, legacyRoles, legacyDepartments } = options;
 
   return (req, res, next) => {
     if (!req.user) {
@@ -99,8 +99,13 @@ export const requireModulePermission = (moduleName, permission, options = {}) =>
     const resolvedLegacyAllowed =
       typeof legacyAllowed === 'boolean'
         ? legacyAllowed
-        : legacyRoles?.length
-          ? legacyRoleAllows(req.user, legacyRoles)
+        : legacyRoles?.length || legacyDepartments?.length
+          ? legacyRolesOrDepartmentsAllows(
+              req.user,
+              legacyRoles || [],
+              req.authzDepartmentName,
+              legacyDepartments || []
+            )
           : true;
 
     if (isAuthzShadowEnabled()) {
@@ -124,8 +129,12 @@ export const requireModulePermission = (moduleName, permission, options = {}) =>
       });
     }
 
-    // Restricted routes: require legacy role OR effective permission (includes direct grants)
-    if (legacyRoles?.length && !resolvedLegacyAllowed && !decision.allowed) {
+    // Restricted routes: require legacy role/dept OR effective permission (includes direct grants)
+    if (
+      (legacyRoles?.length || legacyDepartments?.length) &&
+      !resolvedLegacyAllowed &&
+      !decision.allowed
+    ) {
       return res.status(403).json({
         success: false,
         error: `Permission denied: ${permission}`,

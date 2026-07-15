@@ -145,3 +145,37 @@ export function legacyRoleAllows(user, allowedRoles) {
   if (!user?.role) return false;
   return allowedRoles.includes(user.role);
 }
+
+/**
+ * Legacy department allowlist check (mirrors authorizeDepartments / authorizeRolesOrDepartments).
+ *
+ * @param {string|null|undefined} departmentName - lower-case department name on req.user
+ * @param {string[]} allowedDepartments
+ * @returns {boolean}
+ */
+export function legacyDepartmentAllows(departmentName, allowedDepartments = []) {
+  if (!departmentName || !allowedDepartments.length) return false;
+  const normalized = departmentName.toLowerCase();
+  return allowedDepartments.some((dept) => dept.toLowerCase() === normalized);
+}
+
+/**
+ * Combined legacy role or department gate (mirrors authorizeRolesOrDepartments).
+ *
+ * @param {object} user
+ * @param {string[]} [allowedRoles]
+ * @param {string|null|undefined} departmentName
+ * @param {string[]} [allowedDepartments]
+ * @returns {boolean}
+ */
+export function legacyRolesOrDepartmentsAllows(
+  user,
+  allowedRoles = [],
+  departmentName,
+  allowedDepartments = []
+) {
+  if (allowedRoles.length && legacyRoleAllows(user, allowedRoles)) {
+    return true;
+  }
+  return legacyDepartmentAllows(departmentName, allowedDepartments);
+}
