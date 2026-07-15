@@ -517,6 +517,7 @@ const AppRoutes = () => {
               permission="worklog.entry.review"
               module="worklog"
               fallbackRoles={["hod"]}
+              requiresDepartmentHead
             >
               <HoDWorkLogReview />
             </PermissionRoute>
@@ -723,6 +724,7 @@ const AppRoutes = () => {
               permission="hiring.request.view"
               module="hiring"
               fallbackRoles={["hod"]}
+              requiresDepartmentHead
             >
               <Suspense fallback={<RouteLoadingFallback />}>
                 <HoDHiringRequests />
@@ -737,6 +739,7 @@ const AppRoutes = () => {
               permission="hiring.request.view"
               module="hiring"
               fallbackRoles={["hod"]}
+              requiresDepartmentHead
             >
               <Suspense fallback={<RouteLoadingFallback />}>
                 <HoDHiringRequestDetail />
@@ -751,6 +754,7 @@ const AppRoutes = () => {
               permission="hiring.request.create"
               module="hiring"
               fallbackRoles={["hod"]}
+              requiresDepartmentHead
             >
               <Suspense fallback={<RouteLoadingFallback />}>
                 <HoDCreateHiringRequest />

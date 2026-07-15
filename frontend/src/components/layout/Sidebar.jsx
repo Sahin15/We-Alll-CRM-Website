@@ -319,6 +319,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           label: "Department Review",
           permission: "worklog.entry.review",
           fallbackRoles: ["hod"],
+          requiresDepartmentHead: true,
         },
         {
           path: "/hod/hiring/requests",
@@ -326,6 +327,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           label: "Hiring Requests",
           permission: "hiring.request.view",
           fallbackRoles: ["hod"],
+          requiresDepartmentHead: true,
         },
       ],
     },
@@ -712,6 +714,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           authzLoading,
           permission: menuItem.permission,
           fallbackRoles: menuItem.fallbackRoles || [],
+          requiresDepartmentHead: menuItem.requiresDepartmentHead,
         });
       } else {
         permitted = false;

@@ -5,6 +5,18 @@
 import { isAuthzV2AnyModuleEnabled } from './authzFlags.js';
 
 /**
+ * Whether the user is a department head (HoD role or flagged head of department).
+ *
+ * @param {object|null|undefined} user
+ * @returns {boolean}
+ */
+export function isDepartmentHead(user) {
+  if (!user) return false;
+  if (user.role === 'hod') return true;
+  return Boolean(user.isHeadOfDepartment && user.headOfDepartment);
+}
+
+/**
  * @param {object} params
  * @param {object|null} params.user
  * @param {(permission: string) => boolean} params.canPermission
@@ -13,6 +25,7 @@ import { isAuthzV2AnyModuleEnabled } from './authzFlags.js';
  * @param {boolean} params.authzLoading
  * @param {string} params.permission
  * @param {string[]} [params.fallbackRoles]
+ * @param {boolean} [params.requiresDepartmentHead]
  * @returns {boolean}
  */
 export function hasPermissionAccess({
@@ -23,8 +36,13 @@ export function hasPermissionAccess({
   authzLoading,
   permission,
   fallbackRoles = [],
+  requiresDepartmentHead = false,
 }) {
   if (!user || !permission) return false;
+
+  if (requiresDepartmentHead && !isDepartmentHead(user)) {
+    return false;
+  }
 
   if (authzEffective?.permissions) {
     if (canPermission(permission)) return true;

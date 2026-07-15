@@ -260,9 +260,10 @@ export const AuthProvider = ({ children }) => {
    * Page-level access: V2 permission when effective permissions are loaded, else legacy roles.
    * @param {string} permission
    * @param {string[]} [fallbackRoles]
+   * @param {{ requiresDepartmentHead?: boolean }} [options]
    * @returns {boolean}
    */
-  const canAccess = (permission, fallbackRoles = []) => {
+  const canAccess = (permission, fallbackRoles = [], options = {}) => {
     return hasPermissionAccess({
       user,
       canPermission,
@@ -271,6 +272,7 @@ export const AuthProvider = ({ children }) => {
       authzLoading,
       permission,
       fallbackRoles,
+      requiresDepartmentHead: options.requiresDepartmentHead,
     });
   };
 

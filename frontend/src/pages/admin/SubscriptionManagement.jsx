@@ -18,12 +18,11 @@ import {
   StatusBadge,
 } from "../../components/shared";
 import { subscriptionAPI, planAPI } from "../../services/api";
+import { clientApi } from "../../api/clientApi";
 import { useCompany } from "../../context/CompanyContext";
-import { useNavigate } from "react-router-dom";
 
 const SubscriptionManagement = () => {
   const { selectedCompany } = useCompany();
-  const navigate = useNavigate();
   const [subscriptions, setSubscriptions] = useState([]);
   const [plans, setPlans] = useState([]);
   const [clients, setClients] = useState([]);
@@ -62,7 +61,8 @@ const SubscriptionManagement = () => {
     try {
       setLoading(true);
       const response = await subscriptionAPI.getAll({ company: selectedCompany });
-      setSubscriptions(response.data || []);
+      const list = Array.isArray(response.data) ? response.data : [];
+      setSubscriptions(list);
     } catch (error) {
       console.error("Error fetching subscriptions:", error);
       toast.error("Failed to fetch subscriptions");
@@ -86,17 +86,15 @@ const SubscriptionManagement = () => {
 
   const fetchClients = async () => {
     try {
-      // Assuming you have a clientAPI
-      const response = await fetch(`/api/clients?company=${selectedCompany}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      const data = await response.json();
-      setClients(data || []);
+      const response = await clientApi.getAllClients({ limit: 100 });
+      const list = Array.isArray(response?.data) ? response.data : [];
+      setClients(list);
     } catch (error) {
       console.error("Error fetching clients:", error);
-      toast.error("Failed to fetch clients");
+      if (error.response?.status !== 403) {
+        toast.error("Failed to fetch clients");
+      }
+      setClients([]);
     }
   };
 
@@ -492,12 +490,12 @@ const SubscriptionManagement = () => {
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         show={showDeleteDialog}
+        onHide={() => setShowDeleteDialog(false)}
+        onConfirm={handleDelete}
         title="Delete Subscription"
         message={`Are you sure you want to delete subscription ${subscriptionToDelete?.subscriptionNumber}? This action cannot be undone.`}
-        onConfirm={handleDelete}
-        onCancel={() => setShowDeleteDialog(false)}
         confirmText="Delete"
-        confirmVariant="danger"
+        variant="danger"
         loading={deleting}
       />
     </Container>
