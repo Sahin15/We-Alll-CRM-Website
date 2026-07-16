@@ -6,6 +6,7 @@
 import Project from "../models/projectModel.js";
 import WorkItem from "../models/workItemModel.js";
 import { getProjectStatistics, getTeamWorkload } from "../services/projectProgressService.js";
+import { canUserViewProject } from "../services/resourceVisibilityService.js";
 
 // @desc    Get project workspace data (overview)
 // @route   GET /api/projects/:id/workspace
@@ -31,14 +32,8 @@ export const getProjectWorkspace = async (req, res) => {
       });
     }
     
-    // Check access
-    const isProjectHead = project.projectHead?._id?.toString() === req.user._id.toString();
-    const isTeamMember = project.assignedUsers?.some(
-      user => user._id.toString() === req.user._id.toString()
-    );
-    const isAdmin = ["admin", "superadmin", "hod", "hr", "manager"].includes(req.user.role);
-    
-    if (!isProjectHead && !isTeamMember && !isAdmin) {
+    // Check access — company viewers or personal project team only
+    if (!canUserViewProject(req.user, project)) {
       return res.status(403).json({
         success: false,
         error: { code: "FORBIDDEN", message: "Access denied" },
@@ -104,6 +99,16 @@ export const getWorkBoard = async (req, res) => {
         error: {
           code: "NOT_FOUND",
           message: "Project not found",
+        },
+      });
+    }
+
+    if (!canUserViewProject(req.user, project)) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: "FORBIDDEN",
+          message: "Access denied",
         },
       });
     }

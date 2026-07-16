@@ -251,6 +251,13 @@ export const getAllLeaveRequests = async (req, res) => {
     if (leaveType) filter.leaveType = leaveType;
     if (employeeId) filter.employee = employeeId;
 
+    if (req.user.role === "hod" && req.user.department && !employeeId) {
+      const departmentEmployees = await User.find({ department: req.user.department })
+        .select("_id")
+        .lean();
+      filter.employee = { $in: departmentEmployees.map((emp) => emp._id) };
+    }
+
     const leaveRequests = await LeaveRequest.find(filter)
       .populate({
         path: "employee",

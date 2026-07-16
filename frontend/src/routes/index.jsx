@@ -264,15 +264,11 @@ const AppRoutes = () => {
         } />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-        {/* User Management (Authorization V2 pilot) */}
+        {/* User Management — admin/superadmin only (HR uses Employees) */}
         <Route
           path="/users"
           element={
-            <PermissionRoute
-              permission="team.user.view"
-              module="team"
-              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
-            >
+            <PermissionRoute fallbackRoles={["admin", "superadmin"]}>
               <UserList />
             </PermissionRoute>
           }
@@ -280,11 +276,7 @@ const AppRoutes = () => {
         <Route
           path="/users/:id"
           element={
-            <PermissionRoute
-              permission="team.user.view"
-              module="team"
-              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
-            >
+            <PermissionRoute fallbackRoles={["admin", "superadmin"]}>
               <UserDetails />
             </PermissionRoute>
           }
@@ -806,6 +798,7 @@ const AppRoutes = () => {
           element={
             <PermissionRoute
               permission="crm.client.view"
+              alternatePermissions={["crm.client.view_assigned"]}
               module="crm"
               fallbackRoles={["admin", "superadmin", "hr", "employee", "hod", "manager"]}
             >
@@ -818,6 +811,7 @@ const AppRoutes = () => {
           element={
             <PermissionRoute
               permission="crm.client.view"
+              alternatePermissions={["crm.client.view_assigned"]}
               module="crm"
               fallbackRoles={["admin", "superadmin", "hr", "employee", "hod", "manager"]}
             >
@@ -833,7 +827,7 @@ const AppRoutes = () => {
             <PermissionRoute
               permission="crm.rawdata.manage"
               module="crm"
-              fallbackRoles={["admin", "superadmin", "hr", "employee", "hod", "manager"]}
+              fallbackRoles={["admin", "superadmin", "employee", "hod", "manager"]}
             >
               <RawDataList />
             </PermissionRoute>
@@ -845,7 +839,7 @@ const AppRoutes = () => {
             <PermissionRoute
               permission="crm.rawdata.manage"
               module="crm"
-              fallbackRoles={["admin", "superadmin", "hr", "employee", "hod", "manager"]}
+              fallbackRoles={["admin", "superadmin", "employee", "hod", "manager"]}
             >
               <CallerQueuePage />
             </PermissionRoute>
@@ -855,9 +849,9 @@ const AppRoutes = () => {
           path="/raw-data/dashboard"
           element={
             <PermissionRoute
-              permission="reports.analytics.view"
-              module="reports"
-              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+              permission="crm.rawdata.analytics.view"
+              module="crm"
+              fallbackRoles={["admin", "superadmin", "manager"]}
             >
               <RawDataDashboard />
             </PermissionRoute>
@@ -871,7 +865,7 @@ const AppRoutes = () => {
             <PermissionRoute
               permission="crm.lead.view"
               module="crm"
-              fallbackRoles={["admin", "superadmin", "hr", "employee", "hod", "accounts", "manager"]}
+              fallbackRoles={["admin", "superadmin", "employee", "hod", "accounts", "manager"]}
             >
               <LeadList />
             </PermissionRoute>
@@ -883,7 +877,7 @@ const AppRoutes = () => {
             <PermissionRoute
               permission="crm.lead.view"
               module="crm"
-              fallbackRoles={["admin", "superadmin", "hr", "employee", "hod", "accounts", "manager"]}
+              fallbackRoles={["admin", "superadmin", "employee", "hod", "accounts", "manager"]}
             >
               <LeadDetails />
             </PermissionRoute>
@@ -895,7 +889,7 @@ const AppRoutes = () => {
             <PermissionRoute
               permission="crm.lead.manage"
               module="crm"
-              fallbackRoles={["admin", "superadmin", "hr", "employee", "hod", "accounts", "manager"]}
+              fallbackRoles={["admin", "superadmin", "employee", "hod", "accounts", "manager"]}
             >
               <LeadList />
             </PermissionRoute>
@@ -986,8 +980,8 @@ const AppRoutes = () => {
           path="/work-calendar/admin-overview"
           element={
             <PermissionRoute
-              permission="reports.analytics.view"
-              module="reports"
+              permission="work.dashboard.view"
+              module="work"
               fallbackRoles={["admin", "superadmin", "hr", "manager"]}
             >
               <AdminWorkCalendarOverview />
@@ -998,8 +992,8 @@ const AppRoutes = () => {
           path="/work-calendar/enhanced-admin-overview"
           element={
             <PermissionRoute
-              permission="reports.analytics.view"
-              module="reports"
+              permission="work.dashboard.view"
+              module="work"
               fallbackRoles={["admin", "superadmin", "hr", "manager"]}
             >
               <EnhancedAdminWorkCalendarOverview />
@@ -1185,7 +1179,7 @@ const AppRoutes = () => {
             <PermissionRoute
               permission="reports.analytics.view"
               module="reports"
-              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
             >
               <ReportsAnalytics />
             </PermissionRoute>
@@ -1268,7 +1262,11 @@ const AppRoutes = () => {
         <Route
           path="/expenses/:id"
           element={
-            <PermissionRoute permission="expense.claim.create" module="finance">
+            <PermissionRoute
+              permission="expense.claim.create"
+              module="finance"
+              fallbackRoles={["employee", "hod", "sales", "manager", "hr", "admin", "superadmin", "accounts"]}
+            >
               <ExpenseDetails />
             </PermissionRoute>
           }

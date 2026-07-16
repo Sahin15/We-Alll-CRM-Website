@@ -30,7 +30,9 @@ export const getAllExpenses = async (params) => {
 // Get expense by ID
 export const getExpenseById = async (id) => {
   const response = await api.get(`/expenses/${id}`);
-  return response.data;
+  const d = response.data;
+  const expense = d?.data ?? d?.expense ?? null;
+  return { ...d, expense, data: expense };
 };
 
 // Update expense

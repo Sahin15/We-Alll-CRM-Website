@@ -39,7 +39,11 @@ const EditExpense = () => {
     try {
       setLoading(true);
       const response = await expenseApi.getExpenseById(id);
-      const expense = response.expense || response;
+      const expense = response.expense || response.data || null;
+      if (!expense) {
+        toast.error("Failed to load expense");
+        return;
+      }
       
       setFormData({
         expensePurpose: expense.expensePurpose || "",

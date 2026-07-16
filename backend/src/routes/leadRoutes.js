@@ -37,7 +37,7 @@ import { attachDepartmentForAuthz } from "../authz/attachDepartmentContext.js";
 
 const router = express.Router();
 
-const LEAD_ACCESS_ROLES = ["admin", "superadmin", "manager", "hr", "employee", "hod", "sales"];
+const LEAD_ACCESS_ROLES = ["admin", "superadmin", "manager", "employee", "hod", "sales"];
 const LEAD_ACCESS_DEPARTMENTS = ["Sales"];
 const LEAD_DELETE_ROLES = ["admin", "superadmin"];
 const LEAD_TEAM_MEETING_ROLES = ["admin", "superadmin", "manager"];

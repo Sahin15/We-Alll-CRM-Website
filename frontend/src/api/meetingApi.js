@@ -8,6 +8,8 @@ export const meetingApi = {
   updateMeeting: (id, data) => api.put(`/meetings/${id}`, data),
   deleteMeeting: (id) => api.delete(`/meetings/${id}`),
   completeMeeting: (id) => api.patch(`/meetings/${id}/complete`),
+  addMeetingAttendees: (id, attendeeIds) =>
+    api.patch(`/meetings/${id}/attendees`, { attendeeIds }),
   respondToMeeting: (id, response) => api.post(`/meetings/${id}/respond`, { response }),
 };
 

@@ -19,6 +19,10 @@ export const PAGE_ACCESS = {
     permission: 'team.user.update',
     fallbackRoles: ['admin', 'superadmin', 'hr', 'manager'],
   },
+  teamUserAdmin: {
+    permission: 'team.user.view',
+    fallbackRoles: ['admin', 'superadmin'],
+  },
   projectManage: {
     permission: 'projects.project.manage',
     fallbackRoles: ['admin', 'superadmin', 'hr', 'manager', 'hod'],
@@ -34,6 +38,14 @@ export const PAGE_ACCESS = {
   crmLeadManage: {
     permission: 'crm.lead.manage',
     fallbackRoles: ['admin', 'superadmin', 'manager', 'hod'],
+  },
+  crmLeadView: {
+    permission: 'crm.lead.view',
+    fallbackRoles: ['admin', 'superadmin', 'manager', 'employee', 'hod'],
+  },
+  crmRawDataAnalyticsView: {
+    permission: 'crm.rawdata.analytics.view',
+    fallbackRoles: ['admin', 'superadmin', 'manager'],
   },
   crmClientManage: {
     permission: 'crm.client.manage',
@@ -89,7 +101,11 @@ export const PAGE_ACCESS = {
   },
   reportsAnalytics: {
     permission: 'reports.analytics.view',
-    fallbackRoles: ['admin', 'superadmin', 'manager'],
+    fallbackRoles: ['admin', 'superadmin', 'hr', 'manager', 'hod'],
+  },
+  workDashboard: {
+    permission: 'work.dashboard.view',
+    fallbackRoles: ['admin', 'superadmin', 'hr', 'manager'],
   },
   payrollManage: {
     permission: 'payroll.structure.manage',
@@ -112,7 +128,7 @@ export const PAGE_ACCESS = {
     fallbackRoles: ['employee', 'hr', 'hod', 'accounts', 'manager'],
   },
   clientAssignStaff: {
-    permission: 'crm.client.view',
+    permission: 'crm.client.view_assigned',
     fallbackRoles: ['employee', 'hod'],
   },
 };

@@ -9,11 +9,12 @@ import { hasPermissionAccess } from "../utils/authzAccess";
  * @param {object} props
  * @param {React.ReactNode} props.children
  * @param {string} props.permission - Required permission key
+ * @param {string[]} [props.alternatePermissions] - Additional permission keys (OR)
  * @param {string} [props.module] - Module flag name (legacy, optional)
  * @param {string[]} [props.fallbackRoles] - Legacy role fallback
  * @param {boolean} [props.requiresDepartmentHead] - HoD-only routes (not managers with review permission)
  */
-const PermissionRoute = ({ children, permission, fallbackRoles, requiresDepartmentHead }) => {
+const PermissionRoute = ({ children, permission, alternatePermissions, fallbackRoles, requiresDepartmentHead }) => {
   const {
     user,
     isAuthenticated,
@@ -49,6 +50,7 @@ const PermissionRoute = ({ children, permission, fallbackRoles, requiresDepartme
       authzEffective,
       authzLoading,
       permission,
+      alternatePermissions: alternatePermissions || [],
       fallbackRoles,
       requiresDepartmentHead,
     });

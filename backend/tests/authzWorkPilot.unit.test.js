@@ -53,5 +53,20 @@ describe('Authorization V2 — Work items pilot parity', () => {
     const user = { _id: 'sa1', role: 'superadmin' };
     expect(hasPermission(user, 'work.item.view')).toBe(true);
     expect(hasPermission(user, 'work.item.approve')).toBe(true);
+    expect(hasPermission(user, 'work.dashboard.view')).toBe(true);
+  });
+
+  test.each(['admin', 'superadmin', 'hr', 'manager'])(
+    'role %s can view Work Management Dashboard',
+    (role) => {
+      const user = { _id: `user-${role}`, role };
+      expect(hasPermission(user, 'work.dashboard.view')).toBe(true);
+    }
+  );
+
+  test('hod lacks Work Management Dashboard by default', () => {
+    const user = { _id: 'hod1', role: 'hod' };
+    expect(hasPermission(user, 'work.dashboard.view')).toBe(false);
+    expect(hasPermission(user, 'reports.analytics.view')).toBe(true);
   });
 });

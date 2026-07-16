@@ -446,40 +446,21 @@ const EnhancedEmployeeWorkView = () => {
         ? await workItemApi.getMyWork()
         : await workItemApi.getAllWorkItems({ assignedTo: currentEmployeeId });
 
-      // Load projects where employee is involved
+      // Load projects where this employee is on the team
       let projectsData;
       if (isOwnProfile) {
-        // Own profile - use getAllProjects and filter
-        const projectsResponse = await projectApi.getAllProjects();
-        const allProjects = projectsResponse.data?.data || projectsResponse.data;
-        const workItemsData = workItemsResponse.data?.data || workItemsResponse.data;
-        
-        // Filter projects where the employee is involved
-        projectsData = Array.isArray(allProjects) 
-          ? allProjects.filter(project => {
-              const isAssignedToProject = project.assignedUsers?.some(userId => 
-                userId === currentEmployeeId || userId._id === currentEmployeeId
-              );
-              const isTeamMember = project.teamMembers?.some(member => 
-                member.user === currentEmployeeId || member.user?._id === currentEmployeeId
-              );
-              const hasWorkInProject = Array.isArray(workItemsData) && workItemsData.some(workItem => 
-                workItem.project?._id === project._id || workItem.project === project._id
-              );
-              return isAssignedToProject || isTeamMember || hasWorkInProject;
-            })
-          : [];
+        const projectsResponse = await projectApi.getMyProjects();
+        projectsData = projectsResponse.data || projectsResponse;
       } else {
-        // HR/Admin viewing employee's projects - use dedicated endpoint (already filtered)
         projectsData = await projectApi.getProjectsForEmployee(currentEmployeeId);
       }
 
-      // Load clients for the employee
+      // Load clients assigned to the profile being viewed (not the logged-in viewer)
       let clientsData = [];
       try {
-        const clientsResponse = isOwnProfile 
-          ? await clientApi.getMyClients()
-          : await clientApi.getMyClients(); // Note: Backend will filter based on user context
+        const clientsResponse = await clientApi.getMyClients({
+          employeeId: currentEmployeeId,
+        });
         clientsData = clientsResponse.data || clientsResponse;
       } catch (error) {
         console.error('Error loading clients:', error);

@@ -1549,7 +1549,7 @@ const MyProfile = () => {
                     <Form.Group>
                       <Form.Label>Employee ID</Form.Label>
                       <div className="form-control-plaintext border rounded p-2 bg-light">
-                        {user?.employeeId || user?._id?.slice(-6).toUpperCase() || 'N/A'}
+                        {user?.employeeId || 'Not assigned'}
                       </div>
                     </Form.Group>
                   </Col>

@@ -32,7 +32,7 @@ import {
 import { protect } from '../middleware/authMiddleware.js';
 
 
-import { requireModulePermission } from "../authz/authzMiddleware.js";
+import { requireModulePermission, requireModulePermissionAny } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
 
@@ -47,6 +47,8 @@ const EXPENSE_SELF_ROLES = [
   "admin",
   "superadmin",
 ];
+
+const EXPENSE_VIEW_ROLES = [...new Set([...EXPENSE_SELF_ROLES, ...EXPENSE_APPROVE_ROLES])];
 
 router.use(protect);
 
@@ -165,7 +167,11 @@ router.post(
 
 router.get(
   "/:id",
-  requireModulePermission("finance", "expense.claim.create", { legacyRoles: EXPENSE_SELF_ROLES }),
+  requireModulePermissionAny(
+    "finance",
+    ["expense.claim.create", "expense.claim.approve"],
+    { legacyRoles: EXPENSE_VIEW_ROLES }
+  ),
   getExpenseById
 );
 router.put(

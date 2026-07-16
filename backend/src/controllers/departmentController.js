@@ -360,12 +360,18 @@ export const getDepartmentAnalytics = async (req, res) => {
       return res.status(404).json({ message: "Department not found" });
     }
 
-    
+    if (
+      req.user.role === "hod" &&
+      req.user.department &&
+      req.user.department.toString() !== id.toString()
+    ) {
+      return res.status(403).json({ message: "Access denied. You can only view your department analytics." });
+    }
 
     // Query employees directly from User model instead of relying on department.employees array
-    // This ensures we always get the current state without sync issues
     const employees = await User.find({ department: id })
-      .select("name email position role status")
+      .select("name email position role status gender dateOfBirth department")
+      .populate("department", "name")
       .lean();
 
     const currentEmployees = employees.filter((e) => !isPastMember(e.status));

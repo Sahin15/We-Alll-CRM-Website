@@ -23,6 +23,7 @@ import {
   FaMoneyBillWave,
   FaHome,
   FaUserPlus,
+  FaExclamationTriangle,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import StatCard from "../../components/dashboard/StatCard";
@@ -58,6 +59,7 @@ import TodoWidget from "../../components/common/TodoWidget";
 const HRDashboard = () => {
   const { user, canAccess } = useAuth();
   const hasReportsAccess = checkPageAccess(canAccess, PAGE_ACCESS.reportsAnalytics);
+  const hasLeadsAccess = checkPageAccess(canAccess, PAGE_ACCESS.crmLeadView);
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     employees: 0,
@@ -106,9 +108,9 @@ const HRDashboard = () => {
       const attendanceRes = await attendanceApi.getAllAttendance({ date: today });
       // Fetch department data
       const departmentRes = await departmentApi.getAllDepartments();
-      // Fetch leads data (only for roles with access: admin, superadmin, manager, or Sales department)
+      // Fetch leads only when user has explicit CRM lead access
       let leadsRes = { data: [] };
-      if (hasReportsAccess || user?.department === 'Sales') {
+      if (hasLeadsAccess) {
         try {
           leadsRes = await leadApi.getAllLeads();
         } catch (error) {
@@ -486,16 +488,29 @@ const HRDashboard = () => {
             />
           </div>
         </Col>
-        <Col lg={3} md={6}>
-          <div onClick={handleLeadsCardClick} style={{ cursor: 'pointer', height: '100%' }}>
-            <StatCard
-              title="Total Leads"
-              value={stats.leads}
-              icon={<FaChartLine />}
-              bgColor="info"
-            />
-          </div>
-        </Col>
+        {hasLeadsAccess ? (
+          <Col lg={3} md={6}>
+            <div onClick={handleLeadsCardClick} style={{ cursor: 'pointer', height: '100%' }}>
+              <StatCard
+                title="Total Leads"
+                value={stats.leads}
+                icon={<FaChartLine />}
+                bgColor="info"
+              />
+            </div>
+          </Col>
+        ) : (
+          <Col lg={3} md={6}>
+            <div onClick={handleLateEntriesCardClick} style={{ cursor: 'pointer', height: '100%' }}>
+              <StatCard
+                title="Late Today"
+                value={stats.lateToday}
+                icon={<FaExclamationTriangle />}
+                bgColor="danger"
+              />
+            </div>
+          </Col>
+        )}
       </Row>
 
       {/* Salary Management Card */}
@@ -862,7 +877,7 @@ const HRDashboard = () => {
         </Modal.Body>
       </Modal>
 
-      {/* Leads Modal */}
+      {hasLeadsAccess && (
       <Modal show={showLeadsModal} onHide={() => setShowLeadsModal(false)} size="lg" centered>
         <Modal.Header closeButton>
           <Modal.Title><FaChartLine className="me-2 text-primary" />All Leads ({leadsList.length})</Modal.Title>
@@ -901,6 +916,7 @@ const HRDashboard = () => {
           </Table>
         </Modal.Body>
       </Modal>
+      )}
     </Container>
   );
 };

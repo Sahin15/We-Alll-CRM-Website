@@ -8,6 +8,12 @@ import HiringRequest from "../models/hiringRequestModel.js";
 import HiringApplication from "../models/hiringApplicationModel.js";
 import { generateOfferLetterPdfFromTemplate } from "../services/offerLetterPdfService.js";
 import { uploadDocumentToS3, deleteDocumentFromS3 } from "../utils/documentUpload.js";
+import {
+  generateNextEmployeeId,
+  normalizeEmployeeId,
+  isValidEmployeeIdFormat,
+  isEmployeeIdTaken,
+} from "../services/employeeIdService.js";
 
 const HR_ROLES = ["hr", "admin", "superadmin", "manager"];
 
@@ -344,6 +350,30 @@ export const convertOfferToEmployee = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const resolvedEmploymentType = offer.employmentType || "full-time";
+    const resolvedJoiningDate = joiningDate
+      ? new Date(joiningDate)
+      : offer.proposedJoiningDate || new Date();
+
+    let resolvedEmployeeId = employeeId ? normalizeEmployeeId(employeeId) : "";
+
+    if (resolvedEmployeeId && !isValidEmployeeIdFormat(resolvedEmployeeId)) {
+      return res.status(400).json({
+        message: "Employee ID must match format WA-YY-XXXX (e.g. WA-26-0002).",
+      });
+    }
+
+    if (resolvedEmployeeId && (await isEmployeeIdTaken(User, resolvedEmployeeId))) {
+      return res.status(400).json({ message: "Employee ID is already assigned to another employee." });
+    }
+
+    if (!resolvedEmployeeId && resolvedEmploymentType === "full-time") {
+      const generated = await generateNextEmployeeId(User, {
+        joiningDate: resolvedJoiningDate,
+        employmentType: resolvedEmploymentType,
+      });
+      resolvedEmployeeId = generated.employeeId;
+    }
 
     const user = await User.create({
       name: offer.candidateName,
@@ -353,11 +383,9 @@ export const convertOfferToEmployee = async (req, res) => {
       role: "employee",
       designation: designation || offer.proposedDesignation,
       department: offer.proposedDepartment,
-      employmentType: offer.employmentType || "full-time",
-      joiningDate: joiningDate
-        ? new Date(joiningDate)
-        : offer.proposedJoiningDate || new Date(),
-      employeeId: employeeId || undefined,
+      employmentType: resolvedEmploymentType,
+      joiningDate: resolvedJoiningDate,
+      employeeId: resolvedEmployeeId || undefined,
       status: "active",
       nationality: "Indian",
     });

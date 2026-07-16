@@ -22,13 +22,14 @@ import {
 import { protect } from '../middleware/authMiddleware.js';
 
 
-import { requireModulePermission } from "../authz/authzMiddleware.js";
+import { requireModulePermission, requireModulePermissionAny } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
 
 const CLIENT_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
-const CLIENT_LIST_ROLES = ["admin", "superadmin", "hr", "hod", "manager"];
+const CLIENT_LIST_ROLES = ["admin", "superadmin", "hr", "hod", "manager", "employee"];
 const CLIENT_EMPLOYEE_ROLES = ["employee", "hod"];
+const CLIENT_ASSIGNED_VIEW_ROLES = ["employee", "hod", "admin", "superadmin", "hr", "manager"];
 const CLIENT_ONBOARD_WRITE_ROLES = ["admin", "superadmin", "accounts", "manager"];
 const CLIENT_ONBOARD_READ_ROLES = ["admin", "superadmin", "accounts", "client", "manager"];
 const CLIENT_OVERVIEW_ROLES = ["admin", "superadmin", "accounts", "client"];
@@ -41,6 +42,7 @@ const CLIENT_DETAIL_VIEW_ROLES = [
   "hr",
   "hod",
   "manager",
+  "employee",
   "accounts",
   "sales",
 ];
@@ -54,21 +56,29 @@ router.post(
 router.get(
   "/",
   protect,
-  requireModulePermission("crm", "crm.client.view", { legacyRoles: CLIENT_LIST_ROLES }),
+  requireModulePermissionAny(
+    "crm",
+    ["crm.client.view", "crm.client.view_assigned"],
+    { legacyRoles: CLIENT_LIST_ROLES }
+  ),
   getClients
 );
 
 router.get(
   "/my-clients",
   protect,
-  requireModulePermission("crm", "crm.client.view", { legacyRoles: CLIENT_EMPLOYEE_ROLES }),
+  requireModulePermission("crm", "crm.client.view_assigned", { legacyRoles: CLIENT_ASSIGNED_VIEW_ROLES }),
   getEmployeeClients
 );
 
 router.get(
   "/:id",
   protect,
-  requireModulePermission("crm", "crm.client.view", { legacyRoles: CLIENT_DETAIL_VIEW_ROLES }),
+  requireModulePermissionAny(
+    "crm",
+    ["crm.client.view", "crm.client.view_assigned"],
+    { legacyRoles: CLIENT_DETAIL_VIEW_ROLES }
+  ),
   getClientById
 );
 router.put(

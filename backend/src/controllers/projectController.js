@@ -4,8 +4,16 @@ import Client from "../models/clientModel.js";
 import Department from "../models/departmentModel.js";
 import logger from '../utils/logger.js';
 import { optimizedProjectPopulate, buildTextSearch } from '../utils/queryOptimizer.js';
-import { canViewAllProjects } from '../utils/permissions.js';
 import NotificationService from "../services/notificationService.js";
+import {
+  getPersonalProjectMembershipFilter,
+  isUserPersonallyAssignedToProject,
+} from '../services/projectAccessService.js';
+import {
+  buildProjectListQuery,
+  canUserViewProject,
+  canViewAllCompanyProjects,
+} from '../services/resourceVisibilityService.js';
 import { encrypt, decrypt } from "../utils/encryption.js";
 import {
   isPastMember,
@@ -16,36 +24,8 @@ import {
 // import Slot from "../models/slotModel.js";
 // import slotManagementService from '../services/slotManagementService.js';
 
-// Helper function to check if user has access to a project
-const userHasProjectAccess = async (userId, userRole, project) => {
-  // Admin, superadmin, hr, manager have full access
-  if (['admin', 'superadmin', 'hr', 'manager'].includes(userRole)) {
-    return true;
-  }
-
-  // Get user details
-  const user = await User.findById(userId);
-  
-  // Check if user is HoD of the project's department
-  const isHoD = user.isHeadOfDepartment && 
-                user.headOfDepartment && 
-                project.department &&
-                user.headOfDepartment.toString() === project.department.toString();
-  
-  // Check if user is HoP (project head)
-  // Handle both populated and non-populated projectHead
-  const projectHeadId = project.projectHead?._id || project.projectHead;
-  const isHoP = projectHeadId && projectHeadId.toString() === userId.toString();
-  
-  // Check if user is assigned to the project
-  const isAssigned = project.assignedUsers && 
-                     project.assignedUsers.some(u => {
-                       const uid = u._id || u;
-                       return uid.toString() === userId.toString();
-                     });
-  
-  return isHoD || isHoP || isAssigned;
-};
+// Helper function to check if user has access to a project (personal team membership + grants)
+const userHasProjectAccess = (user, project) => canUserViewProject(user, project);
 
 // Create new project
 export const createProject = async (req, res) => {
@@ -262,40 +242,17 @@ export const getProjects = async (req, res) => {
     
     let query = {};
     
-    // Admin, superadmin, hr, hod, manager can see all projects
-    if (!canViewAllProjects(req.user.role)) {
-      // Check if user is HoD (Head of Department)
-      const user = await User.findById(req.user.id).select('isHeadOfDepartment headOfDepartment').lean();
-      const isHoD = user?.isHeadOfDepartment && user?.headOfDepartment;
-      
-      // HoDs can see their department's projects (HoD role or employee with HoD flag)
-      if ((req.user.role === "employee" || req.user.role === "hod") && isHoD) {
-        query = {
-          $or: [
-            { assignedUsers: req.user.id },
-            { department: user.headOfDepartment }, // Legacy single department
-            { departments: user.headOfDepartment }, // New multiple departments
-            { projectHead: req.user.id }
-          ]
-        };
-      }
-      // Regular employees can see projects they are assigned to OR projects they lead
-      else if (req.user.role === "employee" || req.user.role === "hod") {
-        query = {
-          $or: [
-            { assignedUsers: req.user.id },
-            { projectHead: req.user.id }
-          ]
-        };
-      }
-      // Clients can only see their own projects
-      else if (req.user.role === "client") {
-        const clientByEmail = await Client.findOne({ email: req.user.email }).select("_id").lean();
-        
+    // Admin, superadmin, hr, manager (or granted COMPANY scope) see all projects
+    if (!canViewAllCompanyProjects(req.user)) {
+      if (req.user.role === 'client') {
+        const clientByEmail = await Client.findOne({ email: req.user.email }).select('_id').lean();
+
         if (!clientByEmail) {
           return res.status(200).json([]);
         }
         query = { client: clientByEmail._id };
+      } else {
+        query = buildProjectListQuery(req.user, query);
       }
     }
     
@@ -485,13 +442,7 @@ export const getProjectsForUser = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Find projects where user is assigned OR is the project head
-    const projects = await Project.find({
-      $or: [
-        { assignedUsers: userId },
-        { projectHead: userId }
-      ]
-    })
+    const projects = await Project.find(getPersonalProjectMembershipFilter(userId))
       .populate("client", "name email serviceCompany")
       .populate("department", "name")
       .populate("departments", "name")
@@ -519,13 +470,7 @@ export const getProjectsForEmployee = async (req, res) => {
     }
 
     // Find projects where employee is assigned, is a team member, or is the project head
-    const projects = await Project.find({
-      $or: [
-        { assignedUsers: employeeId },
-        { 'teamMembers.user': employeeId },
-        { projectHead: employeeId }
-      ]
-    })
+    const projects = await Project.find(getPersonalProjectMembershipFilter(employeeId))
       .populate("client", "name email serviceCompany")
       .populate("assignedUsers", "name email")
       .populate("teamMembers.user", "name email role")
@@ -600,9 +545,9 @@ export const getProjectById = async (req, res) => {
       }
     }
 
-    // Employee access check (includes HoD)
-    if (!canViewAllProjects(req.user.role) && (req.user.role === "employee" || req.user.role === "hod")) {
-      const hasAccess = await userHasProjectAccess(req.user.id, req.user.role, project);
+    // Employee access check (includes HoD) — personal project team only unless company viewer
+    if (!canViewAllCompanyProjects(req.user) && req.user.role !== 'client') {
+      const hasAccess = userHasProjectAccess(req.user, project);
       
       if (!hasAccess) {
         return res.status(403).json({
@@ -1449,6 +1394,20 @@ export const getMyLeadingProjects = async (req, res) => {
  */
 export const getMyDepartmentProjects = async (req, res) => {
   try {
+    if (!canViewAllCompanyProjects(req.user)) {
+      const projects = await Project.find(buildProjectListQuery(req.user, {}))
+        .populate("client", "name email serviceCompany")
+        .populate("projectHead", "name email designation")
+        .populate("teamMembers.user", "name email")
+        .sort({ createdAt: -1 });
+
+      return res.status(200).json({
+        success: true,
+        data: projects,
+        total: projects.length,
+      });
+    }
+
     const user = await User.findById(req.user._id).populate("headOfDepartment");
 
     if (!user.isHeadOfDepartment || !user.headOfDepartment) {
@@ -1498,7 +1457,7 @@ export const getProjectCredentials = async (req, res) => {
     if (!project) return res.status(404).json({ message: "Project not found" });
 
     // Authorization: User must have access to project
-    const hasAccess = await userHasProjectAccess(req.user.id, req.user.role, project);
+    const hasAccess = userHasProjectAccess(req.user, project);
     if (!hasAccess) {
       return res.status(403).json({ message: "Access denied" });
     }
@@ -1568,7 +1527,7 @@ export const addProjectCredential = async (req, res) => {
     if (!project) return res.status(404).json({ message: "Project not found" });
 
     // Authorization
-    const hasAccess = await userHasProjectAccess(req.user.id, req.user.role, project);
+    const hasAccess = userHasProjectAccess(req.user, project);
     if (!hasAccess) {
       return res.status(403).json({ message: "Access denied" });
     }
@@ -1603,7 +1562,7 @@ export const updateProjectCredential = async (req, res) => {
     const project = await Project.findById(id).select('+credentials.password');
     if (!project) return res.status(404).json({ message: "Project not found" });
 
-    const hasAccess = await userHasProjectAccess(req.user.id, req.user.role, project);
+    const hasAccess = userHasProjectAccess(req.user, project);
     if (!hasAccess) {
       return res.status(403).json({ message: "Access denied" });
     }
@@ -1635,7 +1594,7 @@ export const deleteProjectCredential = async (req, res) => {
     const project = await Project.findById(id);
     if (!project) return res.status(404).json({ message: "Project not found" });
 
-    const hasAccess = await userHasProjectAccess(req.user.id, req.user.role, project);
+    const hasAccess = userHasProjectAccess(req.user, project);
     if (!hasAccess) {
       return res.status(403).json({ message: "Access denied" });
     }

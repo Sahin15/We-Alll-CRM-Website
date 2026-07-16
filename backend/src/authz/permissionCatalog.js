@@ -57,6 +57,7 @@ export const PERMISSION_CATALOG = [
   { key: 'work.item.create', module: 'work', description: 'Create work items' },
   { key: 'work.item.update', module: 'work', description: 'Update work items' },
   { key: 'work.item.approve', module: 'work', description: 'Approve work in review' },
+  { key: 'work.dashboard.view', module: 'work', description: 'View company Work Management Dashboard' },
 
   // Company
   { key: 'company.meeting.view', module: 'company', description: 'View meetings' },
@@ -81,11 +82,13 @@ export const PERMISSION_CATALOG = [
   { key: 'procurement.vendor.manage', module: 'procurement', description: 'Manage vendors' },
 
   // CRM
-  { key: 'crm.lead.view', module: 'crm', description: 'View leads' },
-  { key: 'crm.lead.manage', module: 'crm', description: 'Manage leads' },
-  { key: 'crm.client.view', module: 'crm', description: 'View clients' },
-  { key: 'crm.client.manage', module: 'crm', description: 'Manage clients' },
-  { key: 'crm.rawdata.manage', module: 'crm', description: 'Manage raw telemarketing data' },
+  { key: 'crm.lead.view', module: 'crm', description: 'Business Management — view Leads list and details' },
+  { key: 'crm.lead.manage', module: 'crm', description: 'Business Management — create and edit leads' },
+  { key: 'crm.client.view', module: 'crm', description: 'Business Management — view all clients' },
+  { key: 'crm.client.view_assigned', module: 'crm', description: 'Business Management — view assigned clients only' },
+  { key: 'crm.client.manage', module: 'crm', description: 'Business Management — manage clients' },
+  { key: 'crm.rawdata.manage', module: 'crm', description: 'Business Management — Raw Data Sheet and Calling Queue' },
+  { key: 'crm.rawdata.analytics.view', module: 'crm', description: 'Business Management — Raw Data Analytics dashboard' },
 
   // Billing
   { key: 'billing.invoice.view', module: 'billing', description: 'View invoices' },

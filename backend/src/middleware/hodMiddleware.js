@@ -8,17 +8,8 @@ export const isHoD = async (req, res, next) => {
   try {
     const userId = req.user._id;
 
-    // Primary: department.head matches user
-    let department = await Department.findOne({ head: userId, status: "active" });
-
-    // Fallback: user profile HoD flags (keeps middleware aligned with authz grants)
-    if (!department && req.user.isHeadOfDepartment && req.user.headOfDepartment) {
-      department = await Department.findOne({
-        _id: req.user.headOfDepartment,
-        head: userId,
-        status: "active",
-      });
-    }
+    // Source of truth: Department.head (synced to user.headOfDepartment by hodSyncService)
+    const department = await Department.findOne({ head: userId, status: "active" });
 
     if (!department) {
       return res.status(403).json({

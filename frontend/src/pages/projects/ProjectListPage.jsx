@@ -4,6 +4,7 @@ import { FaPlus, FaTh, FaList, FaEye, FaEdit, FaTrash } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { PAGE_ACCESS, checkPageAccess } from '../../constants/pageAccess';
+import { canViewAllCompanyProjects } from '../../utils/resourceVisibility';
 import projectApi from '../../api/projectApi';
 import clientApi from '../../api/clientApi';
 import { departmentApi } from '../../api/departmentApi';
@@ -23,11 +24,9 @@ import SimplifiedProjectModal from '../../components/projects/SimplifiedProjectM
  * - Cached data to avoid unnecessary reloads
  */
 const ProjectListPage = () => {
-  const { user, canAccess } = useAuth();
-  const canViewAllProjects = canAccess(
-    PAGE_ACCESS.projectManage.permission,
-    ['admin', 'superadmin', 'hr', 'manager']
-  );
+  const { user, canAccess, authzEffective, canPermission } = useAuth();
+  const visibilityParams = { user, authzEffective, canPermission };
+  const canViewAllProjects = canViewAllCompanyProjects(visibilityParams);
   const canFilterProjectsAdmin = checkPageAccess(canAccess, PAGE_ACCESS.projectFilterAdmin);
   const canManageProjects = checkPageAccess(canAccess, PAGE_ACCESS.projectManage);
   const isPlatformAdmin = checkPageAccess(canAccess, PAGE_ACCESS.platformAdmin);
@@ -95,31 +94,9 @@ const ProjectListPage = () => {
   const getProjectsByRole = useCallback(async () => {
     if (canViewAllProjects) {
       return projectApi.getAllProjects();
-    } else if (user?.role === 'hod') {
-      const [deptProjectsRes, myProjectsRes] = await Promise.allSettled([
-        projectApi.getMyDepartmentProjects(),
-        projectApi.getMyProjects()
-      ]);
-
-      const deptProjects = deptProjectsRes.status === 'fulfilled'
-        ? (deptProjectsRes.value?.data || deptProjectsRes.value?.projects || deptProjectsRes.value || [])
-        : [];
-      const myProjects = myProjectsRes.status === 'fulfilled'
-        ? (myProjectsRes.value?.data || myProjectsRes.value?.projects || myProjectsRes.value || [])
-        : [];
-
-      // Merge and deduplicate by _id
-      const merged = [...deptProjects, ...myProjects];
-      const seen = new Set();
-      return merged.filter(p => {
-        if (!p?._id || seen.has(p._id.toString())) return false;
-        seen.add(p._id.toString());
-        return true;
-      });
-    } else {
-      return projectApi.getMyProjects();
     }
-  }, [user?.role]);
+    return projectApi.getMyProjects();
+  }, [canViewAllProjects]);
 
   const handleEdit = useCallback((project) => {
     setEditingProject(project);

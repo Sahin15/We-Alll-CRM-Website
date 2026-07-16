@@ -6,7 +6,7 @@ import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
 
-const REPORT_VIEW_ROLES = ["admin", "superadmin", "hr", "manager"];
+const REPORT_VIEW_ROLES = ["admin", "superadmin", "hr", "manager", "hod"];
 
 router.use(protect);
 

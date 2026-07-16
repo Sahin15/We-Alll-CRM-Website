@@ -5,6 +5,7 @@ import {
   getTodaysMeetings,
   createMeeting,
   updateMeeting,
+  addMeetingAttendees,
   deleteMeeting,
   completeMeeting,
 } from "../controllers/meetingController.js";
@@ -16,7 +17,7 @@ import { requireModulePermission } from "../authz/authzMiddleware.js";
 const router = express.Router();
 
 const MEETING_LIST_ROLES = ["admin", "superadmin", "hr", "manager", "hod", "employee"];
-const MEETING_MANAGE_ROLES = ["admin", "superadmin"];
+const MEETING_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager", "hod"];
 
 const meetingManage = requireModulePermission("company", "company.meeting.manage", {
   legacyRoles: MEETING_MANAGE_ROLES,
@@ -43,6 +44,7 @@ router.get(
 
 router.post("/", meetingManage, createMeeting);
 router.put("/:id", meetingManage, updateMeeting);
+router.patch("/:id/attendees", meetingManage, addMeetingAttendees);
 router.patch("/:id/complete", meetingManage, completeMeeting);
 router.delete("/:id", meetingManage, deleteMeeting);
 

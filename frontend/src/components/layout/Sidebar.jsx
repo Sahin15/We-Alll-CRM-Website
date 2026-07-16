@@ -52,7 +52,7 @@ const ALL_APP_ROLES = [
 const STAFF_ROLES = ["employee", "admin", "superadmin", "hr", "hod", "manager"];
 const CRM_STAFF_ROLES = ["admin", "superadmin", "manager", "hr", "employee", "hod"];
 const CRM_RAWDATA_ROLES = ["admin", "superadmin", "manager", "employee", "hod"];
-const CRM_RAWDATA_ANALYTICS_ROLES = ["admin", "superadmin", "hr", "manager"];
+const CRM_RAWDATA_ANALYTICS_ROLES = ["admin", "superadmin", "manager"];
 const CRM_LEAD_ROLES = ["admin", "superadmin", "manager", "employee", "hod"];
 const CRM_CLIENT_ROLES = ["admin", "superadmin", "hr", "employee", "hod", "manager"];
 const BILLING_ROLES = ["admin", "superadmin", "accounts", "manager", "hod"];
@@ -71,18 +71,19 @@ const PROCUREMENT_ALL_ROLES = [
 ];
 const PROCUREMENT_ADMIN_ROLES = ["admin", "superadmin", "accounts"];
 const PROCUREMENT_APPROVER_ROLES = ["hod", "admin", "superadmin", "accounts"];
-const PROCUREMENT_READ_ROLES = ["admin", "superadmin", "accounts", "hr", "hod", "manager"];
+/** Accounts/finance ops — PO, GRN, invoices, payments (not HoD) */
+const PROCUREMENT_FINANCE_OPS_ROLES = ["admin", "superadmin", "accounts", "hr", "manager"];
 const COMPANY_VIEW_ROLES = ["employee", "hod", "admin", "superadmin", "hr", "manager"];
 const COMPANY_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
 const HIRING_PIPELINE_ROLES = ["admin", "superadmin", "hr", "manager"];
 const TEAM_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
-const TEAM_USER_ADMIN_ROLES = ["admin", "superadmin", "manager"];
+const TEAM_USER_ADMIN_ROLES = ["admin", "superadmin"];
 const COMPENSATION_SELF_ROLES = ["employee", "hod", "manager", "hr"];
 const LEAVE_APPROVE_ROLES = ["admin", "superadmin", "hr", "manager"];
 const ATTENDANCE_SELF_ROLES = ["employee", "manager", "hr", "hod"];
 const ATTENDANCE_VIEW_ROLES = ["admin", "superadmin", "hr", "hod", "manager"];
 const FINANCE_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
-const REPORTS_ROLES = ["admin", "superadmin", "hr", "manager"];
+const REPORTS_ROLES = ["admin", "superadmin", "hr", "manager", "hod"];
 
 const Sidebar = ({ collapsed, toggleSidebar }) => {
   const location = useLocation();
@@ -148,8 +149,14 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       id: "business-management",
       icon: <FaUserTie />,
       label: "Business Management",
-      permission: "crm.lead.view",
-      fallbackRoles: CRM_STAFF_ROLES,
+      permission: "crm.client.view",
+      alternatePermissions: [
+        "crm.client.view_assigned",
+        "crm.lead.view",
+        "crm.rawdata.manage",
+        "crm.rawdata.analytics.view",
+      ],
+      fallbackRoles: CRM_CLIENT_ROLES,
       isGroup: true,
       children: [
         {
@@ -172,7 +179,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           path: "/raw-data/dashboard",
           icon: <FaChartBar />,
           label: "Raw Data Analytics",
-          permission: "reports.analytics.view",
+          permission: "crm.rawdata.analytics.view",
           fallbackRoles: CRM_RAWDATA_ANALYTICS_ROLES,
         },
         {
@@ -188,6 +195,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           icon: <FaUsers />,
           label: "Clients",
           permission: "crm.client.view",
+          alternatePermissions: ["crm.client.view_assigned"],
           fallbackRoles: CRM_CLIENT_ROLES,
           roleLabels: {
             employee: "My Clients",
@@ -286,7 +294,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           path: "/work-calendar/enhanced-admin-overview",
           icon: <FaChartBar />,
           label: "Work Dashboard",
-          permission: "reports.analytics.view",
+          permission: "work.dashboard.view",
           fallbackRoles: REPORTS_ROLES,
         },
       ],
@@ -406,33 +414,37 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           path: "/procurement/purchase-orders",
           icon: <FaClipboardList />,
           label: "Purchase Orders",
-          permission: "procurement.pr.view_self",
-          fallbackRoles: PROCUREMENT_READ_ROLES,
-          onlyForRoles: ["admin", "superadmin", "accounts", "hr", "hod", "manager"],
+          permission: "procurement.po.manage",
+          alternatePermissions: ["procurement.pr.view_self"],
+          fallbackRoles: PROCUREMENT_FINANCE_OPS_ROLES,
+          onlyForRoles: PROCUREMENT_FINANCE_OPS_ROLES,
         },
         {
           path: "/procurement/goods-receipts",
           icon: <FaBoxOpen />,
           label: "Goods Receipts",
-          permission: "procurement.pr.view_self",
-          fallbackRoles: PROCUREMENT_READ_ROLES,
-          onlyForRoles: ["admin", "superadmin", "accounts", "hr", "hod", "manager"],
+          permission: "procurement.po.manage",
+          alternatePermissions: ["procurement.pr.view_self"],
+          fallbackRoles: PROCUREMENT_FINANCE_OPS_ROLES,
+          onlyForRoles: PROCUREMENT_FINANCE_OPS_ROLES,
         },
         {
           path: "/procurement/invoices",
           icon: <FaFileInvoiceDollar />,
           label: "Invoices",
-          permission: "procurement.pr.view_self",
-          fallbackRoles: PROCUREMENT_READ_ROLES,
-          onlyForRoles: ["admin", "superadmin", "accounts", "hr", "hod", "manager"],
+          permission: "procurement.po.manage",
+          alternatePermissions: ["procurement.pr.view_self"],
+          fallbackRoles: PROCUREMENT_FINANCE_OPS_ROLES,
+          onlyForRoles: PROCUREMENT_FINANCE_OPS_ROLES,
         },
         {
           path: "/procurement/payments",
           icon: <FaMoneyBillWave />,
           label: "Payments",
-          permission: "procurement.pr.view_self",
-          fallbackRoles: PROCUREMENT_READ_ROLES,
-          onlyForRoles: ["admin", "superadmin", "accounts", "hr", "hod", "manager"],
+          permission: "procurement.po.manage",
+          alternatePermissions: ["procurement.pr.view_self"],
+          fallbackRoles: PROCUREMENT_FINANCE_OPS_ROLES,
+          onlyForRoles: PROCUREMENT_FINANCE_OPS_ROLES,
         },
         {
           path: "/procurement/reports",
@@ -537,6 +549,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           label: "Users",
           permission: "team.user.view",
           fallbackRoles: TEAM_USER_ADMIN_ROLES,
+          onlyForRoles: TEAM_USER_ADMIN_ROLES,
         },
         {
           path: "/employees",
@@ -714,6 +727,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           authzEffective,
           authzLoading,
           permission: menuItem.permission,
+          alternatePermissions: menuItem.alternatePermissions || [],
           fallbackRoles: menuItem.fallbackRoles || [],
           requiresDepartmentHead: menuItem.requiresDepartmentHead,
         });

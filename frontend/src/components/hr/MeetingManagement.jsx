@@ -21,11 +21,14 @@ import {
   FaClock,
   FaVideo,
   FaMapMarkerAlt,
-  FaCheckCircle
+  FaCheckCircle,
+  FaUserPlus
 } from "react-icons/fa";
 import toast from "../../utils/toast";
 import api from "../../services/api";
+import meetingApi from "../../api/meetingApi";
 import { useAuth } from "../../context/AuthContext";
+import AttendeeSearchPicker from "../common/AttendeeSearchPicker";
 import "./MeetingManagement.css";
 
 const MeetingManagement = () => {
@@ -39,6 +42,9 @@ const MeetingManagement = () => {
   const [selectedMeeting, setSelectedMeeting] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [confirmMeeting, setConfirmMeeting] = useState(null); // meeting to confirm complete
+  const [showAddAttendeesModal, setShowAddAttendeesModal] = useState(false);
+  const [addAttendeesMeeting, setAddAttendeesMeeting] = useState(null);
+  const [addAttendeesSelection, setAddAttendeesSelection] = useState([]);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -266,6 +272,80 @@ const MeetingManagement = () => {
     return time;
   };
 
+  const getOrganizerId = (meeting) =>
+    String(meeting?.organizer?._id || meeting?.organizer || "");
+
+  const canEditMeetingAttendees = (meeting) => {
+    if (!meeting || !user) return false;
+    if (!["scheduled", "ongoing"].includes(meeting.status)) return false;
+
+    if (["admin", "superadmin", "hr", "manager"].includes(user.role)) {
+      return true;
+    }
+
+    return getOrganizerId(meeting) === String(user._id);
+  };
+
+  const getExistingAttendeeIds = (meeting) => {
+    const ids = new Set();
+    const organizerId = getOrganizerId(meeting);
+    if (organizerId) ids.add(organizerId);
+
+    (meeting?.attendees || []).forEach((attendee) => {
+      const attendeeId = String(attendee?._id || attendee || "");
+      if (attendeeId) ids.add(attendeeId);
+    });
+
+    return ids;
+  };
+
+  const getAvailableAttendeeOptions = (meeting) => {
+    const existingIds = getExistingAttendeeIds(meeting);
+    return employees.filter((employee) => !existingIds.has(String(employee._id)));
+  };
+
+  const handleOpenAddAttendees = (meeting) => {
+    setAddAttendeesMeeting(meeting);
+    setAddAttendeesSelection([]);
+    setShowAddAttendeesModal(true);
+  };
+
+  const handleAddAttendeesSubmit = async () => {
+    if (!addAttendeesMeeting?._id) return;
+
+    if (addAttendeesSelection.length === 0) {
+      toast.error("Please select at least one person to add");
+      return;
+    }
+
+    try {
+      setProcessing(true);
+      const response = await meetingApi.addMeetingAttendees(
+        addAttendeesMeeting._id,
+        addAttendeesSelection
+      );
+
+      toast.success(response.data?.message || "Attendees added successfully");
+
+      const updatedMeeting = response.data?.meeting;
+      const meetingId = addAttendeesMeeting._id;
+
+      setShowAddAttendeesModal(false);
+      setAddAttendeesMeeting(null);
+      setAddAttendeesSelection([]);
+
+      if (showModal && selectedMeeting?._id === meetingId && updatedMeeting) {
+        setSelectedMeeting(updatedMeeting);
+      }
+
+      fetchMeetings();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to add attendees");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   if (loading) {
     return (
       <Card className="border-0 shadow-sm">
@@ -461,10 +541,20 @@ const MeetingManagement = () => {
                           >
                             <FaEye />
                           </Button>
+                          {canEditMeetingAttendees(meeting) && (
+                            <Button
+                              size="sm"
+                              variant="outline-info"
+                              onClick={() => handleOpenAddAttendees(meeting)}
+                              disabled={processing}
+                              title="Add attendees"
+                            >
+                              <FaUserPlus />
+                            </Button>
+                          )}
                           {/* Mark as Done — only organizer, only when scheduled */}
                           {meeting.status === "scheduled" &&
-                            (meeting.organizer?._id === user?._id ||
-                              meeting.organizer === user?._id) && (
+                            getOrganizerId(meeting) === String(user?._id) && (
                             <Button
                               size="sm"
                               variant="outline-success"
@@ -630,28 +720,13 @@ const MeetingManagement = () => {
                 </Form.Select>
               </Form.Group>
 
-              <Form.Group className="mb-3">
-                <Form.Label>Attendees * (Hold Ctrl/Cmd to select multiple)</Form.Label>
-                <Form.Select
-                  multiple
-                  value={formData.attendees}
-                  onChange={(e) => {
-                    const selected = Array.from(e.target.selectedOptions, option => option.value);
-                    setFormData({ ...formData, attendees: selected });
-                  }}
-                  style={{ minHeight: "150px" }}
-                  required
-                >
-                  {employees.map(emp => (
-                    <option key={emp._id} value={emp._id}>
-                      {emp.name} ({emp.email})
-                    </option>
-                  ))}
-                </Form.Select>
-                <Form.Text className="text-muted">
-                  Selected: {formData.attendees.length} attendee(s)
-                </Form.Text>
-              </Form.Group>
+              <AttendeeSearchPicker
+                employees={employees}
+                selectedIds={formData.attendees}
+                onChange={(attendees) => setFormData({ ...formData, attendees })}
+                label="Attendees"
+                required
+              />
             </Form>
           ) : (
             selectedMeeting && (
@@ -808,6 +883,20 @@ const MeetingManagement = () => {
                       <span style={{ color: '#94A3B8', fontSize: '0.85rem' }}>No attendees</span>
                     )}
                   </div>
+
+                  {canEditMeetingAttendees(selectedMeeting) && (
+                    <div className="mt-3 pt-3 border-top">
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        onClick={() => handleOpenAddAttendees(selectedMeeting)}
+                        disabled={processing}
+                      >
+                        <FaUserPlus className="me-2" />
+                        Add Attendees
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </>
             )
@@ -820,8 +909,7 @@ const MeetingManagement = () => {
           {/* Mark as Done button in view modal — organizer only, scheduled only */}
           {modalMode === "view" &&
             selectedMeeting?.status === "scheduled" &&
-            (selectedMeeting?.organizer?._id === user?._id ||
-              selectedMeeting?.organizer === user?._id) && (
+            getOrganizerId(selectedMeeting) === String(user?._id) && (
             <Button
               variant="success"
               onClick={() => handleCompleteMeeting(selectedMeeting)}
@@ -846,6 +934,72 @@ const MeetingManagement = () => {
               )}
             </Button>
           )}
+        </Modal.Footer>
+      </Modal>
+
+      {/* Add Attendees Modal */}
+      <Modal
+        show={showAddAttendeesModal}
+        onHide={() => {
+          setShowAddAttendeesModal(false);
+          setAddAttendeesMeeting(null);
+          setAddAttendeesSelection([]);
+        }}
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Add Attendees</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {addAttendeesMeeting && (
+            <>
+              <p className="text-muted mb-3">
+                Add people to <strong>{addAttendeesMeeting.title}</strong>
+              </p>
+              <AttendeeSearchPicker
+                employees={employees}
+                selectedIds={addAttendeesSelection}
+                onChange={setAddAttendeesSelection}
+                excludeIds={Array.from(getExistingAttendeeIds(addAttendeesMeeting))}
+                label="Select employees"
+              />
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setShowAddAttendeesModal(false);
+              setAddAttendeesMeeting(null);
+              setAddAttendeesSelection([]);
+            }}
+            disabled={processing}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleAddAttendeesSubmit}
+            disabled={
+              processing ||
+              addAttendeesSelection.length === 0 ||
+              !addAttendeesMeeting ||
+              getAvailableAttendeeOptions(addAttendeesMeeting).length === 0
+            }
+          >
+            {processing ? (
+              <>
+                <Spinner animation="border" size="sm" className="me-2" />
+                Adding...
+              </>
+            ) : (
+              <>
+                <FaUserPlus className="me-2" />
+                Add to Meeting
+              </>
+            )}
+          </Button>
         </Modal.Footer>
       </Modal>
 

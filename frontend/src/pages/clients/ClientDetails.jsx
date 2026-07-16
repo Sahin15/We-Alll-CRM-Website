@@ -15,6 +15,7 @@ import {
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { PAGE_ACCESS, checkPageAccess } from "../../constants/pageAccess";
+import { canViewAllCompanyProjects } from "../../utils/resourceVisibility";
 import {
   FaArrowLeft,
   FaEdit,
@@ -38,12 +39,10 @@ import { decodeObjectHtmlEntities } from "../../utils/htmlDecoder";
 const ClientDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, canAccess } = useAuth();
+  const { user, canAccess, authzEffective, canPermission } = useAuth();
+  const visibilityParams = { user, authzEffective, canPermission };
   const canManageClients = checkPageAccess(canAccess, PAGE_ACCESS.crmClientManage);
-  const canViewAllProjects = canAccess(
-    PAGE_ACCESS.projectManage.permission,
-    ['admin', 'superadmin', 'hr', 'manager']
-  );
+  const canViewAllProjects = canViewAllCompanyProjects(visibilityParams);
   const [client, setClient] = useState(null);
   const [projects, setProjects] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
@@ -219,13 +218,8 @@ const ClientDetails = () => {
       // Use appropriate API method based on user role
       let response;
       if (canViewAllProjects) {
-        // Admin roles can see all projects
         response = await projectApi.getAllProjects();
-      } else if (user?.role === 'hod') {
-        // HoD sees their department's projects
-        response = await projectApi.getMyDepartmentProjects();
       } else {
-        // Regular employees see only their assigned projects
         response = await projectApi.getMyProjects();
       }
       
@@ -1364,7 +1358,7 @@ const ClientDetails = () => {
           <Modal.Body>
             <Alert variant="info" className="mb-4">
               <strong>Department Assignment:</strong> Select which departments will work with this client. 
-              Only employees and HoDs from assigned departments will be able to see this client.
+              Staff can see this client in My Clients only when they are the account manager or on an active project team for that client.
             </Alert>
             
             <Form.Group className="mb-3">

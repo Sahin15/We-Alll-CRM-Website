@@ -101,6 +101,33 @@ describe('Authorization V2 — requireModulePermission enforcement', () => {
     expect(result.nextCalled).toBe(true);
   });
 
+  test('allows hod on CRM my-clients when enforce is on via assigned-client permission', () => {
+    const result = runMiddleware(
+      { _id: 'hod1', role: 'hod' },
+      {
+        moduleName: 'crm',
+        permission: 'crm.client.view_assigned',
+        legacyRoles: ['employee', 'hod'],
+        env: { AUTHZ_V2_ENFORCE: 'true', AUTHZ_V2_CRM: 'true' },
+      }
+    );
+    expect(result.nextCalled).toBe(true);
+    expect(result.authz?.allowed).toBe(true);
+  });
+
+  test('allows hod on CRM my-clients via legacy role during enforce when permission missing', () => {
+    const result = runMiddleware(
+      { _id: 'hod1', role: 'hod' },
+      {
+        moduleName: 'crm',
+        permission: 'crm.client.view',
+        legacyRoles: ['employee', 'hod'],
+        env: { AUTHZ_V2_ENFORCE: 'true', AUTHZ_V2_CRM: 'true' },
+      }
+    );
+    expect(result.nextCalled).toBe(true);
+  });
+
   test('legacy role gate still blocks when neither legacy nor V2 allows', () => {
     const result = runMiddleware(
       { _id: 'emp1', role: 'employee' },

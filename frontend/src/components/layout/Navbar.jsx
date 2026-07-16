@@ -600,6 +600,7 @@ const Navbar = ({ toggleSidebar }) => {
         onHide={handleLogoutCancel}
         centered
         backdrop="static"
+        className="logout-confirm-modal"
       >
         <Modal.Header closeButton className="border-0 pb-0">
           <Modal.Title className="d-flex align-items-center">
@@ -616,7 +617,7 @@ const Navbar = ({ toggleSidebar }) => {
           </Modal.Title>
         </Modal.Header>
         <Modal.Body className="pt-2 pb-4">
-          <p className="mb-0 text-muted" style={{ fontSize: '1.05rem' }}>
+          <p className="mb-0 logout-confirm-message" style={{ fontSize: '1.05rem' }}>
             Are you sure you want to logout? You'll need to sign in again to access your account.
           </p>
         </Modal.Body>
@@ -652,6 +653,28 @@ const Navbar = ({ toggleSidebar }) => {
 
       {/* Custom CSS for dropdown styling and mobile responsiveness */}
       <style>{`
+        .logout-confirm-modal .modal-content,
+        .logout-confirm-modal .modal-header,
+        .logout-confirm-modal .modal-body,
+        .logout-confirm-modal .modal-footer {
+          background-color: #ffffff !important;
+          color: #212529 !important;
+        }
+
+        .logout-confirm-modal .modal-title,
+        .logout-confirm-modal .modal-title span {
+          color: #212529 !important;
+        }
+
+        .logout-confirm-modal .logout-confirm-message {
+          color: #495057 !important;
+        }
+
+        .logout-confirm-modal .btn-close {
+          filter: none !important;
+          opacity: 0.55;
+        }
+
         /* Mobile Navbar Adjustments */
         @media (max-width: 575.98px) {
           .mobile-navbar {

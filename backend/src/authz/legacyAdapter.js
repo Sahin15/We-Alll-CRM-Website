@@ -130,6 +130,10 @@ export function buildEffectivePermissions(user) {
     scopes,
     grants,
     directAssignments: user?.directPermissionGrants?.filter((g) => g.effect !== 'deny') || [],
+    directDenials:
+      user?.directPermissionGrants
+        ?.filter((g) => g.effect === 'deny')
+        .map((g) => g.permission) || [],
     source: user?.directPermissionGrants?.length ? 'legacy_adapter+direct' : 'legacy_adapter',
   };
 }

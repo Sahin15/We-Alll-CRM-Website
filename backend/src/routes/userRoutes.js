@@ -167,11 +167,13 @@ router.post("/reset-password/:token", resetPassword);
 // Change password route (for authenticated users to change their own password)
 router.put("/change-password", protect, requireModulePermission("profile", "profile.update"), changePassword);
 
-// Generate next employee ID sequence
+// Generate next employee ID sequence (HR/admin while editing employee profiles)
 router.post(
   "/next-employee-id-sequence",
   protect,
-  requireModulePermission("team", "team.user.create", { legacyRoles: USER_MANAGE_ROLES }),
+  requireModulePermission("team", "team.user.update", {
+    legacyRoles: USER_MANAGE_ROLES,
+  }),
   getNextEmployeeIdSequence
 );
 

@@ -970,6 +970,14 @@ const PermissionAssignment = () => {
                     </Badge>
                   </Accordion.Header>
                   <Accordion.Body className="p-0">
+                    {moduleKey === "crm" && (
+                      <Alert variant="info" className="m-3 mb-0 small">
+                        Grant or deny CRM access per user. HR no longer gets Leads or Raw Data Analytics
+                        by default — use <strong>Grant</strong> on <code>crm.lead.view</code> /{" "}
+                        <code>crm.rawdata.analytics.view</code>, or <strong>Deny</strong> to block
+                        inherited access from another role.
+                      </Alert>
+                    )}
                     <div className="table-responsive">
                       <table className="table table-sm align-middle mb-0">
                         <thead className="table-light">

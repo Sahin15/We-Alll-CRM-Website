@@ -225,10 +225,7 @@ const BreakTimer = () => {
     : null;
 
   return (
-    <div
-      className="timer-card-floating-container"
-      style={{ position: "absolute", top: "20px", right: "20px", width: "220px", zIndex: 20 }}
-    >
+    <div className="timer-card-floating-container">
       <style>{`
         @keyframes pulse-glow-glass {
           0%, 100% { box-shadow: 0 4px 15px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.2); }
@@ -283,10 +280,14 @@ const BreakTimer = () => {
         .timer-card-floating .timer-icon-badge strong {
           color: #ffffff;
         }
+        .timer-card-floating-container {
+          position: relative;
+          width: 100%;
+        }
         @media (max-width: 768px) {
           .timer-card-floating-container {
-            position: relative !important; top: 0 !important; right: 0 !important;
-            width: 100% !important; margin-bottom: 12px !important;
+            width: 100% !important;
+            margin-bottom: 0 !important;
           }
           .timer-card-floating {
             padding: 10px 12px !important;

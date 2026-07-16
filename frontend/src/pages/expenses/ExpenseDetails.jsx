@@ -31,7 +31,7 @@ const ExpenseDetails = () => {
     try {
       setLoading(true);
       const response = await expenseApi.getExpenseById(id);
-      setExpense(response.expense || response);
+      setExpense(response.expense || response.data || null);
     } catch (error) {
       console.error("Error fetching expense:", error);
       toast.error("Failed to load expense details");
@@ -99,13 +99,6 @@ const ExpenseDetails = () => {
     }
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-    }).format(amount);
-  };
-
   const getStatusBadge = (status) => {
     const colors = {
       pending: "warning",
@@ -114,6 +107,11 @@ const ExpenseDetails = () => {
       reimbursed: "success",
     };
     return colors[status] || "light";
+  };
+
+  const formatStatusLabel = (status) => {
+    if (!status) return "Unknown";
+    return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
   if (loading) {
@@ -204,7 +202,7 @@ const ExpenseDetails = () => {
                   </Col>
                   <Col md={6} className="text-md-end">
                     <Badge bg={getStatusBadge(expense.status)} className="me-2 p-2">
-                      {expense.status.charAt(0).toUpperCase() + expense.status.slice(1)}
+                      {formatStatusLabel(expense.status)}
                     </Badge>
                     {expense.expensePurpose && (
                       <Badge bg={getPurposeColor(expense.expensePurpose)} className="me-2 p-2">
@@ -228,7 +226,7 @@ const ExpenseDetails = () => {
                 </Col>
                 <Col md={6} className="mb-3">
                   <p className="text-muted mb-1 small">Payment Method</p>
-                  <p className="mb-0 text-capitalize">{expense.paymentMethod.replace(/_/g, " ")}</p>
+                  <p className="mb-0 text-capitalize">{(expense.paymentMethod || "other").replace(/_/g, " ")}</p>
                 </Col>
                 <Col md={6} className="mb-3">
                   <p className="text-muted mb-1 small">Merchant/Vendor</p>

@@ -28,17 +28,16 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
 import { PAGE_ACCESS, checkPageAccess } from "../../constants/pageAccess";
+import { canViewAllCompanyProjects } from "../../utils/resourceVisibility";
 import { projectApi } from "../../api/projectApi";
 import { clientApi } from "../../api/clientApi";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
 import SimplifiedProjectModal from "../../components/projects/SimplifiedProjectModal";
 
 const ProjectList = () => {
-  const { user, canAccess } = useAuth();
-  const canViewAllProjects = canAccess(
-    PAGE_ACCESS.projectManage.permission,
-    ['admin', 'superadmin', 'hr', 'manager']
-  );
+  const { user, canAccess, authzEffective, canPermission } = useAuth();
+  const visibilityParams = { user, authzEffective, canPermission };
+  const canViewAllProjects = canViewAllCompanyProjects(visibilityParams);
   const canManageProjects = checkPageAccess(canAccess, PAGE_ACCESS.projectManage);
   const navigate = useNavigate();
   
@@ -70,13 +69,8 @@ const ProjectList = () => {
       // Use appropriate API method based on user role
       let response;
       if (canViewAllProjects) {
-        // Admin roles can see all projects
         response = await projectApi.getAllProjects();
-      } else if (user?.role === 'hod') {
-        // HoD sees their department's projects
-        response = await projectApi.getMyDepartmentProjects();
       } else {
-        // Regular employees see only their assigned projects
         response = await projectApi.getMyProjects();
       }
       

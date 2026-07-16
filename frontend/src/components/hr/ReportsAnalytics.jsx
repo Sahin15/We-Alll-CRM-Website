@@ -1,202 +1,221 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, Row, Col, Button, Spinner, Table, Badge } from "react-bootstrap";
 import { FaChartBar, FaDownload, FaUsers, FaCalendarAlt, FaClock } from "react-icons/fa";
+import { useAuth } from "../../context/AuthContext";
 import { userApi } from "../../api/userApi";
 import { leaveApi } from "../../api/leaveApi";
 import { attendanceApi } from "../../api/attendanceApi";
+import { departmentApi } from "../../api/departmentApi";
 import toast from "../../utils/toast";
 
-const ReportsAnalytics = () => {
-  const [loading, setLoading] = useState(true);
-  const [analytics, setAnalytics] = useState({
-    headcountByDept: [],
-    genderDiversity: { male: 0, female: 0, other: 0 },
-    ageDistribution: { "18-25": 0, "26-35": 0, "36-45": 0, "46+": 0 },
-    leaveStats: { approved: 0, pending: 0, rejected: 0 },
-    attendanceRate: 0,
+const EMPTY_ANALYTICS = {
+  headcountByDept: [],
+  genderDiversity: { male: 0, female: 0, other: 0 },
+  ageDistribution: { "18-25": 0, "26-35": 0, "36-45": 0, "46+": 0 },
+  leaveStats: { approved: 0, pending: 0, rejected: 0 },
+  attendanceRate: 0,
+};
+
+const formatDateIST = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const normalizeArrayResponse = (response, keys = []) => {
+  if (Array.isArray(response?.data)) return response.data;
+  if (Array.isArray(response)) return response;
+  for (const key of keys) {
+    if (Array.isArray(response?.[key])) return response[key];
+    if (Array.isArray(response?.data?.[key])) return response.data[key];
+  }
+  return [];
+};
+
+/**
+ * Build report metrics from an employee list.
+ * @param {Array<object>} employees
+ * @param {Array<object>} leaves
+ * @param {Array<object>} attendance
+ * @param {{ groupBy?: 'department' | 'role', groupLabel?: string }} options
+ */
+const buildAnalyticsFromEmployees = (employees, leaves, attendance, options = {}) => {
+  const { groupBy = "department" } = options;
+  const groupCount = {};
+
+  employees.forEach((emp) => {
+    const key =
+      groupBy === "role"
+        ? emp.role || "Unknown"
+        : emp.department?.name || "Unassigned";
+    groupCount[key] = (groupCount[key] || 0) + 1;
   });
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, []);
+  const headcountByDept = Object.entries(groupCount).map(([name, count]) => ({
+    name,
+    count,
+  }));
 
-  const fetchAnalytics = async () => {
+  const genderCount = { male: 0, female: 0, other: 0 };
+  employees.forEach((emp) => {
+    const gender = emp.gender?.toLowerCase();
+    if (gender === "male") genderCount.male++;
+    else if (gender === "female") genderCount.female++;
+    else if (gender === "other" || gender === "prefer-not-to-say") genderCount.other++;
+  });
+
+  const ageCount = { "18-25": 0, "26-35": 0, "36-45": 0, "46+": 0 };
+  employees.forEach((emp) => {
+    if (!emp.dateOfBirth) return;
+    const birthDate = new Date(emp.dateOfBirth);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    if (age >= 18 && age <= 25) ageCount["18-25"]++;
+    else if (age >= 26 && age <= 35) ageCount["26-35"]++;
+    else if (age >= 36 && age <= 45) ageCount["36-45"]++;
+    else if (age >= 46) ageCount["46+"]++;
+  });
+
+  const leaveStats = {
+    approved: leaves.filter((l) => l.status === "approved").length,
+    pending: leaves.filter((l) => l.status === "pending").length,
+    rejected: leaves.filter((l) => l.status === "rejected").length,
+  };
+
+  const presentCount = attendance.filter((a) => a.status === "present").length;
+  const attendanceRate =
+    attendance.length > 0 ? ((presentCount / attendance.length) * 100).toFixed(1) : 0;
+
+  return {
+    headcountByDept,
+    genderDiversity: genderCount,
+    ageDistribution: ageCount,
+    leaveStats,
+    attendanceRate,
+  };
+};
+
+const ReportsAnalytics = () => {
+  const { user } = useAuth();
+  const isHoD = user?.role === "hod";
+  const departmentId = user?.department?._id || user?.department || null;
+
+  const [loading, setLoading] = useState(true);
+  const [analytics, setAnalytics] = useState(EMPTY_ANALYTICS);
+  const [headcountTitle, setHeadcountTitle] = useState("Headcount by Department");
+  const [headcountColumnLabel, setHeadcountColumnLabel] = useState("Department");
+  const [pageTitle, setPageTitle] = useState("Reports & Analytics");
+
+  const fetchAttendance = async () => {
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const params = {
+      startDate: formatDateIST(thirtyDaysAgo),
+      endDate: formatDateIST(today),
+    };
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     try {
-      setLoading(true);
-
-      // Fetch all data with individual error handling
-      let usersRes = { data: [] };
-      let leavesRes = { data: [] };
-      let attendanceRes = { data: [] };
-
-      try {
-        usersRes = await userApi.getAllUsers({ excludePast: true, limit: 1000 });
-      } catch (error) {
-        console.error('[ReportsAnalytics] Error fetching users:', error.message);
-        toast.warning('Could not fetch user data');
-      }
-
-      try {
-        leavesRes = await leaveApi.getAllLeaves({});
-      } catch (error) {
-        console.error('[ReportsAnalytics] Error fetching leaves:', error.message);
-        toast.warning('Could not fetch leave data');
-      }
-
-      try {
-        // Fetch attendance data for the last 30 days to avoid timeout
-        const today = new Date();
-        const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-        
-        const formatDateIST = (date) => {
-          const year = date.getFullYear();
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          return `${year}-${month}-${day}`;
-        };
-        
-        const params = {
-          startDate: formatDateIST(thirtyDaysAgo),
-          endDate: formatDateIST(today)
-        };
-        
-        // Set a timeout for the attendance request
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-        
-        try {
-          attendanceRes = await attendanceApi.getAllAttendance(params);
-          clearTimeout(timeoutId);
-        } catch (timeoutError) {
-          clearTimeout(timeoutId);
-          if (timeoutError.code === 'ECONNABORTED') {
-            console.warn('[ReportsAnalytics] Attendance request timeout, using empty data');
-            attendanceRes = { data: [] };
-          } else {
-            throw timeoutError;
-          }
-        }
-      } catch (error) {
-        console.error('[ReportsAnalytics] Error fetching attendance:', error.message);
-        // Don't show warning for timeout, just use empty data
-        if (error.message && !error.message.includes('timeout')) {
-          toast.warning('Could not fetch attendance data');
-        }
-        attendanceRes = { data: [] };
-      }
-
-      // Handle different response formats
-      let allUsers = [];
-      if (Array.isArray(usersRes.data)) {
-        allUsers = usersRes.data;
-      } else if (Array.isArray(usersRes)) {
-        allUsers = usersRes;
-      } else if (usersRes.users && Array.isArray(usersRes.users)) {
-        allUsers = usersRes.users;
-      }
-
-      let allLeaves = [];
-      if (Array.isArray(leavesRes.data)) {
-        allLeaves = leavesRes.data;
-      } else if (Array.isArray(leavesRes)) {
-        allLeaves = leavesRes;
-      } else if (leavesRes.leaves && Array.isArray(leavesRes.leaves)) {
-        allLeaves = leavesRes.leaves;
-      }
-
-      let allAttendance = [];
-      if (Array.isArray(attendanceRes.data)) {
-        allAttendance = attendanceRes.data;
-      } else if (Array.isArray(attendanceRes)) {
-        allAttendance = attendanceRes;
-      } else if (attendanceRes.attendance && Array.isArray(attendanceRes.attendance)) {
-        allAttendance = attendanceRes.attendance;
-      }
-
-      const employees = allUsers.filter((u) => u.role === "employee" || u.role === "hod" || u.role === "hr" || u.role === "manager") || [];
-      const leaves = allLeaves || [];
-      const attendance = allAttendance || [];
-
-      // Headcount by Department
-      const deptCount = {};
-      employees.forEach((emp) => {
-        const dept = emp.department?.name || "Unassigned";
-        deptCount[dept] = (deptCount[dept] || 0) + 1;
-      });
-      const headcountByDept = Object.entries(deptCount).map(([name, count]) => ({
-        name,
-        count,
-      }));
-
-      // Gender Diversity
-      const genderCount = { male: 0, female: 0, other: 0 };
-      
-      employees.forEach((emp) => {
-        const gender = emp.gender?.toLowerCase();
-        
-        if (gender === "male") {
-          genderCount.male++;
-        } else if (gender === "female") {
-          genderCount.female++;
-        } else if (gender === "other" || gender === "prefer-not-to-say") {
-          genderCount.other++;
-        }
-      });
-
-      // Age Distribution
-      const ageCount = { "18-25": 0, "26-35": 0, "36-45": 0, "46+": 0 };
-      employees.forEach((emp) => {
-        if (emp.dateOfBirth) {
-          const birthDate = new Date(emp.dateOfBirth);
-          const today = new Date();
-          let age = today.getFullYear() - birthDate.getFullYear();
-          
-          // Adjust age if birthday hasn't occurred this year yet
-          const monthDiff = today.getMonth() - birthDate.getMonth();
-          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-            age--;
-          }
-          
-          // Only count valid ages (18+)
-          if (age >= 18 && age <= 25) ageCount["18-25"]++;
-          else if (age >= 26 && age <= 35) ageCount["26-35"]++;
-          else if (age >= 36 && age <= 45) ageCount["36-45"]++;
-          else if (age >= 46) ageCount["46+"]++;
-        }
-      });
-
-      // Leave Stats
-      const leaveStats = {
-        approved: leaves.filter((l) => l.status === "approved").length,
-        pending: leaves.filter((l) => l.status === "pending").length,
-        rejected: leaves.filter((l) => l.status === "rejected").length,
-      };
-
-      // Attendance Rate
-      const presentCount = attendance.filter((a) => a.status === "present").length;
-      const attendanceRate = attendance.length > 0
-        ? ((presentCount / attendance.length) * 100).toFixed(1)
-        : 0;
-
-      setAnalytics({
-        headcountByDept,
-        genderDiversity: genderCount,
-        ageDistribution: ageCount,
-        leaveStats,
-        attendanceRate,
-      });
+      const attendanceRes = await attendanceApi.getAllAttendance(params);
+      clearTimeout(timeoutId);
+      return normalizeArrayResponse(attendanceRes, ["attendance"]);
     } catch (error) {
-      console.error("[ReportsAnalytics] ❌ Error fetching analytics:", error);
-      console.error("[ReportsAnalytics] Error message:", error.message);
-      console.error("[ReportsAnalytics] Error response:", error.response?.data);
-      toast.error("Failed to fetch analytics data: " + (error.response?.data?.message || error.message));
-    } finally {
-      setLoading(false);
+      clearTimeout(timeoutId);
+      if (error.code !== "ECONNABORTED" && !error.message?.includes("timeout")) {
+        console.error("[ReportsAnalytics] Error fetching attendance:", error.message);
+        toast.warning("Could not fetch attendance data");
+      }
+      return [];
     }
   };
 
+  const fetchLeaves = async () => {
+    try {
+      const leavesRes = await leaveApi.getAllLeaves({});
+      return normalizeArrayResponse(leavesRes, ["leaves"]);
+    } catch (error) {
+      console.error("[ReportsAnalytics] Error fetching leaves:", error.message);
+      toast.warning("Could not fetch leave data");
+      return [];
+    }
+  };
+
+  const fetchHoDAnalytics = useCallback(async () => {
+    if (!departmentId) {
+      toast.error("Your profile is missing a department assignment.");
+      return EMPTY_ANALYTICS;
+    }
+
+    let employees = [];
+    try {
+      const deptAnalytics = await departmentApi.getDepartmentAnalytics(departmentId);
+      employees = Array.isArray(deptAnalytics?.employees) ? deptAnalytics.employees : [];
+      setPageTitle(`Department Reports & Analytics${deptAnalytics?.department?.name ? ` — ${deptAnalytics.department.name}` : ""}`);
+      setHeadcountTitle("Headcount by Role");
+      setHeadcountColumnLabel("Role");
+    } catch (error) {
+      console.error("[ReportsAnalytics] Error fetching department analytics:", error.message);
+      toast.error(error.response?.data?.message || "Could not fetch department analytics");
+    }
+
+    const [leaves, attendance] = await Promise.all([fetchLeaves(), fetchAttendance()]);
+    return buildAnalyticsFromEmployees(employees, leaves, attendance, { groupBy: "role" });
+  }, [departmentId]);
+
+  const fetchCompanyAnalytics = useCallback(async () => {
+    setPageTitle("Reports & Analytics");
+    setHeadcountTitle("Headcount by Department");
+    setHeadcountColumnLabel("Department");
+
+    let allUsers = [];
+    try {
+      const usersRes = await userApi.getAllUsers({ excludePast: true, limit: 1000 });
+      allUsers = normalizeArrayResponse(usersRes, ["users"]);
+    } catch (error) {
+      console.error("[ReportsAnalytics] Error fetching users:", error.message);
+      toast.warning("Could not fetch user data");
+    }
+
+    const employees =
+      allUsers.filter(
+        (u) =>
+          u.role === "employee" ||
+          u.role === "hod" ||
+          u.role === "hr" ||
+          u.role === "manager"
+      ) || [];
+
+    const [leaves, attendance] = await Promise.all([fetchLeaves(), fetchAttendance()]);
+    return buildAnalyticsFromEmployees(employees, leaves, attendance, { groupBy: "department" });
+  }, []);
+
+  const fetchAnalytics = useCallback(async () => {
+    try {
+      setLoading(true);
+      const result = isHoD ? await fetchHoDAnalytics() : await fetchCompanyAnalytics();
+      setAnalytics(result);
+    } catch (error) {
+      console.error("[ReportsAnalytics] Error fetching analytics:", error);
+      toast.error(
+        "Failed to fetch analytics data: " + (error.response?.data?.message || error.message)
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [isHoD, fetchHoDAnalytics, fetchCompanyAnalytics]);
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
+
   const exportToCSV = (data, filename) => {
-    // Simple CSV export
     const csv = data.map((row) => Object.values(row).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
@@ -213,7 +232,7 @@ const ReportsAnalytics = () => {
         <div className="d-flex justify-content-between align-items-center">
           <h5 className="mb-0">
             <FaChartBar className="me-2 text-primary" />
-            Reports & Analytics
+            {pageTitle}
           </h5>
           <Button
             variant="outline-primary"
@@ -232,7 +251,13 @@ const ReportsAnalytics = () => {
           </div>
         ) : (
           <>
-            {/* Summary Cards */}
+            {isHoD && (
+              <p className="text-muted small mb-4">
+                Showing analytics for your department only — attendance, leave, and headcount
+                data are scoped to your team.
+              </p>
+            )}
+
             <Row className="g-3 mb-4">
               <Col md={4}>
                 <Card className="border-start border-primary border-4 bg-light">
@@ -275,47 +300,52 @@ const ReportsAnalytics = () => {
               </Col>
             </Row>
 
-            {/* Detailed Reports */}
             <Row className="g-4">
-              {/* Headcount by Department */}
               <Col lg={6}>
                 <Card className="h-100">
                   <Card.Header className="bg-light">
-                    <strong>Headcount by Department</strong>
+                    <strong>{headcountTitle}</strong>
                   </Card.Header>
                   <Card.Body>
-                    <Table hover size="sm" className="mb-0">
-                      <thead>
-                        <tr>
-                          <th>Department</th>
-                          <th className="text-end">Employees</th>
-                          <th className="text-end">%</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {analytics.headcountByDept.map((dept) => {
-                          const total = analytics.headcountByDept.reduce(
-                            (sum, d) => sum + d.count,
-                            0
-                          );
-                          const percentage = ((dept.count / total) * 100).toFixed(1);
-                          return (
-                            <tr key={dept.name}>
-                              <td>{dept.name}</td>
-                              <td className="text-end">
-                                <Badge bg="primary">{dept.count}</Badge>
-                              </td>
-                              <td className="text-end">{percentage}%</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </Table>
+                    {analytics.headcountByDept.length === 0 ? (
+                      <div className="text-center py-4 text-muted">
+                        <FaUsers size={40} className="mb-3 opacity-50" />
+                        <p className="mb-0">No headcount data available</p>
+                      </div>
+                    ) : (
+                      <Table hover size="sm" className="mb-0">
+                        <thead>
+                          <tr>
+                            <th>{headcountColumnLabel}</th>
+                            <th className="text-end">Employees</th>
+                            <th className="text-end">%</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {analytics.headcountByDept.map((dept) => {
+                            const total = analytics.headcountByDept.reduce(
+                              (sum, d) => sum + d.count,
+                              0
+                            );
+                            const percentage =
+                              total > 0 ? ((dept.count / total) * 100).toFixed(1) : 0;
+                            return (
+                              <tr key={dept.name}>
+                                <td className="text-capitalize">{dept.name}</td>
+                                <td className="text-end">
+                                  <Badge bg="primary">{dept.count}</Badge>
+                                </td>
+                                <td className="text-end">{percentage}%</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </Table>
+                    )}
                   </Card.Body>
                 </Card>
               </Col>
 
-              {/* Gender Diversity */}
               <Col lg={6}>
                 <Card className="h-100">
                   <Card.Header className="bg-light">
@@ -361,7 +391,6 @@ const ReportsAnalytics = () => {
                 </Card>
               </Col>
 
-              {/* Age Distribution */}
               <Col lg={6}>
                 <Card className="h-100">
                   <Card.Header className="bg-light">
@@ -399,7 +428,6 @@ const ReportsAnalytics = () => {
                 </Card>
               </Col>
 
-              {/* Leave Statistics */}
               <Col lg={6}>
                 <Card className="h-100">
                   <Card.Header className="bg-light">

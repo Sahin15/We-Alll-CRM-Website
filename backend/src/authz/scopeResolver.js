@@ -4,6 +4,7 @@
  */
 
 import { SCOPES } from './scopes.js';
+import { buildUserProjectMembershipFilter } from '../services/clientAccessService.js';
 
 /**
  * @param {import('mongoose').Types.ObjectId | string | null | undefined} id
@@ -38,7 +39,7 @@ export function resolveScopeFilter(user, scope) {
     case SCOPES.PLATFORM:
       return {};
     case SCOPES.PROJECT:
-      return { $or: [{ assignedTo: userId }, { 'teamMembers.user': userId }] };
+      return buildUserProjectMembershipFilter(userId);
     case SCOPES.CLIENT_PORTFOLIO:
       return { client: userId };
     case SCOPES.TEAM:

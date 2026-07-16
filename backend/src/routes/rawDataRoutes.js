@@ -31,8 +31,8 @@ const crmRawDataManage = requireModulePermission("crm", "crm.rawdata.manage", {
   legacyRoles: CRM_RAWDATA_ROLES,
 });
 
-const rawDataAnalytics = requireModulePermission("reports", "reports.analytics.view", {
-  legacyRoles: ["admin", "superadmin", "hr", "manager"],
+const rawDataAnalytics = requireModulePermission("crm", "crm.rawdata.analytics.view", {
+  legacyRoles: ["admin", "superadmin", "manager"],
 });
 
 router.use(protect);

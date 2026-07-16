@@ -24,6 +24,7 @@ export function isDepartmentHead(user) {
  * @param {object|null} params.authzEffective
  * @param {boolean} params.authzLoading
  * @param {string} params.permission
+ * @param {string[]} [params.alternatePermissions]
  * @param {string[]} [params.fallbackRoles]
  * @param {boolean} [params.requiresDepartmentHead]
  * @returns {boolean}
@@ -35,6 +36,7 @@ export function hasPermissionAccess({
   authzEffective,
   authzLoading,
   permission,
+  alternatePermissions = [],
   fallbackRoles = [],
   requiresDepartmentHead = false,
 }) {
@@ -44,8 +46,10 @@ export function hasPermissionAccess({
     return false;
   }
 
+  const permissionKeys = [permission, ...alternatePermissions].filter(Boolean);
+
   if (authzEffective?.permissions) {
-    if (canPermission(permission)) return true;
+    if (permissionKeys.some((key) => canPermission(key))) return true;
     if (fallbackRoles.length && checkPermission(fallbackRoles)) return true;
     return false;
   }
