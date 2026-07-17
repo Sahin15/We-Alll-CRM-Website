@@ -16,10 +16,10 @@ Last Updated: 2026-07-17
 |-------|--------|
 | **Current Feature** | Payroll & Salary Management System V2 |
 | **Current Phase** | Implementation |
-| **Current Milestone** | Milestone 1 — Pay Period (**complete — awaiting review**) |
-| **Current Branch** | `feature/payroll-v2-pay-period` |
+| **Current Milestone** | Milestone 2 — Salary Components (**complete — awaiting review**) |
+| **Current Branch** | `feature/payroll-v2-components` |
 | **Implementation Workspace** | `docs/IMPLEMENTATION_PLANS/Payroll/` |
-| **Status** | Milestone 1 implemented. Do **not** start Milestone 2 until approved. |
+| **Status** | Milestone 2 implemented. Do **not** start Milestone 3 until approved. |
 | **Last Updated** | 2026-07-17 |
 
 ---
@@ -53,12 +53,12 @@ Last Updated: 2026-07-17
 
 ---
 
-## Milestone 1 scope
+## Milestone 2 scope
 
-* `payrollPeriodModel.js`
-* `/api/payroll/periods` routes
-* Permission `payroll.period.manage`
-* UI pay-period calendar / lock controls
-* Unit tests for period state transitions
+* `salaryComponentModel.js` (`salarycomponents` collection)
+* `/api/payroll/components` catalog CRUD
+* Permission `payroll.component.manage`
+* Seed defaults mapped from V1 flat fields
+* Unit tests for component validation / defaults
 
-**Out of scope:** PayrollEngine, components catalog, formula engine, slip generation changes.
+**Out of scope:** Formula engine, PayrollEngine, structure `components[]` wiring, UI catalog page, slip generation.

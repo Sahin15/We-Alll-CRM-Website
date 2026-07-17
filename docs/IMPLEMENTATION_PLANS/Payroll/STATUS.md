@@ -9,12 +9,12 @@ Last Updated: 2026-07-17
 |-------|--------|
 | **Feature** | Payroll & Salary Management System V2 |
 | **Phase** | Implementation |
-| **Milestone** | Milestone 1 — Pay Period |
-| **Branch** | `feature/payroll-v2-pay-period` |
+| **Milestone** | Milestone 2 — Salary Components |
+| **Branch** | `feature/payroll-v2-components` |
 | **Implementation workspace** | `docs/IMPLEMENTATION_PLANS/Payroll/` |
-| **Code implementation** | Milestone 1 complete — **awaiting review** |
+| **Code implementation** | Milestone 2 complete — **awaiting review** |
 | **Plan status** | Active |
-| **Next coding milestone** | Milestone 2 — Components (`feature/payroll-v2-components`) — **not started** |
+| **Next coding milestone** | Milestone 3 — Formula (`feature/payroll-v2-formula`) — **not started** |
 
 ---
 
@@ -22,33 +22,30 @@ Last Updated: 2026-07-17
 
 | Area | Status |
 |------|--------|
-| V1 discovery documented | Done |
-| Documentation workspace | Done |
-| Milestone 1 — `payrollPeriodModel` | Done |
-| Milestone 1 — `/api/payroll/periods` | Done |
-| Milestone 1 — `payroll.period.manage` | Done |
-| Milestone 1 — UI Pay Periods tab | Done |
-| Milestone 1 — transition unit tests | Done (24 tests in suite run) |
-| Milestone 2+ | Not started |
+| Milestone 0 — Docs workspace | Done |
+| Milestone 1 — Pay Period | Done (on `feature/payroll-v2-pay-period`) |
+| Milestone 2 — Component catalog model | Done |
+| Milestone 2 — `/api/payroll/components` CRUD + seed | Done |
+| Milestone 2 — `payroll.component.manage` | Done |
+| Milestone 2 — unit tests | Done |
+| Milestone 3+ | Not started |
 
 ---
 
-## Milestone 1 deliverables
+## Milestone 2 deliverables
 
 | Artifact | Path |
 |----------|------|
-| Transitions | `backend/src/services/payroll/payrollPeriodTransitions.js` |
-| Model | `backend/src/models/payrollPeriodModel.js` |
-| Controller | `backend/src/controllers/payrollPeriodController.js` |
-| Routes | `backend/src/routes/payrollPeriodRoutes.js` → `/api/payroll/periods` |
-| Permission | `payroll.period.manage` in catalog + legacy roles |
-| UI | `frontend/src/components/salary/PayrollPeriods.jsx` (Salary Management → Pay Periods) |
-| API client | `frontend/src/api/payrollPeriodApi.js` |
-| Tests | `backend/tests/payrollPeriodTransitions.unit.test.js` |
+| Catalog helpers | `backend/src/services/payroll/salaryComponentCatalog.js` |
+| Model | `backend/src/models/salaryComponentModel.js` |
+| Controller | `backend/src/controllers/salaryComponentController.js` |
+| Routes | `backend/src/routes/salaryComponentRoutes.js` → `/api/payroll/components` |
+| Permission | `payroll.component.manage` |
+| Tests | `backend/tests/salaryComponentCatalog.unit.test.js` |
 
 ---
 
 ## Blockers
 
-1. Human review / approval before starting Milestone 2.
-2. Slip generation is **not** yet gated on period status (deferred to engine milestone).
+1. Human review before Milestone 3.
+2. Structure `components[]` wiring deferred to later milestones (catalog only for M2).

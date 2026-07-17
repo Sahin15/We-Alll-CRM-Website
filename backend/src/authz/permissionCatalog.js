@@ -104,6 +104,7 @@ export const PERMISSION_CATALOG = [
   { key: 'payroll.slip.view_self', module: 'finance', description: 'View own salary slips' },
   { key: 'payroll.slip.manage', module: 'finance', description: 'Manage salary slips' },
   { key: 'payroll.period.manage', module: 'finance', description: 'Open, freeze, lock, and unlock payroll periods' },
+  { key: 'payroll.component.manage', module: 'finance', description: 'Manage salary component catalog' },
 
   // Resources
   { key: 'assets.asset.view', module: 'resources', description: 'View assets' },

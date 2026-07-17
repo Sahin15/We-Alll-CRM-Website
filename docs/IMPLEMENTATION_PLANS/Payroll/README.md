@@ -129,12 +129,11 @@ This folder is the **only** authorized Payroll V2 implementation workspace.
 * `/api/payroll/loans` — loans / EMI  
 * `/api/payroll/runs` — initiate / approve / finalize  
 
-### Permissions (to register)
+### Permissions (registered so far)
 
-* `payroll.period.manage`
-* `payroll.run.process`
-* `payroll.run.approve_finance`
-* `payroll.bank.export`
+* `payroll.period.manage` (Milestone 1)
+* `payroll.component.manage` (Milestone 2)
+* Planned later: `payroll.run.process`, `payroll.run.approve_finance`, `payroll.bank.export`
 
 ### Migration
 

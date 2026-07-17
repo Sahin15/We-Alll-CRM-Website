@@ -15,17 +15,25 @@ Each milestone is independently deployable and low-risk. **Do not start a milest
 | Field | Value |
 |-------|--------|
 | Branch | `feature/payroll-v2-analysis` |
-| Scope | Discover V1; design V2; create this workspace; archive obsolete plans |
 | Status | **Complete** |
 
 ---
 
-## Milestone 1 — Pay Period (current)
+## Milestone 1 — Pay Period
 
 | Field | Value |
 |-------|--------|
 | Branch | `feature/payroll-v2-pay-period` |
-| Scope | `payrollPeriodModel`, `/api/payroll/periods`, UI lock calendar, `payroll.period.manage`, transition tests |
+| Status | **Complete** |
+
+---
+
+## Milestone 2 — Salary Components (current)
+
+| Field | Value |
+|-------|--------|
+| Branch | `feature/payroll-v2-components` |
+| Scope | `salarycomponents` collection, `/api/payroll/components` CRUD, seed defaults, permission, tests |
 | Status | **Complete — awaiting review** |
 
 ---
@@ -34,8 +42,8 @@ Each milestone is independently deployable and low-risk. **Do not start a milest
 
 | Milestone | Feature Branch | Scope of Work | Status |
 | :--- | :--- | :--- | :--- |
-| **1** | `feature/payroll-v2-pay-period` | Period model, APIs, UI, permission, tests | Complete — review |
-| **2** | `feature/payroll-v2-components` | Register `salarycomponents` collection and catalog CRUD APIs | Not started |
+| **1** | `feature/payroll-v2-pay-period` | Period model, APIs, UI, permission, tests | Complete |
+| **2** | `feature/payroll-v2-components` | Component catalog CRUD + seed | Complete — review |
 | **3** | `feature/payroll-v2-formula` | AST formula evaluation compiler (no `eval`) | Not started |
 | **4** | `feature/payroll-v2-engine` | `PayrollEngine.js` + dual-run difference logging | Not started |
 | **5** | `feature/payroll-v2-attendance` | Leave impact codes; late / overtime pay rules | Not started |

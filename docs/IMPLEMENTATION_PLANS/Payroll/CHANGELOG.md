@@ -5,6 +5,15 @@ Last Updated: 2026-07-17
 
 # Payroll V2 — Changelog
 
+## 2026-07-17 — Milestone 2 Salary Components
+
+* Added `SalaryComponent` model (`code`, `type`, `taxable`, `statutory`, `calcMethod`, `v1Field`, …).
+* Mounted `/api/payroll/components` (list, get, create, update, soft-deactivate, seed-defaults).
+* Registered `payroll.component.manage` for admin/superadmin/hr/accounts/manager.
+* Default seed maps V1 fields: BASIC, HRA, SPECIAL_ALLOWANCE, TRANSPORT_ALLOWANCE, MEDICAL_ALLOWANCE, PF_EE, PROFESSIONAL_TAX, TDS, ESI_EE.
+* Tests: `salaryComponentCatalog.unit.test.js`; authz finance pilot extended.
+* Structure `components[]` wiring and formula evaluation deferred.
+
 ## 2026-07-17 — Milestone 1 Pay Period (implementation)
 
 * Added `payrollPeriodTransitions` status machine (`open` → `frozen` → `locked` → `paid`).

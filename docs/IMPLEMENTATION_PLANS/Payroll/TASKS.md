@@ -31,11 +31,14 @@ Last Updated: 2026-07-17
 - [x] Update STATUS / CHANGELOG / ACTIVE_DEVELOPMENT
 - [ ] Human review / merge approval
 
-## Milestone 2 — Components (not started)
+## Milestone 2 — Components
 
-- [ ] `salarycomponents` collection + catalog CRUD
-- [ ] `/api/payroll/components`
-- [ ] Tests
+- [x] `salarycomponents` collection + catalog CRUD
+- [x] `/api/payroll/components` (+ seed-defaults)
+- [x] Register `payroll.component.manage`
+- [x] Tests
+- [x] Update STATUS / CHANGELOG / ACTIVE_DEVELOPMENT
+- [ ] Human review / merge approval
 
 ## Milestone 3 — Formula (not started)
 

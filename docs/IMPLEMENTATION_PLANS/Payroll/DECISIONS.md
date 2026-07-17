@@ -53,3 +53,11 @@ Last Updated: 2026-07-17
 * **Actions:** freeze / unfreeze / lock / unlock / markPaid (named actions; unlock requires `unlockReason`).
 * **Unlock:** `locked` → `frozen` only (not straight to `open`).
 * **Paid:** terminal for Milestone 1 (no reopen).
+
+## D-2026-07-17-10 — Component catalog (Milestone 2)
+
+* **Decision:** Components are catalog entries with unique `code`, `type` (`earning|deduction|employer`), `taxable`, `statutory`, `calcMethod`.
+* **Permission:** `payroll.component.manage`.
+* **Deletes:** Soft-deactivate via DELETE (sets `isActive: false`); codes are immutable after create.
+* **Seed:** `POST /seed-defaults` inserts V1-mapped defaults without overwriting existing codes.
+* **Deferred:** Assigning components onto `SalaryStructure` and formula evaluation (Milestones 3–4).
