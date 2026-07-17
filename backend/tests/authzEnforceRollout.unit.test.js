@@ -2,6 +2,7 @@ import { jest } from '@jest/globals';
 import { requireModulePermission } from '../src/authz/authzMiddleware.js';
 import { getAuthzRolloutStatus } from '../src/authz/rolloutStatus.js';
 import { AUTHZ_ROLLOUT_WAVES } from '../src/authz/rolloutManifest.js';
+import { makeAuthzTestUser } from './helpers/authzTestFixtures.js';
 
 describe('Authorization V2 — requireModulePermission enforcement', () => {
   const originalEnv = { ...process.env };
@@ -59,7 +60,7 @@ describe('Authorization V2 — requireModulePermission enforcement', () => {
 
   test('allows employee when module enforce is off (shadow only)', () => {
     const result = runMiddleware(
-      { _id: 'emp1', role: 'employee' },
+      makeAuthzTestUser('employee'),
       { env: { AUTHZ_V2_ENFORCE: 'false', AUTHZ_V2_PROFILE: 'false' } }
     );
     expect(result.nextCalled).toBe(true);
@@ -68,11 +69,9 @@ describe('Authorization V2 — requireModulePermission enforcement', () => {
 
   test('blocks employee when profile module enforce is on and permission denied', () => {
     const result = runMiddleware(
-      {
-        _id: 'emp1',
-        role: 'employee',
+      makeAuthzTestUser('employee', {
         directPermissionGrants: [{ permission: 'profile.view', scope: 'SELF', effect: 'deny' }],
-      },
+      }),
       { env: { AUTHZ_V2_ENFORCE: 'true', AUTHZ_V2_PROFILE: 'true' } }
     );
     expect(result.nextCalled).toBe(false);
@@ -82,7 +81,7 @@ describe('Authorization V2 — requireModulePermission enforcement', () => {
 
   test('allows employee when profile module enforce is on and permission granted', () => {
     const result = runMiddleware(
-      { _id: 'emp1', role: 'employee' },
+      makeAuthzTestUser('employee'),
       { env: { AUTHZ_V2_ENFORCE: 'true', AUTHZ_V2_PROFILE: 'true' } }
     );
     expect(result.nextCalled).toBe(true);
@@ -91,11 +90,9 @@ describe('Authorization V2 — requireModulePermission enforcement', () => {
 
   test('does not enforce module when AUTHZ_V2_ENFORCE is true but module flag is off', () => {
     const result = runMiddleware(
-      {
-        _id: 'emp1',
-        role: 'employee',
+      makeAuthzTestUser('employee', {
         directPermissionGrants: [{ permission: 'profile.view', scope: 'SELF', effect: 'deny' }],
-      },
+      }),
       { env: { AUTHZ_V2_ENFORCE: 'true', AUTHZ_V2_PROFILE: 'false' } }
     );
     expect(result.nextCalled).toBe(true);
@@ -103,7 +100,7 @@ describe('Authorization V2 — requireModulePermission enforcement', () => {
 
   test('allows hod on CRM my-clients when enforce is on via assigned-client permission', () => {
     const result = runMiddleware(
-      { _id: 'hod1', role: 'hod' },
+      makeAuthzTestUser('hod'),
       {
         moduleName: 'crm',
         permission: 'crm.client.view_assigned',
@@ -117,7 +114,7 @@ describe('Authorization V2 — requireModulePermission enforcement', () => {
 
   test('allows hod on CRM my-clients via legacy role during enforce when permission missing', () => {
     const result = runMiddleware(
-      { _id: 'hod1', role: 'hod' },
+      makeAuthzTestUser('hod'),
       {
         moduleName: 'crm',
         permission: 'crm.client.view',
@@ -130,7 +127,7 @@ describe('Authorization V2 — requireModulePermission enforcement', () => {
 
   test('legacy role gate still blocks when neither legacy nor V2 allows', () => {
     const result = runMiddleware(
-      { _id: 'emp1', role: 'employee' },
+      makeAuthzTestUser('employee'),
       {
         permission: 'auth.role.manage',
         legacyRoles: ['admin', 'superadmin'],
