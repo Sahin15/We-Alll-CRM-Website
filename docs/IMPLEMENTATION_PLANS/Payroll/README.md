@@ -63,7 +63,7 @@ This folder is the **only** authorized Payroll V2 implementation workspace.
 | Leave | Paid unless type is unpaid / LOP / LWP variants |
 | Holiday / calendar | `WorkingDaysCalculator`; 5-day or 6-day patterns |
 | Overtime | Hours on attendance; **₹ amounts are manual** on slip |
-| Notifications | Calls missing `sendSalarySlipNotification`; enum gap → silent failure |
+| Notifications | `sendSalarySlipNotification` implemented; types `salary_slip*` (Milestone 7) |
 | Permissions | `payroll.structure.manage`, `payroll.slip.manage`, `payroll.slip.view_self` |
 
 ### 1.5 Gap summary
@@ -109,7 +109,7 @@ This folder is the **only** authorized Payroll V2 implementation workspace.
 | Tax & Statutory Engine | PF, ESI, PT, TDS per regulations |
 | Audit Engine | Append-only logs |
 | Approval Engine | Wired — `/api/payroll/approvals` (Milestone 6) |
-| Payslip Engine | PDF + S3 |
+| Payslip Engine | PDFKit + `documentStorageService` / `payslipStorage` (Milestone 7) |
 | Reporting Engine | Registers, cost centers, NEFT |
 | Notification Engine | In-app + email on generate/verify |
 

@@ -77,10 +77,16 @@ Last Updated: 2026-07-17
 - [x] Update STATUS / CHANGELOG / ACTIVE_DEVELOPMENT
 - [x] Human review / merge approval
 
-## Milestone 7 — Payslip (not started)
+## Milestone 7 — Payslip
 
-- [ ] S3 PDF upload helpers
-- [ ] Fix salary notification method + enum
+- [x] Reusable document storage service (S3 + local fallback)
+- [x] Payslip PDF generate/store helper
+- [x] `SalarySlip.pdfStorage` metadata
+- [x] Fix `sendSalarySlipNotification` + payroll notification enum
+- [x] Notify on single + bulk generate (non-blocking)
+- [x] Tests
+- [x] Update STATUS / CHANGELOG / ACTIVE_DEVELOPMENT
+- [ ] Human review / merge approval
 
 ## Milestone 8 — Reporting (not started)
 

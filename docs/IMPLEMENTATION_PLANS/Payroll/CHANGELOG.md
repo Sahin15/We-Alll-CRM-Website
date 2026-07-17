@@ -5,6 +5,15 @@ Last Updated: 2026-07-17
 
 # Payroll V2 — Changelog
 
+## 2026-07-17 — Milestone 7 Payslip Storage & Notifications
+
+* Added reusable `documentStorageService` (S3 when configured; local fallback with diagnostic logs).
+* Added `payslipStorage` helper; wired download / email / bulk email PDF paths.
+* Extended `SalarySlip` with `pdfStorage` metadata (`provider`, `key`, `path`, `generatedAt`, `generatedBy`, `version`).
+* Implemented `NotificationService.sendSalarySlipNotification`; enum types `salary_slip`, `salary_slip_generated`, `salary_slip_sent`.
+* Notifications on single and bulk generate; failures never block payroll.
+* Tests: document storage, payslip helpers, notification method presence.
+
 ## 2026-07-17 — Milestone 6 Approval Workflow
 
 * Wired existing `ApprovalWorkflow` model to `/api/payroll/approvals`.

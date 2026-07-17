@@ -9,11 +9,11 @@ Last Updated: 2026-07-17
 |-------|--------|
 | **Feature** | Payroll & Salary Management System V2 |
 | **Phase** | Implementation |
-| **Milestone** | Milestone 6 — Approval Workflow |
-| **Branch** | `feature/payroll-v2-approval` |
+| **Milestone** | Milestone 7 — Payslip / Notifications |
+| **Branch** | `feature/payroll-v2-payslip` |
 | **Implementation workspace** | `docs/IMPLEMENTATION_PLANS/Payroll/` |
-| **Code implementation** | Milestone 6 **approved** (human review) |
-| **Next coding milestone** | Milestone 7 — Payslip / notifications — **not started** (await explicit start) |
+| **Code implementation** | Milestone 7 complete — **awaiting review** |
+| **Next coding milestone** | Milestone 8 — Reporting — **not started** |
 
 ---
 
@@ -21,41 +21,35 @@ Last Updated: 2026-07-17
 
 | Area | Status |
 |------|--------|
-| Milestone 1–5 | Done |
-| Milestone 6 — Approval APIs | Done + **approved** |
-| Milestone 6 — tests | Done |
-| Milestone 7+ | Not started |
+| Milestone 1–6 | Done |
+| Milestone 7 — Document storage (S3 + local) | Done |
+| Milestone 7 — Payslip PDF wiring | Done |
+| Milestone 7 — Salary notifications | Done |
+| Milestone 7 — tests | Done |
+| Milestone 8+ | Not started |
 
 ---
 
-## Milestone 6 deliverables
+## Milestone 7 deliverables
 
 | Artifact | Path |
 |----------|------|
-| Helpers | `backend/src/services/payroll/payrollApprovalHelpers.js` |
-| Service | `backend/src/services/payroll/payrollApprovalService.js` |
-| Controller / routes | `/api/payroll/approvals` |
-| Permission | `payroll.approval.manage` |
-| Model (existing) | `approvalWorkflowModel.js` — now HTTP-wired |
-| Tests | `backend/tests/payrollApprovalHelpers.unit.test.js` |
+| Storage service | `backend/src/services/storage/documentStorageService.js` |
+| Payslip helper | `backend/src/services/payroll/payslipStorage.js` |
+| Model metadata | `SalarySlip.pdfStorage` |
+| Notification | `NotificationService.sendSalarySlipNotification` |
+| Enum types | `salary_slip`, `salary_slip_generated`, `salary_slip_sent` |
+| Tests | `documentStorageService.unit.test.js`, `payslipStorage.unit.test.js`, `salarySlipNotification.unit.test.js` |
 
-### API surface
+### Storage rules
 
-| Method | Path | Action |
-|--------|------|--------|
-| POST | `/api/payroll/approvals` | Create workflow for salary slip IDs |
-| GET | `/api/payroll/approvals` | List workflows |
-| GET | `/api/payroll/approvals/pending/mine` | Pending for current user |
-| GET | `/api/payroll/approvals/:id` | Get one |
-| POST | `/api/payroll/approvals/:id/act` | `{ action: approved\|rejected }` |
-| POST | `/api/payroll/approvals/:id/bulk-approve` | Skip remaining stages |
-
-Stages: `hr_review` → `finance_approval` → `management_signoff`
+* Generate PDF always (PDFKit → local file).
+* Upload to S3 when AWS credentials are configured.
+* On missing credentials or upload failure → keep local URL; log diagnostics.
+* Never fail payroll generate because of storage/notification errors.
 
 ---
 
 ## Blockers
 
-1. Commit/push of `feature/payroll-v2-approval` still pending (if not already done).
-2. No dedicated approval inbox UI yet (API only) — deferred past M6.
-3. Do not start Milestone 7 until explicitly requested.
+1. Human review before Milestone 8.

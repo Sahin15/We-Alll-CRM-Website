@@ -455,16 +455,21 @@ export const generateSalarySlip = async (req, res) => {
     await salarySlip.populate("employee", "name email employeeId designation department");
     await salarySlip.populate("salaryStructure");
 
-    // Send notification to employee
+    // Send notification to employee (never block generate)
     try {
       await notificationService.sendSalarySlipNotification(
         employeeId,
         month,
-        year
+        year,
+        { slipId: salarySlip._id?.toString?.() || salarySlip._id, senderId: req.user?.id }
       );
-      
     } catch (notificationError) {
-      
+      console.error("[salarySlip] sendSalarySlipNotification failed (non-blocking)", {
+        employeeId,
+        month,
+        year,
+        error: notificationError?.message || notificationError,
+      });
     }
 
     res.status(201).json({
@@ -601,6 +606,25 @@ export const bulkGenerateSalarySlips = async (req, res) => {
           name: employee.name,
           slipId: salarySlip._id
         });
+
+        try {
+          await notificationService.sendSalarySlipNotification(
+            employee._id,
+            month,
+            year,
+            {
+              slipId: salarySlip._id?.toString?.() || salarySlip._id,
+              senderId: req.user?.id,
+            }
+          );
+        } catch (notificationError) {
+          console.error("[salarySlip] bulk sendSalarySlipNotification failed (non-blocking)", {
+            employeeId: employee._id,
+            month,
+            year,
+            error: notificationError?.message || notificationError,
+          });
+        }
       } catch (error) {
         results.failed.push({
           employeeId: employee.employeeId,
@@ -1069,25 +1093,17 @@ export const downloadSalarySlipPDF = async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    // Import PDF generator
-    const { generateSalarySlipPDF } = await import("../utils/salarySlipPdfGenerator.js");
+    // Import PDF + storage helpers
+    const { generateAndStorePayslipPdf } = await import(
+      "../services/payroll/payslipStorage.js"
+    );
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = path.join(process.cwd(), "uploads", "salary-slips");
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
+    const { localPath } = await generateAndStorePayslipPdf(slip, {
+      generatedBy: userId,
+      version: (slip.pdfStorage?.version || 0) + 1,
+    });
 
-    // Generate PDF filename
-    const filename = `salary-slip-${slip.employee.employeeId}-${slip.month}-${slip.year}.pdf`;
-    const filepath = path.join(uploadsDir, filename);
-
-    // Generate PDF
-    await generateSalarySlipPDF(slip, filepath);
-
-    // Update slip with PDF URL and download tracking
-    slip.pdfUrl = `/uploads/salary-slips/${filename}`;
-    slip.pdfGeneratedAt = new Date();
+    // Update slip with PDF URL, storage metadata, and download tracking
     slip.downloadedAt = new Date();
     slip.downloadCount = (slip.downloadCount || 0) + 1;
     
@@ -1098,16 +1114,18 @@ export const downloadSalarySlipPDF = async (req, res) => {
     await slip.save();
 
     // Check if file exists
-    if (!fs.existsSync(filepath)) {
+    if (!fs.existsSync(localPath)) {
       return res.status(500).json({ message: "PDF generation failed" });
     }
+
+    const filename = path.basename(localPath);
 
     // Set proper headers for PDF download
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     
     // Send the file
-    const fileStream = fs.createReadStream(filepath);
+    const fileStream = fs.createReadStream(localPath);
     fileStream.pipe(res);
     
     fileStream.on('error', (error) => {
@@ -1156,30 +1174,15 @@ export const sendSalarySlipEmail = async (req, res) => {
       return res.status(404).json({ message: "Salary slip not found" });
     }
 
-    // Check if PDF exists, if not generate it
-    let pdfPath = null;
-    if (slip.pdfUrl) {
-      pdfPath = path.join(process.cwd(), slip.pdfUrl.replace("/uploads", "uploads"));
-      if (!fs.existsSync(pdfPath)) {
-        pdfPath = null;
-      }
-    }
-
-    // Generate PDF if it doesn't exist
-    if (!pdfPath) {
-      const { generateSalarySlipPDF } = await import("../utils/salarySlipPdfGenerator.js");
-      const uploadsDir = path.join(process.cwd(), "uploads", "salary-slips");
-      if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true });
-      }
-
-      const filename = `salary-slip-${slip.employee.employeeId}-${slip.month}-${slip.year}.pdf`;
-      pdfPath = path.join(uploadsDir, filename);
-      await generateSalarySlipPDF(slip, pdfPath);
-
-      slip.pdfUrl = `/uploads/salary-slips/${filename}`;
-      slip.pdfGeneratedAt = new Date();
-    }
+    // Ensure a local PDF exists for email attachment (S3 preferred for pdfUrl)
+    const { ensurePayslipLocalPdf } = await import(
+      "../services/payroll/payslipStorage.js"
+    );
+    const pdfPath = await ensurePayslipLocalPdf(slip, {
+      generatedBy: req.user?.id || null,
+      version: (slip.pdfStorage?.version || 0) + 1,
+    });
+    await slip.save();
 
     // Send email
     const { sendSalarySlipEmail: sendEmail } = await import("../services/salarySlipEmailService.js");
@@ -1248,21 +1251,26 @@ export const sendBulkSalarySlipEmails = async (req, res) => {
       });
     }
 
-    // Generate PDFs for slips that don't have them
-    const { generateSalarySlipPDF } = await import("../utils/salarySlipPdfGenerator.js");
-    const uploadsDir = path.join(process.cwd(), "uploads", "salary-slips");
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
+    // Generate / store PDFs for slips that don't have them
+    const { generateAndStorePayslipPdf, ensurePayslipLocalPdf } = await import(
+      "../services/payroll/payslipStorage.js"
+    );
 
     for (const slip of slips) {
       if (!slip.pdfUrl) {
-        const filename = `salary-slip-${slip.employee.employeeId}-${slip.month}-${slip.year}.pdf`;
-        const pdfPath = path.join(uploadsDir, filename);
-        await generateSalarySlipPDF(slip, pdfPath);
-        slip.pdfUrl = `/uploads/salary-slips/${filename}`;
-        slip.pdfGeneratedAt = new Date();
+        await generateAndStorePayslipPdf(slip, {
+          generatedBy: req.user?.id || null,
+          version: 1,
+        });
         await slip.save();
+      } else {
+        // Ensure local file for email attachment even when pdfUrl is S3
+        await ensurePayslipLocalPdf(slip, {
+          generatedBy: req.user?.id || null,
+        });
+        if (slip.isModified?.()) {
+          await slip.save();
+        }
       }
     }
 

@@ -128,6 +128,30 @@ const salarySlipSchema = new mongoose.Schema(
     pdfGeneratedAt: {
       type: Date,
     },
+    /** Storage backend metadata (S3 or local). pdfUrl remains the canonical access URL. */
+    pdfStorage: {
+      provider: {
+        type: String,
+        enum: ["s3", "local"],
+      },
+      key: {
+        type: String,
+      },
+      path: {
+        type: String,
+      },
+      generatedAt: {
+        type: Date,
+      },
+      generatedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      version: {
+        type: Number,
+        default: 1,
+      },
+    },
     status: {
       type: String,
       enum: ["draft", "generated", "sent", "viewed", "downloaded", "paid", "approved", "rejected"],

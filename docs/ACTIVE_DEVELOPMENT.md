@@ -16,10 +16,10 @@ Last Updated: 2026-07-17
 |-------|--------|
 | **Current Feature** | Payroll & Salary Management System V2 |
 | **Current Phase** | Implementation |
-| **Current Milestone** | Milestone 6 — Approval Workflow (**approved**) |
-| **Current Branch** | `feature/payroll-v2-approval` |
+| **Current Milestone** | Milestone 7 — Payslip / Notifications (**complete — awaiting review**) |
+| **Current Branch** | `feature/payroll-v2-payslip` |
 | **Implementation Workspace** | `docs/IMPLEMENTATION_PLANS/Payroll/` |
-| **Status** | Milestone 6 human-approved. Do **not** start Milestone 7 until explicitly requested. Commit/push of this branch may still be pending. |
+| **Status** | Milestone 7 implemented. Do **not** start Milestone 8 until approved. |
 | **Last Updated** | 2026-07-17 |
 
 ---
@@ -53,11 +53,12 @@ Last Updated: 2026-07-17
 
 ---
 
-## Milestone 6 (approved) — shipped scope
+## Milestone 7 scope
 
-* Mount `/api/payroll/approvals` routes on existing `ApprovalWorkflow` model
-* Create / list / pending-for-me / approve / reject / bulk-approve
-* Permission `payroll.approval.manage`
-* Unit tests for stage-action validation helpers
+* Reusable `documentStorageService` (S3 when configured, local fallback)
+* Payslip PDF generate + store wiring (`payslipStorage`)
+* `SalarySlip.pdfStorage` metadata
+* Fix `sendSalarySlipNotification` + payroll notification enum types
+* Notify on single and bulk generate (non-blocking)
 
-**Out of scope for M6:** S3 payslip, notification enum fixes, bank export, UI inbox.
+**Out of scope:** PDF layout redesign, bank NEFT/CSV export, approval UI inbox.

@@ -91,3 +91,10 @@ Last Updated: 2026-07-17
 * **Permission:** `payroll.approval.manage`.
 * **Approvers:** Explicit IDs preferred; otherwise resolve active hr / accounts|admin / admin|superadmin.
 * **Completion:** Sets linked slips to `approved` or `rejected` and stores `approvalWorkflowId`.
+
+## D-2026-07-17-15 — Payslip storage & notifications (Milestone 7)
+
+* **Storage:** Reusable `documentStorageService` — S3 when AWS credentials exist; otherwise local under `uploads/`. Upload failures fall back to local and are logged; they never fail payroll generation.
+* **Payslip:** PDFKit still generates the file; `payslipStorage` stores via the document service and sets `pdfUrl` + `pdfStorage` metadata.
+* **Notifications:** Types `salary_slip`, `salary_slip_generated`, `salary_slip_sent`; `sendSalarySlipNotification` uses `salary_slip_generated` and action URL `/employee/salary-slips`. Single and bulk generate both notify; errors are non-blocking.
+* **Out of scope:** PDF layout redesign; bank export.
