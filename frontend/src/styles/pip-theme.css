@@ -1,0 +1,105 @@
+/* ==========================================================================
+   GROWTH TRACK (PIP) ACTIVE WARNING THEME OVERRIDES
+   ========================================================================== */
+
+/* Apply variables when pip-active class is present on body */
+body.pip-active {
+  --primary-color: #f59e0b;      /* Light orange primary */
+  --primary-dark: #d97706;       /* Dark orange */
+  --primary-light: #fef3c7;      /* Amber light */
+  --success-color: #10b981;
+  --danger-color: #ef4444;
+  --bg-gradient: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+  background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%) !important;
+}
+
+/* Custom scrollbar under PIP */
+body.pip-active ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #f59e0b 0%, #ef4444 100%) !important;
+}
+
+body.pip-active ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #d97706 0%, #dc2626 100%) !important;
+}
+
+/* Card overrides */
+body.pip-active .card:not(.greeting-banner) {
+  border-color: rgba(239, 68, 68, 0.15) !important;
+}
+
+body.pip-active .card:not(.greeting-banner):hover {
+  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.1), 0 4px 8px rgba(239, 68, 68, 0.05) !important;
+  border-color: rgba(239, 68, 68, 0.25) !important;
+}
+
+body.pip-active .card:not(.greeting-banner) .card-header {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.02) 0%, rgba(239, 68, 68, 0.02) 100%) !important;
+  border-bottom: 1px solid rgba(239, 68, 68, 0.08) !important;
+  color: #7f1d1d !important;
+}
+
+/* Metrics and indicator bar overrides */
+body.pip-active .stat-card::before {
+  background: linear-gradient(180deg, #f59e0b 0%, #ef4444 100%) !important;
+}
+
+body.pip-active .stat-card:hover {
+  box-shadow: 0 8px 16px rgba(239, 68, 68, 0.12) !important;
+}
+
+/* Primary Button Swapping */
+body.pip-active .btn-primary {
+  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%) !important;
+  border: none !important;
+}
+
+body.pip-active .btn-primary:hover {
+  background: linear-gradient(135deg, #d97706 0%, #dc2626 100%) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.2) !important;
+}
+
+body.pip-active .btn-primary:active {
+  transform: translateY(0);
+}
+
+/* Sidebar overrides when PIP active */
+body.pip-active .sidebar {
+  border-right: 1px solid rgba(239, 68, 68, 0.1) !important;
+}
+
+body.pip-active .sidebar-link.active {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(239, 68, 68, 0.1) 100%) !important;
+  border-left: 4px solid #ef4444 !important;
+  color: #b91c1c !important;
+}
+
+body.pip-active .sidebar-link.active .sidebar-icon svg {
+  color: #ef4444 !important;
+}
+
+body.pip-active .card-header-icon svg,
+body.pip-active .card-header-icon i {
+  color: #ef4444 !important;
+}
+
+/* Custom banner animations */
+@keyframes pulse-border {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.3);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+.pip-banner {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef2f2 100%);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-left: 5px solid #ef4444;
+  border-radius: 12px;
+  animation: pulse-border 2.5s infinite;
+}

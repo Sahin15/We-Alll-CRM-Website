@@ -6,6 +6,8 @@
 @import './styles/modal-mobile.css';
 /* Import mobile polish and optimizations */
 @import './styles/polish-mobile.css';
+/* Import Growth Track theme styles */
+@import './styles/pip-theme.css';
 
 :root {
   --primary-color: #667eea;
