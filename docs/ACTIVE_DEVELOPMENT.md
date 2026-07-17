@@ -16,10 +16,10 @@ Last Updated: 2026-07-17
 |-------|--------|
 | **Current Feature** | Payroll & Salary Management System V2 |
 | **Current Phase** | Implementation |
-| **Current Milestone** | Milestone 7 — Payslip / Notifications (**complete — awaiting review**) |
-| **Current Branch** | `feature/payroll-v2-payslip` |
+| **Current Milestone** | Milestone 8 — Reporting / Bank Export (**complete — awaiting review**) |
+| **Current Branch** | `feature/payroll-v2-reporting` |
 | **Implementation Workspace** | `docs/IMPLEMENTATION_PLANS/Payroll/` |
-| **Status** | Milestone 7 implemented. Do **not** start Milestone 8 until approved. |
+| **Status** | Milestone 8 implemented. Payroll V2 planned milestones complete pending review. |
 | **Last Updated** | 2026-07-17 |
 
 ---
@@ -53,12 +53,12 @@ Last Updated: 2026-07-17
 
 ---
 
-## Milestone 7 scope
+## Milestone 8 scope
 
-* Reusable `documentStorageService` (S3 when configured, local fallback)
-* Payslip PDF generate + store wiring (`payslipStorage`)
-* `SalarySlip.pdfStorage` metadata
-* Fix `sendSalarySlipNotification` + payroll notification enum types
-* Notify on single and bulk generate (non-blocking)
+* Generic bank NEFT CSV (default status=`approved`; optional `?status=`)
+* Compliance register CSVs: PF / ESI / PT / TDS
+* Format registry for future bank-specific exporters
+* `PayrollExportHistory` audit + non-blocking file store
+* Permission `payroll.bank.export`
 
-**Out of scope:** PDF layout redesign, bank NEFT/CSV export, approval UI inbox.
+**Out of scope:** Bank-specific NEFT formats, employer PF/ESI, cost centers, bulk mark-paid, advanced reconciliation, full lifecycle status enum migration.

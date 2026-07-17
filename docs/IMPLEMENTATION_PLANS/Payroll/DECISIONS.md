@@ -98,3 +98,13 @@ Last Updated: 2026-07-17
 * **Payslip:** PDFKit still generates the file; `payslipStorage` stores via the document service and sets `pdfUrl` + `pdfStorage` metadata.
 * **Notifications:** Types `salary_slip`, `salary_slip_generated`, `salary_slip_sent`; `sendSalarySlipNotification` uses `salary_slip_generated` and action URL `/employee/salary-slips`. Single and bulk generate both notify; errors are non-blocking.
 * **Out of scope:** PDF layout redesign; bank export.
+
+## D-2026-07-17-16 — Reporting & bank export (Milestone 8)
+
+* **Isolation:** Reporting lives under `services/payroll/reporting/`; Payroll Engine never builds CSV.
+* **Bank CSV:** Generic NEFT-ready only; formats registered in `bankExportFormats.js` for future SBI/HDFC/etc.
+* **Default status:** Bank (and register) exports default to `approved` — generated still under review; paid already processed. Optional `?status=`.
+* **Lifecycle (future):** draft → generated → under_review → approved → exported → payment_processing → paid → reconciled — documented in `REPORTING_LIFECYCLE_STATUSES`; SalarySlip enum not migrated in M8.
+* **Audit:** `PayrollExportHistory` stores exportId, period, counts, amounts, actor, timestamps, type, status, fileLocation.
+* **Permission:** `payroll.bank.export`.
+* **Out of scope:** Bank-specific formats, employer PF/ESI, cost centers, bulk mark-paid, reconciliation UI.

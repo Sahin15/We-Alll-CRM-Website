@@ -95,4 +95,20 @@ describe('Authorization V2 — Finance pilot parity', () => {
       expect(hasPermission(user, 'payroll.approval.manage')).toBe(false);
     }
   );
+
+  test.each(['admin', 'superadmin', 'hr', 'accounts', 'manager'])(
+    'role %s can export payroll bank/registers',
+    (role) => {
+      const user = { _id: `user-${role}-bank`, role };
+      expect(hasPermission(user, 'payroll.bank.export')).toBe(true);
+    }
+  );
+
+  test.each(['employee', 'hod'])(
+    'role %s cannot export payroll bank/registers',
+    (role) => {
+      const user = { _id: `user-${role}-bank`, role };
+      expect(hasPermission(user, 'payroll.bank.export')).toBe(false);
+    }
+  );
 });

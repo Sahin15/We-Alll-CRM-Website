@@ -107,6 +107,7 @@ export const PERMISSION_CATALOG = [
   { key: 'payroll.component.manage', module: 'finance', description: 'Manage salary component catalog' },
   { key: 'payroll.run.process', module: 'finance', description: 'Run payroll dual-run / processing tools' },
   { key: 'payroll.approval.manage', module: 'finance', description: 'Create and act on payroll approval workflows' },
+  { key: 'payroll.bank.export', module: 'finance', description: 'Export payroll bank NEFT CSV and compliance registers' },
 
   // Resources
   { key: 'assets.asset.view', module: 'resources', description: 'View assets' },

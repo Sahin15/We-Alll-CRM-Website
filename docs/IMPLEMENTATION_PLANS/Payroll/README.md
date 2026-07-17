@@ -72,7 +72,7 @@ This folder is the **only** authorized Payroll V2 implementation workspace.
 |-------|--------|
 | Working | Structure lifecycle (draft → active → superseded); templates; preview/query; PDFKit + email |
 | Partial | YTD fields (not populated); approval inbox UI (API only in M6) |
-| Missing | Pay periods/lock; formula engine; statutory auto-calc; audit log; bank NEFT/CSV |
+| Missing | Statutory auto-calc (employer shares); cost centers; bank-specific NEFT formats |
 | Debt | Double LOP; oversized controllers; sequential bulk timeouts; `DELETE /salary-structures/all` |
 
 ---
@@ -110,7 +110,7 @@ This folder is the **only** authorized Payroll V2 implementation workspace.
 | Audit Engine | Append-only logs |
 | Approval Engine | Wired — `/api/payroll/approvals` (Milestone 6) |
 | Payslip Engine | PDFKit + `documentStorageService` / `payslipStorage` (Milestone 7) |
-| Reporting Engine | Registers, cost centers, NEFT |
+| Reporting Engine | Generic bank CSV + PF/ESI/PT/TDS registers + export history (Milestone 8) |
 | Notification Engine | In-app + email on generate/verify |
 
 ---
@@ -135,7 +135,7 @@ This folder is the **only** authorized Payroll V2 implementation workspace.
 * `payroll.component.manage` (Milestone 2)
 * `payroll.run.process` (Milestone 4)
 * `payroll.approval.manage` (Milestone 6)
-* Planned later: `payroll.bank.export`
+* `payroll.bank.export` (Milestone 8)
 
 ### Migration
 

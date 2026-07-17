@@ -5,6 +5,16 @@ Last Updated: 2026-07-17
 
 # Payroll V2 — Changelog
 
+## 2026-07-17 — Milestone 8 Reporting / Bank Export
+
+* Added reporting package under `services/payroll/reporting/` (CSV utils, bank format registry, compliance builders, export manifest).
+* Generic bank NEFT CSV; default slip status `approved`; optional `?status=` / `?format=`.
+* Compliance register CSVs: PF, ESI, PT, TDS.
+* `PayrollExportHistory` model + non-blocking CSV file store via `documentStorageService`.
+* Routes `/api/payroll/reports/*` with permission `payroll.bank.export`.
+* Documented future lifecycle statuses without migrating SalarySlip enum.
+* Tests: `payrollReporting.unit.test.js` (+ authz).
+
 ## 2026-07-17 — Milestone 7 Payslip Storage & Notifications
 
 * Added reusable `documentStorageService` (S3 when configured; local fallback with diagnostic logs).

@@ -88,10 +88,16 @@ Last Updated: 2026-07-17
 - [x] Update STATUS / CHANGELOG / ACTIVE_DEVELOPMENT
 - [ ] Human review / merge approval
 
-## Milestone 8 — Reporting (not started)
+## Milestone 8 — Reporting
 
-- [ ] Bank NEFT / CSV export
-- [ ] Compliance registries
+- [x] Generic bank NEFT CSV export (default `approved`)
+- [x] Format registry for future bank-specific exporters
+- [x] Compliance registers PF / ESI / PT / TDS
+- [x] `PayrollExportHistory` + fileLocation extension
+- [x] Permission `payroll.bank.export`
+- [x] Tests
+- [x] Update STATUS / CHANGELOG / ACTIVE_DEVELOPMENT
+- [ ] Human review / merge approval
 
 ## Known V1 defects to address in coding milestones (tracked)
 
