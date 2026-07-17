@@ -96,6 +96,8 @@ const notificationSchema = new mongoose.Schema(
         'hiring_offer',
         'hiring_application',
         'hiring_interview',
+        // Growth Track
+        'growth_track',
       ],
       default: 'general',
     },
