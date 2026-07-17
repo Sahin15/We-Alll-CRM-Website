@@ -5,6 +5,14 @@ Last Updated: 2026-07-17
 
 # Payroll V2 — Changelog
 
+## 2026-07-17 — Milestone 4 Payroll Engine
+
+* Added `payrollEngine.js`: `buildV1Result`, `buildV2Result`, `dualRunPayroll`, `processEmployeePayroll`, `selectPersistableTotals`.
+* Feature flag `PAYROLL_V2_ENGINE` (default off) — persisted slips stay on V1.
+* Dual-run APIs under `/api/payroll/runs` with permission `payroll.run.process`.
+* `generateSalarySlip` logs V1 vs V2 diffs without changing stored amounts.
+* Tests: `payrollEngine.unit.test.js`.
+
 ## 2026-07-17 — Milestone 3 Formula Engine
 
 * Added safe AST formula engine: tokenize → parse → evaluate (no `eval` / `Function`).

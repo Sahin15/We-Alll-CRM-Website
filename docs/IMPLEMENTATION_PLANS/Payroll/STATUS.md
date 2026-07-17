@@ -9,11 +9,11 @@ Last Updated: 2026-07-17
 |-------|--------|
 | **Feature** | Payroll & Salary Management System V2 |
 | **Phase** | Implementation |
-| **Milestone** | Milestone 3 — Formula Engine |
-| **Branch** | `feature/payroll-v2-formula` |
+| **Milestone** | Milestone 4 — Payroll Engine |
+| **Branch** | `feature/payroll-v2-engine` |
 | **Implementation workspace** | `docs/IMPLEMENTATION_PLANS/Payroll/` |
-| **Code implementation** | Milestone 3 complete — **awaiting review** |
-| **Next coding milestone** | Milestone 4 — Payroll Engine (`feature/payroll-v2-engine`) — **not started** |
+| **Code implementation** | Milestone 4 complete — **awaiting review** |
+| **Next coding milestone** | Milestone 5 — Attendance rules — **not started** |
 
 ---
 
@@ -21,28 +21,31 @@ Last Updated: 2026-07-17
 
 | Area | Status |
 |------|--------|
-| Milestone 1 — Pay Period | Done |
-| Milestone 2 — Components | Done |
-| Milestone 3 — Formula AST engine | Done |
-| Milestone 3 — unit tests | Done (11) |
-| Milestone 4+ | Not started |
+| Milestone 1–3 | Done |
+| Milestone 4 — PayrollEngine + dual-run | Done |
+| Milestone 4 — Feature flag | Done (`PAYROLL_V2_ENGINE`, default off) |
+| Milestone 4 — Dual-run APIs | Done |
+| Milestone 4 — tests | Done |
+| Milestone 5+ | Not started |
 
 ---
 
-## Milestone 3 deliverables
+## Milestone 4 deliverables
 
 | Artifact | Path |
 |----------|------|
-| Formula engine | `backend/src/services/payroll/formula/formulaEngine.js` |
-| Tests | `backend/tests/formulaEngine.unit.test.js` |
+| Engine | `backend/src/services/payroll/payrollEngine.js` |
+| Config / flag | `backend/src/services/payroll/payrollEngineConfig.js` |
+| Run APIs | `/api/payroll/runs/dual-run`, `/dual-run/preview`, `/dual-run/month` |
+| Permission | `payroll.run.process` |
+| Slip hook | Dual-run log on `generateSalarySlip` (V1 still persisted) |
+| Tests | `backend/tests/payrollEngine.unit.test.js` |
 
-**API:** `compileFormula`, `evaluateFormula`, `validateFormula`, `tokenize`, `parse`  
-**Functions:** `min`, `max`, `round`, `if`, `percent`  
-**Safety:** no `eval` / `Function`; length + depth caps; reserved identifiers blocked
+**Persist rule:** Slips remain on V1 totals until `PAYROLL_V2_ENGINE=true` and dual-run variance is verified.
 
 ---
 
 ## Blockers
 
-1. Human review before Milestone 4.
-2. Component `defaultFormula` evaluation wiring deferred to engine milestone.
+1. Human review before Milestone 5.
+2. Enabling `PAYROLL_V2_ENGINE=true` in production requires dual-run month report ≈ 0 mismatches.

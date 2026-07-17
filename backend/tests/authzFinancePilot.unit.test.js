@@ -71,4 +71,12 @@ describe('Authorization V2 — Finance pilot parity', () => {
       expect(hasPermission(user, 'payroll.component.manage')).toBe(false);
     }
   );
+
+  test.each(['admin', 'superadmin', 'hr', 'accounts', 'manager'])(
+    'role %s can process payroll runs',
+    (role) => {
+      const user = { _id: `user-${role}-run`, role };
+      expect(hasPermission(user, 'payroll.run.process')).toBe(true);
+    }
+  );
 });

@@ -16,10 +16,10 @@ Last Updated: 2026-07-17
 |-------|--------|
 | **Current Feature** | Payroll & Salary Management System V2 |
 | **Current Phase** | Implementation |
-| **Current Milestone** | Milestone 3 — Formula Engine (**complete — awaiting review**) |
-| **Current Branch** | `feature/payroll-v2-formula` |
+| **Current Milestone** | Milestone 4 — Payroll Engine (**complete — awaiting review**) |
+| **Current Branch** | `feature/payroll-v2-engine` |
 | **Implementation Workspace** | `docs/IMPLEMENTATION_PLANS/Payroll/` |
-| **Status** | Milestone 3 implemented. Do **not** start Milestone 4 until approved. |
+| **Status** | Milestone 4 implemented. Do **not** start Milestone 5 until approved. |
 | **Last Updated** | 2026-07-17 |
 
 ---
@@ -53,10 +53,12 @@ Last Updated: 2026-07-17
 
 ---
 
-## Milestone 3 scope
+## Milestone 4 scope
 
-* Safe AST formula compiler / evaluator (**no `eval`**)
-* Allowlisted variables and functions (`min`, `max`, `round`, `if`, `percent`)
-* Unit tests for compile + evaluate + rejection of unsafe input
+* `PayrollEngine.js` — orchestrate V1-compatible and V2 component-mapped calculations
+* Dual-run difference logging (variance report)
+* Feature flag `PAYROLL_V2_ENGINE` (default off — persisted slips stay on V1)
+* Unit tests for dual-run / totals
+* Optional admin dual-run API
 
-**Out of scope:** Wiring formulas into SalaryStructure generation, PayrollEngine, UI formula builder, statutory calculators.
+**Out of scope:** Attendance OT rules, ApprovalWorkflow wiring, statutory auto-calc, changing default slip persistence to V2.

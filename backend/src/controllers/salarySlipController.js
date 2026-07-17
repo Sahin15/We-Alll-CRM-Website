@@ -11,6 +11,7 @@ import {
   getUnpaidLeaveDaysForMonth,
   calculateUnpaidLeaveDeductionWithProRata 
 } from "../utils/unpaidLeaveDeductionCalculator.js";
+import { dualRunPayroll } from "../services/payroll/payrollEngine.js";
 import path from "path";
 import fs from "fs";
 
@@ -380,6 +381,33 @@ export const generateSalarySlip = async (req, res) => {
 
     // Add unpaid leave deduction to deductions
     deductions.unpaidLeaveDeduction = Math.round(unpaidLeaveDeduction);
+
+    // Milestone 4: dual-run V1 vs V2 engine (log only — slip still persists V1 amounts)
+    try {
+      const dual = dualRunPayroll(salaryStructure, {
+        bonus,
+        overtime,
+        arrears,
+        reimbursements,
+        incentives,
+        advances,
+        loans,
+        lossOfPay: Math.round(lossOfPay),
+        lopDays: attendance.unpaidLeaves,
+      });
+      if (!dual.diff.withinTolerance) {
+        console.warn(
+          `[payroll-dual-run] mismatch employee=${employeeId} ${month}/${year} netDiff=${dual.diff.netSalary}`,
+          dual.diff
+        );
+      } else {
+        console.info(
+          `[payroll-dual-run] match employee=${employeeId} ${month}/${year} net=${dual.v1.totals.netSalary}`
+        );
+      }
+    } catch (dualRunError) {
+      console.error("[payroll-dual-run] failed:", dualRunError.message);
+    }
 
     // Calculate YTD
     const ytd = await SalarySlip.calculateYTD(employeeId, year, month - 1);

@@ -133,7 +133,8 @@ This folder is the **only** authorized Payroll V2 implementation workspace.
 
 * `payroll.period.manage` (Milestone 1)
 * `payroll.component.manage` (Milestone 2)
-* Planned later: `payroll.run.process`, `payroll.run.approve_finance`, `payroll.bank.export`
+* `payroll.run.process` (Milestone 4)
+* Planned later: `payroll.run.approve_finance`, `payroll.bank.export`
 
 ### Migration
 

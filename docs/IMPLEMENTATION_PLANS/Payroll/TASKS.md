@@ -47,11 +47,16 @@ Last Updated: 2026-07-17
 - [x] Update STATUS / CHANGELOG / ACTIVE_DEVELOPMENT
 - [ ] Human review / merge approval
 
-## Milestone 4 — Engine (not started)
+## Milestone 4 — Engine
 
-- [ ] `PayrollEngine.js` orchestrator
-- [ ] Dual-run variance logging vs V1
-- [ ] Feature flag `PAYROLL_V2_ENGINE` (default `false`)
+- [x] `PayrollEngine.js` orchestrator (V1 + V2 builders)
+- [x] Dual-run variance logging / report
+- [x] Feature flag `PAYROLL_V2_ENGINE` (default `false`)
+- [x] `/api/payroll/runs` dual-run endpoints + `payroll.run.process`
+- [x] Hook dual-run log into slip generate (persist still V1)
+- [x] Tests
+- [x] Update STATUS / CHANGELOG / ACTIVE_DEVELOPMENT
+- [ ] Human review / merge approval
 
 ## Milestone 5 — Attendance rules (not started)
 

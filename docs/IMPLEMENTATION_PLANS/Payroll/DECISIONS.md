@@ -68,3 +68,10 @@ Last Updated: 2026-07-17
 * **Allowlisted functions:** `min`, `max`, `round`, `if`, `percent`.
 * **Variables:** Uppercase identifiers supplied at evaluation time (e.g. `BASIC`, `GROSS`, `LOP_DAYS`).
 * **Limits:** Max length 500 chars; max AST depth 32; reserved names blocked (`eval`, `constructor`, …).
+
+## D-2026-07-17-12 — Dual-run engine (Milestone 4)
+
+* **Decision:** Always compute V1 (flat structure) and V2 (component-mapped) totals; log/report diffs.
+* **Persist:** Use V1 unless `PAYROLL_V2_ENGINE=true`.
+* **Tolerance:** Absolute diffs ≤ ₹1 count as match.
+* **Permission:** `payroll.run.process` for dual-run APIs.
