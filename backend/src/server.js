@@ -77,6 +77,7 @@ import procurementInvoiceRoutes from "./routes/procurementInvoiceRoutes.js";
 import procurementPaymentRoutes from "./routes/procurementPaymentRoutes.js";
 import procurementDashboardRoutes from "./routes/procurementDashboardRoutes.js";
 import authzRoutes from "./routes/authzRoutes.js";
+import growthTrackRoutes from "./routes/growthTrackRoutes.js";
 // Legacy routes removed - use workItemRoutes instead
 // Old: taskRoutes, slotRoutes, workRoutes → New: workItemRoutes
 import { initializeCronJobs } from "./config/cronJobs.js";
@@ -325,6 +326,7 @@ app.use("/api/assets", apiLimiter, assetRoutes);
 app.use("/api/software-licenses", apiLimiter, softwareLicenseRoutes);
 app.use("/api/support-contacts", apiLimiter, supportRoutes);
 app.use("/api/important-persons", apiLimiter, importantPersonRoutes);
+app.use("/api/growth-tracks", apiLimiter, growthTrackRoutes);
 
 // Procurement routes
 app.use("/api/procurement/purchase-requests", apiLimiter, purchaseRequestRoutes);
