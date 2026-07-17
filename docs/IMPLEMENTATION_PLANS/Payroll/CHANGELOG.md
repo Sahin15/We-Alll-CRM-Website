@@ -5,6 +5,15 @@ Last Updated: 2026-07-17
 
 # Payroll V2 — Changelog
 
+## 2026-07-17 — Milestone 3 Formula Engine
+
+* Added safe AST formula engine: tokenize → parse → evaluate (no `eval` / `Function`).
+* Allowlisted functions: `min`, `max`, `round`, `if`, `percent`.
+* Caps: expression length 500, AST depth 32; reserved identifiers blocked.
+* Public API: `compileFormula`, `evaluateFormula`, `validateFormula`.
+* Tests: `formulaEngine.unit.test.js` (11 cases).
+* Wiring into payroll run / component defaults deferred to Milestone 4.
+
 ## 2026-07-17 — Milestone 2 Salary Components
 
 * Added `SalaryComponent` model (`code`, `type`, `taxable`, `statutory`, `calcMethod`, `v1Field`, …).

@@ -40,10 +40,12 @@ Last Updated: 2026-07-17
 - [x] Update STATUS / CHANGELOG / ACTIVE_DEVELOPMENT
 - [ ] Human review / merge approval
 
-## Milestone 3 — Formula (not started)
+## Milestone 3 — Formula
 
-- [ ] Safe AST formula compiler (no `eval`)
-- [ ] Unit tests for allowlisted variables/functions
+- [x] Safe AST formula compiler (no `eval`)
+- [x] Unit tests for allowlisted variables/functions
+- [x] Update STATUS / CHANGELOG / ACTIVE_DEVELOPMENT
+- [ ] Human review / merge approval
 
 ## Milestone 4 — Engine (not started)
 

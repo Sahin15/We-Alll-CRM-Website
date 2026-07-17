@@ -16,10 +16,10 @@ Last Updated: 2026-07-17
 |-------|--------|
 | **Current Feature** | Payroll & Salary Management System V2 |
 | **Current Phase** | Implementation |
-| **Current Milestone** | Milestone 2 — Salary Components (**complete — awaiting review**) |
-| **Current Branch** | `feature/payroll-v2-components` |
+| **Current Milestone** | Milestone 3 — Formula Engine (**complete — awaiting review**) |
+| **Current Branch** | `feature/payroll-v2-formula` |
 | **Implementation Workspace** | `docs/IMPLEMENTATION_PLANS/Payroll/` |
-| **Status** | Milestone 2 implemented. Do **not** start Milestone 3 until approved. |
+| **Status** | Milestone 3 implemented. Do **not** start Milestone 4 until approved. |
 | **Last Updated** | 2026-07-17 |
 
 ---
@@ -53,12 +53,10 @@ Last Updated: 2026-07-17
 
 ---
 
-## Milestone 2 scope
+## Milestone 3 scope
 
-* `salaryComponentModel.js` (`salarycomponents` collection)
-* `/api/payroll/components` catalog CRUD
-* Permission `payroll.component.manage`
-* Seed defaults mapped from V1 flat fields
-* Unit tests for component validation / defaults
+* Safe AST formula compiler / evaluator (**no `eval`**)
+* Allowlisted variables and functions (`min`, `max`, `round`, `if`, `percent`)
+* Unit tests for compile + evaluate + rejection of unsafe input
 
-**Out of scope:** Formula engine, PayrollEngine, structure `components[]` wiring, UI catalog page, slip generation.
+**Out of scope:** Wiring formulas into SalaryStructure generation, PayrollEngine, UI formula builder, statutory calculators.

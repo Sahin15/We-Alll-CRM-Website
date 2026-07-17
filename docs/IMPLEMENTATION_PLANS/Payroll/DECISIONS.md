@@ -61,3 +61,10 @@ Last Updated: 2026-07-17
 * **Deletes:** Soft-deactivate via DELETE (sets `isActive: false`); codes are immutable after create.
 * **Seed:** `POST /seed-defaults` inserts V1-mapped defaults without overwriting existing codes.
 * **Deferred:** Assigning components onto `SalaryStructure` and formula evaluation (Milestones 3–4).
+
+## D-2026-07-17-11 — Formula engine safety (Milestone 3)
+
+* **Decision:** Formulas are compiled to an AST and evaluated in a custom interpreter. JavaScript `eval` / `Function` are forbidden.
+* **Allowlisted functions:** `min`, `max`, `round`, `if`, `percent`.
+* **Variables:** Uppercase identifiers supplied at evaluation time (e.g. `BASIC`, `GROSS`, `LOP_DAYS`).
+* **Limits:** Max length 500 chars; max AST depth 32; reserved names blocked (`eval`, `constructor`, …).

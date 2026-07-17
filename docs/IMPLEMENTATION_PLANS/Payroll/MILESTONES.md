@@ -10,30 +10,18 @@ Each milestone is independently deployable and low-risk. **Do not start a milest
 
 ---
 
-## Milestone 0 — Architecture Discovery
+## Milestone 0 — Architecture Discovery — **Complete**
+
+## Milestone 1 — Pay Period — **Complete** (`feature/payroll-v2-pay-period`)
+
+## Milestone 2 — Salary Components — **Complete** (`feature/payroll-v2-components`)
+
+## Milestone 3 — Formula Engine (current)
 
 | Field | Value |
 |-------|--------|
-| Branch | `feature/payroll-v2-analysis` |
-| Status | **Complete** |
-
----
-
-## Milestone 1 — Pay Period
-
-| Field | Value |
-|-------|--------|
-| Branch | `feature/payroll-v2-pay-period` |
-| Status | **Complete** |
-
----
-
-## Milestone 2 — Salary Components (current)
-
-| Field | Value |
-|-------|--------|
-| Branch | `feature/payroll-v2-components` |
-| Scope | `salarycomponents` collection, `/api/payroll/components` CRUD, seed defaults, permission, tests |
+| Branch | `feature/payroll-v2-formula` |
+| Scope | Safe AST tokenizer/parser/evaluator; allowlisted functions; unit tests |
 | Status | **Complete — awaiting review** |
 
 ---
@@ -43,8 +31,8 @@ Each milestone is independently deployable and low-risk. **Do not start a milest
 | Milestone | Feature Branch | Scope of Work | Status |
 | :--- | :--- | :--- | :--- |
 | **1** | `feature/payroll-v2-pay-period` | Period model, APIs, UI, permission, tests | Complete |
-| **2** | `feature/payroll-v2-components` | Component catalog CRUD + seed | Complete — review |
-| **3** | `feature/payroll-v2-formula` | AST formula evaluation compiler (no `eval`) | Not started |
+| **2** | `feature/payroll-v2-components` | Component catalog CRUD + seed | Complete |
+| **3** | `feature/payroll-v2-formula` | AST formula evaluation compiler (no `eval`) | Complete — review |
 | **4** | `feature/payroll-v2-engine` | `PayrollEngine.js` + dual-run difference logging | Not started |
 | **5** | `feature/payroll-v2-attendance` | Leave impact codes; late / overtime pay rules | Not started |
 | **6** | `feature/payroll-v2-approval` | Mount and wire `ApprovalWorkflow` APIs | Not started |
