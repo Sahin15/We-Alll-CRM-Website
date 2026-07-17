@@ -83,3 +83,11 @@ Last Updated: 2026-07-17
 * **Half-day:** +0.5 LOP day when `applyHalfDayDeduction` (default on).
 * **Late:** tracked; auto LOP off by default (`applyLateDeduction: false`).
 * **Caller overrides:** Explicit `overtime` / `lossOfPay` / `lopDays` on process still win where provided.
+
+## D-2026-07-17-14 — Approval workflow API (Milestone 6)
+
+* **Decision:** Use existing `ApprovalWorkflow` schema; expose HTTP under `/api/payroll/approvals`.
+* **Stages:** `hr_review` → `finance_approval` → `management_signoff`.
+* **Permission:** `payroll.approval.manage`.
+* **Approvers:** Explicit IDs preferred; otherwise resolve active hr / accounts|admin / admin|superadmin.
+* **Completion:** Sets linked slips to `approved` or `rejected` and stores `approvalWorkflowId`.

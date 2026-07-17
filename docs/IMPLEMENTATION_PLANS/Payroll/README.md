@@ -47,7 +47,7 @@ This folder is the **only** authorized Payroll V2 implementation workspace.
 | `SalaryStructureTemplate` | Designation/department templates; HRA/PF % on create |
 | `SalarySlip` | Monthly payout; unique `{ employee, month, year }` |
 | `SalaryPreview` | Mid-month draft with attendance audit and employee queries |
-| `ApprovalWorkflow` | Multi-tier schema (`hr_review` → `finance_approval` → `management_signoff`) — **defined but unused (no routes)** |
+| `ApprovalWorkflow` | Multi-tier schema (`hr_review` → `finance_approval` → `management_signoff`) — HTTP under `/api/payroll/approvals` (Milestone 6) |
 
 ### 1.3 Calculations & known defects
 
@@ -71,7 +71,7 @@ This folder is the **only** authorized Payroll V2 implementation workspace.
 | State | Items |
 |-------|--------|
 | Working | Structure lifecycle (draft → active → superseded); templates; preview/query; PDFKit + email |
-| Partial | ApprovalWorkflow (no API); YTD fields (not populated) |
+| Partial | YTD fields (not populated); approval inbox UI (API only in M6) |
 | Missing | Pay periods/lock; formula engine; statutory auto-calc; audit log; bank NEFT/CSV |
 | Debt | Double LOP; oversized controllers; sequential bulk timeouts; `DELETE /salary-structures/all` |
 
@@ -108,7 +108,7 @@ This folder is the **only** authorized Payroll V2 implementation workspace.
 | Reimbursement Engine | Approved unpaid expenses → earnings |
 | Tax & Statutory Engine | PF, ESI, PT, TDS per regulations |
 | Audit Engine | Append-only logs |
-| Approval Engine | Wire existing `ApprovalWorkflow` |
+| Approval Engine | Wired — `/api/payroll/approvals` (Milestone 6) |
 | Payslip Engine | PDF + S3 |
 | Reporting Engine | Registers, cost centers, NEFT |
 | Notification Engine | In-app + email on generate/verify |
@@ -134,7 +134,8 @@ This folder is the **only** authorized Payroll V2 implementation workspace.
 * `payroll.period.manage` (Milestone 1)
 * `payroll.component.manage` (Milestone 2)
 * `payroll.run.process` (Milestone 4)
-* Planned later: `payroll.run.approve_finance`, `payroll.bank.export`
+* `payroll.approval.manage` (Milestone 6)
+* Planned later: `payroll.bank.export`
 
 ### Migration
 

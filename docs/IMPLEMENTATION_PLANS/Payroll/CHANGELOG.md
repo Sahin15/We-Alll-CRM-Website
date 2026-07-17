@@ -5,6 +5,15 @@ Last Updated: 2026-07-17
 
 # Payroll V2 — Changelog
 
+## 2026-07-17 — Milestone 6 Approval Workflow
+
+* Wired existing `ApprovalWorkflow` model to `/api/payroll/approvals`.
+* Create workflow for salary slips; HR → Finance → Management stages.
+* Act (approve/reject current stage), pending-for-me, bulk-approve.
+* Permission `payroll.approval.manage`.
+* On completion/rejection, updates linked salary slip status.
+* Tests: `payrollApprovalHelpers.unit.test.js`.
+
 ## 2026-07-17 — Milestone 5 Attendance & Leave Pay Rules
 
 * Added shared `leaveImpactCodes` (paid vs unpaid including LOP / personal / extended_sick).

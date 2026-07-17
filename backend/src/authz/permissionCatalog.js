@@ -106,6 +106,7 @@ export const PERMISSION_CATALOG = [
   { key: 'payroll.period.manage', module: 'finance', description: 'Open, freeze, lock, and unlock payroll periods' },
   { key: 'payroll.component.manage', module: 'finance', description: 'Manage salary component catalog' },
   { key: 'payroll.run.process', module: 'finance', description: 'Run payroll dual-run / processing tools' },
+  { key: 'payroll.approval.manage', module: 'finance', description: 'Create and act on payroll approval workflows' },
 
   // Resources
   { key: 'assets.asset.view', module: 'resources', description: 'View assets' },

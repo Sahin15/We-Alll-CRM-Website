@@ -16,10 +16,10 @@ Last Updated: 2026-07-17
 |-------|--------|
 | **Current Feature** | Payroll & Salary Management System V2 |
 | **Current Phase** | Implementation |
-| **Current Milestone** | Milestone 5 — Attendance & Leave Pay Rules (**complete — awaiting review**) |
-| **Current Branch** | `feature/payroll-v2-attendance` |
+| **Current Milestone** | Milestone 6 — Approval Workflow (**approved**) |
+| **Current Branch** | `feature/payroll-v2-approval` |
 | **Implementation Workspace** | `docs/IMPLEMENTATION_PLANS/Payroll/` |
-| **Status** | Milestone 5 implemented. Do **not** start Milestone 6 until approved. |
+| **Status** | Milestone 6 human-approved. Do **not** start Milestone 7 until explicitly requested. Commit/push of this branch may still be pending. |
 | **Last Updated** | 2026-07-17 |
 
 ---
@@ -53,11 +53,11 @@ Last Updated: 2026-07-17
 
 ---
 
-## Milestone 5 scope
+## Milestone 6 (approved) — shipped scope
 
-* Shared leave impact codes (paid vs unpaid)
-* Attendance rules: late / half-day LOP fractions, overtime pay from hours
-* Wire adjustments into `processEmployeePayroll`
-* Unit tests
+* Mount `/api/payroll/approvals` routes on existing `ApprovalWorkflow` model
+* Create / list / pending-for-me / approve / reject / bulk-approve
+* Permission `payroll.approval.manage`
+* Unit tests for stage-action validation helpers
 
-**Out of scope:** ApprovalWorkflow, S3 payslip, bank export, enabling `PAYROLL_V2_ENGINE` by default.
+**Out of scope for M6:** S3 payslip, notification enum fixes, bank export, UI inbox.

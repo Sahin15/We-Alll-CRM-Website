@@ -79,4 +79,20 @@ describe('Authorization V2 — Finance pilot parity', () => {
       expect(hasPermission(user, 'payroll.run.process')).toBe(true);
     }
   );
+
+  test.each(['admin', 'superadmin', 'hr', 'accounts', 'manager'])(
+    'role %s can manage payroll approvals',
+    (role) => {
+      const user = { _id: `user-${role}-appr`, role };
+      expect(hasPermission(user, 'payroll.approval.manage')).toBe(true);
+    }
+  );
+
+  test.each(['employee', 'hod'])(
+    'role %s cannot manage payroll approvals',
+    (role) => {
+      const user = { _id: `user-${role}-appr`, role };
+      expect(hasPermission(user, 'payroll.approval.manage')).toBe(false);
+    }
+  );
 });

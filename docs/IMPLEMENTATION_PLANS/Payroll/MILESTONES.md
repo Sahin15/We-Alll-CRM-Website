@@ -9,20 +9,12 @@ Last Updated: 2026-07-17
 
 | Milestone | Branch | Status |
 | :--- | :--- | :--- |
-| 0–4 | pay-period → components → formula → engine | Complete |
-
-## Milestone 5 — Attendance (current)
-
-| Field | Value |
-|-------|--------|
-| Branch | `feature/payroll-v2-attendance` |
-| Scope | Leave impact codes; late/half-day LOP; overtime pay; wire into PayrollEngine |
-| Status | **Complete — awaiting review** |
+| 0–5 | … through `feature/payroll-v2-attendance` | Complete |
+| **6** | `feature/payroll-v2-approval` | **Approved** |
 
 ## Remaining
 
 | Milestone | Feature Branch | Status |
 | :--- | :--- | :--- |
-| **6** | `feature/payroll-v2-approval` | Not started |
 | **7** | `feature/payroll-v2-payslip` | Not started |
 | **8** | `feature/payroll-v2-reporting` | Not started |

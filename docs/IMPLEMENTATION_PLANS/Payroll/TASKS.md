@@ -68,10 +68,14 @@ Last Updated: 2026-07-17
 - [x] Update STATUS / CHANGELOG / ACTIVE_DEVELOPMENT
 - [ ] Human review / merge approval
 
-## Milestone 6 — Approval (not started)
+## Milestone 6 — Approval
 
-- [ ] Mount `ApprovalWorkflow` APIs
-- [ ] Wire to payroll runs / slips
+- [x] Mount ApprovalWorkflow HTTP APIs
+- [x] Create / list / pending / act / bulk-approve
+- [x] Permission `payroll.approval.manage`
+- [x] Tests
+- [x] Update STATUS / CHANGELOG / ACTIVE_DEVELOPMENT
+- [x] Human review / merge approval
 
 ## Milestone 7 — Payslip (not started)
 
