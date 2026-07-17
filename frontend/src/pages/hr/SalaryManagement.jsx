@@ -25,6 +25,7 @@ import GenerateSalarySlips from "../../components/salary/GenerateSalarySlips";
 import PayrollSummary from "../../components/salary/PayrollSummary";
 import HRSalaryPreviewManagement from "../../components/salary/HRSalaryPreviewManagement";
 import TemplateManagement from "../../components/salary/TemplateManagement";
+import PayrollPeriods from "../../components/salary/PayrollPeriods";
 import { salarySlipApi } from "../../api/salaryApi";
 import api from "../../services/api";
 
@@ -308,6 +309,9 @@ const SalaryManagement = () => {
             onSelect={(k) => setActiveTab(k)}
             className="mb-3"
           >
+            <Tab eventKey="periods" title="Pay Periods">
+              <PayrollPeriods />
+            </Tab>
             <Tab eventKey="slips" title="Salary Slips">
               <SalarySlipList />
             </Tab>

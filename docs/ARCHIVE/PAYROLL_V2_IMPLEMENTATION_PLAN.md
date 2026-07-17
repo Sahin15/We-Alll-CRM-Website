@@ -1,3 +1,5 @@
+> **ARCHIVED — 2026-07-17.** Do not use for implementation. Active workspace: `docs/IMPLEMENTATION_PLANS/Payroll/`. Session pointer: `docs/ACTIVE_DEVELOPMENT.md`.
+
 ---
 Purpose: Comprehensive discovery, gap analysis, and modular V2 architecture design for We Alll Office Payroll & Salary Management.
 Scope: Full stack payroll calculation engine, statutory compliance, audit logging, and approvals.
