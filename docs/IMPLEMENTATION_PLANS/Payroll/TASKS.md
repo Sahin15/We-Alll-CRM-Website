@@ -58,10 +58,15 @@ Last Updated: 2026-07-17
 - [x] Update STATUS / CHANGELOG / ACTIVE_DEVELOPMENT
 - [ ] Human review / merge approval
 
-## Milestone 5 — Attendance rules (not started)
+## Milestone 5 — Attendance rules
 
-- [ ] Leave impact integration codes
-- [ ] Late / overtime pay rules wiring
+- [x] Shared leave impact codes
+- [x] Late / half-day / overtime pay rules
+- [x] Wire into `processEmployeePayroll`
+- [x] LeaveImpactCalculator uses shared codes
+- [x] Tests
+- [x] Update STATUS / CHANGELOG / ACTIVE_DEVELOPMENT
+- [ ] Human review / merge approval
 
 ## Milestone 6 — Approval (not started)
 

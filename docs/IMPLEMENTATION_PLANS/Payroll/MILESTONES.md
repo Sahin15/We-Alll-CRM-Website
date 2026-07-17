@@ -9,24 +9,20 @@ Last Updated: 2026-07-17
 
 | Milestone | Branch | Status |
 | :--- | :--- | :--- |
-| 0 Discovery | `feature/payroll-v2-analysis` | Complete |
-| 1 Pay Period | `feature/payroll-v2-pay-period` | Complete |
-| 2 Components | `feature/payroll-v2-components` | Complete |
-| 3 Formula | `feature/payroll-v2-formula` | Complete |
+| 0–4 | pay-period → components → formula → engine | Complete |
 
-## Milestone 4 — Payroll Engine (current)
+## Milestone 5 — Attendance (current)
 
 | Field | Value |
 |-------|--------|
-| Branch | `feature/payroll-v2-engine` |
-| Scope | `PayrollEngine`, dual-run logging, `PAYROLL_V2_ENGINE` flag, run APIs, tests |
+| Branch | `feature/payroll-v2-attendance` |
+| Scope | Leave impact codes; late/half-day LOP; overtime pay; wire into PayrollEngine |
 | Status | **Complete — awaiting review** |
 
 ## Remaining
 
 | Milestone | Feature Branch | Status |
 | :--- | :--- | :--- |
-| **5** | `feature/payroll-v2-attendance` | Not started |
 | **6** | `feature/payroll-v2-approval` | Not started |
 | **7** | `feature/payroll-v2-payslip` | Not started |
 | **8** | `feature/payroll-v2-reporting` | Not started |

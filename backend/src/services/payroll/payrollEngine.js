@@ -10,6 +10,11 @@ import {
   PAYROLL_ENGINE_VERSION,
   isPayrollV2EngineEnabled,
 } from "./payrollEngineConfig.js";
+import {
+  DEFAULT_ATTENDANCE_PAY_RULES,
+  summarizeAttendanceForPayroll,
+  buildAttendancePayrollAdjustments,
+} from "./payrollAttendanceRules.js";
 
 /**
  * @param {object} structure - SalaryStructure-like plain object
@@ -314,13 +319,14 @@ export function selectPersistableTotals(dual) {
 }
 
 /**
- * Async employee processing: load structure + leave impact, then dual-run.
+ * Async employee processing: load structure + leave impact + attendance rules, then dual-run.
  *
  * @param {object} params
  * @param {string} params.employeeId
  * @param {number} params.month
  * @param {number} params.year
  * @param {object} [params.overrides]
+ * @param {object} [params.attendanceRules]
  * @param {object} [params.deps] - injectable deps for tests
  */
 export async function processEmployeePayroll(params) {
@@ -329,6 +335,7 @@ export async function processEmployeePayroll(params) {
     month,
     year,
     overrides = {},
+    attendanceRules = DEFAULT_ATTENDANCE_PAY_RULES,
     deps = {},
   } = params;
 
@@ -352,14 +359,32 @@ export async function processEmployeePayroll(params) {
     structure
   );
 
+  const attendanceAdjustment = await resolveAttendanceAdjustments({
+    employeeId,
+    month,
+    year,
+    structure,
+    leaveImpact,
+    attendanceRules,
+    deps,
+  });
+
+  const baseLopDays =
+    overrides.lopDays != null ? overrides.lopDays : leaveImpact.unpaidLeaves;
+  const baseLossOfPay =
+    overrides.lossOfPay != null
+      ? overrides.lossOfPay
+      : leaveImpact.deductionAmount;
+
   const mergedOverrides = {
     ...overrides,
-    lossOfPay:
-      overrides.lossOfPay != null
-        ? overrides.lossOfPay
-        : leaveImpact.deductionAmount,
-    lopDays:
-      overrides.lopDays != null ? overrides.lopDays : leaveImpact.unpaidLeaves,
+    // Explicit caller overtime wins; otherwise use attendance-derived OT pay
+    overtime:
+      overrides.overtime != null
+        ? overrides.overtime
+        : attendanceAdjustment.overtimePay,
+    lopDays: baseLopDays + attendanceAdjustment.extraLopDays,
+    lossOfPay: Math.round(baseLossOfPay + attendanceAdjustment.lateHalfDayDeduction),
   };
 
   const dual = dualRunPayroll(structure, mergedOverrides, deps.components);
@@ -375,9 +400,82 @@ export async function processEmployeePayroll(params) {
       deductionAmount: leaveImpact.deductionAmount,
       perDaySalary: leaveImpact.perDaySalary,
     },
+    attendanceAdjustment,
     dual,
     persistable,
   };
+}
+
+/**
+ * Load month attendance and compute OT / late-half-day payroll adjustments.
+ * @param {object} params
+ */
+export async function resolveAttendanceAdjustments(params) {
+  const {
+    employeeId,
+    month,
+    year,
+    structure,
+    leaveImpact,
+    attendanceRules = DEFAULT_ATTENDANCE_PAY_RULES,
+    deps = {},
+  } = params;
+
+  if (typeof deps.loadAttendanceRecords === "function") {
+    const records = await deps.loadAttendanceRecords(employeeId, month, year);
+    return finalizeAttendanceAdjustment(structure, leaveImpact, records, attendanceRules);
+  }
+
+  try {
+    const Attendance =
+      deps.Attendance ||
+      (await import("../../models/attendanceModel.js")).default;
+    const monthStart = new Date(year, month - 1, 1);
+    const monthEnd = new Date(year, month, 0);
+    const records = await Attendance.find({
+      employee: employeeId,
+      date: { $gte: monthStart, $lte: monthEnd },
+    }).lean();
+    return finalizeAttendanceAdjustment(
+      structure,
+      leaveImpact,
+      records,
+      attendanceRules
+    );
+  } catch (error) {
+    console.error("resolveAttendanceAdjustments failed:", error.message);
+    return {
+      overtimePay: 0,
+      overtimeHours: 0,
+      extraLopDays: 0,
+      lateHalfDayDeduction: 0,
+      summary: summarizeAttendanceForPayroll([]),
+      error: error.message,
+    };
+  }
+}
+
+function finalizeAttendanceAdjustment(
+  structure,
+  leaveImpact,
+  records,
+  attendanceRules
+) {
+  const grossSalary =
+    Number(structure.grossSalary) ||
+    (Number(structure.basicSalary) || 0) +
+      (Number(structure.hra) || 0) +
+      (Number(structure.specialAllowance) || 0) +
+      (Number(structure.transportAllowance) || 0) +
+      (Number(structure.medicalAllowance) || 0);
+
+  const summary = summarizeAttendanceForPayroll(records, attendanceRules);
+  return buildAttendancePayrollAdjustments({
+    grossSalary,
+    perDaySalary: leaveImpact?.perDaySalary,
+    summary,
+    rules: attendanceRules,
+  });
 }
 
 /**

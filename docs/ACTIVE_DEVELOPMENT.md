@@ -16,10 +16,10 @@ Last Updated: 2026-07-17
 |-------|--------|
 | **Current Feature** | Payroll & Salary Management System V2 |
 | **Current Phase** | Implementation |
-| **Current Milestone** | Milestone 4 — Payroll Engine (**complete — awaiting review**) |
-| **Current Branch** | `feature/payroll-v2-engine` |
+| **Current Milestone** | Milestone 5 — Attendance & Leave Pay Rules (**complete — awaiting review**) |
+| **Current Branch** | `feature/payroll-v2-attendance` |
 | **Implementation Workspace** | `docs/IMPLEMENTATION_PLANS/Payroll/` |
-| **Status** | Milestone 4 implemented. Do **not** start Milestone 5 until approved. |
+| **Status** | Milestone 5 implemented. Do **not** start Milestone 6 until approved. |
 | **Last Updated** | 2026-07-17 |
 
 ---
@@ -53,12 +53,11 @@ Last Updated: 2026-07-17
 
 ---
 
-## Milestone 4 scope
+## Milestone 5 scope
 
-* `PayrollEngine.js` — orchestrate V1-compatible and V2 component-mapped calculations
-* Dual-run difference logging (variance report)
-* Feature flag `PAYROLL_V2_ENGINE` (default off — persisted slips stay on V1)
-* Unit tests for dual-run / totals
-* Optional admin dual-run API
+* Shared leave impact codes (paid vs unpaid)
+* Attendance rules: late / half-day LOP fractions, overtime pay from hours
+* Wire adjustments into `processEmployeePayroll`
+* Unit tests
 
-**Out of scope:** Attendance OT rules, ApprovalWorkflow wiring, statutory auto-calc, changing default slip persistence to V2.
+**Out of scope:** ApprovalWorkflow, S3 payslip, bank export, enabling `PAYROLL_V2_ENGINE` by default.

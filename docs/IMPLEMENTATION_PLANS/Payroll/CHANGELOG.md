@@ -5,6 +5,14 @@ Last Updated: 2026-07-17
 
 # Payroll V2 — Changelog
 
+## 2026-07-17 — Milestone 5 Attendance & Leave Pay Rules
+
+* Added shared `leaveImpactCodes` (paid vs unpaid including LOP / personal / extended_sick).
+* Added `payrollAttendanceRules`: OT pay (1.5× hourly), half-day LOP (0.5), optional late deduction (off by default).
+* `processEmployeePayroll` loads month attendance and merges OT + extra LOP into dual-run overrides.
+* `LeaveImpactCalculator.isLeaveTypePaid` delegates to shared codes.
+* Tests: `payrollAttendanceRules.unit.test.js` (+ leave/engine suites green).
+
 ## 2026-07-17 — Milestone 4 Payroll Engine
 
 * Added `payrollEngine.js`: `buildV1Result`, `buildV2Result`, `dualRunPayroll`, `processEmployeePayroll`, `selectPersistableTotals`.

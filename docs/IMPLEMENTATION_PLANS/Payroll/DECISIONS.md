@@ -75,3 +75,11 @@ Last Updated: 2026-07-17
 * **Persist:** Use V1 unless `PAYROLL_V2_ENGINE=true`.
 * **Tolerance:** Absolute diffs ≤ ₹1 count as match.
 * **Permission:** `payroll.run.process` for dual-run APIs.
+
+## D-2026-07-17-13 — Attendance pay rules (Milestone 5)
+
+* **Leave unpaid codes:** `unpaid`, `loss_of_pay`, `lop`, `lwp`, `leave_without_pay`, `extended_sick`, `personal`.
+* **OT:** `gross / (30 × 8) × hours × 1.5` (configurable).
+* **Half-day:** +0.5 LOP day when `applyHalfDayDeduction` (default on).
+* **Late:** tracked; auto LOP off by default (`applyLateDeduction: false`).
+* **Caller overrides:** Explicit `overtime` / `lossOfPay` / `lopDays` on process still win where provided.

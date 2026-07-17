@@ -1,5 +1,6 @@
 import LeaveRequest from "../models/leaveRequestModel.js";
 import WorkingDaysCalculator from "./workingDaysCalculator.js";
+import { isLeaveTypePaid } from "./payroll/leaveImpactCodes.js";
 
 class LeaveImpactCalculator {
   constructor() {
@@ -247,17 +248,10 @@ class LeaveImpactCalculator {
 
   /**
    * Determine if a leave type is paid or unpaid.
-   * Rule: All approved leaves are paid EXCEPT explicitly unpaid/LOP types.
+   * Delegates to shared leave impact codes (Milestone 5).
    */
   isLeaveTypePaid(leaveType) {
-    const unpaidLeaveTypes = [
-      "unpaid",
-      "loss_of_pay",
-      "lop",
-      "lwp",
-      "leave_without_pay"
-    ];
-    return !unpaidLeaveTypes.includes(leaveType?.toLowerCase());
+    return isLeaveTypePaid(leaveType);
   }
 
   /**
