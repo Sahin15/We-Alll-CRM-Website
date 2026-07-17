@@ -1,6 +1,6 @@
 import express from "express";
 import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 import {
   getMyActiveTrack,
   initiateGrowthTrack,
@@ -15,43 +15,57 @@ import {
 
 const router = express.Router();
 
+const VIEW_ROLES = ["admin", "superadmin", "hr", "manager", "hod", "employee"];
+const MANAGE_ROLES = ["admin", "superadmin", "hr", "manager", "hod"];
+
 // Employee: Get current active track & acknowledge notices
-router.get("/my-active", protect, getMyActiveTrack);
-router.post("/:trackId/notices/:noticeId/acknowledge", protect, acknowledgeNotice);
+router.get(
+  "/my-active",
+  protect,
+  requireModulePermission("growth_track", "growth_track.view", { legacyRoles: VIEW_ROLES }),
+  getMyActiveTrack
+);
+
+router.post(
+  "/:trackId/notices/:noticeId/acknowledge",
+  protect,
+  requireModulePermission("growth_track", "growth_track.view", { legacyRoles: VIEW_ROLES }),
+  acknowledgeNotice
+);
 
 // Manager / HR / Admin: Initiate & Manage Growth Tracks
 router.post(
   "/initiate",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager", "hod"),
+  requireModulePermission("growth_track", "growth_track.manage", { legacyRoles: MANAGE_ROLES }),
   initiateGrowthTrack
 );
 
 router.post(
   "/:trackId/targets",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager", "hod"),
+  requireModulePermission("growth_track", "growth_track.manage", { legacyRoles: MANAGE_ROLES }),
   addWeeklyTarget
 );
 
 router.put(
   "/:trackId/targets/:targetId",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager", "hod"),
+  requireModulePermission("growth_track", "growth_track.manage", { legacyRoles: MANAGE_ROLES }),
   updateTargetProgress
 );
 
 router.post(
   "/:trackId/reviews",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager", "hod"),
+  requireModulePermission("growth_track", "growth_track.manage", { legacyRoles: MANAGE_ROLES }),
   logReviewMeeting
 );
 
 router.post(
   "/:trackId/finalize",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager", "hod"),
+  requireModulePermission("growth_track", "growth_track.manage", { legacyRoles: MANAGE_ROLES }),
   finalizeGrowthTrack
 );
 
@@ -59,14 +73,14 @@ router.post(
 router.get(
   "/all",
   protect,
-  authorizeRoles("admin", "superadmin", "hr"),
+  requireModulePermission("growth_track", "growth_track.manage", { legacyRoles: ["admin", "superadmin", "hr"] }),
   getAllGrowthTracks
 );
 
 router.get(
   "/manager",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager", "hod"),
+  requireModulePermission("growth_track", "growth_track.view", { legacyRoles: MANAGE_ROLES }),
   getManagerGrowthTracks
 );
 
