@@ -32,6 +32,7 @@ import {
   FaCheckSquare,
   FaBoxOpen,
   FaUserPlus,
+  FaChartLine,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import { hasPermissionAccess } from "../../utils/authzAccess";
@@ -689,6 +690,13 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       label: "Reports & Analytics",
       permission: "reports.analytics.view",
       fallbackRoles: REPORTS_ROLES,
+    },
+    {
+      path: "/growth-track",
+      icon: <FaChartLine />,
+      label: "Growth Track",
+      permission: "growth_track.view",
+      fallbackRoles: ALL_APP_ROLES,
     },
     {
       path: "/profile",
