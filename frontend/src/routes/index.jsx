@@ -644,6 +644,7 @@ const AppRoutes = () => {
           element={
             <PermissionRoute
               permission="hiring.pipeline.manage"
+              alternatePermissions={["hiring.request.view"]}
               module="hiring"
               fallbackRoles={["admin", "superadmin", "hr", "manager"]}
             >
@@ -658,6 +659,7 @@ const AppRoutes = () => {
           element={
             <PermissionRoute
               permission="hiring.pipeline.manage"
+              alternatePermissions={["hiring.request.view"]}
               module="hiring"
               fallbackRoles={["admin", "superadmin", "hr", "manager"]}
             >

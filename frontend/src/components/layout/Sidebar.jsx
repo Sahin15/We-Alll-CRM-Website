@@ -34,7 +34,7 @@ import {
   FaUserPlus,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
-import { hasPermissionAccess } from "../../utils/authzAccess";
+import { hasPermissionAccess, hasExplicitPermissionGrant, passesLegacyRoleMenuGate } from "../../utils/authzAccess";
 import { BRAND_LOGO_FULL, BRAND_NAME } from "../../constants/branding";
 import "./Sidebar.css";
 
@@ -500,8 +500,8 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       icon: <FaUserPlus />,
       label: "Hiring",
       permission: "hiring.pipeline.manage",
+      alternatePermissions: ["hiring.request.view"],
       fallbackRoles: HIRING_PIPELINE_ROLES,
-      onlyForRoles: ["admin", "superadmin", "hr", "manager"],
       isGroup: true,
       children: [
         {
@@ -516,6 +516,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           icon: <FaClipboardList />,
           label: "Requests & Pipeline",
           permission: "hiring.pipeline.manage",
+          alternatePermissions: ["hiring.request.view"],
           fallbackRoles: HIRING_PIPELINE_ROLES,
         },
         {
@@ -737,34 +738,18 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
 
       if (!permitted) return false;
 
-      if (menuItem.onlyForRoles?.length > 0) {
-        const menuPermission = menuItem.permission;
-        const hasAuthzGrant =
-          menuPermission &&
-          authzEffective?.permissions?.includes(menuPermission);
-
-        if (!hasAuthzGrant && !menuItem.onlyForRoles.includes(user.role)) {
-          if (
-            user.role === "hod" &&
-            menuItem.hodDepartments?.length > 0 &&
-            menuItem.hodDepartments.some(
-              (d) => d.toLowerCase() === user?.department?.name?.toLowerCase()
-            )
-          ) {
-            // HoD of allowed department
-          } else {
-            return false;
-          }
-        }
+      if (!passesLegacyRoleMenuGate({ user, menuItem, canPermission })) {
+        return false;
       }
 
       const isPrivilegedRole = canAccess('team.user.update', ['admin', 'superadmin', 'manager']);
 
       if (menuItem.departments?.length > 0 && !isPrivilegedRole) {
-        const menuPermission = menuItem.permission;
-        const hasAuthzGrant =
-          menuPermission &&
-          authzEffective?.permissions?.includes(menuPermission);
+        const hasAuthzGrant = hasExplicitPermissionGrant({
+          canPermission,
+          permission: menuItem.permission,
+          alternatePermissions: menuItem.alternatePermissions,
+        });
 
         if (!hasAuthzGrant) {
           if (!user?.department?.name) return false;

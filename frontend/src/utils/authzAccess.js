@@ -71,3 +71,61 @@ export function hasPermissionAccess({
   if (fallbackRoles.length && checkPermission(fallbackRoles)) return true;
   return false;
 }
+
+/**
+ * Whether effective permissions include an explicit grant for a menu permission key.
+ *
+ * @param {object} params
+ * @param {(permission: string) => boolean} params.canPermission
+ * @param {string} [params.permission]
+ * @param {string[]} [params.alternatePermissions]
+ * @returns {boolean}
+ */
+export function hasExplicitPermissionGrant({
+  canPermission,
+  permission,
+  alternatePermissions = [],
+}) {
+  if (!permission) return false;
+  const permissionKeys = [permission, ...alternatePermissions].filter(Boolean);
+  return permissionKeys.some((key) => canPermission(key));
+}
+
+/**
+ * Legacy sidebar role gate — skipped when Auth V2 already granted the menu permission.
+ *
+ * @param {object} params
+ * @param {object|null|undefined} params.user
+ * @param {object} params.menuItem
+ * @param {(permission: string) => boolean} params.canPermission
+ * @returns {boolean}
+ */
+export function passesLegacyRoleMenuGate({ user, menuItem, canPermission }) {
+  if (!menuItem.onlyForRoles?.length) return true;
+
+  if (
+    hasExplicitPermissionGrant({
+      canPermission,
+      permission: menuItem.permission,
+      alternatePermissions: menuItem.alternatePermissions,
+    })
+  ) {
+    return true;
+  }
+
+  if (menuItem.onlyForRoles.includes(user?.role)) {
+    return true;
+  }
+
+  if (
+    user?.role === 'hod' &&
+    menuItem.hodDepartments?.length > 0 &&
+    menuItem.hodDepartments.some(
+      (dept) => dept.toLowerCase() === user?.department?.name?.toLowerCase()
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+}
