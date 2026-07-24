@@ -105,7 +105,7 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
               >
                 © {currentYear} We Alll. All rights reserved.
                 <span className="ms-2 text-white-50">
-                  V 5.0.7
+                  V 5.1.0
                 </span>
               </div>
             </Col>
