@@ -73,6 +73,14 @@ describe('Authorization V2 — CRM pilot parity', () => {
     }
   );
 
+  test.each(['admin', 'superadmin', 'manager'])(
+    'role %s can manage Raw Data Sheet and Calling Queue',
+    (role) => {
+      const user = makeAuthzTestUser(role);
+      expect(hasPermission(user, 'crm.rawdata.manage')).toBe(true);
+    }
+  );
+
   test('hod lacks Raw Data Analytics by default (grant via Permission Assignment)', () => {
     const user = makeAuthzTestUser('hod');
     expect(hasPermission(user, 'reports.analytics.view')).toBe(true);
