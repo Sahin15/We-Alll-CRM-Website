@@ -159,7 +159,7 @@ export const getUsers = async (req, res) => {
     
     // Optimized query with pagination and all necessary fields for display
     const users = await User.find(query)
-      .select('_id name email role department profilePicture designation status isActive employeeId joiningDate hireDate phone reactivationDate')
+      .select('_id name email role department profilePicture designation status isActive employeeId joiningDate hireDate phone reactivationDate dateOfBirth employmentType')
       .populate('department', 'name')
       .sort({ createdAt: -1 })
       .limit(parseInt(limit))
