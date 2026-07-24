@@ -422,7 +422,7 @@ const MyLeaves = () => {
                     </div>
                     <div className="d-flex justify-content-between">
                       <small className="text-muted">Used: {leaveBalance.unpaid.used} days</small>
-                      <small className="text-muted">Notice: 7 days</small>
+                      <small className="text-muted">Notice: Same day</small>
                     </div>
                   </Card.Body>
                 </Card>

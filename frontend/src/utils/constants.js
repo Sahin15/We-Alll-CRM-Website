@@ -66,7 +66,7 @@ export const LEAVE_TYPE_DETAILS = {
   unpaid: {
     name: "Unpaid Leave",
     total: 0,
-    advanceNotice: 7,
+    advanceNotice: 0,
     description: "Extended leave without pay (no limit)"
   }
 };
