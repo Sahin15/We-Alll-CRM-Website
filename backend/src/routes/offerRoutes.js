@@ -1,5 +1,6 @@
 import express from "express";
 import { protect } from "../middleware/authMiddleware.js";
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 import {
   listOffers,
   getOffer,
@@ -14,7 +15,13 @@ import {
 
 const router = express.Router();
 
+const HR_PIPELINE_ROLES = ["admin", "superadmin", "hr", "manager"];
+const hiringPipelineManage = requireModulePermission("hiring", "hiring.pipeline.manage", {
+  legacyRoles: HR_PIPELINE_ROLES,
+});
+
 router.use(protect);
+router.use(hiringPipelineManage);
 
 router.get("/", listOffers);
 router.get("/by-user/:userId", getOfferByUserId);

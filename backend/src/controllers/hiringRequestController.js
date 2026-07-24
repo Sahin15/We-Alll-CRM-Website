@@ -12,6 +12,8 @@ import {
   resolveHiringDepartmentForCreate,
 } from "../utils/hiringAccess.js";
 import { hasPermission } from "../authz/policyEngine.js";
+import { getEffectivePermissionGrant } from "../services/resourceVisibilityService.js";
+import { SCOPES } from "../authz/scopes.js";
 
 const populateRequest = [
   { path: "department", select: "name" },
@@ -29,12 +31,23 @@ export const listHiringRequests = async (req, res) => {
       if (status) query.status = status;
       if (department) query.department = department;
     } else if (hasPermission(req.user, "hiring.request.view")) {
-      const hodDept = await getHoDDepartment(req.user._id || req.user.id);
-      if (!hodDept) {
-        return res.status(403).json({ message: "Access denied" });
+      const grant = getEffectivePermissionGrant(req.user, "hiring.request.view");
+      const isCompanyWide =
+        grant &&
+        (grant.scope === SCOPES.COMPANY || grant.scope === SCOPES.PLATFORM);
+
+      if (isCompanyWide) {
+        if (status) query.status = status;
+        if (department) query.department = department;
+      } else {
+        const hodDept = await getHoDDepartment(req.user._id || req.user.id);
+        const deptId = hodDept?._id || req.user.department;
+        if (!deptId) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+        query.department = deptId;
+        if (status) query.status = status;
       }
-      query.department = hodDept._id;
-      if (status) query.status = status;
     } else {
       const hodDept = await assertHoDAccess(req, res);
       if (!hodDept) return;
