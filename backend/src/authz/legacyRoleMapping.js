@@ -85,6 +85,7 @@ export const LEGACY_ROLE_TO_ACCESS_ROLES = {
         { permission: 'work.item.update', scope: SCOPES.COMPANY },
         { permission: 'work.item.approve', scope: SCOPES.COMPANY },
         { permission: 'work.dashboard.view', scope: SCOPES.COMPANY },
+        { permission: 'company.meeting.view', scope: SCOPES.COMPANY },
         { permission: 'company.meeting.manage', scope: SCOPES.COMPANY },
         { permission: 'company.policy.view', scope: SCOPES.COMPANY },
         { permission: 'company.policy.manage', scope: SCOPES.COMPANY },
