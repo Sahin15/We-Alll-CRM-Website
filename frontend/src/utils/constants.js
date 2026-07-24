@@ -18,6 +18,10 @@ const getApiBaseUrl = () => {
 
 export const API_URL = getApiBaseUrl();
 
+/** Max upload size for photos and receipt images (matches backend multer limit). */
+export const MAX_PHOTO_UPLOAD_MB = 25;
+export const MAX_PHOTO_UPLOAD_BYTES = MAX_PHOTO_UPLOAD_MB * 1024 * 1024;
+
 // User Roles
 export const ROLES = {
   SUPERADMIN: "superadmin",

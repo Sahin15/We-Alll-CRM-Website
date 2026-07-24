@@ -5,6 +5,7 @@ import toast from "../../utils/toast";
 import { useAuth } from "../../context/AuthContext";
 import { resolveProfilePictureUrl } from "../../utils/profilePictureUrl";
 import axios from "axios";
+import { MAX_PHOTO_UPLOAD_BYTES, MAX_PHOTO_UPLOAD_MB } from "../../utils/constants";
 import "./ProfilePictureUpload.css";
 
 const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
@@ -88,7 +89,7 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
     });
 
     // Validate file
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    const maxSize = MAX_PHOTO_UPLOAD_BYTES;
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
     if (!allowedTypes.includes(file.type)) {
@@ -103,7 +104,7 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
     }
 
     if (file.size > maxSize) {
-      toast.error("❌ File too large. Please upload an image smaller than 10MB.", {
+      toast.error(`❌ File too large. Please upload an image smaller than ${MAX_PHOTO_UPLOAD_MB}MB.`, {
         duration: 4000,
         style: {
           background: '#EF4444',
@@ -424,7 +425,7 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
       
       let errorMessage = "Failed to upload profile picture";
       if (error.response?.status === 413) {
-        errorMessage = "File too large. Please choose an image smaller than 10MB.";
+        errorMessage = `File too large. Please choose an image smaller than ${MAX_PHOTO_UPLOAD_MB}MB.`;
       } else if (error.response?.status === 415) {
         errorMessage = "Invalid file type. Please use JPG, PNG, or WebP.";
       } else if (error.response?.data?.message) {
@@ -690,7 +691,7 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
       </div>
 
       <small className="text-muted d-block mt-2 text-center">
-        JPG, PNG or WebP. Max 10MB.
+        JPG, PNG or WebP. Max {MAX_PHOTO_UPLOAD_MB}MB.
       </small>
 
       {/* Image Crop Modal */}

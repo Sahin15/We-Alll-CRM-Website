@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Modal, Form, Button, Row, Col, Alert } from 'react-bootstrap';
 import { FaCalendarAlt, FaFileAlt, FaPaperclip } from 'react-icons/fa';
 import { leaveApi } from '../../api/leaveApi';
-import { LEAVE_TYPE_DETAILS } from '../../utils/constants';
+import { LEAVE_TYPE_DETAILS, MAX_PHOTO_UPLOAD_BYTES, MAX_PHOTO_UPLOAD_MB } from '../../utils/constants';
 import { useAuth } from '../../context/AuthContext';
 import { getAllowedLeaveTypes, isFullTimeEmployee } from '../../utils/leaveEligibility';
 import { getLeaveRequestDays } from '../../utils/leaveDays';
@@ -48,12 +48,12 @@ const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files);
     const validFiles = [];
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSize = MAX_PHOTO_UPLOAD_BYTES;
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
 
     files.forEach(file => {
       if (file.size > maxSize) {
-        setError(`File "${file.name}" is too large. Maximum size is 5MB.`);
+        setError(`File "${file.name}" is too large. Maximum size is ${MAX_PHOTO_UPLOAD_MB}MB.`);
         return;
       }
       if (!allowedTypes.includes(file.type)) {

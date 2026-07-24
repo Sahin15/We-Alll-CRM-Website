@@ -5,6 +5,7 @@ import { leaveApi } from '../../api/leaveApi';
 import { useAuth } from '../../context/AuthContext';
 import { getAllowedLeaveTypes, isFullTimeEmployee } from '../../utils/leaveEligibility';
 import { getLeaveRequestDays } from '../../utils/leaveDays';
+import { MAX_PHOTO_UPLOAD_BYTES, MAX_PHOTO_UPLOAD_MB } from '../../utils/constants';
 import MobileFilePicker from './MobileFilePicker';
 
 const ALL_LEAVE_TYPES = [
@@ -114,7 +115,7 @@ export default function LeaveTab() {
     if (!file) return;
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
     if (!validTypes.includes(file.type)) { toast.error('Please upload JPG, PNG or PDF'); return; }
-    if (file.size > 10 * 1024 * 1024) { toast.error('File must be less than 10MB'); return; }
+    if (file.size > MAX_PHOTO_UPLOAD_BYTES) { toast.error(`File must be less than ${MAX_PHOTO_UPLOAD_MB}MB`); return; }
     setDocument(file);
   };
 
@@ -234,7 +235,7 @@ export default function LeaveTab() {
             {!document ? (
               <MobileFilePicker
                 label="Take photo or upload document"
-                hint="Camera, gallery, or PDF · max 10MB"
+                hint={`Camera, gallery, or PDF · max ${MAX_PHOTO_UPLOAD_MB}MB`}
                 onFileSelect={handleFileSelect}
               />
             ) : (

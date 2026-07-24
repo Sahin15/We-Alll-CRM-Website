@@ -3,6 +3,7 @@ import { FaReceipt, FaPlus, FaTimes, FaFileImage } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { expenseApi } from '../../api/expenseApi';
 import api from '../../api/axios';
+import { MAX_PHOTO_UPLOAD_BYTES, MAX_PHOTO_UPLOAD_MB } from '../../utils/constants';
 import MobileFilePicker from './MobileFilePicker';
 
 const STATUS_COLORS = {
@@ -52,7 +53,7 @@ export default function ExpensesTab() {
     if (!file) return;
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf'];
     if (!validTypes.includes(file.type)) { toast.error('Please upload JPG, PNG, GIF or PDF'); return; }
-    if (file.size > 10 * 1024 * 1024) { toast.error('File must be less than 10MB'); return; }
+    if (file.size > MAX_PHOTO_UPLOAD_BYTES) { toast.error(`File must be less than ${MAX_PHOTO_UPLOAD_MB}MB`); return; }
 
     setReceiptFile(file);
     if (file.type.startsWith('image/')) {
@@ -169,7 +170,7 @@ export default function ExpensesTab() {
                 photoOnly={false}
                 highlight={isReceiptRequired}
                 label="Take photo or upload receipt"
-                hint="Camera, gallery, or PDF · max 10MB"
+                hint={`Camera, gallery, or PDF · max ${MAX_PHOTO_UPLOAD_MB}MB`}
                 disabled={uploadingReceipt}
                 onFileSelect={handleReceiptChange}
               />

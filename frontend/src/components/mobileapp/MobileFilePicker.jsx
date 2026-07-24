@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { FaCamera, FaUpload } from 'react-icons/fa';
+import { MAX_PHOTO_UPLOAD_MB } from '../../utils/constants';
 
 /**
  * Mobile-friendly file picker.
@@ -18,7 +19,7 @@ export default function MobileFilePicker({
   accept,
   disabled = false,
   label = 'Upload photo or file',
-  hint = 'Camera, gallery, or files · max 10MB',
+  hint = `Camera, gallery, or files · max ${MAX_PHOTO_UPLOAD_MB}MB`,
   highlight = false,
   photoOnly = false,
   onFileSelect,

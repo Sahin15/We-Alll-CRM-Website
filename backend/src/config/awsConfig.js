@@ -3,6 +3,32 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+const DEFAULT_MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
+
+/**
+ * Resolve upload size limit from env. Accepts bytes (26214400) or megabytes (25).
+ * Small numeric values (<= 100) are treated as MB to avoid misconfiguration.
+ *
+ * @returns {number}
+ */
+export function resolveMaxFileSizeBytes() {
+  const raw = process.env.MAX_FILE_SIZE;
+  if (raw === undefined || raw === "") {
+    return DEFAULT_MAX_FILE_SIZE_BYTES;
+  }
+
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return DEFAULT_MAX_FILE_SIZE_BYTES;
+  }
+
+  if (parsed <= 100) {
+    return Math.round(parsed * 1024 * 1024);
+  }
+
+  return Math.round(parsed);
+}
+
 const awsRegion = process.env.AWS_REGION || "us-east-1";
 const awsAccessKeyId = process.env.AWS_ACCESS_KEY_ID;
 const awsSecretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
@@ -26,7 +52,7 @@ const s3Client = new S3Client({
 export const AWS_CONFIG = {
   bucketName: awsBucketName,
   region: awsRegion,
-  maxFileSize: 10 * 1024 * 1024, // 10MB
+  maxFileSize: resolveMaxFileSizeBytes(),
   allowedMimeTypes: ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif", "application/pdf"],
 };
 

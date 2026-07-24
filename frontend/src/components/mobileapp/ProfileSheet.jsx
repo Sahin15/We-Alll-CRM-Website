@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { resolveProfilePictureUrl } from '../../utils/profilePictureUrl';
 import api from '../../api/axios';
+import { MAX_PHOTO_UPLOAD_BYTES, MAX_PHOTO_UPLOAD_MB } from '../../utils/constants';
 import MobileFilePicker from './MobileFilePicker';
 
 export default function ProfileSheet({ onClose }) {
@@ -36,8 +37,8 @@ export default function ProfileSheet({ onClose }) {
       toast.error('Please upload a JPG, PNG, or WebP image');
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('Image must be less than 10MB');
+    if (file.size > MAX_PHOTO_UPLOAD_BYTES) {
+      toast.error(`Image must be less than ${MAX_PHOTO_UPLOAD_MB}MB`);
       return;
     }
 
@@ -137,7 +138,7 @@ export default function ProfileSheet({ onClose }) {
               <MobileFilePicker
                 photoOnly
                 label={uploadingPhoto ? 'Uploading photo...' : 'Take photo or choose from gallery'}
-                hint="JPG, PNG, or WebP · max 10MB"
+                hint={`JPG, PNG, or WebP · max ${MAX_PHOTO_UPLOAD_MB}MB`}
                 disabled={uploadingPhoto}
                 onFileSelect={handlePhotoSelect}
               />

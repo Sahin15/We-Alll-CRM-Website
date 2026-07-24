@@ -129,7 +129,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json({ limit: "10mb" })); // Limit payload size
+app.use(express.json({ limit: "25mb" })); // Limit payload size
 app.use(sanitizeInput); // Sanitize MongoDB queries
 app.use(s3ProxyMiddleware); // Serve profile pictures via /api/upload/profile-picture/:fileName
 app.use(auditMiddleware); // Audit logging for authenticated requests
