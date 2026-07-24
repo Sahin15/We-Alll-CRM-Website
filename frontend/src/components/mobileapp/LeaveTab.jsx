@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { FaUmbrellaBeach, FaPlus, FaTimes, FaUpload, FaFileAlt, FaChevronDown } from 'react-icons/fa';
+import { FaUmbrellaBeach, FaPlus, FaTimes, FaFileAlt, FaChevronDown } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { leaveApi } from '../../api/leaveApi';
 import { useAuth } from '../../context/AuthContext';
 import { getAllowedLeaveTypes, isFullTimeEmployee } from '../../utils/leaveEligibility';
 import { getLeaveRequestDays } from '../../utils/leaveDays';
+import MobileFilePicker from './MobileFilePicker';
 
 const ALL_LEAVE_TYPES = [
   { value: 'personal', label: 'Personal Leave' },
@@ -109,8 +110,7 @@ export default function LeaveTab() {
 
   useEffect(() => { fetchLeaves(); }, [fetchLeaves]);
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
+  const handleFileSelect = (file) => {
     if (!file) return;
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
     if (!validTypes.includes(file.type)) { toast.error('Please upload JPG, PNG or PDF'); return; }
@@ -232,15 +232,11 @@ export default function LeaveTab() {
               Supporting Document <span style={{ color: '#9CA3AF', fontWeight: '400' }}>(optional)</span>
             </label>
             {!document ? (
-              <label style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                padding: '12px', border: '2px dashed #E5E7EB', borderRadius: '8px',
-                cursor: 'pointer', color: '#6B7280', fontSize: '0.85rem',
-              }}>
-                <FaUpload size={14} />
-                <span>Upload document (JPG, PNG, PDF, max 10MB)</span>
-                <input type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={handleFileChange} style={{ display: 'none' }} />
-              </label>
+              <MobileFilePicker
+                label="Take photo or upload document"
+                hint="Camera, gallery, or PDF · max 10MB"
+                onFileSelect={handleFileSelect}
+              />
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#F0FDF4', borderRadius: '8px', border: '1px solid #10B981' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#065F46' }}>

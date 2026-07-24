@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { FaReceipt, FaPlus, FaTimes, FaUpload, FaFileImage } from 'react-icons/fa';
+import { FaReceipt, FaPlus, FaTimes, FaFileImage } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { expenseApi } from '../../api/expenseApi';
 import api from '../../api/axios';
+import MobileFilePicker from './MobileFilePicker';
 
 const STATUS_COLORS = {
   pending:    { bg: '#FEF3C7', color: '#92400E' },
@@ -47,8 +48,7 @@ export default function ExpensesTab() {
 
   useEffect(() => { fetchExpenses(); }, [fetchExpenses]);
 
-  const handleReceiptChange = async (e) => {
-    const file = e.target.files[0];
+  const handleReceiptChange = async (file) => {
     if (!file) return;
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf'];
     if (!validTypes.includes(file.type)) { toast.error('Please upload JPG, PNG, GIF or PDF'); return; }
@@ -165,11 +165,14 @@ export default function ExpensesTab() {
               Receipt {isReceiptRequired ? <span style={{ color: '#EF4444' }}>*</span> : <span style={{ color: '#9CA3AF', fontWeight: '400' }}>(optional)</span>}
             </label>
             {!receiptFile ? (
-              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '14px', border: `2px dashed ${isReceiptRequired ? '#F59E0B' : '#E5E7EB'}`, borderRadius: '8px', cursor: 'pointer', color: '#6B7280', fontSize: '0.85rem', background: isReceiptRequired ? '#FFFBEB' : '#fff' }}>
-                <FaUpload size={14} />
-                <span>Upload receipt (JPG, PNG, PDF, max 10MB)</span>
-                <input type="file" accept=".jpg,.jpeg,.png,.gif,.pdf" onChange={handleReceiptChange} style={{ display: 'none' }} />
-              </label>
+              <MobileFilePicker
+                photoOnly={false}
+                highlight={isReceiptRequired}
+                label="Take photo or upload receipt"
+                hint="Camera, gallery, or PDF · max 10MB"
+                disabled={uploadingReceipt}
+                onFileSelect={handleReceiptChange}
+              />
             ) : (
               <div>
                 {receiptPreview && <img loading="lazy" src={receiptPreview} alt="Receipt" style={{ width: '100%', maxHeight: '160px', objectFit: 'cover', borderRadius: '8px', marginBottom: '8px' }} />}

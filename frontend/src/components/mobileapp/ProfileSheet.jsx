@@ -1,14 +1,17 @@
 import { useState } from 'react';
-import { FaUser, FaEnvelope, FaPhone, FaBriefcase, FaBuilding, FaIdCard, FaCamera, FaTimes, FaEdit, FaSave } from 'react-icons/fa';
+import { FaEnvelope, FaPhone, FaBriefcase, FaBuilding, FaIdCard, FaCamera, FaTimes, FaEdit, FaSave } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { resolveProfilePictureUrl } from '../../utils/profilePictureUrl';
 import api from '../../api/axios';
+import MobileFilePicker from './MobileFilePicker';
 
 export default function ProfileSheet({ onClose }) {
   const { user, refreshUser } = useAuth();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [showPhotoPicker, setShowPhotoPicker] = useState(false);
   const [form, setForm] = useState({
     name: user?.name || '',
     phone: user?.phone || '',
@@ -25,6 +28,34 @@ export default function ProfileSheet({ onClose }) {
     } catch (e) {
       toast.error(e.response?.data?.message || 'Failed to update profile');
     } finally { setSaving(false); }
+  };
+
+  const handlePhotoSelect = async (file) => {
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Please upload a JPG, PNG, or WebP image');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image must be less than 10MB');
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      await api.post('/upload/profile-picture', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      toast.success('Profile photo updated!');
+      setShowPhotoPicker(false);
+      if (refreshUser) await refreshUser();
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to upload profile photo');
+    } finally {
+      setUploadingPhoto(false);
+    }
   };
 
   const inputStyle = {
@@ -83,7 +114,35 @@ export default function ProfileSheet({ onClose }) {
                 {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
               </div>
             )}
+            <button
+              type="button"
+              onClick={() => setShowPhotoPicker(v => !v)}
+              disabled={uploadingPhoto}
+              aria-label="Change profile photo"
+              style={{
+                position: 'absolute', right: '-4px', bottom: '-4px',
+                width: '32px', height: '32px', borderRadius: '50%',
+                border: '2px solid #fff', background: '#10B981', color: '#fff',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: uploadingPhoto ? 'not-allowed' : 'pointer',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                opacity: uploadingPhoto ? 0.7 : 1,
+              }}
+            >
+              <FaCamera size={14} />
+            </button>
           </div>
+          {showPhotoPicker && (
+            <div style={{ width: '100%', marginBottom: '12px' }}>
+              <MobileFilePicker
+                photoOnly
+                label={uploadingPhoto ? 'Uploading photo...' : 'Take photo or choose from gallery'}
+                hint="JPG, PNG, or WebP · max 10MB"
+                disabled={uploadingPhoto}
+                onFileSelect={handlePhotoSelect}
+              />
+            </div>
+          )}
           <div style={{ fontWeight: '700', fontSize: '1.1rem', color: '#111827' }}>{user?.name}</div>
           <div style={{ fontSize: '0.8rem', color: '#6B7280', textTransform: 'capitalize', marginTop: '2px' }}>{user?.role} {user?.department?.name ? `· ${user.department.name}` : ''}</div>
           {user?.employeeId && <div style={{ fontSize: '0.75rem', color: '#9CA3AF', marginTop: '2px' }}>ID: {user.employeeId}</div>}

@@ -113,6 +113,16 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
       return;
     }
 
+    const isMobileViewport =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(max-width: 768px)').matches;
+
+    // Mobile browsers handle crop UI poorly; upload the selected photo directly.
+    if (isMobileViewport) {
+      uploadProfilePicture(file);
+      return;
+    }
+
     try {
       // Store file and show crop modal
       setSelectedFile(file);
@@ -438,11 +448,10 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     handleFileSelect(file);
+    e.target.value = '';
   };
 
-  const handleClick = () => {
-    fileInputRef.current?.click();
-  };
+  const profilePictureInputId = 'profile-picture-file-input';
 
   const handleRemove = async () => {
     if (!window.confirm('🗑️ Remove Profile Picture\n\nAre you sure you want to permanently remove your profile picture? This action cannot be undone.')) {
@@ -613,10 +622,12 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
     <div className="profile-picture-upload">
       <input
         ref={fileInputRef}
+        id={profilePictureInputId}
         type="file"
-        accept="image/jpeg,image/jpg,image/png,image/webp"
+        accept="image/jpeg,image/jpg,image/png,image/webp,image/*"
         onChange={handleFileChange}
-        style={{ display: "none" }}
+        disabled={uploading}
+        className="profile-picture-file-input"
       />
 
       <div className="profile-picture-container">
@@ -645,15 +656,14 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
         </div>
 
         <div className="profile-picture-actions">
-          <Button
-            size="sm"
-            variant="primary"
-            onClick={handleClick}
-            disabled={uploading}
+          <label
+            htmlFor={profilePictureInputId}
+            className={`btn btn-sm btn-primary mb-0 ${uploading ? 'disabled' : ''}`}
+            style={{ cursor: uploading ? 'not-allowed' : 'pointer' }}
           >
             <FaCamera className="me-2" />
             {preview ? "Change" : "Upload"}
-          </Button>
+          </label>
           {preview && (
             <>
               <Button
@@ -684,7 +694,7 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
       </small>
 
       {/* Image Crop Modal */}
-      <Modal show={showCropModal} onHide={() => setShowCropModal(false)} size="lg" centered>
+      <Modal show={showCropModal} onHide={() => setShowCropModal(false)} size="lg" centered fullscreen="md-down">
         <Modal.Header closeButton>
           <Modal.Title>
             <FaCrop className="me-2" />
@@ -851,13 +861,14 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
           <Button variant="secondary" onClick={() => setShowViewModal(false)}>
             Close
           </Button>
-          <Button variant="primary" onClick={() => {
-            setShowViewModal(false);
-            handleClick();
-          }}>
+          <label
+            htmlFor={profilePictureInputId}
+            className="btn btn-primary mb-0"
+            onClick={() => setShowViewModal(false)}
+          >
             <FaCamera className="me-2" />
             Change Picture
-          </Button>
+          </label>
         </Modal.Footer>
       </Modal>
     </div>
