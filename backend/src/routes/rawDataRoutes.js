@@ -22,6 +22,7 @@ import {
   getDashboardSummary,
   getSourceAnalysis,
   getCategoryAnalysis,
+  getAssignableStaff,
 } from "../controllers/rawDataController.js";
 
 const router = express.Router();
@@ -47,6 +48,7 @@ router.get("/dashboard/source-analysis", rawDataAnalytics, getSourceAnalysis);
 router.get("/dashboard/category-analysis", rawDataAnalytics, getCategoryAnalysis);
 
 router.get("/queue/today", crmRawDataManage, getTodayQueue);
+router.get("/assignable-staff", crmRawDataManage, getAssignableStaff);
 
 router.post("/check-duplicate", crmRawDataManage, checkDuplicate);
 router.post("/batch-import", crmRawDataManage, batchImport);

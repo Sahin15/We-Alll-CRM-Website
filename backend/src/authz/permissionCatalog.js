@@ -24,12 +24,12 @@ export const PERMISSION_CATALOG = [
   { key: 'support.view', module: 'support', description: 'View support contacts' },
   { key: 'support.manage', module: 'support', description: 'Manage support categories' },
 
-  // Team / Users
-  { key: 'team.user.view', module: 'team', description: 'View user list' },
-  { key: 'team.user.create', module: 'team', description: 'Create users' },
-  { key: 'team.user.update', module: 'team', description: 'Update users' },
-  { key: 'team.department.view', module: 'team', description: 'View departments' },
-  { key: 'team.department.manage', module: 'team', description: 'Manage departments' },
+  // Team / Users — sidebar: Users=update, Employees=view, Departments=department.*
+  { key: 'team.user.view', module: 'team', description: 'Team menu — Employees list (/employees)' },
+  { key: 'team.user.create', module: 'team', description: 'Create users / add employees' },
+  { key: 'team.user.update', module: 'team', description: 'Team menu — Users admin list (/users)' },
+  { key: 'team.department.view', module: 'team', description: 'Team menu — Departments (/departments)' },
+  { key: 'team.department.manage', module: 'team', description: 'Manage departments (includes view)' },
 
   // Attendance
   { key: 'attendance.record.view_self', module: 'attendance', description: 'View own attendance' },
@@ -46,7 +46,7 @@ export const PERMISSION_CATALOG = [
   // Work log
   { key: 'worklog.entry.create', module: 'worklog', description: 'Create work log entries' },
   { key: 'worklog.entry.view_self', module: 'worklog', description: 'View own work logs' },
-  { key: 'worklog.entry.review', module: 'worklog', description: 'Review work logs' },
+  { key: 'worklog.entry.review', module: 'worklog', description: 'Team menu — Work Log Management (/admin/worklog-management)' },
 
   // Projects
   { key: 'projects.project.view', module: 'projects', description: 'View projects' },

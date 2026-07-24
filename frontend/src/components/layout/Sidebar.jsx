@@ -540,23 +540,29 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       icon: <FaUsers />,
       label: "Team",
       permission: "team.user.view",
+      alternatePermissions: [
+        "team.user.update",
+        "team.user.create",
+        "team.department.view",
+        "team.department.manage",
+        "worklog.entry.review",
+      ],
       fallbackRoles: TEAM_MANAGE_ROLES,
-      onlyForRoles: ["admin", "superadmin", "hr", "manager"],
       isGroup: true,
       children: [
         {
           path: "/users",
           icon: <FaUsers />,
           label: "Users",
-          permission: "team.user.view",
+          permission: "team.user.update",
           fallbackRoles: TEAM_USER_ADMIN_ROLES,
-          onlyForRoles: TEAM_USER_ADMIN_ROLES,
         },
         {
           path: "/employees",
           icon: <FaUsers />,
           label: "Employees",
           permission: "team.user.view",
+          alternatePermissions: ["team.user.create"],
           fallbackRoles: TEAM_MANAGE_ROLES,
         },
         {
@@ -564,6 +570,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           icon: <FaBuilding />,
           label: "Departments",
           permission: "team.department.view",
+          alternatePermissions: ["team.department.manage"],
           fallbackRoles: TEAM_MANAGE_ROLES,
         },
         {

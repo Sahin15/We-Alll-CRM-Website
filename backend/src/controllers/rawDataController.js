@@ -1,7 +1,12 @@
 import RawData from "../models/rawDataModel.js";
 import Lead from "../models/leadModel.js";
+import User from "../models/userModel.js";
+import Department from "../models/departmentModel.js";
 
 const LOCK_DURATION_MINUTES = 15;
+
+/** Departments exposed for raw-data assign / convert dropdowns. */
+const RAW_DATA_ASSIGNABLE_DEPARTMENTS = new Set(["Sales", "Telecaller"]);
 
 // ─── CRUD ────────────────────────────────────────────────────────────────────
 
@@ -434,5 +439,46 @@ export const getCategoryAnalysis = async (req, res) => {
     res.json({ categories: data });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * GET /api/raw-data/assignable-staff?department=Sales|Telecaller
+ * Active staff for assign-caller and convert-to-lead dropdowns (crm.rawdata.manage).
+ *
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
+export const getAssignableStaff = async (req, res) => {
+  try {
+    const departmentName = String(req.query.department || "").trim();
+    if (!RAW_DATA_ASSIGNABLE_DEPARTMENTS.has(departmentName)) {
+      return res.status(400).json({
+        success: false,
+        error: "department must be Sales or Telecaller",
+      });
+    }
+
+    const dept = await Department.findOne({ name: departmentName }).select("_id name").lean();
+    if (!dept) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    const limit = Math.min(parseInt(req.query.limit, 10) || 1000, 1000);
+
+    const users = await User.find({
+      department: dept._id,
+      status: "active",
+      isActive: { $ne: false },
+      role: { $ne: "superadmin" },
+    })
+      .select("_id name email designation role")
+      .sort({ name: 1 })
+      .limit(limit)
+      .lean();
+
+    res.status(200).json({ success: true, data: users });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 };
