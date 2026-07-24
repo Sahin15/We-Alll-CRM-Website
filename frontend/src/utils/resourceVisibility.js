@@ -76,6 +76,10 @@ export function canViewAllCompanyProjects({ user, authzEffective, canPermission 
     return true;
   }
 
+  if (hasCompanyWidePermission({ user, authzEffective, canPermission }, 'projects.project.manage')) {
+    return true;
+  }
+
   return COMPANY_VIEWER_ROLES.includes(user.role);
 }
 

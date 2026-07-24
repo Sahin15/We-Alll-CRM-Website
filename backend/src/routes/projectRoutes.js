@@ -24,6 +24,7 @@ import {
   addTeamMember,
   removeTeamMember,
   getProjectTeam,
+  getTeamMemberCandidates,
   getMyLeadingProjects,
   getMyDepartmentProjects,
   getProjectCredentials,
@@ -171,6 +172,15 @@ router.post(
 );
 
 // Team Management (HoP, HoD, Admin — custom middleware in controller)
+router.get(
+  "/:projectId/team/candidates",
+  protect,
+  canManageProject,
+  requireModulePermission("projects", "projects.project.manage", {
+    legacyRoles: PROJECT_UPDATE_ROLES,
+  }),
+  getTeamMemberCandidates
+);
 router.post(
   "/:projectId/team/add",
   protect,

@@ -738,30 +738,42 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       if (!permitted) return false;
 
       if (menuItem.onlyForRoles?.length > 0) {
-        if (menuItem.onlyForRoles.includes(user.role)) {
-          // allowed
-        } else if (
-          user.role === "hod" &&
-          menuItem.hodDepartments?.length > 0 &&
-          menuItem.hodDepartments.some(
-            (d) => d.toLowerCase() === user?.department?.name?.toLowerCase()
-          )
-        ) {
-          // HoD of allowed department
-        } else {
-          return false;
+        const menuPermission = menuItem.permission;
+        const hasAuthzGrant =
+          menuPermission &&
+          authzEffective?.permissions?.includes(menuPermission);
+
+        if (!hasAuthzGrant && !menuItem.onlyForRoles.includes(user.role)) {
+          if (
+            user.role === "hod" &&
+            menuItem.hodDepartments?.length > 0 &&
+            menuItem.hodDepartments.some(
+              (d) => d.toLowerCase() === user?.department?.name?.toLowerCase()
+            )
+          ) {
+            // HoD of allowed department
+          } else {
+            return false;
+          }
         }
       }
 
       const isPrivilegedRole = canAccess('team.user.update', ['admin', 'superadmin', 'manager']);
 
       if (menuItem.departments?.length > 0 && !isPrivilegedRole) {
-        if (!user?.department?.name) return false;
+        const menuPermission = menuItem.permission;
+        const hasAuthzGrant =
+          menuPermission &&
+          authzEffective?.permissions?.includes(menuPermission);
 
-        const hasDepartmentAccess = menuItem.departments.some(
-          (dept) => dept.toLowerCase() === user.department.name.toLowerCase()
-        );
-        if (!hasDepartmentAccess) return false;
+        if (!hasAuthzGrant) {
+          if (!user?.department?.name) return false;
+
+          const hasDepartmentAccess = menuItem.departments.some(
+            (dept) => dept.toLowerCase() === user.department.name.toLowerCase()
+          );
+          if (!hasDepartmentAccess) return false;
+        }
       }
 
       if (menuItem.excludeDepartments?.length > 0 && user?.department?.name && !isPrivilegedRole) {

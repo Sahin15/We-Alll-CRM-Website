@@ -14,6 +14,7 @@ import {
   canUserViewProject,
   canViewAllCompanyProjects,
 } from '../services/resourceVisibilityService.js';
+import { hasPermission } from '../authz/policyEngine.js';
 import { encrypt, decrypt } from "../utils/encryption.js";
 import {
   isPastMember,
@@ -63,10 +64,10 @@ export const createProject = async (req, res) => {
         .json({ message: "Project Head is required" });
     }
 
-    // SIMPLIFIED: Only Manager, HR, Admin, SuperAdmin can create projects
-    if (!['admin', 'superadmin', 'hr', 'manager'].includes(req.user.role)) {
-      return res.status(403).json({ 
-        message: "Only Manager, HR, Admin, or SuperAdmin can create projects" 
+    // Authorization V2: middleware enforces projects.project.manage
+    if (!hasPermission(req.user, 'projects.project.manage')) {
+      return res.status(403).json({
+        message: "Insufficient permissions to create projects",
       });
     }
 
@@ -1319,6 +1320,58 @@ export const removeTeamMember = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Error removing team member",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * List users eligible to join a project team (project managers only).
+ * Avoids requiring company-wide team.user.view on GET /api/users.
+ */
+export const getTeamMemberCandidates = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const project =
+      req.hopProject ||
+      (await Project.findById(projectId).populate("department"));
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
+      });
+    }
+
+    const assignedUserIds = new Set(
+      [
+        ...(project.assignedUsers || []).map((id) => String(id?._id || id)),
+        ...(project.teamMembers || []).map((member) =>
+          String(member.user?._id || member.user)
+        ),
+        project.projectHead ? String(project.projectHead._id || project.projectHead) : null,
+      ].filter(Boolean)
+    );
+
+    const users = await User.find({
+      status: "active",
+      isActive: { $ne: false },
+      role: { $in: ["employee", "hod"] },
+    })
+      .select("_id name email role department")
+      .populate("department", "name")
+      .sort({ name: 1 })
+      .limit(1000)
+      .lean();
+
+    const data = users.filter((user) => !assignedUserIds.has(String(user._id)));
+
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    console.error("Error in getTeamMemberCandidates:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching team member candidates",
       error: error.message,
     });
   }

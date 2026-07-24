@@ -113,40 +113,11 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
 
   const loadAvailableUsers = async () => {
     try {
-      const response = await userApi.getAllUsers({ status: 'active', limit: 1000 });
-      const allUsers = response.data || response || [];
-      
-      // Get all current team member IDs from both teamMembers and assignedUsers
-      const currentTeamIds = new Set();
-      
-      // Add from teamMembers (objects with user property)
-      if (currentProject.teamMembers) {
-        currentProject.teamMembers.forEach(member => {
-          const userId = member.user?._id || member.user;
-          if (userId) currentTeamIds.add(userId);
-        });
-      }
-      
-      // Add from assignedUsers (direct user IDs or objects)
-      if (currentProject.assignedUsers) {
-        currentProject.assignedUsers.forEach(user => {
-          const userId = user._id || user;
-          if (userId) currentTeamIds.add(userId);
-        });
-      }
-      
-      // Add project head
-      if (currentProject.projectHead) {
-        const headId = currentProject.projectHead._id || currentProject.projectHead;
-        if (headId) currentTeamIds.add(headId);
-      }
-      
-      // Filter out users already in the team
-      const available = allUsers.filter(u => !currentTeamIds.has(u._id));
-      
-      setAvailableUsers(available);
+      const candidates = await projectApi.getTeamMemberCandidates(currentProject._id);
+      setAvailableUsers(candidates);
     } catch (error) {
       console.error('Error loading available users:', error);
+      toast.error('Failed to load available users');
     }
   };
 

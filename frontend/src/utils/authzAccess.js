@@ -43,7 +43,11 @@ export function hasPermissionAccess({
   if (!user || !permission) return false;
 
   if (requiresDepartmentHead && !isDepartmentHead(user)) {
-    return false;
+    const permissionKeys = [permission, ...alternatePermissions].filter(Boolean);
+    const hasDirectGrant =
+      authzEffective?.permissions &&
+      permissionKeys.some((key) => canPermission(key));
+    if (!hasDirectGrant) return false;
   }
 
   const permissionKeys = [permission, ...alternatePermissions].filter(Boolean);
