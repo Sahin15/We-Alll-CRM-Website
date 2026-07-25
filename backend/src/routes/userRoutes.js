@@ -2,6 +2,7 @@ import express from "express";
 import {
   registerUser,
   getUsers,
+  getMeetingDirectory,
   loginUser,
   getUserById,
   updateUserProfile,
@@ -44,6 +45,14 @@ router.post(
   registerUser
 );
 router.post("/login", loginUser);
+router.get(
+  "/meeting-directory",
+  protect,
+  requireModulePermission("company", "company.meeting.view", {
+    legacyRoles: [...USER_MANAGE_ROLES, "employee", "hod", "sales", "telecaller", "accounts", "client"],
+  }),
+  getMeetingDirectory
+);
 router.get("/", protect, userView, getUsers);
 router.get(
   "/employees",

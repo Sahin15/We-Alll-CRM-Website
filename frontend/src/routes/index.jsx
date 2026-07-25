@@ -359,7 +359,12 @@ const AppRoutes = () => {
         <Route
           path="/departments"
           element={
-            <PermissionRoute permission="team.department.view" alternatePermissions={["team.department.manage"]} module="team">
+            <PermissionRoute
+              permission="team.department.view"
+              alternatePermissions={["team.department.manage"]}
+              menuAllowedRoles={["admin", "superadmin", "hr", "manager"]}
+              module="team"
+            >
               <DepartmentList />
             </PermissionRoute>
           }
@@ -367,7 +372,12 @@ const AppRoutes = () => {
         <Route
           path="/departments/:id"
           element={
-            <PermissionRoute permission="team.department.view" alternatePermissions={["team.department.manage"]} module="team">
+            <PermissionRoute
+              permission="team.department.view"
+              alternatePermissions={["team.department.manage"]}
+              menuAllowedRoles={["admin", "superadmin", "hr", "manager"]}
+              module="team"
+            >
               <DepartmentDetails />
             </PermissionRoute>
           }
@@ -655,6 +665,7 @@ const AppRoutes = () => {
             <PermissionRoute
               permission="hiring.pipeline.manage"
               alternatePermissions={["hiring.request.view"]}
+              companyWideAlternates={["hiring.request.view"]}
               module="hiring"
               fallbackRoles={["admin", "superadmin", "hr", "manager"]}
             >
@@ -670,6 +681,7 @@ const AppRoutes = () => {
             <PermissionRoute
               permission="hiring.pipeline.manage"
               alternatePermissions={["hiring.request.view"]}
+              companyWideAlternates={["hiring.request.view"]}
               module="hiring"
               fallbackRoles={["admin", "superadmin", "hr", "manager"]}
             >

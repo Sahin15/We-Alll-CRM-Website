@@ -335,6 +335,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           icon: <FaUserPlus />,
           label: "Hiring Requests",
           permission: "hiring.request.view",
+          alternatePermissions: ["hiring.request.create"],
           fallbackRoles: ["hod"],
           requiresDepartmentHead: true,
         },
@@ -501,6 +502,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       label: "Hiring",
       permission: "hiring.pipeline.manage",
       alternatePermissions: ["hiring.request.view"],
+      companyWideAlternates: ["hiring.request.view"],
       fallbackRoles: HIRING_PIPELINE_ROLES,
       isGroup: true,
       children: [
@@ -517,6 +519,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           label: "Requests & Pipeline",
           permission: "hiring.pipeline.manage",
           alternatePermissions: ["hiring.request.view"],
+          companyWideAlternates: ["hiring.request.view"],
           fallbackRoles: HIRING_PIPELINE_ROLES,
         },
         {
@@ -543,7 +546,6 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       alternatePermissions: [
         "team.user.update",
         "team.user.create",
-        "team.department.view",
         "team.department.manage",
         "worklog.entry.review",
       ],
@@ -572,6 +574,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           permission: "team.department.view",
           alternatePermissions: ["team.department.manage"],
           fallbackRoles: TEAM_MANAGE_ROLES,
+          onlyForRoles: ["admin", "superadmin", "hr", "manager"],
         },
         {
           path: "/admin/worklog-management",
@@ -736,6 +739,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           authzLoading,
           permission: menuItem.permission,
           alternatePermissions: menuItem.alternatePermissions || [],
+          companyWideAlternates: menuItem.companyWideAlternates || [],
           fallbackRoles: menuItem.fallbackRoles || [],
           requiresDepartmentHead: menuItem.requiresDepartmentHead,
         });
@@ -745,7 +749,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
 
       if (!permitted) return false;
 
-      if (!passesLegacyRoleMenuGate({ user, menuItem, canPermission })) {
+      if (!passesLegacyRoleMenuGate({ user, menuItem, authzEffective })) {
         return false;
       }
 

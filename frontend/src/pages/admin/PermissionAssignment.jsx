@@ -62,6 +62,60 @@ const VIEW_FILTERS = [
 const BROWSE_PAGE_SIZE = 24;
 
 /**
+ * Quick bundles that map sidebar menu capabilities to permission keys + scopes.
+ * Superadmin applies to draft, then saves.
+ */
+const MENU_CAPABILITY_PRESETS = [
+  {
+    id: "hod-hiring",
+    label: "HoD — Department hiring",
+    description:
+      "Daily Work Log → Hiring Requests. View list and create/submit requests for own department.",
+    grants: [
+      { permission: "hiring.request.view", scope: "OWN_DEPARTMENT" },
+      { permission: "hiring.request.create", scope: "OWN_DEPARTMENT" },
+    ],
+  },
+  {
+    id: "hod-worklog-review",
+    label: "HoD — Department work log review",
+    description:
+      "Daily Work Log → Department Review and Team → Work Log Management for own department.",
+    grants: [{ permission: "worklog.entry.review", scope: "OWN_DEPARTMENT" }],
+  },
+  {
+    id: "team-departments",
+    label: "Team — Departments tab",
+    description: "Team → Departments admin page (/departments). Company-wide org structure.",
+    grants: [{ permission: "team.department.view", scope: "COMPANY" }],
+  },
+  {
+    id: "hr-hiring-pipeline",
+    label: "HR — Full hiring pipeline",
+    description: "HR → Hiring menu (overview, CV bank, offer letters). Company-wide.",
+    grants: [{ permission: "hiring.pipeline.manage", scope: "COMPANY" }],
+  },
+  {
+    id: "hr-hiring-requests",
+    label: "HR — Requests & pipeline (view)",
+    description: "HR → Hiring → Requests & Pipeline (/hr/hiring/requests). Requires COMPANY scope.",
+    grants: [{ permission: "hiring.request.view", scope: "COMPANY" }],
+  },
+  {
+    id: "hide-departments",
+    label: "Hide — Departments tab",
+    description: "Deny Team → Departments even when the role would normally include it.",
+    denies: ["team.department.view", "team.department.manage"],
+  },
+  {
+    id: "hide-hod-hiring",
+    label: "Hide — HoD hiring menu",
+    description: "Deny Daily Work Log → Hiring Requests for this user.",
+    denies: ["hiring.request.view", "hiring.request.create"],
+  },
+];
+
+/**
  * @param {Record<string, { permission: string, scope: string, effect: string, note?: string }>} draft
  */
 function draftToAssignments(draft) {
@@ -361,6 +415,36 @@ const PermissionAssignment = () => {
       delete next[permission];
       return next;
     });
+  };
+
+  const applyMenuPreset = (preset) => {
+    setDraft((prev) => {
+      const next = { ...prev };
+
+      for (const grant of preset.grants || []) {
+        next[grant.permission] = {
+          permission: grant.permission,
+          scope: grant.scope,
+          effect: "grant",
+          note: preset.label,
+          expiresAt: prev[grant.permission]?.expiresAt || "",
+        };
+      }
+
+      for (const permission of preset.denies || []) {
+        next[permission] = {
+          permission,
+          scope: prev[permission]?.scope || inheritedScopes[permission] || "COMPANY",
+          effect: "deny",
+          note: preset.label,
+          expiresAt: "",
+        };
+      }
+
+      return next;
+    });
+
+    toast.info(`Applied "${preset.label}" to draft. Click Save assignments to apply.`);
   };
 
   const handleDiscard = () => {
@@ -870,6 +954,34 @@ const PermissionAssignment = () => {
               </Card>
             </Col>
           </Row>
+
+          <Card className="border-0 shadow-sm mb-4">
+            <Card.Header className="bg-white">
+              <strong>Menu capability presets</strong>
+              <p className="text-muted small mb-0 mt-1">
+                One-click bundles for sidebar menus. Applies to the draft below — save to persist.
+              </p>
+            </Card.Header>
+            <Card.Body>
+              <Row className="g-2">
+                {MENU_CAPABILITY_PRESETS.map((preset) => (
+                  <Col key={preset.id} md={6} xl={4}>
+                    <div className="permission-preset-card h-100 p-3 border rounded">
+                      <div className="fw-semibold small mb-1">{preset.label}</div>
+                      <p className="text-muted small mb-2">{preset.description}</p>
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        onClick={() => applyMenuPreset(preset)}
+                      >
+                        Apply preset
+                      </Button>
+                    </div>
+                  </Col>
+                ))}
+              </Row>
+            </Card.Body>
+          </Card>
 
           {payload.directAssignments?.length > 0 && (
             <Card className="border-0 shadow-sm mb-4">

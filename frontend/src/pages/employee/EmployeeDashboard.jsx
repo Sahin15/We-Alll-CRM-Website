@@ -311,7 +311,7 @@ const EmployeeDashboard = () => {
 
   const fetchEmployees = async () => {
     try {
-      const response = await api.get("/users", { params: { status: 'active', limit: 1000 } });
+      const response = await api.get("/users/meeting-directory", { params: { limit: 1000 } });
       setEmployees(response.data);
     } catch (error) {
       console.error("Error fetching employees:", error);

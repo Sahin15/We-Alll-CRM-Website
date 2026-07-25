@@ -108,6 +108,32 @@ export const registerUser = async (req, res) => {
   }
 };
 
+/**
+ * Active user roster for meeting attendee pickers (no team.user.view required).
+ * Gated by company.meeting.view — available to all standard employees and HoD.
+ */
+export const getMeetingDirectory = async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 1000, 1000);
+
+    const users = await User.find({
+      status: "active",
+      isActive: { $ne: false },
+      role: { $ne: "superadmin" },
+    })
+      .select("_id name email role department profilePicture designation status")
+      .populate("department", "name")
+      .sort({ name: 1 })
+      .limit(limit)
+      .lean();
+
+    res.status(200).json(users);
+  } catch (error) {
+    logger.error("Error in getMeetingDirectory:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 // Get all users (optimized but backward compatible)
 export const getUsers = async (req, res) => {
   try {

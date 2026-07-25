@@ -28,7 +28,7 @@ export const PERMISSION_CATALOG = [
   { key: 'team.user.view', module: 'team', description: 'Team menu — Employees list (/employees)' },
   { key: 'team.user.create', module: 'team', description: 'Create users / add employees' },
   { key: 'team.user.update', module: 'team', description: 'Team menu — Users admin list (/users)' },
-  { key: 'team.department.view', module: 'team', description: 'Team menu — Departments (/departments)' },
+  { key: 'team.department.view', module: 'team', description: 'Team menu — Departments admin tab (/departments). Not granted to all employees by default; assign via Permission Assignment.' },
   { key: 'team.department.manage', module: 'team', description: 'Manage departments (includes view)' },
 
   // Attendance
@@ -67,10 +67,10 @@ export const PERMISSION_CATALOG = [
   { key: 'company.announcement.view', module: 'company', description: 'View announcements' },
   { key: 'company.announcement.manage', module: 'company', description: 'Manage announcements' },
 
-  // Hiring
-  { key: 'hiring.request.create', module: 'hiring', description: 'Create hiring requests' },
-  { key: 'hiring.request.view', module: 'hiring', description: 'View hiring requests' },
-  { key: 'hiring.pipeline.manage', module: 'hiring', description: 'Manage hiring pipeline' },
+  // Hiring — HoD uses Daily Work Log; HR uses Hiring menu (COMPANY scope)
+  { key: 'hiring.request.create', module: 'hiring', description: 'Daily Work Log → Hiring Requests — create & submit (/hod/hiring/requests/new). Scope: OWN_DEPARTMENT for HoD.' },
+  { key: 'hiring.request.view', module: 'hiring', description: 'Daily Work Log → Hiring Requests list (/hod/hiring/requests). HR pipeline tab needs COMPANY scope (not OWN_DEPARTMENT).' },
+  { key: 'hiring.pipeline.manage', module: 'hiring', description: 'HR → Hiring menu — overview, CV bank, offer letters (/hr/hiring/*). Company-wide HR pipeline.' },
 
   // Procurement
   { key: 'procurement.pr.create', module: 'procurement', description: 'Create purchase requests' },

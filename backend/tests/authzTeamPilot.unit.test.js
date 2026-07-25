@@ -35,10 +35,10 @@ describe('Authorization V2 — Team pilot parity', () => {
   });
 
   test.each(['employee', 'hod', 'sales'])(
-    'role %s has department view for open directory APIs',
+    'role %s does not inherit Team → Departments tab by default',
     (role) => {
       const user = { _id: `user-${role}`, role };
-      expect(hasPermission(user, 'team.department.view')).toBe(true);
+      expect(hasPermission(user, 'team.department.view')).toBe(false);
     }
   );
 

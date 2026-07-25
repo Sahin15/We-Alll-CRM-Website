@@ -26,7 +26,6 @@ const EMPLOYEE_STANDARD_GRANTS = [
   { permission: 'company.meeting.view', scope: SCOPES.COMPANY },
   { permission: 'company.policy.view', scope: SCOPES.COMPANY },
   { permission: 'company.announcement.view', scope: SCOPES.COMPANY },
-  { permission: 'team.department.view', scope: SCOPES.COMPANY },
   { permission: 'procurement.pr.create', scope: SCOPES.SELF },
   { permission: 'procurement.pr.view_self', scope: SCOPES.SELF },
   { permission: 'expense.claim.create', scope: SCOPES.SELF },

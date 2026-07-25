@@ -3,6 +3,7 @@ import {
   createDepartment,
   getDepartments,
   getOperationalDepartments,
+  getDepartmentDirectory,
   getDepartmentById,
   updateDepartment,
   deleteDepartment,
@@ -26,14 +27,19 @@ import { isHoDOfDepartment } from "../middleware/hodMiddleware.js";
 
 const router = express.Router();
 
-const DEPT_VIEW_ROLES = [
+const DEPT_VIEW_ROLES = ["manager", "hr", "admin", "superadmin"];
+
+const DEPT_DIRECTORY_ROLES = [
   "employee",
   "hod",
   "sales",
+  "telecaller",
   "manager",
   "hr",
   "admin",
   "superadmin",
+  "accounts",
+  "client",
 ];
 
 const deptView = requireModulePermission("team", "team.department.view", {
@@ -80,6 +86,15 @@ router.post(
   createDepartment
 );
 router.get("/", protect, deptView, getDepartments);
+
+router.get(
+  "/directory",
+  protect,
+  requireModulePermission("dashboard", "dashboard.view", {
+    legacyRoles: DEPT_DIRECTORY_ROLES,
+  }),
+  getDepartmentDirectory
+);
 
 router.get("/operational", protect, deptView, getOperationalDepartments);
 
