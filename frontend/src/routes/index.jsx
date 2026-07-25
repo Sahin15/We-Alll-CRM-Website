@@ -271,7 +271,7 @@ const AppRoutes = () => {
             <PermissionRoute
               permission="team.user.update"
               module="team"
-              fallbackRoles={["admin", "superadmin"]}
+              fallbackRoles={["superadmin"]}
             >
               <UserList />
             </PermissionRoute>
@@ -283,7 +283,7 @@ const AppRoutes = () => {
             <PermissionRoute
               permission="team.user.update"
               module="team"
-              fallbackRoles={["admin", "superadmin"]}
+              fallbackRoles={["superadmin"]}
             >
               <UserDetails />
             </PermissionRoute>

@@ -17,7 +17,7 @@ import {
 import { protect } from '../middleware/authMiddleware.js';
 
 
-import { requireModulePermission } from "../authz/authzMiddleware.js";
+import { requireModulePermission, requireModulePermissionAny } from "../authz/authzMiddleware.js";
 import { uploadDocument, handleDocumentUploadError } from "../middleware/documentMiddleware.js";
 import {
   upload as documentUpload,
@@ -32,10 +32,22 @@ import {
 const router = express.Router();
 
 const USER_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
+const USER_ADMIN_ROLES = ["superadmin"];
 
 const userView = requireModulePermission("team", "team.user.view", {
   legacyRoles: USER_MANAGE_ROLES,
 });
+
+const userAdminUpdate = requireModulePermission("team", "team.user.update", {
+  legacyRoles: USER_ADMIN_ROLES,
+});
+
+/** HR/manager employee profile edits — not the /users admin roster. */
+const userStaffUpdate = requireModulePermissionAny(
+  "team",
+  ["team.user.update", "team.user.create"],
+  { legacyRoles: USER_MANAGE_ROLES }
+);
 
 // Registration endpoint - used by admins to add users (not public)
 router.post(
@@ -127,7 +139,7 @@ router.get("/official-documents", protect, (req, res, next) => {
 }, getOfficialDocuments);
 router.post("/documents", protect, documentUpload.single('document'), uploadUserDocument);
 router.post("/official-documents", protect, documentUpload.single('document'), uploadOfficialDocument);
-router.post("/:id/official-documents", protect, requireModulePermission("team", "team.user.update", { legacyRoles: USER_MANAGE_ROLES }), documentUpload.single('document'), async (req, res, next) => {
+router.post("/:id/official-documents", protect, userStaffUpdate, documentUpload.single('document'), async (req, res, next) => {
   try {
     const { id: userId } = req.params;
 
@@ -180,9 +192,7 @@ router.put("/change-password", protect, requireModulePermission("profile", "prof
 router.post(
   "/next-employee-id-sequence",
   protect,
-  requireModulePermission("team", "team.user.update", {
-    legacyRoles: USER_MANAGE_ROLES,
-  }),
+  userStaffUpdate,
   getNextEmployeeIdSequence
 );
 
@@ -233,19 +243,19 @@ router.put("/profile", protect, requireModulePermission("profile", "profile.upda
 router.put(
   "/:id/profile",
   protect,
-  requireModulePermission("team", "team.user.update", { legacyRoles: USER_MANAGE_ROLES }),
+  userStaffUpdate,
   updateUser
 );
 router.put(
   "/:id/status",
   protect,
-  requireModulePermission("team", "team.user.update", { legacyRoles: USER_MANAGE_ROLES }),
+  userStaffUpdate,
   updateEmployeeStatus
 );
 router.put(
   "/:id",
   protect,
-  requireModulePermission("team", "team.user.update", { legacyRoles: USER_MANAGE_ROLES }),
+  userStaffUpdate,
   updateUser
 );
 router.delete(
@@ -274,7 +284,7 @@ router.delete(
 router.put(
   "/:id/reset-password",
   protect,
-  requireModulePermission("team", "team.user.update", { legacyRoles: USER_MANAGE_ROLES }),
+  userAdminUpdate,
   async (req, res) => {
   try {
     const { id } = req.params;
