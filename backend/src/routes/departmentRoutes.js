@@ -23,7 +23,10 @@ import { protect } from '../middleware/authMiddleware.js';
 
 
 import { requireModulePermission } from "../authz/authzMiddleware.js";
-import { isHoDOfDepartment } from "../middleware/hodMiddleware.js";
+import {
+  isHoDOfDepartment,
+  allowDeptViewOrHoDOfDepartment,
+} from "../middleware/hodMiddleware.js";
 
 const router = express.Router();
 
@@ -116,10 +119,10 @@ router.delete(
   removeHoD
 );
 
-// HoD Access Routes - MUST come before /:id route
-router.get("/:departmentId/projects", protect, isHoDOfDepartment, deptView, getDepartmentProjects);
-router.get("/:departmentId/members", protect, isHoDOfDepartment, deptView, getDepartmentMembers);
-router.get("/:departmentId/stats", protect, isHoDOfDepartment, deptView, getDepartmentStats);
+// HoD Access Routes - MUST come before /:id route (isHoDOfDepartment is sufficient; no team.department.view)
+router.get("/:departmentId/projects", protect, isHoDOfDepartment, getDepartmentProjects);
+router.get("/:departmentId/members", protect, isHoDOfDepartment, getDepartmentMembers);
+router.get("/:departmentId/stats", protect, isHoDOfDepartment, getDepartmentStats);
 
 // Department head management
 router.put(
@@ -132,7 +135,12 @@ router.put(
 );
 
 // Generic /:id routes - MUST come AFTER specific routes
-router.get("/:id", protect, deptView, getDepartmentById);
+router.get(
+  "/:id",
+  protect,
+  allowDeptViewOrHoDOfDepartment(deptView),
+  getDepartmentById
+);
 router.put(
   "/:id",
   protect,
