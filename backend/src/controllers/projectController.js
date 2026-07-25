@@ -1447,35 +1447,24 @@ export const getMyLeadingProjects = async (req, res) => {
  */
 export const getMyDepartmentProjects = async (req, res) => {
   try {
-    if (!canViewAllCompanyProjects(req.user)) {
-      const projects = await Project.find(buildProjectListQuery(req.user, {}))
-        .populate("client", "name email serviceCompany")
-        .populate("projectHead", "name email designation")
-        .populate("teamMembers.user", "name email")
-        .sort({ createdAt: -1 });
-
-      return res.status(200).json({
-        success: true,
-        data: projects,
-        total: projects.length,
-      });
-    }
-
     const user = await User.findById(req.user._id).populate("headOfDepartment");
 
-    if (!user.isHeadOfDepartment || !user.headOfDepartment) {
+    if (!user?.isHeadOfDepartment || !user.headOfDepartment) {
       return res.status(403).json({
         success: false,
         message: "You are not a Head of Department",
       });
     }
 
+    const departmentId = user.headOfDepartment._id;
+
     const projects = await Project.find({
-      department: user.headOfDepartment._id,
+      $or: [{ department: departmentId }, { departments: departmentId }],
     })
       .populate("client", "name email serviceCompany")
       .populate("projectHead", "name email designation")
       .populate("teamMembers.user", "name email")
+      .populate("departments", "name")
       .sort({ createdAt: -1 });
 
     res.status(200).json({
