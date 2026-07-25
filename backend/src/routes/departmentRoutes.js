@@ -32,6 +32,8 @@ const router = express.Router();
 
 const DEPT_VIEW_ROLES = ["manager", "hr", "admin", "superadmin"];
 
+const CLIENT_DEPT_ASSIGN_ROLES = ["manager", "hr", "admin", "superadmin"];
+
 const DEPT_DIRECTORY_ROLES = [
   "employee",
   "hod",
@@ -99,7 +101,14 @@ router.get(
   getDepartmentDirectory
 );
 
-router.get("/operational", protect, deptView, getOperationalDepartments);
+router.get(
+  "/operational",
+  protect,
+  requireModulePermission("crm", "crm.client.manage", {
+    legacyRoles: CLIENT_DEPT_ASSIGN_ROLES,
+  }),
+  getOperationalDepartments
+);
 
 // HoD Management (New) - MUST come before /:id route
 router.post(

@@ -119,9 +119,11 @@ const ClientList = () => {
   useEffect(() => {
     if (user) {
       fetchClients();
-      fetchDepartments();
+      if (canManageClients) {
+        fetchDepartments();
+      }
     }
-  }, [user, viewAllClients]);
+  }, [user, viewAllClients, canManageClients]);
 
   useEffect(() => {
     applyFilters();

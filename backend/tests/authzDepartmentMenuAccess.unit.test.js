@@ -107,6 +107,46 @@ describe('Authorization V2 — department admin vs directory access', () => {
     expect(result.nextCalled).toBe(true);
   });
 
+  test('HoD cannot load operational departments for client assignment without crm.client.manage', () => {
+    process.env = {
+      ...originalEnv,
+      AUTHZ_V2_ENFORCE: 'true',
+      AUTHZ_V2_CRM: 'true',
+    };
+
+    const user = makeAuthzTestUser('hod', { authzDepartmentName: 'sales' });
+    expect(hasPermission(user, 'crm.client.manage')).toBe(false);
+
+    const handler = requireModulePermission('crm', 'crm.client.manage', {
+      legacyRoles: ['manager', 'hr', 'admin', 'superadmin'],
+    });
+
+    const req = {
+      user,
+      authzDepartmentName: user.authzDepartmentName,
+      originalUrl: '/api/departments/operational',
+      method: 'GET',
+    };
+    const res = {
+      statusCode: 200,
+      status(code) {
+        this.statusCode = code;
+        return this;
+      },
+      json() {
+        return this;
+      },
+    };
+
+    let nextCalled = false;
+    handler(req, res, () => {
+      nextCalled = true;
+    });
+
+    expect(nextCalled).toBe(false);
+    expect(res.statusCode).toBe(403);
+  });
+
   test('HoD own-department detail bypasses team.department.view when enforce is on', async () => {
     process.env = {
       ...originalEnv,

@@ -91,9 +91,11 @@ const ClientDetails = () => {
     fetchClientDetails();
     fetchClientProjects();
     fetchClientSubscriptions();
-    fetchDepartments();
+    if (canManageClients) {
+      fetchDepartments();
+    }
     fetchUsers();
-  }, [id]);
+  }, [id, canManageClients]);
 
   const fetchClientDetails = async () => {
     try {
