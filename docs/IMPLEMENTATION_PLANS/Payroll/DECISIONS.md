@@ -127,3 +127,9 @@ Last Updated: 2026-07-17
 * **Decision:** Permanently remove `DELETE /api/salary-structures/all` (not gated). Single-structure delete remains.
 * **Rationale:** Unused in UI; catastrophic data-loss risk; no enterprise payroll product exposes unbuffered mass wipe.
 * **Also:** Salary-slip static GET routes must precede `/:id` to avoid Express shadowing.
+
+## D-2026-07-27-20 — R3 dual-run ops (no engine flip)
+
+* **Tooling:** Month dual-run supports CSV export and `mismatchesOnly` triage; summary counts always include the full cohort.
+* **Process:** Staging month + decision log + written CTO approval required before `PAYROLL_V2_ENGINE=true`.
+* **Non-goal:** R3 does not enable V2 persist or ship a mismatch UI (R4).

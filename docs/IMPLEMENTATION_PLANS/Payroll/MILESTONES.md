@@ -17,6 +17,6 @@ Last Updated: 2026-07-27
 |-----------|--------|--------|
 | **R0** | `integrate/payroll-v2-stack` | Complete |
 | **R1** | `fix/payroll-double-lop-prorata` | Complete |
-| **R2** | `fix/payroll-hygiene` | **Complete — awaiting review** |
-| R3 | Dual-run validation program | Not started |
+| **R2** | `fix/payroll-hygiene` | Complete |
+| **R3** | `chore/payroll-dual-run-ops` | **Complete tooling — awaiting staging sign-off** |
 | R4+ | Ops UI / period gates / … | Not started |

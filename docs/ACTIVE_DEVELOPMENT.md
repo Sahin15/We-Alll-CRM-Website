@@ -16,10 +16,10 @@ Last Updated: 2026-07-27
 |-------|--------|
 | **Current Feature** | Payroll & Salary Management System V2 |
 | **Current Phase** | Integration / Hardening (Enterprise R-milestones) |
-| **Current Milestone** | **R2 — Hygiene** (**complete — awaiting review**) |
-| **Current Branch** | `fix/payroll-hygiene` |
+| **Current Milestone** | **R3 — Dual-run validation** (**complete — awaiting review / staging run**) |
+| **Current Branch** | `chore/payroll-dual-run-ops` |
 | **Implementation Workspace** | `docs/IMPLEMENTATION_PLANS/Payroll/` + `docs/PAYROLL_V2_PRODUCT_SPECIFICATION.md` |
-| **Status** | DELETE `/salary-structures/all` removed; salary-slip static routes ordered before `/:id`; slip notifications verified for deploy. Keep `PAYROLL_V2_ENGINE=false`. Do **not** start R3 until R2 approved. |
+| **Status** | Month dual-run CSV + mismatchesOnly triage shipped; ops runbook + decision log ready. Keep `PAYROLL_V2_ENGINE=false` until CTO sign-off after a real staging month. Do **not** start R4 until R3 approved. |
 | **Last Updated** | 2026-07-27 |
 
 ---
@@ -40,12 +40,13 @@ Last Updated: 2026-07-27
 
 ---
 
-## R2 scope (this milestone)
+## R3 scope (this milestone)
 
-* Remove `DELETE /api/salary-structures/all` (route + controller + frontend `deleteAll` client)
-* Register salary-slip static GET paths before `GET /:id` (employee, reports, stats)
-* Confirm `sendSalarySlipNotification` + `salary_slip_generated` remain on generate/bulk for deploy
+* `POST /api/payroll/runs/dual-run/month` — `format=json|csv`, `mismatchesOnly`, sort by `|netDiff|`
+* Helpers: `dualRunMonthReport.js`
+* Ops runbook + decision log template in Payroll workspace
+* Unit tests for report shaping
 
-**Next (not started):** R3 — Dual-run validation program
+**Next (not started):** R4 — Ops UI (approvals + exports)
 
-**Out of scope for R2:** Period gates, approvals UI, engine cutover.
+**Out of scope for R3:** Enabling V2 engine, mismatch UI tab, rewriting V1/V2 math.

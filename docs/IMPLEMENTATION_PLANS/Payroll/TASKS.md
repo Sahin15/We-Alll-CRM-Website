@@ -127,6 +127,16 @@ Last Updated: 2026-07-27
 - [x] Update ACTIVE_DEVELOPMENT / STATUS / CHANGELOG
 - [ ] Human review / merge approval
 
+## R3 — Dual-run validation
+
+- [x] Month dual-run `format=csv|json` + `mismatchesOnly` + sort
+- [x] `dualRunMonthReport` helpers + unit tests
+- [x] Ops runbook + decision log template
+- [x] Update ACTIVE_DEVELOPMENT / STATUS / CHANGELOG
+- [ ] Human review of tooling
+- [ ] Staging full-month dual-run + CTO sign-off (manual)
+- [ ] Human approval before R4
+
 ## Known V1 defects to address in coding milestones (tracked)
 
 - [x] Eliminate double LOP path

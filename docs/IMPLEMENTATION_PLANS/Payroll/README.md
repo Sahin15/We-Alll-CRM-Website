@@ -20,6 +20,8 @@ This folder is the **only** authorized Payroll V2 implementation workspace.
 | [TASKS.md](./TASKS.md) | Checklist for the current and upcoming work |
 | [DECISIONS.md](./DECISIONS.md) | Locked product/engineering decisions |
 | [CHANGELOG.md](./CHANGELOG.md) | Workspace document history |
+| [DUAL_RUN_OPS_RUNBOOK.md](./DUAL_RUN_OPS_RUNBOOK.md) | R3 staging dual-run procedure |
+| [DUAL_RUN_DECISION_LOG.md](./DUAL_RUN_DECISION_LOG.md) | Intentional V1/V2 diff log |
 
 **Session rule:** Always read `docs/ACTIVE_DEVELOPMENT.md` first, then this workspace. Never use files under `docs/ARCHIVE/` for implementation guidance.
 

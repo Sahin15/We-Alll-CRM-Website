@@ -3,6 +3,11 @@ import {
   processEmployeePayroll,
 } from "../services/payroll/payrollEngine.js";
 import SalaryStructure from "../models/salaryStructureModel.js";
+import {
+  parseDualRunMonthOptions,
+  shapeDualRunMonthResults,
+  dualRunMonthRowsToCsv,
+} from "../services/payroll/dualRunMonthReport.js";
 
 /**
  * Dual-run a single employee for a month (loads structure + leave impact).
@@ -80,17 +85,20 @@ export const dualRunStructurePreview = async (req, res) => {
 
 /**
  * Dual-run all employees that have an active salary structure for a month.
+ * Supports format=json|csv and mismatchesOnly for R3 triage export.
  */
 export const dualRunMonth = async (req, res) => {
   try {
-    const month = Number(req.body.month);
-    const year = Number(req.body.year);
+    const month = Number(req.body.month ?? req.query.month);
+    const year = Number(req.body.year ?? req.query.year);
     if (!month || !year) {
       return res.status(400).json({
         success: false,
         message: "month and year are required",
       });
     }
+
+    const { format, mismatchesOnly } = parseDualRunMonthOptions(req);
 
     const structures = await SalaryStructure.find({ status: "active" })
       .select("employee")
@@ -130,17 +138,31 @@ export const dualRunMonth = async (req, res) => {
       }
     }
 
+    const summary = {
+      total: employeeIds.length,
+      matched,
+      mismatched,
+      failed,
+    };
+    const shaped = shapeDualRunMonthResults(results, { mismatchesOnly });
+
+    if (format === "csv") {
+      const csv = dualRunMonthRowsToCsv(summary, shaped);
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="dual-run-${year}-${String(month).padStart(2, "0")}.csv"`
+      );
+      return res.status(200).send(csv);
+    }
+
     return res.status(200).json({
       success: true,
       message: `Dual-run complete: ${matched} match, ${mismatched} differ, ${failed} failed`,
       data: {
-        summary: {
-          total: employeeIds.length,
-          matched,
-          mismatched,
-          failed,
-        },
-        results,
+        summary,
+        mismatchesOnly,
+        results: shaped,
       },
     });
   } catch (error) {

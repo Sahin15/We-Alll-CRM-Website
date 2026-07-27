@@ -5,6 +5,13 @@ Last Updated: 2026-07-17
 
 # Payroll V2 — Changelog
 
+## 2026-07-27 — R3 Dual-run validation tooling
+
+* `POST /api/payroll/runs/dual-run/month` supports `format=json|csv` and `mismatchesOnly` (query or body).
+* Summary always full-month; result rows sorted (errors first, then `|netDiff|` desc).
+* Added `dualRunMonthReport.js` + `dualRunMonthReport.r3.unit.test.js`.
+* Ops runbook + decision log template (engine flag still false until CTO sign-off).
+
 ## 2026-07-27 — R2 Hygiene (DELETE /all + route order + notify check)
 
 * Removed `DELETE /salary-structures/all` and `deleteAllSalaryStructures` (no mass wipe of compensation masters).

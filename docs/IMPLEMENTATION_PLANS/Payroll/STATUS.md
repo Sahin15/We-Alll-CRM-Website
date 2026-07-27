@@ -9,12 +9,12 @@ Last Updated: 2026-07-27
 |-------|--------|
 | **Feature** | Payroll & Salary Management System V2 |
 | **Phase** | Integration / Hardening |
-| **Milestone** | R2 — Hygiene |
-| **Branch** | `fix/payroll-hygiene` |
-| **Base** | `fix/payroll-double-lop-prorata` (R1 tip) |
-| **Code implementation** | R2 complete — **awaiting review** |
+| **Milestone** | R3 — Dual-run validation |
+| **Branch** | `chore/payroll-dual-run-ops` |
+| **Base** | `fix/payroll-hygiene` (R2 tip) |
+| **Code implementation** | R3 tooling complete — **awaiting review + staging month** |
 | **Engine flag** | Keep `PAYROLL_V2_ENGINE` **false** |
-| **Next** | R3 — Dual-run validation — **not started** |
+| **Next** | R4 — Ops UI — **not started** (after R3 sign-off) |
 
 ---
 
@@ -22,32 +22,33 @@ Last Updated: 2026-07-27
 
 | Area | Status |
 |------|--------|
-| R0 — Integration | Done on `integrate/payroll-v2-stack` |
-| R1 — Correctness | Done on `fix/payroll-double-lop-prorata` |
-| R2 — DELETE `/all` removed | Done |
-| R2 — Slip route order | Done |
-| R2 — Notify deploy check | Done |
-| R2 — Tests | Done (`payrollHygiene.r2.unit.test.js`) |
-| R3+ | Not started |
+| R0 — Integration | Done |
+| R1 — Correctness | Done |
+| R2 — Hygiene | Done |
+| R3 — Month CSV / mismatchesOnly | Done |
+| R3 — Ops runbook + decision log | Done |
+| R3 — Staging month + CTO sign-off | **Manual / pending** |
+| R4+ | Not started |
 
 ---
 
-## R2 deliverables
+## R3 deliverables
 
 | Artifact | Path |
 |----------|------|
-| Structures | `salaryStructureRoutes.js` — no `DELETE /all` |
-| Controller | `deleteAllSalaryStructures` removed |
-| Frontend | `salaryApi.js` — `deleteAll` client removed |
-| Slips | `salarySlipRoutes.js` — static GETs before `/:id` |
-| Tests | `payrollHygiene.r2.unit.test.js` |
+| Report helpers | `backend/src/services/payroll/dualRunMonthReport.js` |
+| Month API | `payrollRunController.dualRunMonth` — csv + filter |
+| Tests | `dualRunMonthReport.r3.unit.test.js` |
+| Runbook | `docs/IMPLEMENTATION_PLANS/Payroll/DUAL_RUN_OPS_RUNBOOK.md` |
+| Decision log | `docs/IMPLEMENTATION_PLANS/Payroll/DUAL_RUN_DECISION_LOG.md` |
 
-### Deploy note
+### Ops note
 
-Generate / bulk-generate must keep calling `NotificationService.sendSalarySlipNotification` with type `salary_slip_generated` (enum on notification model). Failures remain non-blocking.
+R3 code alone does **not** enable V2. Run a full staging month per the runbook; record intentional diffs in the decision log; obtain written CTO approval before any env sets `PAYROLL_V2_ENGINE=true`.
 
 ---
 
 ## Blockers
 
-1. Human review before R3.
+1. Human review of R3 tooling.
+2. Staging dual-run month + sign-off (process).
