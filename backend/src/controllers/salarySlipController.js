@@ -6,12 +6,8 @@ import WorkingDaysCalculator from "../services/workingDaysCalculator.js";
 import LeaveImpactCalculator from "../services/leaveImpactCalculator.js";
 import notificationService from "../services/notificationService.js";
 import { calculateProRataSalarySlip } from "../utils/proRataSalaryCalculator.js";
-import { 
-  calculateUnpaidLeaveDeductionForSalarySlip,
-  getUnpaidLeaveDaysForMonth,
-  calculateUnpaidLeaveDeductionWithProRata 
-} from "../utils/unpaidLeaveDeductionCalculator.js";
 import { dualRunPayroll } from "../services/payroll/payrollEngine.js";
+import { resolveAttendanceMoneyDeductions } from "../services/payroll/payrollCorrectnessHelpers.js";
 import path from "path";
 import fs from "fs";
 
@@ -335,52 +331,20 @@ export const generateSalarySlip = async (req, res) => {
     };
 
     // Prepare deductions (use pro-rata values if applicable)
+    // R1: single attendance money path — LeaveImpactCalculator already prices unpaid
+    // leave + absences into lossOfPay. Do NOT add unpaidLeaveDeduction (legacy double count).
+    const attendanceMoney = resolveAttendanceMoneyDeductions(lossOfPay);
     const deductions = {
       providentFund: proRataData.deductions.providentFund || salaryStructure.providentFund,
       professionalTax: proRataData.deductions.professionalTax || salaryStructure.professionalTax,
       tds: proRataData.deductions.tds || salaryStructure.tds,
       esi: proRataData.deductions.esi || salaryStructure.esi,
-      lossOfPay: Math.round(lossOfPay),
+      lossOfPay: attendanceMoney.lossOfPay,
+      unpaidLeaveDeduction: attendanceMoney.unpaidLeaveDeduction,
       advances: advances || 0,
       loans: loans || 0,
       otherDeductions: salaryStructure.otherDeductions || []
     };
-
-    // Calculate unpaid leave deduction
-    let unpaidLeaveDeduction = 0;
-    let unpaidLeaveDetails = null;
-
-    try {
-      // Get all approved leave requests for the employee in this month
-      const leaveRequests = await LeaveRequest.find({
-        employee: employeeId,
-        status: 'approved',
-        leaveType: 'unpaid',
-        startDate: { $lte: new Date(year, month, 0) },
-        endDate: { $gte: new Date(year, month - 1, 1) }
-      });
-
-      // Get unpaid leave days for this month
-      const unpaidLeaveDays = getUnpaidLeaveDaysForMonth(leaveRequests, month, year);
-
-      if (unpaidLeaveDays > 0) {
-        // Calculate unpaid leave deduction
-        unpaidLeaveDetails = calculateUnpaidLeaveDeductionForSalarySlip({
-          salaryStructure,
-          unpaidLeaveDays,
-          month,
-          year
-        });
-
-        unpaidLeaveDeduction = unpaidLeaveDetails.totalDeduction;
-      }
-    } catch (error) {
-      console.error('Error calculating unpaid leave deduction:', error);
-      // Continue without unpaid leave deduction if calculation fails
-    }
-
-    // Add unpaid leave deduction to deductions
-    deductions.unpaidLeaveDeduction = Math.round(unpaidLeaveDeduction);
 
     // Milestone 4: dual-run V1 vs V2 engine (log only — slip still persists V1 amounts)
     try {
@@ -392,7 +356,7 @@ export const generateSalarySlip = async (req, res) => {
         incentives,
         advances,
         loans,
-        lossOfPay: Math.round(lossOfPay),
+        lossOfPay: attendanceMoney.lossOfPay,
         lopDays: attendance.unpaidLeaves,
       });
       if (!dual.diff.withinTolerance) {
@@ -541,8 +505,9 @@ export const bulkGenerateSalarySlips = async (req, res) => {
         // Calculate attendance using enhanced calculator
         const attendance = await calculateAttendance(employee._id, month, year);
 
-        // Calculate LOP using enhanced calculation
+        // R1: single LOP path (LeaveImpact only)
         const lossOfPay = attendance.lossOfPayAmount || attendance.leaveImpactDetails.totalLeaveDeduction;
+        const attendanceMoney = resolveAttendanceMoneyDeductions(lossOfPay);
 
         // Prepare earnings and deductions
         const earnings = {
@@ -564,7 +529,8 @@ export const bulkGenerateSalarySlips = async (req, res) => {
           professionalTax: salaryStructure.professionalTax,
           tds: salaryStructure.tds,
           esi: salaryStructure.esi,
-          lossOfPay: Math.round(lossOfPay),
+          lossOfPay: attendanceMoney.lossOfPay,
+          unpaidLeaveDeduction: attendanceMoney.unpaidLeaveDeduction,
           advances: 0,
           loans: 0,
           otherDeductions: salaryStructure.otherDeductions || []
@@ -1356,6 +1322,7 @@ export const recalculateSalarySlip = async (req, res) => {
     // Recalculate attendance using the fixed logic
     const attendance = await calculateAttendance(slip.employee, slip.month, slip.year);
     const lossOfPay = attendance.lossOfPayAmount || attendance.leaveImpactDetails.totalLeaveDeduction;
+    const attendanceMoney = resolveAttendanceMoneyDeductions(lossOfPay);
 
     // Update attendance fields
     slip.totalWorkingDays = attendance.totalWorkingDays;
@@ -1366,8 +1333,9 @@ export const recalculateSalarySlip = async (req, res) => {
     slip.workingDaysCalculation = attendance.workingDaysCalculation;
     slip.leaveImpactDetails = attendance.leaveImpactDetails;
 
-    // Update loss of pay deduction
-    slip.deductions.lossOfPay = Math.round(lossOfPay);
+    // R1: single LOP path; clear legacy double-count field
+    slip.deductions.lossOfPay = attendanceMoney.lossOfPay;
+    slip.deductions.unpaidLeaveDeduction = attendanceMoney.unpaidLeaveDeduction;
 
     await slip.save();
     await slip.populate("employee", "name email employeeId designation department");
@@ -1421,6 +1389,7 @@ export const bulkRecalculateSalarySlips = async (req, res) => {
 
         const attendance = await calculateAttendance(slip.employee, slip.month, slip.year);
         const lossOfPay = attendance.lossOfPayAmount || attendance.leaveImpactDetails.totalLeaveDeduction;
+        const attendanceMoney = resolveAttendanceMoneyDeductions(lossOfPay);
 
         const oldUnpaid = slip.unpaidLeaves;
         const oldNet = slip.netSalary;
@@ -1432,7 +1401,8 @@ export const bulkRecalculateSalarySlips = async (req, res) => {
         slip.unpaidLeaves = attendance.unpaidLeaves;
         slip.workingDaysCalculation = attendance.workingDaysCalculation;
         slip.leaveImpactDetails = attendance.leaveImpactDetails;
-        slip.deductions.lossOfPay = Math.round(lossOfPay);
+        slip.deductions.lossOfPay = attendanceMoney.lossOfPay;
+        slip.deductions.unpaidLeaveDeduction = attendanceMoney.unpaidLeaveDeduction;
 
         await slip.save();
 

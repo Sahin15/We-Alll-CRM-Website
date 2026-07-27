@@ -106,18 +106,27 @@ Last Updated: 2026-07-17
 - [x] Verify `/api/payroll/*` mounts + engine default false
 - [x] Smoke unit tests (payroll + finance authz)
 - [x] Update ACTIVE_DEVELOPMENT / STATUS / MILESTONES
-- [ ] Human review / push / PR to `develop`
+- [x] Human review / push / PR to `develop`
 - [ ] Staging deploy smoke (manual)
 
-## R1 — Correctness hotfix (not started)
+## R1 — Correctness hotfix
 
-- [ ] Eliminate double LOP path
-- [ ] Fix pro-rata flat-structure adapter
-- [ ] Regression / golden tests
+- [x] Eliminate double LOP path (single `lossOfPay` from LeaveImpact)
+- [x] Force `unpaidLeaveDeduction` = 0 on generate / bulk / recalculate
+- [x] Fix pro-rata flat-structure adapter (`toProRataComponentMaps`)
+- [x] Golden / regression unit tests
+- [x] Update ACTIVE_DEVELOPMENT / STATUS / CHANGELOG
+- [ ] Human review / merge approval
+
+## R2 — Hygiene (not started)
+
+- [ ] Restrict or audit `DELETE /salary-structures/all`
+- [ ] Fix salary-slip route ordering if needed
+- [ ] Confirm notifications on deploy path
 
 ## Known V1 defects to address in coding milestones (tracked)
 
-- [ ] Eliminate double LOP path
-- [ ] Fix pro-rata flat-structure adapter
+- [x] Eliminate double LOP path
+- [x] Fix pro-rata flat-structure adapter
 - [ ] Restrict or audit `DELETE /salary-structures/all`
 - [ ] Populate YTD on slips

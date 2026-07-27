@@ -9,11 +9,12 @@ Last Updated: 2026-07-27
 |-------|--------|
 | **Feature** | Payroll & Salary Management System V2 |
 | **Phase** | Integration / Hardening |
-| **Milestone** | R0 — Integration baseline |
-| **Branch** | `integrate/payroll-v2-stack` |
-| **Code implementation** | R0 complete — **awaiting review** |
-| **Engine flag** | `PAYROLL_V2_ENGINE` default **false** (persisted slips remain V1) |
-| **Next** | R1 — Double LOP + pro-rata — **not started** |
+| **Milestone** | R1 — Correctness hotfix |
+| **Branch** | `fix/payroll-double-lop-prorata` |
+| **Base** | `integrate/payroll-v2-stack` |
+| **Code implementation** | R1 complete — **awaiting review** |
+| **Engine flag** | Keep `PAYROLL_V2_ENGINE` **false** |
+| **Next** | R2 — Hygiene — **not started** |
 
 ---
 
@@ -21,28 +22,29 @@ Last Updated: 2026-07-27
 
 | Area | Status |
 |------|--------|
-| Milestones M1–M8 (feature tip) | Done on `feature/payroll-v2-reporting` |
-| R0 — merge develop into integration branch | Done (clean ort merge) |
-| R0 — payroll API mounts | Verified in `server.js` |
-| R0 — smoke tests | **89 passed** |
-| R1+ | Not started |
+| R0 — Integration | Done on `integrate/payroll-v2-stack` |
+| R1 — Double LOP removed | Done |
+| R1 — Flat pro-rata adapter | Done |
+| R1 — Tests | Done (`payrollCorrectness.r1.unit.test.js`) |
+| R2+ | Not started |
 
 ---
 
-## R0 verification checklist
+## R1 deliverables
 
-- [x] `integrate/payroll-v2-stack` created from V2 tip
-- [x] `origin/develop` merged (authz fixture updates)
-- [x] All five `/api/payroll/*` routers mounted
-- [x] Engine config opt-in only (`=== "true"`)
-- [x] `.env.example` documents default false
-- [x] Unit smoke suite green
-- [ ] Human review / push / PR into `develop`
-- [ ] Staging deploy smoke (manual)
+| Artifact | Path |
+|----------|------|
+| Helpers | `backend/src/services/payroll/payrollCorrectnessHelpers.js` |
+| Pro-rata | `backend/src/utils/proRataSalaryCalculator.js` (uses adapter) |
+| Slip generate/bulk/recalc | `salarySlipController.js` — no second unpaid path |
+| Model note | `unpaidLeaveDeduction` deprecated when LOP includes impact |
+
+### Ops note
+
+Existing slips that already have both `lossOfPay` and `unpaidLeaveDeduction` populated can be fixed via **recalculate** APIs (draft/generated only) — does not auto-mutate paid slips.
 
 ---
 
 ## Blockers
 
-1. Human review before R1.
-2. Staging deploy not performed by this session (local verification only).
+1. Human review before R2.

@@ -114,3 +114,10 @@ Last Updated: 2026-07-17
 * **Decision:** Land V2 on `integrate/payroll-v2-stack` = V2 tip + merged `develop`, not a rewrite.
 * **Engine:** Keep `PAYROLL_V2_ENGINE` unset/false on staging/prod until R3 dual-run sign-off.
 * **Next coding:** R1 correctness (double LOP + pro-rata) only after R0 human approval.
+
+## D-2026-07-27-18 — R1 single LOP + flat pro-rata
+
+* **LOP:** `LeaveImpactCalculator.deductionAmount` is the only unpaid/absence money input to slips (`lossOfPay`). Do not also call `unpaidLeaveDeductionCalculator` on generate.
+* **Legacy field:** `deductions.unpaidLeaveDeduction` remains on schema for old rows but new/recalc paths set it to **0**.
+* **Pro-rata:** Always run structures through `toProRataComponentMaps` so flat V1 fields participate in mid-month revision math.
+* **Historical slips:** Use recalculate APIs for draft/generated only; paid slips are not auto-mutated.

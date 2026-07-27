@@ -5,6 +5,14 @@ Last Updated: 2026-07-17
 
 # Payroll V2 — Changelog
 
+## 2026-07-27 — R1 Correctness hotfix (double LOP + pro-rata)
+
+* Slip generate/bulk/recalculate: attendance money only via `lossOfPay` from LeaveImpactCalculator; `unpaidLeaveDeduction` forced to 0 (stops double count).
+* Added `payrollCorrectnessHelpers` (`toProRataComponentMaps`, `resolveAttendanceMoneyDeductions`).
+* Pro-rata calculator now normalizes flat SalaryStructure fields before day-weighting.
+* Deprecated slip-path use of `unpaidLeaveDeductionCalculator` (module kept for legacy scripts).
+* Tests: `payrollCorrectness.r1.unit.test.js`.
+
 ## 2026-07-27 — R0 Integration baseline
 
 * Created `integrate/payroll-v2-stack` from `feature/payroll-v2-reporting`.

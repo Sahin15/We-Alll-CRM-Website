@@ -89,6 +89,7 @@ const salarySlipSchema = new mongoose.Schema(
       tds: { type: Number, default: 0 },
       esi: { type: Number, default: 0 },
       lossOfPay: { type: Number, default: 0 },
+      /** @deprecated Legacy field — must remain 0 when lossOfPay includes unpaid/absence impact (R1). */
       unpaidLeaveDeduction: { type: Number, default: 0 },
       advances: { type: Number, default: 0 },
       loans: { type: Number, default: 0 },
