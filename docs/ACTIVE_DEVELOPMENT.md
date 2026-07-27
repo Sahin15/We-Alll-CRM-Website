@@ -16,10 +16,10 @@ Last Updated: 2026-07-27
 |-------|--------|
 | **Current Feature** | Payroll & Salary Management System V2 |
 | **Current Phase** | Integration / Hardening (Enterprise R-milestones) |
-| **Current Milestone** | **R5 — Period gates** (**complete — awaiting review**) |
-| **Current Branch** | `feature/payroll-period-gates` |
+| **Current Milestone** | **R6 — Engine cutover prep** (**complete — awaiting review**; flag still false) |
+| **Current Branch** | `chore/enable-payroll-v2-engine` |
 | **Implementation Workspace** | `docs/IMPLEMENTATION_PLANS/Payroll/` + `docs/PAYROLL_V2_PRODUCT_SPECIFICATION.md` |
-| **Status** | `PAYROLL_PERIOD_GATES` (default false) gates generate/export/mark-paid. Keep `PAYROLL_V2_ENGINE=false`. Do **not** start R6 until R5 approved. |
+| **Status** | Cutover + kill-switch runbooks ready. Keep `PAYROLL_V2_ENGINE=false` until R3 CTO sign-off + ops enable. Do **not** start R7 until R6 prep approved (or explicit skip to R7). |
 | **Last Updated** | 2026-07-27 |
 
 ---
@@ -36,17 +36,15 @@ Last Updated: 2026-07-27
 ## Rules
 
 * Do not start the next R-milestone until this file is updated **and** a human approves.
-* Do **not** set `PAYROLL_V2_ENGINE=true` without dual-run sign-off (R3).
+* Do **not** set `PAYROLL_V2_ENGINE=true` without dual-run sign-off (R3) and the cutover runbook hard gates.
 
 ---
 
-## R5 scope (this milestone)
+## R6 scope (this milestone)
 
-* Flag `PAYROLL_PERIOD_GATES` (default false)
-* Generate / export: `open` \| `frozen`; mark-paid: `locked`; missing period = block
-* UI disables + messages on Generate, Exports, Mark as paid
-* `GET /api/payroll/periods/gates-status`
+* Docs only: `ENGINE_CUTOVER_RUNBOOK.md`, `ENGINE_KILL_SWITCH.md`
+* No env flip in git; no persist-math changes
 
-**Next (not started):** R6 — Engine cutover (optional; needs R3 sign-off)
+**Next (not started):** R7 — Component wiring (or ops-only staging enable outside git)
 
-**Out of scope for R5:** Enabling V2 engine, changing period state machine edges.
+**Out of scope for R6 prep:** Committing `PAYROLL_V2_ENGINE=true`, historical slip migration.

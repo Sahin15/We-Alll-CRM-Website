@@ -5,6 +5,12 @@ Last Updated: 2026-07-17
 
 # Payroll V2 — Changelog
 
+## 2026-07-27 — R6 Engine cutover prep (docs only)
+
+* Added `ENGINE_CUTOVER_RUNBOOK.md` (R3 hard gates, staging enable, one-cycle monitor, prod criteria).
+* Added `ENGINE_KILL_SWITCH.md` (immediate flag false + post-steps).
+* `PAYROLL_V2_ENGINE` remains default false; no persist-math changes.
+
 ## 2026-07-27 — R5 Period gates
 
 * Added `PAYROLL_PERIOD_GATES` (default false): generate/export need `open`|`frozen`; mark-paid needs `locked`; missing period blocks.

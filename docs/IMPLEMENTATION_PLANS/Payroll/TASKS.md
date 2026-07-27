@@ -155,6 +155,15 @@ Last Updated: 2026-07-27
 - [x] Update ACTIVE_DEVELOPMENT / STATUS / CHANGELOG
 - [ ] Human review / merge approval
 
+## R6 — Engine cutover prep
+
+- [x] `ENGINE_CUTOVER_RUNBOOK.md` (hard gates, staging, prod criteria)
+- [x] `ENGINE_KILL_SWITCH.md`
+- [x] Update ACTIVE_DEVELOPMENT / STATUS / CHANGELOG / README
+- [ ] Human review
+- [ ] R3 CTO sign-off (manual) before any env enable
+- [ ] Staging/prod flag enable (ops — not in git)
+
 ## Known V1 defects to address in coding milestones (tracked)
 
 - [x] Eliminate double LOP path

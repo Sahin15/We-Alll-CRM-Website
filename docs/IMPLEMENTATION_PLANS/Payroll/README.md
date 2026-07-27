@@ -22,6 +22,8 @@ This folder is the **only** authorized Payroll V2 implementation workspace.
 | [CHANGELOG.md](./CHANGELOG.md) | Workspace document history |
 | [DUAL_RUN_OPS_RUNBOOK.md](./DUAL_RUN_OPS_RUNBOOK.md) | R3 staging dual-run procedure |
 | [DUAL_RUN_DECISION_LOG.md](./DUAL_RUN_DECISION_LOG.md) | Intentional V1/V2 diff log |
+| [ENGINE_CUTOVER_RUNBOOK.md](./ENGINE_CUTOVER_RUNBOOK.md) | R6 enable V2 persist (ops) |
+| [ENGINE_KILL_SWITCH.md](./ENGINE_KILL_SWITCH.md) | R6 immediate rollback |
 
 **Session rule:** Always read `docs/ACTIVE_DEVELOPMENT.md` first, then this workspace. Never use files under `docs/ARCHIVE/` for implementation guidance.
 

@@ -91,3 +91,5 @@ Document intentional differences in `DUAL_RUN_DECISION_LOG.md` â€” never treat â
 - [ ] Rollback plan: set flag back to `false` (slips remain V1 until flag on)
 
 **Exit:** Written approval + empty or fully explained mismatch set. R3 does not flip the flag in code.
+
+**After sign-off:** follow [ENGINE_CUTOVER_RUNBOOK.md](./ENGINE_CUTOVER_RUNBOOK.md); rollback via [ENGINE_KILL_SWITCH.md](./ENGINE_KILL_SWITCH.md).

@@ -145,3 +145,9 @@ Last Updated: 2026-07-17
 * **Flag:** `PAYROLL_PERIOD_GATES` default false for safe rollout.
 * **Matrix:** generate/export → open|frozen; mark-paid → locked; missing period → fail closed.
 * **Corrections:** Unlock locked → frozen (reason required) before generate/export again.
+
+## D-2026-07-27-23 — R6 cutover is ops, not a code default
+
+* **Decision:** R6 ships runbooks only; never commit `PAYROLL_V2_ENGINE=true`.
+* **Enable path:** R3 sign-off → staging secrets → one-cycle monitor → separate prod approval.
+* **Rollback:** Kill-switch sets flag false and restarts API; do not mass-edit paid slips.
