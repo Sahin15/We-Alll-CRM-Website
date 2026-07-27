@@ -16,10 +16,10 @@ Last Updated: 2026-07-27
 |-------|--------|
 | **Current Feature** | Payroll & Salary Management System V2 |
 | **Current Phase** | Integration / Hardening (Enterprise R-milestones) |
-| **Current Milestone** | **R3 — Dual-run validation** (**complete — awaiting review / staging run**) |
-| **Current Branch** | `chore/payroll-dual-run-ops` |
+| **Current Milestone** | **R4 — Ops UI** (**complete — awaiting review**) |
+| **Current Branch** | `feature/payroll-ops-ui` |
 | **Implementation Workspace** | `docs/IMPLEMENTATION_PLANS/Payroll/` + `docs/PAYROLL_V2_PRODUCT_SPECIFICATION.md` |
-| **Status** | Month dual-run CSV + mismatchesOnly triage shipped; ops runbook + decision log ready. Keep `PAYROLL_V2_ENGINE=false` until CTO sign-off after a real staging month. Do **not** start R4 until R3 approved. |
+| **Status** | Approvals + Exports tabs on Salary Management. Keep `PAYROLL_V2_ENGINE=false`. Do **not** start R5 until R4 approved. |
 | **Last Updated** | 2026-07-27 |
 
 ---
@@ -40,13 +40,12 @@ Last Updated: 2026-07-27
 
 ---
 
-## R3 scope (this milestone)
+## R4 scope (this milestone)
 
-* `POST /api/payroll/runs/dual-run/month` — `format=json|csv`, `mismatchesOnly`, sort by `|netDiff|`
-* Helpers: `dualRunMonthReport.js`
-* Ops runbook + decision log template in Payroll workspace
-* Unit tests for report shaping
+* Salary Management tabs: **Approvals** (pending inbox, act/reject, bulk-approve, start from slips/IDs)
+* Salary Management tabs: **Exports** (bank NEFT, PF/ESI/PT/TDS, export history)
+* API clients: `payrollApprovalApi.js`, `payrollReportApi.js`
 
-**Next (not started):** R4 — Ops UI (approvals + exports)
+**Next (not started):** R5 — Period enforcement
 
-**Out of scope for R3:** Enabling V2 engine, mismatch UI tab, rewriting V1/V2 math.
+**Out of scope for R4:** Period gates, auto-approval on generate, engine flip.

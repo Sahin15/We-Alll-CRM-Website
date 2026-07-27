@@ -26,6 +26,8 @@ import PayrollSummary from "../../components/salary/PayrollSummary";
 import HRSalaryPreviewManagement from "../../components/salary/HRSalaryPreviewManagement";
 import TemplateManagement from "../../components/salary/TemplateManagement";
 import PayrollPeriods from "../../components/salary/PayrollPeriods";
+import PayrollApprovals from "../../components/salary/PayrollApprovals";
+import PayrollExports from "../../components/salary/PayrollExports";
 import { salarySlipApi } from "../../api/salaryApi";
 import api from "../../services/api";
 
@@ -311,6 +313,12 @@ const SalaryManagement = () => {
           >
             <Tab eventKey="periods" title="Pay Periods">
               <PayrollPeriods />
+            </Tab>
+            <Tab eventKey="approvals" title="Approvals">
+              <PayrollApprovals />
+            </Tab>
+            <Tab eventKey="exports" title="Exports">
+              <PayrollExports />
             </Tab>
             <Tab eventKey="slips" title="Salary Slips">
               <SalarySlipList />

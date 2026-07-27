@@ -5,6 +5,12 @@ Last Updated: 2026-07-17
 
 # Payroll V2 — Changelog
 
+## 2026-07-27 — R4 Ops UI (approvals + exports)
+
+* Salary Management tabs: Approvals (pending inbox, act/reject, bulk-approve, start from period slips / pasted IDs).
+* Salary Management tabs: Exports (bank NEFT CSV, PF/ESI/PT/TDS registers, export history).
+* Frontend clients: `payrollApprovalApi.js`, `payrollReportApi.js` (+ blob download helper).
+
 ## 2026-07-27 — R3 Dual-run validation tooling
 
 * `POST /api/payroll/runs/dual-run/month` supports `format=json|csv` and `mismatchesOnly` (query or body).

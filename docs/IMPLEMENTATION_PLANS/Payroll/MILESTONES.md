@@ -18,5 +18,7 @@ Last Updated: 2026-07-27
 | **R0** | `integrate/payroll-v2-stack` | Complete |
 | **R1** | `fix/payroll-double-lop-prorata` | Complete |
 | **R2** | `fix/payroll-hygiene` | Complete |
-| **R3** | `chore/payroll-dual-run-ops` | **Complete tooling — awaiting staging sign-off** |
-| R4+ | Ops UI / period gates / … | Not started |
+| **R3** | `chore/payroll-dual-run-ops` | Complete tooling — awaiting staging sign-off |
+| **R4** | `feature/payroll-ops-ui` | **Complete — awaiting review** |
+| R5 | Period enforcement | Not started |
+| R6+ | Engine cutover / … | Not started |

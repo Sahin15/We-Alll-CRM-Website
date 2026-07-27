@@ -133,3 +133,9 @@ Last Updated: 2026-07-17
 * **Tooling:** Month dual-run supports CSV export and `mismatchesOnly` triage; summary counts always include the full cohort.
 * **Process:** Staging month + decision log + written CTO approval required before `PAYROLL_V2_ENGINE=true`.
 * **Non-goal:** R3 does not enable V2 persist or ship a mismatch UI (R4).
+
+## D-2026-07-27-21 — R4 Ops UI on Salary Management hub
+
+* **Decision:** Expose V2 approvals + reporting via new Salary Management tabs (same pattern as Pay Periods), not a separate app shell.
+* **Approvals:** Inbox + start-from-slips; do not auto-create workflows on generate in R4.
+* **Exports:** Client-side CSV download from existing `/api/payroll/reports/*`; history from `PayrollExportHistory`.

@@ -137,6 +137,14 @@ Last Updated: 2026-07-27
 - [ ] Staging full-month dual-run + CTO sign-off (manual)
 - [ ] Human approval before R4
 
+## R4 — Ops UI
+
+- [x] `payrollApprovalApi` + Approvals tab (pending, act/reject, bulk, start)
+- [x] `payrollReportApi` + Exports tab (NEFT, registers, history)
+- [x] Wire tabs in `SalaryManagement.jsx`
+- [x] Update ACTIVE_DEVELOPMENT / STATUS / CHANGELOG
+- [ ] Human review / merge approval
+
 ## Known V1 defects to address in coding milestones (tracked)
 
 - [x] Eliminate double LOP path
