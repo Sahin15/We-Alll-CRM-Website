@@ -22,6 +22,6 @@ Last Updated: 2026-07-27
 | **R4** | `feature/payroll-ops-ui` | Complete |
 | **R5** | `feature/payroll-period-gates` | Complete |
 | **R6** | `chore/enable-payroll-v2-engine` | Prep complete — flag still false |
-| **R7** | `feature/payroll-structure-components` | **Foundation complete — awaiting review** |
-| R8 | Statutory & F&F | Not started |
-| R9+ | Jobs / scale / … | Not started |
+| **R7** | `feature/payroll-structure-components` | Complete |
+| **R8** | `feature/payroll-statutory-fnf` | **Employer statutory foundation — awaiting review** |
+| R9 | Jobs / scale | Not started |

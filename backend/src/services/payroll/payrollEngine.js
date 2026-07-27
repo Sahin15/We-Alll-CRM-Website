@@ -5,6 +5,11 @@
 
 import { getDefaultSalaryComponents } from "./salaryComponentCatalog.js";
 import { structureComponentsAsCatalog } from "./structureComponentSync.js";
+import {
+  isEmployerStatutoryEnabled,
+  buildEmployerContributionLines,
+  computeCtcWithEmployer,
+} from "./employerStatutory.js";
 import { evaluateFormula } from "./formula/formulaEngine.js";
 import {
   DUAL_RUN_TOLERANCE,
@@ -272,16 +277,26 @@ export function buildV2Result(structure, overrides = {}, components = null) {
 
   const grossSalary = sumMoney(earningsLines.map((l) => l.amount));
   const totalDeductions = sumMoney(deductionLines.map((l) => l.amount));
+  const netSalary = grossSalary - totalDeductions;
+
+  const employerLines = isEmployerStatutoryEnabled()
+    ? buildEmployerContributionLines(structure, overrides.employerStatutory || {})
+    : [];
+  const ctc = computeCtcWithEmployer(grossSalary, employerLines);
 
   return {
     engine: "v2",
     engineVersion: PAYROLL_ENGINE_VERSION,
     earningsLines,
     deductionLines,
+    employerLines,
     totals: {
       grossSalary,
       totalDeductions,
-      netSalary: grossSalary - totalDeductions,
+      netSalary,
+      employerContributions: ctc.employerTotal,
+      monthlyCtc: ctc.monthlyCtc,
+      annualCtc: ctc.annualCtc,
     },
   };
 }

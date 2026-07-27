@@ -240,5 +240,31 @@ export function getDefaultSalaryComponents() {
       v1Field: "esi",
       description: "V1 esi",
     },
+    {
+      code: "PF_ER",
+      name: "Provident Fund (Employer)",
+      type: "employer",
+      taxable: false,
+      statutory: true,
+      calcMethod: "formula",
+      defaultFormula: "round(BASIC * 0.12)",
+      displayOrder: 210,
+      v1Field: "",
+      description: "R8 employer PF (default 12% of BASIC); CTC only — not employee net",
+    },
+    {
+      code: "ESI_ER",
+      name: "ESI (Employer)",
+      type: "employer",
+      taxable: false,
+      statutory: true,
+      calcMethod: "formula",
+      defaultFormula:
+        "round((BASIC + HRA + SPECIAL_ALLOWANCE + TRANSPORT_ALLOWANCE + MEDICAL_ALLOWANCE) * 0.0325)",
+      displayOrder: 220,
+      v1Field: "",
+      description:
+        "R8 employer ESI (default 3.25% of wage base); computed when EE ESI > 0",
+    },
   ].map((row) => assertComponentPayload(row));
 }

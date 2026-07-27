@@ -173,6 +173,15 @@ Last Updated: 2026-07-27
 - [x] Unit tests + docs
 - [ ] Human review / merge approval
 
+## R8 — Employer statutory foundation
+
+- [x] Catalog `PF_ER` / `ESI_ER`
+- [x] `employerStatutory.js` + CTC helpers
+- [x] `PAYROLL_EMPLOYER_STATUTORY` flag (default false); V2 employer lines; net unchanged
+- [x] Unit tests + `.env.example` + docs
+- [ ] Human review / merge approval
+- [ ] F&F calculator / settlement slip (later)
+
 ## Known V1 defects to address in coding milestones (tracked)
 
 - [x] Eliminate double LOP path

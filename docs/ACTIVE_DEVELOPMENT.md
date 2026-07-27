@@ -16,10 +16,10 @@ Last Updated: 2026-07-27
 |-------|--------|
 | **Current Feature** | Payroll & Salary Management System V2 |
 | **Current Phase** | Integration / Hardening (Enterprise R-milestones) |
-| **Current Milestone** | **R7 — Structure components foundation** (**complete — awaiting review**) |
-| **Current Branch** | `feature/payroll-structure-components` |
+| **Current Milestone** | **R8 — Employer statutory foundation** (**complete — awaiting review**) |
+| **Current Branch** | `feature/payroll-statutory-fnf` |
 | **Implementation Workspace** | `docs/IMPLEMENTATION_PLANS/Payroll/` + `docs/PAYROLL_V2_PRODUCT_SPECIFICATION.md` |
-| **Status** | Optional `SalaryStructure.components[]` + flat shadow sync; V2 prefers structure components when present. Keep `PAYROLL_V2_ENGINE=false`. Do **not** start R8 until R7 approved. |
+| **Status** | `PAYROLL_EMPLOYER_STATUTORY` (default false) adds PF_ER/ESI_ER + CTC; employee net unchanged. Keep `PAYROLL_V2_ENGINE=false`. Do **not** start R9 / F&F UI until R8 approved. |
 | **Last Updated** | 2026-07-27 |
 
 ---
@@ -40,13 +40,12 @@ Last Updated: 2026-07-27
 
 ---
 
-## R7 scope (this milestone)
+## R8 scope (this milestone)
 
-* Optional `components[]` on SalaryStructure; flat fields remain V1 shadow
-* `structureComponentSync` + create/update API sync
-* V2 engine uses structure components when non-empty
-* Unit tests (round-trip + dual-run)
+* Catalog defaults `PF_ER` / `ESI_ER`
+* `employerStatutory.js` rates + CTC helpers
+* V2 employer lines when `PAYROLL_EMPLOYER_STATUTORY=true` (net unchanged)
 
-**Next (not started):** R8 — Statutory & F&F (or R7b catalog UI)
+**Next (not started):** R9 — Jobs / scale, or R8b F&F calculator
 
-**Out of scope for R7 foundation:** Catalog CRUD UI, bulk DB migrate, rewrite structure forms.
+**Out of scope:** F&F settlement UI/slip type, full EPFO/ESIC rule engine, PT slabs rewrite.

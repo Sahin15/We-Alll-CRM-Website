@@ -5,6 +5,13 @@ Last Updated: 2026-07-17
 
 # Payroll V2 — Changelog
 
+## 2026-07-27 — R8 Employer statutory foundation
+
+* Catalog defaults `PF_ER` / `ESI_ER` (employer type).
+* `employerStatutory.js`: rates, contribution lines, CTC with employer.
+* Flag `PAYROLL_EMPLOYER_STATUTORY` (default false): V2 adds employer lines + CTC; employee net unchanged.
+* Tests: `employerStatutory.r8.unit.test.js`.
+
 ## 2026-07-27 — R7 Structure components foundation
 
 * Added optional `SalaryStructure.components[]` (flat fields remain V1 shadow).

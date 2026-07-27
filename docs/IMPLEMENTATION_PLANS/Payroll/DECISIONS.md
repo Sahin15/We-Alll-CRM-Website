@@ -157,3 +157,9 @@ Last Updated: 2026-07-17
 * **Decision:** Add `components[]` without removing V1 flat fields; sync both ways on write.
 * **Engine:** V2 prefers structure `components[]` when non-empty; flat-only structures unchanged.
 * **Non-goal (this slice):** Catalog UI, bulk migrate historical docs, form rewrite.
+
+## D-2026-07-27-25 — R8 employer statutory is opt-in CTC
+
+* **Decision:** Employer PF/ESI are `type: employer` lines behind `PAYROLL_EMPLOYER_STATUTORY`; they never reduce employee net.
+* **Defaults:** PF_ER 12% of BASIC; ESI_ER 3.25% of simplified wage base when EE ESI > 0.
+* **Non-goal:** Full EPFO/ESIC ceilings engine; F&F settlement (follow-on).
