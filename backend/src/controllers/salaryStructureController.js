@@ -280,20 +280,6 @@ export const activateSalaryStructure = async (req, res) => {
   }
 };
 
-// Delete ALL salary structures (superadmin/admin only — irreversible)
-export const deleteAllSalaryStructures = async (req, res) => {
-  try {
-    const result = await SalaryStructure.deleteMany({});
-    res.status(200).json({
-      message: `Deleted ${result.deletedCount} salary structure(s) successfully`,
-      deletedCount: result.deletedCount,
-    });
-  } catch (error) {
-    
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-};
-
 // Delete salary structure (only drafts)
 export const deleteSalaryStructure = async (req, res) => {
   try {

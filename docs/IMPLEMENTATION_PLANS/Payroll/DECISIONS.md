@@ -121,3 +121,9 @@ Last Updated: 2026-07-17
 * **Legacy field:** `deductions.unpaidLeaveDeduction` remains on schema for old rows but new/recalc paths set it to **0**.
 * **Pro-rata:** Always run structures through `toProRataComponentMaps` so flat V1 fields participate in mid-month revision math.
 * **Historical slips:** Use recalculate APIs for draft/generated only; paid slips are not auto-mutated.
+
+## D-2026-07-27-19 — R2 remove DELETE /all
+
+* **Decision:** Permanently remove `DELETE /api/salary-structures/all` (not gated). Single-structure delete remains.
+* **Rationale:** Unused in UI; catastrophic data-loss risk; no enterprise payroll product exposes unbuffered mass wipe.
+* **Also:** Salary-slip static GET routes must precede `/:id` to avoid Express shadowing.

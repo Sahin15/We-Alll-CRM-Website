@@ -5,6 +5,14 @@ Last Updated: 2026-07-17
 
 # Payroll V2 — Changelog
 
+## 2026-07-27 — R2 Hygiene (DELETE /all + route order + notify check)
+
+* Removed `DELETE /salary-structures/all` and `deleteAllSalaryStructures` (no mass wipe of compensation masters).
+* Removed frontend `salaryStructureApi.deleteAll`.
+* Reordered `salarySlipRoutes` so `/`, `/my-slips`, `/employee/:id`, `/reports/*`, `/stats/*` register before `/:id`.
+* Verified generate/bulk still call `sendSalarySlipNotification` with `salary_slip_generated`.
+* Tests: `payrollHygiene.r2.unit.test.js`.
+
 ## 2026-07-27 — R1 Correctness hotfix (double LOP + pro-rata)
 
 * Slip generate/bulk/recalculate: attendance money only via `lossOfPay` from LeaveImpactCalculator; `unpaidLeaveDeduction` forced to 0 (stops double count).

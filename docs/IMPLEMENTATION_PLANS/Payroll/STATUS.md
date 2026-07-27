@@ -9,12 +9,12 @@ Last Updated: 2026-07-27
 |-------|--------|
 | **Feature** | Payroll & Salary Management System V2 |
 | **Phase** | Integration / Hardening |
-| **Milestone** | R1 — Correctness hotfix |
-| **Branch** | `fix/payroll-double-lop-prorata` |
-| **Base** | `integrate/payroll-v2-stack` |
-| **Code implementation** | R1 complete — **awaiting review** |
+| **Milestone** | R2 — Hygiene |
+| **Branch** | `fix/payroll-hygiene` |
+| **Base** | `fix/payroll-double-lop-prorata` (R1 tip) |
+| **Code implementation** | R2 complete — **awaiting review** |
 | **Engine flag** | Keep `PAYROLL_V2_ENGINE` **false** |
-| **Next** | R2 — Hygiene — **not started** |
+| **Next** | R3 — Dual-run validation — **not started** |
 
 ---
 
@@ -23,28 +23,31 @@ Last Updated: 2026-07-27
 | Area | Status |
 |------|--------|
 | R0 — Integration | Done on `integrate/payroll-v2-stack` |
-| R1 — Double LOP removed | Done |
-| R1 — Flat pro-rata adapter | Done |
-| R1 — Tests | Done (`payrollCorrectness.r1.unit.test.js`) |
-| R2+ | Not started |
+| R1 — Correctness | Done on `fix/payroll-double-lop-prorata` |
+| R2 — DELETE `/all` removed | Done |
+| R2 — Slip route order | Done |
+| R2 — Notify deploy check | Done |
+| R2 — Tests | Done (`payrollHygiene.r2.unit.test.js`) |
+| R3+ | Not started |
 
 ---
 
-## R1 deliverables
+## R2 deliverables
 
 | Artifact | Path |
 |----------|------|
-| Helpers | `backend/src/services/payroll/payrollCorrectnessHelpers.js` |
-| Pro-rata | `backend/src/utils/proRataSalaryCalculator.js` (uses adapter) |
-| Slip generate/bulk/recalc | `salarySlipController.js` — no second unpaid path |
-| Model note | `unpaidLeaveDeduction` deprecated when LOP includes impact |
+| Structures | `salaryStructureRoutes.js` — no `DELETE /all` |
+| Controller | `deleteAllSalaryStructures` removed |
+| Frontend | `salaryApi.js` — `deleteAll` client removed |
+| Slips | `salarySlipRoutes.js` — static GETs before `/:id` |
+| Tests | `payrollHygiene.r2.unit.test.js` |
 
-### Ops note
+### Deploy note
 
-Existing slips that already have both `lossOfPay` and `unpaidLeaveDeduction` populated can be fixed via **recalculate** APIs (draft/generated only) — does not auto-mutate paid slips.
+Generate / bulk-generate must keep calling `NotificationService.sendSalarySlipNotification` with type `salary_slip_generated` (enum on notification model). Failures remain non-blocking.
 
 ---
 
 ## Blockers
 
-1. Human review before R2.
+1. Human review before R3.

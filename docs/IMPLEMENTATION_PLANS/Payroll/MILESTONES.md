@@ -16,7 +16,7 @@ Last Updated: 2026-07-27
 | Milestone | Branch | Status |
 |-----------|--------|--------|
 | **R0** | `integrate/payroll-v2-stack` | Complete |
-| **R1** | `fix/payroll-double-lop-prorata` | **Complete — awaiting review** |
-| R2 | `fix/payroll-hygiene` | Not started |
+| **R1** | `fix/payroll-double-lop-prorata` | Complete |
+| **R2** | `fix/payroll-hygiene` | **Complete — awaiting review** |
 | R3 | Dual-run validation program | Not started |
 | R4+ | Ops UI / period gates / … | Not started |

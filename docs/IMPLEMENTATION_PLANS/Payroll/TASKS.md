@@ -1,6 +1,6 @@
 ---
 Purpose: Task checklist for the current Payroll V2 phase and upcoming milestones.
-Last Updated: 2026-07-17
+Last Updated: 2026-07-27
 ---
 
 # Payroll V2 — Tasks
@@ -118,15 +118,18 @@ Last Updated: 2026-07-17
 - [x] Update ACTIVE_DEVELOPMENT / STATUS / CHANGELOG
 - [ ] Human review / merge approval
 
-## R2 — Hygiene (not started)
+## R2 — Hygiene
 
-- [ ] Restrict or audit `DELETE /salary-structures/all`
-- [ ] Fix salary-slip route ordering if needed
-- [ ] Confirm notifications on deploy path
+- [x] Remove `DELETE /salary-structures/all` (route + controller + FE client)
+- [x] Fix salary-slip route ordering (static GETs before `/:id`)
+- [x] Confirm notifications on generate/bulk deploy path
+- [x] Tests (`payrollHygiene.r2.unit.test.js`)
+- [x] Update ACTIVE_DEVELOPMENT / STATUS / CHANGELOG
+- [ ] Human review / merge approval
 
 ## Known V1 defects to address in coding milestones (tracked)
 
 - [x] Eliminate double LOP path
 - [x] Fix pro-rata flat-structure adapter
-- [ ] Restrict or audit `DELETE /salary-structures/all`
+- [x] Restrict or audit `DELETE /salary-structures/all`
 - [ ] Populate YTD on slips

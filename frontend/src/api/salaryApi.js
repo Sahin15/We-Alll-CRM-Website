@@ -28,9 +28,6 @@ export const salaryStructureApi = {
 
   // Delete salary structure
   delete: (id) => api.delete(`/salary-structures/${id}`),
-
-  // Delete ALL salary structures
-  deleteAll: () => api.delete(`/salary-structures/all`),
 };
 
 // Salary Slip APIs

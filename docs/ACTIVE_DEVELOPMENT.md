@@ -16,10 +16,10 @@ Last Updated: 2026-07-27
 |-------|--------|
 | **Current Feature** | Payroll & Salary Management System V2 |
 | **Current Phase** | Integration / Hardening (Enterprise R-milestones) |
-| **Current Milestone** | **R1 — Correctness hotfix** (**complete — awaiting review**) |
-| **Current Branch** | `fix/payroll-double-lop-prorata` |
+| **Current Milestone** | **R2 — Hygiene** (**complete — awaiting review**) |
+| **Current Branch** | `fix/payroll-hygiene` |
 | **Implementation Workspace** | `docs/IMPLEMENTATION_PLANS/Payroll/` + `docs/PAYROLL_V2_PRODUCT_SPECIFICATION.md` |
-| **Status** | Double LOP removed; flat pro-rata adapter added. Keep `PAYROLL_V2_ENGINE=false`. Do **not** start R2 until R1 approved. |
+| **Status** | DELETE `/salary-structures/all` removed; salary-slip static routes ordered before `/:id`; slip notifications verified for deploy. Keep `PAYROLL_V2_ENGINE=false`. Do **not** start R3 until R2 approved. |
 | **Last Updated** | 2026-07-27 |
 
 ---
@@ -40,13 +40,12 @@ Last Updated: 2026-07-27
 
 ---
 
-## R1 scope (this milestone)
+## R2 scope (this milestone)
 
-* Single attendance money path: `LeaveImpactCalculator` → `lossOfPay` only
-* Stop writing `unpaidLeaveDeduction` on generate / bulk / recalculate (legacy field forced to 0)
-* `toProRataComponentMaps` adapter for flat SalaryStructure in pro-rata calculator
-* Golden unit tests (`payrollCorrectness.r1.unit.test.js`)
+* Remove `DELETE /api/salary-structures/all` (route + controller + frontend `deleteAll` client)
+* Register salary-slip static GET paths before `GET /:id` (employee, reports, stats)
+* Confirm `sendSalarySlipNotification` + `salary_slip_generated` remain on generate/bulk for deploy
 
-**Next (not started):** R2 — Hygiene (`DELETE /all`, route order, notify on deploy)
+**Next (not started):** R3 — Dual-run validation program
 
-**Out of scope for R1:** Period gates, ops UI, historical auto bulk-recalc of all paid slips (use recalculate APIs opt-in).
+**Out of scope for R2:** Period gates, approvals UI, engine cutover.
