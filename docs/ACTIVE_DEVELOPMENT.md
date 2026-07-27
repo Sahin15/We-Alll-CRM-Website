@@ -15,36 +15,26 @@ Last Updated: 2026-07-27
 | Field | Value |
 |-------|--------|
 | **Current Feature** | Payroll & Salary Management System V2 |
-| **Current Phase** | Enterprise baseline on `develop` (post R0–R9 consolidation) |
-| **Current Milestone** | **Develop source-of-truth** — continue from [NEXT_DEVELOPMENT_QUEUE.md](./IMPLEMENTATION_PLANS/Payroll/NEXT_DEVELOPMENT_QUEUE.md) |
+| **Current Phase** | **Production Hardening (P0)** — feature freeze |
+| **Current Milestone** | PH-01 … PH-12 per [PRODUCTION_HARDENING/](./IMPLEMENTATION_PLANS/Payroll/PRODUCTION_HARDENING/) |
 | **Current Branch** | **`develop`** |
-| **Implementation Workspace** | `docs/IMPLEMENTATION_PLANS/Payroll/` + `docs/PAYROLL_V2_PRODUCT_SPECIFICATION.md` |
-| **Status** | Payroll V2 on `develop` at `51c98ef` (R0–R9 + baseline docs). `main` remains production. Keep `PAYROLL_V2_ENGINE=false` and `PAYROLL_EMPLOYER_STATUTORY=false`. See [DEVELOP_BRANCH_STATUS.md](./IMPLEMENTATION_PLANS/Payroll/DEVELOP_BRANCH_STATUS.md). |
+| **Implementation Workspace** | `docs/IMPLEMENTATION_PLANS/Payroll/PRODUCTION_HARDENING/` |
+| **Status** | Audit **NO GO** (58/100). **No new features** (no R7b/R8b/R9b). Only hardening until [GO_LIVE_GATE.md](./IMPLEMENTATION_PLANS/Payroll/PRODUCTION_HARDENING/GO_LIVE_GATE.md) is green. Keep `PAYROLL_V2_ENGINE=false`. |
 | **Last Updated** | 2026-07-27 |
 
 ---
 
 ## Session start checklist
 
-1. Read this file (`docs/ACTIVE_DEVELOPMENT.md`).
-2. Read the Implementation Workspace / product spec.
-3. Confirm work starts from **`develop`** (`git checkout develop && git pull`).
-4. Cut a feature branch from `develop` for new Payroll work; do not reopen historical M*/R* tip branches.
+1. Read this file.
+2. Read `PRODUCTION_HARDENING/README.md` + active PH item in `IMPLEMENTATION_ORDER.md`.
+3. Work only on the current PH blocker — do not start new product features.
+4. Keep `PAYROLL_V2_ENGINE=false` until GO_LIVE_GATE is complete.
 
 ---
 
 ## Rules
 
-* **`develop` is the only source of truth for Payroll V2.**
-* Do **not** set `PAYROLL_V2_ENGINE=true` without dual-run sign-off (R3) and cutover runbook gates.
-* Do **not** set `PAYROLL_EMPLOYER_STATUTORY=true` in production without Finance approval.
-* Do not merge Payroll V2 to `main` without the [RELEASE_CHECKLIST.md](./IMPLEMENTATION_PLANS/Payroll/RELEASE_CHECKLIST.md).
-
----
-
-## Out of scope for casual sessions
-
-* Enabling the V2 engine
-* Breaking `/api/salary-*` contracts
-* Database migrations that rewrite slips
-* Deleting Payroll V1
+* **Feature freeze:** No R8b, R9b, catalog UI, F&F, cron productization, or other roadmap items until go-live gates are green.
+* **`develop` is source of truth.**
+* Do **not** set `PAYROLL_V2_ENGINE=true` without GO_LIVE_GATE + CTO/Finance sign-off.

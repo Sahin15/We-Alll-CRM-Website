@@ -5,6 +5,12 @@ Last Updated: 2026-07-27
 
 # Payroll V2 — Changelog
 
+## 2026-07-27 — Production Hardening P0 (planning)
+
+* Audit docs: PRODUCTION_READINESS_REPORT, RISK_REGISTER, KNOWN_LIMITATIONS, GO_LIVE_CHECKLIST.
+* Opened `PRODUCTION_HARDENING/` roadmap (PH-01–PH-15); feature freeze until GO_LIVE_GATE green.
+* ACTIVE_DEVELOPMENT points to hardening; no code fixes in this change.
+
 ## 2026-07-27 — Develop source-of-truth consolidation
 
 * Fast-forward `feature/payroll-jobs` (R0–R9 tip `66c9c42`) onto `develop`; **no conflicts**.

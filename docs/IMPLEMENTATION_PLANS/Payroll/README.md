@@ -19,6 +19,11 @@ This folder is the **only** authorized Payroll V2 implementation workspace.
 | [NEXT_DEVELOPMENT_QUEUE.md](./NEXT_DEVELOPMENT_QUEUE.md) | Prioritized remaining work |
 | [RELEASE_CHECKLIST.md](./RELEASE_CHECKLIST.md) | Staging/prod cutover checklist |
 | [CLEANUP_REPORT.md](./CLEANUP_REPORT.md) | Hygiene audit (no auto-deletes) |
+| [PRODUCTION_READINESS_REPORT.md](./PRODUCTION_READINESS_REPORT.md) | **CTO audit — engine enable verdict** |
+| [RISK_REGISTER.md](./RISK_REGISTER.md) | Open/mitigated risks before cutover |
+| [KNOWN_LIMITATIONS.md](./KNOWN_LIMITATIONS.md) | Honest ops contract |
+| [GO_LIVE_CHECKLIST.md](./GO_LIVE_CHECKLIST.md) | Hard gates before PAYROLL_V2_ENGINE=true |
+| [PRODUCTION_HARDENING/](./PRODUCTION_HARDENING/) | **P0 hardening roadmap (feature freeze)** |
 | [STATUS.md](./STATUS.md) | Current phase, branch, blockers |
 | [MILESTONES.md](./MILESTONES.md) | Phased milestones and feature branches |
 | [TASKS.md](./TASKS.md) | Checklist for the current and upcoming work |
