@@ -11,7 +11,7 @@ Last Updated: 2026-07-27
 | **Phase** | Enterprise baseline |
 | **Milestone** | Develop source-of-truth (R0–R9 consolidated) |
 | **Branch** | **`develop`** |
-| **Latest tip** | `66c9c42` |
+| **Latest tip** | `51c98ef` (code stack through R9 `66c9c42`) |
 | **Code implementation** | R0–R9 on develop — see [DEVELOP_BRANCH_STATUS.md](./DEVELOP_BRANCH_STATUS.md) |
 | **Engine flag** | Keep `PAYROLL_V2_ENGINE` **false** |
 | **Employer statutory flag** | Keep `PAYROLL_EMPLOYER_STATUTORY` **false** |

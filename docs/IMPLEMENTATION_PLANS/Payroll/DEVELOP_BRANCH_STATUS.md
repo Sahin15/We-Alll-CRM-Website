@@ -12,7 +12,7 @@ Owner: Lead Architect / Session Lead
 |-------|--------|
 | **Source of truth** | `develop` |
 | **Production branch** | `main` (unchanged; do not land Payroll V2 here without release process) |
-| **Latest commit** | `66c9c42` — `feat(payroll): add async bulk generate/email job queue (R9)` |
+| **Latest commit** | `51c98ef` — develop enterprise baseline docs (code tip includes R9 `66c9c42`) |
 | **Consolidation date** | 2026-07-27 |
 | **Engine flag** | `PAYROLL_V2_ENGINE` **false** (must stay false until R3 CTO dual-run sign-off) |
 

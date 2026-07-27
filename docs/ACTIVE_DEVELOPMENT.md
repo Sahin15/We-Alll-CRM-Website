@@ -19,7 +19,7 @@ Last Updated: 2026-07-27
 | **Current Milestone** | **Develop source-of-truth** — continue from [NEXT_DEVELOPMENT_QUEUE.md](./IMPLEMENTATION_PLANS/Payroll/NEXT_DEVELOPMENT_QUEUE.md) |
 | **Current Branch** | **`develop`** |
 | **Implementation Workspace** | `docs/IMPLEMENTATION_PLANS/Payroll/` + `docs/PAYROLL_V2_PRODUCT_SPECIFICATION.md` |
-| **Status** | Payroll V2 tip `66c9c42` lives on `develop`. `main` remains production. Keep `PAYROLL_V2_ENGINE=false` and `PAYROLL_EMPLOYER_STATUTORY=false`. See [DEVELOP_BRANCH_STATUS.md](./IMPLEMENTATION_PLANS/Payroll/DEVELOP_BRANCH_STATUS.md). |
+| **Status** | Payroll V2 on `develop` at `51c98ef` (R0–R9 + baseline docs). `main` remains production. Keep `PAYROLL_V2_ENGINE=false` and `PAYROLL_EMPLOYER_STATUTORY=false`. See [DEVELOP_BRANCH_STATUS.md](./IMPLEMENTATION_PLANS/Payroll/DEVELOP_BRANCH_STATUS.md). |
 | **Last Updated** | 2026-07-27 |
 
 ---
