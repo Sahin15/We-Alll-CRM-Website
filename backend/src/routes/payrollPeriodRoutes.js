@@ -6,6 +6,7 @@ import {
   listPayrollPeriods,
   getPayrollPeriodById,
   getPayrollPeriodByYearMonth,
+  getPeriodGatesStatus,
   freezePayrollPeriod,
   unfreezePayrollPeriod,
   lockPayrollPeriod,
@@ -16,6 +17,13 @@ import {
 const router = express.Router();
 
 const PERIOD_MANAGE_ROLES = ["admin", "superadmin", "hr", "accounts", "manager"];
+const PERIOD_READ_ROLES = [
+  "admin",
+  "superadmin",
+  "hr",
+  "accounts",
+  "manager",
+];
 
 const requirePeriodManage = requireModulePermission(
   "finance",
@@ -23,9 +31,22 @@ const requirePeriodManage = requireModulePermission(
   { legacyRoles: PERIOD_MANAGE_ROLES }
 );
 
+/** Gate status is needed by generate/export UIs (slip.manage / bank.export cohorts). */
+const requirePeriodGateRead = requireModulePermission(
+  "finance",
+  "payroll.slip.manage",
+  { legacyRoles: PERIOD_READ_ROLES }
+);
+
 // Static / nested paths before :id
 router.get("/", protect, requirePeriodManage, listPayrollPeriods);
 router.post("/", protect, requirePeriodManage, openPayrollPeriod);
+router.get(
+  "/gates-status",
+  protect,
+  requirePeriodGateRead,
+  getPeriodGatesStatus
+);
 router.get(
   "/:year/:month",
   protect,

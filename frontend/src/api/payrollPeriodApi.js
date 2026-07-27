@@ -13,6 +13,7 @@ export const payrollPeriodApi = {
   lock: (id) => api.post(`/payroll/periods/${id}/lock`),
   unlock: (id, data) => api.post(`/payroll/periods/${id}/unlock`, data),
   markPaid: (id) => api.post(`/payroll/periods/${id}/mark-paid`),
+  gatesStatus: (params) => api.get("/payroll/periods/gates-status", { params }),
 };
 
 export default payrollPeriodApi;

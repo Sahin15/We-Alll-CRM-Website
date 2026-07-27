@@ -12,6 +12,7 @@ import {
   downloadBlobResponse,
   payrollReportApi,
 } from "../../api/payrollReportApi";
+import { payrollPeriodApi } from "../../api/payrollPeriodApi";
 
 const MONTH_NAMES = [
   "January",
@@ -51,8 +52,10 @@ const PayrollExports = () => {
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [busyKey, setBusyKey] = useState(null);
+  const [gate, setGate] = useState(null);
 
   const periodParams = { month, year, status };
+  const exportBlocked = Boolean(gate?.enabled && !gate?.allowed?.export);
 
   const loadHistory = useCallback(async () => {
     try {
@@ -94,7 +97,28 @@ const PayrollExports = () => {
     loadHistory();
   }, [loadHistory]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await payrollPeriodApi.gatesStatus({ month, year });
+        if (!cancelled) setGate(res.data?.data || null);
+      } catch {
+        if (!cancelled) setGate(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [month, year]);
+
   const runDownload = async (key, fn, fallbackName) => {
+    if (exportBlocked) {
+      toast.error(
+        "Payroll period gates block export for this month. Period must be open or frozen."
+      );
+      return;
+    }
     try {
       setBusyKey(key);
       const response = await fn();
@@ -202,10 +226,19 @@ const PayrollExports = () => {
         <code>generated</code>).
       </Alert>
 
+      {exportBlocked && (
+        <Alert variant="warning" className="py-2">
+          Period gates are on
+          {gate?.status ? ` (status: ${gate.status})` : " (period not opened)"}
+          . Exports require an <strong>open</strong> or <strong>frozen</strong>{" "}
+          pay period.
+        </Alert>
+      )}
+
       <div className="d-flex flex-wrap gap-2 mb-4">
         <Button
           variant="primary"
-          disabled={busyKey === "neft"}
+          disabled={busyKey === "neft" || exportBlocked}
           onClick={() =>
             runDownload(
               "neft",
@@ -220,7 +253,7 @@ const PayrollExports = () => {
           <Button
             key={reg.id}
             variant="outline-primary"
-            disabled={busyKey === reg.id}
+            disabled={busyKey === reg.id || exportBlocked}
             onClick={() =>
               runDownload(
                 reg.id,

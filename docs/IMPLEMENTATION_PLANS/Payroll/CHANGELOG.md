@@ -5,6 +5,13 @@ Last Updated: 2026-07-17
 
 # Payroll V2 — Changelog
 
+## 2026-07-27 — R5 Period gates
+
+* Added `PAYROLL_PERIOD_GATES` (default false): generate/export need `open`|`frozen`; mark-paid needs `locked`; missing period blocks.
+* Wired slip generate/bulk/recalc/mark-paid and report CSV downloads.
+* UI gate status via `GET /api/payroll/periods/gates-status`; disables Generate / Exports / Mark paid when blocked.
+* Tests: `payrollPeriodGates.r5.unit.test.js`.
+
 ## 2026-07-27 — R4 Ops UI (approvals + exports)
 
 * Salary Management tabs: Approvals (pending inbox, act/reject, bulk-approve, start from period slips / pasted IDs).

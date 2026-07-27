@@ -1,5 +1,6 @@
 import PayrollPeriod from "../models/payrollPeriodModel.js";
 import { getAllowedTransitions } from "../services/payroll/payrollPeriodTransitions.js";
+import { getPeriodGateSnapshot } from "../services/payroll/payrollPeriodGates.js";
 
 const MONTH_NAMES = [
   "January",
@@ -242,6 +243,32 @@ const actionHandler = (action) => async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Server error updating payroll period",
+    });
+  }
+};
+
+/**
+ * GET /api/payroll/periods/gates-status?year=&month=
+ * UI helper: whether period gates are on and which ops are allowed.
+ */
+export const getPeriodGatesStatus = async (req, res) => {
+  try {
+    const year = Number(req.query.year);
+    const month = Number(req.query.month);
+    if (!year || !month || month < 1 || month > 12) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid year and month (1-12) are required",
+      });
+    }
+
+    const data = await getPeriodGateSnapshot(year, month);
+    return res.status(200).json({ success: true, data });
+  } catch (error) {
+    console.error("Error in getPeriodGatesStatus:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error loading period gate status",
     });
   }
 };

@@ -145,6 +145,16 @@ Last Updated: 2026-07-27
 - [x] Update ACTIVE_DEVELOPMENT / STATUS / CHANGELOG
 - [ ] Human review / merge approval
 
+## R5 — Period gates
+
+- [x] `PAYROLL_PERIOD_GATES` flag (default false) + `payrollPeriodGates.js`
+- [x] Wire generate / bulk / recalc / mark-paid / exports
+- [x] Fail closed when period missing
+- [x] `GET /payroll/periods/gates-status` + UI disables
+- [x] Unit tests + `.env.example`
+- [x] Update ACTIVE_DEVELOPMENT / STATUS / CHANGELOG
+- [ ] Human review / merge approval
+
 ## Known V1 defects to address in coding milestones (tracked)
 
 - [x] Eliminate double LOP path

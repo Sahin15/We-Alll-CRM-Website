@@ -16,10 +16,10 @@ Last Updated: 2026-07-27
 |-------|--------|
 | **Current Feature** | Payroll & Salary Management System V2 |
 | **Current Phase** | Integration / Hardening (Enterprise R-milestones) |
-| **Current Milestone** | **R4 — Ops UI** (**complete — awaiting review**) |
-| **Current Branch** | `feature/payroll-ops-ui` |
+| **Current Milestone** | **R5 — Period gates** (**complete — awaiting review**) |
+| **Current Branch** | `feature/payroll-period-gates` |
 | **Implementation Workspace** | `docs/IMPLEMENTATION_PLANS/Payroll/` + `docs/PAYROLL_V2_PRODUCT_SPECIFICATION.md` |
-| **Status** | Approvals + Exports tabs on Salary Management. Keep `PAYROLL_V2_ENGINE=false`. Do **not** start R5 until R4 approved. |
+| **Status** | `PAYROLL_PERIOD_GATES` (default false) gates generate/export/mark-paid. Keep `PAYROLL_V2_ENGINE=false`. Do **not** start R6 until R5 approved. |
 | **Last Updated** | 2026-07-27 |
 
 ---
@@ -40,12 +40,13 @@ Last Updated: 2026-07-27
 
 ---
 
-## R4 scope (this milestone)
+## R5 scope (this milestone)
 
-* Salary Management tabs: **Approvals** (pending inbox, act/reject, bulk-approve, start from slips/IDs)
-* Salary Management tabs: **Exports** (bank NEFT, PF/ESI/PT/TDS, export history)
-* API clients: `payrollApprovalApi.js`, `payrollReportApi.js`
+* Flag `PAYROLL_PERIOD_GATES` (default false)
+* Generate / export: `open` \| `frozen`; mark-paid: `locked`; missing period = block
+* UI disables + messages on Generate, Exports, Mark as paid
+* `GET /api/payroll/periods/gates-status`
 
-**Next (not started):** R5 — Period enforcement
+**Next (not started):** R6 — Engine cutover (optional; needs R3 sign-off)
 
-**Out of scope for R4:** Period gates, auto-approval on generate, engine flip.
+**Out of scope for R5:** Enabling V2 engine, changing period state machine edges.

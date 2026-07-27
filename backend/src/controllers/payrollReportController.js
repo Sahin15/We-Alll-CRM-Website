@@ -5,6 +5,10 @@ import {
   getReportingCapabilities,
 } from "../services/payroll/reporting/payrollReportService.js";
 import { DEFAULT_BANK_EXPORT_STATUS } from "../services/payroll/reporting/exportManifest.js";
+import {
+  assertPeriodAllows,
+  sendPeriodGateError,
+} from "../services/payroll/payrollPeriodGates.js";
 
 /**
  * Parse month/year/status query for exports.
@@ -68,6 +72,8 @@ export const downloadBankNeftCsv = async (req, res) => {
       });
     }
 
+    await assertPeriodAllows("export", year, month);
+
     const result = await exportBankNeftCsv({
       month,
       year,
@@ -78,6 +84,7 @@ export const downloadBankNeftCsv = async (req, res) => {
 
     return sendCsv(res, result);
   } catch (error) {
+    if (sendPeriodGateError(res, error)) return;
     console.error("[payrollReport] downloadBankNeftCsv", error);
     if (String(error.message || "").includes("Unknown bank export format")) {
       return res.status(400).json({ success: false, error: error.message });
@@ -106,6 +113,8 @@ export const downloadComplianceRegisterCsv = async (req, res) => {
       });
     }
 
+    await assertPeriodAllows("export", year, month);
+
     const result = await exportComplianceRegisterCsv({
       registerId,
       month,
@@ -116,6 +125,7 @@ export const downloadComplianceRegisterCsv = async (req, res) => {
 
     return sendCsv(res, result);
   } catch (error) {
+    if (sendPeriodGateError(res, error)) return;
     console.error("[payrollReport] downloadComplianceRegisterCsv", error);
     if (String(error.message || "").includes("Unknown compliance register")) {
       return res.status(400).json({ success: false, error: error.message });

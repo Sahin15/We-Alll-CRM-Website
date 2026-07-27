@@ -9,12 +9,13 @@ Last Updated: 2026-07-27
 |-------|--------|
 | **Feature** | Payroll & Salary Management System V2 |
 | **Phase** | Integration / Hardening |
-| **Milestone** | R4 — Ops UI |
-| **Branch** | `feature/payroll-ops-ui` |
-| **Base** | `chore/payroll-dual-run-ops` (R3 tip) |
-| **Code implementation** | R4 complete — **awaiting review** |
+| **Milestone** | R5 — Period gates |
+| **Branch** | `feature/payroll-period-gates` |
+| **Base** | `feature/payroll-ops-ui` (R4 tip) |
+| **Code implementation** | R5 complete — **awaiting review** |
 | **Engine flag** | Keep `PAYROLL_V2_ENGINE` **false** |
-| **Next** | R5 — Period gates — **not started** |
+| **Period gates** | `PAYROLL_PERIOD_GATES` default **false** |
+| **Next** | R6 — Engine cutover — **not started** (needs R3 sign-off) |
 
 ---
 
@@ -22,30 +23,29 @@ Last Updated: 2026-07-27
 
 | Area | Status |
 |------|--------|
-| R0–R3 | Done (R3 staging sign-off still manual) |
-| R4 — Approvals tab | Done |
-| R4 — Exports tab | Done |
-| R4 — API clients | Done |
-| R5+ | Not started |
+| R0–R4 | Done |
+| R5 — Gate helper + API | Done |
+| R5 — Slip / report wiring | Done |
+| R5 — UI disable + messages | Done |
+| R5 — Tests | Done (`payrollPeriodGates.r5.unit.test.js`) |
+| R6+ | Not started |
 
 ---
 
-## R4 deliverables
+## R5 deliverables
 
 | Artifact | Path |
 |----------|------|
-| Approvals UI | `frontend/src/components/salary/PayrollApprovals.jsx` |
-| Exports UI | `frontend/src/components/salary/PayrollExports.jsx` |
-| Clients | `payrollApprovalApi.js`, `payrollReportApi.js` |
-| Hub | `SalaryManagement.jsx` tabs `approvals` / `exports` |
-
-### Manual check
-
-HR/Accounts: open Salary Management → Approvals / Exports; confirm permission errors are clear for roles without `payroll.approval.manage` / `payroll.bank.export`.
+| Gates | `backend/src/services/payroll/payrollPeriodGates.js` |
+| Status API | `GET /api/payroll/periods/gates-status` |
+| Slip gates | generate / bulk / recalc / mark-paid |
+| Export gates | bank NEFT + compliance registers |
+| UI | Generate / Exports / Slip list mark-paid |
+| Flag docs | `backend/.env.example` |
 
 ---
 
 ## Blockers
 
-1. Human review before R5.
-2. R3 staging dual-run CTO sign-off (process; independent of R4 UI).
+1. Human review before enabling `PAYROLL_PERIOD_GATES=true` on staging.
+2. R3 CTO dual-run sign-off before any R6 engine flip.

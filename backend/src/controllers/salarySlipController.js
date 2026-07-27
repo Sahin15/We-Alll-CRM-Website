@@ -8,6 +8,10 @@ import notificationService from "../services/notificationService.js";
 import { calculateProRataSalarySlip } from "../utils/proRataSalaryCalculator.js";
 import { dualRunPayroll } from "../services/payroll/payrollEngine.js";
 import { resolveAttendanceMoneyDeductions } from "../services/payroll/payrollCorrectnessHelpers.js";
+import {
+  assertPeriodAllows,
+  sendPeriodGateError,
+} from "../services/payroll/payrollPeriodGates.js";
 import path from "path";
 import fs from "fs";
 
@@ -285,6 +289,8 @@ export const generateSalarySlip = async (req, res) => {
       return res.status(400).json({ message: "Invalid month" });
     }
 
+    await assertPeriodAllows("generate", year, month);
+
     // Check if slip already exists
     const existingSlip = await SalarySlip.findOne({
       employee: employeeId,
@@ -442,7 +448,7 @@ export const generateSalarySlip = async (req, res) => {
       proRataApplied: proRataData.isProRata
     });
   } catch (error) {
-    
+    if (sendPeriodGateError(res, error)) return;
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -460,6 +466,8 @@ export const bulkGenerateSalarySlips = async (req, res) => {
         message: "Month and year are required"
       });
     }
+
+    await assertPeriodAllows("generate", year, month);
 
     // Get all active employees
     const employees = await User.find({ 
@@ -611,7 +619,7 @@ export const bulkGenerateSalarySlips = async (req, res) => {
       results
     });
   } catch (error) {
-    
+    if (sendPeriodGateError(res, error)) return;
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -856,6 +864,8 @@ export const markAsPaid = async (req, res) => {
       return res.status(404).json({ message: "Salary slip not found" });
     }
 
+    await assertPeriodAllows("markPaid", slip.year, slip.month);
+
     slip.status = "paid";
     await slip.save();
 
@@ -864,7 +874,7 @@ export const markAsPaid = async (req, res) => {
       salarySlip: slip
     });
   } catch (error) {
-    
+    if (sendPeriodGateError(res, error)) return;
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -1314,6 +1324,8 @@ export const recalculateSalarySlip = async (req, res) => {
       });
     }
 
+    await assertPeriodAllows("generate", slip.year, slip.month);
+
     const salaryStructure = slip.salaryStructure;
     if (!salaryStructure) {
       return res.status(404).json({ message: "Salary structure not found for this slip" });
@@ -1352,6 +1364,7 @@ export const recalculateSalarySlip = async (req, res) => {
       }
     });
   } catch (error) {
+    if (sendPeriodGateError(res, error)) return;
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -1371,6 +1384,8 @@ export const bulkRecalculateSalarySlips = async (req, res) => {
     if (!month || !year) {
       return res.status(400).json({ message: "Month and year are required" });
     }
+
+    await assertPeriodAllows("generate", year, month);
 
     const slips = await SalarySlip.find({
       month,
@@ -1430,6 +1445,7 @@ export const bulkRecalculateSalarySlips = async (req, res) => {
       results
     });
   } catch (error) {
+    if (sendPeriodGateError(res, error)) return;
     res.status(500).json({
       message: "Server error",
       error: error.message

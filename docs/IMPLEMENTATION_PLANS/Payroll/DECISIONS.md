@@ -139,3 +139,9 @@ Last Updated: 2026-07-17
 * **Decision:** Expose V2 approvals + reporting via new Salary Management tabs (same pattern as Pay Periods), not a separate app shell.
 * **Approvals:** Inbox + start-from-slips; do not auto-create workflows on generate in R4.
 * **Exports:** Client-side CSV download from existing `/api/payroll/reports/*`; history from `PayrollExportHistory`.
+
+## D-2026-07-27-22 — R5 period gates (opt-in)
+
+* **Flag:** `PAYROLL_PERIOD_GATES` default false for safe rollout.
+* **Matrix:** generate/export → open|frozen; mark-paid → locked; missing period → fail closed.
+* **Corrections:** Unlock locked → frozen (reason required) before generate/export again.
