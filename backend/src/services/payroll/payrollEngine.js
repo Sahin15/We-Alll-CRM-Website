@@ -4,6 +4,7 @@
  */
 
 import { getDefaultSalaryComponents } from "./salaryComponentCatalog.js";
+import { structureComponentsAsCatalog } from "./structureComponentSync.js";
 import { evaluateFormula } from "./formula/formulaEngine.js";
 import {
   DUAL_RUN_TOLERANCE,
@@ -109,7 +110,18 @@ export function buildV1Result(structure, overrides = {}) {
  * @param {Array<object>} [components] - catalog rows; defaults to seed catalog
  */
 export function buildV2Result(structure, overrides = {}, components = null) {
-  const catalog = components || getDefaultSalaryComponents();
+  const useStructureComponents =
+    Array.isArray(structure.components) && structure.components.length > 0;
+
+  let catalog;
+  if (components) {
+    catalog = components;
+  } else if (useStructureComponents) {
+    catalog = structureComponentsAsCatalog(structure);
+  } else {
+    catalog = getDefaultSalaryComponents();
+  }
+
   const lossOfPay = Math.round(Number(overrides.lossOfPay) || 0);
   const lopDays = Number(overrides.lopDays) || 0;
 
@@ -142,6 +154,12 @@ export function buildV2Result(structure, overrides = {}, components = null) {
             variables.TRANSPORT_ALLOWANCE + variables.MEDICAL_ALLOWANCE,
         })
       );
+    } else if (
+      useStructureComponents &&
+      component.structureAmount != null &&
+      component.calcMethod !== "formula"
+    ) {
+      amount = Number(component.structureAmount) || 0;
     } else if (component.v1Field && structure[component.v1Field] != null) {
       amount = Number(structure[component.v1Field]) || 0;
     }

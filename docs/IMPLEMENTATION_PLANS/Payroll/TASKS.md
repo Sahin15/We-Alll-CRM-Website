@@ -164,6 +164,15 @@ Last Updated: 2026-07-27
 - [ ] R3 CTO sign-off (manual) before any env enable
 - [ ] Staging/prod flag enable (ops — not in git)
 
+## R7 — Structure components foundation
+
+- [x] Optional `SalaryStructure.components[]` schema
+- [x] `structureComponentSync` (flat ↔ components)
+- [x] Create/update API sync
+- [x] V2 engine prefers structure components when present
+- [x] Unit tests + docs
+- [ ] Human review / merge approval
+
 ## Known V1 defects to address in coding milestones (tracked)
 
 - [x] Eliminate double LOP path

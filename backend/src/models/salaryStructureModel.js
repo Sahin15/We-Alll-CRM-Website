@@ -95,6 +95,33 @@ const salaryStructureSchema = new mongoose.Schema(
         reason: String,
       },
     ],
+
+    /**
+     * Optional V2 component lines (R7). Flat fields above remain the V1 shadow.
+     * When empty, engine falls back to catalog + flat v1Field mapping.
+     */
+    components: [
+      {
+        code: { type: String, required: true, uppercase: true, trim: true },
+        name: { type: String, default: "", trim: true },
+        type: {
+          type: String,
+          enum: ["earning", "deduction", "employer"],
+          default: "earning",
+        },
+        amount: { type: Number, default: 0, min: 0 },
+        calcMethod: {
+          type: String,
+          enum: ["fixed", "formula", "manual", "attendance"],
+          default: "fixed",
+        },
+        formula: { type: String, default: "", trim: true },
+        taxable: { type: Boolean, default: true },
+        statutory: { type: Boolean, default: false },
+        v1Field: { type: String, default: "", trim: true },
+        displayOrder: { type: Number, default: 0 },
+      },
+    ],
     
     // Calculated fields
     grossSalary: {

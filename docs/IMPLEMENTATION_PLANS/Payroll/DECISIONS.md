@@ -151,3 +151,9 @@ Last Updated: 2026-07-17
 * **Decision:** R6 ships runbooks only; never commit `PAYROLL_V2_ENGINE=true`.
 * **Enable path:** R3 sign-off → staging secrets → one-cycle monitor → separate prod approval.
 * **Rollback:** Kill-switch sets flag false and restarts API; do not mass-edit paid slips.
+
+## D-2026-07-27-24 — R7 components are optional with flat shadow
+
+* **Decision:** Add `components[]` without removing V1 flat fields; sync both ways on write.
+* **Engine:** V2 prefers structure `components[]` when non-empty; flat-only structures unchanged.
+* **Non-goal (this slice):** Catalog UI, bulk migrate historical docs, form rewrite.

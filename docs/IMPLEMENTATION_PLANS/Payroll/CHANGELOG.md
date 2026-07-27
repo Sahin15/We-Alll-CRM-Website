@@ -5,6 +5,13 @@ Last Updated: 2026-07-17
 
 # Payroll V2 — Changelog
 
+## 2026-07-27 — R7 Structure components foundation
+
+* Added optional `SalaryStructure.components[]` (flat fields remain V1 shadow).
+* `structureComponentSync`: flat↔components, create/update prepare helper.
+* `buildV2Result` uses structure components when non-empty; else catalog + flat.
+* Tests: `structureComponentSync.r7.unit.test.js`.
+
 ## 2026-07-27 — R6 Engine cutover prep (docs only)
 
 * Added `ENGINE_CUTOVER_RUNBOOK.md` (R3 hard gates, staging enable, one-cycle monitor, prod criteria).

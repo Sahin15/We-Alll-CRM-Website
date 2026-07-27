@@ -16,10 +16,10 @@ Last Updated: 2026-07-27
 |-------|--------|
 | **Current Feature** | Payroll & Salary Management System V2 |
 | **Current Phase** | Integration / Hardening (Enterprise R-milestones) |
-| **Current Milestone** | **R6 — Engine cutover prep** (**complete — awaiting review**; flag still false) |
-| **Current Branch** | `chore/enable-payroll-v2-engine` |
+| **Current Milestone** | **R7 — Structure components foundation** (**complete — awaiting review**) |
+| **Current Branch** | `feature/payroll-structure-components` |
 | **Implementation Workspace** | `docs/IMPLEMENTATION_PLANS/Payroll/` + `docs/PAYROLL_V2_PRODUCT_SPECIFICATION.md` |
-| **Status** | Cutover + kill-switch runbooks ready. Keep `PAYROLL_V2_ENGINE=false` until R3 CTO sign-off + ops enable. Do **not** start R7 until R6 prep approved (or explicit skip to R7). |
+| **Status** | Optional `SalaryStructure.components[]` + flat shadow sync; V2 prefers structure components when present. Keep `PAYROLL_V2_ENGINE=false`. Do **not** start R8 until R7 approved. |
 | **Last Updated** | 2026-07-27 |
 
 ---
@@ -36,15 +36,17 @@ Last Updated: 2026-07-27
 ## Rules
 
 * Do not start the next R-milestone until this file is updated **and** a human approves.
-* Do **not** set `PAYROLL_V2_ENGINE=true` without dual-run sign-off (R3) and the cutover runbook hard gates.
+* Do **not** set `PAYROLL_V2_ENGINE=true` without dual-run sign-off (R3) and cutover runbook gates.
 
 ---
 
-## R6 scope (this milestone)
+## R7 scope (this milestone)
 
-* Docs only: `ENGINE_CUTOVER_RUNBOOK.md`, `ENGINE_KILL_SWITCH.md`
-* No env flip in git; no persist-math changes
+* Optional `components[]` on SalaryStructure; flat fields remain V1 shadow
+* `structureComponentSync` + create/update API sync
+* V2 engine uses structure components when non-empty
+* Unit tests (round-trip + dual-run)
 
-**Next (not started):** R7 — Component wiring (or ops-only staging enable outside git)
+**Next (not started):** R8 — Statutory & F&F (or R7b catalog UI)
 
-**Out of scope for R6 prep:** Committing `PAYROLL_V2_ENGINE=true`, historical slip migration.
+**Out of scope for R7 foundation:** Catalog CRUD UI, bulk DB migrate, rewrite structure forms.

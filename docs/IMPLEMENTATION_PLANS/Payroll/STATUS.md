@@ -9,12 +9,12 @@ Last Updated: 2026-07-27
 |-------|--------|
 | **Feature** | Payroll & Salary Management System V2 |
 | **Phase** | Integration / Hardening |
-| **Milestone** | R6 — Engine cutover prep |
-| **Branch** | `chore/enable-payroll-v2-engine` |
-| **Base** | `feature/payroll-period-gates` (R5 tip) |
-| **Code implementation** | Docs only — **awaiting review** |
-| **Engine flag** | Keep `PAYROLL_V2_ENGINE` **false** (ops enable later) |
-| **Next** | R7 — Component wiring — **not started** |
+| **Milestone** | R7 — Structure components foundation |
+| **Branch** | `feature/payroll-structure-components` |
+| **Base** | `chore/enable-payroll-v2-engine` (R6 tip) |
+| **Code implementation** | R7 foundation complete — **awaiting review** |
+| **Engine flag** | Keep `PAYROLL_V2_ENGINE` **false** |
+| **Next** | R8 — Statutory & F&F — **not started** (or R7 catalog UI) |
 
 ---
 
@@ -22,29 +22,31 @@ Last Updated: 2026-07-27
 
 | Area | Status |
 |------|--------|
-| R0–R5 | Done |
-| R3 staging CTO sign-off | **Manual / pending** |
-| R6 cutover runbook | Done |
-| R6 kill-switch runbook | Done |
-| R6 env flip | **Not done** (by design) |
-| R7+ | Not started |
+| R0–R6 | Done (R3/R6 ops sign-off still manual) |
+| R7 — Schema `components[]` | Done |
+| R7 — Sync helpers + API | Done |
+| R7 — Engine prefer components | Done |
+| R7 — Tests | Done |
+| R8+ | Not started |
 
 ---
 
-## R6 deliverables
+## R7 deliverables
 
 | Artifact | Path |
 |----------|------|
-| Cutover | `docs/IMPLEMENTATION_PLANS/Payroll/ENGINE_CUTOVER_RUNBOOK.md` |
-| Kill-switch | `docs/IMPLEMENTATION_PLANS/Payroll/ENGINE_KILL_SWITCH.md` |
+| Sync | `backend/src/services/payroll/structureComponentSync.js` |
+| Model | `salaryStructureModel.js` → `components[]` |
+| API | create/update via `prepareStructureComponentFields` |
+| Engine | `buildV2Result` uses structure components when present |
+| Tests | `structureComponentSync.r7.unit.test.js` |
 
-### Ops note
+### Rollback
 
-Enabling V2 persist is an environment secret change after R3 hard gates — not a default in `.env.example`.
+Flat fields remain authoritative for V1; clear `components` or omit on update to re-hydrate from flat.
 
 ---
 
 ## Blockers
 
-1. Human review of R6 prep docs.
-2. R3 dual-run CTO sign-off before any staging `PAYROLL_V2_ENGINE=true`.
+1. Human review before R8 / catalog UI follow-on.

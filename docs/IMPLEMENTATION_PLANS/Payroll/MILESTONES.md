@@ -21,6 +21,7 @@ Last Updated: 2026-07-27
 | **R3** | `chore/payroll-dual-run-ops` | Complete tooling — awaiting staging sign-off |
 | **R4** | `feature/payroll-ops-ui` | Complete |
 | **R5** | `feature/payroll-period-gates` | Complete |
-| **R6** | `chore/enable-payroll-v2-engine` | **Prep complete — flag still false** |
-| R7 | Component wiring | Not started |
-| R8+ | Statutory / F&F / … | Not started |
+| **R6** | `chore/enable-payroll-v2-engine` | Prep complete — flag still false |
+| **R7** | `feature/payroll-structure-components` | **Foundation complete — awaiting review** |
+| R8 | Statutory & F&F | Not started |
+| R9+ | Jobs / scale / … | Not started |
