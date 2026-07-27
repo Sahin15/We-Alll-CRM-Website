@@ -108,3 +108,9 @@ Last Updated: 2026-07-17
 * **Audit:** `PayrollExportHistory` stores exportId, period, counts, amounts, actor, timestamps, type, status, fileLocation.
 * **Permission:** `payroll.bank.export`.
 * **Out of scope:** Bank-specific formats, employer PF/ESI, cost centers, bulk mark-paid, reconciliation UI.
+
+## D-2026-07-27-17 — R0 integration branch
+
+* **Decision:** Land V2 on `integrate/payroll-v2-stack` = V2 tip + merged `develop`, not a rewrite.
+* **Engine:** Keep `PAYROLL_V2_ENGINE` unset/false on staging/prod until R3 dual-run sign-off.
+* **Next coding:** R1 correctness (double LOP + pro-rata) only after R0 human approval.

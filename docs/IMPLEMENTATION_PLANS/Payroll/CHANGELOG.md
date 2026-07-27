@@ -5,6 +5,14 @@ Last Updated: 2026-07-17
 
 # Payroll V2 — Changelog
 
+## 2026-07-27 — R0 Integration baseline
+
+* Created `integrate/payroll-v2-stack` from `feature/payroll-v2-reporting`.
+* Merged `origin/develop` (authz test fixture updates; clean merge).
+* Confirmed `PAYROLL_V2_ENGINE` remains opt-in (`true` only); `.env.example` documents default false.
+* Verified mounts: `/api/payroll/periods|components|runs|approvals|reports`.
+* Smoke tests: 89 passed (payroll suites + finance authz).
+
 ## 2026-07-17 — Milestone 8 Reporting / Bank Export
 
 * Added reporting package under `services/payroll/reporting/` (CSV utils, bank format registry, compliance builders, export manifest).

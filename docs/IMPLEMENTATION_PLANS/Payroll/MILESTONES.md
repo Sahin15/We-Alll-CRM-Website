@@ -1,20 +1,22 @@
 ---
-Purpose: Phased milestones and feature branches for Payroll V2.
-Last Updated: 2026-07-17
+Purpose: Phased milestones after M1–M8 — enterprise R-track.
+Last Updated: 2026-07-27
 ---
 
-# Payroll V2 — Milestones
+# Payroll V2 — Milestones (R-track)
 
-## Completed
+## Prior platform (complete on tip)
 
 | Milestone | Branch | Status |
-| :--- | :--- | :--- |
-| 0–7 | … through `feature/payroll-v2-payslip` | Complete |
+|-----------|--------|--------|
+| M1–M8 | `feature/payroll-v2-reporting` | Complete |
 
-## Milestone 8 — Reporting (current)
+## Integration / hardening
 
-| Field | Value |
-|-------|--------|
-| Branch | `feature/payroll-v2-reporting` |
-| Scope | Generic bank CSV + compliance registers + export history foundation |
-| Status | **Complete — awaiting review** |
+| Milestone | Branch | Status |
+|-----------|--------|--------|
+| **R0** | `integrate/payroll-v2-stack` | **Complete — awaiting review** |
+| R1 | `fix/payroll-double-lop-prorata` | Not started |
+| R2 | `fix/payroll-hygiene` | Not started |
+| R3 | Dual-run validation program | Not started |
+| R4+ | Ops UI / period gates / … | Not started |

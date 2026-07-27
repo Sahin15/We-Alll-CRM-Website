@@ -1,6 +1,6 @@
 ---
-Purpose: Live status of Payroll V2 work.
-Last Updated: 2026-07-17
+Purpose: Live status of Payroll V2 work (post M1–M8 → R-milestones).
+Last Updated: 2026-07-27
 ---
 
 # Payroll V2 — Status
@@ -8,12 +8,12 @@ Last Updated: 2026-07-17
 | Field | Value |
 |-------|--------|
 | **Feature** | Payroll & Salary Management System V2 |
-| **Phase** | Implementation |
-| **Milestone** | Milestone 8 — Reporting / Bank Export |
-| **Branch** | `feature/payroll-v2-reporting` |
-| **Implementation workspace** | `docs/IMPLEMENTATION_PLANS/Payroll/` |
-| **Code implementation** | Milestone 8 complete — **awaiting review** |
-| **Next coding milestone** | None in current plan (V2 milestone set complete pending review) |
+| **Phase** | Integration / Hardening |
+| **Milestone** | R0 — Integration baseline |
+| **Branch** | `integrate/payroll-v2-stack` |
+| **Code implementation** | R0 complete — **awaiting review** |
+| **Engine flag** | `PAYROLL_V2_ENGINE` default **false** (persisted slips remain V1) |
+| **Next** | R1 — Double LOP + pro-rata — **not started** |
 
 ---
 
@@ -21,35 +21,28 @@ Last Updated: 2026-07-17
 
 | Area | Status |
 |------|--------|
-| Milestone 1–7 | Done |
-| Milestone 8 — Bank NEFT CSV | Done |
-| Milestone 8 — Compliance registers | Done |
-| Milestone 8 — Export history foundation | Done |
-| Milestone 8 — tests | Done |
+| Milestones M1–M8 (feature tip) | Done on `feature/payroll-v2-reporting` |
+| R0 — merge develop into integration branch | Done (clean ort merge) |
+| R0 — payroll API mounts | Verified in `server.js` |
+| R0 — smoke tests | **89 passed** |
+| R1+ | Not started |
 
 ---
 
-## Milestone 8 deliverables
+## R0 verification checklist
 
-| Artifact | Path |
-|----------|------|
-| Reporting package | `backend/src/services/payroll/reporting/` |
-| History model | `backend/src/models/payrollExportHistoryModel.js` |
-| API | `/api/payroll/reports` |
-| Permission | `payroll.bank.export` |
-| Tests | `backend/tests/payrollReporting.unit.test.js` |
-
-### API surface
-
-| Method | Path | Notes |
-|--------|------|--------|
-| GET | `/api/payroll/reports/capabilities` | Formats + lifecycle status list |
-| GET | `/api/payroll/reports/bank-neft.csv` | Default `status=approved` |
-| GET | `/api/payroll/reports/registers/:id.csv` | `pf` \| `esi` \| `pt` \| `tds` |
-| GET | `/api/payroll/reports/exports` | Export history audit |
+- [x] `integrate/payroll-v2-stack` created from V2 tip
+- [x] `origin/develop` merged (authz fixture updates)
+- [x] All five `/api/payroll/*` routers mounted
+- [x] Engine config opt-in only (`=== "true"`)
+- [x] `.env.example` documents default false
+- [x] Unit smoke suite green
+- [ ] Human review / push / PR into `develop`
+- [ ] Staging deploy smoke (manual)
 
 ---
 
 ## Blockers
 
-1. Human review / merge approval.
+1. Human review before R1.
+2. Staging deploy not performed by this session (local verification only).

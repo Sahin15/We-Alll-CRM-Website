@@ -99,6 +99,22 @@ Last Updated: 2026-07-17
 - [x] Update STATUS / CHANGELOG / ACTIVE_DEVELOPMENT
 - [ ] Human review / merge approval
 
+## R0 — Integration baseline
+
+- [x] Create `integrate/payroll-v2-stack` from `feature/payroll-v2-reporting`
+- [x] Merge `origin/develop` into integration branch
+- [x] Verify `/api/payroll/*` mounts + engine default false
+- [x] Smoke unit tests (payroll + finance authz)
+- [x] Update ACTIVE_DEVELOPMENT / STATUS / MILESTONES
+- [ ] Human review / push / PR to `develop`
+- [ ] Staging deploy smoke (manual)
+
+## R1 — Correctness hotfix (not started)
+
+- [ ] Eliminate double LOP path
+- [ ] Fix pro-rata flat-structure adapter
+- [ ] Regression / golden tests
+
 ## Known V1 defects to address in coding milestones (tracked)
 
 - [ ] Eliminate double LOP path
