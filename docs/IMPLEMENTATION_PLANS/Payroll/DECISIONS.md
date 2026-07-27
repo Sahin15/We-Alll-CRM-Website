@@ -1,9 +1,15 @@
 ---
 Purpose: Locked decisions for Payroll V2. Do not reopen without a new DECISIONS entry.
-Last Updated: 2026-07-17
+Last Updated: 2026-07-27
 ---
 
 # Payroll V2 — Decisions
+
+## D-2026-07-27-01 — develop is Payroll V2 source of truth
+
+* **Decision:** All Payroll V2 code and continued development live on `develop`. Historical M*/R* branches are ancestry only.
+* **Rationale:** Consolidate enterprise stack; avoid split-brain tips.
+* **Consequence:** New work forks from `develop`. `main` stays production until release checklist + dual-run sign-off allow promotion. `PAYROLL_V2_ENGINE` and `PAYROLL_EMPLOYER_STATUTORY` remain false by default.
 
 ## D-2026-07-17-01 — Documentation workspace is sole plan source
 

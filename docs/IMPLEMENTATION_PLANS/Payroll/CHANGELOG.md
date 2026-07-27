@@ -1,9 +1,17 @@
 ---
 Purpose: Changelog for the Payroll V2 implementation workspace.
-Last Updated: 2026-07-17
+Last Updated: 2026-07-27
 ---
 
 # Payroll V2 — Changelog
+
+## 2026-07-27 — Develop source-of-truth consolidation
+
+* Fast-forward `feature/payroll-jobs` (R0–R9 tip `66c9c42`) onto `develop`; **no conflicts**.
+* Declared `develop` the only Payroll V2 source of truth; `main` remains production.
+* Added `DEVELOP_BRANCH_STATUS.md`, `RELEASE_CHECKLIST.md`, `NEXT_DEVELOPMENT_QUEUE.md`, `CLEANUP_REPORT.md`.
+* Verified flags remain off; payroll Jest 17/17 suites (90 tests); frontend Vite build OK.
+* No calculation, API, or migration changes in this commit.
 
 ## 2026-07-27 — R9 Payroll jobs foundation
 

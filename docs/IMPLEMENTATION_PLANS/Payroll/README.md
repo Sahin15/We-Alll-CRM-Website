@@ -15,6 +15,10 @@ This folder is the **only** authorized Payroll V2 implementation workspace.
 | File | Role |
 |------|------|
 | [README.md](./README.md) | This overview (discovery + architecture) |
+| [DEVELOP_BRANCH_STATUS.md](./DEVELOP_BRANCH_STATUS.md) | **Official develop baseline** (source of truth) |
+| [NEXT_DEVELOPMENT_QUEUE.md](./NEXT_DEVELOPMENT_QUEUE.md) | Prioritized remaining work |
+| [RELEASE_CHECKLIST.md](./RELEASE_CHECKLIST.md) | Staging/prod cutover checklist |
+| [CLEANUP_REPORT.md](./CLEANUP_REPORT.md) | Hygiene audit (no auto-deletes) |
 | [STATUS.md](./STATUS.md) | Current phase, branch, blockers |
 | [MILESTONES.md](./MILESTONES.md) | Phased milestones and feature branches |
 | [TASKS.md](./TASKS.md) | Checklist for the current and upcoming work |

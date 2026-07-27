@@ -15,11 +15,11 @@ Last Updated: 2026-07-27
 | Field | Value |
 |-------|--------|
 | **Current Feature** | Payroll & Salary Management System V2 |
-| **Current Phase** | Integration / Hardening (Enterprise R-milestones) |
-| **Current Milestone** | **R9 — Payroll jobs foundation** (**complete — awaiting review**) |
-| **Current Branch** | `feature/payroll-jobs` |
+| **Current Phase** | Enterprise baseline on `develop` (post R0–R9 consolidation) |
+| **Current Milestone** | **Develop source-of-truth** — continue from [NEXT_DEVELOPMENT_QUEUE.md](./IMPLEMENTATION_PLANS/Payroll/NEXT_DEVELOPMENT_QUEUE.md) |
+| **Current Branch** | **`develop`** |
 | **Implementation Workspace** | `docs/IMPLEMENTATION_PLANS/Payroll/` + `docs/PAYROLL_V2_PRODUCT_SPECIFICATION.md` |
-| **Status** | Async bulk generate/email via `/api/payroll/jobs` (in-process queue). Sync bulk endpoints unchanged. Keep `PAYROLL_V2_ENGINE=false`. R-track coding tip for this stack. |
+| **Status** | Payroll V2 tip `66c9c42` lives on `develop`. `main` remains production. Keep `PAYROLL_V2_ENGINE=false` and `PAYROLL_EMPLOYER_STATUTORY=false`. See [DEVELOP_BRANCH_STATUS.md](./IMPLEMENTATION_PLANS/Payroll/DEVELOP_BRANCH_STATUS.md). |
 | **Last Updated** | 2026-07-27 |
 
 ---
@@ -28,24 +28,23 @@ Last Updated: 2026-07-27
 
 1. Read this file (`docs/ACTIVE_DEVELOPMENT.md`).
 2. Read the Implementation Workspace / product spec.
-3. Confirm **Current Branch** matches `git branch --show-current`.
-4. Implement **only** the Current Milestone (if coding is approved).
+3. Confirm work starts from **`develop`** (`git checkout develop && git pull`).
+4. Cut a feature branch from `develop` for new Payroll work; do not reopen historical M*/R* tip branches.
 
 ---
 
 ## Rules
 
-* Do not start the next R-milestone until this file is updated **and** a human approves.
+* **`develop` is the only source of truth for Payroll V2.**
 * Do **not** set `PAYROLL_V2_ENGINE=true` without dual-run sign-off (R3) and cutover runbook gates.
+* Do **not** set `PAYROLL_EMPLOYER_STATUTORY=true` in production without Finance approval.
+* Do not merge Payroll V2 to `main` without the [RELEASE_CHECKLIST.md](./IMPLEMENTATION_PLANS/Payroll/RELEASE_CHECKLIST.md).
 
 ---
 
-## R9 scope (this milestone)
+## Out of scope for casual sessions
 
-* `PayrollJob` model + in-process runner
-* `POST /api/payroll/jobs/bulk-generate` / `bulk-email` → 202
-* `GET /api/payroll/jobs` / `:id`
-
-**Next:** Human review; optional R9b cron / FE poller / F&F follow-ons
-
-**Out of scope:** Month-end cron, Redis/Bull, load harness, job poller UI.
+* Enabling the V2 engine
+* Breaking `/api/salary-*` contracts
+* Database migrations that rewrite slips
+* Deleting Payroll V1

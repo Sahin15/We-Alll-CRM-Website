@@ -24,4 +24,12 @@ Last Updated: 2026-07-27
 | **R6** | `chore/enable-payroll-v2-engine` | Prep complete — flag still false |
 | **R7** | `feature/payroll-structure-components` | Complete |
 | **R8** | `feature/payroll-statutory-fnf` | Employer statutory foundation complete |
-| **R9** | `feature/payroll-jobs` | **Jobs foundation — awaiting review** |
+| **R9** | `feature/payroll-jobs` | Complete — tip on **`develop`** |
+
+## Develop baseline
+
+| Item | Status |
+|------|--------|
+| Consolidate R0–R9 onto `develop` | Complete (FF, 2026-07-27) |
+| Source of truth | **`develop`** |
+| Next coding | Cut branches from `develop` per `NEXT_DEVELOPMENT_QUEUE.md` |
