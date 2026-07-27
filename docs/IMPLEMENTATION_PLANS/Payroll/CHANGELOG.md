@@ -5,6 +5,13 @@ Last Updated: 2026-07-17
 
 # Payroll V2 — Changelog
 
+## 2026-07-27 — R9 Payroll jobs foundation
+
+* `PayrollJob` model + in-process sequential runner (no Redis/Bull).
+* `POST /api/payroll/jobs/bulk-generate` and `bulk-email` return 202; poll `GET /api/payroll/jobs/:id`.
+* Reuses existing slip bulk controllers via capture response; sync bulk endpoints unchanged.
+* Tests: `payrollJobs.r9.unit.test.js`.
+
 ## 2026-07-27 — R8 Employer statutory foundation
 
 * Catalog defaults `PF_ER` / `ESI_ER` (employer type).

@@ -16,10 +16,10 @@ Last Updated: 2026-07-27
 |-------|--------|
 | **Current Feature** | Payroll & Salary Management System V2 |
 | **Current Phase** | Integration / Hardening (Enterprise R-milestones) |
-| **Current Milestone** | **R8 — Employer statutory foundation** (**complete — awaiting review**) |
-| **Current Branch** | `feature/payroll-statutory-fnf` |
+| **Current Milestone** | **R9 — Payroll jobs foundation** (**complete — awaiting review**) |
+| **Current Branch** | `feature/payroll-jobs` |
 | **Implementation Workspace** | `docs/IMPLEMENTATION_PLANS/Payroll/` + `docs/PAYROLL_V2_PRODUCT_SPECIFICATION.md` |
-| **Status** | `PAYROLL_EMPLOYER_STATUTORY` (default false) adds PF_ER/ESI_ER + CTC; employee net unchanged. Keep `PAYROLL_V2_ENGINE=false`. Do **not** start R9 / F&F UI until R8 approved. |
+| **Status** | Async bulk generate/email via `/api/payroll/jobs` (in-process queue). Sync bulk endpoints unchanged. Keep `PAYROLL_V2_ENGINE=false`. R-track coding tip for this stack. |
 | **Last Updated** | 2026-07-27 |
 
 ---
@@ -40,12 +40,12 @@ Last Updated: 2026-07-27
 
 ---
 
-## R8 scope (this milestone)
+## R9 scope (this milestone)
 
-* Catalog defaults `PF_ER` / `ESI_ER`
-* `employerStatutory.js` rates + CTC helpers
-* V2 employer lines when `PAYROLL_EMPLOYER_STATUTORY=true` (net unchanged)
+* `PayrollJob` model + in-process runner
+* `POST /api/payroll/jobs/bulk-generate` / `bulk-email` → 202
+* `GET /api/payroll/jobs` / `:id`
 
-**Next (not started):** R9 — Jobs / scale, or R8b F&F calculator
+**Next:** Human review; optional R9b cron / FE poller / F&F follow-ons
 
-**Out of scope:** F&F settlement UI/slip type, full EPFO/ESIC rule engine, PT slabs rewrite.
+**Out of scope:** Month-end cron, Redis/Bull, load harness, job poller UI.

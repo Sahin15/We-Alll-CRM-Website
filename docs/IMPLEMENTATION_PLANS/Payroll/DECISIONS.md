@@ -163,3 +163,9 @@ Last Updated: 2026-07-17
 * **Decision:** Employer PF/ESI are `type: employer` lines behind `PAYROLL_EMPLOYER_STATUTORY`; they never reduce employee net.
 * **Defaults:** PF_ER 12% of BASIC; ESI_ER 3.25% of simplified wage base when EE ESI > 0.
 * **Non-goal:** Full EPFO/ESIC ceilings engine; F&F settlement (follow-on).
+
+## D-2026-07-27-26 — R9 jobs are in-process first
+
+* **Decision:** Async bulk generate/email via Mongo `PayrollJob` + single-process runner; no Redis/Bull in R9.
+* **API:** New `/api/payroll/jobs/*` returns 202; existing sync bulk routes stay for small runs.
+* **Non-goal:** Month-end cron, FE poller UI, 500-employee load harness.

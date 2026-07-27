@@ -182,6 +182,15 @@ Last Updated: 2026-07-27
 - [ ] Human review / merge approval
 - [ ] F&F calculator / settlement slip (later)
 
+## R9 — Payroll jobs foundation
+
+- [x] `PayrollJob` model + in-process runner
+- [x] `POST /api/payroll/jobs/bulk-generate` + `bulk-email` (202)
+- [x] `GET /api/payroll/jobs` + `/:id`
+- [x] Unit tests + docs
+- [ ] Human review / merge approval
+- [ ] Optional month-end cron (later)
+
 ## Known V1 defects to address in coding milestones (tracked)
 
 - [x] Eliminate double LOP path
