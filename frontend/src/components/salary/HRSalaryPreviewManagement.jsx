@@ -467,7 +467,7 @@ const HRSalaryPreviewManagement = () => {
           },
         });
         toast.success(
-          "Corrections saved. Preview updated from Pay Run figures."
+          "Corrections saved. Preview updated from Payroll figures."
         );
       } else {
         await salaryPreviewApi.makeCorrections(target._id, {
@@ -1230,7 +1230,7 @@ const HRSalaryPreviewManagement = () => {
           ) : correctionsIsSimple ? (
             <>
               <Alert variant="info" className="small mb-3">
-                Correct pay here using the same Pay Run rules: edit
+                Correct pay here using the same Payroll rules: edit
                 Monthly Salary or TDS, and optionally add a new adjustment line
                 below. Existing adjustments are listed for reference.
               </Alert>
@@ -1394,7 +1394,7 @@ const HRSalaryPreviewManagement = () => {
                           />
                           <Form.Text muted>
                             Leave 0 if you only need to change Monthly Salary or
-                            TDS. Amount is saved as an approved Pay Run
+                            TDS. Amount is saved as an approved Payroll
                             adjustment when you click Save.
                           </Form.Text>
                         </Form.Group>
@@ -1403,7 +1403,7 @@ const HRSalaryPreviewManagement = () => {
                   </Card>
 
                   <div className="small text-muted mb-1">
-                    Existing adjustments (from Pay Run)
+                    Existing adjustments (from Payroll)
                   </div>
                   <div className="fw-semibold mb-2">
                     {simpleCorrections.removeAllAdjustments ? (

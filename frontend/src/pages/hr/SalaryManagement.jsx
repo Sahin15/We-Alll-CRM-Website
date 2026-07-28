@@ -183,7 +183,7 @@ const SalaryManagement = () => {
                     </div>
                   </div>
                   <p className="salary-header-description mb-0">
-                    Run payroll in one place: Pay Run for monthly salary and
+                    Run payroll in one place: set monthly salary and
                     adjustments, preview, then generate salary slips.
                   </p>
                 </div>
@@ -378,7 +378,7 @@ const SalaryManagement = () => {
             onSelect={(k) => selectTab(k)}
             className="mb-3"
           >
-            <Tab eventKey="simple-payroll" title="Pay Run">
+            <Tab eventKey="simple-payroll" title="Payroll">
               {activeTab === "simple-payroll" && <SimplePayrollTab />}
             </Tab>
             <Tab eventKey="previews" title="Salary Preview">
