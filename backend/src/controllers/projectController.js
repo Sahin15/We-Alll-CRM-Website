@@ -19,6 +19,7 @@ import {
   isPastMember,
   stripPastMembersFromProject,
 } from "../utils/employeeQueryUtils.js";
+import { ensureProjectDepartmentsFromUsers } from "../utils/projectDepartmentSync.js";
 // Temporarily removed imports for debugging
 // import WorkItem from "../models/workItemModel.js";
 // import Slot from "../models/slotModel.js";
@@ -92,6 +93,15 @@ export const createProject = async (req, res) => {
       });
     }
 
+    // Auto-include departments from project head + initial team members
+    let finalDepartments = Array.isArray(departments) ? [...departments] : [];
+    const usersForDeptSync = await User.find({
+      _id: { $in: finalAssignedUsers },
+    }).select("department");
+    const deptProjectStub = { departments: finalDepartments, department: null };
+    ensureProjectDepartmentsFromUsers(deptProjectStub, usersForDeptSync);
+    finalDepartments = deptProjectStub.departments;
+
     // Initialize slot configuration - ALWAYS 20 slots per month
     const DEFAULT_SLOT_COUNT = 20;
     const slotConfig = {
@@ -126,7 +136,7 @@ export const createProject = async (req, res) => {
       client: client || null,
       description: description || '',
       startDate: startDate || null,
-      departments: departments || [], // Add departments support
+      departments: finalDepartments || [], // departments from form + auto from team members
       budget: budget || 0,
       status: status || "Pending",
       priority: priority || "medium",
@@ -406,6 +416,7 @@ export const assignUserToProject = async (req, res) => {
     );
     if (!isAlreadyAssigned) {
       project.assignedUsers.push(userId);
+      ensureProjectDepartmentsFromUsers(project, [user]);
       await project.save();
     }
 
@@ -1219,6 +1230,9 @@ export const addTeamMember = async (req, res) => {
       project.assignedUsers.push(userId);
     }
 
+    // Auto-add the member's department/service to the project (e.g. Posting)
+    ensureProjectDepartmentsFromUsers(project, [user]);
+
     // Validate before saving
     const validationError = project.validateSync();
     if (validationError) {
@@ -1250,9 +1264,10 @@ export const addTeamMember = async (req, res) => {
     });
 
     const updatedProject = await Project.findById(projectId)
-      .populate("teamMembers.user", "name email designation")
+      .populate("teamMembers.user", "name email designation department")
       .populate("teamMembers.assignedBy", "name email")
-      .populate("projectHead", "name email");
+      .populate("projectHead", "name email")
+      .populate("departments", "name");
 
     res.status(200).json({
       success: true,

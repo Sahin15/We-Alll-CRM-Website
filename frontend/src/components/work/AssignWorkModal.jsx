@@ -47,24 +47,19 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
 
   const projectSupportsCreative = useMemo(() => {
     if (!selectedProject) return false;
-
     const names = [];
     const pushName = (value) => {
-      if (!value) return;
-      names.push(String(value).toLowerCase());
+      if (value) names.push(String(value).toLowerCase());
     };
-
     if (Array.isArray(selectedProject.departments)) {
       selectedProject.departments.forEach((dept) => {
-        if (typeof dept === 'object' && dept?.name) {
-          pushName(dept.name);
-        } else if (dept) {
+        if (typeof dept === 'object' && dept?.name) pushName(dept.name);
+        else if (dept) {
           const match = departments.find((d) => String(d._id) === String(dept));
           pushName(match?.name);
         }
       });
     }
-
     if (selectedProject.department) {
       if (typeof selectedProject.department === 'object') {
         pushName(selectedProject.department.name);
@@ -75,7 +70,6 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
         pushName(match?.name);
       }
     }
-
     return names.some(
       (n) =>
         n.includes('design') ||
@@ -83,6 +77,32 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
         n.includes('video')
     );
   }, [selectedProject, departments]);
+
+  const projectHasPostingDepartment = useMemo(() => {
+    if (!selectedProject) return false;
+    const names = [];
+    const pushName = (value) => {
+      if (value) names.push(String(value).toLowerCase());
+    };
+    if (Array.isArray(selectedProject.departments)) {
+      selectedProject.departments.forEach((dept) => {
+        if (typeof dept === 'object' && dept?.name) pushName(dept.name);
+        else if (dept) {
+          const match = departments.find((d) => String(d._id) === String(dept));
+          pushName(match?.name);
+        }
+      });
+    }
+    return names.some((n) => n.includes('posting'));
+  }, [selectedProject, departments]);
+
+  // Show posting handoff without requiring manual department linking.
+  // Backend auto-adds a member's department when they join the project.
+  const showPostingHandoff = Boolean(selectedProject) && (
+    projectSupportsCreative ||
+    projectHasPostingDepartment ||
+    postingUsers.length > 0
+  );
 
   // Load projects and users when modal opens
   useEffect(() => {
@@ -397,7 +417,7 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
       }
     }
 
-    if (projectSupportsCreative && formData.requiresPosting) {
+    if (showPostingHandoff && formData.requiresPosting) {
       if (!formData.postingAssignedTo) {
         toast.error('Please select a Posting department team member');
         return;
@@ -444,22 +464,24 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
         workItemData.selectedSlot = formData.selectedSlot;
       }
 
-      if (projectSupportsCreative) {
-        workItemData.workflowMode = 'creative';
-        const deptNames = [];
-        if (Array.isArray(selectedProject?.departments)) {
-          selectedProject.departments.forEach((dept) => {
-            if (typeof dept === 'object' && dept?.name) {
-              deptNames.push(String(dept.name).toLowerCase());
-            } else if (dept) {
-              const match = departments.find((d) => String(d._id) === String(dept));
-              if (match?.name) deptNames.push(String(match.name).toLowerCase());
-            }
-          });
+      if (showPostingHandoff) {
+        if (projectSupportsCreative || formData.requiresPosting) {
+          workItemData.workflowMode = 'creative';
+          const deptNames = [];
+          if (Array.isArray(selectedProject?.departments)) {
+            selectedProject.departments.forEach((dept) => {
+              if (typeof dept === 'object' && dept?.name) {
+                deptNames.push(String(dept.name).toLowerCase());
+              } else if (dept) {
+                const match = departments.find((d) => String(d._id) === String(dept));
+                if (match?.name) deptNames.push(String(match.name).toLowerCase());
+              }
+            });
+          }
+          workItemData.workflowType = deptNames.some((n) => n.includes('video'))
+            ? 'video-production'
+            : 'design';
         }
-        workItemData.workflowType = deptNames.some((n) => n.includes('video'))
-          ? 'video-production'
-          : 'design';
         workItemData.requiresPosting = Boolean(formData.requiresPosting);
         if (formData.requiresPosting) {
           workItemData.postingAssignedTo = formData.postingAssignedTo;
@@ -820,7 +842,7 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
               </Col>
             )}
 
-            {projectSupportsCreative && (
+            {showPostingHandoff && (
               <Col md={12} className="mb-3">
                 <div className="border rounded p-3 bg-light">
                   <Form.Check
