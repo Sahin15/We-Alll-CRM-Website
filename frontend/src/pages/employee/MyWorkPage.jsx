@@ -281,8 +281,10 @@ const MyWorkPage = () => {
     <Container fluid>
       <Row className="mb-4">
         <Col>
-          <h2>My Work</h2>
-          <p className="text-muted">
+          <h2 className="fw-bold text-dark mb-1" style={{ color: '#1f2937' }}>
+            My Work
+          </h2>
+          <p className="text-muted mb-0">
             View and manage all your assigned work items
           </p>
         </Col>
