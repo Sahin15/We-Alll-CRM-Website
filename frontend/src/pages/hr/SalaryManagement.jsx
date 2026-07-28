@@ -28,6 +28,7 @@ import TemplateManagement from "../../components/salary/TemplateManagement";
 import PayrollPeriods from "../../components/salary/PayrollPeriods";
 import PayrollApprovals from "../../components/salary/PayrollApprovals";
 import PayrollExports from "../../components/salary/PayrollExports";
+import SimplePayrollTab from "../../components/salary/SimplePayrollTab";
 import { salarySlipApi } from "../../api/salaryApi";
 import api from "../../services/api";
 
@@ -325,6 +326,9 @@ const SalaryManagement = () => {
             </Tab>
             <Tab eventKey="generate" title="Generate Slips">
               <GenerateSalarySlips />
+            </Tab>
+            <Tab eventKey="simple-payroll" title="Simple Payroll">
+              <SimplePayrollTab />
             </Tab>
             <Tab eventKey="structures" title="Salary Structures">
               <SalaryStructures />
