@@ -10,6 +10,7 @@ import {
   getEffectiveStatusForUser,
   isWorkItemOverdue,
 } from '../../utils/workItemUtils';
+import CreativeWorkflowPanel from '../creative/CreativeWorkflowPanel';
 import './WorkItemDetailsModal.css';
 
 const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, currentUser, onAddComment }) => {
@@ -452,6 +453,20 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
             <FaClock className="me-2" />
             <strong>Overdue!</strong> This work item is past its due date.
           </Alert>
+        )}
+
+        {(workItem.workflowMode === 'creative' ||
+          workItem.workflowType === 'design' ||
+          workItem.workflowType === 'video-production') && (
+          <div className="m-3">
+            <CreativeWorkflowPanel
+              workItem={workItem}
+              onUpdated={() => {
+                if (onRefresh) onRefresh();
+                if (onUpdate) onUpdate();
+              }}
+            />
+          </div>
         )}
 
         <Tabs defaultActiveKey="details" className="mb-0" style={{ borderBottom: '2px solid #e9ecef' }}>

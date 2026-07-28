@@ -3,25 +3,49 @@
  * Handles validation and business logic for work item status transitions
  */
 
-// Valid status values — 4-stage workflow + Cancelled
-export const VALID_STATUSES = ["To Do", "In Progress", "Review", "Done", "Cancelled"];
+import { ALL_WORK_ITEM_STATUSES, mapsToSlotComplete } from "./creativeStatusMap.js";
+
+// Valid status values — legacy 4-stage + creative workflow + Cancelled
+export const VALID_STATUSES = ALL_WORK_ITEM_STATUSES;
 
 // Status colors for UI
 export const STATUS_COLORS = {
-  "To Do":       "#6B7280", // Gray
-  "In Progress": "#3B82F6", // Blue
-  "Review":      "#F59E0B", // Amber
-  "Done":        "#10B981", // Green
-  "Cancelled":   "#EF4444", // Red
+  "To Do": "#6B7280",
+  "In Progress": "#3B82F6",
+  "Review": "#F59E0B",
+  "Done": "#10B981",
+  "Cancelled": "#EF4444",
+  Backlog: "#9CA3AF",
+  Assigned: "#60A5FA",
+  "Submitted for Review": "#F59E0B",
+  "Changes Requested": "#F97316",
+  "Rework In Progress": "#3B82F6",
+  "QA Review": "#A855F7",
+  Approved: "#22C55E",
+  Delivered: "#10B981",
+  "Awaiting Posting": "#EAB308",
+  Posted: "#14B8A6",
+  Closed: "#6B7280",
 };
 
 // Status order for sorting
 export const STATUS_ORDER = {
-  "To Do":       1,
+  Backlog: 0,
+  "To Do": 1,
+  Assigned: 1,
   "In Progress": 2,
-  "Review":      3,
-  "Done":        4,
-  "Cancelled":   5,
+  "Rework In Progress": 2,
+  Review: 3,
+  "Submitted for Review": 3,
+  "Changes Requested": 3,
+  "QA Review": 4,
+  Approved: 5,
+  Delivered: 6,
+  "Awaiting Posting": 7,
+  Posted: 8,
+  Done: 9,
+  Closed: 10,
+  Cancelled: 11,
 };
 
 /**
@@ -78,7 +102,8 @@ export const getNextStatus = (currentStatus) => {
 /**
  * Check if work item is complete
  */
-export const isComplete = (status) => status === "Done";
+export const isComplete = (status) =>
+  mapsToSlotComplete(status) || status === "Posted" || status === "Closed" || status === "Done";
 
 /**
  * Check if work item is cancelled

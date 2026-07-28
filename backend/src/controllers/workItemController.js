@@ -14,6 +14,11 @@ import {
   isPendingForUser,
   syncGlobalStatusFromAssignees,
 } from "../utils/workItemStatusUtils.js";
+import {
+  validatePostingHandoffInput,
+  assertUserInPostingDepartment,
+  applyPostingHandoffFields,
+} from "../services/creativePostingService.js";
 
 // @desc    Get all work items for current user (My Work)
 // @route   GET /api/work-items/my-work
@@ -349,6 +354,12 @@ const createWorkItem = async (req, res) => {
       // Draft/Scheduled fields
       visibility,
       scheduledActivationDate,
+      // Creative / posting handoff
+      workflowMode,
+      workflowType,
+      requiresPosting,
+      postingAssignedTo,
+      postingDate,
     } = req.body;
     
     // ENHANCED VALIDATION - Check required fields based on type
@@ -473,6 +484,44 @@ const createWorkItem = async (req, res) => {
         workItemData.hashtags = hashtags;
       }
     }
+
+    // Creative workflow + optional Posting handoff
+    if (workflowMode === "creative" || workflowType === "design" || workflowType === "video-production") {
+      workItemData.workflowMode = "creative";
+    }
+    if (workflowType) {
+      workItemData.workflowType = workflowType;
+    }
+
+    const postingValidated = validatePostingHandoffInput({
+      requiresPosting: Boolean(requiresPosting),
+      postingAssignedTo,
+      postingDate,
+    });
+    if (!postingValidated.valid) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: "VALIDATION_ERROR",
+          message: postingValidated.error,
+        },
+      });
+    }
+    if (postingValidated.postingAssignedTo) {
+      const postingUserCheck = await assertUserInPostingDepartment(
+        postingValidated.postingAssignedTo
+      );
+      if (!postingUserCheck.ok) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: "VALIDATION_ERROR",
+            message: postingUserCheck.error,
+          },
+        });
+      }
+    }
+    applyPostingHandoffFields(workItemData, postingValidated);
 
     const workItem = await WorkItem.create(workItemData);
     

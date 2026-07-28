@@ -73,7 +73,12 @@ const ProfessionalWorkCreationModal = ({
     
     // Optional fields
     estimatedHours: '',
-    tags: ''
+    tags: '',
+
+    // Creative / Posting handoff (Graphic Design & Video)
+    requiresPosting: false,
+    postingAssignedTo: '',
+    postingDate: '',
   });
 
   // Slot system states
@@ -131,6 +136,32 @@ const ProfessionalWorkCreationModal = ({
   }, []);
 
   // Filter users by selected project's departments
+  const projectSupportsCreative = useMemo(() => {
+    if (!selectedProject) return false;
+    const deptNames = [];
+    if (Array.isArray(selectedProject.departments)) {
+      selectedProject.departments.forEach((d) => {
+        if (typeof d === 'object' && d?.name) deptNames.push(d.name.toLowerCase());
+      });
+    }
+    if (selectedProject.department?.name) {
+      deptNames.push(String(selectedProject.department.name).toLowerCase());
+    }
+    return deptNames.some(
+      (n) =>
+        n.includes('design') ||
+        n.includes('graphic') ||
+        n.includes('video')
+    );
+  }, [selectedProject]);
+
+  const postingDepartmentUsers = useMemo(() => {
+    return users.filter((u) => {
+      const name = (u.department?.name || '').toLowerCase();
+      return name.includes('posting');
+    });
+  }, [users]);
+
   const availableUsers = useMemo(() => {
     if (!formData.project || !selectedProject) {
       return users; // Show all users if no project selected
@@ -413,6 +444,15 @@ const ProfessionalWorkCreationModal = ({
       newErrors.selectedSlot = 'Please select a slot';
     }
 
+    if (projectSupportsCreative && formData.requiresPosting) {
+      if (!formData.postingAssignedTo) {
+        newErrors.postingAssignedTo = 'Select a Posting department team member';
+      }
+      if (!formData.postingDate) {
+        newErrors.postingDate = 'Posting date is required';
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -462,6 +502,27 @@ const ProfessionalWorkCreationModal = ({
         assignToSlot: formData.assignToSlot,
         selectedSlot: formData.selectedSlot
       };
+
+      if (projectSupportsCreative) {
+        workItemData.workflowMode = 'creative';
+        const deptNames = [];
+        if (Array.isArray(selectedProject?.departments)) {
+          selectedProject.departments.forEach((d) => {
+            if (typeof d === 'object' && d?.name) deptNames.push(d.name.toLowerCase());
+          });
+        }
+        if (selectedProject?.department?.name) {
+          deptNames.push(String(selectedProject.department.name).toLowerCase());
+        }
+        workItemData.workflowType = deptNames.some((n) => n.includes('video'))
+          ? 'video-production'
+          : 'design';
+        workItemData.requiresPosting = Boolean(formData.requiresPosting);
+        if (formData.requiresPosting) {
+          workItemData.postingAssignedTo = formData.postingAssignedTo;
+          workItemData.postingDate = formData.postingDate;
+        }
+      }
 
       // Add content-specific fields
       if (formData.workItemType === 'content') {
@@ -522,7 +583,10 @@ const ProfessionalWorkCreationModal = ({
       postType: '',
       contentBucket: '',
       estimatedHours: '',
-      tags: ''
+      tags: '',
+      requiresPosting: false,
+      postingAssignedTo: '',
+      postingDate: '',
     });
     setErrors({});
     setAvailableSlots([]);
@@ -917,6 +981,85 @@ const ProfessionalWorkCreationModal = ({
               </Row>
             </Card.Body>
           </Card>
+
+          {projectSupportsCreative && (
+            <Card className="mb-4 border-0 shadow-sm">
+              <Card.Header className="bg-light border-0">
+                <h6 className="mb-0">Posting Department (optional)</h6>
+              </Card.Header>
+              <Card.Body>
+                <Form.Check
+                  type="checkbox"
+                  id="requiresPosting"
+                  className="mb-3"
+                  label="Assign to Posting department (We Alll will post this content)"
+                  checked={formData.requiresPosting}
+                  onChange={(e) => {
+                    handleInputChange('requiresPosting', e.target.checked);
+                    if (!e.target.checked) {
+                      handleInputChange('postingAssignedTo', '');
+                      handleInputChange('postingDate', '');
+                    }
+                  }}
+                />
+                {!formData.requiresPosting && (
+                  <Alert variant="secondary" className="py-2 small mb-0">
+                    Not selected — client will post the content. No Posting member or posting date needed.
+                  </Alert>
+                )}
+                {formData.requiresPosting && (
+                  <Row>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label className="fw-bold">
+                          Posting team member <span className="text-danger">*</span>
+                        </Form.Label>
+                        <Form.Select
+                          value={formData.postingAssignedTo}
+                          onChange={(e) => handleInputChange('postingAssignedTo', e.target.value)}
+                          isInvalid={!!errors.postingAssignedTo}
+                        >
+                          <option value="">Select Posting member...</option>
+                          {postingDepartmentUsers.map((u) => (
+                            <option key={u._id || u.id} value={u._id || u.id}>
+                              {u.name}
+                            </option>
+                          ))}
+                        </Form.Select>
+                        <Form.Control.Feedback type="invalid">
+                          {errors.postingAssignedTo}
+                        </Form.Control.Feedback>
+                        {postingDepartmentUsers.length === 0 && (
+                          <Form.Text className="text-warning">
+                            No Posting department users found. Create the Posting department and assign employees first.
+                          </Form.Text>
+                        )}
+                      </Form.Group>
+                    </Col>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label className="fw-bold">
+                          Posting date <span className="text-danger">*</span>
+                        </Form.Label>
+                        <Form.Control
+                          type="date"
+                          value={formData.postingDate}
+                          onChange={(e) => handleInputChange('postingDate', e.target.value)}
+                          isInvalid={!!errors.postingDate}
+                        />
+                        <Form.Text muted>
+                          Separate from creative due date — when the content should go live.
+                        </Form.Text>
+                        <Form.Control.Feedback type="invalid">
+                          {errors.postingDate}
+                        </Form.Control.Feedback>
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                )}
+              </Card.Body>
+            </Card>
+          )}
 
           {/* Content Details Card (only for content type) */}
           {formData.workItemType === 'content' && (
