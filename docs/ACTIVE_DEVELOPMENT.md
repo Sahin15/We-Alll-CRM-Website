@@ -16,10 +16,10 @@ Last Updated: 2026-07-28
 |-------|--------|
 | **Current Feature** | Payroll V2 — Simplified SMB model |
 | **Current Phase** | Implementation (additive) |
-| **Current Milestone** | **SP-01/SP-02 foundation** — calculator, adjustments API, simple structure fields |
+| **Current Milestone** | **SP-03** — simple payroll preview DTO + API (`/api/payroll/simple-preview`) |
 | **Current Branch** | **`feature/payroll-simplified-model`** |
 | **Implementation Workspace** | `docs/PAYROLL_SIMPLIFIED_MODEL.md` + `docs/IMPLEMENTATION_PLANS/Payroll/SIMPLIFIED_MODEL_IMPLEMENTATION_PLAN.md` |
-| **Status** | Foundation in progress. Legacy structures unchanged by default (`payrollMode: legacy`). Keep `PAYROLL_V2_ENGINE=false`. Hardening gates still apply before engine enable. |
+| **Status** | SP-01/SP-02 done. SP-03 preview breakdown API added. Next: SP-04 generate path / SP-05 UI. Keep `PAYROLL_V2_ENGINE=false`. |
 | **Last Updated** | 2026-07-28 |
 
 ---

@@ -60,9 +60,14 @@
 
 ---
 
-## Task SP-03 — Preview breakdown service (next session)
+## Task SP-03 — Preview breakdown service
 
 Wire simple mode into a read-only preview DTO (auto lines + adjustments + TDS + net). No full UI rewrite yet.
+
+- [x] `simplePayrollPreviewService.js` — `buildSimplePreviewDto` + `getSimplePayrollPreview`
+- [x] `GET /api/payroll/simple-preview?employee=&month=&year=`
+- [x] Unit tests for DTO sections / legacy skip / negative net
+- [x] Optional leave-impact for automatic deductions (with override query)
 
 ---
 
@@ -78,6 +83,6 @@ Simplified structure form + preview expandable sections + adjustments panel.
 
 ---
 
-## Done when (this session)
+## Done when (SP-03 session)
 
-SP-01 + SP-02 on feature branch; docs pointer updated; tests green. **Met 2026-07-28.**
+Preview API + tests green on feature branch.
