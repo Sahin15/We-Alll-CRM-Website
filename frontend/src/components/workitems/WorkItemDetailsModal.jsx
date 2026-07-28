@@ -6,22 +6,15 @@ import { toast } from '../../utils/toast';
 import workItemApi from '../../api/workItemApi';
 import userApi from '../../api/userApi';
 import CommentInputWithMentions from './CommentInputWithMentions';
+import {
+  getEffectiveStatusForUser,
+  isWorkItemOverdue,
+} from '../../utils/workItemUtils';
 import './WorkItemDetailsModal.css';
 
 const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, currentUser, onAddComment }) => {
-  // Helper function to get current user's status for collaborative work
-  const getUserStatus = (item) => {
-    if (!item) return 'To Do';
-    // If multiple assignees, get user's individual status
-    if (item?.assignedToMultiple && item.assignedToMultiple.length > 0) {
-      const userStatus = item.assigneeStatuses?.find(
-        as => as.assigneeId?._id === currentUser?._id || as.assigneeId === currentUser?._id
-      );
-      return userStatus?.status || item.status;
-    }
-    // Single assignee - use global status
-    return item?.status;
-  };
+  const getUserStatus = (item) =>
+    getEffectiveStatusForUser(item, currentUser?._id);
 
   const [status, setStatus] = useState(getUserStatus(workItem) || 'To Do');
   const [loading, setLoading] = useState(false);
@@ -406,9 +399,8 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
     }
   };
 
-  const isOverdue = !['Done', 'Cancelled'].includes(workItem.status) &&
-    workItem.dueDate && 
-    new Date(workItem.dueDate) < new Date();
+  const itemStatus = getUserStatus(workItem);
+  const isOverdue = isWorkItemOverdue(workItem, currentUser?._id);
 
   return (
     <>

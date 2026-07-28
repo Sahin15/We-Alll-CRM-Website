@@ -55,7 +55,8 @@ export function hasPermissionAccess({
   }
 
   if (authzLoading) {
-    return fallbackRoles.length > 0 && checkPermission(fallbackRoles);
+    if (permissionKeys.some((key) => canPermission(key))) return true;
+    return false;
   }
 
   // V2 flags off: legacy passthrough for authenticated users (pre-wave behavior)

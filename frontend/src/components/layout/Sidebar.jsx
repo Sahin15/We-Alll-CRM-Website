@@ -34,6 +34,7 @@ import {
   FaUserPlus,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
+import { PAGE_ACCESS } from "../../constants/pageAccess";
 import { hasPermissionAccess } from "../../utils/authzAccess";
 import { BRAND_LOGO_FULL, BRAND_NAME } from "../../constants/branding";
 import "./Sidebar.css";
@@ -295,7 +296,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           icon: <FaChartBar />,
           label: "Work Dashboard",
           permission: "work.dashboard.view",
-          fallbackRoles: REPORTS_ROLES,
+          fallbackRoles: PAGE_ACCESS.workDashboard.fallbackRoles,
         },
       ],
     },
