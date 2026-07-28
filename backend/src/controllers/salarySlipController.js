@@ -13,6 +13,10 @@ import {
   assertPeriodAllows,
   sendPeriodGateError,
 } from "../services/payroll/payrollPeriodGates.js";
+import {
+  isSimplePayrollStructure,
+  buildSimpleSlipPayload,
+} from "../services/payroll/simpleSlipPersist.js";
 import path from "path";
 import fs from "fs";
 
@@ -322,48 +326,86 @@ export const generateSalarySlip = async (req, res) => {
     // Calculate Loss of Pay using enhanced calculation
     const lossOfPay = attendance.lossOfPayAmount || attendance.leaveImpactDetails.totalLeaveDeduction;
 
-    // Prepare earnings (use pro-rata values if applicable)
-    const earnings = {
-      basicSalary: proRataData.earnings.basicSalary || salaryStructure.basicSalary,
-      hra: proRataData.earnings.hra || salaryStructure.hra,
-      specialAllowance: proRataData.earnings.specialAllowance || salaryStructure.specialAllowance,
-      transportAllowance: proRataData.earnings.transportAllowance || salaryStructure.transportAllowance,
-      medicalAllowance: proRataData.earnings.medicalAllowance || salaryStructure.medicalAllowance,
-      otherAllowances: salaryStructure.otherAllowances || [],
-      bonus: bonus || 0,
-      overtime: overtime || 0,
-      arrears: arrears || 0,
-      reimbursements: reimbursements || 0,
-      incentives: incentives || 0
-    };
+    let earnings;
+    let deductions;
+    let simpleMeta = null;
 
-    // Prepare deductions (use pro-rata values if applicable)
-    // R1: single attendance money path — LeaveImpactCalculator already prices unpaid
-    // leave + absences into lossOfPay. Do NOT add unpaidLeaveDeduction (legacy double count).
-    const attendanceMoney = resolveAttendanceMoneyDeductions(lossOfPay);
-    const deductions = {
-      providentFund: proRataData.deductions.providentFund || salaryStructure.providentFund,
-      professionalTax: proRataData.deductions.professionalTax || salaryStructure.professionalTax,
-      tds: proRataData.deductions.tds || salaryStructure.tds,
-      esi: proRataData.deductions.esi || salaryStructure.esi,
-      lossOfPay: attendanceMoney.lossOfPay,
-      unpaidLeaveDeduction: attendanceMoney.unpaidLeaveDeduction,
-      advances: advances || 0,
-      loans: loans || 0,
-      otherDeductions: salaryStructure.otherDeductions || []
-    };
+    if (isSimplePayrollStructure(salaryStructure)) {
+      try {
+        const simplePayload = await buildSimpleSlipPayload({
+          structure: salaryStructure,
+          employeeId,
+          month,
+          year,
+          lossOfPay,
+          extras: {
+            bonus,
+            overtime,
+            arrears,
+            reimbursements,
+            incentives,
+            advances,
+            loans,
+          },
+        });
+        earnings = simplePayload.earnings;
+        deductions = simplePayload.deductions;
+        simpleMeta = simplePayload.simpleMeta;
+      } catch (simpleErr) {
+        if (simpleErr.code === "SIMPLE_PAYROLL_NEGATIVE_NET") {
+          return res.status(400).json({
+            message: simpleErr.message,
+            code: simpleErr.code,
+          });
+        }
+        throw simpleErr;
+      }
+    } else {
+      // Prepare earnings (use pro-rata values if applicable)
+      earnings = {
+        basicSalary: proRataData.earnings.basicSalary || salaryStructure.basicSalary,
+        hra: proRataData.earnings.hra || salaryStructure.hra,
+        specialAllowance: proRataData.earnings.specialAllowance || salaryStructure.specialAllowance,
+        transportAllowance: proRataData.earnings.transportAllowance || salaryStructure.transportAllowance,
+        medicalAllowance: proRataData.earnings.medicalAllowance || salaryStructure.medicalAllowance,
+        otherAllowances: salaryStructure.otherAllowances || [],
+        bonus: bonus || 0,
+        overtime: overtime || 0,
+        arrears: arrears || 0,
+        reimbursements: reimbursements || 0,
+        incentives: incentives || 0
+      };
 
-    // Milestone 4: dual-run V1 vs V2 engine (log only — slip still persists V1 amounts)
+      // R1: single attendance money path
+      const attendanceMoney = resolveAttendanceMoneyDeductions(lossOfPay);
+      deductions = {
+        providentFund: proRataData.deductions.providentFund || salaryStructure.providentFund,
+        professionalTax: proRataData.deductions.professionalTax || salaryStructure.professionalTax,
+        tds: proRataData.deductions.tds || salaryStructure.tds,
+        esi: proRataData.deductions.esi || salaryStructure.esi,
+        lossOfPay: attendanceMoney.lossOfPay,
+        unpaidLeaveDeduction: attendanceMoney.unpaidLeaveDeduction,
+        advances: advances || 0,
+        loans: loans || 0,
+        otherDeductions: salaryStructure.otherDeductions || []
+      };
+    }
+
+    const attendanceMoneyForDual = resolveAttendanceMoneyDeductions(
+      deductions.lossOfPay
+    );
+
+    // Milestone 4: dual-run V1 vs V2 engine (log only — slip still persists mapped amounts)
     try {
       const dual = dualRunPayroll(salaryStructure, {
-        bonus,
-        overtime,
-        arrears,
-        reimbursements,
-        incentives,
-        advances,
-        loans,
-        lossOfPay: attendanceMoney.lossOfPay,
+        bonus: earnings.bonus,
+        overtime: earnings.overtime,
+        arrears: earnings.arrears,
+        reimbursements: earnings.reimbursements,
+        incentives: earnings.incentives,
+        advances: deductions.advances,
+        loans: deductions.loans,
+        lossOfPay: attendanceMoneyForDual.lossOfPay,
         lopDays: attendance.unpaidLeaves,
       });
       if (!dual.diff.withinTolerance) {
@@ -403,16 +445,20 @@ export const generateSalarySlip = async (req, res) => {
       workingDaysCalculation: attendance.workingDaysCalculation,
       leaveImpactDetails: attendance.leaveImpactDetails,
       
-      // Pro-rata information
-      isProRata: proRataData.isProRata,
-      proRataDetails: proRataData.isProRata ? {
-        effectiveDate: proRataData.effectiveDate,
-        daysWorkedOld: proRataData.daysWorkedOld,
-        daysWorkedNew: proRataData.daysWorkedNew,
-        totalDaysInMonth: proRataData.totalDaysInMonth,
-        oldSalaryStructure: proRataData.oldStructureId,
-        breakdown: proRataData.breakdown
-      } : null,
+      // Pro-rata information (skipped meaningful use in simple mode)
+      isProRata: simpleMeta ? false : proRataData.isProRata,
+      proRataDetails: simpleMeta
+        ? null
+        : proRataData.isProRata
+          ? {
+              effectiveDate: proRataData.effectiveDate,
+              daysWorkedOld: proRataData.daysWorkedOld,
+              daysWorkedNew: proRataData.daysWorkedNew,
+              totalDaysInMonth: proRataData.totalDaysInMonth,
+              oldSalaryStructure: proRataData.oldStructureId,
+              breakdown: proRataData.breakdown,
+            }
+          : null,
       
       earnings,
       deductions,
@@ -420,7 +466,11 @@ export const generateSalarySlip = async (req, res) => {
       status: "generated",
       approvedBy: req.user.id,
       approvedAt: new Date(),
-      notes
+      notes: simpleMeta
+        ? [notes, `[simple-payroll] net=${simpleMeta.netSalary}`]
+            .filter(Boolean)
+            .join(" ")
+        : notes,
     });
 
     await salarySlip.populate("employee", "name email employeeId designation department");
@@ -446,7 +496,8 @@ export const generateSalarySlip = async (req, res) => {
     res.status(201).json({
       message: "Salary slip generated successfully",
       salarySlip,
-      proRataApplied: proRataData.isProRata
+      proRataApplied: simpleMeta ? false : proRataData.isProRata,
+      simplePayroll: simpleMeta || undefined,
     });
   } catch (error) {
     if (sendPeriodGateError(res, error)) return;
@@ -516,34 +567,58 @@ export const bulkGenerateSalarySlips = async (req, res) => {
 
         // R1: single LOP path (LeaveImpact only)
         const lossOfPay = attendance.lossOfPayAmount || attendance.leaveImpactDetails.totalLeaveDeduction;
-        const attendanceMoney = resolveAttendanceMoneyDeductions(lossOfPay);
 
-        // Prepare earnings and deductions
-        const earnings = {
-          basicSalary: salaryStructure.basicSalary,
-          hra: salaryStructure.hra,
-          specialAllowance: salaryStructure.specialAllowance,
-          transportAllowance: salaryStructure.transportAllowance,
-          medicalAllowance: salaryStructure.medicalAllowance,
-          otherAllowances: salaryStructure.otherAllowances || [],
-          bonus: 0,
-          overtime: 0,
-          arrears: 0,
-          reimbursements: 0,
-          incentives: 0
-        };
+        let earnings;
+        let deductions;
 
-        const deductions = {
-          providentFund: salaryStructure.providentFund,
-          professionalTax: salaryStructure.professionalTax,
-          tds: salaryStructure.tds,
-          esi: salaryStructure.esi,
-          lossOfPay: attendanceMoney.lossOfPay,
-          unpaidLeaveDeduction: attendanceMoney.unpaidLeaveDeduction,
-          advances: 0,
-          loans: 0,
-          otherDeductions: salaryStructure.otherDeductions || []
-        };
+        if (isSimplePayrollStructure(salaryStructure)) {
+          try {
+            const simplePayload = await buildSimpleSlipPayload({
+              structure: salaryStructure,
+              employeeId: employee._id,
+              month,
+              year,
+              lossOfPay,
+              extras: {},
+            });
+            earnings = simplePayload.earnings;
+            deductions = simplePayload.deductions;
+          } catch (simpleErr) {
+            results.failed.push({
+              employeeId: employee.employeeId,
+              name: employee.name,
+              reason: simpleErr.message || "Simple payroll failed",
+            });
+            continue;
+          }
+        } else {
+          const attendanceMoney = resolveAttendanceMoneyDeductions(lossOfPay);
+          earnings = {
+            basicSalary: salaryStructure.basicSalary,
+            hra: salaryStructure.hra,
+            specialAllowance: salaryStructure.specialAllowance,
+            transportAllowance: salaryStructure.transportAllowance,
+            medicalAllowance: salaryStructure.medicalAllowance,
+            otherAllowances: salaryStructure.otherAllowances || [],
+            bonus: 0,
+            overtime: 0,
+            arrears: 0,
+            reimbursements: 0,
+            incentives: 0
+          };
+
+          deductions = {
+            providentFund: salaryStructure.providentFund,
+            professionalTax: salaryStructure.professionalTax,
+            tds: salaryStructure.tds,
+            esi: salaryStructure.esi,
+            lossOfPay: attendanceMoney.lossOfPay,
+            unpaidLeaveDeduction: attendanceMoney.unpaidLeaveDeduction,
+            advances: 0,
+            loans: 0,
+            otherDeductions: salaryStructure.otherDeductions || []
+          };
+        }
 
         // Calculate YTD
         const ytd = await SalarySlip.calculateYTD(employee._id, year, month - 1);
