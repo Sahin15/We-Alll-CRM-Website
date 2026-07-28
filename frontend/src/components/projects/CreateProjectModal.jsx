@@ -216,6 +216,12 @@ const CreateProjectModal = ({ show, onHide, onSuccess, editProject = null }) => 
           { key: 'copywriter', label: 'Copywriter' },
         ];
       }
+      else if (deptName.includes('posting')) {
+        rolesByDepartment[dept.name] = [
+          { key: 'posting-specialist', label: 'Posting Specialist' },
+          { key: 'posting-manager', label: 'Posting Manager' },
+        ];
+      }
       else {
         // Generic roles for other departments
         rolesByDepartment[dept.name] = [
