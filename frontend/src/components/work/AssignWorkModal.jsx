@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
-import { Modal, Form, Button, Row, Col, Badge } from 'react-bootstrap';
+import { useState, useEffect, useMemo } from 'react';
+import { Modal, Form, Button, Row, Col, Badge, Alert } from 'react-bootstrap';
 import { FaTasks, FaPlusCircle } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import workItemApi from '../../api/workItemApi';
 import projectApi from '../../api/projectApi';
 import userApi from '../../api/userApi';
+import departmentApi from '../../api/departmentApi';
 import TeamMemberWorkloadInfo from '../workload/TeamMemberWorkloadInfo';
 
 /**
@@ -25,6 +26,8 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedUserForWorkload, setSelectedUserForWorkload] = useState(null); // Track selected user for workload display
   const [pendingWorkCount, setPendingWorkCount] = useState(0); // Track pending work for selected due date
+  const [departments, setDepartments] = useState([]);
+  const [postingUsers, setPostingUsers] = useState([]);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -36,8 +39,50 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
     priority: '',
     selectedSlot: '', // Add slot selection
     visibility: 'active', // 'draft', 'scheduled', or 'active'
-    scheduledActivationDate: '' // When to activate if scheduled
+    scheduledActivationDate: '', // When to activate if scheduled
+    requiresPosting: false,
+    postingAssignedTo: '',
+    postingDate: '',
   });
+
+  const projectSupportsCreative = useMemo(() => {
+    if (!selectedProject) return false;
+
+    const names = [];
+    const pushName = (value) => {
+      if (!value) return;
+      names.push(String(value).toLowerCase());
+    };
+
+    if (Array.isArray(selectedProject.departments)) {
+      selectedProject.departments.forEach((dept) => {
+        if (typeof dept === 'object' && dept?.name) {
+          pushName(dept.name);
+        } else if (dept) {
+          const match = departments.find((d) => String(d._id) === String(dept));
+          pushName(match?.name);
+        }
+      });
+    }
+
+    if (selectedProject.department) {
+      if (typeof selectedProject.department === 'object') {
+        pushName(selectedProject.department.name);
+      } else {
+        const match = departments.find(
+          (d) => String(d._id) === String(selectedProject.department)
+        );
+        pushName(match?.name);
+      }
+    }
+
+    return names.some(
+      (n) =>
+        n.includes('design') ||
+        n.includes('graphic') ||
+        n.includes('video')
+    );
+  }, [selectedProject, departments]);
 
   // Load projects and users when modal opens
   useEffect(() => {
@@ -54,12 +99,16 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
         priority: '',
         selectedSlot: '',
         visibility: 'active',
-        scheduledActivationDate: ''
+        scheduledActivationDate: '',
+        requiresPosting: false,
+        postingAssignedTo: '',
+        postingDate: '',
       });
       setSelectedProject(null);
       setUsers([]);
       setSlots([]);
       loadProjectsAndUsers();
+      loadPostingSupportData();
     }
   }, [show, defaultProject, defaultAssignee]);
 
@@ -75,6 +124,29 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
       }
     }
   }, [show, defaultProject, projects.length]);
+
+  const loadPostingSupportData = async () => {
+    try {
+      const [deptRes, usersRes] = await Promise.all([
+        departmentApi.getAllDepartments(),
+        userApi.getAllUsers(),
+      ]);
+      const deptList = deptRes.data || deptRes.departments || deptRes || [];
+      const userList = usersRes.data || usersRes.users || usersRes || [];
+      setDepartments(Array.isArray(deptList) ? deptList : []);
+      setPostingUsers(
+        (Array.isArray(userList) ? userList : []).filter((u) =>
+          String(u.department?.name || '')
+            .toLowerCase()
+            .includes('posting')
+        )
+      );
+    } catch (error) {
+      console.error('[AssignWorkModal] Failed to load posting support data:', error);
+      setDepartments([]);
+      setPostingUsers([]);
+    }
+  };
 
   const loadProjectsAndUsers = async () => {
     try {
@@ -140,14 +212,17 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
   };
 
   const handleProjectChange = async (projectId) => {
-    setFormData({ 
-      ...formData, 
-      project: projectId, 
-      assignedTo: '', 
+      setFormData({
+      ...formData,
+      project: projectId,
+      assignedTo: '',
       assignedToMultiple: [],
-      selectedSlot: '' 
-    }); // Reset assignees and slot when project changes
-    
+      selectedSlot: '',
+      requiresPosting: false,
+      postingAssignedTo: '',
+      postingDate: '',
+    }); // Reset assignees, slot, and posting when project changes
+
     if (projectId) {
       // Find the selected project
       const project = projects.find(p => p._id === projectId);
@@ -322,6 +397,17 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
       }
     }
 
+    if (projectSupportsCreative && formData.requiresPosting) {
+      if (!formData.postingAssignedTo) {
+        toast.error('Please select a Posting department team member');
+        return;
+      }
+      if (!formData.postingDate) {
+        toast.error('Please select a posting date');
+        return;
+      }
+    }
+
     try {
       setAssigning(true);
 
@@ -356,6 +442,29 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
       } else if (formData.selectedSlot) {
         workItemData.assignToSlot = true;
         workItemData.selectedSlot = formData.selectedSlot;
+      }
+
+      if (projectSupportsCreative) {
+        workItemData.workflowMode = 'creative';
+        const deptNames = [];
+        if (Array.isArray(selectedProject?.departments)) {
+          selectedProject.departments.forEach((dept) => {
+            if (typeof dept === 'object' && dept?.name) {
+              deptNames.push(String(dept.name).toLowerCase());
+            } else if (dept) {
+              const match = departments.find((d) => String(d._id) === String(dept));
+              if (match?.name) deptNames.push(String(match.name).toLowerCase());
+            }
+          });
+        }
+        workItemData.workflowType = deptNames.some((n) => n.includes('video'))
+          ? 'video-production'
+          : 'design';
+        workItemData.requiresPosting = Boolean(formData.requiresPosting);
+        if (formData.requiresPosting) {
+          workItemData.postingAssignedTo = formData.postingAssignedTo;
+          workItemData.postingDate = formData.postingDate;
+        }
       }
 
       await workItemApi.createWorkItem(workItemData);
@@ -397,7 +506,10 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
         priority: '',
         selectedSlot: '',
         visibility: 'active',
-        scheduledActivationDate: ''
+        scheduledActivationDate: '',
+        requiresPosting: false,
+        postingAssignedTo: '',
+        postingDate: '',
       });
       setPendingWorkCount(0);
       
@@ -704,6 +816,84 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                 <div className="alert alert-info mb-0">
                   <strong>Slot Assignment:</strong> This work will be assigned to Slot {slotInfo.slotNumber}
                   {slotInfo.slotTitle && ` - ${slotInfo.slotTitle}`}
+                </div>
+              </Col>
+            )}
+
+            {projectSupportsCreative && (
+              <Col md={12} className="mb-3">
+                <div className="border rounded p-3 bg-light">
+                  <Form.Check
+                    type="checkbox"
+                    id="assign-requires-posting"
+                    className="mb-2"
+                    label="Assign to Posting department (We Alll will post this content)"
+                    checked={formData.requiresPosting}
+                    disabled={assigning}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setFormData({
+                        ...formData,
+                        requiresPosting: checked,
+                        postingAssignedTo: checked ? formData.postingAssignedTo : '',
+                        postingDate: checked ? formData.postingDate : '',
+                      });
+                    }}
+                  />
+                  {!formData.requiresPosting ? (
+                    <Alert variant="secondary" className="py-2 small mb-0">
+                      Not selected — client will post the content. No Posting member or posting date needed.
+                    </Alert>
+                  ) : (
+                    <Row>
+                      <Col md={6} className="mb-2">
+                        <Form.Group>
+                          <Form.Label className="fw-semibold">
+                            Posting team member <span className="text-danger">*</span>
+                          </Form.Label>
+                          <Form.Select
+                            value={formData.postingAssignedTo}
+                            onChange={(e) =>
+                              setFormData({ ...formData, postingAssignedTo: e.target.value })
+                            }
+                            disabled={assigning}
+                            required
+                          >
+                            <option value="">Select Posting member...</option>
+                            {postingUsers.map((u) => (
+                              <option key={u._id || u.id} value={u._id || u.id}>
+                                {u.name}
+                              </option>
+                            ))}
+                          </Form.Select>
+                          {postingUsers.length === 0 && (
+                            <Form.Text className="text-warning">
+                              No Posting department users found. Assign employees to the Posting department first.
+                            </Form.Text>
+                          )}
+                        </Form.Group>
+                      </Col>
+                      <Col md={6} className="mb-2">
+                        <Form.Group>
+                          <Form.Label className="fw-semibold">
+                            Posting date <span className="text-danger">*</span>
+                          </Form.Label>
+                          <Form.Control
+                            type="date"
+                            value={formData.postingDate}
+                            onChange={(e) =>
+                              setFormData({ ...formData, postingDate: e.target.value })
+                            }
+                            disabled={assigning}
+                            required
+                          />
+                          <Form.Text className="text-muted">
+                            Separate from creative due date — when content should go live.
+                          </Form.Text>
+                        </Form.Group>
+                      </Col>
+                    </Row>
+                  )}
                 </div>
               </Col>
             )}
