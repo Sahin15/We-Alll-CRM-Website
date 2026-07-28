@@ -3,11 +3,13 @@ import {
 } from "../services/payroll/simplePayrollPreviewService.js";
 
 /**
- * GET /api/payroll/simple-preview?employee=&month=&year=&automaticDeductions=
+ * GET /api/payroll/simple-preview?employee=&month=&year=&automaticDeductions=&applyAutomatic=
+ * Default: Net ignores attendance LOP; attendanceReport is informational for HR.
  */
 export const getSimplePreview = async (req, res) => {
   try {
-    const { employee, month, year, automaticDeductions } = req.query;
+    const { employee, month, year, automaticDeductions, applyAutomatic } =
+      req.query;
 
     if (!employee || !month || !year) {
       return res.status(400).json({
@@ -24,6 +26,10 @@ export const getSimplePreview = async (req, res) => {
         automaticDeductions != null && automaticDeductions !== ""
           ? Number(automaticDeductions)
           : undefined,
+      applyAutomaticDeductions:
+        applyAutomatic === "1" ||
+        applyAutomatic === "true" ||
+        applyAutomatic === true,
     });
 
     if (!data.applicable) {

@@ -145,18 +145,23 @@ export function buildSimplePreviewDto({
 /**
  * Load structure + adjustments (+ optional leave impact) and build preview.
  *
+ * SMB default: automatic deductions are NOT applied to Net. Attendance/leave
+ * is returned as `attendanceReport` so HR can create manual adjustments.
+ *
  * @param {object} options
  * @param {string} options.employeeId
  * @param {number} options.month
  * @param {number} options.year
- * @param {number} [options.automaticDeductions] - override auto total
- * @param {boolean} [options.includeLeaveImpact=true]
+ * @param {number} [options.automaticDeductions] - override auto total (applied only if set)
+ * @param {boolean} [options.applyAutomaticDeductions=false] - when true, apply leave LOP to Net
+ * @param {boolean} [options.includeLeaveImpact=true] - load attendance/leave for the report
  */
 export async function getSimplePayrollPreview({
   employeeId,
   month,
   year,
   automaticDeductions: autoOverride,
+  applyAutomaticDeductions = false,
   includeLeaveImpact = true,
 }) {
   const structure = await SalaryStructure.findOne({
@@ -180,6 +185,54 @@ export async function getSimplePayrollPreview({
     .sort({ createdAt: 1 })
     .lean();
 
+  const monthly =
+    structure.payrollMode === "simple" && structure.monthlySalary != null
+      ? Number(structure.monthlySalary)
+      : Number(structure.grossSalary || structure.basicSalary) || 0;
+  const dayRate = perDaySalary(monthly);
+
+  /** @type {object|null} */
+  let attendanceReport = null;
+  let suggestedLopAmount = 0;
+  let suggestedLopDays = 0;
+
+  if (includeLeaveImpact) {
+    try {
+      const calc = new LeaveImpactCalculator();
+      const impact = await calc.calculateLeaveDeduction(employeeId, month, year, {
+        ...structure,
+        grossSalary: monthly,
+      });
+      suggestedLopAmount = Math.round(Number(impact?.deductionAmount) || 0);
+      suggestedLopDays = Number(impact?.unpaidLeaves) || 0;
+      attendanceReport = {
+        unpaidLeaveDays: suggestedLopDays,
+        paidLeaveDays: Number(impact?.paidLeaves) || 0,
+        suggestedDeduction: suggestedLopAmount,
+        perDaySalary: dayRate,
+        detail:
+          suggestedLopDays > 0
+            ? `${suggestedLopDays} unpaid day(s) × ${dayRate} (suggestion only — not applied)`
+            : "No unpaid leave suggested for this period",
+        note: "Deductions are manual. Review attendance and add an adjustment if needed.",
+      };
+    } catch (err) {
+      console.warn(
+        "[simplePayrollPreview] leave impact failed:",
+        err.message
+      );
+      attendanceReport = {
+        unpaidLeaveDays: 0,
+        paidLeaveDays: 0,
+        suggestedDeduction: 0,
+        perDaySalary: dayRate,
+        detail: "Attendance/leave data unavailable",
+        note: "Deductions are manual. Add an adjustment if HR decides to deduct.",
+        error: err.message,
+      };
+    }
+  }
+
   let automaticDeductions = 0;
   /** @type {Array<{ label: string, amount: number, detail?: string }>} */
   let automaticLines = [];
@@ -193,33 +246,13 @@ export async function getSimplePayrollPreview({
         detail: "automaticDeductions query override",
       });
     }
-  } else if (includeLeaveImpact) {
-    try {
-      const calc = new LeaveImpactCalculator();
-      const monthly =
-        structure.payrollMode === "simple" && structure.monthlySalary != null
-          ? Number(structure.monthlySalary)
-          : Number(structure.grossSalary || structure.basicSalary) || 0;
-      const impact = await calc.calculateLeaveDeduction(employeeId, month, year, {
-        ...structure,
-        grossSalary: monthly,
-      });
-      const lopAmount = Math.round(Number(impact?.deductionAmount) || 0);
-      const lopDays = Number(impact?.unpaidLeaves) || 0;
-      automaticDeductions = lopAmount;
-      if (lopAmount > 0) {
-        automaticLines.push({
-          label: "Loss of pay / unpaid leave",
-          amount: lopAmount,
-          detail: `${lopDays} day(s) × ₹${perDaySalary(monthly)}`,
-        });
-      }
-    } catch (err) {
-      console.warn(
-        "[simplePayrollPreview] leave impact failed, using 0:",
-        err.message
-      );
-    }
+  } else if (applyAutomaticDeductions && suggestedLopAmount > 0) {
+    automaticDeductions = suggestedLopAmount;
+    automaticLines.push({
+      label: "Loss of pay / unpaid leave",
+      amount: suggestedLopAmount,
+      detail: `${suggestedLopDays} day(s) × ₹${dayRate}`,
+    });
   }
 
   const dto = buildSimplePreviewDto({
@@ -233,6 +266,11 @@ export async function getSimplePayrollPreview({
     dto.month = parseInt(month, 10);
     dto.year = parseInt(year, 10);
     dto.employee = employeeId;
+    dto.attendanceReport = attendanceReport;
+    dto.applyAutomaticDeductions = Boolean(
+      applyAutomaticDeductions ||
+        (autoOverride != null && autoOverride !== "" && Number(autoOverride) > 0)
+    );
   }
 
   return dto;

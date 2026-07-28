@@ -63,10 +63,10 @@ class SalaryPreviewService {
             year
           });
 
-          if (existingPreview) {
+          if (existingPreview && existingPreview.status === "finalized") {
             results.skipped.push({
               employeeId,
-              reason: "Preview already exists"
+              reason: "Preview already finalized"
             });
             continue;
           }
@@ -76,7 +76,8 @@ class SalaryPreviewService {
           results.success.push({
             employeeId,
             previewId: preview._id,
-            netSalary: preview.salaryBreakdown.netSalary
+            netSalary: preview.salaryBreakdown.netSalary,
+            updated: Boolean(existingPreview)
           });
         } catch (error) {
           results.failed.push({
@@ -127,6 +128,15 @@ class SalaryPreviewService {
 
       if (!preview) {
         throw new Error("Salary preview not found");
+      }
+
+      try {
+        await this.syncSimplePreviewIfNeeded(preview);
+      } catch (err) {
+        console.warn(
+          "[salaryPreview] sync on getPreview failed:",
+          err.message
+        );
       }
 
       return preview;
@@ -242,6 +252,91 @@ class SalaryPreviewService {
   }
 
   /**
+   * Rebuild a non-finalized simple-mode preview from structure + approved
+   * adjustments so list/detail nets match Simple Payroll.
+   * Does not reset review status (unlike full regenerate).
+   *
+   * @param {import("mongoose").Document} preview
+   * @returns {Promise<import("mongoose").Document>}
+   */
+  async syncSimplePreviewIfNeeded(preview) {
+    if (!preview || preview.status === "finalized") return preview;
+
+    const SalaryStructure = (await import("../models/salaryStructureModel.js"))
+      .default;
+    const employeeId = preview.employee?._id || preview.employee;
+    const structure = await SalaryStructure.getActiveStructure(employeeId);
+    if (!structure) return preview;
+
+    const e = preview.salaryBreakdown?.earnings || {};
+    const d = preview.salaryBreakdown?.deductions || {};
+    const looksLikeSimpleBreakdown =
+      (Number(e.hra) || 0) === 0 &&
+      (Number(e.specialAllowance) || 0) === 0 &&
+      (Number(e.transportAllowance) || 0) === 0 &&
+      (Number(e.medicalAllowance) || 0) === 0 &&
+      (Number(d.providentFund) || 0) === 0 &&
+      (Number(d.professionalTax) || 0) === 0 &&
+      (Number(d.esi) || 0) === 0;
+
+    const isSimple =
+      structure.payrollMode === "simple" ||
+      preview.payrollMode === "simple" ||
+      (structure.monthlySalary != null && looksLikeSimpleBreakdown);
+
+    if (!isSimple) return preview;
+
+    const { buildSimpleSlipPayload } = await import(
+      "./payroll/simpleSlipPersist.js"
+    );
+    const { finalizePreviewBreakdown } = await import(
+      "./payroll/simpleSalaryPreviewBuild.js"
+    );
+
+    const structureForBuild = {
+      ...(typeof structure.toObject === "function"
+        ? structure.toObject()
+        : structure),
+      payrollMode: "simple",
+      monthlySalary:
+        structure.monthlySalary != null
+          ? Number(structure.monthlySalary)
+          : Number(structure.basicSalary) || 0,
+      providentFund: 0,
+      professionalTax: 0,
+      esi: 0,
+    };
+
+    const simplePayload = await buildSimpleSlipPayload({
+      structure: structureForBuild,
+      employeeId,
+      month: preview.month,
+      year: preview.year,
+      lossOfPay: 0,
+    });
+    const finalized = finalizePreviewBreakdown({
+      earnings: simplePayload.earnings,
+      deductions: simplePayload.deductions,
+    });
+
+    preview.payrollMode = "simple";
+    preview.salaryBreakdown = {
+      earnings: finalized.earnings,
+      deductions: finalized.deductions,
+      grossSalary: finalized.grossSalary,
+      totalDeductions: finalized.totalDeductions,
+      netSalary: finalized.netSalary,
+    };
+    if (preview.leaveImpact) {
+      preview.leaveImpact.deductionAmount = 0;
+    }
+    preview.markModified("salaryBreakdown");
+    preview.markModified("leaveImpact");
+    await preview.save();
+    return preview;
+  }
+
+  /**
    * Get all previews for a month (HR view)
    * @param {number} month - Month (1-12)
    * @param {number} year - Year
@@ -264,6 +359,18 @@ class SalaryPreviewService {
         .populate("acknowledgedBy", "name email")
         .populate("finalizedBy", "name email")
         .sort({ "employee.name": 1 });
+
+      for (const preview of previews) {
+        try {
+          await this.syncSimplePreviewIfNeeded(preview);
+        } catch (err) {
+          console.warn(
+            "[salaryPreview] syncSimplePreviewIfNeeded failed:",
+            preview._id?.toString?.(),
+            err.message
+          );
+        }
+      }
 
       return previews;
     } catch (error) {
@@ -380,36 +487,111 @@ class SalaryPreviewService {
         throw new Error("Preview not found");
       }
 
-      // Apply corrections to salary breakdown
-      if (corrections.earnings) {
-        Object.assign(preview.salaryBreakdown.earnings, corrections.earnings);
+      if (preview.status === "finalized") {
+        throw new Error("Cannot correct a finalized salary preview");
       }
 
-      if (corrections.deductions) {
-        Object.assign(preview.salaryBreakdown.deductions, corrections.deductions);
+      const SalaryStructure = (await import("../models/salaryStructureModel.js"))
+        .default;
+      const structure = await SalaryStructure.getActiveStructure(preview.employee);
+      const isSimple =
+        preview.payrollMode === "simple" ||
+        structure?.payrollMode === "simple" ||
+        corrections?.simple === true;
+
+      if (isSimple && structure) {
+        const { buildSimpleSlipPayload } = await import(
+          "./payroll/simpleSlipPersist.js"
+        );
+        const { finalizePreviewBreakdown } = await import(
+          "./payroll/simpleSalaryPreviewBuild.js"
+        );
+
+        const monthlyOverride =
+          corrections.monthlySalary != null
+            ? Number(corrections.monthlySalary)
+            : null;
+        const tdsOverride =
+          corrections.tdsAmount != null ? Number(corrections.tdsAmount) : null;
+
+        const structureForBuild = {
+          ...(typeof structure.toObject === "function"
+            ? structure.toObject()
+            : structure),
+          payrollMode: "simple",
+          monthlySalary:
+            monthlyOverride != null && !Number.isNaN(monthlyOverride)
+              ? monthlyOverride
+              : structure.monthlySalary ?? structure.basicSalary,
+          tdsEnabled:
+            tdsOverride != null
+              ? tdsOverride > 0 || Boolean(structure.tdsEnabled)
+              : Boolean(structure.tdsEnabled),
+          tds:
+            tdsOverride != null && !Number.isNaN(tdsOverride)
+              ? Math.max(0, tdsOverride)
+              : structure.tds || 0,
+          providentFund: 0,
+          professionalTax: 0,
+          esi: 0,
+        };
+
+        const simplePayload = await buildSimpleSlipPayload({
+          structure: structureForBuild,
+          employeeId: preview.employee,
+          month: preview.month,
+          year: preview.year,
+          lossOfPay: 0,
+        });
+        const finalized = finalizePreviewBreakdown({
+          earnings: simplePayload.earnings,
+          deductions: simplePayload.deductions,
+        });
+
+        preview.payrollMode = "simple";
+        preview.salaryBreakdown.earnings = finalized.earnings;
+        preview.salaryBreakdown.deductions = finalized.deductions;
+        preview.salaryBreakdown.grossSalary = finalized.grossSalary;
+        preview.salaryBreakdown.totalDeductions = finalized.totalDeductions;
+        preview.salaryBreakdown.netSalary = finalized.netSalary;
+      } else {
+        // Legacy path: apply field-level corrections
+        if (corrections.earnings) {
+          Object.assign(preview.salaryBreakdown.earnings, corrections.earnings);
+        }
+
+        if (corrections.deductions) {
+          Object.assign(
+            preview.salaryBreakdown.deductions,
+            corrections.deductions
+          );
+        }
+
+        const earnings = preview.salaryBreakdown.earnings;
+        const deductions = preview.salaryBreakdown.deductions;
+
+        const grossSalary = Object.values(earnings).reduce((sum, val) => {
+          if (Array.isArray(val)) {
+            return (
+              sum + val.reduce((arrSum, item) => arrSum + (item.amount || 0), 0)
+            );
+          }
+          return sum + (val || 0);
+        }, 0);
+
+        const totalDeductions = Object.values(deductions).reduce((sum, val) => {
+          if (Array.isArray(val)) {
+            return (
+              sum + val.reduce((arrSum, item) => arrSum + (item.amount || 0), 0)
+            );
+          }
+          return sum + (val || 0);
+        }, 0);
+
+        preview.salaryBreakdown.grossSalary = grossSalary;
+        preview.salaryBreakdown.totalDeductions = totalDeductions;
+        preview.salaryBreakdown.netSalary = grossSalary - totalDeductions;
       }
-
-      // Recalculate totals
-      const earnings = preview.salaryBreakdown.earnings;
-      const deductions = preview.salaryBreakdown.deductions;
-
-      const grossSalary = Object.values(earnings).reduce((sum, val) => {
-        if (Array.isArray(val)) {
-          return sum + val.reduce((arrSum, item) => arrSum + (item.amount || 0), 0);
-        }
-        return sum + (val || 0);
-      }, 0);
-
-      const totalDeductions = Object.values(deductions).reduce((sum, val) => {
-        if (Array.isArray(val)) {
-          return sum + val.reduce((arrSum, item) => arrSum + (item.amount || 0), 0);
-        }
-        return sum + (val || 0);
-      }, 0);
-
-      preview.salaryBreakdown.grossSalary = grossSalary;
-      preview.salaryBreakdown.totalDeductions = totalDeductions;
-      preview.salaryBreakdown.netSalary = grossSalary - totalDeductions;
 
       // Add correction note
       if (corrections.note) {

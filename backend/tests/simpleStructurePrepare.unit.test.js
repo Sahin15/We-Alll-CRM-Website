@@ -20,6 +20,9 @@ describe("prepareSimpleStructureFields", () => {
     expect(fields.monthlySalary).toBe(45000);
     expect(fields.payrollMode).toBe("simple");
     expect(fields.tdsEnabled).toBe(true);
+    expect(fields.providentFund).toBe(0);
+    expect(fields.professionalTax).toBe(0);
+    expect(fields.esi).toBe(0);
   });
 
   it("leaves legacy mode without forcing monthlySalary", () => {

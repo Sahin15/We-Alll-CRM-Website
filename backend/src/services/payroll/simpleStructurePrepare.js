@@ -30,7 +30,11 @@ export function prepareSimpleStructureFields(body = {}) {
     specialAllowance: body.specialAllowance ?? 0,
     transportAllowance: body.transportAllowance ?? 0,
     medicalAllowance: body.medicalAllowance ?? 0,
+    // Clear legacy statutory fields — simple mode does not use them
+    providentFund: 0,
+    professionalTax: 0,
+    esi: 0,
     tdsEnabled: Boolean(body.tdsEnabled),
-    tds: body.tdsEnabled ? Number(body.tds) || 0 : Number(body.tds) || 0,
+    tds: body.tdsEnabled ? Number(body.tds) || 0 : 0,
   };
 }

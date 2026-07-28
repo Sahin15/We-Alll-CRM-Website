@@ -33,16 +33,20 @@ import api from "../../services/api";
 /** Day-to-day SMB payroll path (Simple Payroll first). */
 const PAYROLL_TABS = new Set([
   "simple-payroll",
+  "previews",
   "generate",
   "slips",
-  "periods",
-  "approvals",
-  "exports",
   "reports",
 ]);
 
-/** Legacy allowance forms / old preview / templates — tucked away. */
-const ADVANCED_TABS = new Set(["structures", "previews", "templates"]);
+/** Legacy: periods/gates, workflows, bank exports, allowance forms, templates. */
+const ADVANCED_TABS = new Set([
+  "structures",
+  "templates",
+  "approvals",
+  "exports",
+  "periods",
+]);
 
 const SalaryManagement = () => {
   const location = useLocation();
@@ -63,6 +67,8 @@ const SalaryManagement = () => {
     setActiveTab(tab);
     if (ADVANCED_TABS.has(tab)) {
       setAdvancedOpen(true);
+    } else if (PAYROLL_TABS.has(tab)) {
+      setAdvancedOpen(false);
     }
   };
 
@@ -140,13 +146,19 @@ const SalaryManagement = () => {
   const isAdvancedTab = ADVANCED_TABS.has(activeTab);
   const payrollTabKey = isPayrollTab ? activeTab : "";
   const advancedTabKey = isAdvancedTab ? activeTab : "structures";
-  const advancedAccordionKey = advancedOpen || isAdvancedTab ? "advanced" : null;
+  // Controlled only by advancedOpen — do not force-open just because an advanced tab is selected
+  const advancedAccordionKey = advancedOpen ? "advanced" : null;
 
   const handleAdvancedAccordion = (key) => {
     const open = key === "advanced";
     setAdvancedOpen(open);
-    if (open && !ADVANCED_TABS.has(activeTab)) {
-      setActiveTab("structures");
+    if (open) {
+      if (!ADVANCED_TABS.has(activeTab)) {
+        setActiveTab("structures");
+      }
+    } else if (ADVANCED_TABS.has(activeTab)) {
+      // Leaving advanced: return to primary payroll path so collapse sticks
+      setActiveTab("simple-payroll");
     }
   };
 
@@ -172,7 +184,7 @@ const SalaryManagement = () => {
                   </div>
                   <p className="salary-header-description mb-0">
                     Run payroll in one place: Simple Payroll for pay and
-                    adjustments, then generate slips, approvals, and exports.
+                    adjustments, preview, then generate salary slips.
                   </p>
                 </div>
               </div>
@@ -327,14 +339,14 @@ const SalaryManagement = () => {
       </Row>
 
       {/* Primary payroll path */}
-      <Card className="shadow-sm mb-3">
+      <Card className="shadow-sm mb-3 salary-payroll-card">
         <Card.Header className="bg-white border-bottom-0 pt-3 pb-0">
           <h5 className="mb-1">Payroll</h5>
           <p className="text-muted small mb-0">
-            Day-to-day path: set pay → review → generate → approve → export
+            Day-to-day path: set pay → preview → generate slips
           </p>
         </Card.Header>
-        <Card.Body>
+        <Card.Body className="salary-payroll-card-body">
           <Tabs
             activeKey={payrollTabKey}
             onSelect={(k) => selectTab(k)}
@@ -343,20 +355,14 @@ const SalaryManagement = () => {
             <Tab eventKey="simple-payroll" title="Simple Payroll">
               {activeTab === "simple-payroll" && <SimplePayrollTab />}
             </Tab>
+            <Tab eventKey="previews" title="Salary Preview">
+              {activeTab === "previews" && <HRSalaryPreviewManagement />}
+            </Tab>
             <Tab eventKey="generate" title="Generate Slips">
               {activeTab === "generate" && <GenerateSalarySlips />}
             </Tab>
             <Tab eventKey="slips" title="Salary Slips">
               {activeTab === "slips" && <SalarySlipList />}
-            </Tab>
-            <Tab eventKey="periods" title="Pay Periods">
-              {activeTab === "periods" && <PayrollPeriods />}
-            </Tab>
-            <Tab eventKey="approvals" title="Approvals">
-              {activeTab === "approvals" && <PayrollApprovals />}
-            </Tab>
-            <Tab eventKey="exports" title="Exports">
-              {activeTab === "exports" && <PayrollExports />}
             </Tab>
             <Tab eventKey="reports" title="Reports">
               {activeTab === "reports" && <PayrollSummary />}
@@ -375,15 +381,15 @@ const SalaryManagement = () => {
       <Accordion
         activeKey={advancedAccordionKey}
         onSelect={handleAdvancedAccordion}
-        className="shadow-sm mb-4"
+        className="shadow-sm mb-4 salary-mgmt-advanced-accordion"
       >
         <Accordion.Item eventKey="advanced" className="border-0">
           <Accordion.Header>
             <div>
               <strong>Advanced / Legacy</strong>
               <div className="text-muted small fw-normal">
-                Allowance structures, old salary previews, and templates — only
-                when needed
+                Pay periods, approval workflows, bank/NEFT exports, allowance
+                structures, and templates — only when needed
               </div>
             </div>
           </Accordion.Header>
@@ -396,8 +402,14 @@ const SalaryManagement = () => {
               <Tab eventKey="structures" title="Salary Structures">
                 {activeTab === "structures" && <SalaryStructures />}
               </Tab>
-              <Tab eventKey="previews" title="Salary Previews">
-                {activeTab === "previews" && <HRSalaryPreviewManagement />}
+              <Tab eventKey="periods" title="Pay Periods">
+                {activeTab === "periods" && <PayrollPeriods />}
+              </Tab>
+              <Tab eventKey="approvals" title="Approvals">
+                {activeTab === "approvals" && <PayrollApprovals />}
+              </Tab>
+              <Tab eventKey="exports" title="Exports">
+                {activeTab === "exports" && <PayrollExports />}
               </Tab>
               <Tab eventKey="templates" title="Templates">
                 {activeTab === "templates" && <TemplateManagement />}
@@ -408,6 +420,25 @@ const SalaryManagement = () => {
       </Accordion>
 
       <style>{`
+        /* Keep Payroll above Advanced so table action menus overlay correctly */
+        .salary-payroll-card {
+          position: relative;
+          z-index: 5;
+        }
+        .salary-payroll-card-body,
+        .salary-payroll-card-body .tab-content,
+        .salary-payroll-card-body .tab-pane,
+        .salary-payroll-card-body .card,
+        .salary-payroll-card-body .card-body,
+        .salary-payroll-card-body .table-responsive {
+          overflow: visible !important;
+        }
+        /* Advanced accordion stays underneath open action menus */
+        .salary-mgmt-advanced-accordion {
+          position: relative;
+          z-index: 1;
+        }
+
         /* Salary Management Header Styles */
         .salary-header-card {
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);

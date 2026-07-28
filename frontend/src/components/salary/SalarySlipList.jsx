@@ -321,11 +321,11 @@ const SalarySlipList = () => {
                   {new Date(slip.paymentDate).toLocaleDateString("en-IN")}
                 </td>
                 <td>
-                  <Dropdown>
+                  <Dropdown align="end">
                     <Dropdown.Toggle variant="outline-secondary" size="sm">
                       Actions
                     </Dropdown.Toggle>
-                    <Dropdown.Menu>
+                    <Dropdown.Menu style={{ zIndex: 2000 }}>
                       <Dropdown.Item onClick={() => handleViewDetails(slip)}>
                         <FaEye className="me-1" />
                         View Details

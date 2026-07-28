@@ -212,18 +212,13 @@ salaryStructureSchema.pre("save", function (next) {
     this.monthlySalary = monthly;
     this.basicSalary = monthly;
     this.grossSalary = monthly;
-    let deductions =
-      (this.providentFund || 0) +
-      (this.professionalTax || 0) +
-      (this.tds || 0) +
-      (this.esi || 0);
-    if (this.otherDeductions && this.otherDeductions.length > 0) {
-      deductions += this.otherDeductions.reduce(
-        (sum, deduction) => sum + deduction.amount,
-        0
-      );
-    }
-    this.totalDeductions = deductions;
+    // Simple mode: statutory PF/PT/ESI are not part of the model
+    this.providentFund = 0;
+    this.professionalTax = 0;
+    this.esi = 0;
+    const tdsOnly = this.tdsEnabled ? Number(this.tds) || 0 : 0;
+    if (!this.tdsEnabled) this.tds = 0;
+    this.totalDeductions = tdsOnly;
     this.netSalary = this.grossSalary - this.totalDeductions;
     this.ctc = this.grossSalary * 12;
     return next();

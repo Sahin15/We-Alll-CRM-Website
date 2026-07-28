@@ -30,7 +30,17 @@ import {
   FaCheckSquare
 } from "react-icons/fa";
 import { salaryPreviewApi } from "../../api/salaryApi";
+import {
+  payrollSimplePreviewApi,
+  payrollAdjustmentApi,
+  ADJUSTMENT_TYPE_OPTIONS,
+} from "../../api/payrollSimpleApi";
 import api from "../../services/api";
+import SimplePayrollPreviewPanels from "./SimplePayrollPreviewPanels";
+import {
+  isSimpleSalaryPreview,
+  mapStoredPreviewToSimpleDto,
+} from "../../utils/simpleSalaryPreviewView";
 
 const HRSalaryPreviewManagement = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -51,6 +61,8 @@ const HRSalaryPreviewManagement = () => {
   const [attentionPreviews, setAttentionPreviews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedPreview, setSelectedPreview] = useState(null);
+  const [simpleViewDto, setSimpleViewDto] = useState(null);
+  const [simpleViewLoading, setSimpleViewLoading] = useState(false);
   const [showResponseModal, setShowResponseModal] = useState(false);
   const [showCorrectionsModal, setShowCorrectionsModal] = useState(false);
   const [responseText, setResponseText] = useState("");
@@ -83,7 +95,25 @@ const HRSalaryPreviewManagement = () => {
     },
     note: ''
   });
+  const [simpleCorrections, setSimpleCorrections] = useState({
+    monthlySalary: 0,
+    tdsAmount: 0,
+    adjustmentsTotal: 0,
+    netSalary: 0,
+    adjustmentLines: [],
+    note: "",
+    /** Optional new line applied on Save (same as Simple Payroll adjustment) */
+    newCorrectionType: "manual_salary_deduction",
+    newCorrectionAmount: 0,
+    amountMode: "fixed",
+    days: 1,
+    removeAllAdjustments: false,
+  });
+  const [correctionsIsSimple, setCorrectionsIsSimple] = useState(false);
+  const [correctionsLoading, setCorrectionsLoading] = useState(false);
   const [savingCorrections, setSavingCorrections] = useState(false);
+  /** Preview being corrected — kept separate so closing the details modal cannot wipe it */
+  const [correctionsTarget, setCorrectionsTarget] = useState(null);
 
   useEffect(() => {
     if (selectedMonth && selectedYear) {
@@ -110,8 +140,49 @@ const HRSalaryPreviewManagement = () => {
 
   const fetchPreviews = async () => {
     try {
-      const response = await salaryPreviewApi.getMonthPreviews(selectedMonth, selectedYear);
-      setPreviews(response.data);
+      const response = await salaryPreviewApi.getMonthPreviews(
+        selectedMonth,
+        selectedYear
+      );
+      const list = Array.isArray(response.data)
+        ? response.data
+        : response.data?.data || [];
+
+      // Overlay live Simple Payroll net so the table never shows a stale snapshot
+      const enriched = await Promise.all(
+        list.map(async (preview) => {
+          try {
+            const employeeId = preview.employee?._id || preview.employee;
+            if (!employeeId) return preview;
+            const res = await payrollSimplePreviewApi.get({
+              employee: employeeId,
+              month: preview.month || selectedMonth,
+              year: preview.year || selectedYear,
+              automaticDeductions: 0,
+            });
+            const dto = res.data?.data ?? res.data;
+            if (
+              dto?.applicable &&
+              dto.totals?.netSalary != null &&
+              !dto.totals?.rejected
+            ) {
+              return {
+                ...preview,
+                payrollMode: "simple",
+                salaryBreakdown: {
+                  ...preview.salaryBreakdown,
+                  netSalary: dto.totals.netSalary,
+                },
+              };
+            }
+          } catch {
+            /* keep stored preview */
+          }
+          return preview;
+        })
+      );
+
+      setPreviews(enriched);
     } catch (error) {
       console.error("Error fetching previews:", error);
       toast.error("Failed to load previews");
@@ -184,52 +255,237 @@ const HRSalaryPreviewManagement = () => {
     }
   };
 
-  const openCorrectionsModal = (preview) => {
+  const openCorrectionsModal = async (preview) => {
+    if (!preview) {
+      toast.error("No preview selected");
+      return;
+    }
+    setCorrectionsTarget(preview);
     setSelectedPreview(preview);
-    const e = preview.salaryBreakdown?.earnings || {};
-    const d = preview.salaryBreakdown?.deductions || {};
-    setCorrections({
-      earnings: {
-        basicSalary:        e.basicSalary || 0,
-        hra:                e.hra || 0,
-        specialAllowance:   e.specialAllowance || 0,
-        transportAllowance: e.transportAllowance || 0,
-        medicalAllowance:   e.medicalAllowance || 0,
-        bonus:              e.bonus || 0,
-        overtime:           e.overtime || 0,
-        arrears:            e.arrears || 0,
-        reimbursements:     e.reimbursements || 0,
-        incentives:         e.incentives || 0,
-      },
-      deductions: {
-        providentFund:    d.providentFund || 0,
-        professionalTax:  d.professionalTax || 0,
-        tds:              d.tds || 0,
-        esi:              d.esi || 0,
-        lossOfPay:        d.lossOfPay || 0,
-        advances:         d.advances || 0,
-        loans:            d.loans || 0,
-      },
-      note: ''
-    });
     setShowCorrectionsModal(true);
+    setCorrectionsLoading(true);
+    setCorrectionsIsSimple(false);
+
+    const preferSimple = isSimpleSalaryPreview(preview);
+    try {
+      const employeeId = preview.employee?._id || preview.employee;
+      const res = await payrollSimplePreviewApi.get({
+        employee: employeeId,
+        month: preview.month,
+        year: preview.year,
+        automaticDeductions: 0,
+      });
+      const dto = res.data?.data ?? res.data;
+      if (dto?.applicable) {
+        setCorrectionsIsSimple(true);
+        const monthly = Number(dto.totals?.monthlySalary) || 0;
+        const tds = Number(dto.totals?.tdsAmount) || 0;
+        const adj = Number(dto.totals?.adjustmentsTotal) || 0;
+        setSimpleCorrections({
+          monthlySalary: monthly,
+          tdsAmount: tds,
+          adjustmentsTotal: adj,
+          netSalary: dto.totals?.rejected
+            ? monthly + adj - tds
+            : Number(dto.totals?.netSalary) || monthly + adj - tds,
+          adjustmentLines: dto.sections?.manualAdjustments?.lines || [],
+          note: "",
+          newCorrectionType: "manual_salary_deduction",
+          newCorrectionAmount: 0,
+          amountMode: "fixed",
+          days: 1,
+          removeAllAdjustments: false,
+        });
+        return;
+      }
+
+      if (preferSimple) {
+        const mapped = mapStoredPreviewToSimpleDto(preview);
+        setCorrectionsIsSimple(true);
+        setSimpleCorrections({
+          monthlySalary: mapped.totals.monthlySalary,
+          tdsAmount: mapped.totals.tdsAmount,
+          adjustmentsTotal: mapped.totals.adjustmentsTotal,
+          netSalary: mapped.totals.netSalary,
+          adjustmentLines: mapped.sections.manualAdjustments.lines || [],
+          note: "",
+          newCorrectionType: "manual_salary_deduction",
+          newCorrectionAmount: 0,
+          amountMode: "fixed",
+          days: 1,
+          removeAllAdjustments: false,
+        });
+        return;
+      }
+
+      const e = preview.salaryBreakdown?.earnings || {};
+      const d = preview.salaryBreakdown?.deductions || {};
+      setCorrections({
+        earnings: {
+          basicSalary: e.basicSalary || 0,
+          hra: e.hra || 0,
+          specialAllowance: e.specialAllowance || 0,
+          transportAllowance: e.transportAllowance || 0,
+          medicalAllowance: e.medicalAllowance || 0,
+          bonus: e.bonus || 0,
+          overtime: e.overtime || 0,
+          arrears: e.arrears || 0,
+          reimbursements: e.reimbursements || 0,
+          incentives: e.incentives || 0,
+        },
+        deductions: {
+          providentFund: d.providentFund || 0,
+          professionalTax: d.professionalTax || 0,
+          tds: d.tds || 0,
+          esi: d.esi || 0,
+          lossOfPay: d.lossOfPay || 0,
+          advances: d.advances || 0,
+          loans: d.loans || 0,
+        },
+        note: "",
+      });
+    } catch {
+      if (preferSimple) {
+        const mapped = mapStoredPreviewToSimpleDto(preview);
+        setCorrectionsIsSimple(true);
+        setSimpleCorrections({
+          monthlySalary: mapped.totals.monthlySalary,
+          tdsAmount: mapped.totals.tdsAmount,
+          adjustmentsTotal: mapped.totals.adjustmentsTotal,
+          netSalary: mapped.totals.netSalary,
+          adjustmentLines: mapped.sections.manualAdjustments.lines || [],
+          note: "",
+          newCorrectionType: "manual_salary_deduction",
+          newCorrectionAmount: 0,
+          amountMode: "fixed",
+          days: 1,
+          removeAllAdjustments: false,
+        });
+      }
+    } finally {
+      setCorrectionsLoading(false);
+    }
+  };
+
+  const correctionPerDayRate = () =>
+    Math.round(Number(simpleCorrections.monthlySalary || 0) / 30);
+
+  const effectiveNewCorrectionAmount = () => {
+    if (simpleCorrections.amountMode === "per_day") {
+      const days = Math.max(0, Number(simpleCorrections.days) || 0);
+      return correctionPerDayRate() * days;
+    }
+    return Math.abs(Number(simpleCorrections.newCorrectionAmount) || 0);
+  };
+
+  const signedNewCorrectionAmount = () => {
+    const amt = effectiveNewCorrectionAmount();
+    if (!amt) return 0;
+    const debitTypes = new Set([
+      "advance_recovery",
+      "penalty",
+      "late_deduction",
+      "absent_deduction",
+      "manual_salary_deduction",
+    ]);
+    return debitTypes.has(simpleCorrections.newCorrectionType) ? -amt : amt;
+  };
+
+  const effectiveAdjustmentsTotal = () => {
+    if (simpleCorrections.removeAllAdjustments) return 0;
+    return Number(simpleCorrections.adjustmentsTotal || 0);
   };
 
   const handleSaveCorrections = async () => {
-    if (!corrections.note.trim()) {
+    const target = correctionsTarget || selectedPreview;
+    if (!target) {
+      toast.error("No preview selected — reopen Make Corrections and try again");
+      return;
+    }
+    const note = correctionsIsSimple
+      ? simpleCorrections.note
+      : corrections.note;
+    if (!note.trim()) {
       toast.error("Please add a note explaining the correction");
       return;
     }
     setSavingCorrections(true);
     try {
-      await salaryPreviewApi.makeCorrections(selectedPreview._id, { corrections });
-      toast.success("Corrections saved successfully");
+      if (correctionsIsSimple) {
+        const employeeId = target.employee?._id || target.employee;
+
+        if (simpleCorrections.removeAllAdjustments) {
+          const listRes = await payrollAdjustmentApi.list({
+            employee: employeeId,
+            month: target.month,
+            year: target.year,
+          });
+          const items = listRes.data?.data || listRes.data || [];
+          const toVoid = (Array.isArray(items) ? items : []).filter(
+            (a) => a.status !== "void" && a._id
+          );
+          for (const adj of toVoid) {
+            await payrollAdjustmentApi.void(adj._id, {
+              reason:
+                note.trim() ||
+                "Removed all adjustments via salary corrections",
+            });
+          }
+        }
+
+        const newAmt = effectiveNewCorrectionAmount();
+        if (newAmt > 0) {
+          const daysNote =
+            simpleCorrections.amountMode === "per_day"
+              ? ` (${simpleCorrections.days} day(s) @ ${formatCurrency(
+                  correctionPerDayRate()
+                )}/day)`
+              : "";
+          const created = await payrollAdjustmentApi.create({
+            employee: employeeId,
+            month: target.month,
+            year: target.year,
+            type: simpleCorrections.newCorrectionType,
+            amount: newAmt,
+            reason: `${note.trim()}${daysNote}`,
+            remarks: "Added from Make Salary Corrections",
+          });
+          const adjId = created.data?.data?._id || created.data?._id;
+          if (adjId) {
+            await payrollAdjustmentApi.approve(adjId, {
+              reason: "Auto-approved with salary correction",
+            });
+          }
+        }
+
+        await salaryPreviewApi.makeCorrections(target._id, {
+          corrections: {
+            simple: true,
+            monthlySalary: Number(simpleCorrections.monthlySalary) || 0,
+            tdsAmount: Number(simpleCorrections.tdsAmount) || 0,
+            note: note.trim(),
+          },
+        });
+        toast.success(
+          "Corrections saved. Preview updated from Simple Payroll figures."
+        );
+      } else {
+        await salaryPreviewApi.makeCorrections(target._id, {
+          corrections,
+        });
+        toast.success("Corrections saved successfully");
+      }
       setShowCorrectionsModal(false);
+      setCorrectionsTarget(null);
       setSelectedPreview(null);
       fetchData();
     } catch (error) {
       console.error("Error saving corrections:", error);
-      toast.error(error.response?.data?.message || "Failed to save corrections");
+      toast.error(
+        error.response?.data?.error ||
+          error.response?.data?.message ||
+          "Failed to save corrections"
+      );
     } finally {
       setSavingCorrections(false);
     }
@@ -352,6 +608,47 @@ const HRSalaryPreviewManagement = () => {
       currency: "INR",
       minimumFractionDigits: 0,
     }).format(amount);
+  };
+
+  /**
+   * Open details modal. For simple-mode employees, load the same DTO as
+   * Simple Payroll tab so the layout matches exactly.
+   */
+  const openPreviewDetails = async (preview) => {
+    setSelectedPreview(preview);
+    setSimpleViewDto(null);
+
+    const preferSimple = isSimpleSalaryPreview(preview);
+    setSimpleViewLoading(true);
+    try {
+      const employeeId = preview.employee?._id || preview.employee;
+      const res = await payrollSimplePreviewApi.get({
+        employee: employeeId,
+        month: preview.month,
+        year: preview.year,
+        automaticDeductions: 0,
+      });
+      const dto = res.data?.data ?? res.data;
+      if (dto?.applicable) {
+        setSimpleViewDto(dto);
+        return;
+      }
+      if (preferSimple) {
+        setSimpleViewDto(mapStoredPreviewToSimpleDto(preview));
+      }
+    } catch {
+      if (preferSimple) {
+        setSimpleViewDto(mapStoredPreviewToSimpleDto(preview));
+      }
+    } finally {
+      setSimpleViewLoading(false);
+    }
+  };
+
+  const closePreviewDetails = () => {
+    setSelectedPreview(null);
+    setSimpleViewDto(null);
+    setSimpleViewLoading(false);
   };
 
   const getStatusBadge = (status) => {
@@ -550,12 +847,12 @@ const HRSalaryPreviewManagement = () => {
                           </small>
                         </td>
                         <td>
-                          <Dropdown>
+                          <Dropdown align="end">
                             <Dropdown.Toggle variant="outline-primary" size="sm">
                               Actions
                             </Dropdown.Toggle>
-                            <Dropdown.Menu>
-                              <Dropdown.Item onClick={() => setSelectedPreview(preview)}>
+                            <Dropdown.Menu style={{ zIndex: 2000 }}>
+                              <Dropdown.Item onClick={() => openPreviewDetails(preview)}>
                                 <FaEye className="me-2" />
                                 View Details
                               </Dropdown.Item>
@@ -647,7 +944,7 @@ const HRSalaryPreviewManagement = () => {
                           <Button 
                             variant="primary" 
                             size="sm"
-                            onClick={() => setSelectedPreview(preview)}
+                            onClick={() => openPreviewDetails(preview)}
                           >
                             Review
                           </Button>
@@ -703,9 +1000,9 @@ const HRSalaryPreviewManagement = () => {
 
       {/* Preview Details Modal */}
       {selectedPreview && !showResponseModal && !showCorrectionsModal && (
-        <Modal 
-          show={!!selectedPreview} 
-          onHide={() => setSelectedPreview(null)} 
+        <Modal
+          show={!!selectedPreview}
+          onHide={closePreviewDetails}
           size="xl"
         >
           <Modal.Header closeButton>
@@ -715,92 +1012,97 @@ const HRSalaryPreviewManagement = () => {
             </Modal.Title>
           </Modal.Header>
           <Modal.Body>
-            <Row className="mb-3">
-              {/* Working Days */}
-              <Col md={6}>
-                <h6 className="text-muted mb-2">Working Days Breakdown</h6>
-                <Table size="sm" bordered>
-                  <tbody>
-                    <tr><td>Total Calendar Days</td><td className="text-end">{selectedPreview.workingDaysBreakdown.totalDays}</td></tr>
-                    <tr><td>Weekends</td><td className="text-end">{selectedPreview.workingDaysBreakdown.weekends}</td></tr>
-                    <tr><td>Holidays</td><td className="text-end">{selectedPreview.workingDaysBreakdown.holidays}</td></tr>
-                    <tr className="table-primary"><td><strong>Working Days</strong></td><td className="text-end"><strong>{selectedPreview.workingDaysBreakdown.workingDays}</strong></td></tr>
-                  </tbody>
-                </Table>
-              </Col>
-              {/* Leave Impact */}
-              <Col md={6}>
-                <h6 className="text-muted mb-2">Leave Impact</h6>
-                <Table size="sm" bordered>
-                  <tbody>
-                    <tr><td>Per Day Salary</td><td className="text-end">{formatCurrency(selectedPreview.leaveImpact.perDaySalary)}</td></tr>
-                    <tr><td>Paid Leaves</td><td className="text-end">{selectedPreview.leaveImpact.paidLeaves} days</td></tr>
-                    <tr><td>Unpaid Leaves</td><td className="text-end">{selectedPreview.leaveImpact.unpaidLeaves} days</td></tr>
-                    <tr className="table-warning"><td><strong>Leave Deduction</strong></td><td className="text-end"><strong>{formatCurrency(selectedPreview.leaveImpact.deductionAmount)}</strong></td></tr>
-                  </tbody>
-                </Table>
-              </Col>
-            </Row>
+            {simpleViewLoading ? (
+              <div className="text-center py-4">
+                <Spinner animation="border" />
+              </div>
+            ) : simpleViewDto ? (
+              <SimplePayrollPreviewPanels
+                preview={simpleViewDto}
+                formatCurrency={formatCurrency}
+              />
+            ) : (
+              <>
+                <Row className="mb-3">
+                  <Col md={6}>
+                    <h6 className="text-muted mb-2">Working Days Breakdown</h6>
+                    <Table size="sm" bordered>
+                      <tbody>
+                        <tr><td>Total Calendar Days</td><td className="text-end">{selectedPreview.workingDaysBreakdown.totalDays}</td></tr>
+                        <tr><td>Weekends</td><td className="text-end">{selectedPreview.workingDaysBreakdown.weekends}</td></tr>
+                        <tr><td>Holidays</td><td className="text-end">{selectedPreview.workingDaysBreakdown.holidays}</td></tr>
+                        <tr className="table-primary"><td><strong>Working Days</strong></td><td className="text-end"><strong>{selectedPreview.workingDaysBreakdown.workingDays}</strong></td></tr>
+                      </tbody>
+                    </Table>
+                  </Col>
+                  <Col md={6}>
+                    <h6 className="text-muted mb-2">Leave Impact</h6>
+                    <Table size="sm" bordered>
+                      <tbody>
+                        <tr><td>Per Day Salary</td><td className="text-end">{formatCurrency(selectedPreview.leaveImpact.perDaySalary)}</td></tr>
+                        <tr><td>Paid Leaves</td><td className="text-end">{selectedPreview.leaveImpact.paidLeaves} days</td></tr>
+                        <tr><td>Unpaid Leaves</td><td className="text-end">{selectedPreview.leaveImpact.unpaidLeaves} days</td></tr>
+                        <tr className="table-warning"><td><strong>Leave Deduction</strong></td><td className="text-end"><strong>{formatCurrency(selectedPreview.leaveImpact.deductionAmount)}</strong></td></tr>
+                      </tbody>
+                    </Table>
+                  </Col>
+                </Row>
+                <Row>
+                  <Col md={6}>
+                    <h6 className="text-success mb-2">Earnings</h6>
+                    <Table size="sm" bordered>
+                      <tbody>
+                        {[
+                          ['Basic Salary', selectedPreview.salaryBreakdown.earnings.basicSalary],
+                          ['HRA', selectedPreview.salaryBreakdown.earnings.hra],
+                          ['Special Allowance', selectedPreview.salaryBreakdown.earnings.specialAllowance],
+                          ['Transport Allowance', selectedPreview.salaryBreakdown.earnings.transportAllowance],
+                          ['Medical Allowance', selectedPreview.salaryBreakdown.earnings.medicalAllowance],
+                          ['Bonus', selectedPreview.salaryBreakdown.earnings.bonus],
+                          ['Overtime', selectedPreview.salaryBreakdown.earnings.overtime],
+                          ['Arrears', selectedPreview.salaryBreakdown.earnings.arrears],
+                          ['Reimbursements', selectedPreview.salaryBreakdown.earnings.reimbursements],
+                          ['Incentives', selectedPreview.salaryBreakdown.earnings.incentives],
+                        ].filter(([, v]) => v > 0).map(([label, value]) => (
+                          <tr key={label}><td>{label}</td><td className="text-end">{formatCurrency(value)}</td></tr>
+                        ))}
+                        <tr className="table-success"><td><strong>Gross Salary</strong></td><td className="text-end"><strong>{formatCurrency(selectedPreview.salaryBreakdown.grossSalary)}</strong></td></tr>
+                      </tbody>
+                    </Table>
+                  </Col>
+                  <Col md={6}>
+                    <h6 className="text-danger mb-2">Deductions</h6>
+                    <Table size="sm" bordered>
+                      <tbody>
+                        {[
+                          ['Provident Fund (PF)', selectedPreview.salaryBreakdown.deductions.providentFund],
+                          ['Professional Tax', selectedPreview.salaryBreakdown.deductions.professionalTax],
+                          ['TDS', selectedPreview.salaryBreakdown.deductions.tds],
+                          ['ESI', selectedPreview.salaryBreakdown.deductions.esi],
+                          ['Loss of Pay', selectedPreview.salaryBreakdown.deductions.lossOfPay],
+                          ['Advance Recovery', selectedPreview.salaryBreakdown.deductions.advances],
+                          ['Loan EMI', selectedPreview.salaryBreakdown.deductions.loans],
+                        ].filter(([, v]) => v > 0).map(([label, value]) => (
+                          <tr key={label}><td>{label}</td><td className="text-end text-danger">{formatCurrency(value)}</td></tr>
+                        ))}
+                        <tr className="table-danger"><td><strong>Total Deductions</strong></td><td className="text-end"><strong>{formatCurrency(selectedPreview.salaryBreakdown.totalDeductions)}</strong></td></tr>
+                      </tbody>
+                    </Table>
+                    <Alert variant="success" className="text-center py-2 mt-2">
+                      <div className="small text-muted">Net Salary</div>
+                      <h5 className="mb-0">{formatCurrency(selectedPreview.salaryBreakdown.netSalary)}</h5>
+                    </Alert>
+                  </Col>
+                </Row>
+              </>
+            )}
 
-            <Row>
-              {/* Earnings */}
-              <Col md={6}>
-                <h6 className="text-success mb-2">Earnings</h6>
-                <Table size="sm" bordered>
-                  <tbody>
-                    {[
-                      ['Basic Salary',         selectedPreview.salaryBreakdown.earnings.basicSalary],
-                      ['HRA',                  selectedPreview.salaryBreakdown.earnings.hra],
-                      ['Special Allowance',    selectedPreview.salaryBreakdown.earnings.specialAllowance],
-                      ['Transport Allowance',  selectedPreview.salaryBreakdown.earnings.transportAllowance],
-                      ['Medical Allowance',    selectedPreview.salaryBreakdown.earnings.medicalAllowance],
-                      ['Bonus',                selectedPreview.salaryBreakdown.earnings.bonus],
-                      ['Overtime',             selectedPreview.salaryBreakdown.earnings.overtime],
-                      ['Arrears',              selectedPreview.salaryBreakdown.earnings.arrears],
-                      ['Reimbursements',       selectedPreview.salaryBreakdown.earnings.reimbursements],
-                      ['Incentives',           selectedPreview.salaryBreakdown.earnings.incentives],
-                    ].filter(([, v]) => v > 0).map(([label, value]) => (
-                      <tr key={label}><td>{label}</td><td className="text-end">{formatCurrency(value)}</td></tr>
-                    ))}
-                    <tr className="table-success"><td><strong>Gross Salary</strong></td><td className="text-end"><strong>{formatCurrency(selectedPreview.salaryBreakdown.grossSalary)}</strong></td></tr>
-                  </tbody>
-                </Table>
-              </Col>
-
-              {/* Deductions */}
-              <Col md={6}>
-                <h6 className="text-danger mb-2">Deductions</h6>
-                <Table size="sm" bordered>
-                  <tbody>
-                    {[
-                      ['Provident Fund (PF)',  selectedPreview.salaryBreakdown.deductions.providentFund],
-                      ['Professional Tax',    selectedPreview.salaryBreakdown.deductions.professionalTax],
-                      ['TDS',                 selectedPreview.salaryBreakdown.deductions.tds],
-                      ['ESI',                 selectedPreview.salaryBreakdown.deductions.esi],
-                      ['Loss of Pay',         selectedPreview.salaryBreakdown.deductions.lossOfPay],
-                      ['Advance Recovery',    selectedPreview.salaryBreakdown.deductions.advances],
-                      ['Loan EMI',            selectedPreview.salaryBreakdown.deductions.loans],
-                    ].filter(([, v]) => v > 0).map(([label, value]) => (
-                      <tr key={label}><td>{label}</td><td className="text-end text-danger">{formatCurrency(value)}</td></tr>
-                    ))}
-                    <tr className="table-danger"><td><strong>Total Deductions</strong></td><td className="text-end"><strong>{formatCurrency(selectedPreview.salaryBreakdown.totalDeductions)}</strong></td></tr>
-                  </tbody>
-                </Table>
-
-                <Alert variant="success" className="text-center py-2 mt-2">
-                  <div className="small text-muted">Net Salary</div>
-                  <h5 className="mb-0">{formatCurrency(selectedPreview.salaryBreakdown.netSalary)}</h5>
-                </Alert>
-              </Col>
-            </Row>
-
-            {/* Queries if any */}
             {selectedPreview.employeeQueries?.length > 0 && (
               <div className="mt-3">
                 <h6 className="text-muted mb-2">Queries & Corrections Log</h6>
                 {selectedPreview.employeeQueries.map((q, i) => (
                   <Alert key={i} variant={q.query.startsWith('HR Correction') ? 'warning' : 'info'} className="small py-2">
-                    <strong>{q.query.startsWith('HR Correction') ? '🔧 Correction' : '❓ Query'}:</strong> {q.query}
+                    <strong>{q.query.startsWith('HR Correction') ? 'Correction' : 'Query'}:</strong> {q.query}
                     {q.hrResponse && <div className="mt-1"><strong>Response:</strong> {q.hrResponse}</div>}
                   </Alert>
                 ))}
@@ -808,12 +1110,11 @@ const HRSalaryPreviewManagement = () => {
             )}
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="secondary" onClick={() => setSelectedPreview(null)}>
+            <Button variant="secondary" onClick={closePreviewDetails}>
               Close
             </Button>
             <Button variant="warning" size="sm" onClick={() => {
               openCorrectionsModal(selectedPreview);
-              setSelectedPreview(null);
             }}>
               Make Corrections
             </Button>
@@ -907,17 +1208,332 @@ const HRSalaryPreviewManagement = () => {
       </Modal>
 
       {/* Corrections Modal */}
-      <Modal show={showCorrectionsModal} onHide={() => setShowCorrectionsModal(false)} size="xl">
+      <Modal
+        show={showCorrectionsModal}
+        onHide={() => {
+          setShowCorrectionsModal(false);
+          setCorrectionsTarget(null);
+        }}
+        size="xl"
+      >
         <Modal.Header closeButton>
-          <Modal.Title>Make Salary Corrections — {selectedPreview?.employee?.name}</Modal.Title>
+          <Modal.Title>
+            Make Salary Corrections —{" "}
+            {(correctionsTarget || selectedPreview)?.employee?.name}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
+          {correctionsLoading ? (
+            <div className="text-center py-4">
+              <Spinner animation="border" />
+            </div>
+          ) : correctionsIsSimple ? (
+            <>
+              <Alert variant="info" className="small mb-3">
+                Correct pay here using the same Simple Payroll rules: edit
+                Monthly Salary or TDS, and optionally add a new adjustment line
+                below. Existing adjustments are listed for reference.
+              </Alert>
+              <Row className="g-3">
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Monthly Salary (₹)</Form.Label>
+                    <Form.Control
+                      type="number"
+                      min="0"
+                      value={simpleCorrections.monthlySalary}
+                      onChange={(e) =>
+                        setSimpleCorrections((s) => ({
+                          ...s,
+                          monthlySalary: Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </Form.Group>
+                  <Form.Group className="mb-3">
+                    <Form.Label>TDS (₹)</Form.Label>
+                    <Form.Control
+                      type="number"
+                      min="0"
+                      value={simpleCorrections.tdsAmount}
+                      onChange={(e) =>
+                        setSimpleCorrections((s) => ({
+                          ...s,
+                          tdsAmount: Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </Form.Group>
+
+                  <Card className="mb-3 border-primary">
+                    <Card.Header className="py-2 bg-primary text-white">
+                      <strong>Add correction (optional)</strong>
+                    </Card.Header>
+                    <Card.Body className="py-3">
+                      <Form.Group className="mb-2">
+                        <Form.Label className="small">Type</Form.Label>
+                        <Form.Select
+                          value={simpleCorrections.newCorrectionType}
+                          onChange={(e) =>
+                            setSimpleCorrections((s) => ({
+                              ...s,
+                              newCorrectionType: e.target.value,
+                            }))
+                          }
+                        >
+                          {ADJUSTMENT_TYPE_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </Form.Select>
+                      </Form.Group>
+
+                      <Form.Group className="mb-2">
+                        <Form.Label className="small d-block">
+                          Amount mode
+                        </Form.Label>
+                        <Form.Check
+                          inline
+                          type="radio"
+                          id="corr-amt-fixed"
+                          label="Fixed amount"
+                          name="corrAmountMode"
+                          checked={simpleCorrections.amountMode === "fixed"}
+                          onChange={() =>
+                            setSimpleCorrections((s) => ({
+                              ...s,
+                              amountMode: "fixed",
+                            }))
+                          }
+                        />
+                        <Form.Check
+                          inline
+                          type="radio"
+                          id="corr-amt-per-day"
+                          label="Per day (Monthly ÷ 30)"
+                          name="corrAmountMode"
+                          checked={simpleCorrections.amountMode === "per_day"}
+                          onChange={() =>
+                            setSimpleCorrections((s) => ({
+                              ...s,
+                              amountMode: "per_day",
+                              newCorrectionType:
+                                s.newCorrectionType === "manual_salary_addition" ||
+                                s.newCorrectionType === "bonus" ||
+                                s.newCorrectionType === "incentive"
+                                  ? "manual_salary_deduction"
+                                  : s.newCorrectionType,
+                            }))
+                          }
+                        />
+                      </Form.Group>
+
+                      {simpleCorrections.amountMode === "per_day" ? (
+                        <Form.Group className="mb-0">
+                          <Form.Label className="small">
+                            Days to deduct
+                          </Form.Label>
+                          <div className="d-flex gap-2 mb-2 flex-wrap">
+                            {[1, 2, 3].map((d) => (
+                              <Button
+                                key={d}
+                                size="sm"
+                                variant={
+                                  Number(simpleCorrections.days) === d
+                                    ? "primary"
+                                    : "outline-primary"
+                                }
+                                onClick={() =>
+                                  setSimpleCorrections((s) => ({
+                                    ...s,
+                                    days: d,
+                                  }))
+                                }
+                              >
+                                {d} day{d > 1 ? "s" : ""} (
+                                {formatCurrency(correctionPerDayRate() * d)})
+                              </Button>
+                            ))}
+                          </div>
+                          <Form.Control
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={simpleCorrections.days}
+                            onChange={(e) =>
+                              setSimpleCorrections((s) => ({
+                                ...s,
+                                days: Number(e.target.value) || 0,
+                              }))
+                            }
+                          />
+                          <Form.Text muted>
+                            Per day = {formatCurrency(correctionPerDayRate())}{" "}
+                            (Monthly {formatCurrency(simpleCorrections.monthlySalary)}{" "}
+                            ÷ 30). Deduction amount:{" "}
+                            <strong>
+                              {formatCurrency(effectiveNewCorrectionAmount())}
+                            </strong>
+                          </Form.Text>
+                        </Form.Group>
+                      ) : (
+                        <Form.Group className="mb-0">
+                          <Form.Label className="small">Amount (₹)</Form.Label>
+                          <Form.Control
+                            type="number"
+                            min="0"
+                            placeholder="0 = no new adjustment"
+                            value={simpleCorrections.newCorrectionAmount || ""}
+                            onChange={(e) =>
+                              setSimpleCorrections((s) => ({
+                                ...s,
+                                newCorrectionAmount: Number(e.target.value) || 0,
+                              }))
+                            }
+                          />
+                          <Form.Text muted>
+                            Leave 0 if you only need to change Monthly Salary or
+                            TDS. Amount is saved as an approved Simple Payroll
+                            adjustment when you click Save.
+                          </Form.Text>
+                        </Form.Group>
+                      )}
+                    </Card.Body>
+                  </Card>
+
+                  <div className="small text-muted mb-1">
+                    Existing adjustments (from Simple Payroll)
+                  </div>
+                  <div className="fw-semibold mb-2">
+                    {simpleCorrections.removeAllAdjustments ? (
+                      <span className="text-decoration-line-through text-muted">
+                        {formatCurrency(simpleCorrections.adjustmentsTotal)}
+                      </span>
+                    ) : (
+                      formatCurrency(simpleCorrections.adjustmentsTotal)
+                    )}
+                    {simpleCorrections.removeAllAdjustments && (
+                      <span className="text-danger ms-2">→ ₹0 (will remove all)</span>
+                    )}
+                    {!simpleCorrections.removeAllAdjustments &&
+                      signedNewCorrectionAmount() !== 0 && (
+                        <span className="text-primary ms-2">
+                          → with new correction:{" "}
+                          {formatCurrency(
+                            effectiveAdjustmentsTotal() +
+                              signedNewCorrectionAmount()
+                          )}
+                        </span>
+                      )}
+                  </div>
+                  {(simpleCorrections.adjustmentLines || []).length > 0 && (
+                    <>
+                      <Table
+                        size="sm"
+                        bordered
+                        className={`mb-2${
+                          simpleCorrections.removeAllAdjustments
+                            ? " opacity-50"
+                            : ""
+                        }`}
+                      >
+                        <thead>
+                          <tr>
+                            <th>Type</th>
+                            <th className="text-end">Amount</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {simpleCorrections.adjustmentLines.map(
+                            (line, idx) => (
+                              <tr key={line.id || idx}>
+                                <td>{line.type}</td>
+                                <td className="text-end">
+                                  {line.signedAmount >= 0 ? "+" : ""}
+                                  {formatCurrency(line.signedAmount)}
+                                </td>
+                                <td>{line.status}</td>
+                              </tr>
+                            )
+                          )}
+                        </tbody>
+                      </Table>
+                      <Form.Check
+                        type="checkbox"
+                        id="remove-all-adjustments"
+                        className="mb-3"
+                        checked={Boolean(
+                          simpleCorrections.removeAllAdjustments
+                        )}
+                        onChange={(e) =>
+                          setSimpleCorrections((s) => ({
+                            ...s,
+                            removeAllAdjustments: e.target.checked,
+                          }))
+                        }
+                        label="Remove all existing adjustments"
+                      />
+                      {simpleCorrections.removeAllAdjustments && (
+                        <Alert variant="warning" className="small py-2">
+                          On Save, every non-void adjustment for this employee
+                          and month will be voided. Net will recalculate without
+                          them.
+                        </Alert>
+                      )}
+                    </>
+                  )}
+                </Col>
+                <Col md={6}>
+                  <Alert variant="success" className="text-center">
+                    <div className="small text-muted mb-1">
+                      Net Salary (after corrections)
+                    </div>
+                    <h4 className="mb-0">
+                      {formatCurrency(
+                        Number(simpleCorrections.monthlySalary || 0) +
+                          effectiveAdjustmentsTotal() +
+                          signedNewCorrectionAmount() -
+                          Number(simpleCorrections.tdsAmount || 0)
+                      )}
+                    </h4>
+                    <div className="small text-muted mt-2">
+                      {formatCurrency(simpleCorrections.monthlySalary)} ±{" "}
+                      {formatCurrency(
+                        effectiveAdjustmentsTotal() +
+                          signedNewCorrectionAmount()
+                      )}{" "}
+                      − {formatCurrency(simpleCorrections.tdsAmount)}
+                    </div>
+                  </Alert>
+                </Col>
+              </Row>
+              <Form.Group className="mt-3">
+                <Form.Label>
+                  Correction Note <span className="text-danger">*</span>
+                </Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={2}
+                  value={simpleCorrections.note}
+                  onChange={(e) =>
+                    setSimpleCorrections((s) => ({
+                      ...s,
+                      note: e.target.value,
+                    }))
+                  }
+                  placeholder="Explain why this correction is needed..."
+                />
+              </Form.Group>
+            </>
+          ) : (
+            <>
           <Alert variant="info" className="small mb-3">
             All existing salary values are pre-filled. Edit any field to make corrections. Changes will be saved and totals recalculated automatically.
           </Alert>
 
           <Row>
-            {/* Earnings Column */}
             <Col md={6}>
               <Card className="mb-3">
                 <Card.Header className="bg-success text-white py-2">
@@ -941,7 +1557,7 @@ const HRSalaryPreviewManagement = () => {
                       <Col xs={6}>
                         <Form.Control
                           type="number" size="sm" min="0"
-                          value={corrections.earnings[key]}
+                          value={corrections.earnings[key] ?? 0}
                           onChange={e => setCorrections({
                             ...corrections,
                             earnings: { ...corrections.earnings, [key]: Number(e.target.value) }
@@ -963,7 +1579,6 @@ const HRSalaryPreviewManagement = () => {
               </Card>
             </Col>
 
-            {/* Deductions Column */}
             <Col md={6}>
               <Card className="mb-3">
                 <Card.Header className="bg-danger text-white py-2">
@@ -984,7 +1599,7 @@ const HRSalaryPreviewManagement = () => {
                       <Col xs={6}>
                         <Form.Control
                           type="number" size="sm" min="0"
-                          value={corrections.deductions[key]}
+                          value={corrections.deductions[key] ?? 0}
                           onChange={e => setCorrections({
                             ...corrections,
                             deductions: { ...corrections.deductions, [key]: Number(e.target.value) }
@@ -1005,7 +1620,6 @@ const HRSalaryPreviewManagement = () => {
                 </Card.Body>
               </Card>
 
-              {/* Net Salary Preview */}
               <Alert variant="success" className="text-center py-2">
                 <div className="small text-muted mb-1">Net Salary (after corrections)</div>
                 <h5 className="mb-0">
@@ -1024,20 +1638,36 @@ const HRSalaryPreviewManagement = () => {
               as="textarea" rows={2}
               value={corrections.note}
               onChange={e => setCorrections({ ...corrections, note: e.target.value })}
-              placeholder="Explain the reason for this correction (e.g., 'Added Q1 performance bonus, corrected PT deduction')"
+              placeholder="Explain why this correction is needed..."
             />
           </Form.Group>
+            </>
+          )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowCorrectionsModal(false)} disabled={savingCorrections}>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setShowCorrectionsModal(false);
+              setCorrectionsTarget(null);
+            }}
+          >
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleSaveCorrections} disabled={savingCorrections || !corrections.note.trim()}>
-            {savingCorrections ? <><Spinner size="sm" className="me-1" />Saving...</> : 'Save Corrections'}
+          <Button
+            variant="primary"
+            onClick={handleSaveCorrections}
+            disabled={
+              savingCorrections ||
+              !(correctionsIsSimple
+                ? simpleCorrections.note.trim()
+                : corrections.note.trim())
+            }
+          >
+            {savingCorrections ? <Spinner animation="border" size="sm" /> : "Save Corrections"}
           </Button>
         </Modal.Footer>
       </Modal>
-
       {/* Generate Preview Modal */}
       <Modal show={showGenerateModal} onHide={() => setShowGenerateModal(false)} size="lg">
         <Modal.Header closeButton>

@@ -54,4 +54,28 @@ describe("simpleSlipPersist (SP-04)", () => {
       })
     ).toThrow(/negative/i);
   });
+
+  it("ignores leftover PF/PT/ESI so slip net matches Simple Payroll computeSimpleNet", () => {
+    const { deductions, simpleMeta } = mapSimpleStructureToSlipFields({
+      structure: {
+        payrollMode: "simple",
+        monthlySalary: 50000,
+        tdsEnabled: true,
+        tds: 2000,
+        // Leftover from a former legacy structure — must not affect simple net
+        providentFund: 1800,
+        professionalTax: 200,
+        esi: 375,
+      },
+      adjustments: [{ type: "bonus", amount: 1000, status: "approved" }],
+      lossOfPay: 0,
+    });
+
+    expect(deductions.providentFund).toBe(0);
+    expect(deductions.professionalTax).toBe(0);
+    expect(deductions.esi).toBe(0);
+    expect(deductions.tds).toBe(2000);
+    // 50000 + 1000 - 2000 = 49000 (PF/PT/ESI excluded)
+    expect(simpleMeta.netSalary).toBe(49000);
+  });
 });

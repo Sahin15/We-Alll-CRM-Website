@@ -109,10 +109,12 @@ export function mapSimpleStructureToSlipFields({
       incentives,
     },
     deductions: {
-      providentFund: Number(structure.providentFund) || 0,
-      professionalTax: Number(structure.professionalTax) || 0,
+      // Simple SMB model: only TDS + manual adjustments (+ optional LOP).
+      // Never copy leftover legacy PF / PT / ESI onto slips or previews.
+      providentFund: 0,
+      professionalTax: 0,
       tds: tdsAmount,
-      esi: Number(structure.esi) || 0,
+      esi: 0,
       lossOfPay: automaticDeductions,
       unpaidLeaveDeduction: 0,
       advances,

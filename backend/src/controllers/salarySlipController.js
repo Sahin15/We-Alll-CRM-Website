@@ -337,7 +337,8 @@ export const generateSalarySlip = async (req, res) => {
           employeeId,
           month,
           year,
-          lossOfPay,
+          // Simple mode: LOP is not auto-applied — HR uses approved adjustments
+          lossOfPay: 0,
           extras: {
             bonus,
             overtime,
@@ -578,7 +579,8 @@ export const bulkGenerateSalarySlips = async (req, res) => {
               employeeId: employee._id,
               month,
               year,
-              lossOfPay,
+              // Simple mode: LOP is not auto-applied — HR uses approved adjustments
+              lossOfPay: 0,
               extras: {},
             });
             earnings = simplePayload.earnings;

@@ -18,15 +18,15 @@ import {
   FaPlus,
   FaRedo,
   FaBan,
-  FaClock,
 } from "react-icons/fa";
 import api from "../../services/api";
-import { salaryStructureApi } from "../../api/salaryApi";
+import { salaryStructureApi, salaryPreviewApi } from "../../api/salaryApi";
 import {
   ADJUSTMENT_TYPE_OPTIONS,
   payrollAdjustmentApi,
   payrollSimplePreviewApi,
 } from "../../api/payrollSimpleApi";
+import { attendanceApi } from "../../api/attendanceApi";
 
 const MONTH_NAMES = [
   "January",
@@ -88,6 +88,8 @@ const SimplePayrollTab = () => {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [adjustments, setAdjustments] = useState([]);
   const [adjLoading, setAdjLoading] = useState(false);
+  const [attendanceSummary, setAttendanceSummary] = useState(null);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const [showCreateStructure, setShowCreateStructure] = useState(false);
@@ -107,14 +109,22 @@ const SimplePayrollTab = () => {
     direction: "",
     reason: "",
     remarks: "",
+    amountMode: "fixed",
+    days: "1",
   });
 
   const [voidTarget, setVoidTarget] = useState(null);
   const [voidReason, setVoidReason] = useState("");
 
-  const [showLateModal, setShowLateModal] = useState(false);
-  const [lateChoice, setLateChoice] = useState("one_day");
-  const [lateCustom, setLateCustom] = useState("");
+  const [showPreviewGenModal, setShowPreviewGenModal] = useState(false);
+  const [previewGenMeta, setPreviewGenMeta] = useState(null);
+  const [previewGenOverride, setPreviewGenOverride] = useState({
+    totalDays: 0,
+    workingDays: 0,
+    holidays: 0,
+    weekends: 0,
+  });
+  const [previewGenBusy, setPreviewGenBusy] = useState(false);
 
   const filteredEmployees = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -172,6 +182,8 @@ const SimplePayrollTab = () => {
         employee: employeeId,
         month,
         year,
+        // Net must not include auto LOP — HR deducts via adjustments only
+        automaticDeductions: 0,
       });
       setPreview(res.data?.data ?? res.data ?? null);
     } catch (err) {
@@ -182,6 +194,27 @@ const SimplePayrollTab = () => {
       setPreview(null);
     } finally {
       setPreviewLoading(false);
+    }
+  }, [employeeId, month, year]);
+
+  const loadAttendance = useCallback(async () => {
+    if (!employeeId) {
+      setAttendanceSummary(null);
+      return;
+    }
+    setAttendanceLoading(true);
+    try {
+      const res = await attendanceApi.getAttendanceSummary(
+        employeeId,
+        month,
+        year
+      );
+      setAttendanceSummary(res.data || null);
+    } catch (err) {
+      console.error(err);
+      setAttendanceSummary(null);
+    } finally {
+      setAttendanceLoading(false);
     }
   }, [employeeId, month, year]);
 
@@ -208,8 +241,13 @@ const SimplePayrollTab = () => {
   }, [employeeId, month, year]);
 
   const refreshAll = useCallback(async () => {
-    await Promise.all([loadStructure(), loadPreview(), loadAdjustments()]);
-  }, [loadStructure, loadPreview, loadAdjustments]);
+    await Promise.all([
+      loadStructure(),
+      loadPreview(),
+      loadAdjustments(),
+      loadAttendance(),
+    ]);
+  }, [loadStructure, loadPreview, loadAdjustments, loadAttendance]);
 
   useEffect(() => {
     loadEmployees();
@@ -220,12 +258,135 @@ const SimplePayrollTab = () => {
       setStructure(null);
       setPreview(null);
       setAdjustments([]);
+      setAttendanceSummary(null);
       return;
     }
     refreshAll();
   }, [employeeId, month, year, refreshAll]);
 
+  const monthlyForDayRate = useMemo(() => {
+    if (structure?.monthlySalary != null) return Number(structure.monthlySalary);
+    if (structure?.basicSalary != null) return Number(structure.basicSalary);
+    if (preview?.sections?.monthlySalary?.amount != null) {
+      return Number(preview.sections.monthlySalary.amount);
+    }
+    return 0;
+  }, [structure, preview]);
+
+  const perDayRate = useMemo(() => {
+    if (preview?.perDaySalary != null) return Number(preview.perDaySalary);
+    return Math.round(monthlyForDayRate / 30);
+  }, [preview, monthlyForDayRate]);
+
+  const perDayComputedAmount = useMemo(() => {
+    const days = Math.max(0, Number(adjForm.days) || 0);
+    return Math.round(perDayRate * days);
+  }, [adjForm.days, perDayRate]);
+
+  const openSuggestedDeduction = () => {
+    const unpaid = preview?.attendanceReport?.unpaidLeaveDays || 0;
+    const suggested = preview?.attendanceReport?.suggestedDeduction || 0;
+    setAdjForm({
+      type: "absent_deduction",
+      amount: suggested > 0 ? String(suggested) : "",
+      direction: "",
+      reason:
+        unpaid > 0
+          ? `Attendance-based deduction (${unpaid} unpaid day(s))`
+          : "Attendance-based deduction",
+      remarks: preview?.attendanceReport?.detail || "",
+      amountMode: "per_day",
+      days: unpaid > 0 ? String(unpaid) : "1",
+    });
+    setShowAdjModal(true);
+  };
+
+  const countWeekends = (m, y, upToDay) => {
+    let count = 0;
+    for (let d = 1; d <= upToDay; d++) {
+      if (new Date(y, m - 1, d).getDay() === 0) count++;
+    }
+    return count;
+  };
+
   const isSimple = structure?.payrollMode === "simple";
+
+  const openGenerateSalaryPreview = async () => {
+    if (!employeeId) {
+      toast.error("Select an employee first");
+      return;
+    }
+    if (!isSimple) {
+      toast.error("Active structure must be in simple mode");
+      return;
+    }
+    const now = new Date();
+    const isCurrentMonth =
+      month === now.getMonth() + 1 && year === now.getFullYear();
+    const todayDay = now.getDate();
+    const totalDaysInMonth = new Date(year, month, 0).getDate();
+    const monthName = MONTH_NAMES[month - 1];
+    const effectiveDays = isCurrentMonth ? todayDay : totalDaysInMonth;
+
+    let workingDays = 0;
+    let holidays = 0;
+    let weekends = 0;
+    try {
+      const res = await api.get("/salary-preview/working-days-info", {
+        params: { month, year },
+      });
+      workingDays = res.data.workingDays || 0;
+      holidays = res.data.holidays || 0;
+      weekends = res.data.weekends || 0;
+    } catch {
+      weekends = countWeekends(month, year, effectiveDays);
+      workingDays = Math.max(0, effectiveDays - weekends);
+    }
+
+    setPreviewGenMeta({
+      monthName,
+      year,
+      totalDaysInMonth,
+      isCurrentMonth,
+      todayDate: now.toLocaleDateString("en-GB"),
+      todayDay,
+      note: isCurrentMonth
+        ? `Preview for ${monthName} ${year} (current month — ${todayDay}/${totalDaysInMonth} days so far). Confirm pay figures below, then generate.`
+        : `Preview for ${monthName} ${year}. Confirm pay figures below, then generate for the employee to acknowledge or raise a concern.`,
+    });
+    setPreviewGenOverride({
+      totalDays: effectiveDays,
+      workingDays,
+      holidays,
+      weekends,
+    });
+    setShowPreviewGenModal(true);
+  };
+
+  const confirmGenerateSalaryPreview = async () => {
+    setPreviewGenBusy(true);
+    try {
+      await salaryPreviewApi.generate(
+        employeeId,
+        month,
+        year,
+        {},
+        previewGenOverride
+      );
+      toast.success(
+        "Salary preview saved from Simple Payroll. Employee can review it under My Salary Preview."
+      );
+      setShowPreviewGenModal(false);
+    } catch (err) {
+      const msg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        "Failed to generate salary preview";
+      toast.error(msg);
+    } finally {
+      setPreviewGenBusy(false);
+    }
+  };
 
   const handleCreateStructure = async (e) => {
     e.preventDefault();
@@ -282,7 +443,10 @@ const SimplePayrollTab = () => {
 
   const handleCreateAdjustment = async (e) => {
     e.preventDefault();
-    const amount = Number(adjForm.amount);
+    const amount =
+      adjForm.amountMode === "per_day"
+        ? perDayComputedAmount
+        : Number(adjForm.amount);
     if (!(amount >= 0) || Number.isNaN(amount)) {
       toast.error("Enter a valid amount");
       return;
@@ -293,13 +457,20 @@ const SimplePayrollTab = () => {
     }
     setBusy(true);
     try {
+      let reason = adjForm.reason.trim();
+      if (
+        adjForm.amountMode === "per_day" &&
+        !/day/i.test(reason)
+      ) {
+        reason = `${reason} (${adjForm.days} day(s) @ ${formatInr(perDayRate)}/day)`;
+      }
       const payload = {
         employee: employeeId,
         month,
         year,
         type: adjForm.type,
         amount,
-        reason: adjForm.reason.trim(),
+        reason,
         remarks: adjForm.remarks || "",
       };
       if (adjForm.type === "other" && adjForm.direction) {
@@ -314,6 +485,8 @@ const SimplePayrollTab = () => {
         direction: "",
         reason: "",
         remarks: "",
+        amountMode: "fixed",
+        days: "1",
       });
       await Promise.all([loadAdjustments(), loadPreview()]);
     } catch (err) {
@@ -357,33 +530,6 @@ const SimplePayrollTab = () => {
     }
   };
 
-  const handleLateRecommendation = async () => {
-    setBusy(true);
-    try {
-      const body = {
-        employee: employeeId,
-        month,
-        year,
-        choice: lateChoice,
-      };
-      if (lateChoice === "custom") {
-        body.customAmount = Number(lateCustom) || 0;
-      }
-      const res = await payrollAdjustmentApi.lateRecommendation(body);
-      if (!res.data?.data) {
-        toast.info(res.data?.message || "No late deduction applied");
-      } else {
-        toast.success("Late deduction draft created");
-      }
-      setShowLateModal(false);
-      await Promise.all([loadAdjustments(), loadPreview()]);
-    } catch (err) {
-      toast.error(err.response?.data?.error || "Late recommendation failed");
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const yearOptions = useMemo(() => {
     const y = new Date().getFullYear();
     return [y, y - 1, y - 2];
@@ -395,7 +541,8 @@ const SimplePayrollTab = () => {
         <div>
           <h5 className="mb-1">Simple Payroll</h5>
           <p className="text-muted small mb-0">
-            Monthly Salary − automatic deductions ± adjustments − TDS = Net
+            Monthly Salary ± manual adjustments − TDS = Net. Attendance is shown
+            for review; HR chooses whether to deduct.
           </p>
         </div>
         <Button
@@ -602,34 +749,94 @@ const SimplePayrollTab = () => {
                     </Accordion.Item>
                     <Accordion.Item eventKey="1">
                       <Accordion.Header>
-                        Automatic Deductions —{" "}
-                        {formatInr(
-                          preview.sections?.automaticDeductions?.amount
+                        Attendance report (review only)
+                        {preview.attendanceReport?.suggestedDeduction > 0 && (
+                          <Badge bg="warning" text="dark" className="ms-2">
+                            Suggested{" "}
+                            {formatInr(
+                              preview.attendanceReport.suggestedDeduction
+                            )}
+                          </Badge>
                         )}
                       </Accordion.Header>
                       <Accordion.Body>
-                        {(preview.sections?.automaticDeductions?.lines || [])
-                          .length === 0 ? (
-                          <span className="text-muted small">
-                            No automatic deductions for this period.
-                          </span>
+                        <Alert variant="light" className="border small py-2">
+                          Nothing here is deducted automatically. If HR decides
+                          to deduct, add a manual adjustment below (or use the
+                          button).
+                        </Alert>
+                        {attendanceLoading ? (
+                          <Spinner animation="border" size="sm" />
                         ) : (
-                          <ul className="mb-0">
-                            {preview.sections.automaticDeductions.lines.map(
-                              (line, idx) => (
-                                <li key={idx}>
-                                  {line.label}: {formatInr(line.amount)}
-                                  {line.detail ? (
-                                    <span className="text-muted small">
-                                      {" "}
-                                      — {line.detail}
-                                    </span>
-                                  ) : null}
-                                </li>
-                              )
-                            )}
-                          </ul>
+                          <Row className="g-2 small mb-3">
+                            <Col xs={6} md={3}>
+                              <div className="text-muted">Present</div>
+                              <strong>
+                                {attendanceSummary?.summary?.present ?? "—"}
+                              </strong>
+                            </Col>
+                            <Col xs={6} md={3}>
+                              <div className="text-muted">Absent</div>
+                              <strong>
+                                {attendanceSummary?.summary?.absent ?? "—"}
+                              </strong>
+                            </Col>
+                            <Col xs={6} md={3}>
+                              <div className="text-muted">Late</div>
+                              <strong>
+                                {attendanceSummary?.summary?.late ?? "—"}
+                              </strong>
+                            </Col>
+                            <Col xs={6} md={3}>
+                              <div className="text-muted">On leave</div>
+                              <strong>
+                                {attendanceSummary?.summary?.onLeave ?? "—"}
+                              </strong>
+                            </Col>
+                            <Col xs={6} md={3}>
+                              <div className="text-muted">Half day</div>
+                              <strong>
+                                {attendanceSummary?.summary?.halfDay ?? "—"}
+                              </strong>
+                            </Col>
+                            <Col xs={6} md={3}>
+                              <div className="text-muted">Unpaid leave (suggested)</div>
+                              <strong>
+                                {preview.attendanceReport?.unpaidLeaveDays ?? 0}{" "}
+                                day(s)
+                              </strong>
+                            </Col>
+                            <Col xs={6} md={3}>
+                              <div className="text-muted">Per day</div>
+                              <strong>
+                                {formatInr(
+                                  preview.attendanceReport?.perDaySalary ??
+                                    preview.perDaySalary
+                                )}
+                              </strong>
+                            </Col>
+                            <Col xs={6} md={3}>
+                              <div className="text-muted">Suggested deduct</div>
+                              <strong>
+                                {formatInr(
+                                  preview.attendanceReport?.suggestedDeduction
+                                )}
+                              </strong>
+                            </Col>
+                          </Row>
                         )}
+                        <p className="small text-muted mb-2">
+                          {preview.attendanceReport?.detail ||
+                            "No leave-impact suggestion for this period."}
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="outline-primary"
+                          onClick={openSuggestedDeduction}
+                        >
+                          <FaPlus className="me-1" />
+                          Add manual deduction from attendance
+                        </Button>
                       </Accordion.Body>
                     </Accordion.Item>
                     <Accordion.Item eventKey="2">
@@ -714,10 +921,6 @@ const SimplePayrollTab = () => {
                           <Col xs={6} className="text-end">
                             {formatInr(preview.totals?.monthlySalary)}
                           </Col>
-                          <Col xs={6}>− Automatic</Col>
-                          <Col xs={6} className="text-end">
-                            {formatInr(preview.totals?.automaticDeductions)}
-                          </Col>
                           <Col xs={6}>± Adjustments</Col>
                           <Col xs={6} className="text-end">
                             {formatInr(preview.totals?.adjustmentsTotal)}
@@ -743,6 +946,28 @@ const SimplePayrollTab = () => {
             </Card.Body>
           </Card>
 
+          {/* Generate employee-facing salary preview */}
+          <Card className="mb-3 shadow-sm">
+            <Card.Header className="bg-white d-flex flex-wrap gap-2 justify-content-between align-items-center">
+              <div>
+                <strong>Employee salary preview</strong>
+                <div className="text-muted small">
+                  Creates the preview from this screen&apos;s Monthly Salary,
+                  adjustments, and TDS. The employee can then acknowledge it or
+                  raise a concern.
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={!isSimple || busy || previewGenBusy}
+                onClick={openGenerateSalaryPreview}
+              >
+                Generate salary preview
+              </Button>
+            </Card.Header>
+          </Card>
+
           {/* Adjustments */}
           <Card className="shadow-sm">
             <Card.Header className="bg-white d-flex flex-wrap gap-2 justify-content-between align-items-center">
@@ -750,17 +975,20 @@ const SimplePayrollTab = () => {
               <div className="d-flex gap-2">
                 <Button
                   size="sm"
-                  variant="outline-secondary"
-                  disabled={!isSimple || busy}
-                  onClick={() => setShowLateModal(true)}
-                >
-                  <FaClock className="me-1" /> Late recommendation
-                </Button>
-                <Button
-                  size="sm"
                   variant="primary"
                   disabled={!employeeId || busy}
-                  onClick={() => setShowAdjModal(true)}
+                  onClick={() => {
+                    setAdjForm({
+                      type: "bonus",
+                      amount: "",
+                      direction: "",
+                      reason: "",
+                      remarks: "",
+                      amountMode: "fixed",
+                      days: "1",
+                    });
+                    setShowAdjModal(true);
+                  }}
                 >
                   <FaPlus className="me-1" /> Add adjustment
                 </Button>
@@ -978,17 +1206,70 @@ const SimplePayrollTab = () => {
               </Form.Group>
             )}
             <Form.Group className="mb-3">
-              <Form.Label>Amount (₹)</Form.Label>
-              <Form.Control
-                type="number"
-                min="0"
-                required
-                value={adjForm.amount}
-                onChange={(e) =>
-                  setAdjForm((f) => ({ ...f, amount: e.target.value }))
-                }
-              />
+              <Form.Label>Amount entry</Form.Label>
+              <div className="d-flex gap-3">
+                <Form.Check
+                  type="radio"
+                  id="adj-amount-fixed"
+                  label="Fixed amount (₹)"
+                  checked={adjForm.amountMode === "fixed"}
+                  onChange={() =>
+                    setAdjForm((f) => ({ ...f, amountMode: "fixed" }))
+                  }
+                />
+                <Form.Check
+                  type="radio"
+                  id="adj-amount-per-day"
+                  label="Per day (Monthly ÷ 30)"
+                  checked={adjForm.amountMode === "per_day"}
+                  onChange={() =>
+                    setAdjForm((f) => ({ ...f, amountMode: "per_day" }))
+                  }
+                />
+              </div>
             </Form.Group>
+            {adjForm.amountMode === "per_day" ? (
+              <>
+                <Alert variant="light" className="border small py-2">
+                  Per day = {formatInr(perDayRate)} (Monthly{" "}
+                  {formatInr(monthlyForDayRate)} ÷ 30)
+                </Alert>
+                <Form.Group className="mb-3">
+                  <Form.Label>Days</Form.Label>
+                  <Form.Control
+                    type="number"
+                    min="0"
+                    step="1"
+                    required
+                    value={adjForm.days}
+                    onChange={(e) =>
+                      setAdjForm((f) => ({ ...f, days: e.target.value }))
+                    }
+                  />
+                </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>Calculated amount (₹)</Form.Label>
+                  <Form.Control
+                    type="text"
+                    readOnly
+                    value={perDayComputedAmount}
+                  />
+                </Form.Group>
+              </>
+            ) : (
+              <Form.Group className="mb-3">
+                <Form.Label>Amount (₹)</Form.Label>
+                <Form.Control
+                  type="number"
+                  min="0"
+                  required
+                  value={adjForm.amount}
+                  onChange={(e) =>
+                    setAdjForm((f) => ({ ...f, amount: e.target.value }))
+                  }
+                />
+              </Form.Group>
+            )}
             <Form.Group className="mb-3">
               <Form.Label>Reason</Form.Label>
               <Form.Control
@@ -1055,53 +1336,192 @@ const SimplePayrollTab = () => {
         </Modal.Footer>
       </Modal>
 
-      {/* Late recommendation modal */}
+      {/* Confirm salary preview generation */}
       <Modal
-        show={showLateModal}
-        onHide={() => setShowLateModal(false)}
+        show={showPreviewGenModal}
+        onHide={() => setShowPreviewGenModal(false)}
         centered
       >
-        <Modal.Header closeButton>
-          <Modal.Title>Late deduction recommendation</Modal.Title>
+        <Modal.Header
+          closeButton
+          className={
+            previewGenMeta?.isCurrentMonth
+              ? "bg-warning"
+              : "bg-primary text-white"
+          }
+        >
+          <Modal.Title>
+            {previewGenMeta?.isCurrentMonth
+              ? "Mid-Month Preview"
+              : "Confirm Salary Preview Generation"}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <Form.Group className="mb-3">
-            <Form.Label>Policy choice</Form.Label>
-            <Form.Select
-              value={lateChoice}
-              onChange={(e) => setLateChoice(e.target.value)}
-            >
-              <option value="none">None</option>
-              <option value="one_day">Deduct 1 day</option>
-              <option value="two_days">Deduct 2 days</option>
-              <option value="custom">Custom amount</option>
-            </Form.Select>
-          </Form.Group>
-          {lateChoice === "custom" && (
-            <Form.Group>
-              <Form.Label>Custom amount (₹)</Form.Label>
-              <Form.Control
-                type="number"
-                min="0"
-                value={lateCustom}
-                onChange={(e) => setLateCustom(e.target.value)}
-              />
-            </Form.Group>
+          {previewGenMeta && (
+            <>
+              <Alert
+                variant={previewGenMeta.isCurrentMonth ? "warning" : "info"}
+                className="small"
+              >
+                {previewGenMeta.note}
+              </Alert>
+
+              <h6 className="mb-2">Pay summary (from Simple Payroll)</h6>
+              {preview?.totals?.rejected ? (
+                <Alert variant="danger" className="small">
+                  Net would be negative — fix adjustments before generating.
+                </Alert>
+              ) : (
+                <Table bordered size="sm" className="mb-3">
+                  <tbody>
+                    <tr>
+                      <td className="text-muted">Monthly salary</td>
+                      <td className="text-end">
+                        <strong>
+                          {formatInr(preview?.totals?.monthlySalary)}
+                        </strong>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="text-muted">± Adjustments total</td>
+                      <td className="text-end">
+                        <strong>
+                          {formatInr(preview?.totals?.adjustmentsTotal)}
+                        </strong>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="text-muted">− TDS</td>
+                      <td className="text-end">
+                        <strong>
+                          {formatInr(preview?.totals?.tdsAmount)}
+                        </strong>
+                      </td>
+                    </tr>
+                    <tr className="table-success">
+                      <td>
+                        <strong>Net amount</strong>
+                      </td>
+                      <td className="text-end">
+                        <strong>
+                          {formatInr(preview?.totals?.netSalary)}
+                        </strong>
+                      </td>
+                    </tr>
+                  </tbody>
+                </Table>
+              )}
+
+              {(preview?.sections?.manualAdjustments?.lines || []).length >
+                0 && (
+                <div className="mb-3">
+                  <div className="small text-muted mb-1">
+                    Adjustments on this screen
+                  </div>
+                  <ul className="small mb-0 ps-3">
+                    {preview.sections.manualAdjustments.lines.map(
+                      (line, idx) => (
+                        <li key={line.id || idx}>
+                          {line.type}:{" "}
+                          {line.signedAmount >= 0 ? "+" : ""}
+                          {formatInr(line.signedAmount)}
+                          {line.status !== "approved" ? (
+                            <span className="text-muted">
+                              {" "}
+                              ({line.status} — not in net until approved)
+                            </span>
+                          ) : null}
+                        </li>
+                      )
+                    )}
+                  </ul>
+                </div>
+              )}
+
+              <details className="small text-muted mb-0">
+                <summary className="mb-2" style={{ cursor: "pointer" }}>
+                  Calendar / working days (optional)
+                </summary>
+                <div className="border rounded p-2 bg-light">
+                  <div className="mb-1">
+                    {previewGenMeta.monthName} {previewGenMeta.year}:{" "}
+                    {previewGenOverride.totalDays} days ·{" "}
+                    {previewGenOverride.weekends} Sundays ·{" "}
+                    {previewGenOverride.holidays} holidays ·{" "}
+                    <strong>{previewGenOverride.workingDays} working</strong>
+                  </div>
+                  <Row className="g-2">
+                    <Col xs={4}>
+                      <Form.Label className="small mb-0">Total</Form.Label>
+                      <Form.Control
+                        type="number"
+                        size="sm"
+                        min="1"
+                        max={previewGenMeta.totalDaysInMonth}
+                        value={previewGenOverride.totalDays}
+                        onChange={(e) =>
+                          setPreviewGenOverride((o) => ({
+                            ...o,
+                            totalDays: Number(e.target.value),
+                          }))
+                        }
+                      />
+                    </Col>
+                    <Col xs={4}>
+                      <Form.Label className="small mb-0">Working</Form.Label>
+                      <Form.Control
+                        type="number"
+                        size="sm"
+                        min="0"
+                        value={previewGenOverride.workingDays}
+                        onChange={(e) =>
+                          setPreviewGenOverride((o) => ({
+                            ...o,
+                            workingDays: Number(e.target.value),
+                          }))
+                        }
+                      />
+                    </Col>
+                    <Col xs={4}>
+                      <Form.Label className="small mb-0">Holidays</Form.Label>
+                      <Form.Control
+                        type="number"
+                        size="sm"
+                        min="0"
+                        value={previewGenOverride.holidays}
+                        onChange={(e) =>
+                          setPreviewGenOverride((o) => ({
+                            ...o,
+                            holidays: Number(e.target.value),
+                          }))
+                        }
+                      />
+                    </Col>
+                  </Row>
+                </div>
+              </details>
+            </>
           )}
-          <p className="small text-muted mb-0 mt-2">
-            Creates a draft late_deduction adjustment using Monthly Salary ÷ 30.
-          </p>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowLateModal(false)}>
+          <Button
+            variant="secondary"
+            onClick={() => setShowPreviewGenModal(false)}
+          >
             Cancel
           </Button>
           <Button
-            variant="primary"
-            disabled={busy}
-            onClick={handleLateRecommendation}
+            variant={previewGenMeta?.isCurrentMonth ? "warning" : "primary"}
+            disabled={
+              previewGenBusy || Boolean(preview?.totals?.rejected)
+            }
+            onClick={confirmGenerateSalaryPreview}
           >
-            Create draft
+            {previewGenBusy ? (
+              <Spinner size="sm" animation="border" />
+            ) : (
+              "Confirm & Generate"
+            )}
           </Button>
         </Modal.Footer>
       </Modal>
