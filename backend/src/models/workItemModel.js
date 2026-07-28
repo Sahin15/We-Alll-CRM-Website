@@ -1,4 +1,9 @@
 import mongoose from "mongoose";
+import {
+  ALL_WORK_ITEM_STATUSES,
+  mapsToSlotComplete,
+  mapsToSlotRelease,
+} from "../utils/creativeStatusMap.js";
 
 const workItemSchema = new mongoose.Schema(
   {
@@ -49,11 +54,11 @@ const workItemSchema = new mongoose.Schema(
       required: true,
     },
     
-    // Status Management (Unified 4-stage workflow + Cancelled)
+    // Status Management (legacy 4-stage + creative workflow + Cancelled)
     status: {
       type: String,
       required: true,
-      enum: ["To Do", "In Progress", "Review", "Done", "Cancelled"],
+      enum: ALL_WORK_ITEM_STATUSES,
       default: "To Do",
       index: true,
     },
@@ -67,7 +72,7 @@ const workItemSchema = new mongoose.Schema(
       },
       status: {
         type: String,
-        enum: ["To Do", "In Progress", "Review", "Done", "Cancelled"],
+        enum: ALL_WORK_ITEM_STATUSES,
         default: "To Do",
       },
       updatedAt: {
@@ -284,7 +289,7 @@ const workItemSchema = new mongoose.Schema(
     statusHistory: [{
       status: {
         type: String,
-        enum: ["To Do", "In Progress", "Review", "Done", "Cancelled"],
+        enum: ALL_WORK_ITEM_STATUSES,
       },
       changedBy: {
         type: mongoose.Schema.Types.ObjectId,
@@ -321,9 +326,61 @@ const workItemSchema = new mongoose.Schema(
         "design-advanced",       // Advanced Design workflow
         "video-production",      // Video Production workflow
         "content-writing",       // Content Writing workflow
+        "posting",               // Posting department workflow
         "custom"                 // Custom department workflow
       ],
       default: "standard",
+    },
+
+    // Creative workflow mode (revision/review/posting handoff)
+    workflowMode: {
+      type: String,
+      enum: ["standard", "creative"],
+      default: "standard",
+      index: true,
+    },
+
+    // Optional Posting department handoff (Graphic/Video Main Tasks)
+    requiresPosting: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    postingAssignedTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
+    postingDate: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    postingStatus: {
+      type: String,
+      enum: ["not_required", "pending", "in_progress", "submitted", "done"],
+      default: "not_required",
+      index: true,
+    },
+    postUrls: [{
+      type: String,
+      trim: true,
+    }],
+    postingNotes: {
+      type: String,
+      trim: true,
+      maxlength: [2000, "Posting notes cannot exceed 2000 characters"],
+      default: "",
+    },
+    postingSubmittedAt: {
+      type: Date,
+      default: null,
+    },
+    postingSubmittedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
     },
     
     // Advanced Workflow Stage Management
@@ -545,7 +602,13 @@ workItemSchema.virtual("slotDisplayInfo").get(function () {
 
 // Virtual for checking if work item is overdue
 workItemSchema.virtual("isOverdue").get(function () {
-  if (!this.dueDate || this.status === "Done" || this.status === "Cancelled") {
+  if (
+    !this.dueDate ||
+    mapsToSlotComplete(this.status) ||
+    this.status === "Posted" ||
+    this.status === "Closed" ||
+    this.status === "Cancelled"
+  ) {
     return false;
   }
   const today = new Date();
@@ -557,7 +620,13 @@ workItemSchema.virtual("isOverdue").get(function () {
 
 // Virtual for checking if due today
 workItemSchema.virtual("isDueToday").get(function () {
-  if (!this.dueDate || this.status === "Done" || this.status === "Cancelled") {
+  if (
+    !this.dueDate ||
+    mapsToSlotComplete(this.status) ||
+    this.status === "Posted" ||
+    this.status === "Closed" ||
+    this.status === "Cancelled"
+  ) {
     return false;
   }
   const today = new Date();
@@ -581,11 +650,11 @@ workItemSchema.virtual("daysUntilDue").get(function () {
   return diffDays;
 });
 
-// Pre-save middleware to set completedAt when status changes to Done
+// Pre-save middleware: completedAt + slot complete/release (legacy Done + creative Delivered/Cancelled)
 workItemSchema.pre("save", async function (next) {
   if (this.isModified("status")) {
-    // Set completedAt when status becomes "Done"
-    if (this.status === "Done" && !this.completedAt) {
+    // Set completedAt and complete slot when status maps to slot-complete (Done / Delivered)
+    if (mapsToSlotComplete(this.status) && !this.completedAt) {
       this.completedAt = new Date();
       
       // Handle slot completion if work item has assigned slot
@@ -609,8 +678,12 @@ workItemSchema.pre("save", async function (next) {
         }
       }
     }
+    // After Delivered, optional posting handoff does not re-complete the slot
+    else if (this.status === "Awaiting Posting" || this.status === "Posted" || this.status === "Closed") {
+      // keep completedAt if already set; never release/complete slot again here
+    }
     // Handle Cancelled status — release slot, clear completedAt
-    else if (this.status === "Cancelled") {
+    else if (mapsToSlotRelease(this.status)) {
       // Clear completedAt if it was set
       this.completedAt = undefined;
 
@@ -636,8 +709,14 @@ workItemSchema.pre("save", async function (next) {
         }
       }
     }
-    // Clear completedAt if status changes from "Done" to something else (not Cancelled)
-    else if (this.status !== "Done" && this.completedAt) {
+    // Clear completedAt if leaving a completed path (not Cancelled / Posted / Closed / Awaiting Posting)
+    else if (
+      !mapsToSlotComplete(this.status) &&
+      this.status !== "Awaiting Posting" &&
+      this.status !== "Posted" &&
+      this.status !== "Closed" &&
+      this.completedAt
+    ) {
       this.completedAt = undefined;
     }
     
@@ -883,9 +962,7 @@ workItemSchema.methods.releaseSlot = async function(releasedBy, reason = '') {
 
 // Instance method to validate status transition
 workItemSchema.methods.canTransitionTo = function (newStatus) {
-  const validStatuses = ["To Do", "In Progress", "Review", "Done", "Cancelled"];
-
-  if (!validStatuses.includes(newStatus)) {
+  if (!ALL_WORK_ITEM_STATUSES.includes(newStatus)) {
     return { valid: false, message: `Invalid status: "${newStatus}"` };
   }
 
