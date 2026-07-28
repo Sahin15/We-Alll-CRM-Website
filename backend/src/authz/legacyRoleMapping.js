@@ -139,6 +139,7 @@ export const LEGACY_ROLE_TO_ACCESS_ROLES = {
         { permission: 'team.user.create', scope: SCOPES.COMPANY },
         { permission: 'team.user.update', scope: SCOPES.COMPANY },
         { permission: 'team.department.view', scope: SCOPES.COMPANY },
+        { permission: 'team.department.manage', scope: SCOPES.COMPANY },
         { permission: 'attendance.record.view', scope: SCOPES.COMPANY },
         { permission: 'attendance.record.manage', scope: SCOPES.COMPANY },
         { permission: 'attendance.clock', scope: SCOPES.SELF },

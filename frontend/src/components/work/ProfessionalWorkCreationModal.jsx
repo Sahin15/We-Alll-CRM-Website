@@ -136,6 +136,11 @@ const ProfessionalWorkCreationModal = ({
   }, []);
 
   // Filter users by selected project's departments
+  const isCreativeDepartmentName = (name) => {
+    const n = String(name || '').toLowerCase();
+    return n.includes('design') || n.includes('graphic') || n.includes('video');
+  };
+
   const projectSupportsCreative = useMemo(() => {
     if (!selectedProject) return false;
     const deptNames = [];
@@ -147,13 +152,18 @@ const ProfessionalWorkCreationModal = ({
     if (selectedProject.department?.name) {
       deptNames.push(String(selectedProject.department.name).toLowerCase());
     }
-    return deptNames.some(
-      (n) =>
-        n.includes('design') ||
-        n.includes('graphic') ||
-        n.includes('video')
-    );
+    return deptNames.some(isCreativeDepartmentName);
   }, [selectedProject]);
+
+  const assigneeSupportsCreative = useMemo(() => {
+    if (!formData.assignedTo) return false;
+    const user = users.find((u) => String(u._id) === String(formData.assignedTo));
+    return isCreativeDepartmentName(user?.department?.name);
+  }, [formData.assignedTo, users]);
+
+  const showPostingHandoff =
+    Boolean(formData.project) &&
+    (projectSupportsCreative || assigneeSupportsCreative);
 
   const postingDepartmentUsers = useMemo(() => {
     return users.filter((u) => {
@@ -444,7 +454,7 @@ const ProfessionalWorkCreationModal = ({
       newErrors.selectedSlot = 'Please select a slot';
     }
 
-    if (projectSupportsCreative && formData.requiresPosting) {
+    if (showPostingHandoff && formData.requiresPosting) {
       if (!formData.postingAssignedTo) {
         newErrors.postingAssignedTo = 'Select a Posting department team member';
       }
@@ -503,7 +513,7 @@ const ProfessionalWorkCreationModal = ({
         selectedSlot: formData.selectedSlot
       };
 
-      if (projectSupportsCreative) {
+      if (showPostingHandoff && (projectSupportsCreative || assigneeSupportsCreative || formData.requiresPosting)) {
         workItemData.workflowMode = 'creative';
         const deptNames = [];
         if (Array.isArray(selectedProject?.departments)) {
@@ -513,6 +523,10 @@ const ProfessionalWorkCreationModal = ({
         }
         if (selectedProject?.department?.name) {
           deptNames.push(String(selectedProject.department.name).toLowerCase());
+        }
+        const assignee = users.find((u) => String(u._id) === String(formData.assignedTo));
+        if (assignee?.department?.name) {
+          deptNames.push(String(assignee.department.name).toLowerCase());
         }
         workItemData.workflowType = deptNames.some((n) => n.includes('video'))
           ? 'video-production'
@@ -982,7 +996,7 @@ const ProfessionalWorkCreationModal = ({
             </Card.Body>
           </Card>
 
-          {projectSupportsCreative && (
+          {showPostingHandoff && (
             <Card className="mb-4 border-0 shadow-sm">
               <Card.Header className="bg-light border-0">
                 <h6 className="mb-0">Posting Department (optional)</h6>

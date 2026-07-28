@@ -41,6 +41,8 @@ import {
   FaStar,
   FaCheckCircle,
   FaExclamationTriangle,
+  FaUserPlus,
+  FaUserMinus,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { departmentApi } from "../../api/departmentApi";
@@ -52,7 +54,13 @@ import "./DepartmentList.css";
 
 const DepartmentList = () => {
   const { user, canAccess } = useAuth();
-  const isAdmin = checkPageAccess(canAccess, PAGE_ACCESS.platformAdmin);
+  /** Create / edit / delete departments — platform admins only */
+  const isPlatformAdmin = checkPageAccess(canAccess, PAGE_ACCESS.platformAdmin);
+  /** Add / remove members — admin + HR */
+  const canManageEmployees = checkPageAccess(
+    canAccess,
+    PAGE_ACCESS.departmentAdmin
+  );
   const isHOD = user?.role === "hod";
   const isEmployee = user?.role === "employee";
   const [departments, setDepartments] = useState([]);
@@ -76,7 +84,9 @@ const DepartmentList = () => {
     head: "",
     status: "active",
   });
-  const [selectedEmployees, setSelectedEmployees] = useState([]);
+  const [showAddMemberForm, setShowAddMemberForm] = useState(false);
+  const [memberToAdd, setMemberToAdd] = useState("");
+  const [memberActionLoading, setMemberActionLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -155,7 +165,10 @@ const DepartmentList = () => {
   const fetchUsers = async () => {
     try {
       const response = await userApi.getAllUsers({ status: 'active', limit: 1000 });
-      setUsers(response.data);
+      const list = Array.isArray(response)
+        ? response
+        : response?.data || response?.users || [];
+      setUsers(Array.isArray(list) ? list : []);
     } catch (error) {
       console.error("Failed to fetch users:", error);
     }
@@ -237,28 +250,132 @@ const DepartmentList = () => {
     setCurrentDepartment(null);
   };
 
-  const handleShowEmployeeModal = (department) => {
+  const getDepartmentMemberIds = (department = currentDepartment) => {
+    if (!department?._id) return [];
+    const deptId = String(department._id);
+    const fromUsers = users
+      .filter((u) => {
+        const userDeptId = u.department?._id || u.department;
+        return userDeptId && String(userDeptId) === deptId;
+      })
+      .map((u) => String(u._id));
+    if (fromUsers.length > 0) return fromUsers;
+
+    return (department.employees || [])
+      .map((e) => (typeof e === "string" ? e : e?._id))
+      .filter(Boolean)
+      .map(String);
+  };
+
+  /** Current members of the open department (from user.department, not cached empty arrays). */
+  const getDepartmentMembers = () => {
+    if (!currentDepartment?._id) return [];
+    const deptId = String(currentDepartment._id);
+    const fromUsers = users.filter((u) => {
+      const userDeptId = u.department?._id || u.department;
+      return userDeptId && String(userDeptId) === deptId;
+    });
+    if (fromUsers.length > 0) return fromUsers;
+
+    const populated = (currentDepartment.employees || []).filter(
+      (e) => e && typeof e === "object" && (e.name || e.email)
+    );
+    return populated.map((e) => ({ ...e, _id: String(e._id) }));
+  };
+
+  const getUsersAvailableToAdd = () => {
+    const memberIds = new Set(getDepartmentMemberIds());
+    return users.filter((u) => !memberIds.has(String(u._id)));
+  };
+
+  const handleShowEmployeeModal = async (department) => {
     setCurrentDepartment(department);
-    setSelectedEmployees(department.employees?.map((e) => e._id) || []);
+    setShowAddMemberForm(false);
+    setMemberToAdd("");
     setShowEmployeeModal(true);
+    try {
+      await fetchUsers();
+    } catch (error) {
+      console.error("Failed to refresh users for department modal:", error);
+    }
   };
 
   const handleCloseEmployeeModal = () => {
     setShowEmployeeModal(false);
     setCurrentDepartment(null);
-    setSelectedEmployees([]);
+    setShowAddMemberForm(false);
+    setMemberToAdd("");
+    setMemberActionLoading(false);
   };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleEmployeeToggle = (userId) => {
-    setSelectedEmployees((prev) =>
-      prev.includes(userId)
-        ? prev.filter((id) => id !== userId)
-        : [...prev, userId]
-    );
+  const handleRemoveDepartmentMember = async (employee) => {
+    if (!currentDepartment?._id || !employee?._id) return;
+    if (
+      !window.confirm(
+        `Remove ${employee.name} from ${currentDepartment.name}?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setMemberActionLoading(true);
+      await departmentApi.removeEmployeeFromDepartment(
+        currentDepartment._id,
+        employee._id
+      );
+      toast.success(`${employee.name} removed from ${currentDepartment.name}`);
+      await Promise.all([fetchDepartments(), fetchUsers()]);
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Failed to remove employee"
+      );
+    } finally {
+      setMemberActionLoading(false);
+    }
+  };
+
+  const handleAddDepartmentMember = async () => {
+    if (!currentDepartment?._id || !memberToAdd) {
+      toast.error("Please select a team member to add");
+      return;
+    }
+
+    const addedUser = users.find((u) => String(u._id) === String(memberToAdd));
+    const previousDept = addedUser?.department?.name;
+    if (
+      previousDept &&
+      previousDept !== currentDepartment.name &&
+      !window.confirm(
+        `${addedUser.name} is currently in ${previousDept}. Move them to ${currentDepartment.name}?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setMemberActionLoading(true);
+      await departmentApi.addEmployeeToDepartment(
+        currentDepartment._id,
+        memberToAdd
+      );
+      toast.success(
+        `${addedUser?.name || "Employee"} added to ${currentDepartment.name}`
+      );
+      setMemberToAdd("");
+      setShowAddMemberForm(false);
+      await Promise.all([fetchDepartments(), fetchUsers()]);
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Failed to add employee"
+      );
+    } finally {
+      setMemberActionLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -276,21 +393,6 @@ const DepartmentList = () => {
       fetchAnalytics();
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to save department");
-    }
-  };
-
-  const handleSaveEmployees = async () => {
-    try {
-      await departmentApi.bulkAssignEmployees(
-        currentDepartment._id,
-        selectedEmployees
-      );
-      toast.success("Employees assigned successfully");
-      handleCloseEmployeeModal();
-      fetchDepartments();
-      fetchAnalytics();
-    } catch (error) {
-      toast.error("Failed to assign employees");
     }
   };
 
@@ -335,7 +437,7 @@ const DepartmentList = () => {
               : "Comprehensive department oversight and analytics"}
           </p>
         </div>
-        {isAdmin && (
+        {isPlatformAdmin && (
           <div className="d-flex gap-2">
             <Button variant="outline-primary" onClick={() => {}}>
               <FaDownload className="me-2" />
@@ -600,7 +702,7 @@ const DepartmentList = () => {
                             <FaChartLine />
                           </Button>
                         </OverlayTrigger>
-                        {(isAdmin || (isHOD && dept.head?._id === user.id)) && (
+                        {(canManageEmployees || (isHOD && dept.head?._id === user.id)) && (
                           <OverlayTrigger
                             placement="top"
                             overlay={<Tooltip>Manage Employees</Tooltip>}
@@ -615,7 +717,7 @@ const DepartmentList = () => {
                             </Button>
                           </OverlayTrigger>
                         )}
-                        {isAdmin && (
+                        {isPlatformAdmin && (
                           <>
                             <OverlayTrigger
                               placement="top"
@@ -662,7 +764,7 @@ const DepartmentList = () => {
                       ? "Try adjusting your search or filter criteria"
                       : "Get started by creating your first department"}
                   </p>
-                  {isAdmin && !searchTerm && statusFilter === 'all' && (
+                  {isPlatformAdmin && !searchTerm && statusFilter === 'all' && (
                     <Button variant="primary" onClick={() => handleShowModal()}>
                       <FaPlus className="me-2" />
                       Create Department
@@ -780,7 +882,7 @@ const DepartmentList = () => {
                                 <FaChartLine />
                               </Button>
                             </OverlayTrigger>
-                            {(isAdmin || (isHOD && dept.head?._id === user.id)) && (
+                            {(canManageEmployees || (isHOD && dept.head?._id === user.id)) && (
                               <OverlayTrigger
                                 placement="top"
                                 overlay={<Tooltip>Manage Team</Tooltip>}
@@ -794,7 +896,7 @@ const DepartmentList = () => {
                                 </Button>
                               </OverlayTrigger>
                             )}
-                            {isAdmin && (
+                            {isPlatformAdmin && (
                               <Dropdown>
                                 <Dropdown.Toggle
                                   size="sm"
@@ -935,62 +1037,139 @@ const DepartmentList = () => {
       >
         <Modal.Header closeButton>
           <Modal.Title>
-            {isAdmin ? "Manage Employees" : "View Employees"} -{" "}
+            {canManageEmployees ? "Manage Employees" : "View Employees"} -{" "}
             {currentDepartment?.name}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p className="text-muted">
-            {isAdmin
-              ? "Select employees to assign to this department"
-              : "Employees assigned to this department"}
-          </p>
-          <div style={{ maxHeight: "400px", overflowY: "auto" }}>
-            <ListGroup>
-              {users.map((user) => {
-                const isSelected = selectedEmployees.includes(user._id);
-                return (
-                  <ListGroup.Item
-                    key={user._id}
-                    action={isAdmin}
-                    active={isSelected}
-                    onClick={
-                      isAdmin ? () => handleEmployeeToggle(user._id) : undefined
-                    }
-                    style={{ cursor: isAdmin ? "pointer" : "default" }}
+          <div className="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
+            <p className="text-muted mb-0">
+              {canManageEmployees
+                ? "Members currently in this department. Remove here, then add them to another department if needed."
+                : "Employees assigned to this department"}
+            </p>
+            {canManageEmployees && !showAddMemberForm && (
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={memberActionLoading}
+                onClick={() => setShowAddMemberForm(true)}
+              >
+                <FaUserPlus className="me-1" />
+                Add Team Member
+              </Button>
+            )}
+          </div>
+
+          {canManageEmployees && showAddMemberForm && (
+            <Card className="mb-3 border-primary border-opacity-25">
+              <Card.Body>
+                <Form.Group className="mb-3">
+                  <Form.Label className="fw-semibold">Select employee to add</Form.Label>
+                  <Form.Select
+                    value={memberToAdd}
+                    onChange={(e) => setMemberToAdd(e.target.value)}
+                    disabled={memberActionLoading}
                   >
-                    <div className="d-flex justify-content-between align-items-center">
+                    <option value="">Choose employee...</option>
+                    {getUsersAvailableToAdd().map((u) => (
+                      <option key={u._id} value={u._id}>
+                        {u.name}
+                        {u.department?.name
+                          ? ` · currently: ${u.department.name}`
+                          : " · unassigned"}
+                      </option>
+                    ))}
+                  </Form.Select>
+                  {getUsersAvailableToAdd().length === 0 && (
+                    <Form.Text className="text-muted">
+                      All active employees are already in this department.
+                    </Form.Text>
+                  )}
+                </Form.Group>
+                <div className="d-flex gap-2 justify-content-end">
+                  <Button
+                    variant="outline-secondary"
+                    size="sm"
+                    disabled={memberActionLoading}
+                    onClick={() => {
+                      setShowAddMemberForm(false);
+                      setMemberToAdd("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={memberActionLoading || !memberToAdd}
+                    onClick={handleAddDepartmentMember}
+                  >
+                    {memberActionLoading ? (
+                      <>
+                        <Spinner size="sm" animation="border" className="me-1" />
+                        Adding...
+                      </>
+                    ) : (
+                      <>
+                        <FaUserPlus className="me-1" />
+                        Add
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </Card.Body>
+            </Card>
+          )}
+
+          <div style={{ maxHeight: "400px", overflowY: "auto" }}>
+            {getDepartmentMembers().length === 0 ? (
+              <div className="text-center text-muted py-4 border rounded">
+                <FaUsers className="mb-2 fs-3 opacity-50" />
+                <div>No employees in this department yet.</div>
+                {canManageEmployees && (
+                  <small>Use Add Team Member to assign someone.</small>
+                )}
+              </div>
+            ) : (
+              <ListGroup>
+                {getDepartmentMembers().map((member) => (
+                  <ListGroup.Item key={member._id}>
+                    <div className="d-flex justify-content-between align-items-center gap-2">
                       <div>
-                        <strong>{user.name}</strong>
+                        <strong>{member.name}</strong>
                         <br />
                         <small className="text-muted">
-                          {user.email} • {user.role}
-                          {user.position && ` • ${user.position}`}
+                          {member.email}
+                          {member.role ? ` • ${member.role}` : ""}
+                          {member.position ? ` • ${member.position}` : ""}
                         </small>
                       </div>
-                      {isSelected && <Badge bg="success">Assigned</Badge>}
+                      {canManageEmployees && (
+                        <Button
+                          size="sm"
+                          variant="outline-danger"
+                          disabled={memberActionLoading}
+                          onClick={() => handleRemoveDepartmentMember(member)}
+                        >
+                          <FaUserMinus className="me-1" />
+                          Remove
+                        </Button>
+                      )}
                     </div>
                   </ListGroup.Item>
-                );
-              })}
-            </ListGroup>
+                ))}
+              </ListGroup>
+            )}
           </div>
           <div className="mt-3">
-            <strong>
-              {isAdmin ? "Selected" : "Total"}: {selectedEmployees.length}{" "}
-              employees
-            </strong>
+            <strong>{getDepartmentMembers().length} member(s)</strong>
           </div>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={handleCloseEmployeeModal}>
-            {isAdmin ? "Cancel" : "Close"}
+            Close
           </Button>
-          {isAdmin && (
-            <Button variant="primary" onClick={handleSaveEmployees}>
-              Save Changes
-            </Button>
-          )}
         </Modal.Footer>
       </Modal>
 

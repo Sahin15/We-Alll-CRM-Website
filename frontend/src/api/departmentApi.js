@@ -54,6 +54,26 @@ export const departmentApi = {
     return response.data;
   },
   
+  // Employee assignment
+  bulkAssignEmployees: async (departmentId, employeeIds) => {
+    const response = await api.put(`/departments/${departmentId}/employees/bulk`, {
+      employeeIds,
+    });
+    return response.data;
+  },
+  addEmployeeToDepartment: async (departmentId, userId) => {
+    const response = await api.put(`/departments/${departmentId}/add/${userId}`);
+    return response.data;
+  },
+  removeEmployeeFromDepartment: async (departmentId, userId) => {
+    const response = await api.put(`/departments/${departmentId}/remove/${userId}`);
+    return response.data;
+  },
+  setDepartmentHead: async (departmentId, userId) => {
+    const response = await api.put(`/departments/${departmentId}/head/${userId}`);
+    return response.data;
+  },
+
   // HoD Management
   assignHoD: async (departmentId, userId) => {
     const response = await api.post(`/departments/${departmentId}/assign-hod`, { userId });

@@ -14,7 +14,7 @@ import {
   Modal,
   Form,
 } from "react-bootstrap";
-import { FaArrowLeft, FaEdit, FaUsers, FaChartBar, FaCrown, FaUserShield } from "react-icons/fa";
+import { FaArrowLeft, FaEdit, FaUsers, FaChartBar, FaCrown, FaUserShield, FaUserMinus } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { departmentApi } from "../../api/departmentApi";
 import { useAuth } from "../../context/AuthContext";
@@ -90,6 +90,28 @@ const DepartmentDetails = () => {
     } catch (error) {
       console.error("Error assigning HoD:", error);
       toast.error(error.response?.data?.message || "Failed to assign Head of Department");
+    }
+  };
+
+  const handleRemoveEmployee = async (employee) => {
+    if (
+      !window.confirm(
+        `Remove ${employee.name} from ${department?.name || "this department"}? They can then be assigned to another department.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await departmentApi.removeEmployeeFromDepartment(id, employee._id);
+      toast.success(`${employee.name} removed from department`);
+      fetchDepartmentData();
+    } catch (error) {
+      console.error("Error removing employee from department:", error);
+      toast.error(
+        error.response?.data?.message ||
+          "Failed to remove employee from department"
+      );
     }
   };
 
@@ -359,6 +381,7 @@ const DepartmentDetails = () => {
                       <th>Role</th>
                       <th>Position</th>
                       <th>Status</th>
+                      {isAdmin && <th>Actions</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -385,6 +408,19 @@ const DepartmentDetails = () => {
                             {employee.status || "active"}
                           </Badge>
                         </td>
+                        {isAdmin && (
+                          <td>
+                            <Button
+                              size="sm"
+                              variant="outline-danger"
+                              title="Remove from department"
+                              onClick={() => handleRemoveEmployee(employee)}
+                            >
+                              <FaUserMinus className="me-1" />
+                              Remove
+                            </Button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
