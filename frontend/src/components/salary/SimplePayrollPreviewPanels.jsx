@@ -78,7 +78,7 @@ export default function SimplePayrollPreviewPanels({
           <Accordion.Body>
             <Alert variant="light" className="border small py-2">
               Nothing here is deducted automatically. HR adds a manual adjustment
-              on Simple Payroll if needed.
+              on Pay Run if needed.
             </Alert>
             <Row className="g-2 small mb-2">
               <Col xs={6} md={3}>

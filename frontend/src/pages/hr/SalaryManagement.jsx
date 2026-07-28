@@ -183,7 +183,7 @@ const SalaryManagement = () => {
                     </div>
                   </div>
                   <p className="salary-header-description mb-0">
-                    Run payroll in one place: Simple Payroll for pay and
+                    Run payroll in one place: Pay Run for monthly salary and
                     adjustments, preview, then generate salary slips.
                   </p>
                 </div>
@@ -219,7 +219,20 @@ const SalaryManagement = () => {
           </Card>
         </Col>
         <Col md={4}>
-          <Card className="shadow-sm h-100">
+          <Card
+            className="shadow-sm h-100"
+            role="button"
+            tabIndex={0}
+            style={{ cursor: "pointer" }}
+            onClick={() => selectTab("slips")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                selectTab("slips");
+              }
+            }}
+            aria-label="View salary slips for last month"
+          >
             <Card.Body className="d-flex align-items-center">
               <div
                 className="rounded-circle bg-success bg-opacity-10 p-3 me-3 flex-shrink-0"
@@ -242,7 +255,20 @@ const SalaryManagement = () => {
           </Card>
         </Col>
         <Col md={4}>
-          <Card className="shadow-sm h-100">
+          <Card
+            className="shadow-sm h-100"
+            role="button"
+            tabIndex={0}
+            style={{ cursor: "pointer" }}
+            onClick={() => selectTab("reports")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                selectTab("reports");
+              }
+            }}
+            aria-label="View payroll reports and payout breakdown"
+          >
             <Card.Body className="d-flex align-items-center">
               <div
                 className="rounded-circle bg-warning bg-opacity-10 p-3 me-3 flex-shrink-0"
@@ -352,7 +378,7 @@ const SalaryManagement = () => {
             onSelect={(k) => selectTab(k)}
             className="mb-3"
           >
-            <Tab eventKey="simple-payroll" title="Simple Payroll">
+            <Tab eventKey="simple-payroll" title="Pay Run">
               {activeTab === "simple-payroll" && <SimplePayrollTab />}
             </Tab>
             <Tab eventKey="previews" title="Salary Preview">

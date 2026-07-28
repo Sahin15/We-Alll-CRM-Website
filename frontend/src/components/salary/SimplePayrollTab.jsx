@@ -374,7 +374,7 @@ const SimplePayrollTab = () => {
         previewGenOverride
       );
       toast.success(
-        "Salary preview saved from Simple Payroll. Employee can review it under My Salary Preview."
+        "Salary preview saved from Pay Run. Employee can review it under My Salary Preview."
       );
       setShowPreviewGenModal(false);
     } catch (err) {
@@ -539,7 +539,7 @@ const SimplePayrollTab = () => {
     <div>
       <div className="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
         <div>
-          <h5 className="mb-1">Simple Payroll</h5>
+          <h5 className="mb-1">Pay Run</h5>
           <p className="text-muted small mb-0">
             Monthly Salary ± manual adjustments − TDS = Net. Attendance is shown
             for review; HR chooses whether to deduct.
@@ -1366,7 +1366,7 @@ const SimplePayrollTab = () => {
                 {previewGenMeta.note}
               </Alert>
 
-              <h6 className="mb-2">Pay summary (from Simple Payroll)</h6>
+              <h6 className="mb-2">Pay summary (from Pay Run)</h6>
               {preview?.totals?.rejected ? (
                 <Alert variant="danger" className="small">
                   Net would be negative — fix adjustments before generating.

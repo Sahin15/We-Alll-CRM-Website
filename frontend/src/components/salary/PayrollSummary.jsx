@@ -36,13 +36,32 @@ const mergeDepartmentsIntoSummary = (summary, departments) => {
   return { ...summary, byDepartment };
 };
 
+/** Same default as dashboard Total Payout / Salary Slips list. */
+const getPrevMonth = () => {
+  const now = new Date();
+  const m = now.getMonth(); // 0-indexed → previous calendar month as 1–12
+  return {
+    month: m === 0 ? 12 : m,
+    year: m === 0 ? now.getFullYear() - 1 : now.getFullYear(),
+  };
+};
+
+/**
+ * Normalize department API body to an array (array, or { data } / { departments }).
+ * @param {unknown} body
+ * @returns {Array<{ name?: string }>}
+ */
+const normalizeDepartmentList = (body) => {
+  if (Array.isArray(body)) return body;
+  if (Array.isArray(body?.data)) return body.data;
+  if (Array.isArray(body?.departments)) return body.departments;
+  return [];
+};
+
 const PayrollSummary = () => {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({
-    month: new Date().getMonth() + 1,
-    year: new Date().getFullYear(),
-  });
+  const [filters, setFilters] = useState(() => getPrevMonth());
 
   const fetchPayrollSummary = useCallback(async () => {
     try {
@@ -54,7 +73,7 @@ const PayrollSummary = () => {
 
       // salarySlipApi returns Axios response; departmentApi returns body
       const payload = payrollRes?.data ?? payrollRes;
-      const deptList = Array.isArray(departments) ? departments : [];
+      const deptList = normalizeDepartmentList(departments);
       setSummary(mergeDepartmentsIntoSummary(payload, deptList));
     } catch (error) {
       console.error("Error fetching payroll summary:", error);
