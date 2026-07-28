@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import SalaryStructure from "../models/salaryStructureModel.js";
 import User from "../models/userModel.js";
 import { prepareStructureComponentFields } from "../services/payroll/structureComponentSync.js";
+import { prepareSimpleStructureFields } from "../services/payroll/simpleStructurePrepare.js";
 
 // Create new salary structure
 export const createSalaryStructure = async (req, res) => {
@@ -33,13 +34,18 @@ export const createSalaryStructure = async (req, res) => {
       await activeStructure.save();
     }
 
-    const synced = prepareStructureComponentFields(req.body);
+    const simpleFields = prepareSimpleStructureFields(req.body);
+    const synced = prepareStructureComponentFields({
+      ...req.body,
+      ...simpleFields,
+    });
 
     // Create new structure
     const salaryStructure = await SalaryStructure.create({
       employee,
       effectiveFrom,
       ...synced,
+      ...simpleFields,
       otherAllowances,
       otherDeductions,
       notes,
@@ -54,7 +60,10 @@ export const createSalaryStructure = async (req, res) => {
       salaryStructure,
     });
   } catch (error) {
-    const status = /components/i.test(error.message) ? 400 : 500;
+    const status =
+      /components/i.test(error.message) || /monthlySalary/i.test(error.message)
+        ? 400
+        : 500;
     res.status(status).json({
       message: status === 400 ? error.message : "Server error",
       error: error.message,

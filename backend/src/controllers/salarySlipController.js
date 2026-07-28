@@ -1,6 +1,7 @@
 import SalarySlip from "../models/salarySlipModel.js";
 import SalaryStructure from "../models/salaryStructureModel.js";
 import User from "../models/userModel.js";
+import Department from "../models/departmentModel.js";
 import LeaveRequest from "../models/leaveRequestModel.js";
 import WorkingDaysCalculator from "../services/workingDaysCalculator.js";
 import LeaveImpactCalculator from "../services/leaveImpactCalculator.js";
@@ -922,32 +923,52 @@ export const getPayrollSummary = async (req, res) => {
       });
     }
 
-    // Use aggregation to properly join and get department names
+    const monthNum = parseInt(month, 10);
+    const yearNum = parseInt(year, 10);
+
+    // Seed all departments (same source as organization Department list).
+    // Do not require status:"active" only — match getDepartments() behavior.
+    const allDepartments = await Department.find()
+      .select("name status")
+      .sort({ name: 1 })
+      .lean();
+
+    const byDepartment = {};
+    for (const dept of allDepartments) {
+      if (!dept?.name) continue;
+      // Prefer active; still include inactive so payroll history rows are visible
+      byDepartment[dept.name] = { count: 0, totalNetSalary: 0 };
+    }
+
+    // Aggregate slips; keep slips even if employee/department lookup is missing
     const slipsWithDepartments = await SalarySlip.aggregate([
       {
         $match: {
-          month: parseInt(month),
-          year: parseInt(year)
-        }
+          month: monthNum,
+          year: yearNum,
+        },
       },
       {
         $lookup: {
           from: "users",
           localField: "employee",
           foreignField: "_id",
-          as: "employeeData"
-        }
+          as: "employeeData",
+        },
       },
       {
-        $unwind: "$employeeData"
+        $unwind: {
+          path: "$employeeData",
+          preserveNullAndEmptyArrays: true,
+        },
       },
       {
         $lookup: {
           from: "departments",
           localField: "employeeData.department",
           foreignField: "_id",
-          as: "departmentData"
-        }
+          as: "departmentData",
+        },
       },
       {
         $addFields: {
@@ -955,10 +976,10 @@ export const getPayrollSummary = async (req, res) => {
             $cond: {
               if: { $gt: [{ $size: "$departmentData" }, 0] },
               then: { $arrayElemAt: ["$departmentData.name", 0] },
-              else: "Unassigned"
-            }
-          }
-        }
+              else: "Unassigned",
+            },
+          },
+        },
       },
       {
         $project: {
@@ -967,54 +988,48 @@ export const getPayrollSummary = async (req, res) => {
           netSalary: 1,
           status: 1,
           departmentName: 1,
-          "employeeData.name": 1
-        }
-      }
+        },
+      },
     ]);
-
-    
-    
 
     const summary = {
       totalEmployees: slipsWithDepartments.length,
       totalGrossSalary: 0,
       totalDeductions: 0,
       totalNetSalary: 0,
-      byDepartment: {},
+      byDepartment,
       byStatus: {
         draft: 0,
         generated: 0,
         sent: 0,
         viewed: 0,
         downloaded: 0,
-        paid: 0
-      }
+        paid: 0,
+        approved: 0,
+      },
     };
 
-    slipsWithDepartments.forEach(slip => {
-      // Make sure we're adding numbers, not undefined values
+    slipsWithDepartments.forEach((slip) => {
       const earnings = slip.totalEarnings || 0;
       const deductions = slip.totalDeductions || 0;
       const netSalary = slip.netSalary || 0;
-      
+
       summary.totalGrossSalary += earnings;
       summary.totalDeductions += deductions;
       summary.totalNetSalary += netSalary;
-      
-      // Handle status counting
-      const status = slip.status || 'draft';
-      if (summary.byStatus.hasOwnProperty(status)) {
+
+      const status = slip.status || "draft";
+      if (Object.prototype.hasOwnProperty.call(summary.byStatus, status)) {
         summary.byStatus[status]++;
       } else {
         summary.byStatus[status] = 1;
       }
 
       const deptName = slip.departmentName || "Unassigned";
-      
       if (!summary.byDepartment[deptName]) {
         summary.byDepartment[deptName] = {
           count: 0,
-          totalNetSalary: 0
+          totalNetSalary: 0,
         };
       }
       summary.byDepartment[deptName].count++;
@@ -1023,10 +1038,10 @@ export const getPayrollSummary = async (req, res) => {
 
     res.status(200).json(summary);
   } catch (error) {
-    
+    console.error("getPayrollSummary error:", error);
     res.status(500).json({
       message: "Server error",
-      error: error.message
+      error: error.message,
     });
   }
 };

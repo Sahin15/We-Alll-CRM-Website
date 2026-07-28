@@ -16,6 +16,25 @@ import {
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { salarySlipApi } from "../../api/salaryApi";
+import { departmentApi } from "../../api/departmentApi";
+
+/**
+ * Ensure byDepartment always has every org department (zeros if no slips).
+ * @param {object} summary
+ * @param {Array<{ name?: string }>} departments
+ */
+const mergeDepartmentsIntoSummary = (summary, departments) => {
+  if (!summary) return summary;
+  const byDepartment = { ...(summary.byDepartment || {}) };
+  (departments || []).forEach((dept) => {
+    const name = dept?.name;
+    if (!name) return;
+    if (!byDepartment[name]) {
+      byDepartment[name] = { count: 0, totalNetSalary: 0 };
+    }
+  });
+  return { ...summary, byDepartment };
+};
 
 const PayrollSummary = () => {
   const [summary, setSummary] = useState(null);
@@ -28,11 +47,19 @@ const PayrollSummary = () => {
   const fetchPayrollSummary = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await salarySlipApi.getPayrollSummary(filters);
-      setSummary(response.data);
+      const [payrollRes, departments] = await Promise.all([
+        salarySlipApi.getPayrollSummary(filters),
+        departmentApi.getAllDepartments().catch(() => []),
+      ]);
+
+      // salarySlipApi returns Axios response; departmentApi returns body
+      const payload = payrollRes?.data ?? payrollRes;
+      const deptList = Array.isArray(departments) ? departments : [];
+      setSummary(mergeDepartmentsIntoSummary(payload, deptList));
     } catch (error) {
       console.error("Error fetching payroll summary:", error);
       toast.error("Failed to load payroll summary");
+      setSummary(null);
     } finally {
       setLoading(false);
     }
@@ -129,9 +156,9 @@ const PayrollSummary = () => {
       </Row>
 
       {/* Summary Cards */}
-      <Row className="mb-4">
-        <Col md={3}>
-          <Card className="text-center">
+      <Row className="mb-4 align-items-stretch">
+        <Col md={3} className="d-flex">
+          <Card className="text-center w-100">
             <Card.Body>
               <div
                 className="rounded-circle bg-primary bg-opacity-10 p-3 mx-auto mb-3"
@@ -144,8 +171,8 @@ const PayrollSummary = () => {
             </Card.Body>
           </Card>
         </Col>
-        <Col md={3}>
-          <Card className="text-center">
+        <Col md={3} className="d-flex">
+          <Card className="text-center w-100">
             <Card.Body>
               <div
                 className="rounded-circle bg-success bg-opacity-10 p-3 mx-auto mb-3"
@@ -158,22 +185,27 @@ const PayrollSummary = () => {
             </Card.Body>
           </Card>
         </Col>
-        <Col md={3}>
-          <Card className="text-center">
+        <Col md={3} className="d-flex">
+          <Card className="text-center w-100">
             <Card.Body>
               <div
-                className="rounded-circle bg-danger bg-opacity-10 p-3 mx-auto mb-3"
+                className="rounded-circle bg-info bg-opacity-10 p-3 mx-auto mb-3"
                 style={{ width: "60px", height: "60px" }}
               >
-                <FaChartLine className="text-danger" size={30} />
+                <FaChartLine className="text-info" size={30} />
               </div>
-              <h3 className="mb-1">{formatCurrency(summary?.totalDeductions || 0)}</h3>
-              <p className="text-muted mb-0">Total Deductions</p>
+              <h3 className="mb-1">
+                {Math.max(
+                  0,
+                  (summary?.totalEmployees || 0) - (summary?.byStatus?.paid || 0)
+                )}
+              </h3>
+              <p className="text-muted mb-0">Pending Payment</p>
             </Card.Body>
           </Card>
         </Col>
-        <Col md={3}>
-          <Card className="text-center">
+        <Col md={3} className="d-flex">
+          <Card className="text-center w-100">
             <Card.Body>
               <div
                 className="rounded-circle bg-warning bg-opacity-10 p-3 mx-auto mb-3"
@@ -197,26 +229,41 @@ const PayrollSummary = () => {
             </Card.Header>
             <Card.Body>
               {Object.keys(summary?.byDepartment || {}).length === 0 ? (
-                <Alert variant="info">No department data available</Alert>
+                <Alert variant="info">
+                  No departments found. Add departments under organization setup.
+                </Alert>
               ) : (
-                <Table responsive>
-                  <thead>
-                    <tr>
-                      <th>Department</th>
-                      <th>Employees</th>
-                      <th>Total Payout</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Object.entries(summary?.byDepartment || {}).map(([dept, data]) => (
-                      <tr key={dept}>
-                        <td>{dept}</td>
-                        <td>{data.count}</td>
-                        <td>{formatCurrency(data.totalNetSalary)}</td>
+                <>
+                  {(summary?.totalEmployees || 0) === 0 && (
+                    <Alert variant="light" className="mb-3 py-2">
+                      No salary slips for this month yet — departments are listed with zero payout.
+                    </Alert>
+                  )}
+                  <Table responsive>
+                    <thead>
+                      <tr>
+                        <th>Department</th>
+                        <th>Employees</th>
+                        <th>Total Payout</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </Table>
+                    </thead>
+                    <tbody>
+                      {Object.entries(summary?.byDepartment || {})
+                        .sort(([a], [b]) => {
+                          if (a === "Unassigned") return 1;
+                          if (b === "Unassigned") return -1;
+                          return a.localeCompare(b);
+                        })
+                        .map(([dept, data]) => (
+                          <tr key={dept}>
+                            <td>{dept}</td>
+                            <td>{data.count}</td>
+                            <td>{formatCurrency(data.totalNetSalary)}</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </Table>
+                </>
               )}
             </Card.Body>
           </Card>
