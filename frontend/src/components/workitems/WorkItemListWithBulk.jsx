@@ -2,6 +2,12 @@ import { useState } from 'react';
 import { Table, Badge, Button, Form } from 'react-bootstrap';
 import { FaEye, FaClock, FaExclamationTriangle, FaCalendarAlt } from 'react-icons/fa';
 import { formatDate } from '../../utils/helpers';
+import {
+  getDueDateLabel,
+  getEffectiveStatusForUser,
+  isWorkItemDueToday,
+  isWorkItemOverdue,
+} from '../../utils/workItemUtils';
 import BulkActionsToolbar from './BulkActionsToolbar';
 import './WorkItemList.css';
 
@@ -10,7 +16,7 @@ import './WorkItemList.css';
  * Work item list with checkbox selection for bulk operations
  * Requirements: 12.1, 12.2, 12.3, 12.4, 12.5
  */
-const WorkItemListWithBulk = ({ workItems, onViewItem, onBulkAction, emptyMessage }) => {
+const WorkItemListWithBulk = ({ workItems, onViewItem, onBulkAction, emptyMessage, currentUser }) => {
   const [selectedItems, setSelectedItems] = useState([]);
 
   const getStatusColor = (status) => {
@@ -41,26 +47,14 @@ const WorkItemListWithBulk = ({ workItems, onViewItem, onBulkAction, emptyMessag
     return '⚪';
   };
 
-  const isOverdue = (workItem) => {
-    return !['Done', 'Cancelled'].includes(workItem.status) &&
-      workItem.dueDate && 
-      new Date(workItem.dueDate) < new Date() && 
-      !['Done', 'Cancelled'].includes(workItem.status);
-  };
+  const getUserStatus = (workItem) =>
+    getEffectiveStatusForUser(workItem, currentUser?._id);
 
-  const isDueToday = (workItem) => {
-    return workItem.dueDate && 
-      new Date(workItem.dueDate).toDateString() === new Date().toDateString() &&
-      !['Done', 'Cancelled'].includes(workItem.status);
-  };
+  const isOverdue = (workItem) =>
+    isWorkItemOverdue(workItem, currentUser?._id);
 
-  const getDaysUntilDue = (dueDate) => {
-    const today = new Date();
-    const due = new Date(dueDate);
-    const diffTime = due - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
+  const isDueToday = (workItem) =>
+    isWorkItemDueToday(workItem, currentUser?._id);
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
@@ -135,7 +129,7 @@ const WorkItemListWithBulk = ({ workItems, onViewItem, onBulkAction, emptyMessag
               </tr>
             ) : (
               workItems.map((item) => {
-                const daysUntilDue = getDaysUntilDue(item.dueDate);
+                const dueLabel = getDueDateLabel(item, currentUser?._id);
                 
                 return (
                   <tr 
@@ -208,20 +202,14 @@ const WorkItemListWithBulk = ({ workItems, onViewItem, onBulkAction, emptyMessag
                           <div className={`due-date-text ${isOverdue(item) ? 'text-danger' : isDueToday(item) ? 'text-warning' : ''}`}>
                             {formatDate(item.dueDate)}
                           </div>
-                          <p className={`due-date-subtitle ${isOverdue(item) ? 'text-danger' : isDueToday(item) ? 'text-warning' : 'text-muted'}`}>
-                            {isOverdue(item) ? (
+                          <p className={`due-date-subtitle text-${dueLabel?.tone || 'muted'}`}>
+                            {dueLabel?.overdue ? (
                               <>
                                 <FaExclamationTriangle className="me-1" />
-                                {Math.abs(daysUntilDue)} day{Math.abs(daysUntilDue) !== 1 ? 's' : ''} overdue
+                                {dueLabel.text}
                               </>
-                            ) : isDueToday(item) ? (
-                              'Due today!'
-                            ) : daysUntilDue === 1 ? (
-                              'Due tomorrow'
-                            ) : daysUntilDue > 0 ? (
-                              `${daysUntilDue} days left`
                             ) : (
-                              'Past due'
+                              dueLabel?.text
                             )}
                           </p>
                         </div>
@@ -231,10 +219,10 @@ const WorkItemListWithBulk = ({ workItems, onViewItem, onBulkAction, emptyMessag
                     {/* Status Column - Clean badge design */}
                     <td className="py-3">
                       <Badge 
-                        bg={getStatusColor(item.status)} 
+                        bg={getStatusColor(getUserStatus(item))} 
                         className="work-item-status-badge"
                       >
-                        {item.status}
+                        {getUserStatus(item)}
                       </Badge>
                     </td>
 

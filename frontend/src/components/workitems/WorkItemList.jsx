@@ -2,6 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Table, Badge, Button, Dropdown, Modal, Form } from 'react-bootstrap';
 import { FaEye, FaClock, FaExclamationTriangle, FaCalendarAlt, FaCheckCircle, FaEdit } from 'react-icons/fa';
 import { formatDate } from '../../utils/helpers';
+import {
+  getEffectiveStatusForUser,
+  getDueDateLabel,
+  isWorkItemDueToday,
+  isWorkItemOverdue,
+} from '../../utils/workItemUtils';
 import AssigneeStatusDisplay from './AssigneeStatusDisplay';
 import './WorkItemList.css';
 
@@ -154,18 +160,8 @@ const StatusSelector = ({ status, onStatusChange, getStatusColor }) => {
 const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, currentUser, emptyMessage, showAssigneeStatus = false, onEdit }) => {
   const onView = onViewItem;
   
-  // Helper function to get current user's status for collaborative work
-  const getUserStatus = (workItem) => {
-    // If multiple assignees, get user's individual status
-    if (workItem.assignedToMultiple && workItem.assignedToMultiple.length > 0) {
-      const userStatus = workItem.assigneeStatuses?.find(
-        as => as.assigneeId?._id === currentUser?._id || as.assigneeId === currentUser?._id
-      );
-      return userStatus?.status || workItem.status;
-    }
-    // Single assignee - use global status
-    return workItem.status;
-  };
+  const getUserStatus = (workItem) =>
+    getEffectiveStatusForUser(workItem, currentUser?._id);
   const canEdit = (workItem) => {
     return workItem.assignedTo?._id === currentUser?._id || 
            ['admin', 'superadmin', 'hr', 'manager', 'hod'].includes(currentUser?.role);
@@ -210,26 +206,11 @@ const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, curren
     return '⚪';
   };
 
-  const isOverdue = (workItem) => {
-    return !['Done', 'Cancelled'].includes(workItem.status) &&
-      workItem.dueDate && 
-      new Date(workItem.dueDate) < new Date() && 
-      !['Done', 'Cancelled'].includes(workItem.status);
-  };
+  const isOverdue = (workItem) =>
+    isWorkItemOverdue(workItem, currentUser?._id);
 
-  const isDueToday = (workItem) => {
-    return workItem.dueDate && 
-      new Date(workItem.dueDate).toDateString() === new Date().toDateString() &&
-      !['Done', 'Cancelled'].includes(workItem.status);
-  };
-
-  const getDaysUntilDue = (dueDate) => {
-    const today = new Date();
-    const due = new Date(dueDate);
-    const diffTime = due - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
+  const isDueToday = (workItem) =>
+    isWorkItemDueToday(workItem, currentUser?._id);
 
   if (workItems.length === 0) {
     return (
@@ -256,10 +237,10 @@ const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, curren
         </thead>
         <tbody>
           {workItems.map((item) => {
-            const daysUntilDue = getDaysUntilDue(item.dueDate);
+            const dueLabel = getDueDateLabel(item, currentUser?._id);
             const overdueStatus = isOverdue(item);
             const dueTodayStatus = isDueToday(item);
-            const isCancelled = item.status === 'Cancelled';
+            const isCancelled = getUserStatus(item) === 'Cancelled';
             
             return (
               <tr 
@@ -334,21 +315,15 @@ const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, curren
                       <FaClock className="date-icon" />
                       {formatDate(item.dueDate)}
                     </div>
-                    {!isCancelled && (
-                      <div className={`date-status ${overdueStatus ? 'text-danger' : dueTodayStatus ? 'text-warning' : 'text-muted'}`}>
-                        {overdueStatus ? (
+                    {!isCancelled && dueLabel && (
+                      <div className={`date-status text-${dueLabel.tone}`}>
+                        {dueLabel.overdue ? (
                           <>
                             <FaExclamationTriangle className="me-1" />
-                            {Math.abs(daysUntilDue)}d overdue
+                            {dueLabel.text}
                           </>
-                        ) : dueTodayStatus ? (
-                          'Due today!'
-                        ) : daysUntilDue === 1 ? (
-                          'Tomorrow'
-                        ) : daysUntilDue > 0 ? (
-                          `${daysUntilDue}d left`
                         ) : (
-                          'Past due'
+                          dueLabel.text
                         )}
                       </div>
                     )}

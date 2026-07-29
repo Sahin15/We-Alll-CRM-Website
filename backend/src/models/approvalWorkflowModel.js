@@ -132,8 +132,7 @@ const approvalWorkflowSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Indexes
-approvalWorkflowSchema.index({ workflowId: 1 }, { unique: true });
+// Indexes (workflowId unique index comes from field `unique: true` — do not redeclare)
 approvalWorkflowSchema.index({ type: 1, overallStatus: 1 });
 approvalWorkflowSchema.index({ "stages.approver": 1, "stages.status": 1 });
 approvalWorkflowSchema.index({ initiatedBy: 1 });

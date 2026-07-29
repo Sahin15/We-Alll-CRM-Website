@@ -1,11 +1,9 @@
 /**
  * Unpaid Leave Deduction Calculator
- * Calculates salary deductions for unpaid leaves taken by employees
- * 
- * Logic:
- * - Unpaid leave deduction = (Monthly Salary / 30) × Number of Unpaid Leave Days
- * - Deduction is applied to the salary slip for the month
- * - Supports pro-rata calculations for mid-month salary changes
+ *
+ * @deprecated For salary slip generation (R1), unpaid/absence money impact is owned solely by
+ * LeaveImpactCalculator → deductions.lossOfPay. Do not call these helpers from slip generate
+ * or you will double-count. Kept for standalone utilities / historical scripts only.
  */
 
 /**

@@ -28,9 +28,6 @@ export const salaryStructureApi = {
 
   // Delete salary structure
   delete: (id) => api.delete(`/salary-structures/${id}`),
-
-  // Delete ALL salary structures
-  deleteAll: () => api.delete(`/salary-structures/all`),
 };
 
 // Salary Slip APIs
@@ -119,8 +116,14 @@ export const salaryPreviewApi = {
   finalize: (previewId) => api.post(`/salary-preview/${previewId}/finalize`),
 
   // Generate individual preview
-  generate: (employeeId, month, year, additionalData = {}) => 
-    api.post('/salary-preview/generate', { employeeId, month, year, additionalData }),
+  generate: (employeeId, month, year, additionalData = {}, workingDaysOverride = null) =>
+    api.post("/salary-preview/generate", {
+      employeeId,
+      month,
+      year,
+      additionalData,
+      workingDaysOverride,
+    }),
 
   // Bulk generate previews
   bulkGenerate: (data) => api.post('/salary-preview/bulk-generate', data),

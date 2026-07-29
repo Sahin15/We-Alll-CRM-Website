@@ -39,4 +39,76 @@ describe('Authorization V2 — Finance pilot parity', () => {
     expect(hasPermission(user, 'payroll.structure.manage')).toBe(true);
     expect(hasPermission(user, 'payroll.slip.manage')).toBe(true);
   });
+
+  test.each(['admin', 'superadmin', 'hr', 'accounts', 'manager'])(
+    'role %s can manage payroll periods',
+    (role) => {
+      const user = { _id: `user-${role}-period`, role };
+      expect(hasPermission(user, 'payroll.period.manage')).toBe(true);
+    }
+  );
+
+  test.each(['employee', 'hod'])(
+    'role %s cannot manage payroll periods',
+    (role) => {
+      const user = { _id: `user-${role}-period`, role };
+      expect(hasPermission(user, 'payroll.period.manage')).toBe(false);
+    }
+  );
+
+  test.each(['admin', 'superadmin', 'hr', 'accounts', 'manager'])(
+    'role %s can manage salary components',
+    (role) => {
+      const user = { _id: `user-${role}-comp`, role };
+      expect(hasPermission(user, 'payroll.component.manage')).toBe(true);
+    }
+  );
+
+  test.each(['employee', 'hod'])(
+    'role %s cannot manage salary components',
+    (role) => {
+      const user = { _id: `user-${role}-comp`, role };
+      expect(hasPermission(user, 'payroll.component.manage')).toBe(false);
+    }
+  );
+
+  test.each(['admin', 'superadmin', 'hr', 'accounts', 'manager'])(
+    'role %s can process payroll runs',
+    (role) => {
+      const user = { _id: `user-${role}-run`, role };
+      expect(hasPermission(user, 'payroll.run.process')).toBe(true);
+    }
+  );
+
+  test.each(['admin', 'superadmin', 'hr', 'accounts', 'manager'])(
+    'role %s can manage payroll approvals',
+    (role) => {
+      const user = { _id: `user-${role}-appr`, role };
+      expect(hasPermission(user, 'payroll.approval.manage')).toBe(true);
+    }
+  );
+
+  test.each(['employee', 'hod'])(
+    'role %s cannot manage payroll approvals',
+    (role) => {
+      const user = { _id: `user-${role}-appr`, role };
+      expect(hasPermission(user, 'payroll.approval.manage')).toBe(false);
+    }
+  );
+
+  test.each(['admin', 'superadmin', 'hr', 'accounts', 'manager'])(
+    'role %s can export payroll bank/registers',
+    (role) => {
+      const user = { _id: `user-${role}-bank`, role };
+      expect(hasPermission(user, 'payroll.bank.export')).toBe(true);
+    }
+  );
+
+  test.each(['employee', 'hod'])(
+    'role %s cannot export payroll bank/registers',
+    (role) => {
+      const user = { _id: `user-${role}-bank`, role };
+      expect(hasPermission(user, 'payroll.bank.export')).toBe(false);
+    }
+  );
 });

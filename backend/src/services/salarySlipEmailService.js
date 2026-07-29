@@ -190,12 +190,28 @@ export const sendBulkSalarySlipEmails = async (salarySlips) => {
 
   for (const slip of salarySlips) {
     try {
-      // Check if PDF exists
-      const pdfPath = slip.pdfUrl
-        ? path.join(process.cwd(), slip.pdfUrl.replace("/uploads", "uploads"))
-        : null;
+      // Prefer local metadata path (S3 pdfUrl is not a filesystem path)
+      let pdfPath = null;
+      if (slip.pdfStorage?.path) {
+        const candidate = path.join(
+          process.cwd(),
+          String(slip.pdfStorage.path).replace(/^\//, "")
+        );
+        if (fs.existsSync(candidate)) {
+          pdfPath = candidate;
+        }
+      }
+      if (!pdfPath && slip.pdfUrl && slip.pdfUrl.startsWith("/uploads/")) {
+        const candidate = path.join(
+          process.cwd(),
+          slip.pdfUrl.replace(/^\//, "")
+        );
+        if (fs.existsSync(candidate)) {
+          pdfPath = candidate;
+        }
+      }
 
-      if (pdfPath && fs.existsSync(pdfPath)) {
+      if (pdfPath) {
         await sendSalarySlipEmail(slip, pdfPath);
         results.success.push({
           employeeId: slip.employee.employeeId,

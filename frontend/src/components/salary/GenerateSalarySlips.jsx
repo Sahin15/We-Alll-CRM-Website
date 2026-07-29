@@ -20,6 +20,7 @@ import {
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { salarySlipApi } from "../../api/salaryApi";
+import { payrollPeriodApi } from "../../api/payrollPeriodApi";
 import api from "../../services/api";
 
 const GenerateSalarySlips = () => {
@@ -44,10 +45,31 @@ const GenerateSalarySlips = () => {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
   const [bulkResults, setBulkResults] = useState(null);
+  const [gate, setGate] = useState(null);
 
   useEffect(() => {
     fetchEmployees();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await payrollPeriodApi.gatesStatus({
+          month: formData.month,
+          year: formData.year,
+        });
+        if (!cancelled) setGate(res.data?.data || null);
+      } catch {
+        if (!cancelled) setGate(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [formData.month, formData.year]);
+
+  const generateBlocked = Boolean(gate?.enabled && !gate?.allowed?.generate);
 
   const fetchEmployees = async () => {
     try {
@@ -66,6 +88,13 @@ const GenerateSalarySlips = () => {
 
   const handleGenerateSingle = async (e) => {
     e.preventDefault();
+
+    if (generateBlocked) {
+      toast.error(
+        "Payroll period gates block generate for this month. Open or unfreeze the period under Pay Periods."
+      );
+      return;
+    }
     
     if (!selectedEmployee) {
       toast.error("Please select an employee");
@@ -97,6 +126,12 @@ const GenerateSalarySlips = () => {
   };
 
   const handleGenerateBulk = async () => {
+    if (generateBlocked) {
+      toast.error(
+        "Payroll period gates block generate for this month. Open or unfreeze the period under Pay Periods."
+      );
+      return;
+    }
     try {
       setBulkLoading(true);
       const data = {
@@ -180,6 +215,16 @@ const GenerateSalarySlips = () => {
               </h5>
             </Card.Header>
             <Card.Body>
+              {generateBlocked && (
+                <Alert variant="warning" className="py-2">
+                  Period gates are on
+                  {gate?.status
+                    ? ` (status: ${gate.status})`
+                    : " (period not opened)"}
+                  . Generate requires an <strong>open</strong> or{" "}
+                  <strong>frozen</strong> pay period.
+                </Alert>
+              )}
               <Form onSubmit={handleGenerateSingle}>
                 <Row className="mb-3">
                   <Col md={6}>
@@ -320,7 +365,7 @@ const GenerateSalarySlips = () => {
                   <Button
                     type="submit"
                     variant="primary"
-                    disabled={loading}
+                    disabled={loading || generateBlocked}
                   >
                     {loading ? (
                       <>
@@ -355,6 +400,12 @@ const GenerateSalarySlips = () => {
               </h5>
             </Card.Header>
             <Card.Body>
+              {generateBlocked && (
+                <Alert variant="warning" className="py-2">
+                  Period gates block bulk generate until the pay period is open or
+                  frozen.
+                </Alert>
+              )}
               <Row className="mb-3">
                 <Col md={6}>
                   <Form.Group>
@@ -408,7 +459,7 @@ const GenerateSalarySlips = () => {
                 <Button
                   variant="success"
                   onClick={handleGenerateBulk}
-                  disabled={bulkLoading}
+                  disabled={bulkLoading || generateBlocked}
                 >
                   {bulkLoading ? (
                     <>

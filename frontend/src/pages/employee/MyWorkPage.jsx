@@ -9,7 +9,10 @@ import WorkItemListWithBulk from '../../components/workitems/WorkItemListWithBul
 import WorkItemDetailsModal from '../../components/workitems/WorkItemDetailsModal';
 import WorkItemSearch from '../../components/workitems/WorkItemSearch';
 import AssignWorkModal from '../../components/work/AssignWorkModal';
-import './MyWorkPage.css';
+import {
+  getEffectiveStatusForUser,
+  isPendingWorkItem,
+} from '../../utils/workItemUtils';
 
 /**
  * MyWorkPage Component
@@ -77,29 +80,30 @@ const MyWorkPage = () => {
       }
 
       // Count completed this month
-      if (item.status === 'Done' && itemMonth === currentMonth && itemYear === currentYear) {
+      const itemStatus = getEffectiveStatusForUser(item, user?._id);
+      if (itemStatus === 'Done' && itemMonth === currentMonth && itemYear === currentYear) {
         completedThisMonth++;
       }
 
       // Count cancelled this month
-      if (item.status === 'Cancelled' && itemMonth === currentMonth && itemYear === currentYear) {
+      if (itemStatus === 'Cancelled' && itemMonth === currentMonth && itemYear === currentYear) {
         cancelledThisMonth++;
       }
 
       // Count due today — only non-Done, non-Cancelled items
-      if (dueDate && dueDate.getTime() === today.getTime() && !['Done', 'Cancelled'].includes(item.status)) {
+      if (dueDate && dueDate.getTime() === today.getTime() && !['Done', 'Cancelled'].includes(itemStatus)) {
         dueToday++;
         dueTodayItems.push(item);
       }
 
       // Count in progress
-      if (item.status === 'In Progress') {
+      if (itemStatus === 'In Progress') {
         inProgress++;
         inProgressItems.push(item);
       }
 
-      // Count overdue — use backend-computed flag; Done/Cancelled items are NEVER overdue
-      if (!['Done', 'Cancelled'].includes(item.status) && item.isOverdue === true) {
+      // Count overdue — use backend-computed flag with per-user status
+      if (!['Done', 'Cancelled'].includes(itemStatus) && item.isOverdue === true) {
         overdue++;
         overdueItems.push(item);
       }
@@ -116,7 +120,7 @@ const MyWorkPage = () => {
       dueTodayItems: dueTodayItems.slice(0, 3),
       inProgressItems: inProgressItems.slice(0, 3),
     };
-  }, [workItems]);
+  }, [workItems, user?._id]);
 
   // Filter and sort work items
   const filteredItems = useMemo(() => {
@@ -161,10 +165,10 @@ const MyWorkPage = () => {
       dateA.setHours(0, 0, 0, 0);
       dateB.setHours(0, 0, 0, 0);
       
-      const isAOverdue = dateA < today && !['Done', 'Cancelled'].includes(a.status);
-      const isBOverdue = dateB < today && !['Done', 'Cancelled'].includes(b.status);
-      const isADone = ['Done', 'Cancelled'].includes(a.status);
-      const isBDone = ['Done', 'Cancelled'].includes(b.status);
+      const isAOverdue = dateA < today && !['Done', 'Cancelled'].includes(getEffectiveStatusForUser(a, user?._id));
+      const isBOverdue = dateB < today && !['Done', 'Cancelled'].includes(getEffectiveStatusForUser(b, user?._id));
+      const isADone = ['Done', 'Cancelled'].includes(getEffectiveStatusForUser(a, user?._id));
+      const isBDone = ['Done', 'Cancelled'].includes(getEffectiveStatusForUser(b, user?._id));
       
       // Overdue items come first
       if (isAOverdue && !isBOverdue) return -1;
@@ -179,7 +183,7 @@ const MyWorkPage = () => {
     });
 
     return filtered;
-  }, [workItems, searchTerm, showTodayOnly, selectedDate]);
+  }, [workItems, searchTerm, showTodayOnly, selectedDate, user?._id]);
 
   const handleViewItem = (item) => {
     setSelectedItem(item);
@@ -189,11 +193,32 @@ const MyWorkPage = () => {
   const handleUpdateStatus = async (itemId, newStatus, completedAt = null, cancellationReason = null) => {
     try {
       await workItemApi.updateStatus(itemId, newStatus, completedAt, cancellationReason);
-      loadWorkItems();
+      await loadWorkItems();
 
-      // Update selected item if it's the one being updated
       if (selectedItem && selectedItem._id === itemId) {
-        setSelectedItem({ ...selectedItem, status: newStatus });
+        setSelectedItem((current) => {
+          if (!current) return current;
+          const next = { ...current, effectiveStatus: newStatus };
+          if (current.assignedToMultiple?.length) {
+            const assigneeStatuses = [...(current.assigneeStatuses || [])];
+            const userId = user?._id?.toString();
+            const existingIndex = assigneeStatuses.findIndex(
+              (entry) => (entry.assigneeId?._id || entry.assigneeId)?.toString() === userId
+            );
+            if (existingIndex >= 0) {
+              assigneeStatuses[existingIndex] = {
+                ...assigneeStatuses[existingIndex],
+                status: newStatus,
+              };
+            } else {
+              assigneeStatuses.push({ assigneeId: user?._id, status: newStatus });
+            }
+            next.assigneeStatuses = assigneeStatuses;
+          } else {
+            next.status = newStatus;
+          }
+          return next;
+        });
       }
     } catch (error) {
       console.error('Error updating status:', error);
@@ -444,6 +469,7 @@ const MyWorkPage = () => {
               workItems={filteredItems}
               onViewItem={handleViewItem}
               onBulkAction={handleBulkAction}
+              currentUser={user}
               emptyMessage={
                 workItems.length === 0
                   ? 'No work items assigned to you yet.'

@@ -3,6 +3,11 @@ import { Card, Badge, Button, Dropdown, Modal, Form } from 'react-bootstrap';
 import { FaCalendar, FaTasks, FaClock, FaUser, FaEllipsisV } from 'react-icons/fa';
 import { formatDate } from '../../utils/helpers';
 import {
+  getEffectiveStatusForUser,
+  isWorkItemDueToday,
+  isWorkItemOverdue,
+} from '../../utils/workItemUtils';
+import {
   getStatusAriaLabel,
   getTypeAriaLabel,
   getDueDateAriaLabel,
@@ -17,18 +22,10 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
   const [cancellationReason, setCancellationReason] = useState('');
   const [pendingStatus, setPendingStatus] = useState(null);
   
-  const isTerminal = ['Done', 'Cancelled'].includes(workItem.status);
-  const isOverdue = !isTerminal && (workItem.isOverdue || (
-    workItem.dueDate && 
-    new Date(workItem.dueDate) < new Date() && 
-    !isTerminal
-  ));
-  
-  const isDueToday = !isTerminal && (workItem.isDueToday || (
-    workItem.dueDate && 
-    new Date(workItem.dueDate).toDateString() === new Date().toDateString() &&
-    !isTerminal
-  ));
+  const itemStatus = getEffectiveStatusForUser(workItem, currentUser?._id);
+  const isTerminal = ['Done', 'Cancelled'].includes(itemStatus);
+  const isOverdue = !isTerminal && isWorkItemOverdue(workItem, currentUser?._id);
+  const isDueToday = !isTerminal && isWorkItemDueToday(workItem, currentUser?._id);
 
   // Helper function to check if current user can edit (supports multiple assignees)
   const canEdit = () => {
@@ -87,7 +84,7 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
   const handleClick = () => onView(workItem);
   
   const handleStatusUpdate = async (newStatus) => {
-    if (newStatus === workItem.status || !onStatusChange) return;
+    if (newStatus === itemStatus || !onStatusChange) return;
 
     if (newStatus === 'Cancelled') {
       setPendingStatus('Cancelled');
@@ -125,7 +122,7 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
   return (
     <>
     <Card 
-      className={`h-100 work-item-card ${isOverdue ? 'border-danger' : isDueToday ? 'border-warning' : ''} ${isTerminal && workItem.status === 'Cancelled' ? 'work-item-card-cancelled' : ''}`}
+      className={`h-100 work-item-card ${isOverdue ? 'border-danger' : isDueToday ? 'border-warning' : ''} ${isTerminal && itemStatus === 'Cancelled' ? 'work-item-card-cancelled' : ''}`}
       style={{ cursor: 'pointer', transition: 'all 0.2s' }}
       onClick={handleClick}
       onKeyDown={(e) => handleKeyboardNavigation(e, handleClick, handleClick)}
@@ -139,7 +136,7 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
       }}
       tabIndex={0}
       role="button"
-      aria-label={`Work item: ${workItem.title}. ${getStatusAriaLabel(workItem.status)}. ${getDueDateAriaLabel(workItem.dueDate, isOverdue, isDueToday)}`}
+      aria-label={`Work item: ${workItem.title}. ${getStatusAriaLabel(itemStatus)}. ${getDueDateAriaLabel(workItem.dueDate, isOverdue, isDueToday)}`}
     >
       <Card.Body>
         <div className="d-flex justify-content-between align-items-start mb-2">
@@ -173,11 +170,11 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
           
           <div className="d-flex align-items-center gap-2">
             {/* Interactive Status Badge — hide dropdown for cancelled (terminal state) */}
-            {canEdit() && isHovered && !isUpdating && workItem.status !== 'Cancelled' ? (
+            {canEdit() && isHovered && !isUpdating && itemStatus !== 'Cancelled' ? (
               <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
                 <Dropdown.Toggle
                   as={Badge}
-                  bg={getStatusColor(workItem.status)}
+                  bg={getStatusColor(itemStatus)}
                   className="status-dropdown-toggle"
                   style={{
                     cursor: 'pointer',
@@ -187,7 +184,7 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
                     position: 'relative'
                   }}
                 >
-                  {workItem.status} ▼
+                  {itemStatus} ▼
                 </Dropdown.Toggle>
 
                 <Dropdown.Menu className="status-dropdown-menu">
@@ -198,8 +195,8 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
                         e.stopPropagation();
                         handleStatusUpdate(status);
                       }}
-                      disabled={status === workItem.status}
-                      className={`status-dropdown-item ${status === workItem.status ? 'active' : ''}`}
+                      disabled={status === itemStatus}
+                      className={`status-dropdown-item ${status === itemStatus ? 'active' : ''}`}
                     >
                       <Badge 
                         bg={getStatusColor(status)} 
@@ -208,7 +205,7 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
                       >
                         {status}
                       </Badge>
-                      {status === workItem.status && <span className="text-success">✓</span>}
+                      {status === itemStatus && <span className="text-success">✓</span>}
                     </Dropdown.Item>
                   ))}
                 </Dropdown.Menu>
@@ -216,7 +213,7 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
             ) : (
               <Badge 
                 bg={getStatusColor(workItem.status)}
-                aria-label={getStatusAriaLabel(workItem.status)}
+                aria-label={getStatusAriaLabel(itemStatus)}
                 className="text-capitalize"
                 style={{
                   position: 'relative',
@@ -230,7 +227,7 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
                     style={{ width: '0.8rem', height: '0.8rem' }}
                   />
                 )}
-                <span aria-hidden="true">{workItem.status}</span>
+                <span aria-hidden="true">{itemStatus}</span>
               </Badge>
             )}
           </div>
@@ -239,7 +236,7 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
         <h6 className="mb-2">{workItem.title}</h6>
         
         {/* Cancellation reason shown on card */}
-        {workItem.status === 'Cancelled' && workItem.cancellationReason && (
+        {itemStatus === 'Cancelled' && workItem.cancellationReason && (
           <div style={{
             background: '#fff5f5',
             border: '1px solid #f5c6cb',

@@ -1,4 +1,6 @@
-﻿export const calculateProRataSalarySlip = ({
+﻿import { toProRataComponentMaps } from "../services/payroll/payrollCorrectnessHelpers.js";
+
+export const calculateProRataSalarySlip = ({
   oldStructure,
   newStructure,
   effectiveDate,
@@ -26,17 +28,20 @@
     daysWorkedNew = totalDaysInMonth - daysWorkedOld;
   }
 
+  const oldMaps = toProRataComponentMaps(oldStructure);
+  const newMaps = toProRataComponentMaps(newStructure);
+
   const earnings = calculateProRataComponents(
-    oldStructure?.earnings || {},
-    newStructure?.earnings || {},
+    oldMaps.earnings,
+    newMaps.earnings,
     daysWorkedOld,
     daysWorkedNew,
     totalDaysInMonth
   );
 
   const deductions = calculateProRataComponents(
-    oldStructure?.deductions || {},
-    newStructure?.deductions || {},
+    oldMaps.deductions,
+    newMaps.deductions,
     daysWorkedOld,
     daysWorkedNew,
     totalDaysInMonth

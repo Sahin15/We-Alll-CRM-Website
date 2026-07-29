@@ -8,6 +8,12 @@ import { syncProjectProgress } from "../services/projectProgressService.js";
 import notificationService from "../services/notificationService.js";
 import NotificationService from "../services/notificationService.js";
 import { logWorkItemOperation, logSecurityEvent } from "../utils/auditLogger.js";
+import {
+  computeDueDateFlags,
+  getEffectiveStatusForUser,
+  isPendingForUser,
+  syncGlobalStatusFromAssignees,
+} from "../utils/workItemStatusUtils.js";
 
 // @desc    Get all work items for current user (My Work)
 // @route   GET /api/work-items/my-work
@@ -47,13 +53,20 @@ const getMyWorkItems = async (req, res) => {
       query.dueDate = { $lte: new Date(dueDate) };
     }
     
-    // Apply search
+    // Apply search without dropping assignee visibility filters
     if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-        { tags: { $regex: search, $options: "i" } },
+      const visibilityFilter = { $or: query.$or };
+      query.$and = [
+        visibilityFilter,
+        {
+          $or: [
+            { title: { $regex: search, $options: "i" } },
+            { description: { $regex: search, $options: "i" } },
+            { tags: { $regex: search, $options: "i" } },
+          ],
+        },
       ];
+      delete query.$or;
     }
     
     // Optimized query with lean() for better performance
@@ -75,15 +88,16 @@ const getMyWorkItems = async (req, res) => {
       .limit(500)
       .lean();
     
-    // Compute isOverdue for each item (lean() strips virtuals)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const workItemsWithVirtuals = workItems.map(item => {
-      const due = item.dueDate ? new Date(item.dueDate) : null;
-      if (due) due.setHours(0, 0, 0, 0);
-      const isOverdue = item.status !== 'Done' && due && due < today;
-      const isDueToday = item.status !== 'Done' && due && due.getTime() === today.getTime();
-      return { ...item, isOverdue, isDueToday };
+    // Compute per-user effective status and due flags (lean() strips virtuals)
+    const workItemsWithVirtuals = workItems.map((item) => {
+      const dueFlags = computeDueDateFlags(item, req.user._id);
+      return {
+        ...item,
+        effectiveStatus: dueFlags.effectiveStatus,
+        isOverdue: dueFlags.isOverdue,
+        isDueToday: dueFlags.isDueToday,
+        daysUntilDue: dueFlags.daysUntilDue,
+      };
     });
     
     res.status(200).json({
@@ -1034,7 +1048,7 @@ const updateWorkItemStatus = async (req, res) => {
             updatedAt: new Date(),
           });
         }
-        // DO NOT update global status for multiple assignees (except Cancelled above)
+        syncGlobalStatusFromAssignees(workItem);
       }
     } else {
       // For single assignee, update global status
@@ -1779,18 +1793,36 @@ const getOverdueWorkItems = async (req, res) => {
     today.setHours(0, 0, 0, 0);
     
     const workItems = await WorkItem.find({
-      assignedTo: req.user._id,
-      status: { $ne: "Done" },
+      $or: [
+        { assignedTo: req.user._id },
+        { assignedToMultiple: req.user._id },
+      ],
       dueDate: { $lt: today },
+      isDeleted: { $ne: true },
     })
       .populate("project", "name client")
       .populate("assignedTo", "name email")
-      .sort({ dueDate: 1 });
+      .populate("assignedToMultiple", "name email")
+      .populate("assigneeStatuses.assigneeId", "name email")
+      .sort({ dueDate: 1 })
+      .lean();
+
+    const overdueItems = workItems
+      .filter((item) => computeDueDateFlags(item, req.user._id).isOverdue)
+      .map((item) => {
+        const dueFlags = computeDueDateFlags(item, req.user._id);
+        return {
+          ...item,
+          effectiveStatus: dueFlags.effectiveStatus,
+          isOverdue: dueFlags.isOverdue,
+          isDueToday: dueFlags.isDueToday,
+        };
+      });
     
     res.status(200).json({
       success: true,
-      count: workItems.length,
-      data: workItems,
+      count: overdueItems.length,
+      data: overdueItems,
     });
   } catch (error) {
     
@@ -3132,20 +3164,22 @@ export const getPendingWorkCount = async (req, res) => {
       });
     }
 
-    // Count active work items for this user on the specified due date
-    const count = await WorkItem.countDocuments({
+    const pendingItems = await WorkItem.find({
       $or: [
         { assignedTo: userId },
-        { assignedToMultiple: userId }
+        { assignedToMultiple: userId },
       ],
-      status: { $in: ["To Do", "In Progress"] },
       dueDate: {
         $gte: dueDateObj,
-        $lte: dueDateEndObj
+        $lte: dueDateEndObj,
       },
-      visibility: { $in: ["active", "scheduled"] }, // Only count active/scheduled items
-      isDeleted: { $ne: true }
-    });
+      visibility: { $in: ["active", "scheduled"] },
+      isDeleted: { $ne: true },
+    })
+      .select("status assignedTo assignedToMultiple assigneeStatuses")
+      .lean();
+
+    const count = pendingItems.filter((item) => isPendingForUser(item, userId)).length;
 
     res.status(200).json({
       success: true,

@@ -28,7 +28,11 @@ import {
   isFullTimeEmployee,
 } from "../../utils/leaveEligibility";
 import { getLeaveRequestDays } from "../../utils/leaveDays";
-import GreetingBanner from "../../components/common/GreetingBanner";
+import {
+  getEffectiveStatusForUser,
+  isPendingWorkItem,
+  isWorkItemOverdue,
+} from "../../utils/workItemUtils";
 import TodoWidget from "../../components/common/TodoWidget";
 import ConfirmModal from "../../components/common/ConfirmModal";
 import HoDSection from "../../components/dashboard/HoDSection";
@@ -363,9 +367,9 @@ const EmployeeDashboard = () => {
       let pendingTasks = 0;
       if (tasksRes.status === 'fulfilled') {
         const allTasks = tasksRes.value.data || [];
-        pendingTasks = allTasks.filter(t => t.status !== 'Done' && !t.isDeleted).length;
+        pendingTasks = allTasks.filter((t) => isPendingWorkItem(t, user?._id) && !t.isDeleted).length;
         const topTasks = allTasks
-          .filter(t => t.status !== 'Done' && !t.isDeleted)
+          .filter((t) => isPendingWorkItem(t, user?._id) && !t.isDeleted)
           .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
           .slice(0, 3);
         setRecentTasks(topTasks);
@@ -1006,9 +1010,9 @@ const EmployeeDashboard = () => {
       const response = await workItemApi.getMyWork({ type: 'task' });
       const allTasks = response.data || [];
       
-      const pending = allTasks.filter(t => t.status === 'To Do');
-      const inProgress = allTasks.filter(t => t.status === 'In Progress');
-      const completed = allTasks.filter(t => t.status === 'Done');
+      const pending = allTasks.filter((t) => getEffectiveStatusForUser(t, user?._id) === 'To Do');
+      const inProgress = allTasks.filter((t) => getEffectiveStatusForUser(t, user?._id) === 'In Progress');
+      const completed = allTasks.filter((t) => getEffectiveStatusForUser(t, user?._id) === 'Done');
       
       setTasksDetails({
         all: allTasks,
