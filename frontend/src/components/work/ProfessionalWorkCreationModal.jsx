@@ -135,25 +135,11 @@ const ProfessionalWorkCreationModal = ({
     }
   }, []);
 
-  // Filter users by selected project's departments
+  // Graphic / Video assignees only — these workflows need optional Posting handoff
   const isCreativeDepartmentName = (name) => {
     const n = String(name || '').toLowerCase();
-    return n.includes('design') || n.includes('graphic') || n.includes('video');
+    return n.includes('graphic') || n.includes('video');
   };
-
-  const projectSupportsCreative = useMemo(() => {
-    if (!selectedProject) return false;
-    const deptNames = [];
-    if (Array.isArray(selectedProject.departments)) {
-      selectedProject.departments.forEach((d) => {
-        if (typeof d === 'object' && d?.name) deptNames.push(d.name.toLowerCase());
-      });
-    }
-    if (selectedProject.department?.name) {
-      deptNames.push(String(selectedProject.department.name).toLowerCase());
-    }
-    return deptNames.some(isCreativeDepartmentName);
-  }, [selectedProject]);
 
   const assigneeSupportsCreative = useMemo(() => {
     if (!formData.assignedTo) return false;
@@ -161,9 +147,7 @@ const ProfessionalWorkCreationModal = ({
     return isCreativeDepartmentName(user?.department?.name);
   }, [formData.assignedTo, users]);
 
-  const showPostingHandoff =
-    Boolean(formData.project) &&
-    (projectSupportsCreative || assigneeSupportsCreative);
+  const showPostingHandoff = assigneeSupportsCreative;
 
   const postingDepartmentUsers = useMemo(() => {
     return users.filter((u) => {
@@ -513,7 +497,7 @@ const ProfessionalWorkCreationModal = ({
         selectedSlot: formData.selectedSlot
       };
 
-      if (showPostingHandoff && (projectSupportsCreative || assigneeSupportsCreative || formData.requiresPosting)) {
+      if (showPostingHandoff) {
         workItemData.workflowMode = 'creative';
         const deptNames = [];
         if (Array.isArray(selectedProject?.departments)) {

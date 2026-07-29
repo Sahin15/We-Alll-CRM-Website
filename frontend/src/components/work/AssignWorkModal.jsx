@@ -45,14 +45,10 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
     postingDate: '',
   });
 
-  /** @param {string} [name] */
+  /** Graphic / Video only — these workflows need optional Posting handoff. */
   const isCreativeDepartmentName = (name) => {
     const n = String(name || '').toLowerCase();
-    return (
-      n.includes('design') ||
-      n.includes('graphic') ||
-      n.includes('video')
-    );
+    return n.includes('graphic') || n.includes('video');
   };
 
   /** Collect department names linked on the project (populated or ID). */
@@ -94,10 +90,6 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
     );
   };
 
-  const projectSupportsCreative = useMemo(() => {
-    return getProjectDepartmentNames(selectedProject).some(isCreativeDepartmentName);
-  }, [selectedProject, departments]);
-
   const selectedAssigneeIds = useMemo(() => {
     if (formData.assignmentMode === 'multiple') {
       return formData.assignedToMultiple || [];
@@ -105,8 +97,7 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
     return formData.assignedTo ? [formData.assignedTo] : [];
   }, [formData.assignmentMode, formData.assignedTo, formData.assignedToMultiple]);
 
-  // Creative handoff must react to assignee department (Design / Graphic / Video),
-  // not only whether the project has those services linked.
+  // Posting handoff only when assignee is Graphic or Video department
   const assigneeSupportsCreative = useMemo(() => {
     return selectedAssigneeIds.some((id) => {
       const user = findUserById(id);
@@ -114,12 +105,22 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
     });
   }, [selectedAssigneeIds, users, allUsers]);
 
-  const isCreativeAssignment =
-    projectSupportsCreative || assigneeSupportsCreative;
+  const isCreativeAssignment = assigneeSupportsCreative;
 
-  // Always show posting option once a project is chosen so HR/managers can tick it
-  // even before Posting members exist or project services are linked.
-  const showPostingHandoff = Boolean(formData.project);
+  // Only show for Graphic / Video assignees — other departments do not need posting
+  const showPostingHandoff = assigneeSupportsCreative;
+
+  // Clear posting fields when assignee is no longer Graphic/Video
+  useEffect(() => {
+    if (!assigneeSupportsCreative && formData.requiresPosting) {
+      setFormData((prev) => ({
+        ...prev,
+        requiresPosting: false,
+        postingAssignedTo: '',
+        postingDate: '',
+      }));
+    }
+  }, [assigneeSupportsCreative]);
 
   // Load projects and users when modal opens
   useEffect(() => {
@@ -676,11 +677,6 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                         </option>
                       ))}
                     </Form.Select>
-                    {assigneeSupportsCreative && (
-                      <Alert variant="info" className="py-2 small mt-2 mb-0">
-                        Assignee is in Design / Graphic / Video — use the Posting option below if We Alll should publish this content.
-                      </Alert>
-                    )}
                     {selectedUserForWorkload && formData.dueDate && (
                       <div className="workload-info">
                         Pending work on {new Date(formData.dueDate + 'T00:00:00').toLocaleDateString('en-GB')}: 
@@ -758,11 +754,6 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                           </option>
                         ))}
                     </Form.Select>
-                    {assigneeSupportsCreative && (
-                      <Alert variant="info" className="py-2 small mt-2 mb-0">
-                        Selected assignee(s) include Design / Graphic / Video — tick Posting below if We Alll should publish.
-                      </Alert>
-                    )}
                   </div>
                 )}
                 
