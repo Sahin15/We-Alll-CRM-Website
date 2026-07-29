@@ -559,24 +559,35 @@ const WorkItemDetailsModal = ({ show, onHide, workItem: workItemProp, onUpdate, 
               {/* Activity Timeline - Shows status changes and comments chronologically */}
               <div className="activity-timeline">
                 {(() => {
-                  // Combine status history, edit history, and comments into a single timeline
+                  // Combine status history, creative events, edits, and comments — deduped
                   const activities = [];
-                  
-                  // Add status changes from history
+                  const dayKey = (ts) => {
+                    const d = ts ? new Date(ts) : null;
+                    if (!d || Number.isNaN(d.getTime())) return '';
+                    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+                  };
+
+                  // 1) Status history (dedupe identical toStatus on same day)
+                  const seenStatusKeys = new Set();
                   if (workItem.statusHistory && workItem.statusHistory.length > 0) {
-                    workItem.statusHistory.forEach(history => {
+                    workItem.statusHistory.forEach((history) => {
+                      const toStatus = history.toStatus || history.status;
+                      if (!toStatus) return;
+                      const key = `status|${toStatus}|${dayKey(history.changedAt)}`;
+                      if (seenStatusKeys.has(key)) return;
+                      seenStatusKeys.add(key);
                       activities.push({
                         type: 'status',
                         timestamp: history.changedAt,
                         user: history.changedBy,
                         fromStatus: history.fromStatus || null,
-                        toStatus: history.toStatus || history.status,
+                        toStatus,
                         comment: history.comment || history.note || null,
                       });
                     });
                   }
 
-                  // Creative revision reviews — who requested changes / approved
+                  // 2) Creative revision reviews / submits (structured — preferred over system comments)
                   if (creativeRevisions.length > 0) {
                     creativeRevisions.forEach((rev) => {
                       if (rev.reviewedAt && rev.lastDecision && rev.lastDecision !== 'none') {
@@ -608,17 +619,12 @@ const WorkItemDetailsModal = ({ show, onHide, workItem: workItemProp, onUpdate, 
                       }
                     });
                   }
-                  
-                  // Add edit history
+
+                  // 3) Edit history
                   if (workItem.editHistory && workItem.editHistory.length > 0) {
-                    console.log('Raw editHistory from API:', JSON.stringify(workItem.editHistory, null, 2));
-                    workItem.editHistory.forEach((edit, idx) => {
-                      // Only add edit entries that have actual changes
+                    workItem.editHistory.forEach((edit) => {
                       if (edit.fieldsChanged && edit.fieldsChanged.length > 0) {
-                        // Use stored editorName and editorEmail directly
                         const userName = edit.editorName || edit.editorEmail || 'Unknown User';
-                        console.log(`Edit ${idx} - Using editorName: "${edit.editorName}", editorEmail: "${edit.editorEmail}", final: "${userName}"`);
-                        
                         activities.push({
                           type: 'edit',
                           timestamp: edit.editedAt,
@@ -634,33 +640,73 @@ const WorkItemDetailsModal = ({ show, onHide, workItem: workItemProp, onUpdate, 
                       }
                     });
                   }
-                  
-                  // Add comments (system status-change comments become status activities)
-                  if (comments && comments.length > 0) {
-                    const statusChangePattern = /^Status changed from "([^"]+)" to "([^"]+)"$/i;
-                    comments.forEach(comment => {
-                      const text = (comment.text || '').trim();
-                      const statusMatch = statusChangePattern.exec(text);
 
+                  // 4) Comments — skip system chatter already covered by status/creative events
+                  const CREATIVE_SYSTEM_COMMENT =
+                    /^(Work started|Revision \d+ submitted for review|Requested changes|Approved Revision|Revision \d+ created|Marked Delivered|Awaiting Posting|Task closed|QA (passed|failed))/i;
+                  const statusChangePattern = /^Status changed from "([^"]+)" to "([^"]+)"$/i;
+                  const seenCommentTexts = new Set();
+
+                  if (comments && comments.length > 0) {
+                    comments.forEach((comment) => {
+                      const text = (comment.text || '').trim();
+                      if (!text) return;
+
+                      const statusMatch = statusChangePattern.exec(text);
                       if (statusMatch) {
-                        // Prefer structured statusHistory; use comment only as fallback
-                        const alreadyCovered = activities.some(
+                        // Covered by statusHistory when present
+                        const covered = activities.some(
                           (a) =>
                             a.type === 'status' &&
                             a.toStatus === statusMatch[2] &&
-                            Math.abs(new Date(a.timestamp) - new Date(comment.createdAt)) < 60000
+                            dayKey(a.timestamp) === dayKey(comment.createdAt)
                         );
-                        if (!alreadyCovered) {
-                          activities.push({
-                            type: 'status',
-                            timestamp: comment.createdAt,
-                            user: comment.user,
-                            fromStatus: statusMatch[1],
-                            toStatus: statusMatch[2],
-                            comment: null,
-                          });
-                        }
+                        if (covered) return;
+                        const key = `status|${statusMatch[2]}|${dayKey(comment.createdAt)}`;
+                        if (seenStatusKeys.has(key)) return;
+                        seenStatusKeys.add(key);
+                        activities.push({
+                          type: 'status',
+                          timestamp: comment.createdAt,
+                          user: comment.user,
+                          fromStatus: statusMatch[1],
+                          toStatus: statusMatch[2],
+                          comment: null,
+                        });
                         return;
+                      }
+
+                      // Creative system comments duplicate creative_submit / creative_review / status
+                      if (CREATIVE_SYSTEM_COMMENT.test(text)) {
+                        const dedupeKey = text.toLowerCase();
+                        if (seenCommentTexts.has(dedupeKey)) return;
+                        seenCommentTexts.add(dedupeKey);
+
+                        // Prefer structured creative events when they exist
+                        if (/submitted for review/i.test(text) && activities.some((a) => a.type === 'creative_submit')) {
+                          return;
+                        }
+                        if (/Requested changes|Approved Revision/i.test(text) && activities.some((a) => a.type === 'creative_review')) {
+                          return;
+                        }
+                        if (/^Work started/i.test(text) && activities.some((a) => a.type === 'status' && a.toStatus === 'In Progress')) {
+                          return;
+                        }
+                        // Keep a single "Revision N created" note (no structured rework event yet)
+                        activities.push({
+                          type: 'comment',
+                          timestamp: comment.createdAt,
+                          user: comment.user,
+                          text: comment.text,
+                          _id: comment._id,
+                        });
+                        return;
+                      }
+
+                      if (comment.isSystemComment) {
+                        const dedupeKey = text.toLowerCase();
+                        if (seenCommentTexts.has(dedupeKey)) return;
+                        seenCommentTexts.add(dedupeKey);
                       }
 
                       activities.push({
@@ -668,22 +714,48 @@ const WorkItemDetailsModal = ({ show, onHide, workItem: workItemProp, onUpdate, 
                         timestamp: comment.createdAt,
                         user: comment.user,
                         text: comment.text,
-                        _id: comment._id
+                        _id: comment._id,
                       });
                     });
                   }
-                  
-                  // Add creation event
+
+                  // 5) Creation event
                   activities.push({
                     type: 'created',
                     timestamp: workItem.createdAt,
                     user: workItem.createdBy
                   });
-                  
+
+                  // Drop status rows that duplicate structured creative events the same day
+                  const hasCreativeSubmitDay = new Set(
+                    activities
+                      .filter((a) => a.type === 'creative_submit')
+                      .map((a) => dayKey(a.timestamp))
+                  );
+                  const hasCreativeChangeDay = new Set(
+                    activities
+                      .filter((a) => a.type === 'creative_review' && a.isChangeRequest)
+                      .map((a) => dayKey(a.timestamp))
+                  );
+                  const hasCreativeApproveDay = new Set(
+                    activities
+                      .filter((a) => a.type === 'creative_review' && !a.isChangeRequest)
+                      .map((a) => dayKey(a.timestamp))
+                  );
+
+                  const dedupedActivities = activities.filter((a) => {
+                    if (a.type !== 'status') return true;
+                    const day = dayKey(a.timestamp);
+                    if (a.toStatus === 'Submitted for Review' && hasCreativeSubmitDay.has(day)) return false;
+                    if (a.toStatus === 'Changes Requested' && hasCreativeChangeDay.has(day)) return false;
+                    if (a.toStatus === 'Approved' && hasCreativeApproveDay.has(day)) return false;
+                    return true;
+                  });
+
                   // Sort by timestamp (newest first)
-                  activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-                  
-                  if (activities.length === 0) {
+                  dedupedActivities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+                  if (dedupedActivities.length === 0) {
                     return (
                       <div className="text-center py-5">
                         <FaClock style={{ fontSize: '3rem', opacity: 0.3, color: '#6c757d' }} />
@@ -691,11 +763,11 @@ const WorkItemDetailsModal = ({ show, onHide, workItem: workItemProp, onUpdate, 
                       </div>
                     );
                   }
-                  
+
                   return (
                     <div className="timeline-container">
-                      {activities.map((activity, index) => (
-                        <div key={index} className="timeline-item">
+                      {dedupedActivities.map((activity, index) => (
+                        <div key={`${activity.type}-${activity._id || activity.revisionNumber || activity.toStatus || ''}-${index}`} className="timeline-item">
                           <div className="timeline-marker">
                             {activity.type === 'status' ? (
                               <div className="marker-icon status-change">🔄</div>

@@ -44,11 +44,11 @@ function pushSystemComment(workItem, actorId, text) {
 
 /**
  * Start work: Assigned/To Do → In Progress; create Revision 1 if none.
+ * Idempotent: does not re-post "Work started" when Revision 1 already exists.
  */
 export async function startWork(workItemId, actorId) {
   const workItem = await loadCreativeWorkItem(workItemId);
   workItem.workflowMode = "creative";
-  workItem.status = "In Progress";
   workItem.modifiedBy = actorId;
 
   let revision = await CreativeRevision.findOne({
@@ -57,6 +57,7 @@ export async function startWork(workItemId, actorId) {
     softArchived: { $ne: true },
   });
 
+  const createdRevision = !revision;
   if (!revision) {
     revision = await CreativeRevision.create({
       workItem: workItemId,
@@ -70,7 +71,18 @@ export async function startWork(workItemId, actorId) {
     });
   }
 
-  pushSystemComment(workItem, actorId, "Work started — Revision 1 ready");
+  const previousStatus = workItem.status;
+  workItem.status = "In Progress";
+
+  // Only log once — when Revision 1 is actually created (avoids duplicate timeline rows)
+  if (createdRevision) {
+    pushSystemComment(workItem, actorId, "Work started — Revision 1 ready");
+  } else if (previousStatus === "In Progress") {
+    // Already started; nothing to persist beyond ensuring creative mode
+    await workItem.save();
+    return { workItem, revision };
+  }
+
   await workItem.save();
   return { workItem, revision };
 }
