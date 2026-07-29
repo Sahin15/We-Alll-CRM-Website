@@ -291,6 +291,10 @@ const workItemSchema = new mongoose.Schema(
         type: String,
         enum: ALL_WORK_ITEM_STATUSES,
       },
+      fromStatus: {
+        type: String,
+        enum: ALL_WORK_ITEM_STATUSES,
+      },
       changedBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
@@ -650,6 +654,12 @@ workItemSchema.virtual("daysUntilDue").get(function () {
   return diffDays;
 });
 
+// Track prior status so statusHistory can record from → to
+workItemSchema.post("init", function () {
+  this.$locals = this.$locals || {};
+  this.$locals.previousStatus = this.status;
+});
+
 // Pre-save middleware: completedAt + slot complete/release (legacy Done + creative Delivered/Cancelled)
 workItemSchema.pre("save", async function (next) {
   if (this.isModified("status")) {
@@ -722,11 +732,16 @@ workItemSchema.pre("save", async function (next) {
     
     // Add to status history (only if not a new document)
     if (!this.isNew) {
+      const fromStatus = this.$locals?.previousStatus || undefined;
       this.statusHistory.push({
         status: this.status,
+        fromStatus: fromStatus && fromStatus !== this.status ? fromStatus : undefined,
         changedBy: this.modifiedBy || this.createdBy,
         changedAt: new Date(),
       });
+      if (this.$locals) {
+        this.$locals.previousStatus = this.status;
+      }
     }
   }
   next();

@@ -33,6 +33,7 @@ import workCalendarApi from '../../api/workCalendarApi';
 import workItemApi from '../../api/workItemApi';
 import projectApi from '../../api/projectApi';
 import clientApi from '../../api/clientApi';
+import creativeWorkflowApi from '../../api/creativeWorkflowApi';
 import EmployeeWorkCalendar from '../../components/calendar/EmployeeWorkCalendar';
 import EmployeeWorkLogsTab from '../../components/worklog/EmployeeWorkLogsTab';
 import WorkItemDetailsModal from '../../components/workitems/WorkItemDetailsModal';
@@ -46,6 +47,7 @@ const WorkAssignmentsTab = ({ recentWork, getStatusColor, getPriorityColor, onVi
   const [dateFilter, setDateFilter] = useState('this_month');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+  const [changeCountsByWorkItem, setChangeCountsByWorkItem] = useState({});
 
   // Compute date range from the selected filter
   const getDateRange = () => {
@@ -81,6 +83,86 @@ const WorkAssignmentsTab = ({ recentWork, getStatusColor, getPriorityColor, onVi
     if (end) return due.isSameOrBefore(end, 'day');
     return true;
   });
+
+  // Load creative change-request counts for assignments
+  useEffect(() => {
+    const ids = (recentWork || []).map((w) => w._id).filter(Boolean).map(String);
+    if (ids.length === 0) {
+      setChangeCountsByWorkItem({});
+      return;
+    }
+    let cancelled = false;
+
+    const isChangeRequestRevision = (r) =>
+      ["changes_requested", "rejected"].includes(r.status) ||
+      ["minor", "major", "reject"].includes(r.decisionSeverity) ||
+      ["minor", "major", "reject", "send_back"].includes(r.lastDecision);
+
+    (async () => {
+      try {
+        const res = await creativeWorkflowApi.getChangeRequestCounts(ids);
+        const payload = res?.data || res || {};
+        const byWorkItem = payload.byWorkItem || {};
+        const total = Object.values(byWorkItem).reduce((s, n) => s + Number(n || 0), 0);
+
+        // If batch endpoint returned empty but we have creative tasks, fall back per item
+        if (!cancelled && total === 0) {
+          const fallback = {};
+          await Promise.all(
+            ids.map(async (id) => {
+              try {
+                const revRes = await creativeWorkflowApi.listRevisions(id);
+                const revisions = revRes?.data || revRes || [];
+                fallback[id] = Array.isArray(revisions)
+                  ? revisions.filter(isChangeRequestRevision).length
+                  : 0;
+              } catch {
+                fallback[id] = 0;
+              }
+            })
+          );
+          if (!cancelled) setChangeCountsByWorkItem(fallback);
+          return;
+        }
+
+        if (!cancelled) setChangeCountsByWorkItem(byWorkItem);
+      } catch (error) {
+        console.error("Failed to load change request counts:", error);
+        // Fallback: list revisions per work item (same source as creative panel)
+        try {
+          const fallback = {};
+          await Promise.all(
+            ids.map(async (id) => {
+              try {
+                const revRes = await creativeWorkflowApi.listRevisions(id);
+                const revisions = revRes?.data || revRes || [];
+                fallback[id] = Array.isArray(revisions)
+                  ? revisions.filter(isChangeRequestRevision).length
+                  : 0;
+              } catch {
+                fallback[id] = 0;
+              }
+            })
+          );
+          if (!cancelled) setChangeCountsByWorkItem(fallback);
+        } catch {
+          if (!cancelled) setChangeCountsByWorkItem({});
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [recentWork]);
+
+  const getChangeCount = (workId) =>
+    changeCountsByWorkItem[String(workId)] || 0;
+
+  const filteredChangeTotal = filteredWork.reduce(
+    (sum, work) => sum + getChangeCount(work._id),
+    0
+  );
 
   const FILTERS = [
     { key: 'this_week', label: 'This Week' },
@@ -157,6 +239,11 @@ const WorkAssignmentsTab = ({ recentWork, getStatusColor, getPriorityColor, onVi
             {start && end && (
               <span> — {start.format('MMM D')} to {end.format('MMM D, YYYY')}</span>
             )}
+            {filteredChangeTotal > 0 && (
+              <span>
+                {' '}· <strong>{filteredChangeTotal}</strong> change request{filteredChangeTotal === 1 ? '' : 's'}
+              </span>
+            )}
           </small>
         </div>
 
@@ -169,6 +256,7 @@ const WorkAssignmentsTab = ({ recentWork, getStatusColor, getPriorityColor, onVi
                   <th>Project</th>
                   <th>Status</th>
                   <th>Priority</th>
+                  <th>Changes</th>
                   <th>Due Date</th>
                   <th>Progress</th>
                   <th>Action</th>
@@ -177,6 +265,7 @@ const WorkAssignmentsTab = ({ recentWork, getStatusColor, getPriorityColor, onVi
               <tbody>
                 {filteredWork.map(work => {
                   const isCancelled = work.status === 'Cancelled';
+                  const changeCount = getChangeCount(work._id);
                   return (
                     <tr 
                       key={work._id}
@@ -220,6 +309,19 @@ const WorkAssignmentsTab = ({ recentWork, getStatusColor, getPriorityColor, onVi
                         <Badge bg={getPriorityColor(work.priority)}>
                           {work.priority}
                         </Badge>
+                      </td>
+                      <td>
+                        {changeCount > 0 ? (
+                          <Badge
+                            bg="warning"
+                            text="dark"
+                            title="Creative change requests (minor/major/reject)"
+                          >
+                            {changeCount}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted small">0</span>
+                        )}
                       </td>
                       <td>
                         <div style={isCancelled ? { opacity: 0.6 } : {}}>
@@ -291,19 +393,25 @@ const WorkAssignmentsTab = ({ recentWork, getStatusColor, getPriorityColor, onVi
             <div className="d-flex justify-content-between mb-2">
               <span>Completed:</span>
               <strong className="text-success">
-                {filteredWork.filter(w => w.status === 'Done').length}
+                {filteredWork.filter(w => w.status === 'Done' || w.status === 'Delivered' || w.status === 'Closed').length}
               </strong>
             </div>
             <div className="d-flex justify-content-between mb-2">
               <span>In Progress:</span>
               <strong className="text-primary">
-                {filteredWork.filter(w => w.status === 'In Progress').length}
+                {filteredWork.filter(w => w.status === 'In Progress' || w.status === 'Rework In Progress').length}
+              </strong>
+            </div>
+            <div className="d-flex justify-content-between mb-2">
+              <span>Pending:</span>
+              <strong className="text-warning">
+                {filteredWork.filter(w => w.status === 'To Do' || w.status === 'Assigned' || w.status === 'Backlog').length}
               </strong>
             </div>
             <div className="d-flex justify-content-between">
-              <span>Pending:</span>
-              <strong className="text-warning">
-                {filteredWork.filter(w => w.status === 'To Do').length}
+              <span title="Creative change requests (minor / major / reject)">Change Requests:</span>
+              <strong className={filteredChangeTotal > 0 ? 'text-warning' : ''}>
+                {filteredChangeTotal}
               </strong>
             </div>
           </Card.Body>
@@ -591,7 +699,7 @@ const EnhancedEmployeeWorkView = () => {
       <Tab.Container activeKey={activeTab} onSelect={setActiveTab}>
         <Card className="border-0 shadow-sm">
           <Card.Header className="bg-white border-0 pt-3 pb-0">
-            <Nav variant="tabs" className="border-0">
+            <Nav variant="tabs" className="border-0 w-100 justify-content-start">
               <Nav.Item>
                 <Nav.Link eventKey="overview" className="d-flex align-items-center">
                   <FaChartLine className="me-2" />

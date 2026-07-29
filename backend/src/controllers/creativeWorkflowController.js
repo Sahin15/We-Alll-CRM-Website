@@ -30,7 +30,7 @@ export const submitForReview = async (req, res) => {
     const result = await creativeWorkflowService.submitForReview(
       req.params.workItemId,
       getActorId(req),
-      { requireAttachment: req.body?.requireAttachment !== false }
+      { requireAttachment: req.body?.requireAttachment === true }
     );
     return res.json({ success: true, data: result });
   } catch (error) {
@@ -159,6 +159,34 @@ export const listRevisions = async (req, res) => {
     return res.status(error.statusCode || 500).json({
       success: false,
       error: error.message || "Failed to list revisions",
+    });
+  }
+};
+
+/**
+ * GET /api/creative-workflow/change-counts?workItemIds=id1,id2
+ * Also accepts POST body { workItemIds: string[] } for compatibility.
+ * Returns change-request counts per work item + total.
+ */
+export const getChangeRequestCounts = async (req, res) => {
+  try {
+    let workItemIds = [];
+    if (Array.isArray(req.body?.workItemIds)) {
+      workItemIds = req.body.workItemIds;
+    } else if (typeof req.query.workItemIds === "string" && req.query.workItemIds.trim()) {
+      workItemIds = req.query.workItemIds.split(",").map((id) => id.trim()).filter(Boolean);
+    } else if (Array.isArray(req.query.workItemIds)) {
+      workItemIds = req.query.workItemIds;
+    }
+
+    const data =
+      await creativeWorkflowService.getChangeRequestCountsByWorkItems(workItemIds);
+    return res.json({ success: true, data });
+  } catch (error) {
+    console.error("creative getChangeRequestCounts failed:", error);
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      error: error.message || "Failed to load change request counts",
     });
   }
 };

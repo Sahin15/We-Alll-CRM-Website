@@ -11,23 +11,46 @@ import {
   isWorkItemOverdue,
 } from '../../utils/workItemUtils';
 import CreativeWorkflowPanel from '../creative/CreativeWorkflowPanel';
+import creativeWorkflowApi from '../../api/creativeWorkflowApi';
 import './WorkItemDetailsModal.css';
 
-const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, currentUser, onAddComment }) => {
+const WorkItemDetailsModal = ({ show, onHide, workItem: workItemProp, onUpdate, onRefresh, currentUser, onAddComment }) => {
   const getUserStatus = (item) =>
     getEffectiveStatusForUser(item, currentUser?._id);
 
-  const [status, setStatus] = useState(getUserStatus(workItem) || 'To Do');
+  /** Full document (includes statusHistory) — list endpoints omit it */
+  const [fullWorkItem, setFullWorkItem] = useState(null);
+  const workItem = fullWorkItem || workItemProp;
+
+  const [status, setStatus] = useState(getUserStatus(workItemProp) || 'To Do');
   const [loading, setLoading] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [commentLoading, setCommentLoading] = useState(false);
-  const [comments, setComments] = useState(workItem?.comments || []);
+  const [comments, setComments] = useState(workItemProp?.comments || []);
   const [showCompletionDatePicker, setShowCompletionDatePicker] = useState(false);
   const [completionDate, setCompletionDate] = useState('');
   const [activating, setActivating] = useState(false);
   const [allTeamMembers, setAllTeamMembers] = useState([]);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancellationReason, setCancellationReason] = useState('');
+  const [creativeRevisions, setCreativeRevisions] = useState([]);
+
+  const loadFullWorkItem = async () => {
+    if (!workItemProp?._id) return null;
+    try {
+      const response = await workItemApi.getWorkItemById(workItemProp._id);
+      const full = response.data || response;
+      setFullWorkItem(full);
+      if (full?.comments) {
+        setComments(full.comments);
+      }
+      setStatus(getUserStatus(full) || 'To Do');
+      return full;
+    } catch (error) {
+      console.error('Error loading work item details:', error);
+      return null;
+    }
+  };
 
   // Helper function to render mentions in text
   const renderMentions = (text) => {
@@ -131,10 +154,52 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
 
   // Set comments only when modal first opens for a work item
   React.useEffect(() => {
-    if (show && workItem?.comments) {
-      setComments(workItem.comments);
+    if (show && workItemProp?.comments) {
+      setComments(workItemProp.comments);
     }
-  }, [show, workItem?._id]); // ONLY reset on open or different work item — never on comment changes
+  }, [show, workItemProp?._id]); // ONLY reset on open or different work item — never on comment changes
+
+  // Always fetch full work item so Activity Timeline gets statusHistory (list APIs strip it)
+  React.useEffect(() => {
+    if (!show || !workItemProp?._id) {
+      setFullWorkItem(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const full = await loadFullWorkItem();
+      if (cancelled && !full) return;
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload on open / id only
+  }, [show, workItemProp?._id]);
+
+  // Load creative revisions for activity timeline (who requested changes, when)
+  React.useEffect(() => {
+    const source = fullWorkItem || workItemProp;
+    const isCreative =
+      source?.workflowMode === 'creative' ||
+      source?.workflowType === 'design' ||
+      source?.workflowType === 'video-production';
+    if (!show || !source?._id || !isCreative) {
+      setCreativeRevisions([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await creativeWorkflowApi.listRevisions(source._id);
+        if (!cancelled) setCreativeRevisions(res.data || []);
+      } catch (error) {
+        if (!cancelled) setCreativeRevisions([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [show, workItemProp?._id, fullWorkItem?.status, fullWorkItem?.workflowMode, fullWorkItem?.workflowType]);
 
   // Fetch all team members for mentions (project members + HR/Manager/Admin/SuperAdmin)
   useEffect(() => {
@@ -247,9 +312,20 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
   const getStatusColor = (status) => {
     const colors = {
       'To Do': 'secondary',
+      'Backlog': 'secondary',
+      'Assigned': 'secondary',
       'In Progress': 'primary',
+      'Rework In Progress': 'primary',
       'Review': 'warning',
+      'Submitted for Review': 'warning',
+      'QA Review': 'warning',
+      'Changes Requested': 'warning',
+      'Approved': 'info',
       'Done': 'success',
+      'Delivered': 'success',
+      'Posted': 'success',
+      'Closed': 'success',
+      'Awaiting Posting': 'info',
       'Cancelled': 'danger'
     };
     return colors[status] || 'secondary';
@@ -266,6 +342,7 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
     
     try {
       await onUpdate(workItem._id, newStatus, backDate, reason);
+      await loadFullWorkItem();
       if (onRefresh) {
         onRefresh();
       }
@@ -276,7 +353,7 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
       setCancellationReason('');
     } catch (error) {
       console.error('Error updating status:', error);
-      setStatus(workItem.status); // Revert on error
+      setStatus(getUserStatus(workItem) || workItem.status); // Revert on error
     } finally {
       setLoading(false);
     }
@@ -461,9 +538,11 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
           <div className="m-3">
             <CreativeWorkflowPanel
               workItem={workItem}
-              onUpdated={() => {
+              currentUser={currentUser}
+              onUpdated={async () => {
+                // Refresh full details so Activity Timeline shows new statusHistory
+                await loadFullWorkItem();
                 if (onRefresh) onRefresh();
-                if (onUpdate) onUpdate();
               }}
             />
           </div>
@@ -490,10 +569,43 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                         type: 'status',
                         timestamp: history.changedAt,
                         user: history.changedBy,
-                        fromStatus: history.fromStatus,
-                        toStatus: history.toStatus,
-                        comment: history.comment
+                        fromStatus: history.fromStatus || null,
+                        toStatus: history.toStatus || history.status,
+                        comment: history.comment || history.note || null,
                       });
+                    });
+                  }
+
+                  // Creative revision reviews — who requested changes / approved
+                  if (creativeRevisions.length > 0) {
+                    creativeRevisions.forEach((rev) => {
+                      if (rev.reviewedAt && rev.lastDecision && rev.lastDecision !== 'none') {
+                        const isChange =
+                          ['minor', 'major', 'reject', 'send_back'].includes(rev.lastDecision) ||
+                          ['changes_requested', 'rejected'].includes(rev.status);
+                        activities.push({
+                          type: 'creative_review',
+                          timestamp: rev.reviewedAt,
+                          user: rev.reviewedBy,
+                          revisionNumber: rev.revisionNumber,
+                          decision: rev.lastDecision,
+                          severity: rev.decisionSeverity,
+                          notes: rev.reviewNotes || rev.feedback || '',
+                          isChangeRequest: isChange,
+                          assigneeName:
+                            rev.assignedTo?.name ||
+                            workItem.assignedTo?.name ||
+                            'Assignee',
+                        });
+                      }
+                      if (rev.submittedAt) {
+                        activities.push({
+                          type: 'creative_submit',
+                          timestamp: rev.submittedAt,
+                          user: rev.submittedBy || rev.createdBy || rev.assignedTo,
+                          revisionNumber: rev.revisionNumber,
+                        });
+                      }
                     });
                   }
                   
@@ -523,9 +635,34 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                     });
                   }
                   
-                  // Add comments
+                  // Add comments (system status-change comments become status activities)
                   if (comments && comments.length > 0) {
+                    const statusChangePattern = /^Status changed from "([^"]+)" to "([^"]+)"$/i;
                     comments.forEach(comment => {
+                      const text = (comment.text || '').trim();
+                      const statusMatch = statusChangePattern.exec(text);
+
+                      if (statusMatch) {
+                        // Prefer structured statusHistory; use comment only as fallback
+                        const alreadyCovered = activities.some(
+                          (a) =>
+                            a.type === 'status' &&
+                            a.toStatus === statusMatch[2] &&
+                            Math.abs(new Date(a.timestamp) - new Date(comment.createdAt)) < 60000
+                        );
+                        if (!alreadyCovered) {
+                          activities.push({
+                            type: 'status',
+                            timestamp: comment.createdAt,
+                            user: comment.user,
+                            fromStatus: statusMatch[1],
+                            toStatus: statusMatch[2],
+                            comment: null,
+                          });
+                        }
+                        return;
+                      }
+
                       activities.push({
                         type: 'comment',
                         timestamp: comment.createdAt,
@@ -566,6 +703,12 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                               <div className="marker-icon edit">✏️</div>
                             ) : activity.type === 'comment' ? (
                               <div className="marker-icon comment">💬</div>
+                            ) : activity.type === 'creative_review' ? (
+                              <div className="marker-icon edit">
+                                {activity.isChangeRequest ? '📝' : '✅'}
+                              </div>
+                            ) : activity.type === 'creative_submit' ? (
+                              <div className="marker-icon status-change">📤</div>
                             ) : (
                               <div className="marker-icon created">✨</div>
                             )}
@@ -616,12 +759,18 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                             <div className="timeline-body">
                               {activity.type === 'status' && (
                                 <div className="status-change-info">
-                                  <div className="d-flex align-items-center gap-2 mb-2">
-                                    <span className="text-muted">Changed status from</span>
-                                    <Badge bg={getStatusColor(activity.fromStatus)}>
-                                      {activity.fromStatus}
-                                    </Badge>
-                                    <span className="text-muted">to</span>
+                                  <div className="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                                    {activity.fromStatus ? (
+                                      <>
+                                        <span className="text-muted">Changed status from</span>
+                                        <Badge bg={getStatusColor(activity.fromStatus)}>
+                                          {activity.fromStatus}
+                                        </Badge>
+                                        <span className="text-muted">to</span>
+                                      </>
+                                    ) : (
+                                      <span className="text-muted">Status set to</span>
+                                    )}
                                     <Badge bg={getStatusColor(activity.toStatus)}>
                                       {activity.toStatus}
                                     </Badge>
@@ -636,6 +785,46 @@ const WorkItemDetailsModal = ({ show, onHide, workItem, onUpdate, onRefresh, cur
                                       {activity.comment}
                                     </div>
                                   )}
+                                </div>
+                              )}
+                              {activity.type === 'creative_review' && (
+                                <div className="status-change-info">
+                                  <div className="mb-1">
+                                    {activity.isChangeRequest ? (
+                                      <>
+                                        Requested{' '}
+                                        <Badge bg="warning" text="dark">
+                                          {activity.severity && activity.severity !== 'none'
+                                            ? activity.severity
+                                            : activity.decision}
+                                        </Badge>{' '}
+                                        changes on <strong>Revision {activity.revisionNumber}</strong>
+                                        {' '}for <strong>{activity.assigneeName}</strong>
+                                      </>
+                                    ) : (
+                                      <>
+                                        Approved <strong>Revision {activity.revisionNumber}</strong>
+                                      </>
+                                    )}
+                                  </div>
+                                  {activity.notes && (
+                                    <div
+                                      className="mt-2 p-2"
+                                      style={{
+                                        background: '#fff8e6',
+                                        borderRadius: '6px',
+                                        fontSize: '0.9rem',
+                                        borderLeft: '3px solid #f0ad4e',
+                                      }}
+                                    >
+                                      {activity.notes}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              {activity.type === 'creative_submit' && (
+                                <div className="status-change-info">
+                                  Submitted <strong>Revision {activity.revisionNumber}</strong> for review
                                 </div>
                               )}
                               {activity.type === 'edit' && (

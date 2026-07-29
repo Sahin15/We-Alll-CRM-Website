@@ -78,7 +78,7 @@ export async function startWork(workItemId, actorId) {
 /**
  * Submit current tip revision for review.
  */
-export async function submitForReview(workItemId, actorId, { requireAttachment = true } = {}) {
+export async function submitForReview(workItemId, actorId, { requireAttachment = false } = {}) {
   const workItem = await loadCreativeWorkItem(workItemId);
   const revision = await CreativeRevision.findOne({
     workItem: workItemId,
@@ -149,10 +149,11 @@ export async function recordReviewDecision(
   if (
     (resolved === REVIEW_DECISIONS.reject ||
       resolved === REVIEW_DECISIONS.major ||
+      resolved === REVIEW_DECISIONS.minor ||
       resolved === REVIEW_DECISIONS.send_back) &&
     !String(notes || "").trim()
   ) {
-    const err = new Error("Notes are required for this review decision");
+    const err = new Error("Review / QA notes are required when requesting changes");
     err.statusCode = 400;
     throw err;
   }
@@ -201,10 +202,18 @@ export async function recordReviewDecision(
   await revision.save();
   workItem.workflowMode = "creative";
   workItem.modifiedBy = actorId;
+
+  const severityLabel =
+    revision.decisionSeverity && revision.decisionSeverity !== "none"
+      ? ` (${revision.decisionSeverity})`
+      : "";
+  const notesSuffix = notes?.trim() ? ` — ${String(notes).trim().slice(0, 240)}` : "";
   pushSystemComment(
     workItem,
     actorId,
-    `Review decision: ${resolved} on Revision ${revision.revisionNumber}`
+    resolved === REVIEW_DECISIONS.approve
+      ? `Approved Revision ${revision.revisionNumber}${notesSuffix}`
+      : `Requested changes${severityLabel} on Revision ${revision.revisionNumber}${notesSuffix}`
   );
   await workItem.save();
 
@@ -427,8 +436,49 @@ export async function listRevisions(workItemId) {
     .populate("createdBy", "name email")
     .populate("assignedTo", "name email")
     .populate("reviewedBy", "name email")
+    .populate("submittedBy", "name email")
     .populate("approvedBy", "name email")
     .populate("parentRevision", "revisionNumber");
+}
+
+const CHANGE_REQUEST_STATUSES = ["changes_requested", "rejected"];
+const CHANGE_REQUEST_SEVERITIES = ["minor", "major", "reject"];
+const CHANGE_REQUEST_DECISIONS = ["minor", "major", "reject", "send_back"];
+
+/**
+ * Count creative change requests per work item (minor/major/reject reviews).
+ * @param {string[]} workItemIds
+ * @returns {Promise<{ byWorkItem: Record<string, number>, total: number }>}
+ */
+export async function getChangeRequestCountsByWorkItems(workItemIds = []) {
+  const ids = [...new Set((workItemIds || []).map((id) => String(id)).filter(Boolean))];
+  const byWorkItem = {};
+  ids.forEach((id) => {
+    byWorkItem[id] = 0;
+  });
+
+  if (ids.length === 0) {
+    return { byWorkItem, total: 0 };
+  }
+
+  const revisions = await CreativeRevision.find({
+    workItem: { $in: ids },
+    softArchived: { $ne: true },
+    $or: [
+      { status: { $in: CHANGE_REQUEST_STATUSES } },
+      { decisionSeverity: { $in: CHANGE_REQUEST_SEVERITIES } },
+      { lastDecision: { $in: CHANGE_REQUEST_DECISIONS } },
+    ],
+  }).select("workItem");
+
+  revisions.forEach((rev) => {
+    const key = rev.workItem?.toString();
+    if (!key) return;
+    byWorkItem[key] = (byWorkItem[key] || 0) + 1;
+  });
+
+  const total = Object.values(byWorkItem).reduce((sum, n) => sum + n, 0);
+  return { byWorkItem, total };
 }
 
 export default {
@@ -441,4 +491,5 @@ export default {
   closeTask,
   addRevisionAttachment,
   listRevisions,
+  getChangeRequestCountsByWorkItems,
 };

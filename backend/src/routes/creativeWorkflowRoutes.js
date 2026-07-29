@@ -10,6 +10,7 @@ import {
   markDelivered,
   closeTask,
   listRevisions,
+  getChangeRequestCounts,
   addRevisionAttachment,
   setPostingHandoff,
   submitPostingDone,
@@ -35,6 +36,10 @@ const creativeManage = requireModulePermission("work", "work.item.update", {
 });
 
 router.use(protect);
+
+// Static paths before /:workItemId routes
+router.get("/change-counts", creativeAccess, getChangeRequestCounts);
+router.post("/change-counts", creativeAccess, getChangeRequestCounts);
 
 router.get("/:workItemId/revisions", creativeAccess, listRevisions);
 router.post("/:workItemId/start", creativeManage, startWork);

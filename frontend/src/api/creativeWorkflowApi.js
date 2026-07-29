@@ -9,6 +9,18 @@ const creativeWorkflowApi = {
     return response.data;
   },
 
+  /**
+   * Batch change-request counts for work items (creative minor/major/reject).
+   * @param {string[]} workItemIds
+   */
+  getChangeRequestCounts: async (workItemIds = []) => {
+    const ids = (workItemIds || []).map((id) => String(id)).filter(Boolean);
+    const response = await api.get(`/creative-workflow/change-counts`, {
+      params: { workItemIds: ids.join(",") },
+    });
+    return response.data;
+  },
+
   startWork: async (workItemId) => {
     const response = await api.post(`/creative-workflow/${workItemId}/start`);
     return response.data;

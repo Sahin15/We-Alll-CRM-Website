@@ -1067,8 +1067,9 @@ const updateWorkItemStatus = async (req, res) => {
       });
     }
     
-    // Store old status for notification
-    const oldStatus = workItem.status;
+    // Store previous personal status for notification / history
+    const oldStatus = currentUserStatus;
+    const oldPersonalStatus = currentUserStatus;
     
     // For multiple assignees, only update individual status, not global status
     if (workItem.assignedToMultiple && workItem.assignedToMultiple.length > 0) {
@@ -1115,6 +1116,21 @@ const updateWorkItemStatus = async (req, res) => {
     }
     
     workItem.modifiedBy = req.user._id;
+
+    // Pre-save only appends statusHistory when global `status` is modified.
+    // For multi-assignee personal Done/etc., global status may not change — record it explicitly.
+    const globalStatusChanged = workItem.isModified("status");
+    if (!globalStatusChanged) {
+      workItem.statusHistory = workItem.statusHistory || [];
+      workItem.statusHistory.push({
+        status,
+        fromStatus: oldPersonalStatus !== status ? oldPersonalStatus : undefined,
+        changedBy: req.user._id,
+        changedAt: new Date(),
+        note: `Personal status changed from "${oldPersonalStatus}" to "${status}"`,
+      });
+      workItem.markModified("statusHistory");
+    }
     
     // The pre-save middleware will handle completedAt automatically
     
@@ -1124,7 +1140,7 @@ const updateWorkItemStatus = async (req, res) => {
     }
     workItem.comments.push({
       user: req.user._id,
-      text: `Status changed from "${oldStatus}" to "${status}"`,
+      text: `Status changed from "${oldPersonalStatus}" to "${status}"`,
       createdAt: new Date(),
       isSystemComment: true
     });
