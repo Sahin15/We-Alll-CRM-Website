@@ -10,6 +10,8 @@ export const payrollAdjustmentApi = {
   create: (data) => api.post("/payroll/adjustments", data),
   lateRecommendation: (data) =>
     api.post("/payroll/adjustments/late-recommendation", data),
+  deductLeaveBalance: (data) =>
+    api.post("/payroll/adjustments/deduct-leave-balance", data),
   approve: (id, data = {}) =>
     api.post(`/payroll/adjustments/${id}/approve`, data),
   void: (id, data) => api.post(`/payroll/adjustments/${id}/void`, data),
@@ -27,6 +29,7 @@ export const ADJUSTMENT_TYPE_OPTIONS = [
   { value: "penalty", label: "Penalty (−)" },
   { value: "late_deduction", label: "Late deduction (−)" },
   { value: "absent_deduction", label: "Absent deduction (−)" },
+  { value: "leave_balance_deduction", label: "Earned leave deduction (no salary cut)" },
   { value: "manual_salary_deduction", label: "Manual deduction (−)" },
   { value: "other", label: "Other" },
 ];

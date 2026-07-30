@@ -67,7 +67,7 @@ export default function SimplePayrollPreviewPanels({
 
         <Accordion.Item eventKey="1">
           <Accordion.Header>
-            Attendance report (review only)
+            Salary or leave deduction
             {preview.attendanceReport?.suggestedDeduction > 0 && (
               <Badge bg="warning" text="dark" className="ms-2">
                 Suggested{" "}

@@ -62,6 +62,16 @@ const payrollAdjustmentSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    /** Days deducted from earned leave (leave_balance_deduction only) */
+    leaveDays: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+    payrollMeta: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
     status: {
       type: String,
       enum: ["draft", "approved", "rejected", "void"],
