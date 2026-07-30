@@ -5,6 +5,12 @@ import {
   lateDeductionFromChoice,
 } from "../services/payroll/simplePayrollCalculator.js";
 import SalaryStructure from "../models/salaryStructureModel.js";
+import {
+  applyLeaveBalanceDeduction,
+  getPayrollAbsentContext,
+  resolveDatesForLeaveDeduction,
+  reverseLeaveBalanceDeduction,
+} from "../services/payroll/payrollLeaveBalanceService.js";
 
 /**
  * GET /api/payroll/adjustments?employee=&month=&year=&status=
@@ -99,6 +105,126 @@ export const createAdjustment = async (req, res) => {
 };
 
 /**
+ * POST /api/payroll/adjustments/deduct-leave-balance
+ * Cover absent days from earned leave instead of salary deduction.
+ */
+export const createLeaveBalanceDeduction = async (req, res) => {
+  try {
+    const { employee, month, year, days, reason, remarks } = req.body;
+
+    if (!employee || !month || !year) {
+      return res.status(400).json({
+        success: false,
+        error: "employee, month, and year are required",
+      });
+    }
+
+    const emp = await User.findById(employee).select("_id employmentType");
+    if (!emp) {
+      return res.status(404).json({ success: false, error: "Employee not found" });
+    }
+
+    const periodMonth = parseInt(month, 10);
+    const periodYear = parseInt(year, 10);
+
+    const existing = await PayrollAdjustment.findOne({
+      employee,
+      month: periodMonth,
+      year: periodYear,
+      type: "leave_balance_deduction",
+      status: { $in: ["draft", "approved"] },
+    }).lean();
+
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "A leave balance deduction already exists for this employee and month. Void it first to create a new one.",
+      });
+    }
+
+    const context = await getPayrollAbsentContext(employee, periodMonth, periodYear);
+
+    const requestedDays =
+      days != null && days !== ""
+        ? Number(days)
+        : Math.min(context.coverableDays || 1, context.maxLeaveDeductible || 0);
+
+    if (!(requestedDays > 0) || Number.isNaN(requestedDays)) {
+      return res.status(400).json({
+        success: false,
+        error: "Enter a valid number of leave days to deduct",
+      });
+    }
+
+    if (!context.balance.eligibleForPaidLeave) {
+      return res.status(400).json({
+        success: false,
+        error: "Employee is not eligible for earned leave balance",
+      });
+    }
+
+    if (requestedDays > context.maxLeaveDeductible) {
+      return res.status(400).json({
+        success: false,
+        error: `Cannot deduct ${requestedDays} day(s). Earned leave remaining: ${context.maxLeaveDeductible}.`,
+      });
+    }
+
+    const resolvedDates = resolveDatesForLeaveDeduction(
+      periodMonth,
+      periodYear,
+      requestedDays,
+      context.absentDates
+    ).map((d) => d.toISOString().slice(0, 10));
+
+    if (resolvedDates.length < requestedDays) {
+      return res.status(400).json({
+        success: false,
+        error: `Could not assign ${requestedDays} day(s) in this month. Try fewer days.`,
+      });
+    }
+
+    const defaultReason = `Earned leave balance deducted for ${requestedDays} day(s) instead of salary (${periodMonth}/${periodYear})`;
+
+    const doc = await PayrollAdjustment.create({
+      employee,
+      month: periodMonth,
+      year: periodYear,
+      type: "leave_balance_deduction",
+      amount: 0,
+      leaveDays: requestedDays,
+      direction: null,
+      reason: String(reason || defaultReason).trim(),
+      remarks: remarks || "",
+      status: "draft",
+      createdBy: req.user.id,
+      payrollMeta: {
+        absentDates: resolvedDates,
+        perDaySalary: context.perDaySalary,
+        salarySaved: context.perDaySalary * requestedDays,
+      },
+      auditTrail: [
+        {
+          action: "created_leave_balance_deduction",
+          performedBy: req.user.id,
+          reason: String(reason || defaultReason).trim(),
+          newValue: { leaveDays: requestedDays, absentDates: resolvedDates },
+        },
+      ],
+    });
+
+    res.status(201).json({ success: true, data: doc });
+  } catch (error) {
+    console.error("createLeaveBalanceDeduction:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Failed to create leave balance deduction",
+    });
+  }
+};
+
+/**
  * POST /api/payroll/adjustments/late-recommendation
  * Body: { employee, month, year, choice, customAmount?, reason?, monthlySalary? }
  */
@@ -188,6 +314,29 @@ export const approveAdjustment = async (req, res) => {
       return res.status(400).json({ success: false, error: "Cannot approve a void adjustment" });
     }
 
+    if (doc.type === "leave_balance_deduction") {
+      if (doc.status === "approved") {
+        return res.status(400).json({ success: false, error: "Adjustment is already approved" });
+      }
+
+      const result = await applyLeaveBalanceDeduction({
+        employeeId: doc.employee,
+        month: doc.month,
+        year: doc.year,
+        days: doc.leaveDays,
+        absentDates: doc.payrollMeta?.absentDates || [],
+        approvedBy: req.user.id,
+        reason: doc.reason,
+      });
+
+      doc.payrollMeta = {
+        ...(doc.payrollMeta || {}),
+        createdLeaveIds: result.createdLeaveIds,
+        daysDeducted: result.daysDeducted,
+      };
+      doc.leaveDays = result.daysDeducted;
+    }
+
     const prev = doc.status;
     doc.status = "approved";
     doc.approvedBy = req.user.id;
@@ -223,6 +372,16 @@ export const voidAdjustment = async (req, res) => {
     }
 
     const prev = { status: doc.status, amount: doc.amount };
+
+    if (
+      doc.type === "leave_balance_deduction" &&
+      doc.payrollMeta?.createdLeaveIds?.length
+    ) {
+      await reverseLeaveBalanceDeduction({
+        createdLeaveIds: doc.payrollMeta.createdLeaveIds,
+      });
+    }
+
     doc.status = "void";
     doc.auditTrail.push({
       action: "voided",

@@ -14,6 +14,7 @@ export const ADJUSTMENT_TYPES = Object.freeze([
   "penalty",
   "late_deduction",
   "absent_deduction",
+  "leave_balance_deduction",
   "manual_salary_deduction",
   "manual_salary_addition",
   "other",

@@ -5,6 +5,7 @@ import {
   listAdjustments,
   createAdjustment,
   createLateDeductionFromChoice,
+  createLeaveBalanceDeduction,
   approveAdjustment,
   voidAdjustment,
 } from "../controllers/payrollAdjustmentController.js";
@@ -26,6 +27,12 @@ router.post(
   protect,
   requireSlipManage,
   createLateDeductionFromChoice
+);
+router.post(
+  "/deduct-leave-balance",
+  protect,
+  requireSlipManage,
+  createLeaveBalanceDeduction
 );
 router.post("/:id/approve", protect, requireSlipManage, approveAdjustment);
 router.post("/:id/void", protect, requireSlipManage, voidAdjustment);
