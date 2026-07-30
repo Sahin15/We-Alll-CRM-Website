@@ -10,6 +10,7 @@ import {
   updateLeaveRequest,
   getLeaveBalance,
   getLeaveUsageSummary,
+  getBulkLeaveUsageSummaries,
 } from "../controllers/leaveController.js";
 import { protect } from '../middleware/authMiddleware.js';
 
@@ -51,6 +52,12 @@ router.get(
   protect,
   requireModulePermission("leave", "leave.request.view", { legacyRoles: LEAVE_VIEW_ROLES }),
   getLeaveUsageSummary
+);
+router.get(
+  "/usage-summaries/bulk",
+  protect,
+  requireModulePermission("leave", "leave.request.view", { legacyRoles: LEAVE_VIEW_ROLES }),
+  getBulkLeaveUsageSummaries
 );
 
 // Bulk leave balance overview for all employees (HR/Admin)

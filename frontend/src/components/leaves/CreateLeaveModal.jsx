@@ -34,7 +34,13 @@ const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => {
+      const next = { ...prev, [name]: value };
+      if (next.leaveType === 'half_day' && (name === 'startDate' || name === 'leaveType')) {
+        next.endDate = name === 'startDate' ? value : prev.startDate || prev.endDate;
+      }
+      return next;
+    });
     setError('');
   };
 
@@ -84,6 +90,10 @@ const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
     }
     if (moment(formData.startDate).isAfter(moment(formData.endDate))) {
       setError('End date must be after start date');
+      return false;
+    }
+    if (formData.leaveType === 'half_day' && formData.startDate !== formData.endDate) {
+      setError('Half-day leave must be for a single date');
       return false;
     }
     if (moment(formData.startDate).isBefore(moment().startOf('day'))) {
@@ -161,6 +171,7 @@ const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
     const colors = {
       medical: '#EF4444',
       casual: '#06B6D4',
+      half_day: '#F59E0B',
       unpaid: '#6B7280',
     };
     return colors[type] || '#6B7280';
@@ -209,9 +220,9 @@ const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
 
           {/* Date Selection */}
           <Row className="mb-3">
-            <Col md={6}>
+            <Col md={formData.leaveType === 'half_day' ? 12 : 6}>
               <Form.Group>
-                <Form.Label className="fw-bold">Start Date</Form.Label>
+                <Form.Label className="fw-bold">{formData.leaveType === 'half_day' ? 'Date' : 'Start Date'}</Form.Label>
                 <Form.Control
                   type="date"
                   name="startDate"
@@ -222,6 +233,7 @@ const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
                 />
               </Form.Group>
             </Col>
+            {formData.leaveType !== 'half_day' && (
             <Col md={6}>
               <Form.Group>
                 <Form.Label className="fw-bold">End Date</Form.Label>
@@ -235,6 +247,7 @@ const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
                 />
               </Form.Group>
             </Col>
+            )}
           </Row>
 
           {/* Duration Display */}

@@ -131,22 +131,14 @@ leaveRequestSchema.statics.calculateEarnedLeaves = function (
   return computeEarnedLeaves(year, accrualDate);
 };
 
-// Static method to get comprehensive leave balance for an employee
-leaveRequestSchema.statics.getLeaveBalance = async function(employeeId, year = new Date().getFullYear()) {
-  const User = mongoose.model('User');
-  const employee = await User.findById(employeeId).select(
-    'joiningDate employmentType fullTimeStartDate internshipDetails createdAt'
-  );
-
+leaveRequestSchema.statics.buildLeaveBalance = function (
+  employee,
+  approvedLeaves,
+  year = new Date().getFullYear()
+) {
   const employmentType = employee?.employmentType;
   const isFullTime = this.isFullTimeEmployee(employee);
   const accrualDate = isFullTime ? this.getAccrualDate(employee) : null;
-
-  const approvedLeaves = await this.find({
-    employee: employeeId,
-    status: 'approved',
-    leaveYear: year
-  });
 
   const usedByCategory = {
     medical: 0,
@@ -156,7 +148,7 @@ leaveRequestSchema.statics.getLeaveBalance = async function(employeeId, year = n
 
   let totalPaidLeavesUsed = 0;
 
-  approvedLeaves.forEach(leave => {
+  approvedLeaves.forEach((leave) => {
     const days = getLeaveDayCount(leave.leaveType, leave.startDate, leave.endDate);
     const balanceCategory = getLeaveBalanceCategory(leave.leaveType);
 
@@ -185,7 +177,7 @@ leaveRequestSchema.statics.getLeaveBalance = async function(employeeId, year = n
     remainingLeaves = Math.max(0, earnedLeaves - totalPaidLeavesUsed);
   }
 
-  const balance = {
+  return {
     medical: {
       used: usedByCategory.medical,
     },
@@ -201,14 +193,70 @@ leaveRequestSchema.statics.getLeaveBalance = async function(employeeId, year = n
       used: isFullTime ? totalPaidLeavesUsed : 0,
       remaining: remainingLeaves,
       monthlyRate: MONTHLY_EARNED_LEAVE_RATE,
-      year: year,
+      year,
     },
     eligibleForPaidLeave: isFullTime,
     employmentType,
     canApplyLeaveTypes: isFullTime ? ACTIVE_LEAVE_TYPES : ["unpaid"],
   };
+};
 
-  return balance;
+// Static method to get comprehensive leave balance for an employee
+leaveRequestSchema.statics.getLeaveBalance = async function(employeeId, year = new Date().getFullYear()) {
+  const User = mongoose.model('User');
+  const employee = await User.findById(employeeId).select(
+    'joiningDate employmentType fullTimeStartDate internshipDetails createdAt'
+  );
+
+  const approvedLeaves = await this.find({
+    employee: employeeId,
+    status: 'approved',
+    leaveYear: year
+  });
+
+  return this.buildLeaveBalance(employee, approvedLeaves, year);
+};
+
+leaveRequestSchema.statics.getBulkLeaveBalances = async function(
+  employeeIds,
+  year = new Date().getFullYear()
+) {
+  const User = mongoose.model("User");
+  const uniqueIds = [...new Set(employeeIds.map(String))].filter(Boolean);
+  if (!uniqueIds.length) {
+    return {};
+  }
+
+  const employees = await User.find({ _id: { $in: uniqueIds } })
+    .select("joiningDate employmentType fullTimeStartDate internshipDetails createdAt")
+    .lean();
+
+  const approvedLeaves = await this.find({
+    employee: { $in: uniqueIds },
+    status: "approved",
+    leaveYear: year,
+  }).lean();
+
+  const leavesByEmployee = {};
+  for (const leave of approvedLeaves) {
+    const empId = leave.employee.toString();
+    if (!leavesByEmployee[empId]) {
+      leavesByEmployee[empId] = [];
+    }
+    leavesByEmployee[empId].push(leave);
+  }
+
+  const balances = {};
+  for (const employee of employees) {
+    const empId = employee._id.toString();
+    balances[empId] = this.buildLeaveBalance(
+      employee,
+      leavesByEmployee[empId] || [],
+      year
+    );
+  }
+
+  return balances;
 };
 
 // Static method to validate leave request against earned balance

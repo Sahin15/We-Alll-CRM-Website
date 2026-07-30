@@ -122,26 +122,14 @@ const LeaveManagement = () => {
 
   const loadEmployeeBalances = async (leaveData) => {
     try {
-      const uniqueEmployees = [...new Set(leaveData.map(leave => leave.employee?._id))].filter(Boolean);
-      const balances = {};
-      
-      for (const employeeId of uniqueEmployees) {
-        try {
-          const response = await leaveApi.getLeaveUsageSummary(employeeId, filters.year);
-          balances[employeeId] = response.data;
-        } catch (error) {
-          console.error(`Error loading usage summary for employee ${employeeId}:`, error);
-          // Fallback to regular balance if usage summary fails
-          try {
-            const balanceResponse = await leaveApi.getLeaveBalance(employeeId, filters.year);
-            balances[employeeId] = { balance: balanceResponse.data.balance, summary: null };
-          } catch (balanceError) {
-            console.error(`Error loading balance for employee ${employeeId}:`, balanceError);
-          }
-        }
+      const uniqueEmployees = [...new Set(leaveData.map((leave) => leave.employee?._id))].filter(Boolean);
+      if (!uniqueEmployees.length) {
+        setEmployeeBalances({});
+        return;
       }
-      
-      setEmployeeBalances(balances);
+
+      const response = await leaveApi.getBulkLeaveUsageSummaries(uniqueEmployees, filters.year);
+      setEmployeeBalances(response.data.summaries || {});
     } catch (error) {
       console.error('Error loading employee balances:', error);
     }
@@ -499,7 +487,8 @@ const LeaveManagement = () => {
                       </thead>
                       <tbody>
                         {displayedLeaves.map(leave => {
-                          const balance = employeeBalances[leave.employee?._id];
+                          const employeeId = leave.employee?._id ? String(leave.employee._id) : null;
+                          const balance = employeeId ? employeeBalances[employeeId] : null;
                           return (
                             <tr key={leave._id}>
                               <td>
@@ -584,6 +573,7 @@ const LeaveManagement = () => {
                       onCancel={handleCancelLeave}
                       getStatusColor={getStatusColor}
                       getLeaveTypeColor={getLeaveTypeColor}
+                      usageSummary={employeeBalances[leave.employee?._id ? String(leave.employee._id) : '']}
                     />
                   ))}
                 </div>

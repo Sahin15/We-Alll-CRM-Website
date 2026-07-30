@@ -5,6 +5,7 @@ import { getLeaveRequestDays } from "../utils/leaveDays.js";
 import {
   normalizeLeaveTypeForCreate,
 } from "../constants/leaveTypes.js";
+import { ANNUAL_EARNED_LEAVE_LIMIT } from "../constants/leaveCategoryLimits.js";
 
 // Create leave request
 export const createLeaveRequest = async (req, res) => {
@@ -21,8 +22,8 @@ export const createLeaveRequest = async (req, res) => {
 
     const normalizedLeaveType = normalizeLeaveTypeForCreate(leaveType);
 
-    if (!['medical', 'casual', 'unpaid', 'work_from_home'].includes(normalizedLeaveType)) {
-      return res.status(400).json({ message: "Invalid leave type. Use medical or casual." });
+    if (!['medical', 'casual', 'half_day', 'unpaid', 'work_from_home'].includes(normalizedLeaveType)) {
+      return res.status(400).json({ message: "Invalid leave type. Use medical, casual, or half day." });
     }
 
     // Validate dates
@@ -33,6 +34,16 @@ export const createLeaveRequest = async (req, res) => {
 
     if (start > end) {
       return res.status(400).json({ message: "End date must be after start date" });
+    }
+
+    if (normalizedLeaveType === "half_day") {
+      const sameDay =
+        start.getFullYear() === end.getFullYear() &&
+        start.getMonth() === end.getMonth() &&
+        start.getDate() === end.getDate();
+      if (!sameDay) {
+        return res.status(400).json({ message: "Half-day leave must be for a single date" });
+      }
     }
 
     const employeeUser = await User.findById(employee).select('employmentType internshipDetails');
@@ -220,11 +231,53 @@ export const getLeaveUsageSummary = async (req, res) => {
         totalEarned: balance.earned.earned,
         totalUsed: balance.earned.used,
         totalRemaining: balance.earned.remaining,
-        currentRatio: `${balance.earned.used}/24`
+        currentRatio: `${balance.earned.used}/${ANNUAL_EARNED_LEAVE_LIMIT}`,
       }
     });
   } catch (error) {
     
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Bulk usage summaries for HR leave table (one request instead of N per employee)
+export const getBulkLeaveUsageSummaries = async (req, res) => {
+  try {
+    if (!["admin", "superadmin", "hr", "hod"].includes(req.user.role)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const year = parseInt(req.query.year) || new Date().getFullYear();
+    const employeeIds = String(req.query.employeeIds || "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean);
+
+    if (employeeIds.length > 500) {
+      return res.status(400).json({ message: "Too many employee IDs (max 500)" });
+    }
+
+    if (!employeeIds.length) {
+      return res.status(200).json({ year, summaries: {} });
+    }
+
+    const balances = await LeaveRequest.getBulkLeaveBalances(employeeIds, year);
+    const summaries = {};
+
+    for (const [empId, balance] of Object.entries(balances)) {
+      summaries[empId] = {
+        balance,
+        summary: {
+          totalEarned: balance.earned.earned,
+          totalUsed: balance.earned.used,
+          totalRemaining: balance.earned.remaining,
+          currentRatio: `${balance.earned.used}/${ANNUAL_EARNED_LEAVE_LIMIT}`,
+        },
+      };
+    }
+
+    res.status(200).json({ year, summaries });
+  } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };

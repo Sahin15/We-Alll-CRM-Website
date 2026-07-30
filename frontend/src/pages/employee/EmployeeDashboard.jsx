@@ -839,7 +839,13 @@ const EmployeeDashboard = () => {
 
   const handleLeaveFormChange = (e) => {
     const { name, value } = e.target;
-    setLeaveFormData((prev) => ({ ...prev, [name]: value }));
+    setLeaveFormData((prev) => {
+      const next = { ...prev, [name]: value };
+      if (next.leaveType === "half_day" && (name === "startDate" || name === "leaveType")) {
+        next.endDate = name === "startDate" ? value : prev.startDate || prev.endDate;
+      }
+      return next;
+    });
   };
 
   const handleLeaveSubmit = async (e) => {
@@ -853,6 +859,11 @@ const EmployeeDashboard = () => {
 
     if (new Date(leaveFormData.endDate) < new Date(leaveFormData.startDate)) {
       toast.error('End date must be after start date');
+      return;
+    }
+
+    if (leaveFormData.leaveType === 'half_day' && leaveFormData.startDate !== leaveFormData.endDate) {
+      toast.error('Half-day leave must be for a single date');
       return;
     }
 
@@ -1813,6 +1824,28 @@ const EmployeeDashboard = () => {
                   </Card>
                 </Col>
                 )}
+                {allowedLeaveTypes.includes('half_day') && (
+                <Col md={6}>
+                  <Card 
+                    className={`leave-type-card ${leaveFormData.leaveType === 'half_day' ? 'selected' : ''}`}
+                    onClick={() => setLeaveFormData(prev => ({
+                      ...prev,
+                      leaveType: 'half_day',
+                      endDate: prev.startDate || prev.endDate,
+                    }))}
+                    style={{ cursor: 'pointer', border: leaveFormData.leaveType === 'half_day' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
+                  >
+                    <Card.Body className="py-2 px-3">
+                      <div className="d-flex align-items-center">
+                        <div className="me-3">
+                          <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#ffc107' }}></div>
+                        </div>
+                        <h6 className="mb-0">Half Day Leave</h6>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                )}
                 {allowedLeaveTypes.includes('unpaid') && (
                 <Col md={6}>
                   <Card 
@@ -1836,9 +1869,9 @@ const EmployeeDashboard = () => {
 
             {/* Date Fields */}
             <Row className="mb-3">
-              <Col md={6}>
+              <Col md={leaveFormData.leaveType === 'half_day' ? 12 : 6}>
                 <Form.Group>
-                  <Form.Label>Start Date</Form.Label>
+                  <Form.Label>{leaveFormData.leaveType === 'half_day' ? 'Date' : 'Start Date'}</Form.Label>
                   <Form.Control
                     type="date"
                     name="startDate"
@@ -1849,6 +1882,7 @@ const EmployeeDashboard = () => {
                   />
                 </Form.Group>
               </Col>
+              {leaveFormData.leaveType !== 'half_day' && (
               <Col md={6}>
                 <Form.Group>
                   <Form.Label>End Date</Form.Label>
@@ -1862,6 +1896,7 @@ const EmployeeDashboard = () => {
                   />
                 </Form.Group>
               </Col>
+              )}
             </Row>
 
             {/* Reason Field */}

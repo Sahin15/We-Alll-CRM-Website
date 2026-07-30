@@ -112,7 +112,13 @@ const MyLeaves = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => {
+      const next = { ...prev, [name]: value };
+      if (next.leaveType === "half_day" && (name === "startDate" || name === "leaveType")) {
+        next.endDate = name === "startDate" ? value : prev.startDate || prev.endDate;
+      }
+      return next;
+    });
   };
 
   const handleFileChange = (e) => {
@@ -127,6 +133,11 @@ const MyLeaves = () => {
     
     if (!formData.startDate || !formData.endDate || !formData.reason) {
       toast.error("Please fill all required fields");
+      return;
+    }
+
+    if (formData.leaveType === "half_day" && formData.startDate !== formData.endDate) {
+      toast.error("Half-day leave must be for a single date");
       return;
     }
 
@@ -182,6 +193,7 @@ const MyLeaves = () => {
     const icons = {
       casual: FaUmbrellaBeach,
       medical: FaHospital,
+      half_day: FaClock,
       unpaid: FaCalendarAlt
     };
     const IconComponent = icons[type] || FaCalendarAlt;
@@ -730,6 +742,28 @@ const MyLeaves = () => {
                   </Card>
                 </Col>
                 )}
+                {allowedLeaveTypes.includes('half_day') && (
+                <Col md={6}>
+                  <Card 
+                    className={`leave-type-card ${formData.leaveType === 'half_day' ? 'selected' : ''}`}
+                    onClick={() => setFormData(prev => ({
+                      ...prev,
+                      leaveType: 'half_day',
+                      endDate: prev.startDate || prev.endDate,
+                    }))}
+                    style={{ cursor: 'pointer', border: formData.leaveType === 'half_day' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
+                  >
+                    <Card.Body className="py-2 px-3">
+                      <div className="d-flex align-items-center">
+                        <div className="me-3">
+                          <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#ffc107' }}></div>
+                        </div>
+                        <h6 className="mb-0">Half Day Leave</h6>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                )}
                 {allowedLeaveTypes.includes('unpaid') && (
                 <Col md={6}>
                   <Card 
@@ -753,9 +787,9 @@ const MyLeaves = () => {
 
             {/* Date Fields */}
             <Row className="mb-3">
-              <Col md={6}>
+              <Col md={formData.leaveType === 'half_day' ? 12 : 6}>
                 <Form.Group>
-                  <Form.Label>Start Date</Form.Label>
+                  <Form.Label>{formData.leaveType === 'half_day' ? 'Date' : 'Start Date'}</Form.Label>
                   <Form.Control
                     type="date"
                     name="startDate"
@@ -766,6 +800,7 @@ const MyLeaves = () => {
                   />
                 </Form.Group>
               </Col>
+              {formData.leaveType !== 'half_day' && (
               <Col md={6}>
                 <Form.Group>
                   <Form.Label>End Date</Form.Label>
@@ -779,13 +814,20 @@ const MyLeaves = () => {
                   />
                 </Form.Group>
               </Col>
+              )}
             </Row>
 
             {/* Validation Alerts */}
             {formData.startDate && formData.endDate && (
               <Alert variant="info" className="mb-3">
                 <FaInfoCircle className="me-2" />
-                <strong>Leave Duration:</strong> {requestedDays} day(s)
+                <strong>Leave Duration:</strong> {requestedDays} day{requestedDays === 1 ? '' : 's'}
+                {formData.leaveType === 'half_day' && (
+                  <>
+                    <br />
+                    <span className="text-muted">Half-day leave deducts 0.5 days from your earned balance.</span>
+                  </>
+                )}
                 <br />
                 {formData.leaveType === 'unpaid' ? (
                   <span>

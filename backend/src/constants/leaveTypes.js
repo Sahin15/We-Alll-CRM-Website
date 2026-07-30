@@ -2,11 +2,11 @@ export const ANNUAL_EARNED_LEAVE_LIMIT = 24;
 export const MONTHLY_EARNED_LEAVE_RATE = 2;
 
 /** Types employees can apply for today */
-export const ACTIVE_PAID_LEAVE_TYPES = ["medical", "casual"];
+export const ACTIVE_PAID_LEAVE_TYPES = ["medical", "casual", "half_day"];
 export const ACTIVE_LEAVE_TYPES = [...ACTIVE_PAID_LEAVE_TYPES, "unpaid"];
 
 /** Stored on older leave records — still readable, mapped to balance categories */
-export const LEGACY_LEAVE_TYPES = ["personal", "vacation", "half_day"];
+export const LEGACY_LEAVE_TYPES = ["personal", "vacation"];
 
 export const ALL_STORED_LEAVE_TYPES = [
   ...ACTIVE_LEAVE_TYPES,
@@ -16,7 +16,7 @@ export const ALL_STORED_LEAVE_TYPES = [
 
 export function normalizeLeaveTypeForCreate(leaveType) {
   const type = String(leaveType || "").trim().toLowerCase();
-  if (type === "personal" || type === "vacation" || type === "half_day") {
+  if (type === "personal" || type === "vacation") {
     return "casual";
   }
   return type;

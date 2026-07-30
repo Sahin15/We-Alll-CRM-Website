@@ -48,6 +48,11 @@ export const LEAVE_TYPE_DETAILS = {
     advanceNotice: 0,
     description: "For personal matters, family events, or planned time off (label only — counts from your 24-day earned balance)",
   },
+  half_day: {
+    name: "Half Day Leave",
+    advanceNotice: 0,
+    description: "Leave for half a working day — deducts 0.5 days from your earned balance",
+  },
   unpaid: {
     name: "Unpaid Leave",
     advanceNotice: 0,
@@ -64,7 +69,6 @@ export const getLeaveTypeLabel = (leaveType) => {
   const legacyLabels = {
     personal: "Casual Leave",
     vacation: "Casual Leave",
-    half_day: "Half Day",
   };
   return legacyLabels[type] || type;
 };
