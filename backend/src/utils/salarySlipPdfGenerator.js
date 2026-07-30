@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import pkg from "number-to-words";
+import { getCompanySettings } from "../config/companySettings.js";
 const { toWords } = pkg;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -41,9 +42,7 @@ export const generateSalarySlipPDF = async (salarySlip, outputPath) => {
       const stream = fs.createWriteStream(outputPath);
       doc.pipe(stream);
 
-      // Company details - We Alll information
-      const companyName = "We Alll";
-      const companyAddress = "Cluster Rajarhat 76, 14/4c, Action Area I, Newtown, Koch Pukur, West Bengal 700156 India";
+      const { legalName: companyName, address: companyAddress } = getCompanySettings();
 
       // Colors - matching the design
       const primaryColor = "#2c3e50";
