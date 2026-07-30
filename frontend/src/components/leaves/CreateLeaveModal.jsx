@@ -14,7 +14,7 @@ const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
   const allowedLeaveTypes = getAllowedLeaveTypes(user);
 
   const [formData, setFormData] = useState({
-    leaveType: isFullTimeEmployee(user) ? 'personal' : 'unpaid',
+    leaveType: isFullTimeEmployee(user) ? 'casual' : 'unpaid',
     startDate: '',
     endDate: '',
     reason: '',
@@ -30,18 +30,11 @@ const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
     value,
     label: details.name,
     description: details.description,
-    advanceNotice: details.advanceNotice
   }));
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => {
-      const next = { ...prev, [name]: value };
-      if (next.leaveType === 'half_day' && (name === 'startDate' || name === 'leaveType')) {
-        next.endDate = name === 'startDate' ? value : prev.startDate;
-      }
-      return next;
-    });
+    setFormData((prev) => ({ ...prev, [name]: value }));
     setError('');
   };
 
@@ -166,12 +159,9 @@ const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
 
   const getLeaveTypeColor = (type) => {
     const colors = {
-      vacation: '#4F46E5',
-      sick: '#EF4444',
-      personal: '#06B6D4',
-      maternity: '#10B981',
-      paternity: '#8B5CF6',
-      unpaid: '#6B7280'
+      medical: '#EF4444',
+      casual: '#06B6D4',
+      unpaid: '#6B7280',
     };
     return colors[type] || '#6B7280';
   };

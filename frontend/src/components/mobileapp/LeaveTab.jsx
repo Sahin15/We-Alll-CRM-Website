@@ -7,10 +7,8 @@ import { getAllowedLeaveTypes, isFullTimeEmployee } from '../../utils/leaveEligi
 import { getLeaveRequestDays } from '../../utils/leaveDays';
 
 const ALL_LEAVE_TYPES = [
-  { value: 'personal', label: 'Personal Leave' },
   { value: 'medical', label: 'Medical Leave' },
-  { value: 'vacation', label: 'Vacation Leave' },
-  { value: 'half_day', label: 'Half Day' },
+  { value: 'casual', label: 'Casual Leave' },
   { value: 'unpaid', label: 'Unpaid Leave' },
 ];
 
@@ -89,7 +87,7 @@ export default function LeaveTab() {
   const { user } = useAuth();
   const allowedTypes = getAllowedLeaveTypes(user);
   const leaveTypes = ALL_LEAVE_TYPES.filter(t => allowedTypes.includes(t.value));
-  const defaultLeaveType = isFullTimeEmployee(user) ? 'personal' : 'unpaid';
+  const defaultLeaveType = isFullTimeEmployee(user) ? 'casual' : 'unpaid';
 
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -192,7 +190,6 @@ export default function LeaveTab() {
               onChange={(val) => setForm((prev) => ({
                 ...prev,
                 leaveType: val,
-                endDate: val === 'half_day' ? prev.startDate : prev.endDate,
               }))}
               leaveTypes={leaveTypes}
             />
@@ -205,11 +202,9 @@ export default function LeaveTab() {
                 type="date"
                 value={form.startDate}
                 onChange={(e) => {
-                  const startDate = e.target.value;
                   setForm((prev) => ({
                     ...prev,
-                    startDate,
-                    endDate: prev.leaveType === 'half_day' ? startDate : prev.endDate,
+                    startDate: e.target.value,
                   }));
                 }}
                 style={inputStyle}

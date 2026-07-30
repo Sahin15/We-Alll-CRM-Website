@@ -32,43 +32,41 @@ export const ROLES = {
 
 // Leave Types
 export const LEAVE_TYPES = {
-  PERSONAL: "personal",
-  MEDICAL: "medical", 
-  VACATION: "vacation",
+  MEDICAL: "medical",
+  CASUAL: "casual",
 };
 
 // Leave Type Details
 export const LEAVE_TYPE_DETAILS = {
-  personal: {
-    name: "Personal Leave",
-    total: 12,
-    advanceNotice: 3,
-    description: "Personal matters, family events, etc."
-  },
   medical: {
-    name: "Medical Leave", 
-    total: 6,
+    name: "Medical Leave",
     advanceNotice: 0,
-    description: "Illness, medical appointments, health issues"
+    description: "For illness, medical appointments, or health issues (label only — counts from your 24-day earned balance)",
   },
-  vacation: {
-    name: "Vacation Leave",
-    total: 6, 
-    advanceNotice: 30,
-    description: "Planned holidays, travel, recreation"
-  },
-  half_day: {
-    name: "Half Day",
-    total: 0,
+  casual: {
+    name: "Casual Leave",
     advanceNotice: 0,
-    description: "Leave for half of the working day (counts as 0.5 day)"
+    description: "For personal matters, family events, or planned time off (label only — counts from your 24-day earned balance)",
   },
   unpaid: {
     name: "Unpaid Leave",
-    total: 0,
-    advanceNotice: 7,
-    description: "Extended leave without pay (no limit)"
+    advanceNotice: 0,
+    description: "Extended leave without pay (no limit)",
+  },
+};
+
+/** Display label for stored leave records (includes legacy types). */
+export const getLeaveTypeLabel = (leaveType) => {
+  const type = String(leaveType || "").trim().toLowerCase();
+  if (LEAVE_TYPE_DETAILS[type]) {
+    return LEAVE_TYPE_DETAILS[type].name;
   }
+  const legacyLabels = {
+    personal: "Casual Leave",
+    vacation: "Casual Leave",
+    half_day: "Half Day",
+  };
+  return legacyLabels[type] || type;
 };
 
 // Leave Status

@@ -205,9 +205,11 @@ const LeaveManagement = () => {
 
   const getLeaveTypeColor = (type) => {
     const colors = {
-      personal: 'primary',
+      casual: 'primary',
       medical: 'danger',
-      vacation: 'success',
+      personal: 'primary',
+      vacation: 'primary',
+      half_day: 'warning',
       unpaid: 'secondary'
     };
     return colors[type] || 'secondary';

@@ -606,22 +606,27 @@
 }
 
 @media (max-width: 767.98px) and (prefers-color-scheme: dark) {
-  /* Add dark mode styles if needed */
+  /* App UI stays light — avoid gray body text on white cards/surfaces */
   body {
-    background: #1a1a1a;
-    color: #e0e0e0;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e8eaf6 100%);
+    color: #212529;
   }
-  
+
   .card {
-    background: #2a2a2a;
-    border-color: #3a3a3a;
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.08);
   }
-  
+
   .form-control,
   .form-select {
-    background: #3a3a3a;
-    border-color: #4a4a4a;
-    color: #e0e0e0;
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.125);
+    color: #212529;
+  }
+
+  h1, h2, h3, h4, h5, h6,
+  .h1, .h2, .h3, .h4, .h5, .h6 {
+    color: #1f2937;
   }
 }
 

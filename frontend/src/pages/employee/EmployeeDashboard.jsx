@@ -191,17 +191,17 @@ const EmployeeDashboard = () => {
   const [employees, setEmployees] = useState([]);
   
   const [leaveFormData, setLeaveFormData] = useState({
-    leaveType: isFullTimeEmployee(user) ? 'personal' : 'unpaid',
+    leaveType: isFullTimeEmployee(user) ? 'casual' : 'unpaid',
     startDate: '',
     endDate: '',
     reason: ''
   });
   const [leaveDetails, setLeaveDetails] = useState({
-    total: 18,
+    total: 24,
     used: 0,
-    remaining: 18,
-    personal: { total: 12, used: 0 },
-    sick: { total: 6, used: 0 },
+    remaining: 24,
+    medical: { used: 0 },
+    casual: { used: 0 },
     recentLeaves: []
   });
   const [attendanceDetails, setAttendanceDetails] = useState({
@@ -837,35 +837,9 @@ const EmployeeDashboard = () => {
   const calculateDays = (leaveType, startDate, endDate) =>
     getLeaveRequestDays(leaveType, startDate, endDate);
 
-  const validateAdvanceNotice = (leaveType, startDate) => {
-    if (!startDate) return { valid: true };
-    
-    const start = new Date(startDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const daysDifference = Math.ceil((start - today) / (1000 * 60 * 60 * 24));
-    const requiredDays = LEAVE_TYPE_DETAILS[leaveType]?.advanceNotice || 0;
-    
-    if (daysDifference < requiredDays) {
-      return {
-        valid: false,
-        message: `${LEAVE_TYPE_DETAILS[leaveType]?.name} requires ${requiredDays} days advance notice`
-      };
-    }
-    
-    return { valid: true };
-  };
-
   const handleLeaveFormChange = (e) => {
     const { name, value } = e.target;
-    setLeaveFormData((prev) => {
-      const next = { ...prev, [name]: value };
-      if (next.leaveType === 'half_day' && (name === 'startDate' || name === 'leaveType')) {
-        next.endDate = name === 'startDate' ? value : prev.startDate;
-      }
-      return next;
-    });
+    setLeaveFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleLeaveSubmit = async (e) => {
@@ -879,13 +853,6 @@ const EmployeeDashboard = () => {
 
     if (new Date(leaveFormData.endDate) < new Date(leaveFormData.startDate)) {
       toast.error('End date must be after start date');
-      return;
-    }
-
-    // Validate advance notice
-    const advanceNoticeCheck = validateAdvanceNotice(leaveFormData.leaveType, leaveFormData.startDate);
-    if (!advanceNoticeCheck.valid) {
-      toast.error(advanceNoticeCheck.message);
       return;
     }
 
@@ -924,7 +891,7 @@ const EmployeeDashboard = () => {
       toast.success('Leave application submitted successfully!');
       setShowLeaveModal(false);
       setLeaveFormData({
-        leaveType: paidLeaveEligible ? 'personal' : 'unpaid',
+        leaveType: paidLeaveEligible ? 'casual' : 'unpaid',
         startDate: '',
         endDate: '',
         reason: ''
@@ -960,9 +927,8 @@ const EmployeeDashboard = () => {
           monthlyRate: balance.earned.monthlyRate
         },
         // Category breakdown (for reference)
-        personal: balance.personal,
         medical: balance.medical,
-        vacation: balance.vacation,
+        casual: balance.casual,
         unpaid: balance.unpaid,
         recentLeaves
       });
@@ -1788,12 +1754,7 @@ const EmployeeDashboard = () => {
         .leave-type-card h6 {
           font-size: 0.95rem !important;
           font-weight: 600;
-          margin-bottom: 0.25rem;
-        }
-
-        .leave-type-card small {
-          font-size: 0.8rem;
-          line-height: 1.3;
+          margin-bottom: 0;
         }
       `}</style>
 
@@ -1816,27 +1777,6 @@ const EmployeeDashboard = () => {
                 </Alert>
               )}
               <Row className="g-3">
-                {allowedLeaveTypes.includes('vacation') && (
-                <Col md={6}>
-                  <Card 
-                    className={`leave-type-card ${leaveFormData.leaveType === 'vacation' ? 'selected' : ''}`}
-                    onClick={() => setLeaveFormData(prev => ({ ...prev, leaveType: 'vacation' }))}
-                    style={{ cursor: 'pointer', border: leaveFormData.leaveType === 'vacation' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
-                  >
-                    <Card.Body>
-                      <div className="d-flex align-items-start">
-                        <div className="me-3">
-                          <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#6f42c1' }}></div>
-                        </div>
-                        <div>
-                          <h6 className="mb-1">Vacation</h6>
-                          <small className="text-muted">Planned time off for rest and recreation</small>
-                        </div>
-                      </div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                )}
                 {allowedLeaveTypes.includes('medical') && (
                 <Col md={6}>
                   <Card 
@@ -1844,61 +1784,30 @@ const EmployeeDashboard = () => {
                     onClick={() => setLeaveFormData(prev => ({ ...prev, leaveType: 'medical' }))}
                     style={{ cursor: 'pointer', border: leaveFormData.leaveType === 'medical' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
                   >
-                    <Card.Body>
-                      <div className="d-flex align-items-start">
+                    <Card.Body className="py-2 px-3">
+                      <div className="d-flex align-items-center">
                         <div className="me-3">
                           <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#dc3545' }}></div>
                         </div>
-                        <div>
-                          <h6 className="mb-1">Sick Leave</h6>
-                          <small className="text-muted">Medical leave for illness or health issues</small>
-                        </div>
+                        <h6 className="mb-0">Medical Leave</h6>
                       </div>
                     </Card.Body>
                   </Card>
                 </Col>
                 )}
-                {allowedLeaveTypes.includes('personal') && (
+                {allowedLeaveTypes.includes('casual') && (
                 <Col md={6}>
                   <Card 
-                    className={`leave-type-card ${leaveFormData.leaveType === 'personal' ? 'selected' : ''}`}
-                    onClick={() => setLeaveFormData(prev => ({ ...prev, leaveType: 'personal' }))}
-                    style={{ cursor: 'pointer', border: leaveFormData.leaveType === 'personal' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
+                    className={`leave-type-card ${leaveFormData.leaveType === 'casual' ? 'selected' : ''}`}
+                    onClick={() => setLeaveFormData(prev => ({ ...prev, leaveType: 'casual' }))}
+                    style={{ cursor: 'pointer', border: leaveFormData.leaveType === 'casual' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
                   >
-                    <Card.Body>
-                      <div className="d-flex align-items-start">
+                    <Card.Body className="py-2 px-3">
+                      <div className="d-flex align-items-center">
                         <div className="me-3">
                           <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#0dcaf0' }}></div>
                         </div>
-                        <div>
-                          <h6 className="mb-1">Personal Leave</h6>
-                          <small className="text-muted">Personal matters and family obligations</small>
-                        </div>
-                      </div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                )}
-                {allowedLeaveTypes.includes('half_day') && (
-                <Col md={6}>
-                  <Card 
-                    className={`leave-type-card ${leaveFormData.leaveType === 'half_day' ? 'selected' : ''}`}
-                    onClick={() => setLeaveFormData(prev => ({
-                      ...prev,
-                      leaveType: 'half_day',
-                      endDate: prev.startDate || prev.endDate,
-                    }))}
-                    style={{ cursor: 'pointer', border: leaveFormData.leaveType === 'half_day' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
-                  >
-                    <Card.Body>
-                      <div className="d-flex align-items-start">
-                        <div className="me-3">
-                          <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#fd7e14' }}></div>
-                        </div>
-                        <div>
-                          <h6 className="mb-1">Half Day</h6>
-                          <small className="text-muted">Leave for half of the working day</small>
-                        </div>
+                        <h6 className="mb-0">Casual Leave</h6>
                       </div>
                     </Card.Body>
                   </Card>
@@ -1911,15 +1820,12 @@ const EmployeeDashboard = () => {
                     onClick={() => setLeaveFormData(prev => ({ ...prev, leaveType: 'unpaid' }))}
                     style={{ cursor: 'pointer', border: leaveFormData.leaveType === 'unpaid' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
                   >
-                    <Card.Body>
-                      <div className="d-flex align-items-start">
+                    <Card.Body className="py-2 px-3">
+                      <div className="d-flex align-items-center">
                         <div className="me-3">
                           <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#6c757d' }}></div>
                         </div>
-                        <div>
-                          <h6 className="mb-1">Unpaid Leave</h6>
-                          <small className="text-muted">Extended leave without pay</small>
-                        </div>
+                        <h6 className="mb-0">Unpaid Leave</h6>
                       </div>
                     </Card.Body>
                   </Card>
@@ -2062,60 +1968,23 @@ const EmployeeDashboard = () => {
             </>
           )}
 
-          {/* Leave Type Breakdown (Reference) */}
-          <h6 className="mb-3">Leave Type Breakdown (Reference)</h6>
+          {/* Leave type usage (labels only) */}
+          <h6 className="mb-3">Leave Taken by Type</h6>
           <div className="mb-4">
             <div className="d-flex justify-content-between align-items-center mb-2">
-              <span>Personal Leave</span>
-              <span className="text-muted">
-                {leaveDetails.personal?.used || 0} / {leaveDetails.personal?.total || 12} days
-              </span>
-            </div>
-            <div className="progress mb-3" style={{ height: '8px' }}>
-              <div 
-                className="progress-bar bg-info" 
-                style={{ width: `${((leaveDetails.personal?.used || 0) / (leaveDetails.personal?.total || 12)) * 100}%` }}
-              ></div>
-            </div>
-
-            <div className="d-flex justify-content-between align-items-center mb-2">
               <span>Medical Leave</span>
-              <span className="text-muted">
-                {leaveDetails.medical?.used || 0} / {leaveDetails.medical?.total || 6} days
-              </span>
+              <span className="text-muted">{leaveDetails.medical?.used || 0} days</span>
             </div>
-            <div className="progress mb-3" style={{ height: '8px' }}>
-              <div 
-                className="progress-bar bg-warning" 
-                style={{ width: `${((leaveDetails.medical?.used || 0) / (leaveDetails.medical?.total || 6)) * 100}%` }}
-              ></div>
-            </div>
-
-            <div className="d-flex justify-content-between align-items-center mb-2">
-              <span>Vacation Leave</span>
-              <span className="text-muted">
-                {leaveDetails.vacation?.used || 0} / {leaveDetails.vacation?.total || 6} days
-              </span>
-            </div>
-            <div className="progress mb-3" style={{ height: '8px' }}>
-              <div 
-                className="progress-bar bg-success" 
-                style={{ width: `${((leaveDetails.vacation?.used || 0) / (leaveDetails.vacation?.total || 6)) * 100}%` }}
-              ></div>
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <span>Casual Leave</span>
+              <span className="text-muted">{leaveDetails.casual?.used || 0} days</span>
             </div>
 
             {leaveDetails.unpaid && leaveDetails.unpaid.used > 0 && (
-              <>
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                  <span>Unpaid Leave</span>
-                  <span className="text-muted">
-                    {leaveDetails.unpaid.used} days (no limit)
-                  </span>
-                </div>
-                <div className="progress mb-3" style={{ height: '8px' }}>
-                  <div className="progress-bar bg-secondary" style={{ width: '100%' }}></div>
-                </div>
-              </>
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <span>Unpaid Leave</span>
+                <span className="text-muted">{leaveDetails.unpaid.used} days</span>
+              </div>
             )}
           </div>
 

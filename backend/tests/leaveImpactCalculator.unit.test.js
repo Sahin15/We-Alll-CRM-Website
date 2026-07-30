@@ -18,7 +18,7 @@ describe('Leave Impact Calculator - Unit Tests', () => {
     });
 
     it('should correctly identify unpaid leave types', () => {
-      const unpaidTypes = ['unpaid', 'loss_of_pay', 'lop', 'extended_sick', 'personal'];
+      const unpaidTypes = ['unpaid', 'loss_of_pay', 'lop', 'extended_sick'];
       
       for (const type of unpaidTypes) {
         expect(calculator.isLeaveTypePaid(type)).toBe(false);

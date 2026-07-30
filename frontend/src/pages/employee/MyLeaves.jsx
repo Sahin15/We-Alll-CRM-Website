@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { Container, Row, Col, Card, Button, Table, Badge, Modal, Form, ProgressBar, Alert, Nav } from "react-bootstrap";
-import { FaPlus, FaCalendarAlt, FaUmbrellaBeach, FaHospital, FaPlane, FaExclamationTriangle, FaInfoCircle, FaHome, FaEye, FaClock, FaFileAlt } from "react-icons/fa";
+import { FaPlus, FaCalendarAlt, FaUmbrellaBeach, FaHospital, FaExclamationTriangle, FaInfoCircle, FaHome, FaEye, FaClock, FaFileAlt } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
 import { leaveApi } from "../../api/leaveApi";
 import { getMyWFHRequests, cancelWFHRequest } from "../../api/wfhApi";
-import { LEAVE_TYPE_DETAILS } from "../../utils/constants";
+import { LEAVE_TYPE_DETAILS, getLeaveTypeLabel } from "../../utils/constants";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
 import {
   canApplyPaidLeave,
@@ -28,7 +28,7 @@ const MyLeaves = () => {
   const [showWFHModal, setShowWFHModal] = useState(false);
   const [leaveBalance, setLeaveBalance] = useState(null);
   const [viewLeave, setViewLeave] = useState(null);
-  const defaultLeaveType = isFullTimeEmployee(user) ? "personal" : "unpaid";
+  const defaultLeaveType = isFullTimeEmployee(user) ? "casual" : "unpaid";
   const [formData, setFormData] = useState({
     leaveType: defaultLeaveType,
     startDate: "",
@@ -102,7 +102,7 @@ const MyLeaves = () => {
   const handleCloseModal = () => {
     setShowModal(false);
     setFormData({
-      leaveType: paidLeaveEligible ? "personal" : "unpaid",
+      leaveType: paidLeaveEligible ? "casual" : "unpaid",
       startDate: "",
       endDate: "",
       reason: "",
@@ -112,15 +112,7 @@ const MyLeaves = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => {
-      const next = { ...prev, [name]: value };
-      if (next.leaveType === 'half_day') {
-        if (name === 'startDate' || name === 'leaveType') {
-          next.endDate = name === 'startDate' ? value : prev.startDate;
-        }
-      }
-      return next;
-    });
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleFileChange = (e) => {
@@ -130,38 +122,11 @@ const MyLeaves = () => {
   const calculateDays = (leaveType, startDate, endDate) =>
     getLeaveRequestDays(leaveType, startDate, endDate);
 
-  const validateAdvanceNotice = (leaveType, startDate) => {
-    if (!startDate) return { valid: true };
-    
-    const start = new Date(startDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const daysDifference = Math.ceil((start - today) / (1000 * 60 * 60 * 24));
-    const requiredDays = LEAVE_TYPE_DETAILS[leaveType]?.advanceNotice || 0;
-    
-    if (daysDifference < requiredDays) {
-      return {
-        valid: false,
-        message: `${LEAVE_TYPE_DETAILS[leaveType]?.name} requires ${requiredDays} days advance notice`
-      };
-    }
-    
-    return { valid: true };
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!formData.startDate || !formData.endDate || !formData.reason) {
       toast.error("Please fill all required fields");
-      return;
-    }
-
-    // Validate advance notice
-    const advanceNoticeCheck = validateAdvanceNotice(formData.leaveType, formData.startDate);
-    if (!advanceNoticeCheck.valid) {
-      toast.error(advanceNoticeCheck.message);
       return;
     }
 
@@ -215,9 +180,8 @@ const MyLeaves = () => {
 
   const getLeaveTypeIcon = (type) => {
     const icons = {
-      personal: FaUmbrellaBeach,
+      casual: FaUmbrellaBeach,
       medical: FaHospital,
-      vacation: FaPlane,
       unpaid: FaCalendarAlt
     };
     const IconComponent = icons[type] || FaCalendarAlt;
@@ -226,9 +190,11 @@ const MyLeaves = () => {
 
   const getLeaveTypeColor = (type) => {
     const colors = {
+      casual: "primary",
+      medical: "danger",
       personal: "primary",
-      medical: "danger", 
-      vacation: "success",
+      vacation: "primary",
+      half_day: "warning",
       unpaid: "secondary"
     };
     return colors[type] || "secondary";
@@ -236,7 +202,6 @@ const MyLeaves = () => {
 
   const requestedDays = calculateDays(formData.leaveType, formData.startDate, formData.endDate);
   const availableBalance = leaveBalance?.earned?.remaining || 0;
-  const advanceNoticeCheck = validateAdvanceNotice(formData.leaveType, formData.startDate);
 
   return (
     <Container fluid className="py-4">
@@ -244,7 +209,7 @@ const MyLeaves = () => {
         <Col>
           <div className="d-flex justify-content-between align-items-center">
             <div>
-              <h2>My Leaves & WFH</h2>
+              <h2 className="text-dark mb-0">My Leaves & WFH</h2>
               <p className="text-muted mb-0">Manage your leave applications and work from home requests</p>
             </div>
             <div className="d-flex gap-2">
@@ -355,21 +320,18 @@ const MyLeaves = () => {
             </Col>
           </Row>
 
-          {/* Individual Leave Type Cards */}
+          {/* Leave type usage (labels — progress vs earned pool) */}
           <Row className="mb-4">
-            {Object.entries(LEAVE_TYPE_DETAILS).map(([type, details]) => {
+            {["medical", "casual"].map((type) => {
               const balance = leaveBalance?.[type];
-              
-              // Skip displaying unpaid leave card since it has no limit
-              if (type === 'unpaid') return null;
-              
-              // Skip if balance data is not available for this leave type
-              if (!balance || balance.total === 0) return null;
-              
-              const percentage = (balance.remaining / balance.total) * 100;
-              
+              const details = LEAVE_TYPE_DETAILS[type];
+              const used = balance?.used || 0;
+              const earnedTotal = leaveBalance?.earned?.earned || 0;
+              const progressPct = earnedTotal > 0 ? Math.min(100, (used / earnedTotal) * 100) : 0;
+              if (!details) return null;
+
               return (
-                <Col xs={12} md={4} key={type} className="mb-3">
+                <Col xs={12} md={6} key={type} className="mb-3">
                   <Card className="border-0 shadow-sm h-100">
                     <Card.Body>
                       <div className="d-flex align-items-center mb-3">
@@ -378,24 +340,21 @@ const MyLeaves = () => {
                             {getLeaveTypeIcon(type)}
                           </div>
                         </div>
-                        <div>
+                        <div className="flex-grow-1">
                           <h6 className="mb-0">{details.name}</h6>
                           <small className="text-muted">
-                            {balance.remaining} of {balance.total} remaining
+                            {used} day{used === 1 ? "" : "s"} taken this year
                           </small>
                         </div>
                       </div>
-                      <ProgressBar 
-                        now={percentage} 
+                      <ProgressBar
+                        now={progressPct}
                         variant={getLeaveTypeColor(type)}
-                        className="mb-2"
+                        style={{ height: "8px" }}
                       />
-                      <div className="d-flex justify-content-between">
-                        <small className="text-muted">Used: {balance.used} days</small>
-                        <small className="text-muted">
-                          Notice: {details.advanceNotice === 0 ? 'Same day' : `${details.advanceNotice} days`}
-                        </small>
-                      </div>
+                      <small className="text-muted d-block mt-2">
+                        {used} of {earnedTotal} earned days
+                      </small>
                     </Card.Body>
                   </Card>
                 </Col>
@@ -420,10 +379,7 @@ const MyLeaves = () => {
                         </small>
                       </div>
                     </div>
-                    <div className="d-flex justify-content-between">
-                      <small className="text-muted">Used: {leaveBalance.unpaid.used} days</small>
-                      <small className="text-muted">Notice: 7 days</small>
-                    </div>
+                    <small className="text-muted">Used: {leaveBalance.unpaid.used} days</small>
                   </Card.Body>
                 </Card>
               </Col>
@@ -738,27 +694,6 @@ const MyLeaves = () => {
                 </Alert>
               )}
               <Row className="g-3">
-                {allowedLeaveTypes.includes('vacation') && (
-                <Col md={6}>
-                  <Card 
-                    className={`leave-type-card ${formData.leaveType === 'vacation' ? 'selected' : ''}`}
-                    onClick={() => setFormData(prev => ({ ...prev, leaveType: 'vacation' }))}
-                    style={{ cursor: 'pointer', border: formData.leaveType === 'vacation' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
-                  >
-                    <Card.Body>
-                      <div className="d-flex align-items-start">
-                        <div className="me-3">
-                          <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#6f42c1' }}></div>
-                        </div>
-                        <div>
-                          <h6 className="mb-1">Vacation</h6>
-                          <small className="text-muted">Planned time off for rest and recreation</small>
-                        </div>
-                      </div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                )}
                 {allowedLeaveTypes.includes('medical') && (
                 <Col md={6}>
                   <Card 
@@ -766,61 +701,30 @@ const MyLeaves = () => {
                     onClick={() => setFormData(prev => ({ ...prev, leaveType: 'medical' }))}
                     style={{ cursor: 'pointer', border: formData.leaveType === 'medical' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
                   >
-                    <Card.Body>
-                      <div className="d-flex align-items-start">
+                    <Card.Body className="py-2 px-3">
+                      <div className="d-flex align-items-center">
                         <div className="me-3">
                           <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#dc3545' }}></div>
                         </div>
-                        <div>
-                          <h6 className="mb-1">Sick Leave</h6>
-                          <small className="text-muted">Medical leave for illness or health issues</small>
-                        </div>
+                        <h6 className="mb-0">Medical Leave</h6>
                       </div>
                     </Card.Body>
                   </Card>
                 </Col>
                 )}
-                {allowedLeaveTypes.includes('personal') && (
+                {allowedLeaveTypes.includes('casual') && (
                 <Col md={6}>
                   <Card 
-                    className={`leave-type-card ${formData.leaveType === 'personal' ? 'selected' : ''}`}
-                    onClick={() => setFormData(prev => ({ ...prev, leaveType: 'personal' }))}
-                    style={{ cursor: 'pointer', border: formData.leaveType === 'personal' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
+                    className={`leave-type-card ${formData.leaveType === 'casual' ? 'selected' : ''}`}
+                    onClick={() => setFormData(prev => ({ ...prev, leaveType: 'casual' }))}
+                    style={{ cursor: 'pointer', border: formData.leaveType === 'casual' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
                   >
-                    <Card.Body>
-                      <div className="d-flex align-items-start">
+                    <Card.Body className="py-2 px-3">
+                      <div className="d-flex align-items-center">
                         <div className="me-3">
                           <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#0dcaf0' }}></div>
                         </div>
-                        <div>
-                          <h6 className="mb-1">Personal Leave</h6>
-                          <small className="text-muted">Personal matters and family obligations</small>
-                        </div>
-                      </div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                )}
-                {allowedLeaveTypes.includes('half_day') && (
-                <Col md={6}>
-                  <Card 
-                    className={`leave-type-card ${formData.leaveType === 'half_day' ? 'selected' : ''}`}
-                    onClick={() => setFormData(prev => ({
-                      ...prev,
-                      leaveType: 'half_day',
-                      endDate: prev.startDate || prev.endDate,
-                    }))}
-                    style={{ cursor: 'pointer', border: formData.leaveType === 'half_day' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
-                  >
-                    <Card.Body>
-                      <div className="d-flex align-items-start">
-                        <div className="me-3">
-                          <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#fd7e14' }}></div>
-                        </div>
-                        <div>
-                          <h6 className="mb-1">Half Day</h6>
-                          <small className="text-muted">Leave for half of the working day</small>
-                        </div>
+                        <h6 className="mb-0">Casual Leave</h6>
                       </div>
                     </Card.Body>
                   </Card>
@@ -833,15 +737,12 @@ const MyLeaves = () => {
                     onClick={() => setFormData(prev => ({ ...prev, leaveType: 'unpaid' }))}
                     style={{ cursor: 'pointer', border: formData.leaveType === 'unpaid' ? '2px solid #0d6efd' : '1px solid #dee2e6' }}
                   >
-                    <Card.Body>
-                      <div className="d-flex align-items-start">
+                    <Card.Body className="py-2 px-3">
+                      <div className="d-flex align-items-center">
                         <div className="me-3">
                           <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#6c757d' }}></div>
                         </div>
-                        <div>
-                          <h6 className="mb-1">Unpaid Leave</h6>
-                          <small className="text-muted">Extended leave without pay</small>
-                        </div>
+                        <h6 className="mb-0">Unpaid Leave</h6>
                       </div>
                     </Card.Body>
                   </Card>
@@ -904,13 +805,6 @@ const MyLeaves = () => {
               </Alert>
             )}
 
-            {!advanceNoticeCheck.valid && (
-              <Alert variant="warning" className="mb-3">
-                <FaExclamationTriangle className="me-2" />
-                {advanceNoticeCheck.message}
-              </Alert>
-            )}
-
             {/* Reason Field */}
             <Form.Group className="mb-3">
               <Form.Label>Reason for Leave</Form.Label>
@@ -950,7 +844,7 @@ const MyLeaves = () => {
               <Button 
                 variant="primary" 
                 type="submit"
-                disabled={!advanceNoticeCheck.valid || (paidLeaveEligible && formData.leaveType !== 'unpaid' && requestedDays > availableBalance)}
+                disabled={paidLeaveEligible && formData.leaveType !== 'unpaid' && requestedDays > availableBalance}
               >
                 Submit Request
               </Button>
@@ -981,12 +875,7 @@ const MyLeaves = () => {
         .leave-type-card h6 {
           font-size: 0.95rem !important;
           font-weight: 600;
-          margin-bottom: 0.25rem;
-        }
-
-        .leave-type-card small {
-          font-size: 0.8rem;
-          line-height: 1.3;
+          margin-bottom: 0;
         }
       `}</style>
 
@@ -1084,13 +973,8 @@ const MyLeaves = () => {
                           <span className="fw-bold">Leave Type</span>
                         </div>
                         <div className="detail-value">
-                          <Badge bg={
-                            viewLeave.leaveType === 'personal' ? 'primary' :
-                            viewLeave.leaveType === 'medical' ? 'danger' :
-                            viewLeave.leaveType === 'vacation' ? 'success' :
-                            viewLeave.leaveType === 'half_day' ? 'warning' : 'secondary'
-                          } className="text-capitalize">
-                            {LEAVE_TYPE_DETAILS[viewLeave.leaveType]?.name || viewLeave.leaveType}
+                          <Badge bg={getLeaveTypeColor(viewLeave.leaveType)} className="text-capitalize">
+                            {getLeaveTypeLabel(viewLeave.leaveType)}
                           </Badge>
                         </div>
                       </div>
