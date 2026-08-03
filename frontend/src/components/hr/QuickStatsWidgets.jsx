@@ -598,7 +598,7 @@ const QuickStatsWidgets = () => {
                             size="sm"
                             onClick={() => {
                               setShowModal(false);
-                              navigate(`/users/${item._id}`);
+                              navigate(`/employees/${item._id}`);
                             }}
                             style={{ whiteSpace: 'nowrap' }}
                           >
