@@ -23,7 +23,7 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
 
   return (
     <footer
-      className="footer mt-auto"
+      className="footer mt-auto app-footer"
       style={{
         zIndex: 1040,
         marginLeft: footerMargin,
@@ -34,8 +34,6 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
       <div
         className="footer-gradient py-3"
         style={{
-          background:
-            "linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%)",
           borderRadius: isMobile ? "0" : "16px 0 0 0",
         }}
       >

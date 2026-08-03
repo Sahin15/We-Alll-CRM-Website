@@ -605,23 +605,22 @@
   }
 }
 
-@media (max-width: 767.98px) and (prefers-color-scheme: dark) {
-  /* Add dark mode styles if needed */
-  body {
-    background: #1a1a1a;
-    color: #e0e0e0;
+@media (max-width: 767.98px) {
+  [data-theme="dark"] body {
+    background: var(--color-bg);
+    color: var(--color-text);
   }
-  
-  .card {
-    background: #2a2a2a;
-    border-color: #3a3a3a;
+
+  [data-theme="dark"] .card {
+    background: var(--card-bg);
+    border-color: var(--color-border);
   }
-  
-  .form-control,
-  .form-select {
-    background: #3a3a3a;
-    border-color: #4a4a4a;
-    color: #e0e0e0;
+
+  [data-theme="dark"] .form-control,
+  [data-theme="dark"] .form-select {
+    background: var(--color-surface-elevated);
+    border-color: var(--color-border);
+    color: var(--color-text);
   }
 }
 

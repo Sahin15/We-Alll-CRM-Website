@@ -686,66 +686,60 @@
   }
 }
 
-/* Dark Mode Support */
-@media (prefers-color-scheme: dark) {
-  .advanced-filter-panel {
-    background: #2d2d2d;
-    color: #fff;
-  }
-  
-  .advanced-filter-panel .card-body {
-    background: #343a40;
-  }
-  
-  .advanced-filter-panel .accordion-body {
-    background: #2d2d2d;
-    color: #fff;
-  }
-  
-  .advanced-filter-panel .form-control,
-  .advanced-filter-panel .form-select {
-    background: #495057;
-    border-color: #6c757d;
-    color: #fff;
-  }
-  
-  .custom-criteria-list {
-    background: #495057;
-    border-color: #6c757d;
-  }
-  
-  .custom-criteria-row {
-    background: #343a40;
-    border-color: #495057;
-  }
+/* Dark mode — user toggle */
+[data-theme="dark"] .advanced-filter-panel {
+  background: var(--color-surface);
+  color: var(--color-text);
 }
 
-/* Force Light Theme - Override All Dark Styles */
+[data-theme="dark"] .advanced-filter-panel .card-body {
+  background: var(--color-surface-elevated);
+}
+
+[data-theme="dark"] .advanced-filter-panel .accordion-body {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+[data-theme="dark"] .advanced-filter-panel .form-control,
+[data-theme="dark"] .advanced-filter-panel .form-select {
+  background: var(--color-surface-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+[data-theme="dark"] .custom-criteria-list {
+  background: var(--color-surface-elevated);
+  border-color: var(--color-border);
+}
+
+[data-theme="dark"] .custom-criteria-row {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+/* Theme-aware base styles */
 .advanced-filter-panel {
-  background: white !important;
-  color: #212529 !important;
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
 }
 
 .advanced-filter-panel .card-header {
-  background: #f8f9fa !important;
-  color: #212529 !important;
+  background: var(--card-header-bg) !important;
+  color: var(--card-title) !important;
 }
 
 .advanced-filter-panel .accordion-body {
-  background: white !important;
-  color: #212529 !important;
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
 }
 
 .advanced-filter-panel .form-control {
-  background: white !important;
-  border-color: #ced4da !important;
-  color: #212529 !important;
+  background: var(--color-surface-elevated) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
 }
 
 .advanced-filter-panel .btn {
-  color: #212529 !important;
-}
-
-.advanced-filter-panel .text-white {
-  color: #212529 !important;
+  color: var(--color-text) !important;
 }

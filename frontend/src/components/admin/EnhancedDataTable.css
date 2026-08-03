@@ -705,10 +705,10 @@
   -webkit-overflow-scrolling: touch;
 }
 
-/* Force Light Mode - Override Dark Mode */
+/* Theme-aware table surfaces */
 .enhanced-data-table {
-  background: white !important;
-  color: #212529 !important;
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
 }
 
 /* Filter Section Improvements */

@@ -37,7 +37,7 @@ const withCacheBust = (url) => {
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import api from "../../services/api";
-import workItemApi from "../../api/workItemApi";
+import ThemeToggle from "../../components/common/ThemeToggle";
 
 const CompanySwitcher = lazy(() => import("../admin/CompanySwitcher"));
 const NotificationBell = lazy(() => import("../notifications/NotificationBell"));
@@ -258,10 +258,9 @@ const Navbar = ({ toggleSidebar }) => {
 
   return (
     <BSNavbar 
-      className="shadow-sm py-2 mobile-navbar" 
+      className="shadow-sm py-2 mobile-navbar app-navbar" 
       sticky="top"
       style={{
-        background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%)',
         minHeight: '70px',
         zIndex: 1030,
         borderRadius: '0 0 0 16px',
@@ -286,24 +285,7 @@ const Navbar = ({ toggleSidebar }) => {
           <div className="mx-auto d-none d-lg-block position-relative" style={{ maxWidth: '500px', width: '100%' }} ref={searchRef}>
             <Form onSubmit={handleSearch}>
               <InputGroup 
-                className="search-bar-container"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.15) 100%)',
-                  borderRadius: '24px',
-                  overflow: 'hidden',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-                  border: '1px solid rgba(255, 255, 255, 0.4)',
-                  backdropFilter: 'blur(15px)',
-                  transition: 'all 0.3s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.15)';
-                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.25) 100%)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
-                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.15) 100%)';
-                }}
+                className="search-bar-container navbar-search-group"
               >
                 <Form.Control
                   type="text"
@@ -478,6 +460,11 @@ const Navbar = ({ toggleSidebar }) => {
               ))}
             </div>
           )}
+
+          {/* Theme Toggle */}
+          <div className="me-1 me-md-2">
+            <ThemeToggle variant="navbar" />
+          </div>
 
           {/* Notification Bell */}
           <div className="me-1 me-md-2">

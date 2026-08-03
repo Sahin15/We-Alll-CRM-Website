@@ -4,7 +4,7 @@
   left: 0;
   height: 100vh;
   width: 250px;
-  background: linear-gradient(180deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%);
+  background: var(--sidebar-bg);
   transition: all 0.3s ease;
   z-index: 1000;
   overflow-y: auto;
@@ -103,7 +103,7 @@
 
 .sidebar-header {
   background: transparent;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--sidebar-border);
   min-height: 90px;
   height: 90px;
   display: flex;

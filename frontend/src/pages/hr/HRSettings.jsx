@@ -3,6 +3,7 @@ import { Container, Row, Col, Card, Form, Button, Alert, Tab, Tabs } from 'react
 import { FaSave, FaLock, FaBell, FaPalette, FaShieldAlt, FaCog } from 'react-icons/fa';
 import NotificationSettings from '../../components/notifications/NotificationSettings';
 import { useAuth } from '../../context/AuthContext';
+import useDisplayPreferences from '../../hooks/useDisplayPreferences';
 import { toast } from 'react-toastify';
 import api from '../../services/api';
 
@@ -35,12 +36,13 @@ const HRSettings = () => {
     contractRenewalNotice: 30
   });
 
-  const [displayPrefs, setDisplayPrefs] = useState({
-    theme: 'light',
-    language: 'en',
-    dateFormat: 'MM/DD/YYYY',
-    timeFormat: '12h'
-  });
+  const {
+    displayPrefs,
+    setDisplayPrefs,
+    handleThemeChange,
+    saveDisplayPreferences,
+    saving: displaySaving,
+  } = useDisplayPreferences();
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
@@ -91,18 +93,7 @@ const HRSettings = () => {
     }
   };
 
-  const handleDisplayPrefsSave = async () => {
-    try {
-      setSaving(true);
-      // Save to localStorage for UI preferences
-      localStorage.setItem('displayPreferences', JSON.stringify(displayPrefs));
-      toast.success('Display preferences saved');
-    } catch (error) {
-      toast.error('Failed to save preferences');
-    } finally {
-      setSaving(false);
-    }
-  };
+  const handleDisplayPrefsSave = saveDisplayPreferences;
 
   return (
     <Container className="mt-4">
@@ -223,9 +214,9 @@ const HRSettings = () => {
               <h5 className="mb-4">Display Preferences</h5>
               <Form.Group className="mb-3">
                 <Form.Label>Theme</Form.Label>
-                <Form.Select value={displayPrefs.theme} onChange={(e) => setDisplayPrefs({ ...displayPrefs, theme: e.target.value })}>
+                <Form.Select value={displayPrefs.theme} onChange={(e) => handleThemeChange(e.target.value)}>
                   <option value="light">Light</option>
-                  <option value="dark">Dark (Coming Soon)</option>
+                  <option value="dark">Dark</option>
                 </Form.Select>
               </Form.Group>
               <Form.Group className="mb-3">
@@ -243,7 +234,7 @@ const HRSettings = () => {
                   <option value="24h">24-hour</option>
                 </Form.Select>
               </Form.Group>
-              <Button variant="primary" onClick={handleDisplayPrefsSave} disabled={saving}>
+              <Button variant="primary" onClick={handleDisplayPrefsSave} disabled={saving || displaySaving}>
                 <FaSave className="me-2" />Save Preferences
               </Button>
             </Card.Body>

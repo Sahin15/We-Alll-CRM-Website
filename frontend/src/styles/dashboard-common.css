@@ -16,7 +16,7 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, #667eea, #764ba2);
+  background: linear-gradient(90deg, var(--color-accent), var(--color-accent-secondary));
   transform: scaleX(0);
   transition: transform 0.3s ease;
   border-radius: 0.375rem 0.375rem 0 0;
@@ -69,7 +69,7 @@
 }
 
 .list-group-item:hover {
-  background-color: rgba(102, 126, 234, 0.04);
+  background-color: var(--color-accent-subtle);
 }
 
 /* Button hover effects - MINIMAL movement (1px only) */

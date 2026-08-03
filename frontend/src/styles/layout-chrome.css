@@ -1,0 +1,90 @@
+/* Layout chrome — navbar, sidebar, footer */
+
+.sidebar {
+  background: var(--sidebar-bg) !important;
+}
+
+.sidebar-header {
+  border-bottom-color: var(--sidebar-border) !important;
+}
+
+.mobile-navbar.app-navbar {
+  min-height: 70px;
+  z-index: 1030;
+  border-radius: 0 0 0 16px;
+  overflow: visible;
+}
+
+.navbar-search-group {
+  background: var(--chrome-surface) !important;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--chrome-border) !important;
+  backdrop-filter: blur(15px);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.navbar-search-group:focus-within {
+  border-color: var(--color-accent-border) !important;
+  box-shadow: var(--shadow-md);
+}
+
+.footer-gradient {
+  background: var(--footer-bg) !important;
+  color: var(--chrome-text);
+}
+
+.footer .text-white,
+.footer .text-white-50 {
+  color: var(--chrome-text-muted) !important;
+}
+
+.footer strong {
+  color: var(--chrome-text) !important;
+}
+
+.login-theme-toggle {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1000;
+}
+
+.login-page-shell.login-page {
+  background: var(--auth-bg) !important;
+}
+
+.login-form-container {
+  background: var(--auth-card-bg) !important;
+  color: var(--auth-text) !important;
+  border: 1px solid var(--color-border) !important;
+}
+
+[data-theme="dark"] .login-form-container .form-control {
+  background-color: var(--color-surface-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+[data-theme="dark"] .login-form-container .form-label,
+[data-theme="dark"] .form-header h2,
+[data-theme="dark"] .form-header p {
+  color: var(--auth-text);
+}
+
+[data-theme="dark"] .brand-tagline {
+  color: var(--color-text-muted) !important;
+}
+
+.welcome-screen-themed.welcome-screen {
+  background: var(--auth-bg) !important;
+}
+
+[data-theme="dark"] .sidebar .nav-link.active {
+  background: var(--sidebar-link-active);
+}
+
+[data-theme="dark"] .sidebar .nav-link:hover {
+  background: var(--sidebar-link-hover);
+}

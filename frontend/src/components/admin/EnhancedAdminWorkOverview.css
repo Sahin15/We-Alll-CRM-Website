@@ -1,28 +1,25 @@
-/* Enhanced Admin Work Overview Styles - Force Light Theme */
+/* Enhanced Admin Work Overview — theme-aware */
 .enhanced-admin-work-overview {
-  background: #f8f9fa !important;
-  background-color: #f8f9fa !important;
+  background: var(--color-bg) !important;
+  background-color: var(--color-bg) !important;
   min-height: 100vh;
   padding: 1rem 0;
-  color: #212529 !important;
+  color: var(--color-text) !important;
   position: relative;
   z-index: 1;
 }
 
-/* Ensure parent containers don't override */
 .container-fluid.enhanced-admin-work-overview {
-  background: #f8f9fa !important;
-  background-color: #f8f9fa !important;
+  background: var(--color-bg) !important;
+  background-color: var(--color-bg) !important;
 }
 
-/* Override any Bootstrap or global dark theme */
 body .enhanced-admin-work-overview {
-  background: #f8f9fa !important;
-  background-color: #f8f9fa !important;
-  color: #212529 !important;
+  background: var(--color-bg) !important;
+  background-color: var(--color-bg) !important;
+  color: var(--color-text) !important;
 }
 
-/* Ensure the entire viewport has light background */
 .enhanced-admin-work-overview::before {
   content: '';
   position: fixed;
@@ -30,13 +27,12 @@ body .enhanced-admin-work-overview {
   left: 0;
   right: 0;
   bottom: 0;
-  background: #f8f9fa;
+  background: var(--color-bg);
   z-index: -1;
 }
 
-/* Header Styles */
 .enhanced-admin-work-overview h2 {
-  color: #2c3e50;
+  color: var(--color-text);
   font-weight: 600;
 }
 
@@ -52,9 +48,9 @@ body .enhanced-admin-work-overview {
 
 /* Quick Filters Card - Light Theme */
 .quick-filters-card {
-  background: #f8f9fa !important;
-  color: #212529 !important;
-  border: 1px solid #dee2e6 !important;
+  background: var(--color-surface-muted) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
 }
 
 .quick-filters-card .form-label {
@@ -477,83 +473,35 @@ body .enhanced-admin-work-overview {
   }
 }
 
-/* Force Light Mode - Override any dark themes */
-.enhanced-admin-work-overview {
-  background: #f8f9fa !important;
-  background-color: #f8f9fa !important;
-  color: #212529 !important;
-}
-
-/* Ensure all child elements have proper light styling */
-.enhanced-admin-work-overview * {
-  color: inherit;
-}
-
-.enhanced-admin-work-overview .analytics-card {
-  background: white !important;
-  background-color: white !important;
-  color: #212529 !important;
-}
-
-.enhanced-admin-work-overview .card {
-  background: white !important;
-  background-color: white !important;
-  color: #212529 !important;
-  border: 1px solid #dee2e6 !important;
-}
-
+/* Theme-aware child surfaces */
+.enhanced-admin-work-overview .analytics-card,
+.enhanced-admin-work-overview .card,
 .enhanced-admin-work-overview .card-body {
-  background: white !important;
-  background-color: white !important;
-  color: #212529 !important;
+  background: var(--card-bg) !important;
+  background-color: var(--card-bg) !important;
+  color: var(--color-text) !important;
+  border-color: var(--color-border) !important;
 }
 
 .enhanced-admin-work-overview .card-header {
-  background: #f8f9fa !important;
-  background-color: #f8f9fa !important;
-  color: #212529 !important;
-  border-bottom: 1px solid #dee2e6 !important;
+  background: var(--card-header-bg) !important;
+  color: var(--card-title) !important;
+  border-bottom: 1px solid var(--color-border) !important;
 }
 
 .enhanced-admin-work-overview .advanced-filter-panel {
-  background: white !important;
-  background-color: white !important;
-  border-color: #dee2e6 !important;
-  color: #212529 !important;
+  background: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
 }
 
-/* Override any Bootstrap dark theme */
-.enhanced-admin-work-overview .bg-dark {
-  background: white !important;
-  background-color: white !important;
-  color: #212529 !important;
-}
-
-.enhanced-admin-work-overview .text-white {
-  color: #212529 !important;
-}
-
-/* Ensure proper text colors */
 .enhanced-admin-work-overview h1,
 .enhanced-admin-work-overview h2,
 .enhanced-admin-work-overview h3,
 .enhanced-admin-work-overview h4,
 .enhanced-admin-work-overview h5,
 .enhanced-admin-work-overview h6 {
-  color: #212529 !important;
-}
-
-.enhanced-admin-work-overview p,
-.enhanced-admin-work-overview span,
-.enhanced-admin-work-overview div {
-  color: inherit;
-}
-
-/* Override any parent dark styling */
-body.enhanced-admin-work-overview,
-html.enhanced-admin-work-overview {
-  background: #f8f9fa !important;
-  color: #212529 !important;
+  color: var(--color-text) !important;
 }
 
 /* Accessibility Improvements */

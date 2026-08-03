@@ -4,6 +4,7 @@ import { Form, Alert } from "react-bootstrap";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import { BRAND_LOGO_FULL, BRAND_NAME } from "../../constants/branding";
+import ThemeToggle from "../../components/common/ThemeToggle";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -87,7 +88,7 @@ const Login = () => {
   // Welcome Loading Screen
   if (showWelcome) {
     return (
-      <div className="welcome-screen">
+      <div className="welcome-screen welcome-screen-themed">
         <div className="sparkle sparkle-1"></div>
         <div className="sparkle sparkle-2"></div>
         <div className="sparkle sparkle-3"></div>
@@ -121,7 +122,7 @@ const Login = () => {
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%);
+            background: var(--auth-bg);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -475,7 +476,10 @@ const Login = () => {
   }
 
   return (
-    <div className="login-page">
+    <div className="login-page login-page-shell">
+      <div className="login-theme-toggle">
+        <ThemeToggle />
+      </div>
       <div className="sparkle sparkle-login-1"></div>
       <div className="sparkle sparkle-login-2"></div>
       <div className="sparkle sparkle-login-3"></div>
@@ -625,7 +629,7 @@ const Login = () => {
       <style>{`
         .login-page {
           min-height: 100vh;
-          background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%);
+          background: var(--auth-bg);
           display: flex;
           align-items: center;
           justify-content: center;

@@ -16,7 +16,7 @@
     
     <!-- Android specific meta tags -->
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="theme-color" content="#4F46E5" />
+    <meta name="theme-color" content="#6366f1" id="theme-color-meta" />
     
     <!-- Prevent search engine indexing (internal office use only) -->
     <meta name="robots" content="noindex, nofollow, noarchive, nosnippet" />
@@ -36,6 +36,27 @@
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />
     
+    <!-- Anti-flash theme script — runs before React -->
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem('displayPreferences');
+          var theme = 'light';
+          if (raw) {
+            var prefs = JSON.parse(raw);
+            if (prefs && prefs.theme === 'dark') theme = 'dark';
+          }
+          document.documentElement.setAttribute('data-theme', theme);
+          document.documentElement.setAttribute('data-bs-theme', theme);
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', theme === 'dark' ? '#0b0d12' : '#6366f1');
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'light');
+          document.documentElement.setAttribute('data-bs-theme', 'light');
+        }
+      })();
+    </script>
+
     <!-- iOS Safari fix for localStorage -->
     <script>
       // Test localStorage availability (iOS Safari private mode blocks it)

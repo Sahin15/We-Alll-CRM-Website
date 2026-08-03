@@ -537,25 +537,21 @@
     display: none;
   }
 }
-/* Force Light Theme - Override All Dark Styles */
+/* Theme-aware analytics surfaces */
 .analytics-card {
-  background: white !important;
-  color: #212529 !important;
+  background: var(--card-bg) !important;
+  color: var(--color-text) !important;
 }
 
 .workload-item {
-  background: white !important;
-  color: #212529 !important;
-  border: 1px solid #dee2e6 !important;
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
 }
 
 .action-item {
-  background: #f8f9fa !important;
-  color: #212529 !important;
-}
-
-.real-time-analytics .text-white {
-  color: #212529 !important;
+  background: var(--color-surface-muted) !important;
+  color: var(--color-text) !important;
 }
 
 .real-time-analytics .bg-dark {

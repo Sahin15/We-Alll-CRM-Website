@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Container, Row, Col, Card, Form, Button, Alert, Tab, Tabs } from 'react-bootstrap';
 import { FaSave, FaLock, FaBell, FaPalette, FaShieldAlt } from 'react-icons/fa';
 import NotificationSettings from '../../components/notifications/NotificationSettings';
+import useDisplayPreferences from '../../hooks/useDisplayPreferences';
 import toast from '../../utils/toast';
 import api from '../../services/api';
 
@@ -27,13 +28,14 @@ const Settings = () => {
     attendanceReminder: true
   });
 
-  // Display preferences
-  const [displayPrefs, setDisplayPrefs] = useState({
-    theme: 'light',
-    language: 'en',
-    dateFormat: 'MM/DD/YYYY',
-    timeFormat: '12h'
-  });
+  // Display preferences (theme synced via ThemeContext)
+  const {
+    displayPrefs,
+    setDisplayPrefs,
+    handleThemeChange,
+    saveDisplayPreferences,
+    saving: displaySaving,
+  } = useDisplayPreferences();
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
@@ -83,19 +85,7 @@ const Settings = () => {
     }
   };
 
-  const handleDisplayPrefsSave = async () => {
-    try {
-      setSaving(true);
-      // Save to localStorage for UI preferences
-      localStorage.setItem('displayPreferences', JSON.stringify(displayPrefs));
-      toast.success('Display preferences saved');
-    } catch (error) {
-      console.error('Error saving preferences:', error);
-      toast.error('Failed to save preferences');
-    } finally {
-      setSaving(false);
-    }
-  };
+  const handleDisplayPrefsSave = saveDisplayPreferences;
 
   return (
     <Container className="mt-4">
@@ -185,10 +175,10 @@ const Settings = () => {
                 <Form.Label>Theme</Form.Label>
                 <Form.Select
                   value={displayPrefs.theme}
-                  onChange={(e) => setDisplayPrefs({ ...displayPrefs, theme: e.target.value })}
+                  onChange={(e) => handleThemeChange(e.target.value)}
                 >
                   <option value="light">Light</option>
-                  <option value="dark">Dark (Coming Soon)</option>
+                  <option value="dark">Dark</option>
                 </Form.Select>
                 <Form.Text className="text-muted">
                   Choose your preferred theme
@@ -239,7 +229,7 @@ const Settings = () => {
                 </Form.Text>
               </Form.Group>
 
-              <Button variant="primary" onClick={handleDisplayPrefsSave} disabled={saving}>
+              <Button variant="primary" onClick={handleDisplayPrefsSave} disabled={saving || displaySaving}>
                 <FaSave className="me-2" />
                 {saving ? 'Saving...' : 'Save Preferences'}
               </Button>

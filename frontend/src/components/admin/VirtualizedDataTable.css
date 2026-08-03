@@ -271,30 +271,30 @@
   }
 }
 
-/* Force Light Mode - Override Dark Mode */
+/* Theme-aware virtualized table */
 .virtualized-data-table {
-  background: white !important;
-  color: #212529 !important;
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
 }
 
 .virtualized-data-table .table-controls {
-  background: #f8f9fa !important;
-  border-color: #dee2e6 !important;
-  color: #212529 !important;
+  background: var(--color-surface-muted) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
 }
 
 .virtualized-data-table .virtualized-body {
-  background: white !important;
-  color: #212529 !important;
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
 }
 
 .virtualized-data-table .virtualized-row {
-  border-color: #dee2e6 !important;
-  color: #212529 !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
 }
 
 .virtualized-data-table .virtualized-row:hover {
-  background-color: #f8f9fa !important;
+  background-color: var(--color-surface-hover) !important;
 }
 
 .virtualized-data-table .cell {
