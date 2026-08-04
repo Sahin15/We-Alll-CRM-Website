@@ -9,156 +9,109 @@ import './AttendanceCalendar.css';
  * Displays: Present, Late, Half Day, Absent, On Leave, No Data, Company Holiday
  * Note: Holidays are flexible - employees can work on any day and take holiday on another day
  */
-const AttendanceCalendar = ({ attendances, selectedMonth, selectedYear, employeeName }) => {
+const toISTDateKey = (date) => {
+  if (!date) return '';
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
+  return new Date(date).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+};
+
+const AttendanceCalendar = ({
+  attendances,
+  selectedMonth,
+  selectedYear,
+  employeeName,
+  holidays: holidaysProp,
+}) => {
   const [calendarDays, setCalendarDays] = useState([]);
-  const [holidays, setHolidays] = useState([]);
+  const [holidays, setHolidays] = useState(
+    Array.isArray(holidaysProp) ? holidaysProp : []
+  );
 
   useEffect(() => {
-    fetchHolidays();
-  }, [selectedMonth, selectedYear]);
+    if (Array.isArray(holidaysProp)) {
+      setHolidays(holidaysProp);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await holidayApi.getHolidays();
+        let holidaysData = [];
+        if (response && response.data && Array.isArray(response.data)) {
+          holidaysData = response.data;
+        } else if (Array.isArray(response)) {
+          holidaysData = response;
+        }
+        if (!cancelled) setHolidays(holidaysData);
+      } catch (error) {
+        console.error('Error fetching holidays:', error);
+        if (!cancelled) setHolidays([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedMonth, selectedYear, holidaysProp]);
 
   useEffect(() => {
     generateCalendar();
   }, [selectedMonth, selectedYear, attendances, holidays]);
 
-  const fetchHolidays = async () => {
-    try {
-      const response = await holidayApi.getHolidays();
-      console.log('🎉 Holiday API Response:', response);
-      
-      // The API returns { success: true, data: holidays }
-      let holidaysData = [];
-      if (response && response.data && Array.isArray(response.data)) {
-        holidaysData = response.data;
-      } else if (Array.isArray(response)) {
-        holidaysData = response;
-      }
-      
-      console.log('🎉 Processed holidays:', holidaysData);
-      console.log('🎉 Holidays count:', holidaysData.length);
-      setHolidays(holidaysData);
-    } catch (error) {
-      console.error('❌ Error fetching holidays:', error);
-      setHolidays([]);
-    }
-  };
-
   const generateCalendar = () => {
     const year = selectedYear || new Date().getFullYear();
-    const month = selectedMonth || new Date().getMonth();
+    const month = selectedMonth ?? new Date().getMonth();
 
-    console.log(`📅 Generating calendar for ${year}-${month + 1}, Holidays count: ${holidays.length}`);
-    if (holidays.length > 0) {
-      console.log('🎉 Available holidays:', holidays.map(h => ({ name: h.name, date: h.date })));
-    }
-
-    // Get first day of month and number of days
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay(); // 0 = Sunday, 6 = Saturday
+    const startingDayOfWeek = firstDay.getDay();
 
-    // Get today's date for comparison
-    const today = new Date();
-    const todayString = today.getFullYear() + '-' + 
-                       String(today.getMonth() + 1).padStart(2, '0') + '-' + 
-                       String(today.getDate()).padStart(2, '0');
+    const todayString = toISTDateKey(new Date());
+    const attendanceByKey = new Map();
+    for (const record of attendances || []) {
+      if (!record?.date) continue;
+      attendanceByKey.set(toISTDateKey(record.date), record);
+    }
+    const holidayByKey = new Map();
+    for (const holiday of holidays || []) {
+      if (!holiday?.date) continue;
+      holidayByKey.set(toISTDateKey(holiday.date), holiday);
+    }
 
     const days = [];
 
-    // Add empty cells for days before month starts
     for (let i = 0; i < startingDayOfWeek; i++) {
       days.push(null);
     }
 
-    // Add all days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
-      // Create date string in local timezone (YYYY-MM-DD)
-      const dateString = date.getFullYear() + '-' + 
-                        String(date.getMonth() + 1).padStart(2, '0') + '-' + 
-                        String(date.getDate()).padStart(2, '0');
+      const dateString =
+        date.getFullYear() +
+        '-' +
+        String(date.getMonth() + 1).padStart(2, '0') +
+        '-' +
+        String(date.getDate()).padStart(2, '0');
 
-      // Check if this date is in the future
       const isFutureDate = dateString > todayString;
+      const holidayData = holidayByKey.get(dateString);
+      const isHoliday = Boolean(holidayData);
+      const attendance = attendanceByKey.get(dateString);
 
-      // Check if this date is a company holiday
-      const isHoliday = holidays.some(holiday => {
-        if (!holiday || !holiday.date) return false;
-        
-        // Parse holiday date - handle both string and Date formats
-        let holidayDate;
-        if (typeof holiday.date === 'string') {
-          holidayDate = new Date(holiday.date);
-        } else {
-          holidayDate = new Date(holiday.date);
-        }
-        
-        // Get the date part only (ignore time and timezone)
-        const holidayDateString = holidayDate.getFullYear() + '-' + 
-                                 String(holidayDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                                 String(holidayDate.getDate()).padStart(2, '0');
-        
-        const match = holidayDateString === dateString;
-        if (match) {
-          console.log(`✅ Holiday found on ${dateString}: ${holiday.name}`);
-        }
-        return match;
-      });
-
-      const holidayData = holidays.find(holiday => {
-        if (!holiday || !holiday.date) return false;
-        
-        // Parse holiday date - handle both string and Date formats
-        let holidayDate;
-        if (typeof holiday.date === 'string') {
-          holidayDate = new Date(holiday.date);
-        } else {
-          holidayDate = new Date(holiday.date);
-        }
-        
-        // Get the date part only (ignore time and timezone)
-        const holidayDateString = holidayDate.getFullYear() + '-' + 
-                                 String(holidayDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                                 String(holidayDate.getDate()).padStart(2, '0');
-        
-        return holidayDateString === dateString;
-      });
-
-      // Find attendance record for this date
-      const attendance = attendances.find(a => {
-        if (!a.date) return false;
-        // Parse the attendance date - handle both string and Date formats
-        let aDate;
-        if (typeof a.date === 'string') {
-          // If it's a string, parse it directly
-          aDate = new Date(a.date);
-        } else {
-          // If it's a Date object, use it directly
-          aDate = new Date(a.date);
-        }
-        
-        // Get the date part only (ignore time and timezone)
-        const aDateString = aDate.getFullYear() + '-' + 
-                           String(aDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                           String(aDate.getDate()).padStart(2, '0');
-        
-        const match = aDateString === dateString;
-        return match;
-      });
-
-      // Determine status - holiday takes precedence, then weekend
       let status;
-      if (isHoliday) {
+      if (attendance?.status && attendance.status !== 'no-data') {
+        // Prefer real attendance (incl. worked-on-holiday / present)
+        status = attendance.status;
+      } else if (isHoliday) {
         status = 'holiday';
       } else if (date.getDay() === 0) {
-        status = 'weekend'; // Sunday — always a day off
+        status = 'weekend';
       } else if (attendance) {
         status = attendance.status;
       } else if (isFutureDate) {
-        status = 'no-data'; // Future date with no record
+        status = 'no-data';
       } else {
-        status = 'no-data'; // Past date with no record (same as table view)
+        status = 'no-data';
       }
 
       days.push({
