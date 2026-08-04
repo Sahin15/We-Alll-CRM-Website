@@ -61,12 +61,14 @@ class LeaveImpactCalculator {
         date: { $gte: monthStart, $lte: effectiveEnd }
       });
 
-      // Build set of dates with attendance records
-      const attendanceDates = new Set(
-        attendanceRecords.map(a => new Date(a.date).toDateString())
-      );
+      // PH-02: status matters — a row with status "absent" is unpaid, not present
+      const attendanceStatusByDate = new Map();
+      for (const record of attendanceRecords) {
+        const dateStr = new Date(record.date).toDateString();
+        attendanceStatusByDate.set(dateStr, record.status || "present");
+      }
 
-      // Count absent days: working days with no attendance AND no approved leave
+      // Count absent days: no record, OR record marked absent (and not on approved leave)
       let absentDays = 0;
       const absentDates = [];
       let effectiveWorkingDays = 0; // Working days up to effectiveEnd (may be less than full month)
@@ -99,8 +101,9 @@ class LeaveImpactCalculator {
         // This is a working day within the effective period
         effectiveWorkingDays++;
 
-        // If no attendance record for this working day = absent
-        if (!attendanceDates.has(dateStr)) {
+        const status = attendanceStatusByDate.get(dateStr);
+        // Missing punch, or explicit absent status → LOP day
+        if (status == null || status === "absent") {
           absentDays++;
           absentDates.push(new Date(d));
         }

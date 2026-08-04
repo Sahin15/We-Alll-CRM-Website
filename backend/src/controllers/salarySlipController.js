@@ -7,8 +7,8 @@ import WorkingDaysCalculator from "../services/workingDaysCalculator.js";
 import LeaveImpactCalculator from "../services/leaveImpactCalculator.js";
 import notificationService from "../services/notificationService.js";
 import { calculateProRataSalarySlip } from "../utils/proRataSalaryCalculator.js";
-import { dualRunPayroll } from "../services/payroll/payrollEngine.js";
 import { resolveAttendanceMoneyDeductions } from "../services/payroll/payrollCorrectnessHelpers.js";
+import { resolveSlipFieldsFromEngine } from "../services/payroll/persistableSlipMapper.js";
 import {
   assertPeriodAllows,
   sendPeriodGateError,
@@ -380,47 +380,56 @@ export const generateSalarySlip = async (req, res) => {
       // R1: single attendance money path
       const attendanceMoney = resolveAttendanceMoneyDeductions(lossOfPay);
       deductions = {
-        providentFund: proRataData.deductions.providentFund || salaryStructure.providentFund,
-        professionalTax: proRataData.deductions.professionalTax || salaryStructure.professionalTax,
-        tds: proRataData.deductions.tds || salaryStructure.tds,
-        esi: proRataData.deductions.esi || salaryStructure.esi,
+        providentFund: proRataData.deductions.providentFund ?? salaryStructure.providentFund,
+        professionalTax: proRataData.deductions.professionalTax ?? salaryStructure.professionalTax,
+        tds: proRataData.deductions.tds ?? salaryStructure.tds,
+        esi: proRataData.deductions.esi ?? salaryStructure.esi,
         lossOfPay: attendanceMoney.lossOfPay,
         unpaidLeaveDeduction: attendanceMoney.unpaidLeaveDeduction,
         advances: advances || 0,
         loans: loans || 0,
         otherDeductions: salaryStructure.otherDeductions || []
       };
-    }
 
-    const attendanceMoneyForDual = resolveAttendanceMoneyDeductions(
-      deductions.lossOfPay
-    );
-
-    // Milestone 4: dual-run V1 vs V2 engine (log only — slip still persists mapped amounts)
-    try {
-      const dual = dualRunPayroll(salaryStructure, {
-        bonus: earnings.bonus,
-        overtime: earnings.overtime,
-        arrears: earnings.arrears,
-        reimbursements: earnings.reimbursements,
-        incentives: earnings.incentives,
-        advances: deductions.advances,
-        loans: deductions.loans,
-        lossOfPay: attendanceMoneyForDual.lossOfPay,
-        lopDays: attendance.unpaidLeaves,
-      });
-      if (!dual.diff.withinTolerance) {
-        console.warn(
-          `[payroll-dual-run] mismatch employee=${employeeId} ${month}/${year} netDiff=${dual.diff.netSalary}`,
-          dual.diff
-        );
-      } else {
-        console.info(
-          `[payroll-dual-run] match employee=${employeeId} ${month}/${year} net=${dual.v1.totals.netSalary}`
-        );
+      // PH-01: dual-run + persist V2 when PAYROLL_V2_ENGINE=true; keep V1 maps when false
+      try {
+        const structureForEngine = {
+          ...(typeof salaryStructure.toObject === "function"
+            ? salaryStructure.toObject()
+            : salaryStructure),
+          basicSalary: earnings.basicSalary,
+          hra: earnings.hra,
+          specialAllowance: earnings.specialAllowance,
+          transportAllowance: earnings.transportAllowance,
+          medicalAllowance: earnings.medicalAllowance,
+          providentFund: deductions.providentFund,
+          professionalTax: deductions.professionalTax,
+          tds: deductions.tds,
+          esi: deductions.esi,
+          otherAllowances: earnings.otherAllowances,
+          otherDeductions: deductions.otherDeductions,
+        };
+        const resolved = resolveSlipFieldsFromEngine({
+          structure: structureForEngine,
+          overrides: {
+            bonus: earnings.bonus,
+            overtime: earnings.overtime,
+            arrears: earnings.arrears,
+            reimbursements: earnings.reimbursements,
+            incentives: earnings.incentives,
+            advances: deductions.advances,
+            loans: deductions.loans,
+            lossOfPay: deductions.lossOfPay,
+            lopDays: attendance.unpaidLeaves,
+          },
+          fallbackEarnings: earnings,
+          fallbackDeductions: deductions,
+        });
+        earnings = resolved.earnings;
+        deductions = resolved.deductions;
+      } catch (dualRunError) {
+        console.error("[payroll-dual-run] failed:", dualRunError.message);
       }
-    } catch (dualRunError) {
-      console.error("[payroll-dual-run] failed:", dualRunError.message);
     }
 
     // Calculate YTD
@@ -620,6 +629,46 @@ export const bulkGenerateSalarySlips = async (req, res) => {
             loans: 0,
             otherDeductions: salaryStructure.otherDeductions || []
           };
+
+          // PH-01: same persist selection as single generate
+          try {
+            const structureForEngine = {
+              ...(typeof salaryStructure.toObject === "function"
+                ? salaryStructure.toObject()
+                : salaryStructure),
+              basicSalary: earnings.basicSalary,
+              hra: earnings.hra,
+              specialAllowance: earnings.specialAllowance,
+              transportAllowance: earnings.transportAllowance,
+              medicalAllowance: earnings.medicalAllowance,
+              providentFund: deductions.providentFund,
+              professionalTax: deductions.professionalTax,
+              tds: deductions.tds,
+              esi: deductions.esi,
+              otherAllowances: earnings.otherAllowances,
+              otherDeductions: deductions.otherDeductions,
+            };
+            const resolved = resolveSlipFieldsFromEngine({
+              structure: structureForEngine,
+              overrides: {
+                bonus: 0,
+                overtime: 0,
+                arrears: 0,
+                reimbursements: 0,
+                incentives: 0,
+                advances: 0,
+                loans: 0,
+                lossOfPay: deductions.lossOfPay,
+                lopDays: attendance.unpaidLeaves,
+              },
+              fallbackEarnings: earnings,
+              fallbackDeductions: deductions,
+            });
+            earnings = resolved.earnings;
+            deductions = resolved.deductions;
+          } catch (dualRunError) {
+            console.error("[payroll-dual-run] bulk failed:", dualRunError.message);
+          }
         }
 
         // Calculate YTD
