@@ -1,6 +1,6 @@
 {
   "name": "crm-backend",
-  "version": "5.1.0",
+  "version": "5.2.0",
   "description": "Backend for CRM project (MERN) - Node, Express, MongoDB",
   "type": "module",
   "main": "src/server.js",
