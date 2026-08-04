@@ -53,7 +53,7 @@ export const NotificationProvider = ({ children }) => {
         newNotifications = newNotifications.filter(n => !deletedIdsRef.current.has(n._id));
       }
 
-      // Play sound if unread count increased
+      // Play sound only after AudioContext is unlocked (avoids autoplay console noise)
       if (newUnreadCount > prevUnreadRef.current) {
         try { await playSound(); } catch {}
       }

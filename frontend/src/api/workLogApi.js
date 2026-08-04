@@ -16,13 +16,12 @@ export const saveDraft = async (workLog) => {
 export const getTodayWorkLog = async () => {
   try {
     const response = await api.get("/worklogs/today");
-    return response.data;
+    return response.data; // null when no log for today
   } catch (error) {
-    // 404 is expected when no work log exists for today
+    // Legacy servers returned 404 when no log existed
     if (error.response?.status === 404) {
-      return null; // Return null instead of throwing
+      return null;
     }
-    // Re-throw other errors
     throw error;
   }
 };
