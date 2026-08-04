@@ -647,8 +647,12 @@ export const getAttendanceSummary = async (req, res) => {
     const { employeeId } = req.params;
     const { month, year } = req.query;
 
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
+    // IST month bounds so UTC production matches India calendar days
+    const { getMonthBoundsIST } = await import("../utils/timezone.js");
+    const { start: startDate, end: endDate } = getMonthBoundsIST(
+      parseInt(year, 10),
+      parseInt(month, 10)
+    );
 
     const attendance = await Attendance.find({
       employee: employeeId,
