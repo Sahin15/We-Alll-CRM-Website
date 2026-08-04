@@ -28,6 +28,50 @@ export const REPORTING_LIFECYCLE_STATUSES = Object.freeze([
 /** Default bank export status — finalized, ready for payment (not generated, not paid). */
 export const DEFAULT_BANK_EXPORT_STATUS = "approved";
 
+/**
+ * PH-07: Bank NEFT may only filter these statuses (blocks generated/draft).
+ * Includes V1 post-generate lifecycle (sent/viewed/downloaded) and approved/paid.
+ */
+export const BANK_NEFT_ALLOWED_STATUSES = Object.freeze([
+  "approved",
+  "sent",
+  "viewed",
+  "downloaded",
+  "paid",
+  "exported",
+  "payment_processing",
+]);
+
+export class BankExportStatusError extends Error {
+  /**
+   * @param {string} status
+   */
+  constructor(status) {
+    super(
+      `Bank NEFT export cannot use status "${status}". Allowed: ${BANK_NEFT_ALLOWED_STATUSES.join(", ")}. Generate slips must be approved (or sent) before bank export.`
+    );
+    this.name = "BankExportStatusError";
+    this.code = "BANK_EXPORT_STATUS";
+    this.httpStatus = 400;
+    this.details = {
+      status,
+      allowedStatuses: [...BANK_NEFT_ALLOWED_STATUSES],
+    };
+  }
+}
+
+/**
+ * @param {string} status
+ * @throws {BankExportStatusError}
+ */
+export function assertBankNeftExportStatus(status) {
+  const s = String(status || "").trim();
+  if (!BANK_NEFT_ALLOWED_STATUSES.includes(s)) {
+    throw new BankExportStatusError(s || "(empty)");
+  }
+  return s;
+}
+
 export const EXPORT_TYPES = Object.freeze({
   BANK_NEFT: "bank_neft",
   REGISTER_PF: "register_pf",
@@ -90,6 +134,9 @@ export function buildExportManifest({
 export default {
   REPORTING_LIFECYCLE_STATUSES,
   DEFAULT_BANK_EXPORT_STATUS,
+  BANK_NEFT_ALLOWED_STATUSES,
+  BankExportStatusError,
+  assertBankNeftExportStatus,
   EXPORT_TYPES,
   EXPORT_STATUSES,
   buildExportManifest,

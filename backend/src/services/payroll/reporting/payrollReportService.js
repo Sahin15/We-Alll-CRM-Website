@@ -9,6 +9,8 @@ import { getBankExportFormat, listBankExportFormats } from "./bankExportFormats.
 import { getComplianceRegisterBuilder } from "./complianceRegisterBuilders.js";
 import {
   DEFAULT_BANK_EXPORT_STATUS,
+  BANK_NEFT_ALLOWED_STATUSES,
+  assertBankNeftExportStatus,
   EXPORT_TYPES,
   EXPORT_STATUSES,
   buildExportManifest,
@@ -132,11 +134,14 @@ export async function exportBankNeftCsv({
     throw new Error("month and year are required");
   }
 
+  // PH-07: hard-block bank files for draft/generated filters
+  const safeStatus = assertBankNeftExportStatus(status);
+
   const format = getBankExportFormat(formatId);
-  const slips = await loadSlipsForReporting({ month, year, status });
+  const slips = await loadSlipsForReporting({ month, year, status: safeStatus });
   const built = format.build({ slips });
 
-  const fileName = `bank-neft-${year}-${String(month).padStart(2, "0")}-${status}.${format.extension}`;
+  const fileName = `bank-neft-${year}-${String(month).padStart(2, "0")}-${safeStatus}.${format.extension}`;
   const { url, storage } = await storeExportFile(built.csv, fileName, generatedBy);
 
   const exportStatus =
@@ -150,7 +155,7 @@ export async function exportBankNeftCsv({
     exportType: EXPORT_TYPES.BANK_NEFT,
     month,
     year,
-    payrollStatusFilter: status,
+    payrollStatusFilter: safeStatus,
     employeeCount: built.employeeCount,
     totalAmount: built.totalAmount,
     generatedBy,
@@ -261,6 +266,7 @@ export async function listExportHistory(filters = {}) {
 export function getReportingCapabilities() {
   return {
     defaultBankExportStatus: DEFAULT_BANK_EXPORT_STATUS,
+    bankExportAllowedStatuses: [...BANK_NEFT_ALLOWED_STATUSES],
     lifecycleStatuses: REPORTING_LIFECYCLE_STATUSES,
     bankFormats: listBankExportFormats(),
     complianceRegisters: ["pf", "esi", "pt", "tds"],

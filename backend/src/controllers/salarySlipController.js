@@ -887,6 +887,9 @@ export const updateSalarySlip = async (req, res) => {
       });
     }
 
+    // PH-08: block edits when period is locked/paid (gates on)
+    await assertPeriodAllows("mutate", slip.year, slip.month);
+
     // Update allowed fields
     const allowedUpdates = [
       "bonus", "overtime", "arrears", "reimbursements", "incentives",
@@ -913,7 +916,7 @@ export const updateSalarySlip = async (req, res) => {
       salarySlip: slip
     });
   } catch (error) {
-    
+    if (sendPeriodGateError(res, error)) return;
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -938,13 +941,16 @@ export const deleteSalarySlip = async (req, res) => {
       });
     }
 
+    // PH-08
+    await assertPeriodAllows("mutate", slip.year, slip.month);
+
     await SalarySlip.findByIdAndDelete(id);
 
     res.status(200).json({
       message: "Salary slip deleted successfully"
     });
   } catch (error) {
-    
+    if (sendPeriodGateError(res, error)) return;
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -1436,7 +1442,8 @@ export const recalculateSalarySlip = async (req, res) => {
       });
     }
 
-    await assertPeriodAllows("generate", slip.year, slip.month);
+    // PH-08: recalc is a mutation — blocked when period locked/paid
+    await assertPeriodAllows("mutate", slip.year, slip.month);
 
     const salaryStructure = slip.salaryStructure;
     if (!salaryStructure) {

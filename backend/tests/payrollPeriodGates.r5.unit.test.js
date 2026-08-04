@@ -13,9 +13,10 @@ describe("payrollPeriodGates (R5)", () => {
     else process.env.PAYROLL_PERIOD_GATES = original;
   });
 
-  it("defines generate/export for open|frozen and markPaid for locked", () => {
+  it("defines generate/export/mutate for open|frozen and markPaid for locked", () => {
     expect(PERIOD_GATE_OPS.generate).toEqual(["open", "frozen"]);
     expect(PERIOD_GATE_OPS.export).toEqual(["open", "frozen"]);
+    expect(PERIOD_GATE_OPS.mutate).toEqual(["open", "frozen"]);
     expect(PERIOD_GATE_OPS.markPaid).toEqual(["locked"]);
   });
 
@@ -40,13 +41,17 @@ describe("payrollPeriodGates (R5)", () => {
     expect(missing.reason).toBe("missing");
   });
 
-  it("allows generate/export only for open and frozen", () => {
+  it("allows generate/export/mutate only for open and frozen", () => {
     expect(evaluatePeriodGate("generate", "open").allowed).toBe(true);
     expect(evaluatePeriodGate("generate", "frozen").allowed).toBe(true);
     expect(evaluatePeriodGate("generate", "locked").allowed).toBe(false);
     expect(evaluatePeriodGate("generate", "paid").allowed).toBe(false);
     expect(evaluatePeriodGate("export", "frozen").allowed).toBe(true);
     expect(evaluatePeriodGate("export", "locked").allowed).toBe(false);
+    expect(evaluatePeriodGate("mutate", "open").allowed).toBe(true);
+    expect(evaluatePeriodGate("mutate", "frozen").allowed).toBe(true);
+    expect(evaluatePeriodGate("mutate", "locked").allowed).toBe(false);
+    expect(evaluatePeriodGate("mutate", "paid").allowed).toBe(false);
   });
 
   it("allows markPaid only when locked", () => {
