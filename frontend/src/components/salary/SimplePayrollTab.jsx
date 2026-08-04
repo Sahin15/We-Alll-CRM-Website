@@ -1517,16 +1517,50 @@ const SimplePayrollTab = () => {
             </Modal.Title>
           </Modal.Header>
           <Modal.Body>
-            <Alert variant="light" className="border small py-2">
-              Method is locked to{" "}
-              <strong>
-                {deductForm.method === "leave"
-                  ? "earned leave"
-                  : "salary"}
-              </strong>
-              . Cancel and pick the other card only if no deduction exists yet
-              for this month.
-            </Alert>
+            <Row className="g-2 mb-3">
+              <Col xs={6}>
+                <div
+                  className={`border rounded p-3 h-100${
+                    deductForm.method === "salary"
+                      ? " border-primary bg-primary bg-opacity-10"
+                      : " opacity-50"
+                  }`}
+                >
+                  <div className="d-flex align-items-center justify-content-between mb-1">
+                    <span className="fw-semibold text-primary small">
+                      Deduct from salary
+                    </span>
+                    {deductForm.method === "salary" && (
+                      <Badge bg="primary">Selected</Badge>
+                    )}
+                  </div>
+                  <p className="text-muted small mb-0">
+                    Reduces net by per-day rate × days.
+                  </p>
+                </div>
+              </Col>
+              <Col xs={6}>
+                <div
+                  className={`border rounded p-3 h-100${
+                    deductForm.method === "leave"
+                      ? " border-success bg-success bg-opacity-10"
+                      : " opacity-50"
+                  }`}
+                >
+                  <div className="d-flex align-items-center justify-content-between mb-1">
+                    <span className="fw-semibold text-success small">
+                      Deduct from earned leave
+                    </span>
+                    {deductForm.method === "leave" && (
+                      <Badge bg="success">Selected</Badge>
+                    )}
+                  </div>
+                  <p className="text-muted small mb-0">
+                    Uses leave balance — full salary paid.
+                  </p>
+                </div>
+              </Col>
+            </Row>
             <Form.Group className="mb-3">
               <Form.Label>Number of days</Form.Label>
               <Form.Control
