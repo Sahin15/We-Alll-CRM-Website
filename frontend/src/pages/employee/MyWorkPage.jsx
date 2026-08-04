@@ -25,7 +25,8 @@ const MyWorkPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showTodayOnly, setShowTodayOnly] = useState(true);
+  // Default to all items so newly assigned work with a future due date is visible
+  const [showTodayOnly, setShowTodayOnly] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [bulkMode, setBulkMode] = useState(false);
   const [showAssignWorkModal, setShowAssignWorkModal] = useState(false);

@@ -50,7 +50,37 @@ export function isWorkItemOverdue(workItem, userId, referenceDate = new Date()) 
   return getDaysUntilDue(workItem.dueDate, referenceDate) < 0;
 }
 
+/**
+ * Whether the user is an assignee (single or multi). Creators who only assigned
+ * work to others are not assignees — /my-work still returns those items.
+ *
+ * @param {object|null|undefined} workItem
+ * @param {string|object|null|undefined} userId
+ * @returns {boolean}
+ */
+export function isWorkItemAssignedToUser(workItem, userId) {
+  const uid = normalizeId(userId);
+  if (!workItem || !uid) return false;
+
+  if (normalizeId(workItem.assignedTo) === uid) return true;
+
+  const multiIds = (workItem.assignedToMultiple || []).map(normalizeId).filter(Boolean);
+  return multiIds.includes(uid);
+}
+
+/**
+ * Pending work the user is responsible for (assigned to them, not Done/Cancelled).
+ * Excludes drafts and items they only created for someone else.
+ *
+ * @param {object|null|undefined} workItem
+ * @param {string|object|null|undefined} userId
+ * @returns {boolean}
+ */
 export function isPendingWorkItem(workItem, userId) {
+  if (!workItem || workItem.isDeleted) return false;
+  if (workItem.visibility === 'draft') return false;
+  if (!isWorkItemAssignedToUser(workItem, userId)) return false;
+
   const status = getEffectiveStatusForUser(workItem, userId);
   return !TERMINAL_STATUSES.has(status);
 }

@@ -54,11 +54,10 @@ export const AuthProvider = ({ children }) => {
   const [authzLoading, setAuthzLoading] = useState(false);
   const healthMonitorCleanup = useRef(null);
 
-  const loadAuthzEffective = useCallback(async (options = {}) => {
-    const { silent = false } = options;
-    if (!silent) {
-      setAuthzLoading(true);
-    }
+  const loadAuthzEffective = useCallback(async (_options = {}) => {
+    // Always set authzLoading so PermissionRoute waits for first resolution.
+    // App boot uses a separate `loading` flag and is not blocked by this.
+    setAuthzLoading(true);
     try {
       const data = await authzApi.getEffective();
       setAuthzEffective(data);
@@ -67,9 +66,7 @@ export const AuthProvider = ({ children }) => {
       setAuthzEffective(null);
       return null;
     } finally {
-      if (!silent) {
-        setAuthzLoading(false);
-      }
+      setAuthzLoading(false);
     }
   }, []);
 
