@@ -84,19 +84,24 @@ export const AuthProvider = ({ children }) => {
           try {
             const parsedUser = JSON.parse(storedUser);
             setUser(parsedUser);
+            // Unblock UI immediately with cached session — refresh in background
+            setLoading(false);
 
-            // Refresh profile from API (includes profilePicture; fixes stale localStorage)
-            try {
-              const response = await authApi.getCurrentUser();
-              const freshUser = response?.data?.user;
-              if (freshUser) {
-                setUser(freshUser);
-                safeLocalStorage.setItem("user", JSON.stringify(freshUser));
-              }
-            } catch {
-              // Keep cached user if refresh fails (offline, etc.)
-            }
-            loadAuthzEffective();
+            // Refresh profile + authz without blocking first paint
+            authApi
+              .getCurrentUser()
+              .then((response) => {
+                const freshUser = response?.data?.user;
+                if (freshUser) {
+                  setUser(freshUser);
+                  safeLocalStorage.setItem("user", JSON.stringify(freshUser));
+                }
+              })
+              .catch(() => {
+                // Keep cached user if refresh fails (offline, etc.)
+              });
+            loadAuthzEffective({ silent: true });
+            return;
           } catch (parseError) {
             safeLocalStorage.removeItem("token");
             safeLocalStorage.removeItem("user");

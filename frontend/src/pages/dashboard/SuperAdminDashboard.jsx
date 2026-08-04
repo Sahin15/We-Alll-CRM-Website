@@ -117,8 +117,10 @@ const AdminDashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      const today = new Date().toISOString().split('T')[0];
+      const apiStartTime = Date.now();
       
-      const [usersRes, projectRes, clientRes, departmentRes, leadsRes, announcementsRes, documentsRes, policiesRes, meetingsRes] = await Promise.all([
+      const [usersRes, projectRes, clientRes, departmentRes, leadsRes, announcementsRes, documentsRes, policiesRes, meetingsRes, attendanceRes, approvedLeavesRes, pendingLeavesRes] = await Promise.all([
         userApi.getAllUsers({ status: 'active', limit: 1000 }),
         projectApi.getAllProjects(),
         clientApi.getAllClients(),
@@ -128,7 +130,11 @@ const AdminDashboard = () => {
         documentApi.getAllDocuments().catch(() => ({ data: [] })),
         policyApi.getAllPolicies().catch(() => ({ data: [] })),
         meetingApi.getAllMeetings().catch(() => ({ data: [] })),
+        attendanceApi.getAllAttendance({ date: today }).catch(() => ({ data: [] })),
+        leaveApi.getAllLeaves({ status: 'approved' }).catch(() => ({ data: [] })),
+        leaveApi.getAllLeaves({ status: 'pending' }).catch(() => ({ data: [] })),
       ]);
+      const apiResponseTime = Date.now() - apiStartTime;
       
       const users = usersRes.data || [];
       const projects = projectRes.data || [];
@@ -154,37 +160,19 @@ const AdminDashboard = () => {
         return projects.filter(p => p.department?._id === d._id || p.department === d._id).length;
       });
       
-      const today = new Date().toISOString().split('T')[0];
-      let presentToday = 0;
-      let lateToday = 0;
-      let onLeaveToday = 0;
+      const presentToday = attendanceRes.data?.filter(a => 
+        a.status === 'present' || a.status === 'late' || a.status === 'half-day'
+      ).length || 0;
+      const lateToday = attendanceRes.data?.filter(a => a.status === 'late').length || 0;
       
-      try {
-        const attendanceRes = await attendanceApi.getAllAttendance({ date: today });
-        // Count all who clocked in (present, late, half-day) as "present today"
-        presentToday = attendanceRes.data?.filter(a => 
-          a.status === 'present' || a.status === 'late' || a.status === 'half-day'
-        ).length || 0;
-        lateToday = attendanceRes.data?.filter(a => a.status === 'late').length || 0;
-        
-        const allLeavesRes = await leaveApi.getAllLeaves({ status: 'approved' });
-        const todayDate = new Date(today);
-        onLeaveToday = allLeavesRes.data?.filter(leave => {
-          const startDate = new Date(leave.startDate);
-          const endDate = new Date(leave.endDate);
-          return todayDate >= startDate && todayDate <= endDate;
-        }).length || 0;
-      } catch (err) {
-        // console.log('Attendance/Leave data not available');
-      }
+      const todayDate = new Date(today);
+      const onLeaveToday = approvedLeavesRes.data?.filter(leave => {
+        const startDate = new Date(leave.startDate);
+        const endDate = new Date(leave.endDate);
+        return todayDate >= startDate && todayDate <= endDate;
+      }).length || 0;
       
-      let pendingLeaves = 0;
-      try {
-        const leavesRes = await leaveApi.getAllLeaves({ status: 'pending' });
-        pendingLeaves = leavesRes.data?.length || 0;
-      } catch (err) {
-        // console.log('Leave data not available');
-      }
+      const pendingLeaves = pendingLeavesRes.data?.length || 0;
 
       // Calculate OFFICE health based on HR/operations factors
       let officeHealth = 100;
@@ -209,32 +197,10 @@ const AdminDashboard = () => {
       
       officeHealth = Math.max(0, Math.min(100, officeHealth)); // Keep between 0-100
 
-      // Calculate SYSTEM health based on technical factors
+      // System health from initial fetch timing — no duplicate API probes
       let systemHealth = 100;
-      let apiErrors = 0;
-      let apiResponseTime = 0;
-      
-      // Check API health by testing response times
-      const apiStartTime = Date.now();
-      try {
-        await Promise.all([
-          userApi.getAllUsers({ status: 'active', limit: 1000 }).catch(() => { apiErrors++; }),
-          projectApi.getAllProjects().catch(() => { apiErrors++; }),
-          clientApi.getAllClients().catch(() => { apiErrors++; })
-        ]);
-        apiResponseTime = Date.now() - apiStartTime;
-      } catch (err) {
-        apiErrors++;
-      }
-      
-      // Reduce health based on API errors
-      if (apiErrors > 2) systemHealth -= 30;
-      else if (apiErrors > 0) systemHealth -= 15;
-      
-      // Reduce health based on slow API response
       if (apiResponseTime > 3000) systemHealth -= 20;
       else if (apiResponseTime > 1500) systemHealth -= 10;
-      
       systemHealth = Math.max(0, Math.min(100, systemHealth));
 
       setStats({
@@ -312,20 +278,15 @@ const AdminDashboard = () => {
         });
       });
 
-      // Add recent leave approvals
-      try {
-        const approvedLeaves = await leaveApi.getAllLeaves({ status: 'approved' });
-        (approvedLeaves.data || []).slice(-3).reverse().forEach(leave => {
-          activities.push({
-            id: activityId++,
-            type: 'approval',
-            message: `Leave request approved for ${leave.user?.name || 'employee'}`,
-            time: leave.updatedAt ? new Date(leave.updatedAt) : new Date(Date.now() - Math.random() * 86400000)
-          });
+      // Add recent leave approvals (reuse approvedLeavesRes from initial parallel fetch)
+      (approvedLeavesRes.data || []).slice(-3).reverse().forEach(leave => {
+        activities.push({
+          id: activityId++,
+          type: 'approval',
+          message: `Leave request approved for ${leave.user?.name || 'employee'}`,
+          time: leave.updatedAt ? new Date(leave.updatedAt) : new Date(Date.now() - Math.random() * 86400000)
         });
-      } catch (err) {
-        // console.log('Could not fetch approved leaves for activity');
-      }
+      });
 
       // Sort by time (most recent first) and take top 15
       activities.sort((a, b) => b.time - a.time);

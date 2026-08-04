@@ -188,15 +188,15 @@ export const NotificationProvider = ({ children }) => {
     // Note: Firebase messaging doesn't need explicit stopping
   }, []);
 
-  // Initialize notifications on mount + poll every 30s for real-time feel
+  // Initialize notifications on mount + poll every 60s (halves background API load)
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
 
     fetchNotifications();
 
-    // Poll every 30 seconds so new notifications appear without a page refresh
-    const pollInterval = setInterval(fetchNotifications, 30000);
+    // Poll so new notifications appear without a page refresh
+    const pollInterval = setInterval(fetchNotifications, 60000);
 
     // Wire up foreground FCM message handler — instant bell update + sound
     notificationService.onForegroundMessage = () => {
