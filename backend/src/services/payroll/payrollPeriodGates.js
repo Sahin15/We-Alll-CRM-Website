@@ -7,12 +7,14 @@
 
 import PayrollPeriod from "../../models/payrollPeriodModel.js";
 
-/** @typedef {"generate"|"export"|"markPaid"} PeriodGateOperation */
+/** @typedef {"generate"|"export"|"markPaid"|"mutate"} PeriodGateOperation */
 
 /** Allowed period statuses per gated operation */
 export const PERIOD_GATE_OPS = Object.freeze({
   generate: Object.freeze(["open", "frozen"]),
   export: Object.freeze(["open", "frozen"]),
+  /** PH-08: slip update / recalc / delete while period is mutable */
+  mutate: Object.freeze(["open", "frozen"]),
   markPaid: Object.freeze(["locked"]),
 });
 
@@ -190,6 +192,7 @@ export async function getPeriodGateSnapshot(year, month) {
     allowed: {
       generate: allows("generate"),
       export: allows("export"),
+      mutate: allows("mutate"),
       markPaid: allows("markPaid"),
     },
   };

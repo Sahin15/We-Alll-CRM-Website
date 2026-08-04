@@ -4,7 +4,10 @@ import {
   listExportHistory,
   getReportingCapabilities,
 } from "../services/payroll/reporting/payrollReportService.js";
-import { DEFAULT_BANK_EXPORT_STATUS } from "../services/payroll/reporting/exportManifest.js";
+import {
+  DEFAULT_BANK_EXPORT_STATUS,
+  BankExportStatusError,
+} from "../services/payroll/reporting/exportManifest.js";
 import {
   assertPeriodAllows,
   sendPeriodGateError,
@@ -85,6 +88,14 @@ export const downloadBankNeftCsv = async (req, res) => {
     return sendCsv(res, result);
   } catch (error) {
     if (sendPeriodGateError(res, error)) return;
+    if (error instanceof BankExportStatusError || error?.code === "BANK_EXPORT_STATUS") {
+      return res.status(error.httpStatus || 400).json({
+        success: false,
+        error: error.message,
+        code: "BANK_EXPORT_STATUS",
+        details: error.details || {},
+      });
+    }
     console.error("[payrollReport] downloadBankNeftCsv", error);
     if (String(error.message || "").includes("Unknown bank export format")) {
       return res.status(400).json({ success: false, error: error.message });
