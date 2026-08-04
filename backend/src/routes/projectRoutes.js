@@ -171,35 +171,32 @@ router.post(
   assignHoP
 );
 
-// Team Management (HoP, HoD, Admin — custom middleware in controller)
+// Team Management — project-scoped via canManageProject (HoP / HoD / admin / team).
+// Do NOT require projects.project.manage here: employee project heads pass
+// canManageProject but lack the COMPANY/department manage grant, which caused
+// "Failed to load available users" (403 on /team/candidates).
 router.get(
   "/:projectId/team/candidates",
   protect,
   canManageProject,
-  requireModulePermission("projects", "projects.project.manage", {
-    legacyRoles: PROJECT_UPDATE_ROLES,
-  }),
   getTeamMemberCandidates
 );
 router.post(
   "/:projectId/team/add",
   protect,
   canManageProject,
-  requireModulePermission("projects", "projects.project.manage", { legacyRoles: PROJECT_UPDATE_ROLES }),
   addTeamMember
 );
 router.delete(
   "/:projectId/team/:userId",
   protect,
   canManageProject,
-  requireModulePermission("projects", "projects.project.manage", { legacyRoles: PROJECT_UPDATE_ROLES }),
   removeTeamMember
 );
 router.get(
   "/:projectId/team",
   protect,
   canManageProject,
-  requireModulePermission("projects", "projects.project.view", { legacyRoles: PROJECT_VIEW_ROLES }),
   getProjectTeam
 );
 

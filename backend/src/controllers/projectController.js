@@ -441,7 +441,7 @@ export const removeUserFromProject = async (req, res) => {
 // Get all projects assigned to the logged-in user
 export const getProjectsForUser = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.id || req.user._id;
 
     const projects = await Project.find(getPersonalProjectMembershipFilter(userId))
       .populate("client", "name email serviceCompany")
@@ -453,7 +453,14 @@ export const getProjectsForUser = async (req, res) => {
       .populate("projectHead", "name email")
       .sort({ createdAt: -1 });
 
-    res.status(200).json(projects);
+    // Strip soft-removed members consistently with list endpoint
+    const leanProjects = projects.map((p) => {
+      const obj = p.toObject ? p.toObject() : p;
+      stripPastMembersFromProject(obj);
+      return obj;
+    });
+
+    res.status(200).json(leanProjects);
   } catch (error) {
     
     res.status(500).json({ message: "Server error" });
@@ -1419,9 +1426,12 @@ export const getProjectTeam = async (req, res) => {
  */
 export const getMyLeadingProjects = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user.id || req.user._id;
+    // Match projectHead whether stored as ObjectId or string
+    const membership = getPersonalProjectMembershipFilter(userId);
+    const projectHeadRef = membership.$or.find((clause) => clause.projectHead)?.projectHead;
 
-    const projects = await Project.find({ projectHead: userId })
+    const projects = await Project.find({ projectHead: projectHeadRef })
       .populate("client", "name email serviceCompany")
       .populate("department", "name")
       .populate("teamMembers.user", "name email designation")
@@ -1443,7 +1453,8 @@ export const getMyLeadingProjects = async (req, res) => {
 };
 
 /**
- * Get projects in my department (for HoD)
+ * Get projects in my department where I am personally on the team.
+ * HoDs no longer see every department project — only ones they belong to.
  */
 export const getMyDepartmentProjects = async (req, res) => {
   try {
@@ -1457,9 +1468,13 @@ export const getMyDepartmentProjects = async (req, res) => {
     }
 
     const departmentId = user.headOfDepartment._id;
+    const membership = getPersonalProjectMembershipFilter(req.user.id || req.user._id);
 
     const projects = await Project.find({
-      $or: [{ department: departmentId }, { departments: departmentId }],
+      $and: [
+        membership,
+        { $or: [{ department: departmentId }, { departments: departmentId }] },
+      ],
     })
       .populate("client", "name email serviceCompany")
       .populate("projectHead", "name email designation")

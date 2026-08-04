@@ -57,14 +57,14 @@ const ProjectListPage = () => {
   }, [user?.id]);
 
   const getProjectsByRole = useCallback(async () => {
+    // Company-wide viewers (admin/hr/manager or COMPANY grant) see all projects.
+    // Everyone else — including HoD / project head — only sees projects they are on
+    // (projectHead, assignedUsers, or active teamMembers).
     if (canViewAllProjects) {
       return projectApi.getAllProjects();
     }
-    if (user?.role === 'hod' || user?.isHeadOfDepartment) {
-      return projectApi.getMyDepartmentProjects();
-    }
     return projectApi.getMyProjects();
-  }, [canViewAllProjects, user?.role, user?.isHeadOfDepartment]);
+  }, [canViewAllProjects]);
 
   const fetchDepartmentsForFilters = useCallback(async () => {
     if (!canFilterProjectsAdmin) {
@@ -266,12 +266,9 @@ const ProjectListPage = () => {
         <Col>
           <h2>Projects</h2>
           <p className="text-muted">
-            {canViewAllProjects 
+            {canViewAllProjects
               ? 'View and manage all projects'
-              : user?.role === 'hod'
-              ? 'View and manage your department\'s projects'
-              : 'View and manage your assigned projects'
-            }
+              : 'View and manage projects you are assigned to'}
           </p>
         </Col>
         <Col xs="auto" className="d-flex align-items-center gap-2">
