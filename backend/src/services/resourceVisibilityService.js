@@ -1,12 +1,13 @@
 /**
  * Central visibility rules for clients and projects.
  *
- * Business rules:
- * - Working on a client = working on at least one of that client's projects (team membership).
- * - Users see ALL projects they are assigned to, and clients linked to those projects.
- * - If a client has projects A and B and the user works only on A, they see the client and project A only.
- * - Company-wide visibility: admin, superadmin, hr, manager by default.
- * - Direct permission grants can widen (COMPANY scope) or deny access for any permission.
+ * Business rules (simple):
+ * - Do not assign users on clients for access control.
+ * - Users see projects only when they are on the project team
+ *   (projectHead, assignedUsers, or active teamMembers).
+ * - Users see a client only when they are on at least one of that client's projects.
+ * - Company-wide visibility: admin, superadmin, hr, manager by default
+ *   (or explicit COMPANY/PLATFORM permission grants).
  */
 
 import { getEffectiveGrants } from '../authz/legacyAdapter.js';

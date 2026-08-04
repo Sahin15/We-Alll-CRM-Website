@@ -990,7 +990,7 @@ const ClientDetails = () => {
                     </Form.Label>
                     <div className="border rounded p-3" style={{ backgroundColor: '#f8f9fa' }}>
                       <Form.Text className="text-muted d-block mb-3">
-                        Select which operational departments will work with this client. HR and administrative departments have access to all clients by default.
+                        Optional department labels only. Access comes from project team membership, not from assigning users or departments on the client.
                       </Form.Text>
                       {departments.length > 0 ? (
                         <Row>
@@ -1301,7 +1301,7 @@ const ClientDetails = () => {
               </Col>
               <Col md={6}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Assign Team Members</Form.Label>
+                  <Form.Label>Assign Project Team (optional)</Form.Label>
                   <Form.Select
                     multiple
                     name="assignedUsers"
@@ -1316,7 +1316,7 @@ const ClientDetails = () => {
                     ))}
                   </Form.Select>
                   <Form.Text className="text-muted">
-                    Hold Ctrl/Cmd to select multiple team members
+                    Only people added to this project can see it. Hold Ctrl/Cmd to select multiple.
                   </Form.Text>
                 </Form.Group>
               </Col>
@@ -1359,8 +1359,8 @@ const ClientDetails = () => {
         <Form onSubmit={handleDepartmentAssignment}>
           <Modal.Body>
             <Alert variant="info" className="mb-4">
-              <strong>Department Assignment:</strong> Select which departments will work with this client. 
-              Staff can see this client in My Clients only when they are the account manager or on an active project team for that client.
+              <strong>Department Assignment:</strong> Optional label for which departments work with this client.
+              Access is only via project teams — people see this client when they are added to one of its projects.
             </Alert>
             
             <Form.Group className="mb-3">

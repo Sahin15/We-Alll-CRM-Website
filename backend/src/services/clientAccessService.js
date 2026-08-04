@@ -1,20 +1,17 @@
 /**
- * Single source of truth for personal client assignment visibility.
+ * Single source of truth for personal client visibility.
  *
- * Business rule: working on a client means working on that client's projects.
- * If a client has projects A and B and the user is on project A only, they see
- * the client (via project A) but not project B.
+ * Business rule (simple):
+ * - Do NOT assign users on clients for access.
+ * - A user sees a client only when they are on at least one of that client's projects
+ *   (project head, assignedUsers, or active teamMembers).
+ * - Company-wide roles (admin/hr/manager) still see all clients via resourceVisibilityService.
  *
- * A user sees a client when they are:
- * 1. The client's account manager, OR
- * 2. An active member of any project team for that client (project head, assigned user, active team member).
- *
- * Work items alone do NOT grant client access — assignment must be at project-team level.
- * Project creators (createdBy) are NOT treated as assigned unless they are on the team.
+ * Work items alone do NOT grant client access.
+ * accountManager / assignedDepartments are metadata only — not access control.
  */
 
 import mongoose from 'mongoose';
-import Client from '../models/clientModel.js';
 import Project from '../models/projectModel.js';
 
 /**
@@ -64,32 +61,28 @@ export function mergeUniqueClientIds(...groups) {
 }
 
 /**
- * Collect client IDs personally assigned to a user via account manager or project team.
+ * Collect client IDs the user can see via project membership only.
  *
  * @param {string | mongoose.Types.ObjectId} userId
  * @returns {Promise<string[]>}
  */
 export async function collectPersonallyAssignedClientIds(userId) {
   const membershipFilter = buildUserProjectMembershipFilter(userId);
-  const objectId = toObjectId(userId);
 
-  const [managedClients, userProjects] = await Promise.all([
-    Client.find({ accountManager: { $in: [objectId, objectId.toString()] } })
-      .select('_id')
-      .lean(),
-    Project.find(membershipFilter).select('client').populate('client', '_id').lean(),
-  ]);
+  const userProjects = await Project.find(membershipFilter)
+    .select('client')
+    .populate('client', '_id')
+    .lean();
 
-  const managedClientIds = managedClients.map((client) => client._id.toString());
   const projectClientIds = userProjects
     .filter((project) => project.client?._id)
     .map((project) => project.client._id.toString());
 
-  return mergeUniqueClientIds(managedClientIds, projectClientIds);
+  return mergeUniqueClientIds(projectClientIds);
 }
 
 /**
- * Whether a user is personally assigned to a client.
+ * Whether a user is personally assigned to a client (via project team).
  *
  * @param {string | mongoose.Types.ObjectId} userId
  * @param {string | mongoose.Types.ObjectId} clientId
@@ -135,19 +128,8 @@ export function resolveAssignedClientsTargetUserId(requester, requestedEmployeeI
  * @returns {Promise<{ linked: boolean, reasons: string[] }>}
  */
 export async function describeClientAssignmentLink(userId, clientId) {
-  const objectId = toObjectId(userId);
   const clientIdString = String(clientId);
   const reasons = [];
-
-  const managed = await Client.findOne({
-    _id: clientIdString,
-    accountManager: { $in: [objectId, objectId.toString()] },
-  })
-    .select('_id')
-    .lean();
-  if (managed) {
-    reasons.push('account_manager');
-  }
 
   const projects = await Project.find({
     client: clientIdString,
