@@ -1,6 +1,9 @@
 /**
- * In-process payroll job queue (R9 foundation).
+ * In-process payroll job queue (R9 foundation + PH-09 reclaim).
  * No Redis/Bull — one runner at a time; sync bulk endpoints remain available.
+ *
+ * Multi-instance limit: reclaim uses Mongo heartbeats, but only one process
+ * should own the runner in production until Redis/Bull (R9b) lands.
  */
 
 import PayrollJob, {
@@ -11,6 +14,18 @@ import { assertPeriodAllows } from "./payrollPeriodGates.js";
 
 /** @type {boolean} */
 let runnerActive = false;
+
+/** Default stale threshold for orphaned `running` jobs (ms). */
+export const DEFAULT_PAYROLL_JOB_STALE_MS = 15 * 60 * 1000;
+
+/**
+ * @returns {number}
+ */
+export function getPayrollJobStaleMs() {
+  const raw = Number(process.env.PAYROLL_JOB_STALE_MS);
+  if (Number.isFinite(raw) && raw >= 60_000) return raw;
+  return DEFAULT_PAYROLL_JOB_STALE_MS;
+}
 
 /**
  * @param {unknown} type
@@ -61,7 +76,79 @@ export function createCaptureResponse() {
 }
 
 /**
+ * Effective activity timestamp for stale detection (PH-09).
+ * @param {{ heartbeatAt?: Date|null, startedAt?: Date|null, updatedAt?: Date|null }} job
+ * @returns {Date|null}
+ */
+export function resolvePayrollJobActivityAt(job) {
+  return job?.heartbeatAt || job?.startedAt || job?.updatedAt || null;
+}
+
+/**
+ * @param {{ heartbeatAt?: Date|null, startedAt?: Date|null, updatedAt?: Date|null, status?: string }} job
+ * @param {Date} now
+ * @param {number} staleMs
+ * @returns {boolean}
+ */
+export function isStaleRunningPayrollJob(job, now, staleMs) {
+  if (!job || job.status !== "running") return false;
+  const activityAt = resolvePayrollJobActivityAt(job);
+  if (!activityAt) return true;
+  return now.getTime() - new Date(activityAt).getTime() >= staleMs;
+}
+
+/**
+ * PH-09: Requeue `running` jobs whose heartbeat (or startedAt) is older than TTL.
+ *
+ * @param {{ now?: Date, staleMs?: number }} [opts]
+ * @returns {Promise<{ reclaimed: number }>}
+ */
+export async function reclaimStalePayrollJobs(opts = {}) {
+  const now = opts.now || new Date();
+  const staleMs = opts.staleMs ?? getPayrollJobStaleMs();
+  const cutoff = new Date(now.getTime() - staleMs);
+
+  const result = await PayrollJob.updateMany(
+    {
+      status: "running",
+      $expr: {
+        $lte: [
+          {
+            $ifNull: [
+              "$heartbeatAt",
+              { $ifNull: ["$startedAt", "$updatedAt"] },
+            ],
+          },
+          cutoff,
+        ],
+      },
+    },
+    {
+      $set: {
+        status: "queued",
+        progress: 0,
+        error: "Reclaimed after stale running heartbeat (PH-09)",
+        finishedAt: null,
+      },
+      $inc: { reclaimCount: 1 },
+      $unset: { heartbeatAt: "" },
+    }
+  );
+
+  const reclaimed = result.modifiedCount || result.nModified || 0;
+  if (reclaimed > 0) {
+    console.warn("[payrollJob] reclaimed stale running jobs", {
+      reclaimed,
+      staleMs,
+      cutoff: cutoff.toISOString(),
+    });
+  }
+  return { reclaimed };
+}
+
+/**
  * Enqueue a payroll job and kick the runner.
+ * PH-09: rejects duplicate active (queued|running) job for same type+month+year.
  *
  * @param {{ type: string, month: number, year: number, paymentDate?: Date|string|null, createdBy: string }} input
  */
@@ -81,6 +168,24 @@ export async function enqueuePayrollJob(input) {
 
   if (type === "bulk_generate") {
     await assertPeriodAllows("generate", y, m);
+  }
+
+  const duplicate = await PayrollJob.findOne({
+    type,
+    month: m,
+    year: y,
+    status: { $in: ["queued", "running"] },
+  })
+    .select("_id status")
+    .lean();
+  if (duplicate) {
+    const err = new Error(
+      `An active ${type} job already exists for ${m}/${y} (${duplicate.status})`
+    );
+    err.code = "PAYROLL_JOB_DUPLICATE";
+    err.httpStatus = 409;
+    err.details = { existingJobId: duplicate._id, status: duplicate.status };
+    throw err;
   }
 
   const job = await PayrollJob.create({
@@ -117,14 +222,17 @@ export async function processPayrollJobQueue() {
   if (runnerActive) return;
   runnerActive = true;
   try {
+    await reclaimStalePayrollJobs();
     // eslint-disable-next-line no-constant-condition
     while (true) {
+      const now = new Date();
       const job = await PayrollJob.findOneAndUpdate(
         { status: "queued" },
         {
           $set: {
             status: "running",
-            startedAt: new Date(),
+            startedAt: now,
+            heartbeatAt: now,
             progress: 5,
             error: "",
           },
@@ -143,9 +251,26 @@ export async function processPayrollJobQueue() {
  * @param {import("mongoose").Document} job
  */
 export async function executePayrollJob(job) {
+  let heartbeatTimer = null;
   try {
     job.progress = 10;
+    job.heartbeatAt = new Date();
     await job.save();
+
+    heartbeatTimer = setInterval(() => {
+      PayrollJob.updateOne(
+        { _id: job._id, status: "running" },
+        { $set: { heartbeatAt: new Date() } }
+      ).catch((err) => {
+        console.error("[payrollJob] heartbeat failed", {
+          jobId: job._id?.toString?.(),
+          error: err?.message || err,
+        });
+      });
+    }, 30_000);
+    if (typeof heartbeatTimer.unref === "function") {
+      heartbeatTimer.unref();
+    }
 
     const userId = job.createdBy;
     const mockReq = {
@@ -189,6 +314,7 @@ export async function executePayrollJob(job) {
     job.summary = summary;
     job.results = mockRes.body?.results || null;
     job.finishedAt = new Date();
+    job.heartbeatAt = new Date();
     job.error = "";
     await job.save();
   } catch (error) {
@@ -196,6 +322,7 @@ export async function executePayrollJob(job) {
     job.progress = 100;
     job.error = error.message || String(error);
     job.finishedAt = new Date();
+    job.heartbeatAt = new Date();
     if (error.details?.summary) {
       job.summary = summarizePayrollJobResult(error.details);
     }
@@ -205,6 +332,8 @@ export async function executePayrollJob(job) {
       type: job.type,
       error: job.error,
     });
+  } finally {
+    if (heartbeatTimer) clearInterval(heartbeatTimer);
   }
 }
 

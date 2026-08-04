@@ -366,6 +366,7 @@ approvalWorkflowSchema.methods.bulkApprove = async function(approverId, comments
       { 
         status: "approved",
         approvedAt: new Date(),
+        approvedBy: approverId,
         approvalWorkflowId: this._id
       }
     );

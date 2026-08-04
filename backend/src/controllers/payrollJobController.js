@@ -31,6 +31,14 @@ export const enqueueBulkGenerateJob = async (req, res) => {
     });
   } catch (error) {
     if (sendPeriodGateError(res, error)) return;
+    if (error?.code === "PAYROLL_JOB_DUPLICATE") {
+      return res.status(409).json({
+        success: false,
+        message: error.message,
+        code: error.code,
+        details: error.details || {},
+      });
+    }
     const status = /required|Invalid|month/i.test(error.message) ? 400 : 500;
     return res.status(status).json({
       success: false,
@@ -63,6 +71,14 @@ export const enqueueBulkEmailJob = async (req, res) => {
       },
     });
   } catch (error) {
+    if (error?.code === "PAYROLL_JOB_DUPLICATE") {
+      return res.status(409).json({
+        success: false,
+        message: error.message,
+        code: error.code,
+        details: error.details || {},
+      });
+    }
     const status = /required|Invalid|month/i.test(error.message) ? 400 : 500;
     return res.status(status).json({
       success: false,

@@ -11,6 +11,7 @@ export const payrollApprovalApi = {
   act: (id, data) => api.post(`/payroll/approvals/${id}/act`, data),
   bulkApprove: (id, data) =>
     api.post(`/payroll/approvals/${id}/bulk-approve`, data || {}),
+  getCapabilities: () => api.get("/payroll/approvals/capabilities"),
 };
 
 export default payrollApprovalApi;
