@@ -404,6 +404,16 @@ mongoose
     
     console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
 
+    try {
+      const { getPeriodGatesProductionWarning } = await import(
+        "./services/payroll/payrollPeriodGates.js"
+      );
+      const payrollGateWarn = getPeriodGatesProductionWarning();
+      if (payrollGateWarn) console.warn(payrollGateWarn);
+    } catch (e) {
+      console.warn("[payroll] period gate config check skipped:", e.message);
+    }
+
     // Import and check Firebase initialization
     const { firebaseInitialized, messaging } = await import('./config/firebaseAdmin.js');
     

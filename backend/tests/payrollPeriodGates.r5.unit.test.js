@@ -19,13 +19,19 @@ describe("payrollPeriodGates (R5)", () => {
     expect(PERIOD_GATE_OPS.markPaid).toEqual(["locked"]);
   });
 
-  it("is disabled by default", () => {
+  it("is disabled by default outside production; ON by default in production (PH-06)", () => {
+    const originalNodeEnv = process.env.NODE_ENV;
     delete process.env.PAYROLL_PERIOD_GATES;
+    process.env.NODE_ENV = "development";
     expect(isPayrollPeriodGatesEnabled()).toBe(false);
+    process.env.NODE_ENV = "production";
+    expect(isPayrollPeriodGatesEnabled()).toBe(true);
     process.env.PAYROLL_PERIOD_GATES = "false";
     expect(isPayrollPeriodGatesEnabled()).toBe(false);
     process.env.PAYROLL_PERIOD_GATES = "true";
     expect(isPayrollPeriodGatesEnabled()).toBe(true);
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
   });
 
   it("fails closed when period is missing", () => {
