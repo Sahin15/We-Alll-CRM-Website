@@ -19,10 +19,15 @@ class LeaveImpactCalculator {
       const workingDaysResult = await this.workingDaysCalculator.getWorkingDays(month, year);
       const actualWorkingDays = workingDaysResult.workingDays;
 
-      // Per-day salary = gross / 30 (fixed, used ONLY for deductions)
-      // Total salary is always the same regardless of working days in the month
-      const grossSalary = salaryStructure.grossSalary || 0;
-      const perDaySalary = grossSalary / 30;
+      // PH-04: per-day from flat earnings gross when grossSalary missing/0
+      // (generate path may recompute LOP on pro-rated persisted gross)
+      const { computeFlatGross, computePerDaySalary } = await import(
+        "./payroll/payrollCorrectnessHelpers.js"
+      );
+      const grossSalary =
+        Number(salaryStructure.grossSalary) ||
+        computeFlatGross(salaryStructure);
+      const perDaySalary = computePerDaySalary(grossSalary, 30);
 
       // Get all APPROVED leave records for the month
       const leaveRecords = await this.getLeaveRecordsForMonth(employeeId, month, year);
