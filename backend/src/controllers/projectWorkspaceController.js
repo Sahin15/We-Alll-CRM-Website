@@ -7,6 +7,8 @@ import Project from "../models/projectModel.js";
 import WorkItem from "../models/workItemModel.js";
 import { getProjectStatistics, getTeamWorkload } from "../services/projectProgressService.js";
 import { canUserViewProject } from "../services/resourceVisibilityService.js";
+import { healProjectTeamMembership } from "../services/projectRosterService.js";
+import { stripPastMembersFromProject } from "../utils/employeeQueryUtils.js";
 
 // @desc    Get project workspace data (overview)
 // @route   GET /api/projects/:id/workspace
@@ -16,12 +18,12 @@ export const getProjectWorkspace = async (req, res) => {
     const { id } = req.params;
     
     // Get project
-    const project = await Project.findById(id)
+    let project = await Project.findById(id)
       .populate("client", "name company email phone")
       .populate("department", "name")
-      .populate("projectHead", "name email designation")
-      .populate("assignedUsers", "name email designation")
-      .populate("teamMembers.user", "name email role designation")
+      .populate("projectHead", "name email designation status")
+      .populate("assignedUsers", "name email designation status")
+      .populate("teamMembers.user", "name email role designation status")
       .populate("teamMembers.assignedBy", "name email")
       .populate("createdBy", "name email");
     
@@ -39,6 +41,24 @@ export const getProjectWorkspace = async (req, res) => {
         error: { code: "FORBIDDEN", message: "Access denied" },
       });
     }
+
+    // Sync legacy assignedUsers into teamMembers for Team tab display
+    const { healed } = await healProjectTeamMembership(project, {
+      assignedBy: req.user?._id,
+    });
+    if (healed) {
+      project = await Project.findById(id)
+        .populate("client", "name company email phone")
+        .populate("department", "name")
+        .populate("projectHead", "name email designation status")
+        .populate("assignedUsers", "name email designation status")
+        .populate("teamMembers.user", "name email role designation status")
+        .populate("teamMembers.assignedBy", "name email")
+        .populate("createdBy", "name email");
+    }
+
+    const projectData = project.toObject ? project.toObject() : project;
+    stripPastMembersFromProject(projectData);
     
     // Get statistics with error handling
     let statistics = {
@@ -70,7 +90,7 @@ export const getProjectWorkspace = async (req, res) => {
     
     res.status(200).json({
       success: true,
-      data: { project, statistics, teamWorkload },
+      data: { project: projectData, statistics, teamWorkload },
     });
   } catch (error) {
     res.status(500).json({

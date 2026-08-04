@@ -9,6 +9,7 @@ import {
   getPersonalProjectMembershipFilter,
   isUserPersonallyAssignedToProject,
 } from '../services/projectAccessService.js';
+import { healProjectTeamMembership } from '../services/projectRosterService.js';
 import {
   buildProjectListQuery,
   canUserViewProject,
@@ -510,19 +511,22 @@ export const getProjectById = async (req, res) => {
       .populate("teamMembers.user", "name email role designation status")
       .populate("teamMembers.assignedBy", "name email")
       .populate("createdBy", "name email")
-      .populate("tasks.assignedTo", "name email")
-      .lean();
+      .populate("tasks.assignedTo", "name email");
 
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
     }
 
-    stripPastMembersFromProject(project);
+    // Heal legacy assignedUsers-only membership so Team UI stays in sync
+    await healProjectTeamMembership(project, { assignedBy: req.user?._id });
+
+    const projectData = project.toObject ? project.toObject() : project;
+    stripPastMembersFromProject(projectData);
 
     // Deduplicate assignedUsers array
-    if (project.assignedUsers && project.assignedUsers.length > 0) {
+    if (projectData.assignedUsers && projectData.assignedUsers.length > 0) {
       const seenIds = new Set();
-      project.assignedUsers = project.assignedUsers.filter(user => {
+      projectData.assignedUsers = projectData.assignedUsers.filter(user => {
         const userId = user._id?.toString() || user.toString();
         if (seenIds.has(userId)) {
           return false;
@@ -533,9 +537,9 @@ export const getProjectById = async (req, res) => {
     }
 
     // Deduplicate teamMembers array
-    if (project.teamMembers && project.teamMembers.length > 0) {
+    if (projectData.teamMembers && projectData.teamMembers.length > 0) {
       const seenTeamIds = new Set();
-      project.teamMembers = project.teamMembers.filter(member => {
+      projectData.teamMembers = projectData.teamMembers.filter(member => {
         const memberId = member.user?._id?.toString() || member.user?.toString();
         if (seenTeamIds.has(memberId)) {
           return false;
@@ -548,14 +552,14 @@ export const getProjectById = async (req, res) => {
     // Client access check
     if (req.user.role === "client") {
       const clientByEmail = await Client.findOne({ email: req.user.email }).select("_id").lean();
-      if (!clientByEmail || project.client._id.toString() !== clientByEmail._id.toString()) {
+      if (!clientByEmail || projectData.client._id.toString() !== clientByEmail._id.toString()) {
         return res.status(403).json({ message: "Access denied" });
       }
     }
 
     // Employee access check (includes HoD) — personal project team only unless company viewer
     if (!canViewAllCompanyProjects(req.user) && req.user.role !== 'client') {
-      const hasAccess = userHasProjectAccess(req.user, project);
+      const hasAccess = userHasProjectAccess(req.user, projectData);
       
       if (!hasAccess) {
         return res.status(403).json({
@@ -564,7 +568,7 @@ export const getProjectById = async (req, res) => {
       }
     }
 
-    return res.status(200).json(project);
+    return res.status(200).json(projectData);
   } catch (error) {
     logger.error("Error in getProjectById:", error.message);
     return res.status(500).json({ message: "Server error" });
@@ -1191,24 +1195,51 @@ export const addTeamMember = async (req, res) => {
     );
 
     if (existingMember) {
+      if (existingMember.isActive === false) {
+        existingMember.isActive = true;
+        existingMember.role = role || existingMember.role || "other";
+        existingMember.assignedBy = req.user._id;
+        existingMember.assignedAt = new Date();
+
+        if (!project.assignedUsers) {
+          project.assignedUsers = [];
+        }
+        const alreadyAssigned = project.assignedUsers.some(
+          (id) => (id?._id || id).toString() === userId.toString()
+        );
+        if (!alreadyAssigned) {
+          project.assignedUsers.push(userId);
+        }
+
+        await project.save();
+        await User.findByIdAndUpdate(userId, {
+          $addToSet: { assignedProjects: projectId },
+        });
+
+        const updatedProject = await Project.findById(projectId)
+          .populate("teamMembers.user", "name email designation employeeId")
+          .populate("teamMembers.assignedBy", "name email")
+          .populate("assignedUsers", "name email role")
+          .populate("projectHead", "name email designation");
+
+        return res.status(200).json({
+          success: true,
+          message: "Team member reactivated successfully",
+          data: updatedProject,
+        });
+      }
+
       return res.status(400).json({
         success: false,
         message: "User is already a team member",
       });
     }
 
-    // Also check if already in assignedUsers
+    // Legacy: user may be in assignedUsers but missing from teamMembers
     const userIdString = userId.toString();
     const isAlreadyAssigned = project.assignedUsers?.some(
       (id) => (id?._id || id).toString() === userIdString
     );
-    
-    if (isAlreadyAssigned) {
-      return res.status(400).json({
-        success: false,
-        message: "User is already assigned to this project",
-      });
-    }
 
     // Add team member
     project.teamMembers.push({
@@ -1216,6 +1247,7 @@ export const addTeamMember = async (req, res) => {
       role: role || "other",
       assignedBy: req.user._id,
       assignedAt: new Date(),
+      isActive: true,
     });
 
     // Also add to assignedUsers for backward compatibility
@@ -1392,9 +1424,10 @@ export const getProjectTeam = async (req, res) => {
     const { projectId } = req.params;
 
     const project = await Project.findById(projectId)
-      .populate("teamMembers.user", "name email designation employeeId")
+      .populate("teamMembers.user", "name email designation employeeId status")
       .populate("teamMembers.assignedBy", "name email")
-      .populate("projectHead", "name email designation");
+      .populate("assignedUsers", "name email designation employeeId status")
+      .populate("projectHead", "name email designation status");
 
     if (!project) {
       return res.status(404).json({
@@ -1403,16 +1436,25 @@ export const getProjectTeam = async (req, res) => {
       });
     }
 
+    await healProjectTeamMembership(project, { assignedBy: req.user?._id });
+    await project.populate("teamMembers.user", "name email designation employeeId status");
+    await project.populate("teamMembers.assignedBy", "name email");
+
+    const activeMembers = (project.teamMembers || []).filter(
+      (member) => member?.isActive !== false && member?.user
+    );
+
     res.status(200).json({
       success: true,
       data: {
         projectHead: project.projectHead,
-        teamMembers: project.teamMembers,
-        totalMembers: project.teamMembers.length,
+        teamMembers: activeMembers,
+        assignedUsers: project.assignedUsers,
+        totalMembers: activeMembers.length,
       },
     });
   } catch (error) {
-    
+
     res.status(500).json({
       success: false,
       message: "Error fetching project team",
