@@ -1,29 +1,56 @@
 ---
 Purpose: Staging / pre-prod dual-run validation procedure before enabling PAYROLL_V2_ENGINE.
-Status: Active (R3)
-Last Updated: 2026-07-27
+Status: Active — PH-10 (was R3)
+Last Updated: 2026-08-04
 ---
 
-# Dual-run ops runbook (R3)
+# Dual-run ops runbook (PH-10)
 
-**Goal:** Prove V1 and V2 net totals match within ₹1 for a full payroll month on staging (or a safe non-prod clone). Do **not** set `PAYROLL_V2_ENGINE=true` until CTO sign-off and every mismatch is explained or fixed.
+**Goal:** Prove V1 and V2 net totals match within Rs 1 for a full payroll month on staging (or a safe non-prod clone). Do **not** set `PAYROLL_V2_ENGINE=true` until Finance + CTO sign-off and every mismatch is explained or fixed.
 
 **Permission:** `payroll.run.process` (legacy: admin / superadmin / hr / accounts / manager).
 
-**Tolerance:** ₹1 (`DUAL_RUN_TOLERANCE` in `payrollEngineConfig.js`).
+**Tolerance:** Rs 1 (`DUAL_RUN_TOLERANCE` in `payrollEngineConfig.js`).
 
 ---
 
-## 1. Preconditions
+## 0. Hardening preconditions (code complete on develop/staging)
 
-1. Deploy build that includes R0–R2 (integration + correctness + hygiene).
-2. Confirm env: `PAYROLL_V2_ENGINE` unset or `false`.
-3. Pick a closed calendar month with real structures + attendance/leave data.
-4. Ensure active salary structures exist for the cohort under review.
+Before running PH-10, confirm deploy includes:
+
+- [x] PH-01…PH-05 calc / persist / negative-net
+- [x] PH-06…PH-08 period gates + mutate lock
+- [x] PH-07 bank export >= approved
+- [x] PH-13 bulkApprove restricted
+- [x] PH-09 job reclaim
+
+Env on staging:
+
+- `PAYROLL_V2_ENGINE` unset or `false`
+- Recommend `PAYROLL_PERIOD_GATES=true` (prod default on)
 
 ---
 
-## 2. Run month dual-run (JSON triage)
+## 1. Pick the cohort month
+
+1. Prefer a **closed** calendar month with real structures + attendance/leave.
+2. Confirm active salary structures exist for the cohort.
+3. Record: Environment ______  Month ______  Year ______
+
+---
+
+## 2. Run via Salary Management UI (preferred)
+
+1. Open **Salary Management → Advanced → Dual-run**.
+2. Select month/year; leave **Mismatches only** on.
+3. Click **Run month dual-run** — note Total / Matched / Mismatched / Failed badges.
+4. Click **Download CSV** — attach artifact to the decision log / ticket.
+
+Deep link: `/salary-management?tab=dual-run`
+
+---
+
+## 3. Run via API
 
 ```http
 POST /api/payroll/runs/dual-run/month
@@ -39,7 +66,21 @@ Content-Type: application/json
 
 - `data.summary` always reflects the **full** month (matched / mismatched / failed).
 - `data.results` are sorted: errors first, then largest `|netDiff|`.
-- Set `mismatchesOnly: false` (default) to include matches.
+
+CSV:
+
+```http
+POST /api/payroll/runs/dual-run/month?format=csv&mismatchesOnly=true
+Content-Type: application/json
+
+{ "month": 6, "year": 2026 }
+```
+
+CLI (from `backend/`):
+
+```bash
+node scripts/run-dual-run-month.js --base https://<staging-host> --token <JWT> --month 6 --year 2026
+```
 
 Single employee:
 
@@ -50,46 +91,28 @@ POST /api/payroll/runs/dual-run
 
 ---
 
-## 3. Export CSV for review
-
-```http
-POST /api/payroll/runs/dual-run/month?format=csv&mismatchesOnly=true
-Content-Type: application/json
-
-{ "month": 6, "year": 2026 }
-```
-
-(`format` / `mismatchesOnly` may be query or body.)
-
-- First line: `# dual-run-month total=… matched=… mismatched=… failed=…`
-- Columns: `employeeId,withinTolerance,v1Net,v2Net,netDiff,error`
-- Attach CSV + notes to the decision log for sign-off.
-
----
-
 ## 4. Triage mismatches
 
 | Signal | Action |
 |--------|--------|
 | `error` | Fix data/structure/leave load; re-run employee |
-| `\|netDiff\| > 1` | Diff V1 vs V2 lines via single dual-run; log intentional vs bug |
+| `|netDiff| > 1` | Diff V1 vs V2 lines via single dual-run; log intentional vs bug |
 | Systematic skew (many rows, same pattern) | Engine/formula bug — fix before any flag flip |
-| Zero mismatched + zero failed | Candidate for CTO sign-off |
+| Zero mismatched + zero failed | Candidate for PH-11 Finance / CTO sign-off |
 
-Document intentional differences in `DUAL_RUN_DECISION_LOG.md` — never treat “documented” as auto-approval to enable V2 persist.
+Document intentional differences in `DUAL_RUN_DECISION_LOG.md` — never treat documented as auto-approval to enable V2 persist.
 
 ---
 
-## 5. Sign-off checklist (CTO / Finance lead)
+## 5. PH-10 exit criteria
 
 - [ ] Month / year reviewed: ________
 - [ ] Environment: staging / clone (not prod cutover)
 - [ ] Summary: total ___ matched ___ mismatched ___ failed ___
+- [ ] CSV artifact retained (path / ticket): ________
 - [ ] All mismatches explained or fixed (decision log entries)
-- [ ] CSV artifact retained
-- [ ] Explicit written approval to enable `PAYROLL_V2_ENGINE=true` on a named environment
-- [ ] Rollback plan: set flag back to `false` (slips remain V1 until flag on)
+- [ ] Engineering lead initials: ________  Date: ________
 
-**Exit:** Written approval + empty or fully explained mismatch set. R3 does not flip the flag in code.
+**Then:** PH-11 Finance (+ HR) written approval → PH-12 cutover prep (`ENGINE_CUTOVER_RUNBOOK.md`).
 
-**After sign-off:** follow [ENGINE_CUTOVER_RUNBOOK.md](./ENGINE_CUTOVER_RUNBOOK.md); rollback via [ENGINE_KILL_SWITCH.md](./ENGINE_KILL_SWITCH.md).
+**Exit:** Written approval + empty or fully explained mismatch set. PH-10 does **not** flip the flag in code.
