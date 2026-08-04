@@ -344,7 +344,36 @@ const SimplePayrollTab = () => {
       : `Salary deduction for ${d} day(s)`;
   };
 
+  /**
+   * Salary vs earned-leave cover for absences must be exclusive for the month.
+   * @returns {"salary"|"leave"|null}
+   */
+  const absenceCoverChoice = useMemo(() => {
+    const active = (adjustments || []).filter(
+      (a) => a.status === "draft" || a.status === "approved"
+    );
+    if (active.some((a) => a.type === "leave_balance_deduction")) {
+      return "leave";
+    }
+    if (active.some((a) => a.type === "absent_deduction")) {
+      return "salary";
+    }
+    return null;
+  }, [adjustments]);
+
   const openDeductionModal = (method = "salary") => {
+    if (absenceCoverChoice && absenceCoverChoice !== method) {
+      toast.error(
+        absenceCoverChoice === "leave"
+          ? "Earned leave deduction already exists for this month. Void it before deducting from salary."
+          : "Salary deduction already exists for this month. Void it before deducting from earned leave."
+      );
+      return;
+    }
+    if (method === "leave" && !earnedLeaveInfo?.eligible) {
+      toast.error("Employee is not eligible for earned leave");
+      return;
+    }
     const suggestedDays =
       preview?.attendanceReport?.unpaidLeaveDays ||
       preview?.attendanceReport?.absentDaysOnly ||
@@ -967,7 +996,13 @@ const SimplePayrollTab = () => {
                         <Button
                           size="sm"
                           variant="outline-primary"
+                          disabled={busy || absenceCoverChoice === "leave"}
                           onClick={() => openDeductionModal("salary")}
+                          title={
+                            absenceCoverChoice === "leave"
+                              ? "Void the earned leave deduction first"
+                              : undefined
+                          }
                         >
                           <FaPlus className="me-1" />
                           Deduct from salary using this report
@@ -1014,11 +1049,32 @@ const SimplePayrollTab = () => {
                           </p>
                         )}
 
+                        {absenceCoverChoice && (
+                          <Alert variant="info" className="small py-2">
+                            {absenceCoverChoice === "leave"
+                              ? "Earned leave deduction is already set for this month. Void it in Adjustments to switch to salary deduction."
+                              : "Salary deduction is already set for this month. Void it in Adjustments to switch to earned leave."}
+                          </Alert>
+                        )}
+
                         <Row className="g-2 mb-3">
                           <Col md={6}>
-                            <div className="border rounded p-3 h-100">
+                            <div
+                              className={`border rounded p-3 h-100${
+                                absenceCoverChoice === "salary"
+                                  ? " border-primary"
+                                  : absenceCoverChoice === "leave"
+                                    ? " opacity-50"
+                                    : ""
+                              }`}
+                            >
                               <div className="fw-semibold text-primary mb-2">
                                 Deduct from salary
+                                {absenceCoverChoice === "salary" && (
+                                  <Badge bg="primary" className="ms-2">
+                                    Selected
+                                  </Badge>
+                                )}
                               </div>
                               <p className="text-muted small mb-3">
                                 Reduces net salary by per-day rate × days chosen.
@@ -1026,17 +1082,34 @@ const SimplePayrollTab = () => {
                               <Button
                                 size="sm"
                                 variant="primary"
-                                disabled={busy}
+                                disabled={
+                                  busy || absenceCoverChoice === "leave"
+                                }
                                 onClick={() => openDeductionModal("salary")}
                               >
-                                Choose salary deduction
+                                {absenceCoverChoice === "salary"
+                                  ? "Add another salary deduction"
+                                  : "Choose salary deduction"}
                               </Button>
                             </div>
                           </Col>
                           <Col md={6}>
-                            <div className="border rounded p-3 h-100">
+                            <div
+                              className={`border rounded p-3 h-100${
+                                absenceCoverChoice === "leave"
+                                  ? " border-success"
+                                  : absenceCoverChoice === "salary"
+                                    ? " opacity-50"
+                                    : ""
+                              }`}
+                            >
                               <div className="fw-semibold text-success mb-2">
                                 Deduct from earned leave
+                                {absenceCoverChoice === "leave" && (
+                                  <Badge bg="success" className="ms-2">
+                                    Selected
+                                  </Badge>
+                                )}
                               </div>
                               <p className="text-muted small mb-3">
                                 Deducts from earned leave balance — full salary
@@ -1045,15 +1118,26 @@ const SimplePayrollTab = () => {
                               <Button
                                 size="sm"
                                 variant="success"
-                                disabled={busy || !earnedLeaveInfo?.eligible}
+                                disabled={
+                                  busy ||
+                                  !earnedLeaveInfo?.eligible ||
+                                  absenceCoverChoice === "salary" ||
+                                  absenceCoverChoice === "leave"
+                                }
                                 onClick={() => openDeductionModal("leave")}
                                 title={
-                                  earnedLeaveInfo?.eligible
-                                    ? `${earnedLeaveInfo.remaining} day(s) available`
-                                    : "Employee is not eligible for earned leave"
+                                  absenceCoverChoice === "salary"
+                                    ? "Void the salary deduction first to use earned leave"
+                                    : absenceCoverChoice === "leave"
+                                      ? "Void the existing leave deduction to create a new one"
+                                      : earnedLeaveInfo?.eligible
+                                        ? `${earnedLeaveInfo.remaining} day(s) available`
+                                        : "Employee is not eligible for earned leave"
                                 }
                               >
-                                Choose leave deduction
+                                {absenceCoverChoice === "leave"
+                                  ? "Leave deduction already set"
+                                  : "Choose leave deduction"}
                               </Button>
                             </div>
                           </Col>
@@ -1433,40 +1517,16 @@ const SimplePayrollTab = () => {
             </Modal.Title>
           </Modal.Header>
           <Modal.Body>
-            <Form.Group className="mb-3">
-              <Form.Label>Deduction method</Form.Label>
-              <div className="d-flex gap-3">
-                <Form.Check
-                  type="radio"
-                  id="deduct-salary"
-                  name="deductMethod"
-                  label="From salary"
-                  checked={deductForm.method === "salary"}
-                  onChange={() =>
-                    setDeductForm((f) => ({
-                      ...f,
-                      method: "salary",
-                      reason: buildDeductionReason("salary", f.days),
-                    }))
-                  }
-                />
-                <Form.Check
-                  type="radio"
-                  id="deduct-leave"
-                  name="deductMethod"
-                  label="From earned leave"
-                  checked={deductForm.method === "leave"}
-                  disabled={!earnedLeaveInfo?.eligible}
-                  onChange={() =>
-                    setDeductForm((f) => ({
-                      ...f,
-                      method: "leave",
-                      reason: buildDeductionReason("leave", f.days),
-                    }))
-                  }
-                />
-              </div>
-            </Form.Group>
+            <Alert variant="light" className="border small py-2">
+              Method is locked to{" "}
+              <strong>
+                {deductForm.method === "leave"
+                  ? "earned leave"
+                  : "salary"}
+              </strong>
+              . Cancel and pick the other card only if no deduction exists yet
+              for this month.
+            </Alert>
             <Form.Group className="mb-3">
               <Form.Label>Number of days</Form.Label>
               <Form.Control

@@ -73,10 +73,30 @@ export const createAdjustment = async (req, res) => {
       return res.status(404).json({ success: false, error: "Employee not found" });
     }
 
+    const periodMonth = parseInt(month, 10);
+    const periodYear = parseInt(year, 10);
+
+    if (type === "absent_deduction") {
+      const leaveCover = await PayrollAdjustment.findOne({
+        employee,
+        month: periodMonth,
+        year: periodYear,
+        type: "leave_balance_deduction",
+        status: { $in: ["draft", "approved"] },
+      }).lean();
+      if (leaveCover) {
+        return res.status(400).json({
+          success: false,
+          error:
+            "Earned leave deduction already covers this month. Void it before creating a salary absence deduction.",
+        });
+      }
+    }
+
     const doc = await PayrollAdjustment.create({
       employee,
-      month: parseInt(month, 10),
-      year: parseInt(year, 10),
+      month: periodMonth,
+      year: periodYear,
       type,
       amount: Math.abs(Number(amount) || 0),
       direction: direction || null,
@@ -140,6 +160,22 @@ export const createLeaveBalanceDeduction = async (req, res) => {
         success: false,
         error:
           "A leave balance deduction already exists for this employee and month. Void it first to create a new one.",
+      });
+    }
+
+    const salaryCover = await PayrollAdjustment.findOne({
+      employee,
+      month: periodMonth,
+      year: periodYear,
+      type: "absent_deduction",
+      status: { $in: ["draft", "approved"] },
+    }).lean();
+
+    if (salaryCover) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "A salary absence deduction already exists for this month. Void it before deducting from earned leave.",
       });
     }
 
