@@ -1,7 +1,8 @@
 /**
- * Payroll period operation gates (R5).
+ * Payroll period operation gates (R5 / PH-06).
  * When PAYROLL_PERIOD_GATES=true, generate/export/mark-paid respect period status.
- * Default (unset/false): no-op — existing behavior unchanged.
+ * PH-06: In production, unset flag defaults to ON (fail closed). Explicit false disables.
+ * Development/test: unset defaults to OFF (local DX unchanged).
  */
 
 import PayrollPeriod from "../../models/payrollPeriodModel.js";
@@ -19,7 +20,29 @@ export const PERIOD_GATE_OPS = Object.freeze({
  * @returns {boolean}
  */
 export function isPayrollPeriodGatesEnabled() {
-  return String(process.env.PAYROLL_PERIOD_GATES || "").toLowerCase() === "true";
+  const raw = process.env.PAYROLL_PERIOD_GATES;
+  if (raw !== undefined && String(raw).trim() !== "") {
+    return String(raw).toLowerCase() === "true";
+  }
+  // PH-06: production fail-closed when env omitted
+  return String(process.env.NODE_ENV || "").toLowerCase() === "production";
+}
+
+/**
+ * Ops warning when production explicitly disables gates.
+ * @returns {string|null}
+ */
+export function getPeriodGatesProductionWarning() {
+  const isProd =
+    String(process.env.NODE_ENV || "").toLowerCase() === "production";
+  if (!isProd) return null;
+  if (String(process.env.PAYROLL_PERIOD_GATES || "").toLowerCase() === "false") {
+    return "[payroll] WARNING: PAYROLL_PERIOD_GATES=false in production — locked periods are not enforced (PH-06).";
+  }
+  if (!isPayrollPeriodGatesEnabled()) {
+    return "[payroll] WARNING: period gates are off in production (PH-06).";
+  }
+  return null;
 }
 
 export class PeriodGateError extends Error {

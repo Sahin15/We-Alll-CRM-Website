@@ -10,6 +10,10 @@ import { calculateProRataSalarySlip } from "../utils/proRataSalaryCalculator.js"
 import { resolveSlipFieldsFromEngine } from "../services/payroll/persistableSlipMapper.js";
 import { buildStandardGenerateSlipMoney } from "../services/payroll/generatePayrollMoneyPolicy.js";
 import {
+  assertNonNegativeNetFromMaps,
+  sendNegativeNetError,
+} from "../services/payroll/negativeNetGuard.js";
+import {
   assertPeriodAllows,
   sendPeriodGateError,
 } from "../services/payroll/payrollPeriodGates.js";
@@ -412,6 +416,9 @@ export const generateSalarySlip = async (req, res) => {
       }
     }
 
+    // PH-05: fail closed — do not persist negative nets
+    assertNonNegativeNetFromMaps(earnings, deductions);
+
     // Calculate YTD
     const ytd = await SalarySlip.calculateYTD(employeeId, year, month - 1);
 
@@ -491,6 +498,7 @@ export const generateSalarySlip = async (req, res) => {
     });
   } catch (error) {
     if (sendPeriodGateError(res, error)) return;
+    if (sendNegativeNetError(res, error)) return;
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -630,6 +638,9 @@ export const bulkGenerateSalarySlips = async (req, res) => {
           }
         }
 
+        // PH-05
+        assertNonNegativeNetFromMaps(earnings, deductions);
+
         // Calculate YTD
         const ytd = await SalarySlip.calculateYTD(employee._id, year, month - 1);
 
@@ -689,7 +700,8 @@ export const bulkGenerateSalarySlips = async (req, res) => {
         results.failed.push({
           employeeId: employee.employeeId,
           name: employee.name,
-          reason: error.message
+          reason: error.message,
+          code: error.code || undefined,
         });
       }
     }

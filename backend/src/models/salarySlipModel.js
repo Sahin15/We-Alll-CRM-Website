@@ -358,6 +358,15 @@ salarySlipSchema.pre("save", function (next) {
   
   // Calculate net salary
   this.netSalary = this.totalEarnings - this.totalDeductions;
+
+  // PH-05: fail closed — never persist a negative net slip
+  if (this.netSalary < 0) {
+    return next(
+      new Error(
+        `Net salary cannot be negative (₹${this.netSalary}). Adjust earnings or deductions.`
+      )
+    );
+  }
   
   next();
 });
