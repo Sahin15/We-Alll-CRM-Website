@@ -64,3 +64,56 @@ export function resolveAttendanceMoneyDeductions(lossOfPayAmount) {
     unpaidLeaveDeduction: 0,
   };
 }
+
+/**
+ * PH-04: prefer pro-rata/nullish values without treating 0 as missing.
+ * @param {number|null|undefined} preferred
+ * @param {number|null|undefined} fallback
+ * @returns {number}
+ */
+export function pickAmount(preferred, fallback = 0) {
+  if (preferred !== undefined && preferred !== null && !Number.isNaN(Number(preferred))) {
+    return Number(preferred);
+  }
+  if (fallback !== undefined && fallback !== null && !Number.isNaN(Number(fallback))) {
+    return Number(fallback);
+  }
+  return 0;
+}
+
+/**
+ * Flat earnings gross used for LOP / OT (excludes one-off bonus/OT unless included).
+ * @param {object} fields - structure or earnings-like
+ * @param {{ includeOtherAllowances?: boolean }} [opts]
+ * @returns {number}
+ */
+export function computeFlatGross(fields = {}, opts = {}) {
+  const includeOther = opts.includeOtherAllowances !== false;
+  const otherSum = includeOther
+    ? (Array.isArray(fields.otherAllowances)
+        ? fields.otherAllowances
+        : []
+      ).reduce((s, a) => s + (Number(a?.amount) || 0), 0)
+    : 0;
+  return (
+    pickAmount(fields.basicSalary) +
+    pickAmount(fields.hra) +
+    pickAmount(fields.specialAllowance) +
+    pickAmount(fields.transportAllowance) +
+    pickAmount(fields.medicalAllowance) +
+    otherSum
+  );
+}
+
+/**
+ * PH-04: per-day rate from the same gross base that will be persisted.
+ * @param {number} grossSalary
+ * @param {number} [daysInPeriod=30]
+ * @returns {number}
+ */
+export function computePerDaySalary(grossSalary, daysInPeriod = 30) {
+  const days = Number(daysInPeriod) || 30;
+  const gross = Number(grossSalary) || 0;
+  if (days <= 0) return 0;
+  return gross / days;
+}
