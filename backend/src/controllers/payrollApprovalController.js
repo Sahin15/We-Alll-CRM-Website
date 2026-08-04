@@ -3,7 +3,27 @@ import {
   initiatePayrollApproval,
   actOnPayrollApproval,
   bulkApprovePayrollWorkflow,
+  getPayrollApprovalCapabilities,
 } from "../services/payroll/payrollApprovalService.js";
+import { BulkApproveForbiddenError } from "../services/payroll/bulkApproveGuard.js";
+
+/**
+ * GET /api/payroll/approvals/capabilities
+ */
+export const getApprovalCapabilities = async (req, res) => {
+  try {
+    return res.status(200).json({
+      success: true,
+      data: getPayrollApprovalCapabilities(req.user),
+    });
+  } catch (error) {
+    console.error("Error in getApprovalCapabilities:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error loading approval capabilities",
+    });
+  }
+};
 
 /**
  * POST /api/payroll/approvals
@@ -155,13 +175,16 @@ export const actOnApproval = async (req, res) => {
 
 /**
  * POST /api/payroll/approvals/:id/bulk-approve
+ * Body: { comments, confirmBypass: true } — PH-13 restricted bypass
  */
 export const bulkApproveApproval = async (req, res) => {
   try {
     const workflow = await bulkApprovePayrollWorkflow({
       workflowId: req.params.id,
       userId: req.user._id,
-      comments: req.body.comments || "Bulk approved",
+      user: req.user,
+      comments: req.body.comments || "",
+      confirmBypass: req.body.confirmBypass === true,
     });
 
     return res.status(200).json({
@@ -170,6 +193,14 @@ export const bulkApproveApproval = async (req, res) => {
       data: workflow,
     });
   } catch (error) {
+    if (error instanceof BulkApproveForbiddenError || error?.code?.startsWith?.("BULK_APPROVE")) {
+      return res.status(error.httpStatus || 403).json({
+        success: false,
+        message: error.message,
+        code: error.code || "BULK_APPROVE_FORBIDDEN",
+        details: error.details || {},
+      });
+    }
     console.error("Error in bulkApproveApproval:", error);
     const status = /not found|not in progress/i.test(error.message) ? 400 : 500;
     return res.status(status).json({

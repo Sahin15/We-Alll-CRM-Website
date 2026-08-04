@@ -414,6 +414,20 @@ mongoose
       console.warn("[payroll] period gate config check skipped:", e.message);
     }
 
+    try {
+      const {
+        reclaimStalePayrollJobs,
+        schedulePayrollJobRunner,
+      } = await import("./services/payroll/payrollJobService.js");
+      const { reclaimed } = await reclaimStalePayrollJobs();
+      if (reclaimed > 0) {
+        console.warn(`[payrollJob] boot reclaim: ${reclaimed} stale running job(s) requeued`);
+      }
+      schedulePayrollJobRunner();
+    } catch (e) {
+      console.warn("[payrollJob] boot reclaim skipped:", e.message);
+    }
+
     // Import and check Firebase initialization
     const { firebaseInitialized, messaging } = await import('./config/firebaseAdmin.js');
     

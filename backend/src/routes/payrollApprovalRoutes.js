@@ -8,6 +8,7 @@ import {
   getPayrollApprovalById,
   actOnApproval,
   bulkApproveApproval,
+  getApprovalCapabilities,
 } from "../controllers/payrollApprovalController.js";
 
 const router = express.Router();
@@ -22,6 +23,12 @@ const requireApprovalManage = requireModulePermission(
 
 // Static before :id
 router.get("/", protect, requireApprovalManage, listPayrollApprovals);
+router.get(
+  "/capabilities",
+  protect,
+  requireApprovalManage,
+  getApprovalCapabilities
+);
 router.post("/", protect, requireApprovalManage, createPayrollApproval);
 router.get(
   "/pending/mine",

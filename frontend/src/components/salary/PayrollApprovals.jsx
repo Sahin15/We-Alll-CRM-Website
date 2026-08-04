@@ -48,6 +48,7 @@ const PayrollApprovals = () => {
 
   const [actTarget, setActTarget] = useState(null);
   const [actAction, setActAction] = useState("approved");
+  const [capabilities, setCapabilities] = useState(null);
   const [actComments, setActComments] = useState("");
 
   const [createMonth, setCreateMonth] = useState(
@@ -67,12 +68,16 @@ const PayrollApprovals = () => {
       setLoading(true);
       const params = { limit: 50 };
       if (statusFilter) params.status = statusFilter;
-      const [pendingRes, listRes] = await Promise.all([
+      const [pendingRes, listRes, capsRes] = await Promise.all([
         payrollApprovalApi.listPendingMine(),
         payrollApprovalApi.list(params),
+        payrollApprovalApi.getCapabilities().catch(() => null),
       ]);
       setPending(pendingRes.data?.data || []);
       setRecent(listRes.data?.data || []);
+      if (capsRes?.data?.data) {
+        setCapabilities(capsRes.data.data);
+      }
     } catch (error) {
       toast.error(
         error.response?.data?.message || "Failed to load payroll approvals"
@@ -183,10 +188,27 @@ const PayrollApprovals = () => {
   };
 
   const runBulkApprove = async (workflow) => {
+    const reason = window.prompt(
+      "Emergency bulk-approve skips remaining stages. Enter a reason (min 10 chars):",
+      ""
+    );
+    if (reason == null) return;
+    if (String(reason).trim().length < 10) {
+      toast.warning("Bypass reason must be at least 10 characters");
+      return;
+    }
+    if (
+      !window.confirm(
+        "Confirm stage-skip bulk approve? Prefer approving each stage instead."
+      )
+    ) {
+      return;
+    }
     try {
       setBusyId(workflow._id);
       await payrollApprovalApi.bulkApprove(workflow._id, {
-        comments: "Bulk approved from Salary Management",
+        comments: String(reason).trim(),
+        confirmBypass: true,
       });
       toast.success("Workflow bulk-approved");
       await refresh();
@@ -198,6 +220,8 @@ const PayrollApprovals = () => {
       setBusyId(null);
     }
   };
+
+  const bulkApproveAllowed = Boolean(capabilities?.bulkApproveAllowed);
 
   const formatMoney = (amount) =>
     new Intl.NumberFormat("en-IN", {
@@ -281,14 +305,16 @@ const PayrollApprovals = () => {
                         >
                           Reject
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="outline-primary"
-                          disabled={busyId === wf._id}
-                          onClick={() => runBulkApprove(wf)}
-                        >
-                          Bulk approve
-                        </Button>
+                        {bulkApproveAllowed && (
+                          <Button
+                            size="sm"
+                            variant="outline-primary"
+                            disabled={busyId === wf._id}
+                            onClick={() => runBulkApprove(wf)}
+                          >
+                            Bulk approve
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
