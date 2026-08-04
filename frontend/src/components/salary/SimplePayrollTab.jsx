@@ -27,6 +27,7 @@ import {
   payrollSimplePreviewApi,
 } from "../../api/payrollSimpleApi";
 import { leaveApi } from "../../api/leaveApi";
+import { attendanceApi } from "../../api/attendanceApi";
 
 const MONTH_NAMES = [
   "January",
@@ -90,6 +91,8 @@ const SimplePayrollTab = () => {
   const [adjLoading, setAdjLoading] = useState(false);
   const [leaveBalance, setLeaveBalance] = useState(null);
   const [leaveBalanceLoading, setLeaveBalanceLoading] = useState(false);
+  const [attendanceSummary, setAttendanceSummary] = useState(null);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const [showCreateStructure, setShowCreateStructure] = useState(false);
@@ -220,6 +223,27 @@ const SimplePayrollTab = () => {
     }
   }, [employeeId, year]);
 
+  const loadAttendance = useCallback(async () => {
+    if (!employeeId) {
+      setAttendanceSummary(null);
+      return;
+    }
+    setAttendanceLoading(true);
+    try {
+      const res = await attendanceApi.getAttendanceSummary(
+        employeeId,
+        month,
+        year
+      );
+      setAttendanceSummary(res.data || null);
+    } catch (err) {
+      console.error(err);
+      setAttendanceSummary(null);
+    } finally {
+      setAttendanceLoading(false);
+    }
+  }, [employeeId, month, year]);
+
   const loadAdjustments = useCallback(async () => {
     if (!employeeId) {
       setAdjustments([]);
@@ -248,8 +272,15 @@ const SimplePayrollTab = () => {
       loadPreview(),
       loadAdjustments(),
       loadLeaveBalance(),
+      loadAttendance(),
     ]);
-  }, [loadStructure, loadPreview, loadAdjustments, loadLeaveBalance]);
+  }, [
+    loadStructure,
+    loadPreview,
+    loadAdjustments,
+    loadLeaveBalance,
+    loadAttendance,
+  ]);
 
   useEffect(() => {
     loadEmployees();
@@ -261,6 +292,7 @@ const SimplePayrollTab = () => {
       setPreview(null);
       setAdjustments([]);
       setLeaveBalance(null);
+      setAttendanceSummary(null);
       return;
     }
     refreshAll();
@@ -835,7 +867,7 @@ const SimplePayrollTab = () => {
                         "Net salary would be negative — approve fewer deductions or fix adjustments."}
                     </Alert>
                   )}
-                  <Accordion defaultActiveKey={["0", "4"]} alwaysOpen>
+                  <Accordion defaultActiveKey={["0", "5"]} alwaysOpen>
                     <Accordion.Item eventKey="0">
                       <Accordion.Header>
                         Monthly Salary —{" "}
@@ -849,6 +881,100 @@ const SimplePayrollTab = () => {
                       </Accordion.Body>
                     </Accordion.Item>
                     <Accordion.Item eventKey="1">
+                      <Accordion.Header>
+                        Attendance report (review only)
+                        {preview.attendanceReport?.suggestedDeduction > 0 && (
+                          <Badge bg="warning" text="dark" className="ms-2">
+                            Suggested{" "}
+                            {formatInr(
+                              preview.attendanceReport.suggestedDeduction
+                            )}
+                          </Badge>
+                        )}
+                      </Accordion.Header>
+                      <Accordion.Body>
+                        <Alert variant="light" className="border small py-2">
+                          Nothing here is deducted automatically. Review counts
+                          below, then use Salary or leave deduction to apply a
+                          deduction if needed.
+                        </Alert>
+                        {attendanceLoading ? (
+                          <Spinner animation="border" size="sm" />
+                        ) : (
+                          <Row className="g-2 small mb-3">
+                            <Col xs={6} md={3}>
+                              <div className="text-muted">Present</div>
+                              <strong>
+                                {attendanceSummary?.summary?.present ?? "—"}
+                              </strong>
+                            </Col>
+                            <Col xs={6} md={3}>
+                              <div className="text-muted">Absent</div>
+                              <strong>
+                                {attendanceSummary?.summary?.absent ?? "—"}
+                              </strong>
+                            </Col>
+                            <Col xs={6} md={3}>
+                              <div className="text-muted">Late</div>
+                              <strong>
+                                {attendanceSummary?.summary?.late ?? "—"}
+                              </strong>
+                            </Col>
+                            <Col xs={6} md={3}>
+                              <div className="text-muted">On leave</div>
+                              <strong>
+                                {attendanceSummary?.summary?.onLeave ?? "—"}
+                              </strong>
+                            </Col>
+                            <Col xs={6} md={3}>
+                              <div className="text-muted">Half day</div>
+                              <strong>
+                                {attendanceSummary?.summary?.halfDay ?? "—"}
+                              </strong>
+                            </Col>
+                            <Col xs={6} md={3}>
+                              <div className="text-muted">
+                                Unpaid leave (suggested)
+                              </div>
+                              <strong>
+                                {preview.attendanceReport?.unpaidLeaveDays ?? 0}{" "}
+                                day(s)
+                              </strong>
+                            </Col>
+                            <Col xs={6} md={3}>
+                              <div className="text-muted">Per day</div>
+                              <strong>
+                                {formatInr(
+                                  preview.attendanceReport?.perDaySalary ??
+                                    preview.perDaySalary
+                                )}
+                              </strong>
+                            </Col>
+                            <Col xs={6} md={3}>
+                              <div className="text-muted">Suggested deduct</div>
+                              <strong>
+                                {formatInr(
+                                  preview.attendanceReport?.suggestedDeduction
+                                )}
+                              </strong>
+                            </Col>
+                          </Row>
+                        )}
+                        <p className="small text-muted mb-2">
+                          {preview.attendanceReport?.detail ||
+                            "No leave-impact suggestion for this period."}
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="outline-primary"
+                          onClick={() => openDeductionModal("salary")}
+                        >
+                          <FaPlus className="me-1" />
+                          Deduct from salary using this report
+                        </Button>
+                      </Accordion.Body>
+                    </Accordion.Item>
+                    <Accordion.Item eventKey="2">
                       <Accordion.Header>
                         Salary or leave deduction
                         {preview.attendanceReport?.suggestedDeduction > 0 && (
@@ -934,7 +1060,7 @@ const SimplePayrollTab = () => {
                         </Row>
                       </Accordion.Body>
                     </Accordion.Item>
-                    <Accordion.Item eventKey="2">
+                    <Accordion.Item eventKey="3">
                       <Accordion.Header>
                         Manual Adjustments —{" "}
                         {formatInr(
@@ -998,7 +1124,7 @@ const SimplePayrollTab = () => {
                         )}
                       </Accordion.Body>
                     </Accordion.Item>
-                    <Accordion.Item eventKey="3">
+                    <Accordion.Item eventKey="4">
                       <Accordion.Header>
                         TDS —{" "}
                         {preview.sections?.tds?.enabled
@@ -1011,7 +1137,7 @@ const SimplePayrollTab = () => {
                           : "TDS is disabled for this employee."}
                       </Accordion.Body>
                     </Accordion.Item>
-                    <Accordion.Item eventKey="4" className="payroll-final-net-item">
+                    <Accordion.Item eventKey="5" className="payroll-final-net-item">
                       <Accordion.Header className="payroll-final-net-header">
                         Final Net —{" "}
                         {preview.totals?.rejected
