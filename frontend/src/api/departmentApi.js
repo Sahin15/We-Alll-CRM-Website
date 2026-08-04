@@ -6,6 +6,12 @@ export const departmentApi = {
     const response = await api.get("/departments", { params });
     return response.data;
   },
+
+  /** Lightweight _id + name list for filters (dashboard.view — no team.department.view). */
+  getDepartmentDirectory: async () => {
+    const response = await api.get("/departments/directory");
+    return response.data;
+  },
   
   // Get only operational departments (for client assignment)
   getOperationalDepartments: async (params = {}) => {

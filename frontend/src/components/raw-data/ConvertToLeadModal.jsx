@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Modal, Form, Button, Row, Col, ListGroup } from "react-bootstrap";
 import { toast } from "react-toastify";
 import { rawDataApi } from "../../api/rawDataApi";
-import api from "../../services/api";
 
 export default function ConvertToLeadModal({ show, record, onHide, onConverted }) {
   const [leadOwnerId, setLeadOwnerId] = useState("");
@@ -11,16 +10,16 @@ export default function ConvertToLeadModal({ show, record, onHide, onConverted }
 
   useEffect(() => {
     if (show) {
-      // Fetch only Sales department employees
-      api.get("/users", { params: { department: "Sales", status: "active", limit: 100 } })
-        .then(res => {
-          const userList = Array.isArray(res.data) ? res.data : (res.data.users || res.data.data || []);
+      rawDataApi
+        .getAssignableStaff("Sales", { limit: 100 })
+        .then((res) => {
+          const userList = res.data?.data ?? [];
           setUsers(userList);
           if (userList.length === 0) {
             toast.warning("No sales team members found");
           }
         })
-        .catch(err => {
+        .catch((err) => {
           console.error("Error fetching sales team:", err);
           toast.error("Failed to load sales team members");
         });

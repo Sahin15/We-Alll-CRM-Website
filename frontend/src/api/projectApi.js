@@ -113,6 +113,15 @@ export const getProjectTeam = async (projectId) => {
   }
 };
 
+export const getTeamMemberCandidates = async (projectId) => {
+  try {
+    const response = await api.get(`/projects/${projectId}/team/candidates`);
+    return response.data?.data || [];
+  } catch (error) {
+    throw error;
+  }
+};
+
 // ============================================
 // HoP/HoD Specific
 // ============================================
@@ -453,6 +462,7 @@ export const projectApi = {
   addTeamMember,
   removeTeamMember,
   getProjectTeam,
+  getTeamMemberCandidates,
   getMyLeadingProjects,
   getMyDepartmentProjects,
   getMyProjects,

@@ -391,7 +391,10 @@ const MyLeaves = () => {
                         </small>
                       </div>
                     </div>
-                    <small className="text-muted">Used: {leaveBalance.unpaid.used} days</small>
+                    <div className="d-flex justify-content-between">
+                      <small className="text-muted">Used: {leaveBalance.unpaid.used} days</small>
+                      <small className="text-muted">Notice: Same day</small>
+                    </div>
                   </Card.Body>
                 </Card>
               </Col>

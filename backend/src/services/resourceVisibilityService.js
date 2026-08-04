@@ -96,6 +96,10 @@ export function canViewAllCompanyProjects(user) {
     return true;
   }
 
+  if (hasCompanyWideScopeForPermission(user, 'projects.project.manage')) {
+    return true;
+  }
+
   return COMPANY_VIEWER_ROLES.includes(user.role);
 }
 

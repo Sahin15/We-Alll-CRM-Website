@@ -35,7 +35,11 @@ import {
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import { PAGE_ACCESS } from "../../constants/pageAccess";
-import { hasPermissionAccess } from "../../utils/authzAccess";
+import {
+  hasPermissionAccess,
+  hasExplicitPermissionGrant,
+  passesLegacyRoleMenuGate,
+} from "../../utils/authzAccess";
 import { BRAND_LOGO_FULL, BRAND_NAME } from "../../constants/branding";
 import "./Sidebar.css";
 
@@ -78,7 +82,7 @@ const COMPANY_VIEW_ROLES = ["employee", "hod", "admin", "superadmin", "hr", "man
 const COMPANY_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
 const HIRING_PIPELINE_ROLES = ["admin", "superadmin", "hr", "manager"];
 const TEAM_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
-const TEAM_USER_ADMIN_ROLES = ["admin", "superadmin"];
+const TEAM_USER_ADMIN_ROLES = ["superadmin"];
 const COMPENSATION_SELF_ROLES = ["employee", "hod", "manager", "hr"];
 const LEAVE_APPROVE_ROLES = ["admin", "superadmin", "hr", "manager"];
 const ATTENDANCE_SELF_ROLES = ["employee", "manager", "hr", "hod"];
@@ -336,6 +340,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           icon: <FaUserPlus />,
           label: "Hiring Requests",
           permission: "hiring.request.view",
+          alternatePermissions: ["hiring.request.create"],
           fallbackRoles: ["hod"],
           requiresDepartmentHead: true,
         },
@@ -501,8 +506,9 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       icon: <FaUserPlus />,
       label: "Hiring",
       permission: "hiring.pipeline.manage",
+      alternatePermissions: ["hiring.request.view"],
+      companyWideAlternates: ["hiring.request.view"],
       fallbackRoles: HIRING_PIPELINE_ROLES,
-      onlyForRoles: ["admin", "superadmin", "hr", "manager"],
       isGroup: true,
       children: [
         {
@@ -517,6 +523,8 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           icon: <FaClipboardList />,
           label: "Requests & Pipeline",
           permission: "hiring.pipeline.manage",
+          alternatePermissions: ["hiring.request.view"],
+          companyWideAlternates: ["hiring.request.view"],
           fallbackRoles: HIRING_PIPELINE_ROLES,
         },
         {
@@ -540,23 +548,28 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       icon: <FaUsers />,
       label: "Team",
       permission: "team.user.view",
+      alternatePermissions: [
+        "team.user.update",
+        "team.user.create",
+        "team.department.manage",
+        "worklog.entry.review",
+      ],
       fallbackRoles: TEAM_MANAGE_ROLES,
-      onlyForRoles: ["admin", "superadmin", "hr", "manager"],
       isGroup: true,
       children: [
         {
           path: "/users",
           icon: <FaUsers />,
           label: "Users",
-          permission: "team.user.view",
+          permission: "team.user.update",
           fallbackRoles: TEAM_USER_ADMIN_ROLES,
-          onlyForRoles: TEAM_USER_ADMIN_ROLES,
         },
         {
           path: "/employees",
           icon: <FaUsers />,
           label: "Employees",
           permission: "team.user.view",
+          alternatePermissions: ["team.user.create"],
           fallbackRoles: TEAM_MANAGE_ROLES,
         },
         {
@@ -564,7 +577,9 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           icon: <FaBuilding />,
           label: "Departments",
           permission: "team.department.view",
+          alternatePermissions: ["team.department.manage"],
           fallbackRoles: TEAM_MANAGE_ROLES,
+          onlyForRoles: ["admin", "superadmin", "hr", "manager"],
         },
         {
           path: "/admin/worklog-management",
@@ -729,6 +744,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           authzLoading,
           permission: menuItem.permission,
           alternatePermissions: menuItem.alternatePermissions || [],
+          companyWideAlternates: menuItem.companyWideAlternates || [],
           fallbackRoles: menuItem.fallbackRoles || [],
           requiresDepartmentHead: menuItem.requiresDepartmentHead,
         });
@@ -738,31 +754,27 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
 
       if (!permitted) return false;
 
-      if (menuItem.onlyForRoles?.length > 0) {
-        if (menuItem.onlyForRoles.includes(user.role)) {
-          // allowed
-        } else if (
-          user.role === "hod" &&
-          menuItem.hodDepartments?.length > 0 &&
-          menuItem.hodDepartments.some(
-            (d) => d.toLowerCase() === user?.department?.name?.toLowerCase()
-          )
-        ) {
-          // HoD of allowed department
-        } else {
-          return false;
-        }
+      if (!passesLegacyRoleMenuGate({ user, menuItem, authzEffective })) {
+        return false;
       }
 
       const isPrivilegedRole = canAccess('team.user.update', ['admin', 'superadmin', 'manager']);
 
       if (menuItem.departments?.length > 0 && !isPrivilegedRole) {
-        if (!user?.department?.name) return false;
+        const hasAuthzGrant = hasExplicitPermissionGrant({
+          canPermission,
+          permission: menuItem.permission,
+          alternatePermissions: menuItem.alternatePermissions,
+        });
 
-        const hasDepartmentAccess = menuItem.departments.some(
-          (dept) => dept.toLowerCase() === user.department.name.toLowerCase()
-        );
-        if (!hasDepartmentAccess) return false;
+        if (!hasAuthzGrant) {
+          if (!user?.department?.name) return false;
+
+          const hasDepartmentAccess = menuItem.departments.some(
+            (dept) => dept.toLowerCase() === user.department.name.toLowerCase()
+          );
+          if (!hasDepartmentAccess) return false;
+        }
       }
 
       if (menuItem.excludeDepartments?.length > 0 && user?.department?.name && !isPrivilegedRole) {

@@ -56,30 +56,70 @@ const ProjectListPage = () => {
     }
   }, [user?.id]);
 
+  const getProjectsByRole = useCallback(async () => {
+    if (canViewAllProjects) {
+      return projectApi.getAllProjects();
+    }
+    if (user?.role === 'hod' || user?.isHeadOfDepartment) {
+      return projectApi.getMyDepartmentProjects();
+    }
+    return projectApi.getMyProjects();
+  }, [canViewAllProjects, user?.role, user?.isHeadOfDepartment]);
+
+  const fetchDepartmentsForFilters = useCallback(async () => {
+    if (!canFilterProjectsAdmin) {
+      return [];
+    }
+    try {
+      const data = await departmentApi.getAllDepartments();
+      return Array.isArray(data) ? data : data?.data || data?.departments || [];
+    } catch (error) {
+      if (error.response?.status === 403) {
+        try {
+          const directory = await departmentApi.getDepartmentDirectory();
+          return Array.isArray(directory) ? directory : [];
+        } catch {
+          return [];
+        }
+      }
+      return [];
+    }
+  }, [canFilterProjectsAdmin]);
+
+  const fetchClientsForFilters = useCallback(async () => {
+    if (!canFilterProjectsAdmin) {
+      return [];
+    }
+    try {
+      const response = await clientApi.getAllClients();
+      return response.data || response.clients || [];
+    } catch {
+      return [];
+    }
+  }, [canFilterProjectsAdmin]);
+
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      
-      // Parallel API calls for better performance
-      const projectsPromise = getProjectsByRole();
-      const clientsPromise = canFilterProjectsAdmin
-        ? clientApi.getAllClients()
-        : Promise.resolve({ data: [], clients: [] });
-      const departmentsPromise = canFilterProjectsAdmin
-        ? departmentApi.getAllDepartments()
-        : Promise.resolve({ data: [], departments: [] });
 
-      const [projectsRes, clientsRes, deptsRes] = await Promise.all([
-        projectsPromise,
-        clientsPromise,
-        departmentsPromise
+      const [projectsResult, clientsResult, departmentsResult] = await Promise.allSettled([
+        getProjectsByRole(),
+        fetchClientsForFilters(),
+        fetchDepartmentsForFilters(),
       ]);
 
-      // Handle different response formats
-      const projectsData = projectsRes.data || projectsRes.projects || projectsRes || [];
+      if (projectsResult.status === 'rejected') {
+        throw projectsResult.reason;
+      }
+
+      const projectsRes = projectsResult.value;
+      const projectsData =
+        projectsRes?.data ||
+        projectsRes?.projects ||
+        (Array.isArray(projectsRes) ? projectsRes : []);
       setProjects(Array.isArray(projectsData) ? projectsData : []);
-      setClients(clientsRes.data || clientsRes.clients || []);
-      setDepartments(deptsRes.data || deptsRes.departments || []);
+      setClients(clientsResult.status === 'fulfilled' ? clientsResult.value : []);
+      setDepartments(departmentsResult.status === 'fulfilled' ? departmentsResult.value : []);
     } catch (error) {
       console.error('Error loading data:', error);
       toast.error('Failed to load projects');
@@ -89,14 +129,7 @@ const ProjectListPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [user?.role]);
-
-  const getProjectsByRole = useCallback(async () => {
-    if (canViewAllProjects) {
-      return projectApi.getAllProjects();
-    }
-    return projectApi.getMyProjects();
-  }, [canViewAllProjects]);
+  }, [getProjectsByRole, fetchClientsForFilters, fetchDepartmentsForFilters]);
 
   const handleEdit = useCallback((project) => {
     setEditingProject(project);

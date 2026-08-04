@@ -6,6 +6,7 @@ import toast from "../../utils/toast";
 import { expenseApi } from "../../api/expenseApi";
 import api from "../../services/api";
 import { EXPENSE_PURPOSES_ARRAY, EXPENSE_TYPES_ARRAY } from "../../utils/expenseConstants";
+import { MAX_PHOTO_UPLOAD_BYTES, MAX_PHOTO_UPLOAD_MB } from "../../utils/constants";
 
 const PAYMENT_METHODS = [
   { value: "cash", label: "Cash" },
@@ -55,9 +56,8 @@ const CreateExpense = () => {
       return;
     }
 
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("File size must be less than 10MB");
+    if (file.size > MAX_PHOTO_UPLOAD_BYTES) {
+      toast.error(`File size must be less than ${MAX_PHOTO_UPLOAD_MB}MB`);
       return;
     }
 
@@ -370,7 +370,7 @@ const CreateExpense = () => {
                         )}
                       </Button>
                       <p className="text-muted small mt-2 mb-0">
-                        Supported: JPG, PNG, GIF, PDF (Max 10MB)
+                        Supported: JPG, PNG, GIF, PDF (Max {MAX_PHOTO_UPLOAD_MB}MB)
                       </p>
                     </div>
                   ) : (

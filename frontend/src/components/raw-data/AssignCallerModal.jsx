@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Modal, Form, Button } from "react-bootstrap";
 import { toast } from "react-toastify";
-import api from "../../services/api";
+import { rawDataApi } from "../../api/rawDataApi";
 
 export default function AssignCallerModal({ show, record, onHide, onAssigned }) {
   const [callerId, setCallerId] = useState("");
@@ -13,10 +13,10 @@ export default function AssignCallerModal({ show, record, onHide, onAssigned }) 
     if (show) {
       setCallerId(record?.assignedCaller?._id || "");
       setLoading(true);
-      // Fetch users from Telecaller department
-      api.get("/users", { params: { department: "Telecaller", status: "active", limit: 1000 } })
-        .then(res => {
-          const userList = Array.isArray(res.data) ? res.data : (res.data.users || res.data.data || []);
+      rawDataApi
+        .getAssignableStaff("Telecaller", { limit: 1000 })
+        .then((res) => {
+          const userList = res.data?.data ?? [];
           setUsers(userList);
           if (userList.length === 0) {
             toast.warning("No telecallers found. Make sure the Telecaller department exists.");

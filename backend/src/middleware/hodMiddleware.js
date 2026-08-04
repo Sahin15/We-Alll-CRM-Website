@@ -37,7 +37,8 @@ export const isHoD = async (req, res, next) => {
 export const isHoDOfDepartment = async (req, res, next) => {
   try {
     const userId = req.user._id;
-    const departmentId = req.params.departmentId || req.body.department;
+    const departmentId =
+      req.params.departmentId || req.params.id || req.body.department;
 
     if (!departmentId) {
       return res.status(400).json({
@@ -137,8 +138,46 @@ export const canAssignHoP = async (req, res, next) => {
   }
 };
 
+/**
+ * Allow admin department view OR HoD access to their own department record.
+ * Used on GET /departments/:id so dashboards can load HoD context without team.department.view.
+ *
+ * @param {import('express').RequestHandler} deptViewMiddleware
+ * @returns {import('express').RequestHandler}
+ */
+export const allowDeptViewOrHoDOfDepartment = (deptViewMiddleware) => {
+  return async (req, res, next) => {
+    try {
+      const departmentId =
+        req.params.departmentId || req.params.id || req.body.department;
+
+      if (departmentId) {
+        const department = await Department.findOne({
+          _id: departmentId,
+          head: req.user._id,
+          status: "active",
+        });
+
+        if (department) {
+          req.hodDepartment = department;
+          return next();
+        }
+      }
+
+      return deptViewMiddleware(req, res, next);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Error checking department access",
+        error: error.message,
+      });
+    }
+  };
+};
+
 export default {
   isHoD,
   isHoDOfDepartment,
   canAssignHoP,
+  allowDeptViewOrHoDOfDepartment,
 };

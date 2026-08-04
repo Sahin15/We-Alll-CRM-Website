@@ -1,6 +1,7 @@
 import express from "express";
 import { protect } from "../middleware/authMiddleware.js";
 import { requireModulePermission } from "../authz/authzMiddleware.js";
+import { attachDepartmentForAuthz } from "../authz/attachDepartmentContext.js";
 import {
   createRecord,
   getRecords,
@@ -21,27 +22,33 @@ import {
   getDashboardSummary,
   getSourceAnalysis,
   getCategoryAnalysis,
+  getAssignableStaff,
 } from "../controllers/rawDataController.js";
 
 const router = express.Router();
 
-const CRM_RAWDATA_ROLES = ["admin", "superadmin", "sales"];
+const CRM_RAWDATA_ROLES = ["admin", "superadmin", "manager", "employee", "hod", "sales"];
+const CRM_RAWDATA_DEPARTMENTS = ["Sales", "Telecaller"];
 
-const crmRawDataManage = requireModulePermission("crm", "crm.rawdata.manage", {
+const rawDataLegacyGate = {
   legacyRoles: CRM_RAWDATA_ROLES,
-});
+  legacyDepartments: CRM_RAWDATA_DEPARTMENTS,
+};
+
+const crmRawDataManage = requireModulePermission("crm", "crm.rawdata.manage", rawDataLegacyGate);
 
 const rawDataAnalytics = requireModulePermission("crm", "crm.rawdata.analytics.view", {
   legacyRoles: ["admin", "superadmin", "manager"],
 });
 
-router.use(protect);
+router.use(protect, attachDepartmentForAuthz);
 
 router.get("/dashboard/summary", rawDataAnalytics, getDashboardSummary);
 router.get("/dashboard/source-analysis", rawDataAnalytics, getSourceAnalysis);
 router.get("/dashboard/category-analysis", rawDataAnalytics, getCategoryAnalysis);
 
 router.get("/queue/today", crmRawDataManage, getTodayQueue);
+router.get("/assignable-staff", crmRawDataManage, getAssignableStaff);
 
 router.post("/check-duplicate", crmRawDataManage, checkDuplicate);
 router.post("/batch-import", crmRawDataManage, batchImport);
