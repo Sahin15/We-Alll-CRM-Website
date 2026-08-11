@@ -835,7 +835,22 @@ export const updateTask = async (req, res) => {
 export const addDeliverable = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, fileUrl, status } = req.body;
+    const {
+      title,
+      description,
+      fileUrl,
+      status,
+      owner,
+      priority,
+      plannedDate,
+      progress,
+      relatedExpectationIds,
+      relatedCommitmentIds,
+      workItemIds,
+      evidenceDocumentIds,
+      notes,
+      monthKey,
+    } = req.body;
 
     if (!title)
       return res.status(400).json({ message: "Deliverable title is required" });
@@ -843,13 +858,27 @@ export const addDeliverable = async (req, res) => {
     const project = await Project.findById(id);
     if (!project) return res.status(404).json({ message: "Project not found" });
 
-    project.deliverables.push({ title, description, fileUrl, status });
+    project.deliverables.push({
+      title,
+      description,
+      fileUrl,
+      status: status || "pending",
+      owner: owner || null,
+      priority: priority || "medium",
+      plannedDate: plannedDate || null,
+      progress: progress || 0,
+      relatedExpectationIds: relatedExpectationIds || [],
+      relatedCommitmentIds: relatedCommitmentIds || [],
+      workItemIds: workItemIds || [],
+      evidenceDocumentIds: evidenceDocumentIds || [],
+      notes: notes ? notes.trim() : "",
+      monthKey: monthKey || null,
+    });
     await project.save();
 
     return res.status(201).json({ message: "Deliverable added", project });
   } catch (error) {
-    
-    return res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 

@@ -1,7 +1,7 @@
 import LeaveRequest from "../../models/leaveRequestModel.js";
 import SalaryStructure from "../../models/salaryStructureModel.js";
 import LeaveImpactCalculator from "../leaveImpactCalculator.js";
-import { getLeaveDayCount } from "../../constants/leaveTypes.js";
+import { getLeaveRequestDays } from "../../utils/leaveDays.js";
 
 function toDateOnly(date) {
   const d = new Date(date);
@@ -165,7 +165,7 @@ export async function applyLeaveBalanceDeduction({
       approvedBy,
       approvedDate: new Date(),
       leaveYear: year,
-      numberOfDays: getLeaveDayCount("casual", group.start, group.end),
+      numberOfDays: getLeaveRequestDays("casual", group.start, group.end),
     });
     createdLeaveIds.push(leave._id);
   }

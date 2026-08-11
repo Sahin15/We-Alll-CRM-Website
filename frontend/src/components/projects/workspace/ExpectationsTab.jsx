@@ -14,8 +14,10 @@ import { FaPlus, FaEdit, FaTrash, FaCheck, FaBullseye } from "react-icons/fa";
 import { toast } from "react-toastify";
 import expectationApi from "../../../api/expectationApi";
 import { formatDate } from "../../../utils/helpers";
+import CommitmentsSection from "./CommitmentsSection";
+import DeliverablesSection from "./DeliverablesSection";
 
-const ExpectationsTab = ({ project, canEdit }) => {
+const ExpectationsTab = ({ project, onRefresh, canEdit }) => {
   const projectId = project?._id || project?.id;
   const [expectations, setExpectations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -175,6 +177,9 @@ const ExpectationsTab = ({ project, canEdit }) => {
 
   return (
     <div className="mt-3">
+      <DeliverablesSection project={project} onRefresh={onRefresh} canEdit={canEdit} />
+      <CommitmentsSection project={project} canEdit={canEdit} />
+
       <Card className="shadow-sm border-0">
         <Card.Header className="bg-white d-flex justify-content-between align-items-center py-3">
           <div className="d-flex align-items-center gap-2">

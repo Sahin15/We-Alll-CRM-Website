@@ -156,7 +156,14 @@ router.get("/check-departments", protect, authorize("admin", "superadmin", "hr")
     });
     
   } catch (error) {
-    
+    res.status(500).json({
+      success: false,
+      message: "Error fetching user department breakdown",
+      error: error.message
+    });
+  }
+});
+
 // Sync all approved leave requests with attendance records
 router.post("/fix-leave-attendance", protect, authorize("admin", "superadmin", "hr"), async (req, res) => {
   try {

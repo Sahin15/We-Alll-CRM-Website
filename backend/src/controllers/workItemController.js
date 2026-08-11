@@ -349,6 +349,12 @@ const createWorkItem = async (req, res) => {
       // Draft/Scheduled fields
       visibility,
       scheduledActivationDate,
+      // V2 planning fields
+      deliverableId,
+      expectationId,
+      commitmentId,
+      plannedMonth,
+      delayReason,
     } = req.body;
     
     // ENHANCED VALIDATION - Check required fields based on type
@@ -442,6 +448,15 @@ const createWorkItem = async (req, res) => {
       tags: Array.isArray(tags) ? tags : (tags ? [tags] : []),
       visibility: visibility || 'active',
     };
+
+    if (deliverableId) workItemData.deliverableId = deliverableId;
+    if (expectationId) workItemData.expectationId = expectationId;
+    if (commitmentId) workItemData.commitmentId = commitmentId;
+    if (plannedMonth) workItemData.plannedMonth = plannedMonth;
+    if (delayReason) {
+      workItemData.delayReason = delayReason;
+      workItemData.delayedAt = new Date();
+    }
 
     // Add scheduled activation date if provided
     if (visibility === 'scheduled' && scheduledActivationDate) {
@@ -709,7 +724,16 @@ const updateWorkItem = async (req, res) => {
       "estimatedHours",
       "actualHours",
       "assignedTo", // Anyone with access can reassign
+      "deliverableId",
+      "expectationId",
+      "commitmentId",
+      "plannedMonth",
+      "delayReason",
     ];
+
+    if (req.body.delayReason && req.body.delayReason !== workItem.delayReason) {
+      workItem.delayedAt = new Date();
+    }
     
     Object.keys(req.body).forEach((key) => {
       if (allowedUpdates.includes(key)) {
