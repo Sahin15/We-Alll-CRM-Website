@@ -17,6 +17,7 @@ import { formatDate } from "../../../utils/helpers";
 import CommitmentsSection from "./CommitmentsSection";
 import DeliverablesSection from "./DeliverablesSection";
 import MonthlyGoalsSection from "./MonthlyGoalsSection";
+import MonthlyProgressSection from "./MonthlyProgressSection";
 
 const ExpectationsTab = ({ project, onRefresh, canEdit }) => {
   const projectId = project?._id || project?.id;
@@ -178,6 +179,7 @@ const ExpectationsTab = ({ project, onRefresh, canEdit }) => {
 
   return (
     <div className="mt-3">
+      <MonthlyProgressSection project={project} />
       <MonthlyGoalsSection project={project} canEdit={canEdit} />
       <DeliverablesSection project={project} onRefresh={onRefresh} canEdit={canEdit} />
       <CommitmentsSection project={project} canEdit={canEdit} />

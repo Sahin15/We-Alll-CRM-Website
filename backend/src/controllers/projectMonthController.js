@@ -2,6 +2,7 @@ import ProjectMonth from "../models/projectMonthModel.js";
 import Project from "../models/projectModel.js";
 import { canUserViewProject } from "../services/resourceVisibilityService.js";
 import { logProjectActivity } from "../services/projectActivityService.js";
+import { calculateMonthProgress } from "../services/projectMonthProgressService.js";
 import logger from "../utils/logger.js";
 
 /**
@@ -150,6 +151,37 @@ export const getProjectMonthsHistory = async (req, res) => {
     });
   } catch (error) {
     logger.error("Error fetching project month history:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+/**
+ * Get live month progress metrics
+ * GET /api/projects/:projectId/month-progress?monthKey=2026-08
+ */
+export const getMonthProgress = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    let { monthKey } = req.query;
+
+    if (!monthKey) {
+      const now = new Date();
+      monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    }
+
+    const hasAccess = await canUserViewProject(req.user, projectId);
+    if (!hasAccess) {
+      return res.status(403).json({ message: "Access denied to this project" });
+    }
+
+    const progress = await calculateMonthProgress(projectId, monthKey);
+
+    res.status(200).json({
+      success: true,
+      data: progress,
+    });
+  } catch (error) {
+    logger.error("Error in getMonthProgress:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };

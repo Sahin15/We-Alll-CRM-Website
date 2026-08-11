@@ -3,6 +3,7 @@ import {
   getOrCreateProjectMonth,
   updateProjectMonthGoals,
   getProjectMonthsHistory,
+  getMonthProgress,
 } from "../controllers/projectMonthController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { requireModulePermission } from "../authz/authzMiddleware.js";
@@ -19,6 +20,12 @@ router.get(
   "/projects/:projectId/month",
   requireModulePermission("projects", "projects.project.view", { legacyRoles: PROJECT_VIEW_ROLES }),
   getOrCreateProjectMonth
+);
+
+router.get(
+  "/projects/:projectId/month-progress",
+  requireModulePermission("projects", "projects.project.view", { legacyRoles: PROJECT_VIEW_ROLES }),
+  getMonthProgress
 );
 
 router.get(
