@@ -18,6 +18,7 @@ import CommitmentsSection from "./CommitmentsSection";
 import DeliverablesSection from "./DeliverablesSection";
 import MonthlyGoalsSection from "./MonthlyGoalsSection";
 import MonthlyProgressSection from "./MonthlyProgressSection";
+import ActivityTimelineSection from "./ActivityTimelineSection";
 
 const ExpectationsTab = ({ project, onRefresh, canEdit }) => {
   const projectId = project?._id || project?.id;
@@ -274,6 +275,9 @@ const ExpectationsTab = ({ project, onRefresh, canEdit }) => {
           )}
         </Card.Body>
       </Card>
+
+      {/* Activity Timeline Section */}
+      <ActivityTimelineSection projectId={projectId} />
 
       {/* Expectation Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
