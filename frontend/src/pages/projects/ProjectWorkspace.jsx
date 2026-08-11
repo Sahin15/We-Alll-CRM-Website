@@ -12,6 +12,7 @@ import KanbanTab from '../../components/projects/workspace/KanbanTab';
 import SlotHistory from '../../components/projects/workspace/SlotHistory';
 import ProjectCredentials from '../../components/projects/ProjectCredentials';
 import BusinessDocumentsTab from '../../components/documents/BusinessDocumentsTab';
+import ReportsTab from '../../components/projects/workspace/ReportsTab';
 import { useAuth } from '../../context/AuthContext';
 import { PAGE_ACCESS, checkPageAccess } from '../../constants/pageAccess';
 
@@ -264,6 +265,17 @@ const ProjectWorkspace = () => {
           }
         >
           <BusinessDocumentsTab projectId={id} canEdit={canEdit} />
+        </Tab>
+
+        <Tab 
+          eventKey="reports" 
+          title={
+            <span style={{ fontWeight: activeTab === 'reports' ? '600' : '500' }}>
+              📈 Reports
+            </span>
+          }
+        >
+          <ReportsTab project={project} canEdit={canEdit} />
         </Tab>
       </Tabs>
     </Container>
