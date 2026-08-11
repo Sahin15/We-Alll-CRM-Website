@@ -17,6 +17,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { PAGE_ACCESS, checkPageAccess } from "../../constants/pageAccess";
 import { canViewAllCompanyProjects } from "../../utils/resourceVisibility";
+import BusinessDocumentsTab from "../../components/documents/BusinessDocumentsTab";
 import {
   FaArrowLeft,
   FaEdit,
@@ -458,6 +459,9 @@ const ClientDetails = () => {
               Services ({subscriptions.length})
             </Nav.Link>
           </Nav.Item>
+          <Nav.Item>
+            <Nav.Link eventKey="documents">Documents</Nav.Link>
+          </Nav.Item>
         </Nav>
 
         <Tab.Content>
@@ -893,6 +897,11 @@ const ClientDetails = () => {
                 )}
               </Card.Body>
             </Card>
+          </Tab.Pane>
+
+          {/* DOCUMENTS TAB */}
+          <Tab.Pane eventKey="documents">
+            <BusinessDocumentsTab clientId={id} canEdit={canEdit} />
           </Tab.Pane>
         </Tab.Content>
       </Tab.Container>

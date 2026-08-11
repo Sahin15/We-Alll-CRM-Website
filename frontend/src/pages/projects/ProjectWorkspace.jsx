@@ -11,6 +11,7 @@ import UnifiedWorkTab from '../../components/projects/workspace/UnifiedWorkTab';
 import KanbanTab from '../../components/projects/workspace/KanbanTab';
 import SlotHistory from '../../components/projects/workspace/SlotHistory';
 import ProjectCredentials from '../../components/projects/ProjectCredentials';
+import BusinessDocumentsTab from '../../components/documents/BusinessDocumentsTab';
 import { useAuth } from '../../context/AuthContext';
 import { PAGE_ACCESS, checkPageAccess } from '../../constants/pageAccess';
 
@@ -252,6 +253,17 @@ const ProjectWorkspace = () => {
           }
         >
           <SlotHistory project={project} onRefresh={loadProject} refreshKey={refreshKey} />
+        </Tab>
+
+        <Tab 
+          eventKey="documents" 
+          title={
+            <span style={{ fontWeight: activeTab === 'documents' ? '600' : '500' }}>
+              📁 Documents
+            </span>
+          }
+        >
+          <BusinessDocumentsTab projectId={id} canEdit={canEdit} />
         </Tab>
       </Tabs>
     </Container>
