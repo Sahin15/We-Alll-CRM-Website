@@ -16,6 +16,7 @@ import expectationApi from "../../../api/expectationApi";
 import { formatDate } from "../../../utils/helpers";
 import CommitmentsSection from "./CommitmentsSection";
 import DeliverablesSection from "./DeliverablesSection";
+import MonthlyGoalsSection from "./MonthlyGoalsSection";
 
 const ExpectationsTab = ({ project, onRefresh, canEdit }) => {
   const projectId = project?._id || project?.id;
@@ -177,6 +178,7 @@ const ExpectationsTab = ({ project, onRefresh, canEdit }) => {
 
   return (
     <div className="mt-3">
+      <MonthlyGoalsSection project={project} canEdit={canEdit} />
       <DeliverablesSection project={project} onRefresh={onRefresh} canEdit={canEdit} />
       <CommitmentsSection project={project} canEdit={canEdit} />
 
