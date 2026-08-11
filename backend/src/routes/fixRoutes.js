@@ -157,73 +157,14 @@ router.get("/check-departments", protect, authorize("admin", "superadmin", "hr")
     
   } catch (error) {
     
-// Sync all approved leave requests with attendance records
-router.post("/fix-leave-attendance", protect, authorize("admin", "superadmin", "hr"), async (req, res) => {
-  try {
-    const LeaveRequest = (await import("../models/leaveRequestModel.js")).default;
-    const { getTodayMidnightIST } = await import("../utils/timezone.js");
-
-    const approvedLeaves = await LeaveRequest.find({ status: "approved" }).populate("employee", "name email");
-
-    let fixedCount = 0;
-    let createdCount = 0;
-
-    for (const leave of approvedLeaves) {
-      if (!leave.employee) continue;
-
-      const startDate = new Date(leave.startDate);
-      const endDate = new Date(leave.endDate);
-      const curr = new Date(startDate);
-
-      while (curr <= endDate) {
-        const istMidnight = getTodayMidnightIST(curr);
-        const nextIstMidnight = new Date(istMidnight.getTime() + 24 * 60 * 60 * 1000);
-
-        const existing = await Attendance.findOne({
-          employee: leave.employee._id || leave.employee,
-          date: { $gte: istMidnight, $lt: nextIstMidnight }
-        });
-
-        if (!existing) {
-          await Attendance.create({
-            employee: leave.employee._id || leave.employee,
-            date: istMidnight,
-            status: "on-leave",
-            workHours: 0,
-            overtime: 0,
-            notes: `On ${leave.leaveType} leave (System Sync)`,
-            isManuallyModified: true,
-            originalStatus: "on-leave"
-          });
-          createdCount++;
-        } else if (existing.status === "absent" || !existing.status) {
-          existing.status = "on-leave";
-          existing.workHours = 0;
-          existing.overtime = 0;
-          existing.notes = existing.notes || `On ${leave.leaveType} leave (System Sync)`;
-          existing.isManuallyModified = true;
-          await existing.save();
-          fixedCount++;
-        }
-
-        curr.setDate(curr.getDate() + 1);
-      }
-    }
-
-    res.status(200).json({
-      success: true,
-      message: `Processed ${approvedLeaves.length} approved leave requests. Updated ${fixedCount} absent records to on-leave, created ${createdCount} missing leave records.`,
-      approvedLeavesCount: approvedLeaves.length,
-      fixedCount,
-      createdCount
-    });
-  } catch (error) {
     res.status(500).json({
       success: false,
-      message: "Error syncing leave attendance records",
+      message: "Error checking department assignments",
       error: error.message
     });
   }
 });
+
+
 
 export default router;

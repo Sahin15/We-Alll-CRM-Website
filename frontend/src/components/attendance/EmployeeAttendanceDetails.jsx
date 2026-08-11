@@ -266,18 +266,18 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
 
   const allDatesWithStatus = getAllDatesInRange();
   const stats = {
-    present: allDatesWithStatus.filter((a) => a.status === 'present').length,
-    late: allDatesWithStatus.filter((a) => a.status === 'late').length,
-    halfDay: allDatesWithStatus.filter((a) => a.status === 'half-day').length,
+    present: attendances.filter((a) => a.status === 'present').length,
+    late: attendances.filter((a) => a.status === 'late').length,
+    halfDay: attendances.filter((a) => a.status === 'half-day').length,
     absent: allDatesWithStatus.filter((a) => a.status === 'absent').length,
-    onLeave: allDatesWithStatus.filter((a) => a.status === 'on-leave').length,
+    onLeave: attendances.filter((a) => a.status === 'on-leave').length,
     totalHours: attendances
       .reduce((sum, a) => sum + (a.workHours || 0), 0)
       .toFixed(2),
     totalOvertime: attendances
       .reduce((sum, a) => sum + (a.overtime || 0), 0)
       .toFixed(2),
-    totalDays: allDatesWithStatus.length,
+    totalDays: attendances.length,
   };
 
   if (!employee) return null;
