@@ -50,7 +50,7 @@ router.post(
 
 router.post(
   "/project-months/:id/review",
-  requireModulePermission("projects", "projects.report.approve", { legacyRoles: ["admin", "superadmin", "hod"] }),
+  requireModulePermission("projects", "projects.report.approve", { legacyRoles: ["admin", "superadmin", "hod", "manager", "hr"] }),
   reviewProjectMonthReport
 );
 
