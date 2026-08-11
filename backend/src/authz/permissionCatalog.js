@@ -51,6 +51,11 @@ export const PERMISSION_CATALOG = [
   // Projects
   { key: 'projects.project.view', module: 'projects', description: 'View projects' },
   { key: 'projects.project.manage', module: 'projects', description: 'Manage projects' },
+  { key: 'projects.report.view', module: 'projects', description: 'View monthly project reports' },
+  { key: 'projects.report.manage', module: 'projects', description: 'Edit and submit monthly project reports' },
+  { key: 'projects.report.approve', module: 'projects', description: 'Review and approve monthly project reports' },
+  { key: 'projects.document.view', module: 'projects', description: 'View business documents' },
+  { key: 'projects.document.manage', module: 'projects', description: 'Upload, replace, or delete business documents' },
 
   // Work items
   { key: 'work.item.view', module: 'work', description: 'View work items' },

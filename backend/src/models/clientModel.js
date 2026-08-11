@@ -34,6 +34,38 @@ const clientSchema = new mongoose.Schema(
       uppercase: true,
       maxlength: 15,
     },
+    contacts: [
+      {
+        name: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        designation: {
+          type: String,
+          trim: true,
+        },
+        type: {
+          type: String,
+          enum: ["Phone", "Email", "WhatsApp"],
+          required: true,
+        },
+        value: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        label: {
+          type: String,
+          enum: ["Primary", "Office", "Personal", "Other"],
+          default: "Primary",
+        },
+        isPrimary: {
+          type: Boolean,
+          default: false,
+        },
+      },
+    ],
     // Onboarding fields
     onboardingStatus: {
       type: String,
