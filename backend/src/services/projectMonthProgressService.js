@@ -80,9 +80,12 @@ export const calculateMonthProgress = async (projectId, monthKey) => {
 
     // Determine health status
     let healthStatus = "healthy";
-    if (achievementPercent >= 80 && overdueWorkItems === 0) {
+    if (totalPlannedDeliverables === 0 && totalWorkItems === 0) {
+      // Empty month planning -> default to healthy
       healthStatus = "healthy";
-    } else if (achievementPercent >= 50 || overdueWorkItems <= 2) {
+    } else if (achievementPercent >= 80 && overdueWorkItems === 0 && delayedDeliverables === 0) {
+      healthStatus = "healthy";
+    } else if (achievementPercent >= 50 || (overdueWorkItems <= 2 && delayedDeliverables <= 1)) {
       healthStatus = "at_risk";
     } else {
       healthStatus = "critical";
