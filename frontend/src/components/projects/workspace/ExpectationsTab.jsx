@@ -169,15 +169,6 @@ const ExpectationsTab = ({ project, onRefresh, canEdit }) => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="text-center py-5">
-        <Spinner animation="border" variant="primary" />
-        <p className="mt-2 text-muted">Loading expectations...</p>
-      </div>
-    );
-  }
-
   return (
     <div className="mt-3">
       <MonthlyProgressSection project={project} />
@@ -185,7 +176,7 @@ const ExpectationsTab = ({ project, onRefresh, canEdit }) => {
       <DeliverablesSection project={project} onRefresh={onRefresh} canEdit={canEdit} />
       <CommitmentsSection project={project} canEdit={canEdit} />
 
-      <Card className="shadow-sm border-0">
+      <Card className="shadow-sm border-0 mb-4">
         <Card.Header className="bg-white d-flex justify-content-between align-items-center py-3">
           <div className="d-flex align-items-center gap-2">
             <FaBullseye className="text-primary" size={20} />
@@ -196,9 +187,13 @@ const ExpectationsTab = ({ project, onRefresh, canEdit }) => {
               <FaPlus className="me-1" /> Add Expectation
             </Button>
           )}
-        </Card.Header>
         <Card.Body>
-          {expectations.length > 0 ? (
+          {loading ? (
+            <div className="text-center py-4">
+              <Spinner animation="border" size="sm" variant="primary" />
+              <span className="ms-2 text-muted">Loading expectations...</span>
+            </div>
+          ) : expectations.length > 0 ? (
             <Table responsive hover className="align-middle mb-0">
               <thead className="table-light">
                 <tr>
