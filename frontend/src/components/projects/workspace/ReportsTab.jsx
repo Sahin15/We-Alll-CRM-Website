@@ -362,6 +362,8 @@ const ReportsTab = ({ project, canEdit }) => {
             ))}
           </Card.Body>
         </Card>
+      )}
+
       {/* Submitted Reports History Log Table */}
       <Card className="shadow-sm border-0 mb-4">
         <Card.Header className="bg-white py-3 d-flex justify-content-between align-items-center">
