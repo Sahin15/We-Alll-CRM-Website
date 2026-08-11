@@ -69,6 +69,10 @@ const ReportsTab = ({ project, canEdit }) => {
     }
   };
 
+  const handlePrintReport = () => {
+    window.print();
+  };
+
   const handleSubmitReport = async () => {
     if (!projectMonth) return;
     if (!window.confirm("Submit monthly report? This will freeze the monthly execution snapshot.")) return;
@@ -185,6 +189,9 @@ const ReportsTab = ({ project, canEdit }) => {
           </div>
           <div className="d-flex align-items-center gap-2">
             {getStatusBadge(projectMonth?.status || "draft")}
+            <Button variant="outline-dark" size="sm" onClick={handlePrintReport} title="Download / Print Report PDF">
+              <FaDownload className="me-1" /> Print / PDF
+            </Button>
             {canEdit && !isSubmittedOrReviewed && (
               <Button variant="success" size="sm" onClick={handleSubmitReport}>
                 <FaPaperPlane className="me-1" /> Submit Report
@@ -355,7 +362,54 @@ const ReportsTab = ({ project, canEdit }) => {
             ))}
           </Card.Body>
         </Card>
-      )}
+      {/* Submitted Reports History Log Table */}
+      <Card className="shadow-sm border-0 mb-4">
+        <Card.Header className="bg-white py-3 d-flex justify-content-between align-items-center">
+          <div className="d-flex align-items-center gap-2">
+            <FaFileAlt className="text-primary" />
+            <h6 className="mb-0 fw-bold">Submitted Reports History Archive</h6>
+          </div>
+          <small className="text-muted">All monthly report submissions for this project</small>
+        </Card.Header>
+        <Card.Body>
+          {monthsHistory.length > 0 ? (
+            <Table responsive hover className="align-middle mb-0">
+              <thead className="table-light">
+                <tr>
+                  <th>Period</th>
+                  <th>Status</th>
+                  <th>Snapshot Achievement</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {monthsHistory.map((m) => (
+                  <tr key={m._id} className={m.monthKey === selectedMonthKey ? "table-active" : ""}>
+                    <td className="fw-bold">{m.periodIdentifier || m.monthKey}</td>
+                    <td>{getStatusBadge(m.status)}</td>
+                    <td>
+                      <Badge bg="info">
+                        {m.autoSnapshot?.achievementPercent ?? "-"}%
+                      </Badge>
+                    </td>
+                    <td>
+                      <Button
+                        variant={m.monthKey === selectedMonthKey ? "primary" : "outline-primary"}
+                        size="sm"
+                        onClick={() => setSelectedMonthKey(m.periodIdentifier || m.monthKey)}
+                      >
+                        {m.monthKey === selectedMonthKey ? "Viewing Report" : "View Report"}
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          ) : (
+            <p className="text-muted mb-0 text-center py-3">No report submission history found.</p>
+          )}
+        </Card.Body>
+      </Card>
     </div>
   );
 };
