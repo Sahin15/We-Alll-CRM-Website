@@ -44,6 +44,7 @@ const ClientDetails = () => {
   const { user, canAccess, authzEffective, canPermission } = useAuth();
   const visibilityParams = { user, authzEffective, canPermission };
   const canManageClients = checkPageAccess(canAccess, PAGE_ACCESS.crmClientManage);
+  const canEdit = canManageClients;
   const canViewAllProjects = canViewAllCompanyProjects(visibilityParams);
 
   const [client, setClient] = useState(null);
