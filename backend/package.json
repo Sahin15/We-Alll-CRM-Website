@@ -10,7 +10,7 @@
     "kill-port": "node scripts/kill-port.js 5000",
     "start": "node src/server.js",
     "lint": "eslint . --ext .js",
-    "test": "cross-env NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
+    "test": "cross-env NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --forceExit",
     "authz:rollout-status": "node scripts/authz-rollout-status.js",
     "authz:test": "cross-env NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand tests/authz",
     "seed": "node src/seed/seedRoles.js",
