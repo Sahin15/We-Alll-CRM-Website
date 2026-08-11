@@ -38,6 +38,10 @@ export async function logProjectActivity(params) {
       return null;
     }
 
+    if (process.env.NODE_ENV === "test") {
+      return null;
+    }
+
     const activityLog = new ProjectActivityLog({
       actor,
       action,

@@ -185,3 +185,130 @@ export const getMonthProgress = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+/**
+ * Submit monthly report (freezes autoSnapshot data)
+ * POST /api/project-months/:id/submit
+ */
+export const submitProjectMonthReport = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const projectMonth = await ProjectMonth.findById(id);
+    if (!projectMonth) {
+      return res.status(404).json({ message: "Project month record not found" });
+    }
+
+    const hasAccess = await canUserViewProject(req.user, projectMonth.project);
+    if (!hasAccess) {
+      return res.status(403).json({ message: "Access denied to this project" });
+    }
+
+    const beforeState = projectMonth.toObject();
+
+    // Calculate progress snapshot
+    const progress = await calculateMonthProgress(
+      projectMonth.project,
+      projectMonth.periodIdentifier || projectMonth.monthKey
+    );
+
+    projectMonth.autoSnapshot = {
+      plannedDeliverables: progress.totalPlannedDeliverables,
+      completedDeliverables: progress.completedDeliverables,
+      delayedDeliverables: progress.delayedDeliverables,
+      plannedWorkItems: progress.totalWorkItems,
+      completedWorkItems: progress.completedWorkItems,
+      overdueWorkItems: progress.overdueWorkItems,
+      achievementPercent: progress.achievementPercent,
+      executionNote: `Report submitted on ${new Date().toISOString()}`,
+    };
+
+    projectMonth.status = "submitted";
+    await projectMonth.save();
+
+    await logProjectActivity({
+      actor: req.user._id || req.user.id,
+      action: "month.submitted",
+      entityType: "ProjectMonth",
+      entityId: projectMonth._id,
+      project: projectMonth.project,
+      client: projectMonth.client,
+      before: beforeState,
+      after: projectMonth.toObject(),
+      message: `Monthly report submitted for ${projectMonth.periodIdentifier || projectMonth.monthKey}`,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: projectMonth,
+    });
+  } catch (error) {
+    logger.error("Error submitting project month report:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+/**
+ * Review monthly report with management comments
+ * POST /api/project-months/:id/review
+ */
+export const reviewProjectMonthReport = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { comment, executiveSummary, keyAchievements } = req.body;
+
+    const projectMonth = await ProjectMonth.findById(id);
+    if (!projectMonth) {
+      return res.status(404).json({ message: "Project month record not found" });
+    }
+
+    const hasAccess = await canUserViewProject(req.user, projectMonth.project);
+    if (!hasAccess) {
+      return res.status(403).json({ message: "Access denied to this project" });
+    }
+
+    const beforeState = projectMonth.toObject();
+
+    if (comment && comment.trim()) {
+      projectMonth.managementComments.push({
+        comment: comment.trim(),
+        by: req.user._id || req.user.id,
+        at: new Date(),
+      });
+    }
+
+    if (executiveSummary !== undefined) {
+      projectMonth.executiveSummary = executiveSummary.trim();
+    }
+
+    if (keyAchievements !== undefined) {
+      projectMonth.keyAchievements = keyAchievements.trim();
+    }
+
+    projectMonth.status = "reviewed";
+    projectMonth.reviewedBy = req.user._id || req.user.id;
+    projectMonth.reviewedAt = new Date();
+
+    await projectMonth.save();
+
+    await logProjectActivity({
+      actor: req.user._id || req.user.id,
+      action: "month.reviewed",
+      entityType: "ProjectMonth",
+      entityId: projectMonth._id,
+      project: projectMonth.project,
+      client: projectMonth.client,
+      before: beforeState,
+      after: projectMonth.toObject(),
+      message: `Monthly report reviewed for ${projectMonth.periodIdentifier || projectMonth.monthKey}`,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: projectMonth,
+    });
+  } catch (error) {
+    logger.error("Error reviewing project month report:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};

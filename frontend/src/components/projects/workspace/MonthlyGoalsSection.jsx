@@ -66,6 +66,30 @@ const MonthlyGoalsSection = ({ project, canEdit }) => {
     }
   };
 
+  const handleSubmitReport = async () => {
+    if (!projectMonth) return;
+    if (!window.confirm("Submit monthly report? This will freeze execution metrics snapshot for the month.")) return;
+    try {
+      const res = await projectMonthApi.submitProjectMonthReport(projectMonth._id);
+      setProjectMonth(res.data.data);
+      toast.success("Monthly report submitted and snapshot frozen!");
+    } catch (error) {
+      toast.error("Failed to submit monthly report");
+    }
+  };
+
+  const handleReviewReport = async () => {
+    const comment = window.prompt("Enter management review comment (optional):");
+    if (comment === null) return;
+    try {
+      const res = await projectMonthApi.reviewProjectMonthReport(projectMonth._id, { comment });
+      setProjectMonth(res.data.data);
+      toast.success("Management review recorded!");
+    } catch (error) {
+      toast.error("Failed to record review");
+    }
+  };
+
   const handleAddGoal = async (e) => {
     e.preventDefault();
     if (!goalTitle.trim()) {
@@ -187,10 +211,19 @@ const MonthlyGoalsSection = ({ project, canEdit }) => {
             >
               <option value="draft">Draft</option>
               <option value="in_progress">In Progress</option>
+              <option value="submitted">Submitted</option>
               <option value="reviewed">Reviewed</option>
-              <option value="approved">Approved</option>
-              <option value="archived">Archived</option>
             </Form.Select>
+            {projectMonth?.status !== "submitted" && projectMonth?.status !== "reviewed" && (
+              <Button variant="outline-success" size="sm" onClick={handleSubmitReport}>
+                Submit Report
+              </Button>
+            )}
+            {projectMonth?.status === "submitted" && (
+              <Button variant="success" size="sm" onClick={handleReviewReport}>
+                Review Report
+              </Button>
+            )}
             <Button
               variant="primary"
               size="sm"

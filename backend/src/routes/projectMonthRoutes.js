@@ -4,6 +4,8 @@ import {
   updateProjectMonthGoals,
   getProjectMonthsHistory,
   getMonthProgress,
+  submitProjectMonthReport,
+  reviewProjectMonthReport,
 } from "../controllers/projectMonthController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { requireModulePermission } from "../authz/authzMiddleware.js";
@@ -38,6 +40,18 @@ router.put(
   "/project-months/:id",
   requireModulePermission("projects", "projects.project.manage", { legacyRoles: PROJECT_MANAGE_ROLES }),
   updateProjectMonthGoals
+);
+
+router.post(
+  "/project-months/:id/submit",
+  requireModulePermission("projects", "projects.report.manage", { legacyRoles: PROJECT_MANAGE_ROLES }),
+  submitProjectMonthReport
+);
+
+router.post(
+  "/project-months/:id/review",
+  requireModulePermission("projects", "projects.report.approve", { legacyRoles: ["admin", "superadmin", "hod"] }),
+  reviewProjectMonthReport
 );
 
 export default router;

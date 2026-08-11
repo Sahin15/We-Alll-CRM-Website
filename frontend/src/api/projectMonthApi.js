@@ -8,6 +8,8 @@ export const projectMonthApi = {
   getProjectMonthsHistory: (projectId) =>
     api.get(`/projects/${projectId}/months-history`),
   updateProjectMonthGoals: (id, data) => api.put(`/project-months/${id}`, data),
+  submitProjectMonthReport: (id) => api.post(`/project-months/${id}/submit`),
+  reviewProjectMonthReport: (id, data) => api.post(`/project-months/${id}/review`, data),
 };
 
 export default projectMonthApi;
