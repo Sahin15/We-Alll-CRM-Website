@@ -374,18 +374,22 @@ const ReportsTab = ({ project, canEdit }) => {
           <small className="text-muted">All monthly report submissions for this project</small>
         </Card.Header>
         <Card.Body>
-          {monthsHistory.length > 0 ? (
-            <Table responsive hover className="align-middle mb-0">
-              <thead className="table-light">
-                <tr>
-                  <th>Period</th>
-                  <th>Status</th>
-                  <th>Snapshot Achievement</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {monthsHistory.map((m) => (
+          {(() => {
+            const submittedOrReviewed = monthsHistory.filter(
+              (m) => m.status === "submitted" || m.status === "reviewed"
+            );
+            return submittedOrReviewed.length > 0 ? (
+              <Table responsive hover className="align-middle mb-0">
+                <thead className="table-light">
+                  <tr>
+                    <th>Period</th>
+                    <th>Status</th>
+                    <th>Snapshot Achievement</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {submittedOrReviewed.map((m) => (
                   <tr key={m._id} className={m.monthKey === selectedMonthKey ? "table-active" : ""}>
                     <td className="fw-bold">{m.periodIdentifier || m.monthKey}</td>
                     <td>{getStatusBadge(m.status)}</td>
@@ -407,9 +411,10 @@ const ReportsTab = ({ project, canEdit }) => {
                 ))}
               </tbody>
             </Table>
-          ) : (
-            <p className="text-muted mb-0 text-center py-3">No report submission history found.</p>
-          )}
+            ) : (
+              <p className="text-muted mb-0 text-center py-3">No submitted report history found.</p>
+            );
+          })()}
         </Card.Body>
       </Card>
     </div>
