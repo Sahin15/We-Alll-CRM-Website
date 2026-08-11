@@ -5,6 +5,7 @@ import { FaArrowLeft } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import projectApi from '../../api/projectApi';
 import OverviewTab from '../../components/projects/workspace/OverviewTab';
+import ExpectationsTab from '../../components/projects/workspace/ExpectationsTab';
 import SimplifiedTeamTab from '../../components/projects/workspace/SimplifiedTeamTab';
 import UnifiedWorkTab from '../../components/projects/workspace/UnifiedWorkTab';
 import KanbanTab from '../../components/projects/workspace/KanbanTab';
@@ -183,6 +184,17 @@ const ProjectWorkspace = () => {
           }
         >
           <OverviewTab project={project} onRefresh={loadProject} />
+        </Tab>
+        
+        <Tab 
+          eventKey="expectations" 
+          title={
+            <span style={{ fontWeight: activeTab === 'expectations' ? '600' : '500' }}>
+              🎯 Expectations
+            </span>
+          }
+        >
+          <ExpectationsTab project={project} canEdit={canEdit} />
         </Tab>
         
         <Tab 
