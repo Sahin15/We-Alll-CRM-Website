@@ -2,6 +2,7 @@ import LeaveRequest from "../models/leaveRequestModel.js";
 import User from "../models/userModel.js";
 import NotificationService from "../services/notificationService.js";
 import { getLeaveRequestDays } from "../utils/leaveDays.js";
+import { getTodayMidnightIST } from "../utils/timezone.js";
 import {
   normalizeLeaveTypeForCreate,
 } from "../constants/leaveTypes.js";
@@ -418,16 +419,16 @@ export const approveLeaveRequest = async (req, res) => {
       let recordsUpdated = 0;
       
       while (currentDate <= endDate) {
-        // Set time to start of day for consistent date comparison
-        const dateOnly = new Date(currentDate);
-        dateOnly.setHours(0, 0, 0, 0);
+        // Use IST midnight for consistent date comparison and storage
+        const istMidnight = getTodayMidnightIST(currentDate);
+        const nextIstMidnight = new Date(istMidnight.getTime() + 24 * 60 * 60 * 1000);
         
         // Check if attendance record already exists for this date
         const existingRecord = await Attendance.findOne({
           employee: leaveRequest.employee,
           date: {
-            $gte: dateOnly,
-            $lt: new Date(dateOnly.getTime() + 24 * 60 * 60 * 1000)
+            $gte: istMidnight,
+            $lt: nextIstMidnight
           }
         });
         
@@ -436,7 +437,7 @@ export const approveLeaveRequest = async (req, res) => {
           // Don't set clockIn/clockOut for leave records - they shouldn't show work hours
           await Attendance.create({
             employee: leaveRequest.employee,
-            date: dateOnly,
+            date: istMidnight,
             status: 'on-leave',
             workHours: 0,
             overtime: 0,
@@ -449,7 +450,7 @@ export const approveLeaveRequest = async (req, res) => {
           recordsCreated++;
         } else {
           // Record already exists - UPDATE it to "on-leave" status
-          // This handles cases where employee clocked in but then leave was approved
+          // This handles cases where employee clocked in or auto-absent was created before leave was approved
           await Attendance.findByIdAndUpdate(
             existingRecord._id,
             {

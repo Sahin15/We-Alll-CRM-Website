@@ -529,12 +529,12 @@ const AttendanceTracking = () => {
       return [];
     }
 
-    // Get list of employees who clocked in today
-    const clockedInEmployeeIds = attendances.map(a => a.employee?._id || a.employee);
+    // Get list of employees who have attendance or are on leave today
+    const recordedEmployeeIds = attendances.map(a => (a.employee?._id || a.employee).toString());
     
-    // Find active employees who haven't clocked in (inactive/terminated/offboarded don't count as absent)
+    // Find active employees who haven't clocked in and are not on leave today
     const absentEmployees = users.filter(user => 
-      user.status === 'active' && !clockedInEmployeeIds.includes(user._id)
+      user.status === 'active' && !recordedEmployeeIds.includes(user._id.toString())
     );
     
     return absentEmployees;
