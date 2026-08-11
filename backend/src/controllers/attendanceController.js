@@ -248,6 +248,135 @@ export const clockOut = async (req, res) => {
   }
 };
 
+// Helper to ensure approved LeaveRequests are reflected in attendance records.
+const enrichAttendanceWithApprovedLeaves = async (attendanceRecords, filterEmployee, dateFilter) => {
+  try {
+    const leaveQuery = { status: 'approved' };
+
+    if (filterEmployee) {
+      if (typeof filterEmployee === 'object' && filterEmployee.$in) {
+        leaveQuery.employee = filterEmployee;
+      } else {
+        leaveQuery.employee = filterEmployee;
+      }
+    }
+
+    if (dateFilter) {
+      const gte = dateFilter.$gte ? new Date(new Date(dateFilter.$gte).getTime() - 24 * 60 * 60 * 1000) : undefined;
+      const lte = dateFilter.$lte ? new Date(new Date(dateFilter.$lte).getTime() + 24 * 60 * 60 * 1000) : undefined;
+      
+      const andConditions = [];
+      if (lte) andConditions.push({ startDate: { $lte: lte } });
+      if (gte) andConditions.push({ endDate: { $gte: gte } });
+      if (andConditions.length > 0) {
+        leaveQuery.$and = andConditions;
+      }
+    }
+
+    const approvedLeaves = await LeaveRequest.find(leaveQuery)
+      .populate({
+        path: "employee",
+        select: "name email department",
+        populate: {
+          path: "department",
+          select: "name"
+        }
+      })
+      .lean();
+
+    if (!approvedLeaves || approvedLeaves.length === 0) {
+      return attendanceRecords;
+    }
+
+    const toISTDateStr = (d) => {
+      const dateObj = new Date(d);
+      const ist = new Date(dateObj.getTime() + 5.5 * 60 * 60 * 1000);
+      return ist.toISOString().split('T')[0];
+    };
+
+    const recordMap = new Map();
+    const resultRecords = [...attendanceRecords];
+
+    for (let i = 0; i < resultRecords.length; i++) {
+      const r = resultRecords[i];
+      const empId = (r.employee?._id || r.employee).toString();
+      const dateStr = toISTDateStr(r.date);
+      recordMap.set(`${empId}-${dateStr}`, i);
+    }
+
+    for (const leave of approvedLeaves) {
+      const empId = (leave.employee?._id || leave.employee).toString();
+      const empObj = typeof leave.employee === 'object' ? leave.employee : null;
+
+      const startDate = new Date(leave.startDate);
+      const endDate = new Date(leave.endDate);
+
+      const curr = new Date(startDate);
+      while (curr <= endDate) {
+        const dateStr = toISTDateStr(curr);
+        const key = `${empId}-${dateStr}`;
+
+        if (recordMap.has(key)) {
+          const idx = recordMap.get(key);
+          const existing = resultRecords[idx];
+          if (existing.status === 'absent' || !existing.status) {
+            resultRecords[idx] = {
+              ...existing,
+              status: 'on-leave',
+              workHours: 0,
+              overtime: 0,
+              notes: existing.notes || `On ${leave.leaveType} leave`,
+              originalStatus: existing.status || 'absent'
+            };
+            if (existing._id && mongoose.Types.ObjectId.isValid(existing._id)) {
+              Attendance.findByIdAndUpdate(existing._id, {
+                status: 'on-leave',
+                workHours: 0,
+                overtime: 0,
+                notes: `On ${leave.leaveType} leave`,
+                isManuallyModified: true
+              }).catch(err => console.error("Error updating DB record to on-leave:", err));
+            }
+          }
+        } else {
+          const istMidnight = getTodayMidnightIST(curr);
+          const syntheticRecord = {
+            _id: `leave-${leave._id}-${dateStr}`,
+            employee: empObj || leave.employee,
+            date: istMidnight,
+            status: 'on-leave',
+            workHours: 0,
+            overtime: 0,
+            notes: `On ${leave.leaveType} leave`,
+            isManuallyModified: true,
+            originalStatus: 'on-leave'
+          };
+          resultRecords.push(syntheticRecord);
+          recordMap.set(key, resultRecords.length - 1);
+
+          Attendance.create({
+            employee: leave.employee?._id || leave.employee,
+            date: istMidnight,
+            status: 'on-leave',
+            workHours: 0,
+            overtime: 0,
+            notes: `On ${leave.leaveType} leave`,
+            isManuallyModified: true,
+            originalStatus: 'on-leave'
+          }).catch(err => {});
+        }
+
+        curr.setDate(curr.getDate() + 1);
+      }
+    }
+
+    return resultRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+  } catch (err) {
+    console.error("Error enriching attendance with approved leaves:", err);
+    return attendanceRecords;
+  }
+};
+
 // Get all attendance records (Admin/HR)
 export const getAllAttendance = async (req, res) => {
   try {
@@ -436,8 +565,11 @@ export const getAllAttendance = async (req, res) => {
       };
     });
 
+    // Cross-reference approved LeaveRequests to ensure leave days are mapped to 'on-leave'
+    const enrichedAttendance = await enrichAttendanceWithApprovedLeaves(attendanceWithWFH, filter.employee, filter.date);
+
     // Return simple array (backward compatible)
-    res.status(200).json(attendanceWithWFH);
+    res.status(200).json(enrichedAttendance);
   } catch (error) {
     
     
@@ -505,21 +637,15 @@ export const getMyAttendance = async (req, res) => {
       wfhMap.set(dateStr, wfh);
     }
     
-    // Attach WFH data to attendance records using IST date string matching
-    const attendanceWithWFH = attendance.map(record => {
-      const dateStr = toISTDateStr(record.date);
-      const wfhData = wfhMap.get(dateStr);
-      const status = record.status || 'present';
-      
-      return {
-        ...record,
-        status: status,
-        isWFH: !!wfhData,
-        wfhReason: wfhData?.reason || null
-      };
-    });
+    // Cross-reference approved LeaveRequests to ensure leave days are mapped to 'on-leave'
+    const dateRangeFilter = startDate && endDate ? buildDateRangeQuery(startDate, endDate, 'date') : null;
+    const enrichedAttendance = await enrichAttendanceWithApprovedLeaves(
+      attendanceWithWFH,
+      employee,
+      dateRangeFilter ? dateRangeFilter.date : null
+    );
 
-    res.status(200).json(attendanceWithWFH);
+    res.status(200).json(enrichedAttendance);
   } catch (error) {
     
     res.status(500).json({ message: "Server error" });
@@ -667,32 +793,39 @@ export const getAttendanceSummary = async (req, res) => {
       .sort({ date: 1 })
       .lean();
 
+    // Cross-reference approved LeaveRequests to ensure leave days are mapped to 'on-leave'
+    const enrichedAttendance = await enrichAttendanceWithApprovedLeaves(
+      attendance,
+      employeeId,
+      { $gte: startDate, $lte: endDate }
+    );
+
     // Calculate statistics
     const summary = {
-      totalDays: attendance.length,
-      present: attendance.filter((a) => a.status === "present").length,
-      absent: attendance.filter((a) => a.status === "absent").length,
-      halfDay: attendance.filter((a) => a.status === "half-day").length,
-      late: attendance.filter((a) => a.status === "late").length,
-      onLeave: attendance.filter((a) => a.status === "on-leave").length,
-      totalWorkHours: attendance.reduce(
+      totalDays: enrichedAttendance.length,
+      present: enrichedAttendance.filter((a) => a.status === "present").length,
+      absent: enrichedAttendance.filter((a) => a.status === "absent").length,
+      halfDay: enrichedAttendance.filter((a) => a.status === "half-day").length,
+      late: enrichedAttendance.filter((a) => a.status === "late").length,
+      onLeave: enrichedAttendance.filter((a) => a.status === "on-leave").length,
+      totalWorkHours: enrichedAttendance.reduce(
         (sum, a) => sum + (a.workHours || 0),
         0
       ),
-      totalOvertime: attendance.reduce((sum, a) => sum + (a.overtime || 0), 0),
-      manuallyModified: attendance.filter((a) => a.isManuallyModified).length,
-      averageClockIn: calculateAverageClockIn(attendance),
-      averageWorkHours: attendance.length > 0 
-        ? (attendance.reduce((sum, a) => sum + (a.workHours || 0), 0) / attendance.length).toFixed(2)
+      totalOvertime: enrichedAttendance.reduce((sum, a) => sum + (a.overtime || 0), 0),
+      manuallyModified: enrichedAttendance.filter((a) => a.isManuallyModified).length,
+      averageClockIn: calculateAverageClockIn(enrichedAttendance),
+      averageWorkHours: enrichedAttendance.length > 0 
+        ? (enrichedAttendance.reduce((sum, a) => sum + (a.workHours || 0), 0) / enrichedAttendance.length).toFixed(2)
         : 0,
     };
 
     res.status(200).json({
       summary,
-      attendance,
+      attendance: enrichedAttendance,
       month: parseInt(month),
       year: parseInt(year),
-      employee: attendance[0]?.employee || null,
+      employee: enrichedAttendance[0]?.employee || null,
     });
   } catch (error) {
     
@@ -913,23 +1046,30 @@ export const getAttendanceReport = async (req, res) => {
       );
     }
 
+    // Cross-reference approved LeaveRequests to ensure leave days are mapped to 'on-leave'
+    const enrichedAttendance = await enrichAttendanceWithApprovedLeaves(
+      filteredAttendance,
+      filter.employee,
+      filter.date
+    );
+
     // Calculate summary statistics
     const summary = {
-      totalRecords: filteredAttendance.length,
-      totalPresent: filteredAttendance.filter((a) => a.status === "present")
+      totalRecords: enrichedAttendance.length,
+      totalPresent: enrichedAttendance.filter((a) => a.status === "present")
         .length,
-      totalAbsent: filteredAttendance.filter((a) => a.status === "absent")
+      totalAbsent: enrichedAttendance.filter((a) => a.status === "absent")
         .length,
-      totalLate: filteredAttendance.filter((a) => a.status === "late").length,
-      totalHalfDay: filteredAttendance.filter((a) => a.status === "half-day")
+      totalLate: enrichedAttendance.filter((a) => a.status === "late").length,
+      totalHalfDay: enrichedAttendance.filter((a) => a.status === "half-day")
         .length,
-      totalOnLeave: filteredAttendance.filter((a) => a.status === "on-leave")
+      totalOnLeave: enrichedAttendance.filter((a) => a.status === "on-leave")
         .length,
-      totalWorkHours: filteredAttendance.reduce(
+      totalWorkHours: enrichedAttendance.reduce(
         (sum, a) => sum + (a.workHours || 0),
         0
       ),
-      totalOvertime: filteredAttendance.reduce(
+      totalOvertime: enrichedAttendance.reduce(
         (sum, a) => sum + (a.overtime || 0),
         0
       ),
@@ -937,7 +1077,7 @@ export const getAttendanceReport = async (req, res) => {
 
     res.status(200).json({
       summary,
-      records: filteredAttendance,
+      records: enrichedAttendance,
     });
   } catch (error) {
     
@@ -1344,9 +1484,17 @@ export const downloadAttendancePDF = async (req, res) => {
     }
 
     // Fetch attendance records
-    const attendances = await Attendance.find(query)
+    const rawAttendances = await Attendance.find(query)
       .populate("employee", "name email employeeId")
-      .sort({ date: 1 });
+      .sort({ date: 1 })
+      .lean();
+
+    // Cross-reference approved LeaveRequests to ensure leave days are mapped to 'on-leave'
+    const attendances = await enrichAttendanceWithApprovedLeaves(
+      rawAttendances,
+      query.employee,
+      query.date
+    );
 
     // Get employee info
     const employeeInfo = attendances[0]?.employee || await User.findById(employee).select("name email employeeId");
