@@ -187,6 +187,7 @@ const ExpectationsTab = ({ project, onRefresh, canEdit }) => {
               <FaPlus className="me-1" /> Add Expectation
             </Button>
           )}
+        </Card.Header>
         <Card.Body>
           {loading ? (
             <div className="text-center py-4">
