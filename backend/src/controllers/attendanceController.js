@@ -14,6 +14,51 @@ import {
 } from '../utils/timezone.js';
 import { mergeActiveEmployeeFilter } from '../utils/employeeQueryUtils.js';
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const toISTDateStr = (d) => {
+  const dateObj = new Date(d);
+  const ist = new Date(dateObj.getTime() + 5.5 * 60 * 60 * 1000);
+  return ist.toISOString().split('T')[0];
+};
+
+const clampLeaveRangeToFilter = (startDate, endDate, dateFilter) => {
+  if (!dateFilter?.$gte && !dateFilter?.$lte) {
+    return { start: new Date(startDate), end: new Date(endDate) };
+  }
+
+  const effectiveStart = dateFilter?.$gte
+    ? new Date(Math.max(new Date(startDate).getTime(), new Date(dateFilter.$gte).getTime()))
+    : new Date(startDate);
+  const effectiveEnd = dateFilter?.$lte
+    ? new Date(Math.min(new Date(endDate).getTime(), new Date(dateFilter.$lte).getTime()))
+    : new Date(endDate);
+
+  if (effectiveStart.getTime() > effectiveEnd.getTime()) {
+    return null;
+  }
+
+  return {
+    start: new Date(effectiveStart.getTime()),
+    end: new Date(effectiveEnd.getTime()),
+  };
+};
+
+export const expandLeaveDatesWithinFilter = (startDate, endDate, dateFilter) => {
+  const clampedRange = clampLeaveRangeToFilter(startDate, endDate, dateFilter);
+  if (!clampedRange) return [];
+
+  const dates = [];
+  for (
+    let cursor = new Date(clampedRange.start.getTime());
+    cursor <= clampedRange.end;
+    cursor = new Date(cursor.getTime() + DAY_MS)
+  ) {
+    dates.push(toISTDateStr(cursor));
+  }
+  return dates;
+};
+
 // Clock in (HoD is also an employee)
 export const clockIn = async (req, res) => {
   try {
@@ -288,12 +333,6 @@ const enrichAttendanceWithApprovedLeaves = async (attendanceRecords, filterEmplo
       return attendanceRecords;
     }
 
-    const toISTDateStr = (d) => {
-      const dateObj = new Date(d);
-      const ist = new Date(dateObj.getTime() + 5.5 * 60 * 60 * 1000);
-      return ist.toISOString().split('T')[0];
-    };
-
     const recordMap = new Map();
     const resultRecords = [...attendanceRecords];
 
@@ -308,12 +347,14 @@ const enrichAttendanceWithApprovedLeaves = async (attendanceRecords, filterEmplo
       const empId = (leave.employee?._id || leave.employee).toString();
       const empObj = typeof leave.employee === 'object' ? leave.employee : null;
 
-      const startDate = new Date(leave.startDate);
-      const endDate = new Date(leave.endDate);
+      const leaveDateStrs = expandLeaveDatesWithinFilter(
+        leave.startDate,
+        leave.endDate,
+        dateFilter
+      );
 
-      const curr = new Date(startDate);
-      while (curr <= endDate) {
-        const dateStr = toISTDateStr(curr);
+      for (const dateStr of leaveDateStrs) {
+        const curr = new Date(`${dateStr}T00:00:00.000Z`);
         const key = `${empId}-${dateStr}`;
 
         if (recordMap.has(key)) {
@@ -366,7 +407,6 @@ const enrichAttendanceWithApprovedLeaves = async (attendanceRecords, filterEmplo
           }).catch(err => {});
         }
 
-        curr.setDate(curr.getDate() + 1);
       }
     }
 

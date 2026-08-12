@@ -122,7 +122,7 @@ export const getStatusVariant = (status) => {
     late: "warning",
     "on-leave": "primary",
     "no-data": "secondary",
-    weekend: "light",
+    weekend: "secondary",
     holiday: "warning",
   };
   return variants[statusLower] || "secondary";

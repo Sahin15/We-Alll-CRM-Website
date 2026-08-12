@@ -3,6 +3,7 @@
  * Validates Sunday/weekend and leave-day matching against stored IST midnight UTC.
  */
 import { describe, test, expect } from "@jest/globals";
+import { expandLeaveDatesWithinFilter } from "../src/controllers/attendanceController.js";
 
 // Mirror frontend attendanceHelpers logic for regression checks.
 const toISTDateString = (date) => {
@@ -32,5 +33,20 @@ describe("attendance IST date helpers", () => {
     const leaveDay = new Date("2026-08-09T18:30:00.000Z");
     const loopDateStr = "2026-08-10";
     expect(toISTDateString(leaveDay)).toBe(loopDateStr);
+  });
+
+  test("leave expansion is clipped to the requested day", () => {
+    const dateFilter = {
+      $gte: new Date("2026-08-11T18:30:00.000Z"),
+      $lte: new Date("2026-08-12T18:29:59.999Z"),
+    };
+
+    expect(
+      expandLeaveDatesWithinFilter(
+        new Date("2026-08-12T00:00:00.000Z"),
+        new Date("2026-08-13T23:59:59.999Z"),
+        dateFilter
+      )
+    ).toEqual(["2026-08-12"]);
   });
 });
