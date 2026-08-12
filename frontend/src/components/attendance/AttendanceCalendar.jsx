@@ -10,17 +10,24 @@ import './AttendanceCalendar.css';
  * Displays: Present, Late, Half Day, Absent, On Leave, No Data, Company Holiday
  * Note: Holidays are flexible - employees can work on any day and take holiday on another day
  */
-const AttendanceCalendar = ({ attendances, selectedMonth, selectedYear, employeeName }) => {
+const AttendanceCalendar = ({ attendances, selectedMonth, selectedYear, employeeName, holidays: holidaysFromParent }) => {
   const [calendarDays, setCalendarDays] = useState([]);
-  const [holidays, setHolidays] = useState([]);
+  const [internalHolidays, setInternalHolidays] = useState([]);
+  const [holidaysReady, setHolidaysReady] = useState(holidaysFromParent !== undefined);
+  const holidays = holidaysFromParent !== undefined ? holidaysFromParent : internalHolidays;
 
   useEffect(() => {
+    if (holidaysFromParent !== undefined) {
+      setHolidaysReady(true);
+      return;
+    }
     fetchHolidays();
-  }, [selectedMonth, selectedYear]);
+  }, [selectedMonth, selectedYear, holidaysFromParent]);
 
   useEffect(() => {
+    if (!holidaysReady) return;
     generateCalendar();
-  }, [selectedMonth, selectedYear, attendances, holidays]);
+  }, [selectedMonth, selectedYear, attendances, holidays, holidaysReady]);
 
   const fetchHolidays = async () => {
     try {
@@ -37,10 +44,12 @@ const AttendanceCalendar = ({ attendances, selectedMonth, selectedYear, employee
       
       console.log('🎉 Processed holidays:', holidaysData);
       console.log('🎉 Holidays count:', holidaysData.length);
-      setHolidays(holidaysData);
+      setInternalHolidays(holidaysData);
+      setHolidaysReady(true);
     } catch (error) {
       console.error('❌ Error fetching holidays:', error);
-      setHolidays([]);
+      setInternalHolidays([]);
+      setHolidaysReady(true);
     }
   };
 

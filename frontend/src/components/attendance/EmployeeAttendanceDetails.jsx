@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Modal, Card, Row, Col, Badge, Table, Button, Form } from 'react-bootstrap';
+import { Modal, Card, Row, Col, Badge, Table, Button, Form, Spinner } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import { attendanceApi } from '../../api/attendanceApi';
 import holidayApi from '../../api/holidayApi';
@@ -10,7 +10,7 @@ import AttendanceCalendar from './AttendanceCalendar';
 const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
   const [attendances, setAttendances] = useState([]);
   const [holidays, setHolidays] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState({
     startDate: '',
     endDate: ''
@@ -57,17 +57,6 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
     return '#28a745'; // Green for normal working days
   };
 
-  // Fetch holidays
-  const fetchHolidays = async () => {
-    try {
-      const response = await holidayApi.getHolidays();
-      setHolidays(response.data || []);
-    } catch (error) {
-      console.error("Error fetching holidays:", error);
-      // Don't show error toast for holidays, it's not critical
-    }
-  };
-
   useEffect(() => {
     if (show && employee) {
       // Set default to current month
@@ -83,24 +72,37 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
         endDate: endDateStr
       });
       
-      loadAttendance(employee._id, startDateStr, endDateStr);
-      fetchHolidays();
+      loadDetails(employee._id, startDateStr, endDateStr);
     }
   }, [show, employee]);
 
-  const loadAttendance = async (employeeId, startDate, endDate) => {
+  const parseHolidays = (payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    return [];
+  };
+
+  const loadDetails = async (employeeId, startDate, endDate) => {
+    setLoading(true);
+    setAttendances([]);
     try {
-      setLoading(true);
-      const params = {
-        employee: employeeId,
-        startDate,
-        endDate
-      };
-      const response = await attendanceApi.getAllAttendance(params);
-      setAttendances(response.data || []);
+      const [attendanceRes, holidayRes] = await Promise.all([
+        attendanceApi.getAllAttendance({
+          employee: employeeId,
+          startDate,
+          endDate,
+        }),
+        holidayApi.getHolidays().catch((error) => {
+          console.error("Error fetching holidays:", error);
+          return { data: [] };
+        }),
+      ]);
+      setAttendances(attendanceRes.data || []);
+      setHolidays(parseHolidays(holidayRes));
     } catch (error) {
       console.error('Error loading attendance:', error);
       toast.error('Failed to load attendance records');
+      setAttendances([]);
     } finally {
       setLoading(false);
     }
@@ -116,7 +118,7 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
       toast.error('Please select both start and end dates');
       return;
     }
-    loadAttendance(employee._id, dateRange.startDate, dateRange.endDate);
+    loadDetails(employee._id, dateRange.startDate, dateRange.endDate);
   };
 
   const handleQuickSelect = (type) => {
@@ -145,7 +147,7 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
     const end = formatDateToIST(endDate);
     
     setDateRange({ startDate: start, endDate: end });
-    loadAttendance(employee._id, start, end);
+    loadDetails(employee._id, start, end);
   };
 
   const handleDownloadPDF = () => {
@@ -208,7 +210,7 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
 
   // Generate all dates in the range for table view (excluding future dates)
   const getAllDatesInRange = () => {
-    if (!dateRange.startDate || !dateRange.endDate) return [];
+    if (loading || !dateRange.startDate || !dateRange.endDate) return [];
 
     const todayIST = toISTDateString(new Date());
     const attendanceByDate = new Map();
@@ -393,7 +395,7 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
           <Col xs={6} md={4} lg={2}>
             <Card className="border-0 shadow-sm h-100" style={{ borderLeft: '4px solid #198754' }}>
               <Card.Body className="p-2 text-center">
-                <h5 className="text-success mb-0 fw-bold">{stats.present}</h5>
+                <h5 className="text-success mb-0 fw-bold">{loading ? '—' : stats.present}</h5>
                 <small className="text-muted d-block">Present</small>
               </Card.Body>
             </Card>
@@ -401,7 +403,7 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
           <Col xs={6} md={4} lg={2}>
             <Card className="border-0 shadow-sm h-100" style={{ borderLeft: '4px solid #ffc107' }}>
               <Card.Body className="p-2 text-center">
-                <h5 className="text-warning mb-0 fw-bold">{stats.late}</h5>
+                <h5 className="text-warning mb-0 fw-bold">{loading ? '—' : stats.late}</h5>
                 <small className="text-muted d-block">Late</small>
               </Card.Body>
             </Card>
@@ -409,7 +411,7 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
           <Col xs={6} md={4} lg={2}>
             <Card className="border-0 shadow-sm h-100" style={{ borderLeft: '4px solid #0dcaf0' }}>
               <Card.Body className="p-2 text-center">
-                <h5 className="text-info mb-0 fw-bold">{stats.halfDay}</h5>
+                <h5 className="text-info mb-0 fw-bold">{loading ? '—' : stats.halfDay}</h5>
                 <small className="text-muted d-block">Half Day</small>
               </Card.Body>
             </Card>
@@ -417,7 +419,7 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
           <Col xs={6} md={4} lg={2}>
             <Card className="border-0 shadow-sm h-100" style={{ borderLeft: '4px solid #dc3545' }}>
               <Card.Body className="p-2 text-center">
-                <h5 className="text-danger mb-0 fw-bold">{stats.absent}</h5>
+                <h5 className="text-danger mb-0 fw-bold">{loading ? '—' : stats.absent}</h5>
                 <small className="text-muted d-block">Absent</small>
               </Card.Body>
             </Card>
@@ -425,7 +427,7 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
           <Col xs={6} md={4} lg={2}>
             <Card className="border-0 shadow-sm h-100" style={{ borderLeft: '4px solid #0d6efd' }}>
               <Card.Body className="p-2 text-center">
-                <h5 className="text-primary mb-0 fw-bold">{stats.onLeave}</h5>
+                <h5 className="text-primary mb-0 fw-bold">{loading ? '—' : stats.onLeave}</h5>
                 <small className="text-muted d-block">On Leave</small>
               </Card.Body>
             </Card>
@@ -433,7 +435,7 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
           <Col xs={6} md={4} lg={2}>
             <Card className="border-0 shadow-sm h-100" style={{ borderLeft: '4px solid #0d6efd' }}>
               <Card.Body className="p-2 text-center">
-                <h5 className="text-primary mb-0 fw-bold">{stats.totalHours}</h5>
+                <h5 className="text-primary mb-0 fw-bold">{loading ? '—' : stats.totalHours}</h5>
                 <small className="text-muted d-block">Total Hrs</small>
               </Card.Body>
             </Card>
@@ -478,11 +480,17 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
             </div>
           </Card.Header>
           <Card.Body className="p-0">
-            {viewType === 'calendar' ? (
+            {loading ? (
+              <div className="text-center py-5">
+                <Spinner animation="border" variant="primary" />
+                <p className="text-muted mt-3 mb-0">Loading attendance details...</p>
+              </div>
+            ) : viewType === 'calendar' ? (
               // Calendar View
               <div className="p-3">
                 <AttendanceCalendar
                   attendances={allDatesWithStatus}
+                  holidays={holidays}
                   selectedMonth={new Date(dateRange.startDate).getMonth()}
                   selectedYear={new Date(dateRange.startDate).getFullYear()}
                   employeeName={employee.name}
