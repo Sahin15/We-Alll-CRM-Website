@@ -11,6 +11,7 @@ import {
   resolveDatesForLeaveDeduction,
   reverseLeaveBalanceDeduction,
 } from "../services/payroll/payrollLeaveBalanceService.js";
+import { getISTDateKey } from "../utils/timezone.js";
 
 /**
  * GET /api/payroll/adjustments?employee=&month=&year=&status=
@@ -212,7 +213,7 @@ export const createLeaveBalanceDeduction = async (req, res) => {
       periodYear,
       requestedDays,
       context.absentDates
-    ).map((d) => d.toISOString().slice(0, 10));
+    ).map((d) => getISTDateKey(d));
 
     if (resolvedDates.length < requestedDays) {
       return res.status(400).json({
@@ -222,35 +223,63 @@ export const createLeaveBalanceDeduction = async (req, res) => {
     }
 
     const defaultReason = `Earned leave balance deducted for ${requestedDays} day(s) instead of salary (${periodMonth}/${periodYear})`;
+    const finalReason = String(reason || defaultReason).trim();
 
-    const doc = await PayrollAdjustment.create({
+    const result = await applyLeaveBalanceDeduction({
+      employeeId: employee,
+      month: periodMonth,
+      year: periodYear,
+      days: requestedDays,
+      absentDates: resolvedDates,
+      approvedBy: req.user.id,
+      reason: finalReason,
+    });
+
+    try {
+      const doc = await PayrollAdjustment.create({
       employee,
       month: periodMonth,
       year: periodYear,
       type: "leave_balance_deduction",
       amount: 0,
-      leaveDays: requestedDays,
+      leaveDays: result.daysDeducted,
       direction: null,
-      reason: String(reason || defaultReason).trim(),
+      reason: finalReason,
       remarks: remarks || "",
-      status: "draft",
+      status: "approved",
       createdBy: req.user.id,
+      approvedBy: req.user.id,
+      approvedAt: new Date(),
       payrollMeta: {
         absentDates: resolvedDates,
         perDaySalary: context.perDaySalary,
-        salarySaved: context.perDaySalary * requestedDays,
+        salarySaved: context.perDaySalary * result.daysDeducted,
+        createdLeaveIds: result.createdLeaveIds,
+        daysDeducted: result.daysDeducted,
+        attendanceSnapshots: result.attendanceSnapshots,
       },
       auditTrail: [
         {
           action: "created_leave_balance_deduction",
           performedBy: req.user.id,
-          reason: String(reason || defaultReason).trim(),
-          newValue: { leaveDays: requestedDays, absentDates: resolvedDates },
+          reason: finalReason,
+          newValue: {
+            leaveDays: result.daysDeducted,
+            absentDates: resolvedDates,
+            createdLeaveIds: result.createdLeaveIds,
+          },
         },
       ],
     });
 
-    res.status(201).json({ success: true, data: doc });
+      res.status(201).json({ success: true, data: doc });
+    } catch (persistError) {
+      await reverseLeaveBalanceDeduction({
+        createdLeaveIds: result.createdLeaveIds,
+        attendanceSnapshots: result.attendanceSnapshots,
+      });
+      throw persistError;
+    }
   } catch (error) {
     console.error("createLeaveBalanceDeduction:", error);
     res.status(500).json({
@@ -355,22 +384,25 @@ export const approveAdjustment = async (req, res) => {
         return res.status(400).json({ success: false, error: "Adjustment is already approved" });
       }
 
-      const result = await applyLeaveBalanceDeduction({
-        employeeId: doc.employee,
-        month: doc.month,
-        year: doc.year,
-        days: doc.leaveDays,
-        absentDates: doc.payrollMeta?.absentDates || [],
-        approvedBy: req.user.id,
-        reason: doc.reason,
-      });
+      if (!doc.payrollMeta?.createdLeaveIds?.length) {
+        const result = await applyLeaveBalanceDeduction({
+          employeeId: doc.employee,
+          month: doc.month,
+          year: doc.year,
+          days: doc.leaveDays,
+          absentDates: doc.payrollMeta?.absentDates || [],
+          approvedBy: req.user.id,
+          reason: doc.reason,
+        });
 
-      doc.payrollMeta = {
-        ...(doc.payrollMeta || {}),
-        createdLeaveIds: result.createdLeaveIds,
-        daysDeducted: result.daysDeducted,
-      };
-      doc.leaveDays = result.daysDeducted;
+        doc.payrollMeta = {
+          ...(doc.payrollMeta || {}),
+          createdLeaveIds: result.createdLeaveIds,
+          daysDeducted: result.daysDeducted,
+          attendanceSnapshots: result.attendanceSnapshots,
+        };
+        doc.leaveDays = result.daysDeducted;
+      }
     }
 
     const prev = doc.status;
@@ -415,6 +447,7 @@ export const voidAdjustment = async (req, res) => {
     ) {
       await reverseLeaveBalanceDeduction({
         createdLeaveIds: doc.payrollMeta.createdLeaveIds,
+        attendanceSnapshots: doc.payrollMeta.attendanceSnapshots || [],
       });
     }
 

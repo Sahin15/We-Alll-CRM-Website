@@ -9,6 +9,7 @@ import {
   getLeaveBalanceCategory,
   getLeaveDayCount,
   isPaidLeaveType,
+  isPayrollEarnedLeaveDeduction,
 } from "../constants/leaveTypes.js";
 import {
   calculateEarnedLeaves as computeEarnedLeaves,
@@ -75,7 +76,13 @@ const leaveRequestSchema = new mongoose.Schema(
     applicationDate: {
       type: Date,
       default: Date.now
-    }
+    },
+    /** "payroll" = created by earned-leave salary cover; always counts toward earned used */
+    source: {
+      type: String,
+      enum: ["employee", "payroll"],
+      default: "employee",
+    },
   },
   {
     timestamps: true,
@@ -161,7 +168,9 @@ leaveRequestSchema.statics.buildLeaveBalance = function (
     if (leave.leaveType !== "unpaid" && isPaidLeaveType(leave.leaveType)) {
       const countsTowardEarned =
         isFullTime &&
-        (!accrualDate || new Date(leave.startDate) >= new Date(accrualDate));
+        (isPayrollEarnedLeaveDeduction(leave) ||
+          !accrualDate ||
+          new Date(leave.startDate) >= new Date(accrualDate));
 
       if (countsTowardEarned) {
         totalPaidLeavesUsed += days;

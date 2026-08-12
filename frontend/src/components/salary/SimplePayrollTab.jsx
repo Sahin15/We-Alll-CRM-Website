@@ -68,9 +68,11 @@ const statusBadge = (status) => {
  * HR Simple Payroll tab (SP-05): structure + preview + adjustments for one employee/month.
  */
 const SimplePayrollTab = () => {
-  const prev = useMemo(() => {
+  // Default to previous month: salary is paid on the 10th for the prior month
+  // (e.g. July pay is processed in August).
+  const currentPeriod = useMemo(() => {
     const now = new Date();
-    const m = now.getMonth();
+    const m = now.getMonth(); // 0-indexed = previous calendar month as 1–12
     return {
       month: m === 0 ? 12 : m,
       year: m === 0 ? now.getFullYear() - 1 : now.getFullYear(),
@@ -80,8 +82,8 @@ const SimplePayrollTab = () => {
   const [employees, setEmployees] = useState([]);
   const [employeeId, setEmployeeId] = useState("");
   const [search, setSearch] = useState("");
-  const [month, setMonth] = useState(prev.month);
-  const [year, setYear] = useState(prev.year);
+  const [month, setMonth] = useState(currentPeriod.month);
+  const [year, setYear] = useState(currentPeriod.year);
 
   const [structure, setStructure] = useState(null);
   const [structureLoading, setStructureLoading] = useState(false);
@@ -423,7 +425,9 @@ const SimplePayrollTab = () => {
           days,
           reason: deductForm.reason.trim(),
         });
-        toast.success("Earned leave deduction created — approve it in Adjustments");
+        toast.success(
+          `Earned leave deducted for ${days} day(s). Leave balance and attendance are updated.`
+        );
       } else {
         await payrollAdjustmentApi.create({
           employee: employeeId,
