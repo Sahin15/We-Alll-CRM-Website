@@ -5,7 +5,11 @@
 
 import Project from "../models/projectModel.js";
 import WorkItem from "../models/workItemModel.js";
+import ProjectExpectation from "../models/projectExpectationModel.js";
+import ProjectCommitment from "../models/projectCommitmentModel.js";
+import ProjectActivityLog from "../models/projectActivityLogModel.js";
 import { getProjectStatistics, getTeamWorkload } from "../services/projectProgressService.js";
+import { calculateMonthProgress } from "../services/projectMonthProgressService.js";
 import { canUserViewProject } from "../services/resourceVisibilityService.js";
 
 // @desc    Get project workspace data (overview)
@@ -32,13 +36,17 @@ export const getProjectWorkspace = async (req, res) => {
       });
     }
     
-    // Check access — company viewers or personal project team only
-    if (!canUserViewProject(req.user, project)) {
+    // Check access
+    const hasAccess = await canUserViewProject(req.user, project);
+    if (!hasAccess) {
       return res.status(403).json({
         success: false,
         error: { code: "FORBIDDEN", message: "Access denied" },
       });
     }
+
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     
     // Get statistics with error handling
     let statistics = {
@@ -67,10 +75,53 @@ export const getProjectWorkspace = async (req, res) => {
     } catch (workloadError) {
       // Use empty array on error
     }
+
+    // Get live monthly progress
+    let monthProgress = null;
+    try {
+      monthProgress = await calculateMonthProgress(id, currentMonthKey);
+    } catch (mpError) {
+      // Ignore if month progress fails
+    }
+
+    // Get expectations and commitments count
+    let expectationsSummary = { total: 0, met: 0, open: 0 };
+    let commitmentsCount = 0;
+    try {
+      const expectations = await ProjectExpectation.find({ project: id }).lean();
+      expectationsSummary = {
+        total: expectations.length,
+        met: expectations.filter((e) => e.status === "met").length,
+        open: expectations.filter((e) => e.status === "open" || e.status === "in_progress").length,
+      };
+      commitmentsCount = await ProjectCommitment.countDocuments({ project: id });
+    } catch (expError) {
+      // Ignore
+    }
+
+    // Get recent activities
+    let recentActivities = [];
+    try {
+      recentActivities = await ProjectActivityLog.find({ project: id })
+        .populate("actor", "name email avatar")
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .lean();
+    } catch (actError) {
+      // Ignore
+    }
     
     res.status(200).json({
       success: true,
-      data: { project, statistics, teamWorkload },
+      data: {
+        project,
+        statistics,
+        teamWorkload,
+        monthProgress,
+        expectationsSummary,
+        commitmentsCount,
+        recentActivities,
+      },
     });
   } catch (error) {
     res.status(500).json({
