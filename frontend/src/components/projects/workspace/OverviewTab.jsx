@@ -118,23 +118,23 @@ const OverviewTab = ({ project, onRefresh }) => {
   return (
     <div className="mt-3">
       {/* Executive Hero & Project Health Banner */}
-      <Card className="mb-4 border-0 shadow-sm overflow-hidden" style={{ borderRadius: "16px" }}>
+      <Card className="mb-4 border-0 shadow-sm overflow-hidden" style={{ borderRadius: "16px", borderLeft: "6px solid #2563eb" }}>
         <div
           style={{
-            background: "linear-gradient(135deg, #1e293b 0%, #334155 100%)",
+            background: "linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)",
             padding: "2rem",
-            color: "white",
+            color: "#1e293b",
           }}
         >
           <Row className="align-items-center">
             <Col md={8}>
               <div className="mb-3">
                 <div className="d-flex align-items-center gap-2 mb-2">
-                  <h2 className="fw-bold mb-0 text-white">{proj.name}</h2>
+                  <h2 className="fw-bold mb-0 text-dark">{proj.name}</h2>
                   {getHealthBadge(healthStatus)}
                 </div>
                 {proj.description && (
-                  <p className="text-light opacity-75 mb-0">{proj.description}</p>
+                  <p className="text-secondary mb-0">{proj.description}</p>
                 )}
               </div>
               <div className="d-flex gap-2 flex-wrap">
@@ -142,26 +142,26 @@ const OverviewTab = ({ project, onRefresh }) => {
                   Status: {proj.status || "Active"}
                 </Badge>
                 {proj.client && (
-                  <Badge bg="info" className="px-3 py-2">
+                  <Badge bg="white" text="dark" className="border px-3 py-2 shadow-sm">
                     📋 Client: {proj.client.company || proj.client.name}
                   </Badge>
                 )}
                 {proj.department && (
-                  <Badge bg="secondary" className="px-3 py-2">
+                  <Badge bg="white" text="dark" className="border px-3 py-2 shadow-sm">
                     🏢 Service: {proj.department.name || "General"}
                   </Badge>
                 )}
               </div>
             </Col>
-            <Col md={4} className="text-center">
-              <div className="fs-1 fw-bold text-white mb-1">{achievementPercent}%</div>
+            <Col md={4} className="text-center border-start border-primary border-opacity-25 ps-4">
+              <div className="fs-1 fw-bold text-primary mb-1">{achievementPercent}%</div>
               <ProgressBar
                 now={achievementPercent}
                 variant={achievementPercent >= 80 ? "success" : achievementPercent >= 50 ? "warning" : "danger"}
-                style={{ height: "10px", backgroundColor: "rgba(255,255,255,0.2)" }}
+                style={{ height: "10px", backgroundColor: "#cbd5e1" }}
                 className="mb-2"
               />
-              <small className="text-light opacity-75 fw-semibold">Overall Delivery Achievement</small>
+              <small className="text-muted fw-semibold">Overall Delivery Achievement</small>
             </Col>
           </Row>
         </div>
