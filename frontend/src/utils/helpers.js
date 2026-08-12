@@ -123,6 +123,7 @@ export const getStatusVariant = (status) => {
     "on-leave": "primary",
     "no-data": "secondary",
     weekend: "light",
+    holiday: "warning",
   };
   return variants[statusLower] || "secondary";
 };
@@ -137,7 +138,8 @@ export const getStatusColor = (status) => {
     absent: { bg: 'danger', text: 'white' },
     'on-leave': { bg: 'primary', text: 'white' },
     'no-data': { bg: 'secondary', text: 'white' },
-    'weekend': { bg: 'light', text: 'muted' },
+    weekend: { bg: 'light', text: 'muted' },
+    holiday: { bg: 'warning', text: 'dark' },
     cancelled: { bg: 'danger', text: 'white' },
     'to do': { bg: 'secondary', text: 'white' },
     'in progress': { bg: 'primary', text: 'white' },
