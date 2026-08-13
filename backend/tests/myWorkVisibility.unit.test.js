@@ -4,6 +4,40 @@
  * - Work I created for others belongs on Assigned Work, not My Work
  */
 
+const normalizeId = (value) => {
+  if (!value) return null;
+  if (typeof value === 'object' && value._id) return value._id.toString();
+  return value.toString();
+};
+
+function getWorkItemAssigneeIds(workItem) {
+  const multi = (workItem?.assignedToMultiple || []).map(normalizeId).filter(Boolean);
+  if (multi.length > 0) return [...new Set(multi)];
+  const primary = normalizeId(workItem?.assignedTo);
+  return primary ? [primary] : [];
+}
+
+function isWorkItemAssignedToUser(workItem, userId) {
+  const uid = normalizeId(userId);
+  if (!workItem || !uid) return false;
+  return getWorkItemAssigneeIds(workItem).includes(uid);
+}
+
+function isWorkItemForMyWork(workItem, userId) {
+  const uid = normalizeId(userId);
+  if (!workItem || !uid) return false;
+
+  const assigneeIds = getWorkItemAssigneeIds(workItem);
+  if (!assigneeIds.includes(uid)) return false;
+
+  const creatorId = normalizeId(workItem.createdBy);
+  if (creatorId === uid && assigneeIds.some((id) => id !== uid)) {
+    return false;
+  }
+
+  return true;
+}
+
 describe('My Work visibility query shape', () => {
   /**
    * Mirrors getMyWorkItems assignee filter (ObjectId + string safe).
@@ -34,6 +68,61 @@ describe('My Work visibility query shape', () => {
       const ref = clause.assignedTo || clause.assignedToMultiple;
       expect(ref.$in).toEqual(expect.arrayContaining([userId, String(userId)]));
     });
+  });
+});
+
+describe('My Work assignee scope', () => {
+  const assignerId = 'assigner-1';
+  const assigneeId = 'assignee-1';
+  const otherId = 'assignee-2';
+
+  test('includes work assigned to me by someone else', () => {
+    const item = {
+      createdBy: assignerId,
+      assignedTo: assigneeId,
+    };
+    expect(isWorkItemForMyWork(item, assigneeId)).toBe(true);
+    expect(isWorkItemForMyWork(item, assignerId)).toBe(false);
+  });
+
+  test('excludes work I created and assigned to another employee', () => {
+    const item = {
+      createdBy: assignerId,
+      assignedTo: assigneeId,
+    };
+    expect(isWorkItemForMyWork(item, assignerId)).toBe(false);
+    expect(isWorkItemAssignedToUser(item, assigneeId)).toBe(true);
+  });
+
+  test('includes work I assigned only to myself', () => {
+    const item = {
+      createdBy: assignerId,
+      assignedTo: assignerId,
+    };
+    expect(isWorkItemForMyWork(item, assignerId)).toBe(true);
+  });
+
+  test('excludes creator who is also listed with other assignees', () => {
+    const item = {
+      createdBy: assignerId,
+      assignedTo: assigneeId,
+      assignedToMultiple: [assigneeId, assignerId],
+    };
+    expect(getWorkItemAssigneeIds(item)).toEqual(
+      expect.arrayContaining([assigneeId, assignerId])
+    );
+    expect(isWorkItemForMyWork(item, assignerId)).toBe(false);
+    expect(isWorkItemForMyWork(item, assigneeId)).toBe(true);
+  });
+
+  test('includes multi-assignee work for non-creator assignees', () => {
+    const item = {
+      createdBy: assignerId,
+      assignedTo: assigneeId,
+      assignedToMultiple: [assigneeId, otherId],
+    };
+    expect(isWorkItemForMyWork(item, assigneeId)).toBe(true);
+    expect(isWorkItemForMyWork(item, otherId)).toBe(true);
   });
 });
 

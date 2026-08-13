@@ -12,7 +12,7 @@ import AssignWorkModal from '../../components/work/AssignWorkModal';
 import {
   getEffectiveStatusForUser,
   isPendingWorkItem,
-  isWorkItemAssignedToUser,
+  isWorkItemForMyWork,
   isWorkItemDueToday,
   isWorkItemOverdue,
 } from '../../utils/workItemUtils';
@@ -53,7 +53,7 @@ const MyWorkPage = () => {
 
   // Only items assigned to me — work I gave others belongs on Assigned Work
   const myAssignedItems = useMemo(
-    () => workItems.filter((item) => isWorkItemAssignedToUser(item, user?._id)),
+    () => workItems.filter((item) => isWorkItemForMyWork(item, user?._id)),
     [workItems, user?._id]
   );
 

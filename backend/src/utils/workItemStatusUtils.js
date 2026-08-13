@@ -86,3 +86,48 @@ export function computeDueDateFlags(workItem, userId, referenceDate = new Date()
 export function isPendingForUser(workItem, userId) {
   return isActiveWorkStatus(getEffectiveStatusForUser(workItem, userId));
 }
+
+/**
+ * All assignee ids for a work item (multi list, or single assignedTo).
+ * @param {object|null|undefined} workItem
+ * @returns {string[]}
+ */
+export function getWorkItemAssigneeIds(workItem) {
+  const multi = (workItem?.assignedToMultiple || []).map(normalizeId).filter(Boolean);
+  if (multi.length > 0) return [...new Set(multi)];
+  const primary = normalizeId(workItem?.assignedTo);
+  return primary ? [primary] : [];
+}
+
+/**
+ * Whether the user is listed as an assignee.
+ * @param {object|null|undefined} workItem
+ * @param {import('mongoose').Types.ObjectId | string|null|undefined} userId
+ * @returns {boolean}
+ */
+export function isWorkItemAssignedToUser(workItem, userId) {
+  const uid = normalizeId(userId);
+  if (!workItem || !uid) return false;
+  return getWorkItemAssigneeIds(workItem).includes(uid);
+}
+
+/**
+ * My Work: assigned to me AND not work I created for other team members.
+ * @param {object|null|undefined} workItem
+ * @param {import('mongoose').Types.ObjectId | string|null|undefined} userId
+ * @returns {boolean}
+ */
+export function isWorkItemForMyWork(workItem, userId) {
+  const uid = normalizeId(userId);
+  if (!workItem || !uid) return false;
+
+  const assigneeIds = getWorkItemAssigneeIds(workItem);
+  if (!assigneeIds.includes(uid)) return false;
+
+  const creatorId = normalizeId(workItem.createdBy);
+  if (creatorId === uid && assigneeIds.some((id) => id !== uid)) {
+    return false;
+  }
+
+  return true;
+}

@@ -1,7 +1,5 @@
 /**
- * Mirrors frontend isPendingWorkItem / isWorkItemAssignedToUser rules used by
- * Employee Dashboard "Pending Tasks" so assigners are not counted for work
- * they only created for someone else.
+ * Mirrors frontend isPendingWorkItem rules used by Employee Dashboard.
  */
 
 const TERMINAL_STATUSES = new Set(['Done', 'Cancelled']);
@@ -12,12 +10,26 @@ const normalizeId = (value) => {
   return value.toString();
 };
 
-function isWorkItemAssignedToUser(workItem, userId) {
+function getWorkItemAssigneeIds(workItem) {
+  const multi = (workItem?.assignedToMultiple || []).map(normalizeId).filter(Boolean);
+  if (multi.length > 0) return [...new Set(multi)];
+  const primary = normalizeId(workItem?.assignedTo);
+  return primary ? [primary] : [];
+}
+
+function isWorkItemForMyWork(workItem, userId) {
   const uid = normalizeId(userId);
   if (!workItem || !uid) return false;
-  if (normalizeId(workItem.assignedTo) === uid) return true;
-  const multiIds = (workItem.assignedToMultiple || []).map(normalizeId).filter(Boolean);
-  return multiIds.includes(uid);
+
+  const assigneeIds = getWorkItemAssigneeIds(workItem);
+  if (!assigneeIds.includes(uid)) return false;
+
+  const creatorId = normalizeId(workItem.createdBy);
+  if (creatorId === uid && assigneeIds.some((id) => id !== uid)) {
+    return false;
+  }
+
+  return true;
 }
 
 function getEffectiveStatusForUser(workItem, userId) {
@@ -36,7 +48,7 @@ function getEffectiveStatusForUser(workItem, userId) {
 function isPendingWorkItem(workItem, userId) {
   if (!workItem || workItem.isDeleted) return false;
   if (workItem.visibility === 'draft') return false;
-  if (!isWorkItemAssignedToUser(workItem, userId)) return false;
+  if (!isWorkItemForMyWork(workItem, userId)) return false;
   return !TERMINAL_STATUSES.has(getEffectiveStatusForUser(workItem, userId));
 }
 

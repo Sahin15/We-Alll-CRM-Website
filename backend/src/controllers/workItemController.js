@@ -12,6 +12,7 @@ import {
   computeDueDateFlags,
   getEffectiveStatusForUser,
   isPendingForUser,
+  isWorkItemForMyWork,
   syncGlobalStatusFromAssignees,
 } from "../utils/workItemStatusUtils.js";
 
@@ -91,7 +92,9 @@ const getMyWorkItems = async (req, res) => {
       .lean();
     
     // Compute per-user effective status and due flags (lean() strips virtuals)
-    const workItemsWithVirtuals = workItems.map((item) => {
+    const workItemsWithVirtuals = workItems
+      .filter((item) => isWorkItemForMyWork(item, userId))
+      .map((item) => {
       const dueFlags = computeDueDateFlags(item, req.user._id);
       return {
         ...item,

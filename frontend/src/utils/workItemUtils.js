@@ -51,8 +51,19 @@ export function isWorkItemOverdue(workItem, userId, referenceDate = new Date()) 
 }
 
 /**
- * Whether the user is an assignee (single or multi). Creators who only assigned
- * work to others are not assignees — those items belong on Assigned Work.
+ * All assignee ids for a work item (multi list, or single assignedTo).
+ * @param {object|null|undefined} workItem
+ * @returns {string[]}
+ */
+export function getWorkItemAssigneeIds(workItem) {
+  const multi = (workItem?.assignedToMultiple || []).map(normalizeId).filter(Boolean);
+  if (multi.length > 0) return [...new Set(multi)];
+  const primary = normalizeId(workItem?.assignedTo);
+  return primary ? [primary] : [];
+}
+
+/**
+ * Whether the user is an assignee (single or multi).
  *
  * @param {object|null|undefined} workItem
  * @param {string|object|null|undefined} userId
@@ -61,11 +72,29 @@ export function isWorkItemOverdue(workItem, userId, referenceDate = new Date()) 
 export function isWorkItemAssignedToUser(workItem, userId) {
   const uid = normalizeId(userId);
   if (!workItem || !uid) return false;
+  return getWorkItemAssigneeIds(workItem).includes(uid);
+}
 
-  if (normalizeId(workItem.assignedTo) === uid) return true;
+/**
+ * My Work page: work assigned to me, excluding items I created for others.
+ *
+ * @param {object|null|undefined} workItem
+ * @param {string|object|null|undefined} userId
+ * @returns {boolean}
+ */
+export function isWorkItemForMyWork(workItem, userId) {
+  const uid = normalizeId(userId);
+  if (!workItem || !uid) return false;
 
-  const multiIds = (workItem.assignedToMultiple || []).map(normalizeId).filter(Boolean);
-  return multiIds.includes(uid);
+  const assigneeIds = getWorkItemAssigneeIds(workItem);
+  if (!assigneeIds.includes(uid)) return false;
+
+  const creatorId = normalizeId(workItem.createdBy);
+  if (creatorId === uid && assigneeIds.some((id) => id !== uid)) {
+    return false;
+  }
+
+  return true;
 }
 
 /**
@@ -79,7 +108,7 @@ export function isWorkItemAssignedToUser(workItem, userId) {
 export function isPendingWorkItem(workItem, userId) {
   if (!workItem || workItem.isDeleted) return false;
   if (workItem.visibility === 'draft') return false;
-  if (!isWorkItemAssignedToUser(workItem, userId)) return false;
+  if (!isWorkItemForMyWork(workItem, userId)) return false;
 
   const status = getEffectiveStatusForUser(workItem, userId);
   return !TERMINAL_STATUSES.has(status);
