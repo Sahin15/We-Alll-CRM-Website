@@ -954,7 +954,7 @@ const AttendanceTracking = () => {
                     }
                     
                     const clockIn = a.status === 'on-leave' ? 'On Leave' : (a.clockIn ? formatTime(a.clockIn) : '-');
-                    const clockOut = a.status === 'on-leave' ? 'On Leave' : (a.clockOut ? formatTime(a.clockOut) : '-');
+                    const clockOut = a.status === 'on-leave' ? '-' : (a.clockOut ? formatTime(a.clockOut) : '-');
                     const workHours = a.status === 'on-leave' ? '-' : formatHours(a.workHours || 0);
                     
                     const dateDisplay = formatDateDDMMYYYY(a.date);
@@ -1464,18 +1464,26 @@ const AttendanceTracking = () => {
                           const totalBreakMinutes = attendance.totalBreakTime || 0;
                           const isOnBreak = breaks.length > 0 && breaks[breaks.length - 1].startTime && !breaks[breaks.length - 1].endTime;
                           
-                          // Check if record was manually edited
-                          const isEdited = attendance.isManuallyModified;
-                          const latestEdit = attendance.modificationHistory && attendance.modificationHistory.length > 0 
-                            ? attendance.modificationHistory[attendance.modificationHistory.length - 1] 
+                          // Only treat as "edited" when HR actually changed the record (history present).
+                          // Leave-approval sets isManuallyModified without a real edit history — that was
+                          // adding a yellow bar + pencil and making leave rows look taller/different.
+                          const isEdited =
+                            Array.isArray(attendance.modificationHistory) &&
+                            attendance.modificationHistory.length > 0;
+                          const latestEdit = isEdited
+                            ? attendance.modificationHistory[attendance.modificationHistory.length - 1]
                             : null;
                           
                           // Check if WFH
                           const isWFH = attendance.isWFH;
                           const wfhReason = attendance.wfhReason;
+                          const isOnLeave = attendance.status === "on-leave";
+                          const rowKey =
+                            attendance._id ||
+                            `${attendance.employee?._id || attendance.employee || "emp"}-${attendance.date}`;
                           
                           return (
-                            <tr key={attendance._id} className={isEdited ? 'edited-record' : (isWFH ? 'wfh-record' : '')}>
+                            <tr key={rowKey} className={isEdited ? 'edited-record' : (isWFH ? 'wfh-record' : '')}>
                               {!filters.employee && (
                                 <td>
                                   <div className="d-flex align-items-center gap-2">
@@ -1493,8 +1501,8 @@ const AttendanceTracking = () => {
                                 </td>
                               )}
                               <td>
-                                <div className="d-flex align-items-center gap-2 flex-wrap">
-                                  <span>{formatDate(attendance.date)}</span>
+                                <div className="d-flex align-items-center gap-2 flex-nowrap">
+                                  <span className="text-nowrap">{formatDate(attendance.date)}</span>
                                   {isWFH && !!filters.employee && (
                                     <span
                                       className="wfh-indicator"
@@ -1526,15 +1534,15 @@ const AttendanceTracking = () => {
                                 </div>
                               </td>
                               <td>
-                                {attendance.status === 'on-leave' ? (
+                                {isOnLeave ? (
                                   <Badge bg="primary">On Leave</Badge>
                                 ) : (
                                   formatTime(attendance.clockIn)
                                 )}
                               </td>
                               <td>
-                                {attendance.status === 'on-leave' ? (
-                                  <Badge bg="primary">On Leave</Badge>
+                                {isOnLeave ? (
+                                  <span className="text-muted">-</span>
                                 ) : attendance.clockOut
                                   ? formatTime(attendance.clockOut)
                                   : isOnBreak 

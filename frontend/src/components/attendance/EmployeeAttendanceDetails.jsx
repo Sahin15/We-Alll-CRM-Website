@@ -550,7 +550,7 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
                             </td>
                             <td className="py-2 px-3">
                               {attendance.status === 'on-leave' ? (
-                                <Badge bg="primary">On Leave</Badge>
+                                <span className="text-muted">-</span>
                               ) : attendance.clockOut ? (
                                 formatTime(attendance.clockOut)
                               ) : (

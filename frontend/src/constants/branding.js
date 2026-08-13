@@ -4,5 +4,5 @@ export const BRAND_LOGO_MINI = "/Wealll_mini.png";
 export const BRAND_NAME = "We Alll Office";
 
 /** App release version — keep in sync with frontend/backend package.json */
-export const APP_VERSION = "5.2.1";
+export const APP_VERSION = "5.2.2";
 export const APP_VERSION_LABEL = `V ${APP_VERSION}`;
