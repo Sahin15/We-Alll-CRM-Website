@@ -7,7 +7,7 @@ export const BRAND_NAME = "We Alll Office";
 export const COMPANY_START_YEAR = 2024;
 
 /** App release version — keep in sync with frontend/backend package.json */
-export const APP_VERSION = "5.3.0";
+export const APP_VERSION = "5.2.3";
 export const APP_VERSION_LABEL = `V ${APP_VERSION}`;
 
 /**
