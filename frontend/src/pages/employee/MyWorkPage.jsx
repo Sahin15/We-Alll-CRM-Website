@@ -12,6 +12,9 @@ import AssignWorkModal from '../../components/work/AssignWorkModal';
 import {
   getEffectiveStatusForUser,
   isPendingWorkItem,
+  isWorkItemAssignedToUser,
+  isWorkItemDueToday,
+  isWorkItemOverdue,
 } from '../../utils/workItemUtils';
 
 /**
@@ -48,10 +51,17 @@ const MyWorkPage = () => {
     }
   };
 
+  // Only items assigned to me — work I gave others belongs on Assigned Work
+  const myAssignedItems = useMemo(
+    () => workItems.filter((item) => isWorkItemAssignedToUser(item, user?._id)),
+    [workItems, user?._id]
+  );
+
   // Calculate statistics
   const statistics = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const userId = user?._id;
     
     const currentMonth = today.getMonth();
     const currentYear = today.getFullYear();
@@ -66,7 +76,7 @@ const MyWorkPage = () => {
     let dueTodayItems = [];
     let inProgressItems = [];
 
-    workItems.forEach((item) => {
+    myAssignedItems.forEach((item) => {
       // Skip soft-deleted items (safety net)
       if (item.isDeleted) return;
 
@@ -81,7 +91,7 @@ const MyWorkPage = () => {
       }
 
       // Count completed this month
-      const itemStatus = getEffectiveStatusForUser(item, user?._id);
+      const itemStatus = getEffectiveStatusForUser(item, userId);
       if (itemStatus === 'Done' && itemMonth === currentMonth && itemYear === currentYear) {
         completedThisMonth++;
       }
@@ -91,8 +101,8 @@ const MyWorkPage = () => {
         cancelledThisMonth++;
       }
 
-      // Count due today — only non-Done, non-Cancelled items
-      if (dueDate && dueDate.getTime() === today.getTime() && !['Done', 'Cancelled'].includes(itemStatus)) {
+      // Count due today — only pending items assigned to me
+      if (isWorkItemDueToday(item, userId)) {
         dueToday++;
         dueTodayItems.push(item);
       }
@@ -103,8 +113,8 @@ const MyWorkPage = () => {
         inProgressItems.push(item);
       }
 
-      // Count overdue — use backend-computed flag with per-user status
-      if (!['Done', 'Cancelled'].includes(itemStatus) && item.isOverdue === true) {
+      // Count overdue — only pending items assigned to me
+      if (isPendingWorkItem(item, userId) && isWorkItemOverdue(item, userId)) {
         overdue++;
         overdueItems.push(item);
       }
@@ -121,11 +131,11 @@ const MyWorkPage = () => {
       dueTodayItems: dueTodayItems.slice(0, 3),
       inProgressItems: inProgressItems.slice(0, 3),
     };
-  }, [workItems, user?._id]);
+  }, [myAssignedItems, user?._id]);
 
   // Filter and sort work items
   const filteredItems = useMemo(() => {
-    let filtered = [...workItems];
+    let filtered = [...myAssignedItems];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const userId = user?._id;
@@ -209,7 +219,7 @@ const MyWorkPage = () => {
     });
 
     return filtered;
-  }, [workItems, searchTerm, showTodayOnly, selectedDate, user?._id]);
+  }, [myAssignedItems, searchTerm, showTodayOnly, selectedDate, user?._id]);
 
   const handleViewItem = (item) => {
     setSelectedItem(item);
@@ -394,22 +404,22 @@ const MyWorkPage = () => {
 
       {/* Alert Banners */}
       <Row className="mb-3 g-2">
-        {statistics.overdueItems.length > 0 && (
+        {statistics.overdue > 0 && (
           <Col xs={12}>
             <div className="alert-banner alert-danger">
               <div className="alert-icon">⚠️</div>
               <div className="alert-content">
-                <strong>Attention!</strong> You have {statistics.overdueItems.length} overdue item{statistics.overdueItems.length > 1 ? 's' : ''}. Please prioritize these.
+                <strong>Attention!</strong> You have {statistics.overdue} overdue item{statistics.overdue > 1 ? 's' : ''}. Please prioritize these.
               </div>
             </div>
           </Col>
         )}
-        {statistics.dueTodayItems.length > 0 && (
+        {statistics.dueToday > 0 && (
           <Col xs={12}>
             <div className="alert-banner alert-warning">
               <div className="alert-icon">⏰</div>
               <div className="alert-content">
-                <strong>Reminder:</strong> You have {statistics.dueTodayItems.length} item{statistics.dueTodayItems.length > 1 ? 's' : ''} due today!
+                <strong>Reminder:</strong> You have {statistics.dueToday} item{statistics.dueToday > 1 ? 's' : ''} due today!
               </div>
             </div>
           </Col>
@@ -487,7 +497,7 @@ const MyWorkPage = () => {
         <Card.Body className="p-0" style={{ overflow: 'visible' }}>
           <div className="p-3 border-bottom">
             <small className="text-muted">
-              Showing {filteredItems.length} of {workItems.length} items
+              Showing {filteredItems.length} of {myAssignedItems.length} items
             </small>
           </div>
           {bulkMode ? (
@@ -497,7 +507,7 @@ const MyWorkPage = () => {
               onBulkAction={handleBulkAction}
               currentUser={user}
               emptyMessage={
-                workItems.length === 0
+                myAssignedItems.length === 0
                   ? 'No work items assigned to you yet.'
                   : 'No items match your search criteria.'
               }
@@ -509,7 +519,7 @@ const MyWorkPage = () => {
               onStatusChange={handleUpdateStatus}
               currentUser={user}
               emptyMessage={
-                workItems.length === 0
+                myAssignedItems.length === 0
                   ? 'No work items assigned to you yet.'
                   : 'No items match your search criteria.'
               }

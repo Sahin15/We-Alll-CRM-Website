@@ -94,3 +94,41 @@ describe('Pending Tasks assignee filter', () => {
     expect(isPendingWorkItem(item, 'assignee-2')).toBe(true);
   });
 });
+
+describe('My Work overdue alert scope', () => {
+  const assignerId = 'assigner-1';
+  const assigneeId = 'assignee-1';
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  yesterday.setHours(0, 0, 0, 0);
+
+  function countOverdueForUser(items, userId) {
+    return items.filter(
+      (item) =>
+        isPendingWorkItem(item, userId) &&
+        item.dueDate &&
+        new Date(item.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0)
+    ).length;
+  }
+
+  test('does not count overdue for work the user only assigned to someone else', () => {
+    const items = [
+      {
+        status: 'To Do',
+        visibility: 'active',
+        createdBy: assignerId,
+        assignedTo: assigneeId,
+        dueDate: yesterday.toISOString(),
+      },
+      {
+        status: 'To Do',
+        visibility: 'active',
+        createdBy: assignerId,
+        assignedTo: assigneeId,
+        dueDate: yesterday.toISOString(),
+      },
+    ];
+    expect(countOverdueForUser(items, assignerId)).toBe(0);
+    expect(countOverdueForUser(items, assigneeId)).toBe(2);
+  });
+});

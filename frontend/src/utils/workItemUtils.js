@@ -52,7 +52,7 @@ export function isWorkItemOverdue(workItem, userId, referenceDate = new Date()) 
 
 /**
  * Whether the user is an assignee (single or multi). Creators who only assigned
- * work to others are not assignees — /my-work still returns those items.
+ * work to others are not assignees — those items belong on Assigned Work.
  *
  * @param {object|null|undefined} workItem
  * @param {string|object|null|undefined} userId
