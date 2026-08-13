@@ -494,16 +494,16 @@ const Navbar = ({ toggleSidebar }) => {
               title="Work App - Clock In/Out, Work Log, Leave, Expenses"
               aria-label="Open Work App"
               style={{
-                background: 'rgba(255, 255, 255, 0.12)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                borderRadius: '10px',
+                background: 'none',
+                border: 'none',
                 cursor: 'pointer',
-                padding: '8px',
+                padding: 0,
                 color: '#fff',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 lineHeight: 1,
+                fontSize: '1.15rem',
               }}
             >
               📱
