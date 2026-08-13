@@ -1,0 +1,186 @@
+/**
+ * Profile user dropdown — locked styles so localhost and production match.
+ * Scoped under .mobile-navbar to beat global responsive/pages-mobile rules.
+ */
+
+.mobile-navbar .user-dropdown {
+  position: relative !important;
+  z-index: 99999 !important;
+}
+
+.mobile-navbar .user-dropdown .dropdown-toggle {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-radius: 30px !important;
+  padding: 6px 16px 6px 6px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  border: 2px solid rgba(255, 255, 255, 0.2) !important;
+  display: flex !important;
+  align-items: center !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+.mobile-navbar .user-dropdown .dropdown-toggle:hover {
+  background: rgba(255, 255, 255, 0.25) !important;
+  border-color: rgba(255, 255, 255, 0.4) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2) !important;
+}
+
+.mobile-navbar .user-dropdown .dropdown-toggle:active {
+  transform: translateY(0);
+}
+
+.mobile-navbar .user-dropdown .dropdown-toggle::after {
+  color: white !important;
+  margin-left: 10px !important;
+  vertical-align: middle !important;
+  transition: transform 0.3s ease !important;
+}
+
+.mobile-navbar .user-dropdown.show .dropdown-toggle::after {
+  transform: rotate(180deg);
+}
+
+.mobile-navbar .user-dropdown .dropdown-menu,
+.mobile-navbar .user-dropdown .dropdown-menu.show {
+  font-family: "Inter", system-ui, sans-serif !important;
+  background-color: #f8f9fa !important;
+  color: #212529 !important;
+  border: none !important;
+  border-radius: 16px !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15) !important;
+  padding: 0 !important;
+  margin-top: 12px !important;
+  min-width: 260px !important;
+  max-width: 280px !important;
+  width: 260px !important;
+  max-height: 420px !important;
+  overflow: hidden !important;
+  animation: userDropdownSlideIn 0.3s ease-out !important;
+  z-index: 99999 !important;
+}
+
+@keyframes userDropdownSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mobile-navbar .user-dropdown-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: #ffffff !important;
+  padding: 16px 20px !important;
+  border: none !important;
+  border-bottom: none !important;
+  max-width: none !important;
+}
+
+.mobile-navbar .user-dropdown-header .user-dropdown-name {
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 4px !important;
+  color: #ffffff !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 220px !important;
+}
+
+.mobile-navbar .user-dropdown-header .user-dropdown-email {
+  color: rgba(255, 255, 255, 0.85) !important;
+  font-size: 0.875rem !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 220px !important;
+}
+
+.mobile-navbar .user-dropdown-header .user-role-badge,
+.mobile-navbar .user-role-badge {
+  display: inline-block !important;
+  margin-top: 8px !important;
+  padding: 6px 12px !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em !important;
+  line-height: 1.2 !important;
+  background: rgba(255, 255, 255, 0.25) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  border-radius: 999px !important;
+  color: #ffffff !important;
+  text-transform: uppercase !important;
+}
+
+.mobile-navbar .user-dropdown .dropdown-item {
+  padding: 14px 20px !important;
+  font-size: 0.95rem !important;
+  font-weight: 500 !important;
+  color: #374151 !important;
+  transition: all 0.2s ease !important;
+  border-left: 3px solid transparent !important;
+  background-color: transparent !important;
+}
+
+.mobile-navbar .user-dropdown .dropdown-item:hover,
+.mobile-navbar .user-dropdown .dropdown-item:focus {
+  background: linear-gradient(
+    90deg,
+    rgba(102, 126, 234, 0.08) 0%,
+    rgba(102, 126, 234, 0.02) 100%
+  ) !important;
+  border-left-color: #667eea !important;
+  color: #667eea !important;
+  padding-left: 24px !important;
+}
+
+.mobile-navbar .user-dropdown .dropdown-item:active {
+  background: linear-gradient(
+    90deg,
+    rgba(102, 126, 234, 0.12) 0%,
+    rgba(102, 126, 234, 0.04) 100%
+  ) !important;
+}
+
+.mobile-navbar .user-dropdown .dropdown-divider {
+  margin: 8px 0 !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  opacity: 1 !important;
+}
+
+.mobile-navbar .user-dropdown .dropdown-item.user-dropdown-logout {
+  color: #ef4444 !important;
+  font-weight: 600 !important;
+}
+
+.mobile-navbar .user-dropdown .dropdown-item.user-dropdown-logout:hover,
+.mobile-navbar .user-dropdown .dropdown-item.user-dropdown-logout:focus {
+  background: linear-gradient(
+    90deg,
+    rgba(239, 68, 68, 0.08) 0%,
+    rgba(239, 68, 68, 0.02) 100%
+  ) !important;
+  border-left-color: #ef4444 !important;
+  color: #ef4444 !important;
+}
+
+@media (max-width: 575.98px) {
+  .mobile-navbar .user-dropdown .dropdown-toggle {
+    padding: 4px 8px 4px 4px !important;
+    border-radius: 25px !important;
+  }
+
+  .mobile-navbar .user-dropdown .dropdown-menu,
+  .mobile-navbar .user-dropdown .dropdown-menu.show {
+    min-width: 260px !important;
+    width: 260px !important;
+    max-width: 280px !important;
+    margin-top: 8px !important;
+    border-radius: 12px !important;
+  }
+}

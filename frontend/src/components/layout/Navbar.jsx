@@ -28,6 +28,7 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { checkPageAccess, PAGE_ACCESS } from "../../constants/pageAccess";
 import { resolveProfilePictureUrl } from "../../utils/profilePictureUrl";
+import "./NavbarUserDropdown.css";
 
 const withCacheBust = (url) => {
   if (!url || !url.includes(".amazonaws.com")) return url;
@@ -561,20 +562,32 @@ const Navbar = ({ toggleSidebar }) => {
             id="user-dropdown"
             align="end"
             className="user-dropdown"
+            popperConfig={{ strategy: "fixed" }}
           >
-            <div className="user-dropdown-header px-3 py-2 border-bottom" style={{ maxWidth: "280px" }}>
-              <div className="fw-bold text-truncate" style={{ maxWidth: "100%" }} title={user?.name || "User"}>
+            <div
+              className="user-dropdown-header"
+              style={{
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                color: "#ffffff",
+                padding: "16px 20px",
+                border: "none",
+              }}
+            >
+              <div
+                className="user-dropdown-name text-truncate"
+                title={user?.name || "User"}
+              >
                 {user?.name || "User"}
               </div>
-              <div className="small text-muted text-truncate" style={{ maxWidth: "100%" }}>
+              <div className="user-dropdown-email text-truncate">
                 {user?.email || "No email"}
               </div>
               <div className="mt-1">
-                <Badge bg="primary" className="user-role-badge">
-                  {user?.role === 'employee'
-                    ? (user?.funBadge || 'Team Member')
-                    : (user?.role || 'User').toUpperCase()}
-                </Badge>
+                <span className="user-role-badge">
+                  {user?.role === "employee"
+                    ? user?.funBadge || "Team Member"
+                    : (user?.role || "User").toUpperCase()}
+                </span>
               </div>
             </div>
             <NavDropdown.Item onClick={() => navigate(user?.role === 'employee' ? '/employee/profile' : '/profile')}>
@@ -704,26 +717,14 @@ const Navbar = ({ toggleSidebar }) => {
           }
         }
         
-
-        /* User Dropdown Toggle Button */
-        .user-dropdown .dropdown-toggle {
-          background: rgba(255, 255, 255, 0.15) !important;
-          border-radius: 30px !important;
-          padding: 6px 16px 6px 6px !important;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-          border: 2px solid rgba(255, 255, 255, 0.2) !important;
-          display: flex !important;
-          align-items: center !important;
-          backdrop-filter: blur(10px) !important;
+        /* Ensure navbar doesn't clip dropdown */
+        .mobile-navbar,
+        .mobile-navbar .container-fluid,
+        .mobile-navbar .navbar-nav {
+          overflow: visible !important;
         }
-        
-        /* Mobile adjustments for user dropdown */
+
         @media (max-width: 575.98px) {
-          .user-dropdown .dropdown-toggle {
-            padding: 4px 8px 4px 4px !important;
-            border-radius: 25px !important;
-          }
-          
           .profile-avatar,
           .profile-avatar-placeholder {
             width: 36px !important;
@@ -738,168 +739,6 @@ const Navbar = ({ toggleSidebar }) => {
             width: 10px !important;
             height: 10px !important;
           }
-        }
-        
-        .user-dropdown .dropdown-toggle:hover {
-          background: rgba(255, 255, 255, 0.25) !important;
-          border-color: rgba(255, 255, 255, 0.4) !important;
-          transform: translateY(-2px);
-          box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2) !important;
-        }
-        
-        .user-dropdown .dropdown-toggle:active {
-          transform: translateY(0);
-        }
-        
-        .user-dropdown .dropdown-toggle::after {
-          color: white !important;
-          margin-left: 10px !important;
-          vertical-align: middle !important;
-          transition: transform 0.3s ease !important;
-        }
-        
-        .user-dropdown.show .dropdown-toggle::after {
-          transform: rotate(180deg);
-        }
-        
-        /* User Dropdown - Higher z-index to appear above other elements */
-        .user-dropdown {
-          position: relative !important;
-          z-index: 99999 !important;
-        }
-        
-        /* Ensure navbar doesn't clip dropdown */
-        .mobile-navbar,
-        .mobile-navbar .container-fluid,
-        .mobile-navbar .navbar-nav {
-          overflow: visible !important;
-        }
-        
-        /* Dropdown Menu */
-        .user-dropdown .dropdown-menu {
-          font-family: 'Inter', sans-serif !important;
-          border: none !important;
-          border-radius: 16px !important;
-          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15) !important;
-          padding: 0 !important;
-          margin-top: 12px !important;
-          min-width: 280px !important;
-          max-height: 420px !important;
-          overflow-y: auto !important;
-          animation: dropdownSlideIn 0.3s ease-out !important;
-          z-index: 99999 !important;
-          position: absolute !important;
-          top: 100% !important;
-          right: 0 !important;
-          left: auto !important;
-        }
-        
-        /* Mobile dropdown adjustments */
-        @media (max-width: 575.98px) {
-          .user-dropdown .dropdown-menu {
-            min-width: 260px !important;
-            margin-top: 8px !important;
-            border-radius: 12px !important;
-            right: 0 !important;
-            left: auto !important;
-          }
-        }
-        
-        @keyframes dropdownSlideIn {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        /* Dropdown Header */
-        .user-dropdown .dropdown-menu .user-dropdown-header,
-        .user-dropdown .dropdown-menu .border-bottom {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-          color: white !important;
-          padding: 16px 20px !important;
-          border: none !important;
-        }
-        
-        .user-dropdown .dropdown-menu .user-dropdown-header .fw-bold,
-        .user-dropdown .dropdown-menu .border-bottom .fw-bold {
-          font-size: 1rem !important;
-          font-weight: 600 !important;
-          margin-bottom: 4px !important;
-          color: white !important;
-          white-space: nowrap !important;
-          overflow: hidden !important;
-          text-overflow: ellipsis !important;
-          max-width: 240px !important;
-        }
-        
-        .user-dropdown .dropdown-menu .user-dropdown-header .text-muted,
-        .user-dropdown .dropdown-menu .border-bottom .text-muted {
-          color: rgba(255, 255, 255, 0.85) !important;
-          font-size: 0.875rem !important;
-          white-space: nowrap !important;
-          overflow: hidden !important;
-          text-overflow: ellipsis !important;
-          max-width: 240px !important;
-        }
-        
-        .user-dropdown .dropdown-menu .user-dropdown-header .badge,
-        .user-dropdown .dropdown-menu .border-bottom .badge,
-        .user-dropdown .dropdown-menu .user-role-badge {
-          margin-top: 8px !important;
-          padding: 6px 12px !important;
-          font-weight: 600 !important;
-          letter-spacing: 0.02em !important;
-          background: rgba(255, 255, 255, 0.25) !important;
-          backdrop-filter: blur(10px) !important;
-          border: 1px solid rgba(255, 255, 255, 0.3) !important;
-          color: #fff !important;
-          text-transform: uppercase !important;
-        }
-        
-        /* Dropdown Items */
-        .user-dropdown .dropdown-item {
-          padding: 14px 20px !important;
-          font-size: 0.95rem !important;
-          font-weight: 500 !important;
-          color: #374151 !important;
-          transition: all 0.2s ease !important;
-          border-left: 3px solid transparent !important;
-        }
-        
-        .user-dropdown .dropdown-item:hover {
-          background: linear-gradient(90deg, rgba(102, 126, 234, 0.08) 0%, rgba(102, 126, 234, 0.02) 100%) !important;
-          border-left-color: #667eea !important;
-          color: #667eea !important;
-          padding-left: 24px !important;
-        }
-        
-        .user-dropdown .dropdown-item:active {
-          background: linear-gradient(90deg, rgba(102, 126, 234, 0.12) 0%, rgba(102, 126, 234, 0.04) 100%) !important;
-        }
-        
-        /* Dropdown Divider */
-        .user-dropdown .dropdown-divider {
-          margin: 8px 0 !important;
-          border-color: rgba(0, 0, 0, 0.08) !important;
-        }
-        
-        /* Logout Item */
-        .user-dropdown .dropdown-item.user-dropdown-logout,
-        .user-dropdown .dropdown-item:last-child {
-          color: #ef4444 !important;
-          font-weight: 600 !important;
-        }
-        
-        .user-dropdown .dropdown-item.user-dropdown-logout:hover,
-        .user-dropdown .dropdown-item:last-child:hover {
-          background: linear-gradient(90deg, rgba(239, 68, 68, 0.08) 0%, rgba(239, 68, 68, 0.02) 100%) !important;
-          border-left-color: #ef4444 !important;
-          color: #ef4444 !important;
         }
         
         /* Search Bar */
