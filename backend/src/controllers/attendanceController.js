@@ -423,6 +423,8 @@ const enrichAttendanceWithApprovedLeaves = async (attendanceRecords, filterEmplo
           continue;
         }
 
+        // Display-only synthetic row — do NOT persist here.
+        // Persisting IST midnight while leave-approval used UTC midnight created duplicates.
         const syntheticRecord = {
           _id: `leave-${leave._id}-${dateStr}`,
           employee: empObj || leave.employee,
@@ -436,17 +438,6 @@ const enrichAttendanceWithApprovedLeaves = async (attendanceRecords, filterEmplo
         };
         resultRecords.push(syntheticRecord);
         recordMap.set(key, resultRecords.length - 1);
-
-        Attendance.create({
-          employee: employeeRef,
-          date: istMidnight,
-          status: 'on-leave',
-          workHours: 0,
-          overtime: 0,
-          notes: `On ${leave.leaveType} leave`,
-          isManuallyModified: true,
-          originalStatus: 'on-leave'
-        }).catch(() => {});
       }
     }
 
@@ -631,8 +622,8 @@ export const getAllAttendance = async (req, res) => {
     // Cross-reference approved LeaveRequests to ensure leave days are mapped to 'on-leave'
     const enrichedAttendance = await enrichAttendanceWithApprovedLeaves(attendanceWithWFH, filter.employee, filter.date);
 
-    // Return simple array (backward compatible)
-    res.status(200).json(enrichedAttendance);
+    // Return simple array (backward compatible) — always one row per employee/IST day
+    res.status(200).json(dedupeAttendanceByISTDay(enrichedAttendance));
   } catch (error) {
     
     
@@ -699,6 +690,16 @@ export const getMyAttendance = async (req, res) => {
       const dateStr = toISTDateStr(wfh.date);
       wfhMap.set(dateStr, wfh);
     }
+
+    const attendanceWithWFH = attendance.map((record) => {
+      const dateStr = toISTDateStr(record.date);
+      const wfhData = wfhMap.get(dateStr);
+      return {
+        ...record,
+        isWFH: !!wfhData,
+        wfhReason: wfhData?.reason || null,
+      };
+    });
     
     // Cross-reference approved LeaveRequests to ensure leave days are mapped to 'on-leave'
     const dateRangeFilter = startDate && endDate ? buildDateRangeQuery(startDate, endDate, 'date') : null;
@@ -708,9 +709,9 @@ export const getMyAttendance = async (req, res) => {
       dateRangeFilter ? dateRangeFilter.date : null
     );
 
-    res.status(200).json(enrichedAttendance);
+    res.status(200).json(dedupeAttendanceByISTDay(enrichedAttendance));
   } catch (error) {
-    
+    console.error("getMyAttendance:", error);
     res.status(500).json({ message: "Server error" });
   }
 };

@@ -14,7 +14,7 @@ import {
   getStatusVariant,
   formatHours,
 } from "../../utils/helpers";
-import { formatWorkHours } from "../../utils/attendanceHelpers";
+import { formatWorkHours, dedupeAttendanceByISTDay } from "../../utils/attendanceHelpers";
 import EmployeeAttendanceDetails from "../../components/attendance/EmployeeAttendanceDetails";
 import AttendanceCalendar from "../../components/attendance/AttendanceCalendar";
 import "../../styles/pages-mobile.css";
@@ -294,7 +294,7 @@ const AttendanceTracking = () => {
       if (filters.endDate) params.endDate = filters.endDate;
 
       const response = await attendanceApi.getAllAttendance(params);
-      setAttendances(response.data || []);
+      setAttendances(dedupeAttendanceByISTDay(response.data || []));
     } catch (error) {
       console.error('Error fetching attendance:', error);
       toast.error("Failed to fetch attendance records");
@@ -349,7 +349,7 @@ const AttendanceTracking = () => {
         if (newFilters.status) params.status = newFilters.status;
 
         const response = await attendanceApi.getAllAttendance(params);
-        setAttendances(response.data);
+        setAttendances(dedupeAttendanceByISTDay(response.data || []));
         setFilters(newFilters);
       } catch (error) {
         console.error('Error in handleFilterChange:', error);
@@ -373,7 +373,7 @@ const AttendanceTracking = () => {
       if (filters.endDate) params.endDate = filters.endDate;
 
       const response = await attendanceApi.getAllAttendance(params);
-      setAttendances(response.data);
+      setAttendances(dedupeAttendanceByISTDay(response.data || []));
     } catch (error) {
       toast.error("Failed to fetch attendance records");
     } finally {
@@ -428,7 +428,7 @@ const AttendanceTracking = () => {
         if (newFilters.endDate) params.endDate = newFilters.endDate;
 
         const response = await attendanceApi.getAllAttendance(params);
-        setAttendances(response.data);
+        setAttendances(dedupeAttendanceByISTDay(response.data || []));
       } catch (error) {
         toast.error("Failed to fetch attendance records");
       } finally {
@@ -1182,7 +1182,7 @@ const AttendanceTracking = () => {
                         if (clearedFilters.endDate) params.endDate = clearedFilters.endDate;
                         
                         const response = await attendanceApi.getAllAttendance(params);
-                        setAttendances(response.data);
+                        setAttendances(dedupeAttendanceByISTDay(response.data || []));
                       } catch (error) {
                         toast.error("Failed to fetch attendance records");
                       } finally {

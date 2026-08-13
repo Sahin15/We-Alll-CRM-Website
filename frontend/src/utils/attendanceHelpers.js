@@ -92,3 +92,39 @@ export const formatMinutesToHHMM = (minutes) => {
   
   return `${hours}:${mins.toString().padStart(2, '0')}`;
 };
+
+/**
+ * One attendance row per employee + IST calendar day.
+ * Guards against UTC-midnight vs IST-midnight duplicate leave rows from the API.
+ * @param {Array<object>} records
+ * @returns {Array<object>}
+ */
+export const dedupeAttendanceByISTDay = (records = []) => {
+  const unique = [];
+  const seen = new Map();
+  const statusPriority = (status) => {
+    if (status === "on-leave") return 5;
+    if (status === "present" || status === "late" || status === "half-day") return 4;
+    if (status === "absent") return 1;
+    return 2;
+  };
+
+  for (const record of records) {
+    if (!record?.date) continue;
+    const employeeId = record.employee?._id || record.employee || "unknown";
+    const dayKey = toISTDateString(record.date);
+    if (!dayKey) continue;
+    const key = `${String(employeeId)}-${dayKey}`;
+    const existingIdx = seen.get(key);
+    if (existingIdx === undefined) {
+      seen.set(key, unique.length);
+      unique.push(record);
+      continue;
+    }
+    const existing = unique[existingIdx];
+    if (statusPriority(record.status) > statusPriority(existing.status)) {
+      unique[existingIdx] = record;
+    }
+  }
+  return unique;
+};

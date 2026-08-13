@@ -25,6 +25,7 @@ import {
 import toast from "../../utils/toast";
 import api from "../../services/api";
 import { formatDate } from "../../utils/helpers";
+import { dedupeAttendanceByISTDay } from "../../utils/attendanceHelpers";
 
 // Move styles outside component to prevent recreation
 const cardHoverStyle = {
@@ -124,7 +125,7 @@ const AttendanceOverview = () => {
       setLoading(true);
       // Fetch only today's attendance by default
       const response = await api.get(`/attendance?date=${today}`);
-      const todayAttendance = response.data;
+      const todayAttendance = dedupeAttendanceByISTDay(response.data || []);
       
       setAttendance(todayAttendance);
       
@@ -172,7 +173,7 @@ const AttendanceOverview = () => {
       }
       
       const response = await api.get(url);
-      const filteredData = response.data;
+      const filteredData = dedupeAttendanceByISTDay(response.data || []);
       
       setAttendance(filteredData);
       
