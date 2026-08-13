@@ -128,6 +128,16 @@ const MyWorkPage = () => {
     let filtered = [...workItems];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const userId = user?._id;
+
+    const priorityRank = { Critical: 0, High: 1, Urgent: 1, Medium: 2, Low: 3 };
+    const statusRank = {
+      'In Progress': 0,
+      'To Do': 1,
+      Review: 2,
+      Done: 3,
+      Cancelled: 4,
+    };
 
     // Determine which date to filter by
     let filterDate = today;
@@ -138,13 +148,18 @@ const MyWorkPage = () => {
       filterDate = today;
     }
 
-    // Show work for selected/today date if toggle is on or date is selected
+    // Today: due today + overdue pending (still need attention).
+    // Custom date: exact due-date match only.
     if (showTodayOnly || selectedDate) {
       filtered = filtered.filter((item) => {
+        if (item.isDeleted || !item.dueDate) return false;
         const dueDate = new Date(item.dueDate);
         dueDate.setHours(0, 0, 0, 0);
-        // Show items due exactly on the selected date
-        return dueDate.getTime() === filterDate.getTime();
+        if (dueDate.getTime() === filterDate.getTime()) return true;
+        if (showTodayOnly && !selectedDate) {
+          return isPendingWorkItem(item, userId) && dueDate.getTime() < today.getTime();
+        }
+        return false;
       });
     }
 
@@ -159,27 +174,37 @@ const MyWorkPage = () => {
       );
     }
 
-    // Sort by priority: overdue first, then by due date, then completed items last
+    // Pending first, then overdue, then status/priority/due date; completed last
     filtered.sort((a, b) => {
-      const dateA = new Date(a.dueDate);
-      const dateB = new Date(b.dueDate);
-      dateA.setHours(0, 0, 0, 0);
-      dateB.setHours(0, 0, 0, 0);
-      
-      const isAOverdue = dateA < today && !['Done', 'Cancelled'].includes(getEffectiveStatusForUser(a, user?._id));
-      const isBOverdue = dateB < today && !['Done', 'Cancelled'].includes(getEffectiveStatusForUser(b, user?._id));
-      const isADone = ['Done', 'Cancelled'].includes(getEffectiveStatusForUser(a, user?._id));
-      const isBDone = ['Done', 'Cancelled'].includes(getEffectiveStatusForUser(b, user?._id));
-      
-      // Overdue items come first
-      if (isAOverdue && !isBOverdue) return -1;
-      if (!isAOverdue && isBOverdue) return 1;
-      
-      // Completed items come last
-      if (isADone && !isBDone) return 1;
-      if (!isADone && isBDone) return -1;
-      
-      // Then sort by due date (earliest first)
+      const aPending = isPendingWorkItem(a, userId);
+      const bPending = isPendingWorkItem(b, userId);
+      if (aPending !== bPending) return aPending ? -1 : 1;
+
+      const dueStart = (item) => {
+        if (!item.dueDate) return null;
+        const d = new Date(item.dueDate);
+        d.setHours(0, 0, 0, 0);
+        return d.getTime();
+      };
+
+      const aDue = dueStart(a);
+      const bDue = dueStart(b);
+      const aOverdue = aPending && aDue != null && aDue < today.getTime();
+      const bOverdue = bPending && bDue != null && bDue < today.getTime();
+      if (aOverdue !== bOverdue) return aOverdue ? -1 : 1;
+
+      const aStatus = getEffectiveStatusForUser(a, userId);
+      const bStatus = getEffectiveStatusForUser(b, userId);
+      const statusDiff =
+        (statusRank[aStatus] ?? 50) - (statusRank[bStatus] ?? 50);
+      if (statusDiff !== 0) return statusDiff;
+
+      const priorityDiff =
+        (priorityRank[a.priority] ?? 9) - (priorityRank[b.priority] ?? 9);
+      if (priorityDiff !== 0) return priorityDiff;
+
+      const dateA = aDue ?? Number.MAX_SAFE_INTEGER;
+      const dateB = bDue ?? Number.MAX_SAFE_INTEGER;
       return dateA - dateB;
     });
 
