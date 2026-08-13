@@ -24,7 +24,6 @@ import {
   FaFileAlt,
   FaSignOutAlt,
   FaExclamationTriangle,
-  FaTh,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import { checkPageAccess, PAGE_ACCESS } from "../../constants/pageAccess";
@@ -506,7 +505,7 @@ const Navbar = ({ toggleSidebar }) => {
                 lineHeight: 1,
               }}
             >
-              <FaTh size={16} />
+              📱
             </button>
           </div>
 
