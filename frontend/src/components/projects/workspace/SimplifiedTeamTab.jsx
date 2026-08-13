@@ -66,8 +66,10 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
 
   useEffect(() => {
     loadTeamMembers();
-    loadAvailableUsers();
-  }, [currentProject._id, currentProject.teamMembers, currentProject.assignedUsers, currentProject.projectHead]);
+    if (canManageTeam) {
+      loadAvailableUsers();
+    }
+  }, [currentProject._id, currentProject.teamMembers, currentProject.assignedUsers, currentProject.projectHead, canManageTeam]);
 
   const loadTeamMembers = () => {
     try {

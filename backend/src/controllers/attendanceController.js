@@ -636,6 +636,17 @@ export const getMyAttendance = async (req, res) => {
       const dateStr = toISTDateStr(wfh.date);
       wfhMap.set(dateStr, wfh);
     }
+
+    // Attach WFH data to attendance records (was missing → ReferenceError / 500)
+    const attendanceWithWFH = attendance.map((record) => {
+      const dateStr = toISTDateStr(record.date);
+      const wfhData = wfhMap.get(dateStr);
+      return {
+        ...record,
+        isWFH: !!wfhData,
+        wfhReason: wfhData?.reason || null,
+      };
+    });
     
     // Cross-reference approved LeaveRequests to ensure leave days are mapped to 'on-leave'
     const dateRangeFilter = startDate && endDate ? buildDateRangeQuery(startDate, endDate, 'date') : null;
@@ -647,8 +658,8 @@ export const getMyAttendance = async (req, res) => {
 
     res.status(200).json(enrichedAttendance);
   } catch (error) {
-    
-    res.status(500).json({ message: "Server error" });
+    console.error("Error in getMyAttendance:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 

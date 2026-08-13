@@ -642,7 +642,7 @@ const SimplePayrollTab = () => {
         <div>
           <h5 className="mb-1">Payroll</h5>
           <p className="text-muted small mb-0">
-            Monthly Salary ± manual adjustments − TDS = Net. Attendance is shown
+            Monthly Salary ± manual adjustments − Professional Tax = Net. Attendance is shown
             for review; HR chooses whether to deduct.
           </p>
         </div>
@@ -746,7 +746,7 @@ const SimplePayrollTab = () => {
               ) : !structure ? (
                 <Alert variant="warning" className="mb-0">
                   No active salary structure. Create a simple structure
-                  (Monthly Salary + TDS) to continue.
+                  (Monthly Salary + Professional Tax) to continue.
                 </Alert>
               ) : structure.payrollMode !== "simple" ? (
                 <Alert variant="info" className="mb-0">
@@ -781,7 +781,7 @@ const SimplePayrollTab = () => {
                     </div>
                   </Col>
                   <Col md={2}>
-                    <div className="text-muted small">TDS</div>
+                    <div className="text-muted small">Professional Tax</div>
                     <div>
                       {structure.tdsEnabled
                         ? formatInr(structure.tds)
@@ -1000,15 +1000,15 @@ const SimplePayrollTab = () => {
                     </Accordion.Item>
                     <Accordion.Item eventKey="3">
                       <Accordion.Header>
-                        TDS —{" "}
+                        Professional Tax —{" "}
                         {preview.sections?.tds?.enabled
                           ? formatInr(preview.sections?.tds?.amount)
                           : "Off"}
                       </Accordion.Header>
                       <Accordion.Body className="small text-muted">
                         {preview.sections?.tds?.enabled
-                          ? "TDS is enabled on the active simple structure."
-                          : "TDS is disabled for this employee."}
+                          ? "Professional Tax is enabled on the active simple structure."
+                          : "Professional Tax is disabled for this employee."}
                       </Accordion.Body>
                     </Accordion.Item>
                     <Accordion.Item eventKey="4" className="payroll-final-net-item">
@@ -1028,7 +1028,7 @@ const SimplePayrollTab = () => {
                           <Col xs={6} className="text-end">
                             {formatInr(preview.totals?.adjustmentsTotal)}
                           </Col>
-                          <Col xs={6}>− TDS</Col>
+                          <Col xs={6}>− Professional Tax</Col>
                           <Col xs={6} className="text-end">
                             {formatInr(preview.totals?.tdsAmount)}
                           </Col>
@@ -1082,7 +1082,7 @@ const SimplePayrollTab = () => {
                 <strong>Employee salary preview</strong>
                 <div className="text-muted small">
                   Creates the preview from this screen&apos;s Monthly Salary,
-                  adjustments, and TDS. The employee can then acknowledge it or
+                  adjustments, and Professional Tax. The employee can then acknowledge it or
                   raise a concern.
                 </div>
               </div>
@@ -1236,7 +1236,7 @@ const SimplePayrollTab = () => {
             <Form.Check
               type="switch"
               className="mb-2"
-              label="TDS Enabled"
+              label="Professional Tax Enabled"
               checked={structureForm.tdsEnabled}
               onChange={(e) =>
                 setStructureForm((f) => ({
@@ -1247,7 +1247,7 @@ const SimplePayrollTab = () => {
             />
             {structureForm.tdsEnabled && (
               <Form.Group className="mb-3">
-                <Form.Label>TDS Amount (₹)</Form.Label>
+                <Form.Label>Professional Tax Amount (₹)</Form.Label>
                 <Form.Control
                   type="number"
                   min="0"
@@ -1627,7 +1627,7 @@ const SimplePayrollTab = () => {
                       </td>
                     </tr>
                     <tr>
-                      <td className="text-muted">− TDS</td>
+                      <td className="text-muted">− Professional Tax</td>
                       <td className="text-end">
                         <strong>
                           {formatInr(preview?.totals?.tdsAmount)}

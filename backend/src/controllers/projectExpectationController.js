@@ -1,6 +1,6 @@
 import ProjectExpectation from "../models/projectExpectationModel.js";
 import Project from "../models/projectModel.js";
-import { canUserViewProject } from "../services/resourceVisibilityService.js";
+import { canUserViewProjectById } from "../services/resourceVisibilityService.js";
 import { logProjectActivity } from "../services/projectActivityService.js";
 import logger from "../utils/logger.js";
 
@@ -12,7 +12,7 @@ export const getProjectExpectations = async (req, res) => {
   try {
     const { projectId } = req.params;
 
-    const hasAccess = await canUserViewProject(req.user, projectId);
+    const hasAccess = await canUserViewProjectById(req.user, projectId);
     if (!hasAccess) {
       return res.status(403).json({ message: "Access denied to this project" });
     }
@@ -60,7 +60,7 @@ export const createProjectExpectation = async (req, res) => {
       return res.status(400).json({ message: "Expectation title is required" });
     }
 
-    const hasAccess = await canUserViewProject(req.user, projectId);
+    const hasAccess = await canUserViewProjectById(req.user, projectId);
     if (!hasAccess) {
       return res.status(403).json({ message: "Access denied to this project" });
     }
@@ -124,7 +124,7 @@ export const updateProjectExpectation = async (req, res) => {
       return res.status(404).json({ message: "Expectation not found" });
     }
 
-    const hasAccess = await canUserViewProject(req.user, expectation.project);
+    const hasAccess = await canUserViewProjectById(req.user, expectation.project);
     if (!hasAccess) {
       return res.status(403).json({ message: "Access denied to this project" });
     }
@@ -205,7 +205,7 @@ export const deleteProjectExpectation = async (req, res) => {
       return res.status(404).json({ message: "Expectation not found" });
     }
 
-    const hasAccess = await canUserViewProject(req.user, expectation.project);
+    const hasAccess = await canUserViewProjectById(req.user, expectation.project);
     if (!hasAccess) {
       return res.status(403).json({ message: "Access denied to this project" });
     }

@@ -1,6 +1,6 @@
 import ProjectCommitment from "../models/projectCommitmentModel.js";
 import Project from "../models/projectModel.js";
-import { canUserViewProject } from "../services/resourceVisibilityService.js";
+import { canUserViewProjectById } from "../services/resourceVisibilityService.js";
 import { logProjectActivity } from "../services/projectActivityService.js";
 import logger from "../utils/logger.js";
 
@@ -12,7 +12,7 @@ export const getProjectCommitments = async (req, res) => {
   try {
     const { projectId } = req.params;
 
-    const hasAccess = await canUserViewProject(req.user, projectId);
+    const hasAccess = await canUserViewProjectById(req.user, projectId);
     if (!hasAccess) {
       return res.status(403).json({ message: "Access denied to this project" });
     }
@@ -64,7 +64,7 @@ export const createProjectCommitment = async (req, res) => {
       return res.status(400).json({ message: "Commitment owner is required" });
     }
 
-    const hasAccess = await canUserViewProject(req.user, projectId);
+    const hasAccess = await canUserViewProjectById(req.user, projectId);
     if (!hasAccess) {
       return res.status(403).json({ message: "Access denied to this project" });
     }
@@ -126,7 +126,7 @@ export const updateProjectCommitment = async (req, res) => {
       return res.status(404).json({ message: "Commitment not found" });
     }
 
-    const hasAccess = await canUserViewProject(req.user, commitment.project);
+    const hasAccess = await canUserViewProjectById(req.user, commitment.project);
     if (!hasAccess) {
       return res.status(403).json({ message: "Access denied to this project" });
     }
@@ -198,7 +198,7 @@ export const deleteProjectCommitment = async (req, res) => {
       return res.status(404).json({ message: "Commitment not found" });
     }
 
-    const hasAccess = await canUserViewProject(req.user, commitment.project);
+    const hasAccess = await canUserViewProjectById(req.user, commitment.project);
     if (!hasAccess) {
       return res.status(403).json({ message: "Access denied to this project" });
     }

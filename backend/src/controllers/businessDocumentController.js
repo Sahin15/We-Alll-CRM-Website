@@ -1,5 +1,5 @@
 import BusinessDocument from "../models/businessDocumentModel.js";
-import { canUserViewClient, canUserViewProject } from "../services/resourceVisibilityService.js";
+import { canUserViewClient, canUserViewProjectById } from "../services/resourceVisibilityService.js";
 import logger from "../utils/logger.js";
 
 /**
@@ -17,7 +17,7 @@ export const getBusinessDocuments = async (req, res) => {
     }
 
     if (project) {
-      const hasAccess = await canUserViewProject(req.user, project);
+      const hasAccess = await canUserViewProjectById(req.user, project);
       if (!hasAccess) {
         return res.status(403).json({ message: "Access denied to this project" });
       }
@@ -82,7 +82,7 @@ export const createBusinessDocument = async (req, res) => {
     }
 
     if (project) {
-      const hasAccess = await canUserViewProject(req.user, project);
+      const hasAccess = await canUserViewProjectById(req.user, project);
       if (!hasAccess) {
         return res.status(403).json({ message: "Access denied to this project" });
       }
@@ -150,7 +150,7 @@ export const deleteBusinessDocument = async (req, res) => {
     }
 
     if (document.project) {
-      const hasAccess = await canUserViewProject(req.user, document.project);
+      const hasAccess = await canUserViewProjectById(req.user, document.project);
       if (!hasAccess) {
         return res.status(403).json({ message: "Access denied to this project" });
       }

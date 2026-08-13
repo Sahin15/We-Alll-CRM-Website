@@ -1,5 +1,5 @@
 import ProjectActivityLog from "../models/projectActivityLogModel.js";
-import { canUserViewProject, canUserViewClient } from "../services/resourceVisibilityService.js";
+import { canUserViewProjectById, canUserViewClient } from "../services/resourceVisibilityService.js";
 import logger from "../utils/logger.js";
 
 /**
@@ -11,7 +11,7 @@ export const getProjectActivityLogs = async (req, res) => {
     const { projectId, clientId } = req.params;
 
     if (projectId) {
-      const hasAccess = await canUserViewProject(req.user, projectId);
+      const hasAccess = await canUserViewProjectById(req.user, projectId);
       if (!hasAccess) {
         return res.status(403).json({ message: "Access denied to this project" });
       }

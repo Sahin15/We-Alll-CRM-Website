@@ -16,7 +16,7 @@ import {
 import { protect } from '../middleware/authMiddleware.js';
 
 
-import { requireModulePermission } from "../authz/authzMiddleware.js";
+import { requireModulePermission, requireModulePermissionAny } from "../authz/authzMiddleware.js";
 import { uploadDocument, handleDocumentUploadError } from "../middleware/documentMiddleware.js";
 import {
   upload as documentUpload,
@@ -31,10 +31,13 @@ import {
 const router = express.Router();
 
 const USER_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
+const USER_LIST_ROLES = [...USER_MANAGE_ROLES, "hod"];
 
-const userView = requireModulePermission("team", "team.user.view", {
-  legacyRoles: USER_MANAGE_ROLES,
-});
+const userView = requireModulePermissionAny(
+  "team",
+  ["team.user.view", "projects.project.manage"],
+  { legacyRoles: USER_LIST_ROLES }
+);
 
 // Registration endpoint - used by admins to add users (not public)
 router.post(

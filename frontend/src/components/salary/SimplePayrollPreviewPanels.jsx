@@ -38,7 +38,7 @@ export default function SimplePayrollPreviewPanels({
   return (
     <>
       <Alert variant="light" className="border small mb-3">
-        Simple payroll — Monthly Salary ± manual adjustments − TDS = Net.
+        Simple payroll — Monthly Salary ± manual adjustments − Professional Tax = Net.
         Attendance is review-only unless a manual deduction was added.
       </Alert>
 
@@ -171,17 +171,17 @@ export default function SimplePayrollPreviewPanels({
 
         <Accordion.Item eventKey="3">
           <Accordion.Header>
-            TDS —{" "}
+            Professional Tax —{" "}
             {preview.sections?.tds?.enabled
               ? formatCurrency(preview.sections?.tds?.amount)
               : "Off"}
           </Accordion.Header>
           <Accordion.Body className="small text-muted">
             {preview.sections?.tds?.enabled
-              ? "TDS is enabled on the active simple structure."
+              ? "Professional Tax is enabled on the active simple structure."
               : preview.sections?.tds?.amount > 0
-                ? "TDS amount stored on this preview."
-                : "TDS is disabled for this employee."}
+                ? "Professional Tax amount stored on this preview."
+                : "Professional Tax is disabled for this employee."}
           </Accordion.Body>
         </Accordion.Item>
 
@@ -205,7 +205,7 @@ export default function SimplePayrollPreviewPanels({
               <Col xs={6} className="text-end">
                 {formatCurrency(preview.totals?.adjustmentsTotal)}
               </Col>
-              <Col xs={6}>− TDS</Col>
+              <Col xs={6}>− Professional Tax</Col>
               <Col xs={6} className="text-end">
                 {formatCurrency(preview.totals?.tdsAmount)}
               </Col>

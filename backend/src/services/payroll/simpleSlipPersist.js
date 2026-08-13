@@ -37,7 +37,9 @@ export function mapSimpleStructureToSlipFields({
       ? Number(structure.monthlySalary)
       : Number(structure.basicSalary) || 0;
 
-  const tdsAmount = structure.tdsEnabled
+  // Structure still stores amount on `tds` / `tdsEnabled` for compatibility,
+  // but We Alll deducts Professional Tax for all employees — map to that field.
+  const professionalTaxAmount = structure.tdsEnabled
     ? Math.max(0, Number(structure.tds) || 0)
     : 0;
 
@@ -47,7 +49,7 @@ export function mapSimpleStructureToSlipFields({
     monthlySalary,
     automaticDeductions,
     adjustments,
-    tdsAmount,
+    tdsAmount: professionalTaxAmount,
   });
 
   if (totals.rejected) {
@@ -109,11 +111,11 @@ export function mapSimpleStructureToSlipFields({
       incentives,
     },
     deductions: {
-      // Simple SMB model: only TDS + manual adjustments (+ optional LOP).
-      // Never copy leftover legacy PF / PT / ESI onto slips or previews.
+      // Simple SMB model: Professional Tax + manual adjustments (+ optional LOP).
+      // Never copy leftover legacy PF / ESI / structure.professionalTax onto slips.
       providentFund: 0,
-      professionalTax: 0,
-      tds: tdsAmount,
+      professionalTax: professionalTaxAmount,
+      tds: 0,
       esi: 0,
       lossOfPay: automaticDeductions,
       unpaidLeaveDeduction: 0,
@@ -127,7 +129,8 @@ export function mapSimpleStructureToSlipFields({
       adjustmentsApplied: adjustments.length,
       netSalary: totals.netSalary,
       automaticDeductions,
-      tdsAmount,
+      tdsAmount: professionalTaxAmount,
+      professionalTaxAmount,
     },
   };
 }

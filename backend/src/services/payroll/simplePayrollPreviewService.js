@@ -120,7 +120,13 @@ export function buildSimplePreviewDto({
             : null,
       },
       tds: {
-        label: "TDS",
+        // Key kept as `tds` for API compatibility; label is Professional Tax.
+        label: "Professional Tax",
+        enabled: Boolean(structure.tdsEnabled),
+        amount: tds,
+      },
+      professionalTax: {
+        label: "Professional Tax",
         enabled: Boolean(structure.tdsEnabled),
         amount: tds,
       },
