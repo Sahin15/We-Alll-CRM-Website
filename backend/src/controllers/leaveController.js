@@ -6,6 +6,8 @@ import {
   normalizeLeaveTypeForCreate,
 } from "../constants/leaveTypes.js";
 import { ANNUAL_EARNED_LEAVE_LIMIT } from "../constants/leaveCategoryLimits.js";
+import { getISTDateKey, getISTMidnightForYmd } from "../utils/timezone.js";
+import { getISTDayBounds } from "../utils/attendanceISTDay.js";
 
 // Create leave request
 export const createLeaveRequest = async (req, res) => {
@@ -412,44 +414,41 @@ export const approveLeaveRequest = async (req, res) => {
       const startDate = new Date(leaveRequest.startDate);
       const endDate = new Date(leaveRequest.endDate);
       
-      // Loop through each day in the leave period
+      // Loop through each IST calendar day in the leave period
       const currentDate = new Date(startDate);
       let recordsCreated = 0;
       let recordsUpdated = 0;
       
       while (currentDate <= endDate) {
-        // Set time to start of day for consistent date comparison
-        const dateOnly = new Date(currentDate);
-        dateOnly.setHours(0, 0, 0, 0);
+        const ymd = getISTDateKey(currentDate);
+        const [year, month, day] = ymd.split("-").map(Number);
+        const istMidnight = getISTMidnightForYmd(year, month, day);
+        const { start: dayStart, endExclusive: dayEnd } = getISTDayBounds(ymd);
         
-        // Check if attendance record already exists for this date
+        // Match either UTC-midnight or IST-midnight storage for this IST day
         const existingRecord = await Attendance.findOne({
           employee: leaveRequest.employee,
           date: {
-            $gte: dateOnly,
-            $lt: new Date(dateOnly.getTime() + 24 * 60 * 60 * 1000)
+            $gte: dayStart,
+            $lt: dayEnd,
           }
         });
         
         if (!existingRecord) {
-          // Create new attendance record with "on-leave" status
-          // Don't set clockIn/clockOut for leave records - they shouldn't show work hours
           await Attendance.create({
             employee: leaveRequest.employee,
-            date: dateOnly,
+            date: istMidnight,
             status: 'on-leave',
             workHours: 0,
             overtime: 0,
             notes: `On ${leaveRequest.leaveType} leave (Approved by ${approvedBy})`,
             approvedBy: approvedBy,
-            isManuallyModified: true, // Mark as manually set so it won't be recalculated
+            isManuallyModified: true,
             originalStatus: 'on-leave'
           });
           
           recordsCreated++;
         } else {
-          // Record already exists - UPDATE it to "on-leave" status
-          // This handles cases where employee clocked in but then leave was approved
           await Attendance.findByIdAndUpdate(
             existingRecord._id,
             {
@@ -463,7 +462,7 @@ export const approveLeaveRequest = async (req, res) => {
               notes: `On ${leaveRequest.leaveType} leave (Approved by ${approvedBy})`,
               approvedBy: approvedBy,
               isManuallyModified: true,
-              originalStatus: existingRecord.status // Store the original status before changing to on-leave
+              originalStatus: existingRecord.status
             },
             { new: true }
           );
@@ -471,8 +470,7 @@ export const approveLeaveRequest = async (req, res) => {
           recordsUpdated++;
         }
         
-        // Move to next day
-        currentDate.setDate(currentDate.getDate() + 1);
+        currentDate.setTime(currentDate.getTime() + 24 * 60 * 60 * 1000);
       }
       
     } catch (attendanceError) {

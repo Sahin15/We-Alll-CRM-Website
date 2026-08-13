@@ -10,17 +10,19 @@ import {
   getCurrentISTTime, 
   getTodayMidnightIST, 
   getTodayRangeIST,
+  getISTMidnightForYmd,
   logTimezoneInfo 
 } from '../utils/timezone.js';
 import { mergeActiveEmployeeFilter } from '../utils/employeeQueryUtils.js';
+import {
+  toISTDateKey,
+  getISTDayBounds,
+  dedupeAttendanceByISTDay,
+} from '../utils/attendanceISTDay.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const toISTDateStr = (d) => {
-  const dateObj = new Date(d);
-  const ist = new Date(dateObj.getTime() + 5.5 * 60 * 60 * 1000);
-  return ist.toISOString().split('T')[0];
-};
+const toISTDateStr = (d) => toISTDateKey(d);
 
 const clampLeaveRangeToFilter = (startDate, endDate, dateFilter) => {
   if (!dateFilter?.$gte && !dateFilter?.$lte) {
@@ -330,11 +332,11 @@ const enrichAttendanceWithApprovedLeaves = async (attendanceRecords, filterEmplo
       .lean();
 
     if (!approvedLeaves || approvedLeaves.length === 0) {
-      return attendanceRecords;
+      return dedupeAttendanceByISTDay(attendanceRecords);
     }
 
     const recordMap = new Map();
-    const resultRecords = [...attendanceRecords];
+    const resultRecords = dedupeAttendanceByISTDay(attendanceRecords);
 
     for (let i = 0; i < resultRecords.length; i++) {
       const r = resultRecords[i];
@@ -346,6 +348,7 @@ const enrichAttendanceWithApprovedLeaves = async (attendanceRecords, filterEmplo
     for (const leave of approvedLeaves) {
       const empId = (leave.employee?._id || leave.employee).toString();
       const empObj = typeof leave.employee === 'object' ? leave.employee : null;
+      const employeeRef = leave.employee?._id || leave.employee;
 
       const leaveDateStrs = expandLeaveDatesWithinFilter(
         leave.startDate,
@@ -354,8 +357,10 @@ const enrichAttendanceWithApprovedLeaves = async (attendanceRecords, filterEmplo
       );
 
       for (const dateStr of leaveDateStrs) {
-        const curr = new Date(`${dateStr}T00:00:00.000Z`);
         const key = `${empId}-${dateStr}`;
+        const [y, m, d] = dateStr.split("-").map(Number);
+        const istMidnight = getISTMidnightForYmd(y, m, d);
+        const { start: dayStart, endExclusive: dayEnd } = getISTDayBounds(dateStr);
 
         if (recordMap.has(key)) {
           const idx = recordMap.get(key);
@@ -379,41 +384,78 @@ const enrichAttendanceWithApprovedLeaves = async (attendanceRecords, filterEmplo
               }).catch(err => console.error("Error updating DB record to on-leave:", err));
             }
           }
-        } else {
-          const istMidnight = getTodayMidnightIST(curr);
-          const syntheticRecord = {
-            _id: `leave-${leave._id}-${dateStr}`,
-            employee: empObj || leave.employee,
-            date: istMidnight,
-            status: 'on-leave',
-            workHours: 0,
-            overtime: 0,
-            notes: `On ${leave.leaveType} leave`,
-            isManuallyModified: true,
-            originalStatus: 'on-leave'
-          };
-          resultRecords.push(syntheticRecord);
-          recordMap.set(key, resultRecords.length - 1);
-
-          Attendance.create({
-            employee: leave.employee?._id || leave.employee,
-            date: istMidnight,
-            status: 'on-leave',
-            workHours: 0,
-            overtime: 0,
-            notes: `On ${leave.leaveType} leave`,
-            isManuallyModified: true,
-            originalStatus: 'on-leave'
-          }).catch(err => {});
+          continue;
         }
 
+        // Same IST day may already exist in DB under UTC midnight from leave approval
+        const existingDb = await Attendance.findOne({
+          employee: employeeRef,
+          date: { $gte: dayStart, $lt: dayEnd },
+        }).lean();
+
+        if (existingDb) {
+          let merged = existingDb;
+          if (existingDb.status === 'absent' || !existingDb.status) {
+            merged = {
+              ...existingDb,
+              status: 'on-leave',
+              workHours: 0,
+              overtime: 0,
+              notes: existingDb.notes || `On ${leave.leaveType} leave`,
+              originalStatus: existingDb.status || 'absent',
+              employee: empObj || existingDb.employee,
+            };
+            Attendance.findByIdAndUpdate(existingDb._id, {
+              status: 'on-leave',
+              workHours: 0,
+              overtime: 0,
+              notes: `On ${leave.leaveType} leave`,
+              isManuallyModified: true,
+            }).catch((err) => console.error("Error updating DB record to on-leave:", err));
+          } else {
+            merged = {
+              ...existingDb,
+              employee: empObj || existingDb.employee,
+            };
+          }
+          resultRecords.push(merged);
+          recordMap.set(key, resultRecords.length - 1);
+          continue;
+        }
+
+        const syntheticRecord = {
+          _id: `leave-${leave._id}-${dateStr}`,
+          employee: empObj || leave.employee,
+          date: istMidnight,
+          status: 'on-leave',
+          workHours: 0,
+          overtime: 0,
+          notes: `On ${leave.leaveType} leave`,
+          isManuallyModified: true,
+          originalStatus: 'on-leave'
+        };
+        resultRecords.push(syntheticRecord);
+        recordMap.set(key, resultRecords.length - 1);
+
+        Attendance.create({
+          employee: employeeRef,
+          date: istMidnight,
+          status: 'on-leave',
+          workHours: 0,
+          overtime: 0,
+          notes: `On ${leave.leaveType} leave`,
+          isManuallyModified: true,
+          originalStatus: 'on-leave'
+        }).catch(() => {});
       }
     }
 
-    return resultRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+    return dedupeAttendanceByISTDay(resultRecords).sort(
+      (a, b) => new Date(b.date) - new Date(a.date)
+    );
   } catch (err) {
     console.error("Error enriching attendance with approved leaves:", err);
-    return attendanceRecords;
+    return dedupeAttendanceByISTDay(attendanceRecords);
   }
 };
 
@@ -529,41 +571,7 @@ export const getAllAttendance = async (req, res) => {
     
 
     // Remove duplicates based on employee + IST calendar day (keep best status)
-    const uniqueAttendance = [];
-    const seen = new Map();
-
-    const toISTDateStr = (d) => {
-      const ist = new Date(new Date(d).getTime() + 5.5 * 60 * 60 * 1000);
-      return ist.toISOString().split('T')[0];
-    };
-
-    const statusPriority = (status) => {
-      if (status === 'on-leave') return 5;
-      if (status === 'present' || status === 'late' || status === 'half-day') return 4;
-      if (status === 'absent') return 1;
-      return 2;
-    };
-
-    for (const record of attendance) {
-      try {
-        const employeeId = record.employee?._id || record.employee;
-        if (!employeeId || !record.date) continue;
-
-        const key = `${employeeId}-${toISTDateStr(record.date)}`;
-        const existingIdx = seen.get(key);
-        if (existingIdx === undefined) {
-          seen.set(key, uniqueAttendance.length);
-          uniqueAttendance.push(record);
-        } else {
-          const existing = uniqueAttendance[existingIdx];
-          if (statusPriority(record.status) > statusPriority(existing.status)) {
-            uniqueAttendance[existingIdx] = record;
-          }
-        }
-      } catch (recordError) {
-        continue;
-      }
-    }
+    const uniqueAttendance = dedupeAttendanceByISTDay(attendance);
 
     // Fetch WFH data for the same date range and employees
     const WFHRequest = (await import('../models/wfhRequestModel.js')).default;
