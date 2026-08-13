@@ -4,10 +4,21 @@
   background: transparent !important;
   position: relative !important;
   overflow: visible !important;
+  padding: 6px 8px !important;
+}
+
+/* Hide Bootstrap caret so bell matches localhost/production cleanly */
+.notification-bell-dropdown .dropdown-toggle::after {
+  display: none !important;
 }
 
 .notification-bell-dropdown .dropdown-toggle:focus {
   box-shadow: none !important;
+}
+
+.notification-bell-dropdown {
+  position: relative;
+  z-index: 1055;
 }
 
 .notification-bell-toggle:hover {
@@ -92,6 +103,7 @@
   border-radius: 12px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
   margin-top: 8px;
+  z-index: 2000 !important;
 }
 
 .notification-header {

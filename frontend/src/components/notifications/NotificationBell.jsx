@@ -226,7 +226,11 @@ const NotificationBell = () => {
           )}
         </Dropdown.Toggle>
 
-        <Dropdown.Menu className="notification-dropdown-menu shadow-lg" align="end">
+        <Dropdown.Menu
+          className="notification-dropdown-menu shadow-lg"
+          align="end"
+          popperConfig={{ strategy: "fixed" }}
+        >
         <div className="notification-header p-3 border-bottom">
           <div className="d-flex justify-content-between align-items-center">
             <h6 className="mb-0 fw-semibold">Notifications</h6>

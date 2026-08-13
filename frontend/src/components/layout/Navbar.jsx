@@ -24,6 +24,7 @@ import {
   FaFileAlt,
   FaSignOutAlt,
   FaExclamationTriangle,
+  FaTh,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import { checkPageAccess, PAGE_ACCESS } from "../../constants/pageAccess";
@@ -491,18 +492,21 @@ const Navbar = ({ toggleSidebar }) => {
             <button
               onClick={() => navigate('/mobileapp')}
               title="Work App - Clock In/Out, Work Log, Leave, Expenses"
+              aria-label="Open Work App"
               style={{
-                background: 'none',
-                border: 'none',
+                background: 'rgba(255, 255, 255, 0.12)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '10px',
                 cursor: 'pointer',
-                padding: '6px',
-                color: '#10B981',
+                padding: '8px',
+                color: '#fff',
                 display: 'flex',
                 alignItems: 'center',
-                fontSize: '1.3rem',
+                justifyContent: 'center',
+                lineHeight: 1,
               }}
             >
-              📱
+              <FaTh size={16} />
             </button>
           </div>
 
@@ -559,7 +563,7 @@ const Navbar = ({ toggleSidebar }) => {
             align="end"
             className="user-dropdown"
           >
-            <div className="px-3 py-2 border-bottom bg-light" style={{ maxWidth: "280px" }}>
+            <div className="user-dropdown-header px-3 py-2 border-bottom" style={{ maxWidth: "280px" }}>
               <div className="fw-bold text-truncate" style={{ maxWidth: "100%" }} title={user?.name || "User"}>
                 {user?.name || "User"}
               </div>
@@ -567,8 +571,10 @@ const Navbar = ({ toggleSidebar }) => {
                 {user?.email || "No email"}
               </div>
               <div className="mt-1">
-                <Badge bg="primary">
-                  {user?.role === 'employee' ? (user?.funBadge || 'Team Member') : user?.role.charAt(0).toUpperCase() + user?.role.slice(1)}
+                <Badge bg="primary" className="user-role-badge">
+                  {user?.role === 'employee'
+                    ? (user?.funBadge || 'Team Member')
+                    : (user?.role || 'User').toUpperCase()}
                 </Badge>
               </div>
             </div>
@@ -589,7 +595,9 @@ const Navbar = ({ toggleSidebar }) => {
               Settings
             </NavDropdown.Item>
             <NavDropdown.Divider />
-            <NavDropdown.Item onClick={handleLogoutClick}>Logout</NavDropdown.Item>
+            <NavDropdown.Item className="user-dropdown-logout" onClick={handleLogoutClick}>
+              Logout
+            </NavDropdown.Item>
           </NavDropdown>
         </Nav>
       </Container>
@@ -810,6 +818,7 @@ const Navbar = ({ toggleSidebar }) => {
         }
         
         /* Dropdown Header */
+        .user-dropdown .dropdown-menu .user-dropdown-header,
         .user-dropdown .dropdown-menu .border-bottom {
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
           color: white !important;
@@ -817,6 +826,7 @@ const Navbar = ({ toggleSidebar }) => {
           border: none !important;
         }
         
+        .user-dropdown .dropdown-menu .user-dropdown-header .fw-bold,
         .user-dropdown .dropdown-menu .border-bottom .fw-bold {
           font-size: 1rem !important;
           font-weight: 600 !important;
@@ -828,6 +838,7 @@ const Navbar = ({ toggleSidebar }) => {
           max-width: 240px !important;
         }
         
+        .user-dropdown .dropdown-menu .user-dropdown-header .text-muted,
         .user-dropdown .dropdown-menu .border-bottom .text-muted {
           color: rgba(255, 255, 255, 0.85) !important;
           font-size: 0.875rem !important;
@@ -837,13 +848,18 @@ const Navbar = ({ toggleSidebar }) => {
           max-width: 240px !important;
         }
         
-        .user-dropdown .dropdown-menu .border-bottom .badge {
+        .user-dropdown .dropdown-menu .user-dropdown-header .badge,
+        .user-dropdown .dropdown-menu .border-bottom .badge,
+        .user-dropdown .dropdown-menu .user-role-badge {
           margin-top: 8px !important;
           padding: 6px 12px !important;
-          font-weight: 500 !important;
+          font-weight: 600 !important;
+          letter-spacing: 0.02em !important;
           background: rgba(255, 255, 255, 0.25) !important;
           backdrop-filter: blur(10px) !important;
           border: 1px solid rgba(255, 255, 255, 0.3) !important;
+          color: #fff !important;
+          text-transform: uppercase !important;
         }
         
         /* Dropdown Items */
@@ -874,14 +890,17 @@ const Navbar = ({ toggleSidebar }) => {
         }
         
         /* Logout Item */
+        .user-dropdown .dropdown-item.user-dropdown-logout,
         .user-dropdown .dropdown-item:last-child {
           color: #ef4444 !important;
           font-weight: 600 !important;
         }
         
+        .user-dropdown .dropdown-item.user-dropdown-logout:hover,
         .user-dropdown .dropdown-item:last-child:hover {
           background: linear-gradient(90deg, rgba(239, 68, 68, 0.08) 0%, rgba(239, 68, 68, 0.02) 100%) !important;
           border-left-color: #ef4444 !important;
+          color: #ef4444 !important;
         }
         
         /* Search Bar */
