@@ -88,7 +88,6 @@ const getMyWorkItems = async (req, res) => {
       .populate("assigneeStatuses.assigneeId", "name email")
       .select("-comments -statusHistory -attachments")
       .sort({ dueDate: 1, createdAt: -1 })
-      .limit(500)
       .lean();
     
     // Compute per-user effective status and due flags (lean() strips virtuals)
@@ -3359,7 +3358,6 @@ export const getCreatedByMe = async (req, res) => {
       .populate("assigneeStatuses.assigneeId", "name email")
       .select("-comments -statusHistory -attachments")
       .sort({ dueDate: 1, createdAt: -1 })
-      .limit(500)
       .lean();
 
     const assignedToOthers = workItems.filter((item) =>

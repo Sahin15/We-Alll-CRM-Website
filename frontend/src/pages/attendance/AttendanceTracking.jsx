@@ -133,6 +133,28 @@ const AttendanceTracking = () => {
       background-color: #cfe2ff !important;
     }
     
+    /* On-leave row — pinned to top with a warm amber highlight */
+    .on-leave-record {
+      background-color: #fff8e1 !important;
+      border-left: 4px solid #f59e0b !important;
+    }
+    
+    .on-leave-record:hover {
+      background-color: #fef3c7 !important;
+    }
+    
+    .on-leave-pin-badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 2px 7px;
+      border-radius: 10px;
+      background-color: #f59e0b;
+      color: #fff;
+      vertical-align: middle;
+      margin-left: 6px;
+    }
+    
     .wfh-indicator {
       font-size: 1.2em;
       transition: transform 0.2s;
@@ -1457,6 +1479,13 @@ const AttendanceTracking = () => {
                     {attendances.length > 0 ? (
                       attendances
                         .filter(attendance => !statusFilter || attendance.status === statusFilter)
+                        .slice()
+                        .sort((a, b) => {
+                          // Pin on-leave rows to the top
+                          const aLeave = a.status === 'on-leave' ? 0 : 1;
+                          const bLeave = b.status === 'on-leave' ? 0 : 1;
+                          return aLeave - bLeave;
+                        })
                         .map((attendance) => {
                           // Calculate break information
                           const breaks = attendance.breaks || [];
@@ -1482,13 +1511,26 @@ const AttendanceTracking = () => {
                             attendance._id ||
                             `${attendance.employee?._id || attendance.employee || "emp"}-${attendance.date}`;
                           
+                          const rowClass = isOnLeave
+                            ? 'on-leave-record'
+                            : isEdited
+                            ? 'edited-record'
+                            : isWFH
+                            ? 'wfh-record'
+                            : '';
+
                           return (
-                            <tr key={rowKey} className={isEdited ? 'edited-record' : (isWFH ? 'wfh-record' : '')}>
+                            <tr key={rowKey} className={rowClass}>
                               {!filters.employee && (
                                 <td>
-                                  <div className="d-flex align-items-center gap-2">
-                                    <span>{attendance.employee?.name || "N/A"}</span>
-                                    {isWFH && (
+                                  <div className="d-flex align-items-center gap-2 flex-wrap">
+                                    <span className="fw-semibold">{attendance.employee?.name || "N/A"}</span>
+                                    {isOnLeave && (
+                                      <span className="on-leave-pin-badge" title="On leave today">
+                                        🌴 On Leave
+                                      </span>
+                                    )}
+                                    {isWFH && !isOnLeave && (
                                       <span 
                                         className="wfh-indicator"
                                         title={`Work From Home${wfhReason ? ': ' + wfhReason : ''}`}

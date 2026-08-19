@@ -114,6 +114,13 @@ const NotificationBell = () => {
     return colorMap[priority] || '#6B7280';
   };
 
+  // Some old notifications were saved with a corrupted icon prefix (encoding issue),
+  // e.g. "≡ƒôï New Leave Request". Strip leading non-alphanumeric garbage.
+  const sanitizeNotificationTitle = (title) => {
+    if (typeof title !== 'string') return '';
+    return title.replace(/^[^a-zA-Z0-9]+/, '');
+  };
+
   const handleNotificationClick = async (notification) => {
     // Close UI immediately
     setShowDropdown(false);
@@ -303,7 +310,7 @@ const NotificationBell = () => {
                     >
                       <div className="d-flex justify-content-between align-items-start mb-1">
                         <h6 className="notification-title mb-0 fw-semibold">
-                          {notification.title}
+                          {sanitizeNotificationTitle(notification.title)}
                         </h6>
                         <div 
                           className="priority-indicator"

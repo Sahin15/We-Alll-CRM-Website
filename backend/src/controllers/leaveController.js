@@ -119,7 +119,7 @@ export const createLeaveRequest = async (req, res) => {
         
         await NotificationService.sendToUser(
           employeeData.reportingManager._id,
-          '≡ƒôï New Leave Request',
+          'New Leave Request',
           `${employeeData.name} has requested ${normalizedLeaveType} leave`,
           {
             type: 'leave_request',
@@ -133,7 +133,7 @@ export const createLeaveRequest = async (req, res) => {
       // Also send to HR department
       
       await NotificationService.sendToRole('hr',
-        '≡ƒôï New Leave Request',
+        'New Leave Request',
         `${employeeData.name} has requested ${normalizedLeaveType} leave for ${numberOfDays} day(s)`,
         {
           type: 'leave_request',
@@ -487,7 +487,7 @@ export const approveLeaveRequest = async (req, res) => {
       if (employeeData) {
         await NotificationService.sendToUser(
           employeeData._id,
-          'Γ£à Leave Request Approved',
+          'Leave Request Approved',
           `Your ${leaveRequest.leaveType} leave request has been approved`,
           {
             type: 'leave_approval',
@@ -569,7 +569,7 @@ export const rejectLeaveRequest = async (req, res) => {
       if (employeeData) {
         await NotificationService.sendToUser(
           employeeData._id,
-          'Γ¥î Leave Request Rejected',
+          'Leave Request Rejected',
           `Your ${leaveRequest.leaveType} leave request has been rejected`,
           {
             type: 'leave_rejection',

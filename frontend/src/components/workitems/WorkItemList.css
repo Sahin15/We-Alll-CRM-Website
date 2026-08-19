@@ -4,13 +4,14 @@
 .modern-table-container {
   background: #ffffff;
   border-radius: 12px;
-  overflow: visible !important;
+  overflow-x: auto;
+  overflow-y: visible;
   padding: 0;
 }
 
-/* Ensure parent card also has visible overflow */
+/* Ensure parent card also has visible overflow for dropdowns */
 .modern-table-container:has(.modern-work-table) {
-  overflow: visible !important;
+  overflow-y: visible;
 }
 
 .modern-work-table {
@@ -19,6 +20,8 @@
   overflow: visible;
   border-collapse: separate;
   border-spacing: 0;
+  table-layout: fixed;
+  width: 100%;
 }
 
 .modern-work-table thead {
@@ -85,6 +88,8 @@
   vertical-align: middle;
   border: none;
   color: #2d3748;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Row States */

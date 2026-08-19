@@ -493,8 +493,8 @@ const MyWorkPage = () => {
       </Card>
 
       {/* Work Items List */}
-      <Card style={{ overflow: 'visible' }}>
-        <Card.Body className="p-0" style={{ overflow: 'visible' }}>
+      <Card style={{ overflow: 'visible', maxWidth: '100%' }}>
+        <Card.Body className="p-0" style={{ overflow: 'visible', maxWidth: '100%' }}>
           <div className="p-3 border-bottom">
             <small className="text-muted">
               Showing {filteredItems.length} of {myAssignedItems.length} items

@@ -1,3 +1,10 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const controllerPath = path.join(__dirname, '../src/controllers/workItemController.js');
+
 /**
  * My Work visibility rules:
  * - Assigned to me (single or multi) only
@@ -123,6 +130,22 @@ describe('My Work assignee scope', () => {
     };
     expect(isWorkItemForMyWork(item, assigneeId)).toBe(true);
     expect(isWorkItemForMyWork(item, otherId)).toBe(true);
+  });
+});
+
+describe('My Work query regression', () => {
+  /**
+   * getMyWorkItems must not cap rows before the frontend applies Today/All filters.
+   * limit(500) + sort({ dueDate: 1 }) dropped the newest assignee work when a user
+   * had more than 500 items (e.g. Rakesh Das: 594 assigned, 90+ overdue hidden).
+   */
+  test('getMyWorkItems does not apply limit(500)', () => {
+    const source = fs.readFileSync(controllerPath, 'utf8');
+    const myWorkBlock = source.slice(
+      source.indexOf('const getMyWorkItems'),
+      source.indexOf('const getAllWorkItems')
+    );
+    expect(myWorkBlock).not.toMatch(/\.limit\s*\(\s*500\s*\)/);
   });
 });
 

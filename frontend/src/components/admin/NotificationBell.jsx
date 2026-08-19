@@ -180,6 +180,13 @@ const NotificationBell = () => {
     return icons[type] || "ℹ️";
   };
 
+  // Some older notifications were saved with a corrupted icon prefix (encoding issue),
+  // e.g. "≡ƒôï New Leave Request". Strip leading non-alphanumeric garbage.
+  const sanitizeNotificationTitle = (title) => {
+    if (typeof title !== "string") return "";
+    return title.replace(/^[^a-zA-Z0-9]+/, "");
+  };
+
   const formatTime = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -245,7 +252,7 @@ const NotificationBell = () => {
                     {getNotificationIcon(notification.type)}
                   </div>
                   <div className="notification-content">
-                    <div className="notification-title">{notification.title}</div>
+                    <div className="notification-title">{sanitizeNotificationTitle(notification.title)}</div>
                     <div className="notification-message">{notification.body || notification.message}</div>
                     <div className="notification-time">{formatTime(notification.createdAt)}</div>
                   </div>
