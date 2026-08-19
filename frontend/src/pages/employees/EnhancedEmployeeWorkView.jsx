@@ -29,10 +29,10 @@ import {
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import workCalendarApi from '../../api/workCalendarApi';
 import workItemApi from '../../api/workItemApi';
 import projectApi from '../../api/projectApi';
 import clientApi from '../../api/clientApi';
+import { getUserById } from '../../api/userApi';
 import EmployeeWorkCalendar from '../../components/calendar/EmployeeWorkCalendar';
 import EmployeeWorkLogsTab from '../../components/worklog/EmployeeWorkLogsTab';
 import WorkItemDetailsModal from '../../components/workitems/WorkItemDetailsModal';
@@ -422,6 +422,7 @@ const EnhancedEmployeeWorkView = () => {
   const [recentWork, setRecentWork] = useState([]);
   const [employeeProjects, setEmployeeProjects] = useState([]);
   const [employeeClients, setEmployeeClients] = useState([]);
+  const [clientsLoading, setClientsLoading] = useState(false);
   const [selectedWorkItem, setSelectedWorkItem] = useState(null);
   const [showWorkDetailsModal, setShowWorkDetailsModal] = useState(false);
 
@@ -464,51 +465,66 @@ const EnhancedEmployeeWorkView = () => {
     }
   }, [currentEmployeeId]);
 
+  /** Load client list only when the Projects tab is opened (avoids heavy call on every page load). */
+  const loadEmployeeClients = async () => {
+    if (!currentEmployeeId || employeeClients.length > 0) return;
+    try {
+      setClientsLoading(true);
+      const clientsResponse = await clientApi.getMyClients({
+        employeeId: currentEmployeeId,
+      });
+      const clientsData = clientsResponse.data || clientsResponse;
+      setEmployeeClients(Array.isArray(clientsData) ? clientsData : []);
+    } catch (error) {
+      console.error('Error loading clients:', error);
+      setEmployeeClients([]);
+    } finally {
+      setClientsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'projects') {
+      loadEmployeeClients();
+    }
+  }, [activeTab, currentEmployeeId]);
+
+  /**
+   * Build time-tracking summary from work items (avoids heavy calendar API on page load).
+   * @param {Array} items
+   * @returns {{ totalEstimatedHours: number, totalActualHours: number, averageEfficiency: number|null }}
+   */
+  const buildTimeSummary = (items) => {
+    const totalEstimatedHours = items.reduce((sum, w) => sum + (Number(w.estimatedHours) || 0), 0);
+    const totalActualHours = items.reduce((sum, w) => sum + (Number(w.actualHours) || 0), 0);
+    const averageEfficiency = totalEstimatedHours > 0
+      ? Math.round((totalActualHours / totalEstimatedHours) * 100)
+      : null;
+    return { totalEstimatedHours, totalActualHours, averageEfficiency };
+  };
+
   const loadEmployeeWorkData = async () => {
     try {
       setLoading(true);
-      
-      // Load employee work calendar data for overview
-      const calendarResponse = await workCalendarApi.getEmployeeWorkCalendar(currentEmployeeId, {
-        startDate: moment().subtract(30, 'days').toISOString(),
-        endDate: moment().add(30, 'days').toISOString()
-      });
 
-      // Load ALL work items (no limit) to ensure we capture all projects
-      const workItemsResponse = isOwnProfile 
-        ? await workItemApi.getMyWork()
-        : await workItemApi.getAllWorkItems({ assignedTo: currentEmployeeId });
+      const [employeeResponse, workItemsResponse, projectsData] = await Promise.all([
+        getUserById(currentEmployeeId),
+        isOwnProfile
+          ? workItemApi.getMyWork()
+          : workItemApi.getAllWorkItems({ assignedTo: currentEmployeeId }),
+        isOwnProfile
+          ? projectApi.getMyProjects().then((r) => r.data || r)
+          : projectApi.getProjectsForEmployee(currentEmployeeId),
+      ]);
 
-      // Load projects where this employee is on the team
-      let projectsData;
-      if (isOwnProfile) {
-        const projectsResponse = await projectApi.getMyProjects();
-        projectsData = projectsResponse.data || projectsResponse;
-      } else {
-        projectsData = await projectApi.getProjectsForEmployee(currentEmployeeId);
-      }
-
-      // Load clients assigned to the profile being viewed (not the logged-in viewer)
-      let clientsData = [];
-      try {
-        const clientsResponse = await clientApi.getMyClients({
-          employeeId: currentEmployeeId,
-        });
-        clientsData = clientsResponse.data || clientsResponse;
-      } catch (error) {
-        console.error('Error loading clients:', error);
-        clientsData = [];
-      }
-
-      const calendarData = calendarResponse.data?.data || calendarResponse.data;
+      const employee = employeeResponse?.data || employeeResponse;
       const workItemsData = workItemsResponse.data?.data || workItemsResponse.data;
+      const workItems = Array.isArray(workItemsData) ? workItemsData : [];
 
-      setEmployeeData(calendarData.employee);
-      setWorkSummary(calendarData.analytics);
-      setRecentWork(Array.isArray(workItemsData) ? workItemsData : []);
+      setEmployeeData(employee);
+      setWorkSummary(buildTimeSummary(workItems));
+      setRecentWork(workItems);
       setEmployeeProjects(Array.isArray(projectsData) ? projectsData : []);
-      setEmployeeClients(Array.isArray(clientsData) ? clientsData : []);
-
     } catch (error) {
       console.error('Error loading employee work data:', error);
     } finally {
@@ -621,7 +637,7 @@ const EnhancedEmployeeWorkView = () => {
       </Card>
 
       {/* Navigation Tabs */}
-      <Tab.Container activeKey={activeTab} onSelect={setActiveTab}>
+      <Tab.Container activeKey={activeTab} onSelect={setActiveTab} mountOnEnter unmountOnExit>
         <Card className="border-0 shadow-sm">
           <Card.Header className="bg-white border-0 pt-3 pb-0">
             <Nav variant="tabs" className="border-0 justify-content-start">
@@ -1449,7 +1465,11 @@ const EnhancedEmployeeWorkView = () => {
                           <small className="text-muted">Total Clients</small>
                         </div>
                         
-                        {employeeClients.length > 0 ? (
+                        {clientsLoading ? (
+                          <div className="text-center py-3">
+                            <Spinner animation="border" size="sm" />
+                          </div>
+                        ) : employeeClients.length > 0 ? (
                           <div>
                             {employeeClients.slice(0, 5).map(client => {
                               // Count projects for this client

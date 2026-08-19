@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import logger from '../utils/logger.js';
 import { buildTextSearch } from '../utils/queryOptimizer.js';
-import { mergeExcludePastMembersFilter } from '../utils/employeeQueryUtils.js';
+import { mergeExcludePastMembersFilter, mergeActiveEmployeeFilter } from '../utils/employeeQueryUtils.js';
 import { generateNextEmployeeId, normalizeEmployeeId, isValidEmployeeIdFormat, isEmployeeIdTaken } from '../services/employeeIdService.js';
 
 //generate token
@@ -171,17 +171,16 @@ export const getUsers = async (req, res) => {
       }
     }
     
-    // Status filter — also exclude isActive:false users when filtering for active
-    if (status) {
+    // Status filter — use shared roster helpers (single source of truth for spellings/values)
+    if (status === 'active') {
+      Object.assign(query, mergeActiveEmployeeFilter(query));
+    } else if (status) {
       query.status = status;
-      if (status === 'active') {
-        query.isActive = { $ne: false };
-      }
     } else if (excludePast === 'true') {
-      Object.assign(query, mergeExcludePastMembersFilter());
+      Object.assign(query, mergeExcludePastMembersFilter(query));
     }
     
-    logger.info('getUsers query:', query);
+    logger.info('getUsers query:', JSON.stringify(query));
     
     // Optimized query with pagination and all necessary fields for display
     const users = await User.find(query)

@@ -16,28 +16,28 @@ const QuickClockInOut = ({ variant = "light", size = "sm", showLabel = true }) =
 
   useEffect(() => {
     fetchTodayAttendance();
-    
-    // Poll for attendance updates every 30 seconds for better responsiveness
+
+    // Poll only while tab is visible; 2 min interval reduces background API load
     const pollInterval = setInterval(() => {
-      fetchTodayAttendance();
-    }, 30000); // 30 seconds
-    
-    // Listen for attendance updates from other components
+      if (!document.hidden) {
+        fetchTodayAttendance();
+      }
+    }, 120000);
+
     const handleAttendanceUpdate = (event) => {
       const { data } = event.detail;
       setTodayAttendance(data);
     };
-    
-    // Refresh when tab becomes visible (user switches back to the tab)
+
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         fetchTodayAttendance();
       }
     };
-    
+
     window.addEventListener('attendanceUpdate', handleAttendanceUpdate);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     return () => {
       clearInterval(pollInterval);
       window.removeEventListener('attendanceUpdate', handleAttendanceUpdate);

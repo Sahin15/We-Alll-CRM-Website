@@ -218,19 +218,27 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (!token) return undefined;
 
+    const AUTHZ_STALE_MS = 5 * 60 * 1000;
+    let lastAuthzFetch = Date.now();
+
     const refreshOnFocus = () => {
+      if (Date.now() - lastAuthzFetch < AUTHZ_STALE_MS) return;
+      lastAuthzFetch = Date.now();
       loadAuthzEffective({ silent: true });
     };
 
-    window.addEventListener("focus", refreshOnFocus);
-    document.addEventListener("visibilitychange", () => {
+    const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         refreshOnFocus();
       }
-    });
+    };
+
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [token, loadAuthzEffective]);
 

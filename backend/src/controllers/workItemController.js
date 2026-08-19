@@ -74,9 +74,9 @@ const getMyWorkItems = async (req, res) => {
     
     // Optimized query with lean() for better performance
     const workItems = await WorkItem.find(query)
-      .populate("project", "name client")
       .populate({
         path: "project",
+        select: "name client",
         populate: {
           path: "client",
           select: "name company",
@@ -218,12 +218,13 @@ const getAllWorkItems = async (req, res) => {
       .populate("assignedTo", "name email")
       .populate("assignedToMultiple", "name email")
       .populate("createdBy", "name email")
-      .populate("comments.user", "name email")
       .populate({
         path: "slotAssignment.assignedSlot",
         select: "slotNumber slotIdentifier slotType"
       })
-      .sort({ dueDate: 1, createdAt: -1 });
+      .select("-comments -statusHistory -attachments")
+      .sort({ dueDate: 1, createdAt: -1 })
+      .lean();
 
     // Debug: Log slot assignment data
     res.status(200).json({

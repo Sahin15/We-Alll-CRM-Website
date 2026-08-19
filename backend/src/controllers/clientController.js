@@ -344,13 +344,11 @@ export const getEmployeeClients = async (req, res) => {
       });
     }
 
-    logger.info(`🔍 Getting personally assigned clients for user: ${userId}`);
+    logger.info(`Getting personally assigned clients for user: ${userId}`);
 
     const clientIds = await collectPersonallyAssignedClientIds(userId);
-    logger.info(`📋 Personally assigned clients: [${clientIds.join(', ')}]`);
     
     if (clientIds.length === 0) {
-      logger.info(`❌ No clients found for user: ${userId}`);
       return res.status(200).json([]);
     }
     
@@ -365,8 +363,6 @@ export const getEmployeeClients = async (req, res) => {
     if (status) query.status = status;
     if (industry) query.industry = industry;
     
-    logger.info('🔍 Final client query:', query);
-    
     // Get filtered clients with department information
     const clients = await Client.find(query)
       .select('name email phone whatsappnumber company ownername address industry website targetAudience audienceGender previousChallenges legalGuidelines yearlyTurnover expectations serviceCompany status isVip vipLevel vipSince createdAt assignedDepartments')
@@ -375,10 +371,7 @@ export const getEmployeeClients = async (req, res) => {
       .sort({ isVip: -1, vipLevel: 1, createdAt: -1 })
       .lean();
     
-    logger.success(`✅ Found ${clients.length} accessible clients for user: ${userId}`);
-    clients.forEach(client => {
-      logger.info(`  - Client: "${client.name}" (Departments: ${client.assignedDepartments?.map(d => d.name).join(', ') || 'None'})`);
-    });
+    logger.info(`Found ${clients.length} accessible clients for user: ${userId}`);
     
     res.status(200).json(clients);
   } catch (error) {

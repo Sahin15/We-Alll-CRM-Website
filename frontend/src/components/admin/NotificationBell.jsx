@@ -14,6 +14,7 @@ const NotificationBell = () => {
     markAsRead,
     markAllAsRead,
     deleteNotification,
+    fetchNotifications,
   } = useNotifications();
   const [show, setShow] = useState(false);
   const navigate = useNavigate();
@@ -206,7 +207,11 @@ const NotificationBell = () => {
     <div className="notification-bell-container" ref={dropdownRef}>
       <button
         className="notification-bell-btn"
-        onClick={() => setShow(!show)}
+        onClick={() => {
+          const next = !show;
+          setShow(next);
+          if (next) fetchNotifications();
+        }}
         aria-label="Notifications"
       >
         <FaBell size={20} />

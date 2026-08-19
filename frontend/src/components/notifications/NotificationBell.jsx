@@ -211,8 +211,11 @@ const NotificationBell = () => {
   return (
     <>
       <Dropdown 
-        show={showDropdown} 
-        onToggle={setShowDropdown}
+        show={showDropdown}
+        onToggle={(isOpen) => {
+          setShowDropdown(isOpen);
+          if (isOpen) fetchNotifications();
+        }}
         className="notification-bell-dropdown"
       >
         <Dropdown.Toggle

@@ -188,22 +188,25 @@ export const NotificationProvider = ({ children }) => {
     // Note: Firebase messaging doesn't need explicit stopping
   }, []);
 
-  // Initialize notifications on mount + poll every 60s (halves background API load)
+  // Boot: only fetch unread count (lightweight). Full list loads when bell is opened.
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
 
-    fetchNotifications();
+    fetchUnreadCount();
 
-    // Poll so new notifications appear without a page refresh
-    const pollInterval = setInterval(fetchNotifications, 60000);
+    // Poll unread count only — avoids loading full notification list on every page
+    const pollInterval = setInterval(() => {
+      if (!document.hidden) {
+        fetchUnreadCount();
+      }
+    }, 120000);
 
     // Wire up foreground FCM message handler — instant bell update + sound
     notificationService.onForegroundMessage = () => {
       try {
         notificationService.playSound();
       } catch (soundError) {
-        // Sound is optional - don't block on audio errors
         console.debug('Notification sound skipped:', soundError?.message);
       }
       fetchNotifications();
@@ -213,7 +216,7 @@ export const NotificationProvider = ({ children }) => {
       clearInterval(pollInterval);
       notificationService.onForegroundMessage = null;
     };
-  }, []); // Empty dependency array - run only once on mount
+  }, [fetchUnreadCount, fetchNotifications]);
 
   const value = {
     notifications,
