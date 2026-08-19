@@ -6,6 +6,7 @@ import {
   normalizeLeaveTypeForCreate,
 } from "../constants/leaveTypes.js";
 import { ANNUAL_EARNED_LEAVE_LIMIT } from "../constants/leaveCategoryLimits.js";
+import { getCurrentLeaveYear } from "../utils/leaveAccrual.js";
 import { getISTDateKey, getISTMidnightForYmd } from "../utils/timezone.js";
 import { getISTDayBounds } from "../utils/attendanceISTDay.js";
 
@@ -103,7 +104,7 @@ export const createLeaveRequest = async (req, res) => {
       reason,
       attachments: attachmentUrls,
       numberOfDays,
-      leaveYear: start.getFullYear()
+      leaveYear: parseInt(getISTDateKey(start).slice(0, 4), 10),
     });
 
     
@@ -166,7 +167,7 @@ export const createLeaveRequest = async (req, res) => {
 export const getLeaveBalance = async (req, res) => {
   try {
     const employeeId = req.params.employeeId || req.user.id;
-    const year = parseInt(req.query.year) || new Date().getFullYear();
+    const year = parseInt(req.query.year, 10) || getCurrentLeaveYear();
 
     // Check if user can access this employee's data
     if (employeeId !== req.user.id && !['admin', 'superadmin', 'hr', 'hod'].includes(req.user.role)) {
@@ -190,18 +191,21 @@ export const getLeaveBalance = async (req, res) => {
 export const getLeaveUsageSummary = async (req, res) => {
   try {
     const employeeId = req.params.employeeId;
-    const year = parseInt(req.query.year) || new Date().getFullYear();
+    const year = parseInt(req.query.year, 10) || getCurrentLeaveYear();
 
     // Check if user can access this data
     if (!['admin', 'superadmin', 'hr', 'hod'].includes(req.user.role)) {
       return res.status(403).json({ message: "Access denied" });
     }
 
+    const yearStart = getISTMidnightForYmd(year, 1, 1);
+    const yearEnd = getISTMidnightForYmd(year + 1, 1, 1);
+
     // Get all approved leaves for the employee in chronological order
     const approvedLeaves = await LeaveRequest.find({
-      employee: employeeId, // Mongoose will automatically convert string to ObjectId
+      employee: employeeId,
       status: 'approved',
-      leaveYear: year
+      startDate: { $gte: yearStart, $lt: yearEnd },
     }).sort({ startDate: 1 });
 
     // Calculate cumulative usage
@@ -249,7 +253,7 @@ export const getBulkLeaveUsageSummaries = async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    const year = parseInt(req.query.year) || new Date().getFullYear();
+    const year = parseInt(req.query.year, 10) || getCurrentLeaveYear();
     const employeeIds = String(req.query.employeeIds || "")
       .split(",")
       .map((id) => id.trim())
@@ -696,7 +700,7 @@ export const updateLeaveRequest = async (req, res) => {
           employee,
           effectiveLeaveType,
           numberOfDays,
-          start.getFullYear()
+          parseInt(getISTDateKey(start).slice(0, 4), 10)
         );
       } catch (balanceError) {
         return res.status(400).json({ message: balanceError.message });

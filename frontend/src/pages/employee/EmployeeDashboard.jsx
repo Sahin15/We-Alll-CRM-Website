@@ -1999,7 +1999,13 @@ const EmployeeDashboard = () => {
                 <div className="progress mt-3" style={{ height: '10px' }}>
                   <div 
                     className="progress-bar bg-primary" 
-                    style={{ width: `${(leaveDetails.earned.used / leaveDetails.earned.earned) * 100}%` }}
+                    style={{
+                      width: `${
+                        leaveDetails.earned.earned > 0
+                          ? (leaveDetails.earned.used / leaveDetails.earned.earned) * 100
+                          : 0
+                      }%`,
+                    }}
                   ></div>
                 </div>
                 <div className="d-flex justify-content-between mt-2">

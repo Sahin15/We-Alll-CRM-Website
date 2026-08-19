@@ -22,6 +22,8 @@ import User from "../models/userModel.js";
 import {
   getLeaveBalanceCategory,
 } from "../constants/leaveTypes.js";
+import { getCurrentLeaveYear } from "../utils/leaveAccrual.js";
+import { getISTMidnightForYmd } from "../utils/timezone.js";
 
 const router = express.Router();
 
@@ -67,8 +69,8 @@ router.get(
   requireModulePermission("leave", "leave.request.view", { legacyRoles: LEAVE_VIEW_ROLES }),
   async (req, res) => {
     try {
-      const year = parseInt(req.query.year) || new Date().getFullYear();
-      const month = req.query.month ? parseInt(req.query.month) : null;
+      const year = parseInt(req.query.year, 10) || getCurrentLeaveYear();
+      const month = req.query.month ? parseInt(req.query.month, 10) : null;
 
       const { mergeActiveEmployeeFilter } = await import(
         "../utils/employeeQueryUtils.js"
@@ -88,9 +90,12 @@ router.get(
         monthEnd = new Date(year, month, 0, 23, 59, 59);
       }
 
+      const yearStart = getISTMidnightForYmd(year, 1, 1);
+      const yearEnd = getISTMidnightForYmd(year + 1, 1, 1);
+
       const allApprovedLeaves = await LeaveRequest.find({
         status: "approved",
-        leaveYear: year,
+        startDate: { $gte: yearStart, $lt: yearEnd },
       }).lean();
 
       const Attendance = (await import("../models/attendanceModel.js")).default;
