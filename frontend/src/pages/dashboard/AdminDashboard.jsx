@@ -136,37 +136,27 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-    fetchNotificationStats();
   }, []);
 
-  const fetchNotificationStats = async () => {
-    try {
-      const response = await api.get('/notifications');
-      const allNotifications = response.data.notifications || [];
-      
-      const today = new Date();
-      const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-      
-      const todayCount = allNotifications.filter(n => {
-        const notifDate = new Date(n.createdAt);
-        return notifDate.toDateString() === today.toDateString();
-      }).length;
-      
-      const weekCount = allNotifications.filter(n => {
-        const notifDate = new Date(n.createdAt);
-        return notifDate >= weekAgo;
-      }).length;
-      
-      setNotificationStats({
-        total: allNotifications.length,
-        unread: unreadCount,
-        todayCount,
-        weekCount
-      });
-    } catch (error) {
-      console.error('Error fetching notification stats:', error);
-    }
-  };
+  useEffect(() => {
+    const today = new Date();
+    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const todayCount = notifications.filter((n) => {
+      const notifDate = new Date(n.createdAt);
+      return notifDate.toDateString() === today.toDateString();
+    }).length;
+    const weekCount = notifications.filter((n) => {
+      const notifDate = new Date(n.createdAt);
+      return notifDate >= weekAgo;
+    }).length;
+
+    setNotificationStats({
+      total: notifications.length,
+      unread: unreadCount,
+      todayCount,
+      weekCount,
+    });
+  }, [notifications, unreadCount]);
 
   const fetchDashboardData = async () => {
     try {

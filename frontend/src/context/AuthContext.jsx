@@ -46,21 +46,71 @@ const safeLocalStorage = {
   }
 };
 
+const AUTHZ_CACHE_KEY = "authz_effective_cache";
+const AUTHZ_CACHE_TTL_MS = 5 * 60 * 1000;
+const USER_REFRESH_TS_KEY = "user_profile_refreshed_at";
+const USER_REFRESH_TTL_MS = 5 * 60 * 1000;
+
+/** @returns {object|null} Cached authz payload or null if missing/stale */
+const readAuthzCache = () => {
+  try {
+    const raw = sessionStorage.getItem(AUTHZ_CACHE_KEY);
+    if (!raw) return null;
+    const { data, ts } = JSON.parse(raw);
+    if (!data || Date.now() - ts > AUTHZ_CACHE_TTL_MS) return null;
+    return data;
+  } catch {
+    return null;
+  }
+};
+
+/** @param {object} data */
+const writeAuthzCache = (data) => {
+  try {
+    sessionStorage.setItem(AUTHZ_CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
+  } catch {
+    /* ignore quota errors */
+  }
+};
+
+const clearAuthzCache = () => {
+  try {
+    sessionStorage.removeItem(AUTHZ_CACHE_KEY);
+  } catch {
+    /* ignore */
+  }
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(safeLocalStorage.getItem("token"));
   const [loading, setLoading] = useState(true);
-  const [authzEffective, setAuthzEffective] = useState(null);
+  const [authzEffective, setAuthzEffective] = useState(() => readAuthzCache());
   const [authzLoading, setAuthzLoading] = useState(false);
   const healthMonitorCleanup = useRef(null);
 
-  const loadAuthzEffective = useCallback(async (_options = {}) => {
-    // Always set authzLoading so PermissionRoute waits for first resolution.
-    // App boot uses a separate `loading` flag and is not blocked by this.
+  const loadAuthzEffective = useCallback(async (options = {}) => {
+    const { force = false } = options;
+    const cached = !force ? readAuthzCache() : null;
+
+    if (cached) {
+      setAuthzEffective(cached);
+      setAuthzLoading(false);
+      // Refresh in background without blocking routes
+      authzApi.getEffective()
+        .then((data) => {
+          setAuthzEffective(data);
+          writeAuthzCache(data);
+        })
+        .catch(() => {});
+      return cached;
+    }
+
     setAuthzLoading(true);
     try {
       const data = await authzApi.getEffective();
       setAuthzEffective(data);
+      writeAuthzCache(data);
       return data;
     } catch {
       setAuthzEffective(null);
@@ -84,19 +134,24 @@ export const AuthProvider = ({ children }) => {
             // Unblock UI immediately with cached session — refresh in background
             setLoading(false);
 
-            // Refresh profile + authz without blocking first paint
-            authApi
-              .getCurrentUser()
-              .then((response) => {
-                const freshUser = response?.data?.user;
-                if (freshUser) {
-                  setUser(freshUser);
-                  safeLocalStorage.setItem("user", JSON.stringify(freshUser));
-                }
-              })
-              .catch(() => {
-                // Keep cached user if refresh fails (offline, etc.)
-              });
+            const lastRefresh = Number(sessionStorage.getItem(USER_REFRESH_TS_KEY) || 0);
+            const shouldRefreshProfile = Date.now() - lastRefresh > USER_REFRESH_TTL_MS;
+            if (shouldRefreshProfile) {
+              authApi
+                .getCurrentUser()
+                .then((response) => {
+                  const freshUser = response?.data?.user;
+                  if (freshUser) {
+                    setUser(freshUser);
+                    safeLocalStorage.setItem("user", JSON.stringify(freshUser));
+                  }
+                  sessionStorage.setItem(USER_REFRESH_TS_KEY, String(Date.now()));
+                })
+                .catch(() => {
+                  /* keep cached user */
+                });
+            }
+
             loadAuthzEffective({ silent: true });
             return;
           } catch (parseError) {
@@ -166,6 +221,12 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     safeLocalStorage.removeItem("token");
     safeLocalStorage.removeItem("user");
+    clearAuthzCache();
+    try {
+      sessionStorage.removeItem(USER_REFRESH_TS_KEY);
+    } catch {
+      /* ignore */
+    }
     setToken(null);
     setUser(null);
     setAuthzEffective(null);
