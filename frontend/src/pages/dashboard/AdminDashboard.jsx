@@ -1949,13 +1949,6 @@ const AdminDashboard = () => {
               <div className="announcement-content" style={{ whiteSpace: 'pre-wrap' }}>
                 {selectedAnnouncement.content}
               </div>
-              {selectedAnnouncement.department && (
-                <div className="mt-3 pt-3 border-top">
-                  <small className="text-muted">
-                    <strong>Department:</strong> {selectedAnnouncement.department}
-                  </small>
-                </div>
-              )}
             </>
           )}
         </Modal.Body>
