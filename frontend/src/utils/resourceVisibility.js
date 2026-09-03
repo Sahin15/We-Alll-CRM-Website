@@ -1,7 +1,7 @@
 /**
  * Frontend visibility helpers aligned with backend resourceVisibilityService.
  *
- * Client visibility: any project assignment for that client (or account manager).
+ * Client visibility: only via project team membership (not client-level user assignment).
  * Project visibility: only projects where the user is on the team.
  * Company-wide: admin, superadmin, hr, manager — or explicit COMPANY/PLATFORM grant.
  */
@@ -73,6 +73,10 @@ export function canViewAllCompanyProjects({ user, authzEffective, canPermission 
   if (isPermissionDenied(authzEffective, 'projects.project.view')) return false;
 
   if (hasCompanyWidePermission({ user, authzEffective, canPermission }, 'projects.project.view')) {
+    return true;
+  }
+
+  if (hasCompanyWidePermission({ user, authzEffective, canPermission }, 'projects.project.manage')) {
     return true;
   }
 

@@ -24,6 +24,8 @@ export const rawDataApi = {
   assign: (id, callerId) => api.post(`/raw-data/${id}/assign`, { callerId }),
   reassign: (id, callerId) => api.post(`/raw-data/${id}/reassign`, { callerId }),
   bulkAssign: (recordIds, callerId) => api.post("/raw-data/bulk-assign", { recordIds, callerId }),
+  getAssignableStaff: (department, params = {}) =>
+    api.get("/raw-data/assignable-staff", { params: { department, ...params } }),
 
   // Conversion
   convertToLead: (id, leadOwnerId) => api.post(`/raw-data/${id}/convert-to-lead`, { leadOwnerId }),

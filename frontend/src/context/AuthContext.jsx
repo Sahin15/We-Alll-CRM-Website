@@ -56,10 +56,6 @@ export const AuthProvider = ({ children }) => {
 
   const loadAuthzEffective = useCallback(async (options = {}) => {
     const { silent = false } = options;
-    if (!isAuthzV2AnyModuleEnabled()) {
-      setAuthzEffective(null);
-      return null;
-    }
     if (!silent) {
       setAuthzLoading(true);
     }
@@ -218,7 +214,7 @@ export const AuthProvider = ({ children }) => {
   }, [user, token]);
 
   useEffect(() => {
-    if (!token || !isAuthzV2AnyModuleEnabled()) return undefined;
+    if (!token) return undefined;
 
     const refreshOnFocus = () => {
       loadAuthzEffective({ silent: true });
@@ -255,10 +251,10 @@ export const AuthProvider = ({ children }) => {
       }
       return authzEffective.permissions.includes(permission);
     }
-    if (isAuthzV2AnyModuleEnabled()) {
+    if (isAuthzV2AnyModuleEnabled() || authzLoading) {
       return false;
     }
-    return true;
+    return false;
   };
 
   /**

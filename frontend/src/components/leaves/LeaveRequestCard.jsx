@@ -14,9 +14,10 @@ const LeaveRequestCard = ({
   onReject,
   onCancel, 
   getStatusColor, 
-  getLeaveTypeColor 
+  getLeaveTypeColor,
+  usageSummary: usageSummaryProp = null,
 }) => {
-  const [usageSummary, setUsageSummary] = useState(null);
+  const [usageSummary, setUsageSummary] = useState(usageSummaryProp);
   const [loadingUsage, setLoadingUsage] = useState(false);
 
   // Add comprehensive null checks to prevent runtime errors
@@ -34,12 +35,16 @@ const LeaveRequestCard = ({
   const canCancel = isOwnRequest && ['pending', 'approved'].includes(leave.status);
   const canApproveReject = isAdmin && leave.status === 'pending';
 
-  // Load usage summary for admin view
+  // Load usage summary for admin view when not provided by parent
   useEffect(() => {
+    if (usageSummaryProp) {
+      setUsageSummary(usageSummaryProp);
+      return;
+    }
     if (isAdmin && !isOwnRequest && employeeId) {
       loadUsageSummary();
     }
-  }, [isAdmin, isOwnRequest, employeeId]);
+  }, [isAdmin, isOwnRequest, employeeId, usageSummaryProp]);
 
   const loadUsageSummary = async () => {
     try {

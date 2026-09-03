@@ -1,4 +1,4 @@
-export const PAID_LEAVE_TYPES = ['personal', 'medical', 'vacation', 'half_day'];
+export const PAID_LEAVE_TYPES = ['medical', 'casual', 'half_day'];
 export const NON_FULL_TIME_EMPLOYMENT_TYPES = ['part-time', 'intern', 'freelancer', 'contract'];
 
 export const normalizeEmploymentType = (type) => {

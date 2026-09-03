@@ -21,6 +21,13 @@ export const leaveApi = {
     const params = year ? { year } : {};
     return api.get(`/leaves/usage-summary/${employeeId}`, { params });
   },
+  getBulkLeaveUsageSummaries: (employeeIds, year = null) => {
+    const params = {
+      employeeIds: employeeIds.join(","),
+    };
+    if (year) params.year = year;
+    return api.get("/leaves/usage-summaries/bulk", { params });
+  },
   getAllLeaveBalances: (year = null, month = null) => {
     const params = {};
     if (year) params.year = year;

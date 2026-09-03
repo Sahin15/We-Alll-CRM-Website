@@ -22,15 +22,17 @@ const getMyWorkItems = async (req, res) => {
   try {
     const { status, type, project, priority, dueDate, search, visibility } = req.query;
     
-    // Build query - support both single and multiple assignee fields
-    // Include draft items if user is the creator
+    // My Work: items assigned to me OR that I created/assigned to others.
+    // Match ObjectId or string refs for assignee/creator fields.
+    const userId = req.user._id;
+    const userRef = { $in: [userId, String(userId)] };
     const query = {
-      isDeleted: { $ne: true }, // Always exclude soft-deleted items
+      isDeleted: { $ne: true },
       $or: [
-        { assignedTo: req.user._id },
-        { assignedToMultiple: req.user._id },
-        { createdBy: req.user._id, visibility: 'draft' } // Show own draft items
-      ]
+        { assignedTo: userRef },
+        { assignedToMultiple: userRef },
+        { createdBy: userRef },
+      ],
     };
     
     // Apply filters

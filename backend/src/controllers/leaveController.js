@@ -3,6 +3,10 @@ import User from "../models/userModel.js";
 import NotificationService from "../services/notificationService.js";
 import { getLeaveRequestDays } from "../utils/leaveDays.js";
 import { getTodayMidnightIST } from "../utils/timezone.js";
+import {
+  normalizeLeaveTypeForCreate,
+} from "../constants/leaveTypes.js";
+import { ANNUAL_EARNED_LEAVE_LIMIT } from "../constants/leaveCategoryLimits.js";
 
 // Create leave request
 export const createLeaveRequest = async (req, res) => {
@@ -17,9 +21,10 @@ export const createLeaveRequest = async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // Validate leave type
-    if (!['personal', 'medical', 'vacation', 'unpaid', 'work_from_home', 'half_day'].includes(leaveType)) {
-      return res.status(400).json({ message: "Invalid leave type" });
+    const normalizedLeaveType = normalizeLeaveTypeForCreate(leaveType);
+
+    if (!['medical', 'casual', 'half_day', 'unpaid', 'work_from_home'].includes(normalizedLeaveType)) {
+      return res.status(400).json({ message: "Invalid leave type. Use medical, casual, or half day." });
     }
 
     // Validate dates
@@ -32,12 +37,22 @@ export const createLeaveRequest = async (req, res) => {
       return res.status(400).json({ message: "End date must be after start date" });
     }
 
+    if (normalizedLeaveType === "half_day") {
+      const sameDay =
+        start.getFullYear() === end.getFullYear() &&
+        start.getMonth() === end.getMonth() &&
+        start.getDate() === end.getDate();
+      if (!sameDay) {
+        return res.status(400).json({ message: "Half-day leave must be for a single date" });
+      }
+    }
+
     const employeeUser = await User.findById(employee).select('employmentType internshipDetails');
 
     if (
       !LeaveRequest.isFullTimeEmployee(employeeUser) &&
-      leaveType !== 'unpaid' &&
-      leaveType !== 'work_from_home'
+      normalizedLeaveType !== 'unpaid' &&
+      normalizedLeaveType !== 'work_from_home'
     ) {
       return res.status(400).json({
         message:
@@ -45,27 +60,12 @@ export const createLeaveRequest = async (req, res) => {
       });
     }
 
-    const numberOfDays = getLeaveRequestDays(leaveType, start, end);
-
-    // Validate advance notice requirements
-    const daysDifference = Math.ceil((start - today) / (1000 * 60 * 60 * 24));
-    
-    if (leaveType === 'personal' && daysDifference < 3) {
-      return res.status(400).json({ 
-        message: "Personal leave must be requested at least 3 days in advance" 
-      });
-    }
-    
-    if (leaveType === 'vacation' && daysDifference < 30) {
-      return res.status(400).json({ 
-        message: "Vacation leave must be requested at least 30 days in advance" 
-      });
-    }
+    const numberOfDays = getLeaveRequestDays(normalizedLeaveType, start, end);
 
     // Check leave balance (skip for unpaid leave and work from home)
-    if (leaveType !== 'unpaid' && leaveType !== 'work_from_home') {
+    if (normalizedLeaveType !== 'unpaid' && normalizedLeaveType !== 'work_from_home') {
       try {
-        await LeaveRequest.validateLeaveRequest(employee, leaveType, numberOfDays);
+        await LeaveRequest.validateLeaveRequest(employee, normalizedLeaveType, numberOfDays);
       } catch (balanceError) {
         return res.status(400).json({ message: balanceError.message });
       }
@@ -96,7 +96,7 @@ export const createLeaveRequest = async (req, res) => {
 
     const leaveRequest = await LeaveRequest.create({
       employee,
-      leaveType,
+      leaveType: normalizedLeaveType,
       startDate,
       endDate,
       reason,
@@ -118,7 +118,7 @@ export const createLeaveRequest = async (req, res) => {
         await NotificationService.sendToUser(
           employeeData.reportingManager._id,
           '≡ƒôï New Leave Request',
-          `${employeeData.name} has requested ${leaveType} leave`,
+          `${employeeData.name} has requested ${normalizedLeaveType} leave`,
           {
             type: 'leave_request',
             data: { leaveRequestId: leaveRequest._id.toString() },
@@ -132,7 +132,7 @@ export const createLeaveRequest = async (req, res) => {
       
       await NotificationService.sendToRole('hr',
         '≡ƒôï New Leave Request',
-        `${employeeData.name} has requested ${leaveType} leave for ${numberOfDays} day(s)`,
+        `${employeeData.name} has requested ${normalizedLeaveType} leave for ${numberOfDays} day(s)`,
         {
           type: 'leave_request',
           data: { leaveRequestId: leaveRequest._id.toString() },
@@ -232,11 +232,53 @@ export const getLeaveUsageSummary = async (req, res) => {
         totalEarned: balance.earned.earned,
         totalUsed: balance.earned.used,
         totalRemaining: balance.earned.remaining,
-        currentRatio: `${balance.earned.used}/24`
+        currentRatio: `${balance.earned.used}/${ANNUAL_EARNED_LEAVE_LIMIT}`,
       }
     });
   } catch (error) {
     
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Bulk usage summaries for HR leave table (one request instead of N per employee)
+export const getBulkLeaveUsageSummaries = async (req, res) => {
+  try {
+    if (!["admin", "superadmin", "hr", "hod"].includes(req.user.role)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const year = parseInt(req.query.year) || new Date().getFullYear();
+    const employeeIds = String(req.query.employeeIds || "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean);
+
+    if (employeeIds.length > 500) {
+      return res.status(400).json({ message: "Too many employee IDs (max 500)" });
+    }
+
+    if (!employeeIds.length) {
+      return res.status(200).json({ year, summaries: {} });
+    }
+
+    const balances = await LeaveRequest.getBulkLeaveBalances(employeeIds, year);
+    const summaries = {};
+
+    for (const [empId, balance] of Object.entries(balances)) {
+      summaries[empId] = {
+        balance,
+        summary: {
+          totalEarned: balance.earned.earned,
+          totalUsed: balance.earned.used,
+          totalRemaining: balance.earned.remaining,
+          currentRatio: `${balance.earned.used}/${ANNUAL_EARNED_LEAVE_LIMIT}`,
+        },
+      };
+    }
+
+    res.status(200).json({ year, summaries });
+  } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -619,7 +661,13 @@ export const updateLeaveRequest = async (req, res) => {
       });
     }
 
-    if (leaveType) leaveRequest.leaveType = leaveType;
+    if (leaveType) {
+      const normalized = normalizeLeaveTypeForCreate(leaveType);
+      if (!['medical', 'casual', 'unpaid'].includes(normalized)) {
+        return res.status(400).json({ message: "Invalid leave type. Use medical or casual." });
+      }
+      leaveRequest.leaveType = normalized;
+    }
     if (startDate) leaveRequest.startDate = startDate;
     if (endDate) leaveRequest.endDate = endDate;
     if (reason) leaveRequest.reason = reason;

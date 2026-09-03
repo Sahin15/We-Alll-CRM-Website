@@ -11,7 +11,6 @@ export const UNPAID_LEAVE_IMPACT_CODES = Object.freeze([
   "lwp",
   "leave_without_pay",
   "extended_sick",
-  "personal",
 ]);
 
 /**

@@ -4,6 +4,7 @@ import { FaSave, FaLock, FaBell, FaPalette, FaShieldAlt } from 'react-icons/fa';
 import NotificationSettings from '../../components/notifications/NotificationSettings';
 import toast from '../../utils/toast';
 import api from '../../services/api';
+import { APP_VERSION } from '../../constants/branding';
 
 // Employee Settings Page
 const Settings = () => {
@@ -324,11 +325,11 @@ const Settings = () => {
                     <tbody>
                       <tr>
                         <td><strong>Version:</strong></td>
-                        <td>5.0.7</td>
+                        <td>{APP_VERSION}</td>
                       </tr>
                       <tr>
                         <td><strong>Last Updated:</strong></td>
-                        <td>April 2026</td>
+                        <td>August 2026</td>
                       </tr>
                       <tr>
                         <td><strong>Environment:</strong></td>

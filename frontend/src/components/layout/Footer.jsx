@@ -11,7 +11,7 @@ import {
 import { FaXTwitter } from "react-icons/fa6";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { BRAND_LOGO_FULL, BRAND_NAME } from "../../constants/branding";
+import { BRAND_LOGO_FULL, BRAND_NAME, APP_VERSION_LABEL } from "../../constants/branding";
 
 const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
   const { user } = useAuth();
@@ -105,7 +105,7 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
               >
                 © {currentYear} We Alll. All rights reserved.
                 <span className="ms-2 text-white-50">
-                  V 5.0.7
+                  {APP_VERSION_LABEL}
                 </span>
               </div>
             </Col>

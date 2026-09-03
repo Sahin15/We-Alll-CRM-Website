@@ -75,8 +75,12 @@ export default function RawDataList() {
       const res = await rawDataApi.getAll(params);
       setRecords(res.data.data);
       setPagination(res.data.pagination);
-    } catch {
-      toast.error("Failed to load records");
+    } catch (err) {
+      const message =
+        err.response?.status === 403
+          ? "You don't have permission to view raw data records"
+          : "Failed to load records";
+      toast.error(message);
     } finally {
       setLoading(false);
     }

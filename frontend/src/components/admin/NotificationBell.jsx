@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { FaBell, FaTimes } from "react-icons/fa";
 import { Dropdown } from "react-bootstrap";
 import { useNotifications } from "../../context/NotificationContext";
+import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import "./NotificationBell.css";
 
@@ -16,6 +17,7 @@ const NotificationBell = () => {
   } = useNotifications();
   const [show, setShow] = useState(false);
   const navigate = useNavigate();
+  const { user } = useAuth();
   const dropdownRef = useRef(null);
 
   // Close dropdown when clicking outside
@@ -84,7 +86,11 @@ const NotificationBell = () => {
       }
       // Employee notifications
       else if (notification.data.employeeId) {
-        navigate(`/users/${notification.data.employeeId}`);
+        const profilePath =
+          user?.role === "admin" || user?.role === "superadmin"
+            ? `/users/${notification.data.employeeId}`
+            : `/employees/${notification.data.employeeId}`;
+        navigate(profilePath);
       }
       // Project notifications
       else if (notification.data.projectId) {

@@ -447,7 +447,7 @@ const DocumentManagement = () => {
                           <Button
                             size="sm"
                             variant="outline-secondary"
-                            onClick={() => window.location.href = `/users/${emp._id}`}
+                            onClick={() => window.location.href = `/employees/${emp._id}`}
                           >
                             View Profile
                           </Button>

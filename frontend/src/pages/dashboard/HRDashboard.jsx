@@ -712,7 +712,7 @@ const HRDashboard = () => {
                   <td>{emp.email}</td>
                   <td>{emp.department?.name || 'N/A'}</td>
                   <td>
-                    <Button size="sm" variant="outline-primary" onClick={() => navigate(`/users/${emp._id}`)}>
+                    <Button size="sm" variant="outline-primary" onClick={() => navigate(`/employees/${emp._id}`)}>
                       <FaEye className="me-1" />View
                     </Button>
                   </td>

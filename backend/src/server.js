@@ -90,6 +90,7 @@ import procurementInvoiceRoutes from "./routes/procurementInvoiceRoutes.js";
 import procurementPaymentRoutes from "./routes/procurementPaymentRoutes.js";
 import procurementDashboardRoutes from "./routes/procurementDashboardRoutes.js";
 import authzRoutes from "./routes/authzRoutes.js";
+import { runStartupAuthzValidation } from "./authz/startupValidation.js";
 // Legacy routes removed - use workItemRoutes instead
 // Old: taskRoutes, slotRoutes, workRoutes → New: workItemRoutes
 import { initializeCronJobs } from "./config/cronJobs.js";
@@ -106,6 +107,8 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config();
 connectDB();
+
+runStartupAuthzValidation({ verbose: process.env.AUTHZ_VALIDATE_VERBOSE === 'true' });
 
 const app = express();
 app.set("trust proxy", 1);
@@ -142,7 +145,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json({ limit: "10mb" })); // Limit payload size
+app.use(express.json({ limit: "25mb" })); // Limit payload size
 app.use(sanitizeInput); // Sanitize MongoDB queries
 app.use(s3ProxyMiddleware); // Serve profile pictures via /api/upload/profile-picture/:fileName
 app.use(auditMiddleware); // Audit logging for authenticated requests

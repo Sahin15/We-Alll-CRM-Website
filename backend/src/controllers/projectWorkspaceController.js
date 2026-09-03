@@ -11,6 +11,8 @@ import ProjectActivityLog from "../models/projectActivityLogModel.js";
 import { getProjectStatistics, getTeamWorkload } from "../services/projectProgressService.js";
 import { calculateMonthProgress } from "../services/projectMonthProgressService.js";
 import { canUserViewProject } from "../services/resourceVisibilityService.js";
+import { healProjectTeamMembership } from "../services/projectRosterService.js";
+import { stripPastMembersFromProject } from "../utils/employeeQueryUtils.js";
 
 // @desc    Get project workspace data (overview)
 // @route   GET /api/projects/:id/workspace
@@ -20,12 +22,12 @@ export const getProjectWorkspace = async (req, res) => {
     const { id } = req.params;
     
     // Get project
-    const project = await Project.findById(id)
+    let project = await Project.findById(id)
       .populate("client", "name company email phone")
       .populate("department", "name")
-      .populate("projectHead", "name email designation")
-      .populate("assignedUsers", "name email designation")
-      .populate("teamMembers.user", "name email role designation")
+      .populate("projectHead", "name email designation status")
+      .populate("assignedUsers", "name email designation status")
+      .populate("teamMembers.user", "name email role designation status")
       .populate("teamMembers.assignedBy", "name email")
       .populate("createdBy", "name email");
     
@@ -44,6 +46,24 @@ export const getProjectWorkspace = async (req, res) => {
         error: { code: "FORBIDDEN", message: "Access denied" },
       });
     }
+
+    // Sync legacy assignedUsers into teamMembers for Team tab display
+    const { healed } = await healProjectTeamMembership(project, {
+      assignedBy: req.user?._id,
+    });
+    if (healed) {
+      project = await Project.findById(id)
+        .populate("client", "name company email phone")
+        .populate("department", "name")
+        .populate("projectHead", "name email designation status")
+        .populate("assignedUsers", "name email designation status")
+        .populate("teamMembers.user", "name email role designation status")
+        .populate("teamMembers.assignedBy", "name email")
+        .populate("createdBy", "name email");
+    }
+
+    const projectData = project.toObject ? project.toObject() : project;
+    stripPastMembersFromProject(projectData);
 
     const now = new Date();
     const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -114,7 +134,7 @@ export const getProjectWorkspace = async (req, res) => {
     res.status(200).json({
       success: true,
       data: {
-        project,
+        project: projectData,
         statistics,
         teamWorkload,
         monthProgress,

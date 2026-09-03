@@ -10,6 +10,7 @@ import {
   updateLeaveRequest,
   getLeaveBalance,
   getLeaveUsageSummary,
+  getBulkLeaveUsageSummaries,
 } from "../controllers/leaveController.js";
 import { protect } from '../middleware/authMiddleware.js';
 
@@ -18,6 +19,9 @@ import { requireModulePermission } from "../authz/authzMiddleware.js";
 import { uploadDocument, handleDocumentUploadError } from "../middleware/documentMiddleware.js";
 import LeaveRequest from "../models/leaveRequestModel.js";
 import User from "../models/userModel.js";
+import {
+  getLeaveBalanceCategory,
+} from "../constants/leaveTypes.js";
 
 const router = express.Router();
 
@@ -48,6 +52,12 @@ router.get(
   protect,
   requireModulePermission("leave", "leave.request.view", { legacyRoles: LEAVE_VIEW_ROLES }),
   getLeaveUsageSummary
+);
+router.get(
+  "/usage-summaries/bulk",
+  protect,
+  requireModulePermission("leave", "leave.request.view", { legacyRoles: LEAVE_VIEW_ROLES }),
+  getBulkLeaveUsageSummaries
 );
 
 // Bulk leave balance overview for all employees (HR/Admin)
@@ -169,11 +179,9 @@ router.get(
           const balance = await LeaveRequest.getLeaveBalance(emp._id, year);
 
           const monthTotals = {
-            personal: 0,
             medical: 0,
-            vacation: 0,
+            casual: 0,
             unpaid: 0,
-            half_day: 0,
             total: 0,
           };
           if (month) {
@@ -186,8 +194,11 @@ router.get(
                 const leaveEnd = new Date(Math.min(new Date(l.endDate), monthEnd));
                 days = Math.max(0, Math.ceil((leaveEnd - leaveStart) / (1000 * 60 * 60 * 24)) + 1);
               }
-              if (Object.prototype.hasOwnProperty.call(monthTotals, l.leaveType)) {
-                monthTotals[l.leaveType] += days;
+              const balanceCategory = getLeaveBalanceCategory(l.leaveType);
+              if (balanceCategory && Object.prototype.hasOwnProperty.call(monthTotals, balanceCategory)) {
+                monthTotals[balanceCategory] += days;
+              } else if (l.leaveType === "unpaid") {
+                monthTotals.unpaid += days;
               }
               if (l.leaveType !== "unpaid") monthTotals.total += days;
             }
@@ -212,11 +223,9 @@ router.get(
               earned: balance.eligibleForPaidLeave ? balance.earned.earned : 0,
               totalUsed: balance.eligibleForPaidLeave ? balance.earned.used : 0,
               remaining: balance.eligibleForPaidLeave ? balance.earned.remaining : 0,
-              personal: balance.personal.used,
               medical: balance.medical.used,
-              vacation: balance.vacation.used,
+              casual: balance.casual.used,
               unpaid: balance.unpaid.used,
-              halfDay: balance.half_day.used,
               late: yearAtt.late,
               absent: yearAtt.absent,
             },
@@ -224,11 +233,9 @@ router.get(
               ? {
                   month,
                   totalUsed: monthTotals.total,
-                  personal: monthTotals.personal,
                   medical: monthTotals.medical,
-                  vacation: monthTotals.vacation,
+                  casual: monthTotals.casual,
                   unpaid: monthTotals.unpaid,
-                  halfDay: monthTotals.half_day,
                   late: monthAtt.late,
                   absent: monthAtt.absent,
                 }

@@ -55,3 +55,13 @@ export const getPermissionCatalog = asyncHandler(async (req, res) => {
 export const getRolloutStatus = asyncHandler(async (req, res) => {
   sendSuccess(res, getAuthzRolloutStatus(), 'Authorization rollout status');
 });
+
+/**
+ * GET /api/v1/authz/validate
+ * Returns configuration validation report (admin only).
+ */
+export const getConfigValidation = asyncHandler(async (req, res) => {
+  const { runAuthzConfigValidation } = await import('../authz/configValidator.js');
+  const report = runAuthzConfigValidation();
+  sendSuccess(res, report, 'Authorization configuration validation complete');
+});
