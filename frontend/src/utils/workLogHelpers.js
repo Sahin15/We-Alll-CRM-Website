@@ -69,15 +69,17 @@ export const formatWorkLogDateTime = (date) => {
 };
 
 // Check if user can edit work log
-export const canEditWorkLog = (log, user) => {
+export const canEditWorkLog = (log, user, canAccess) => {
   if (!log || !user) return false;
 
-  // Admin/HR/Manager can always edit
-  if (["admin", "superadmin", "hr", "manager"].includes(user.role)) {
+  const canManageOthers = canAccess
+    ? canAccess('worklog.entry.review', ['admin', 'superadmin', 'hr', 'manager'])
+    : ['admin', 'superadmin', 'hr', 'manager'].includes(user.role);
+
+  if (canManageOthers) {
     return true;
   }
 
-  // Employee can edit their own log if not reviewed
   return (
     log.employee?._id === user._id &&
     log.status !== "reviewed"
@@ -85,15 +87,17 @@ export const canEditWorkLog = (log, user) => {
 };
 
 // Check if user can review work log
-export const canReviewWorkLog = (log, user) => {
+export const canReviewWorkLog = (log, user, canAccess) => {
   if (!log || !user) return false;
 
-  // Only admin/hr/manager can review
-  if (!["admin", "superadmin", "hr", "manager"].includes(user.role)) {
+  const canReview = canAccess
+    ? canAccess('worklog.entry.review', ['admin', 'superadmin', 'hr', 'manager'])
+    : ['admin', 'superadmin', 'hr', 'manager'].includes(user.role);
+
+  if (!canReview) {
     return false;
   }
 
-  // Cannot review own log
   return log.employee?._id !== user._id;
 };
 

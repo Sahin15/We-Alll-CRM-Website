@@ -70,7 +70,6 @@ export const uploadImageToS3 = async (
       Key: fileName,
       Body: optimizedBuffer,
       ContentType: mimeType,
-      ACL: "public-read", // Make file publicly accessible
     };
 
     const command = new PutObjectCommand(uploadParams);
@@ -115,9 +114,8 @@ export const uploadRawImageToS3 = async (
     const uploadParams = {
       Bucket: AWS_CONFIG.bucketName,
       Key: fileName,
-      Body: fileBuffer, // Use original buffer without any processing
+      Body: fileBuffer,
       ContentType: mimeType,
-      ACL: "public-read", // Make file publicly accessible
     };
 
     const command = new PutObjectCommand(uploadParams);
@@ -143,14 +141,11 @@ export const uploadRawImageToS3 = async (
 export const deleteImageFromS3 = async (imageUrl) => {
   try {
     const { extractProfilePictureKey } = await import("./s3ProxyUrl.js");
-    let key = extractProfilePictureKey(imageUrl);
+    const { extractS3KeyFromUrl } = await import("./s3KeyUtils.js");
+    let key = extractProfilePictureKey(imageUrl) || extractS3KeyFromUrl(imageUrl);
 
     if (!key) {
-      const urlParts = imageUrl.split(".amazonaws.com/");
-      if (urlParts.length < 2) {
-        throw new Error("Invalid S3 URL");
-      }
-      key = urlParts[1].split("?")[0];
+      throw new Error("Invalid S3 URL");
     }
 
     const deleteParams = {

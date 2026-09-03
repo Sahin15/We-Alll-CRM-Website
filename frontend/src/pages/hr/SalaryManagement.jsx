@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import {
+  Accordion,
   Container,
   Row,
   Col,
@@ -15,22 +16,44 @@ import {
   FaFileInvoiceDollar,
   FaUsers,
   FaChartLine,
-  FaEye,
-  FaCogs,
 } from "react-icons/fa";
-// import SalaryStructureList from "../../components/salary/SalaryStructureList";
 import SalaryStructures from "../../components/salary/SalaryStructures";
 import SalarySlipList from "../../components/salary/SalarySlipList";
 import GenerateSalarySlips from "../../components/salary/GenerateSalarySlips";
 import PayrollSummary from "../../components/salary/PayrollSummary";
 import HRSalaryPreviewManagement from "../../components/salary/HRSalaryPreviewManagement";
 import TemplateManagement from "../../components/salary/TemplateManagement";
+import PayrollPeriods from "../../components/salary/PayrollPeriods";
+import PayrollApprovals from "../../components/salary/PayrollApprovals";
+import PayrollExports from "../../components/salary/PayrollExports";
+import PayrollDualRun from "../../components/salary/PayrollDualRun";
+import SimplePayrollTab from "../../components/salary/SimplePayrollTab";
 import { salarySlipApi } from "../../api/salaryApi";
 import api from "../../services/api";
 
+/** Day-to-day SMB payroll path (Simple Payroll first). */
+const PAYROLL_TABS = new Set([
+  "simple-payroll",
+  "previews",
+  "generate",
+  "slips",
+  "reports",
+]);
+
+/** Legacy: periods/gates, workflows, bank exports, dual-run, allowance forms, templates. */
+const ADVANCED_TABS = new Set([
+  "structures",
+  "templates",
+  "approvals",
+  "exports",
+  "dual-run",
+  "periods",
+]);
+
 const SalaryManagement = () => {
   const location = useLocation();
-  const [activeTab, setActiveTab] = useState("slips");
+  const [activeTab, setActiveTab] = useState("simple-payroll");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [stats, setStats] = useState({
     totalEmployees: 0,
     slipsGenerated: 0,
@@ -41,6 +64,16 @@ const SalaryManagement = () => {
   });
   const [loading, setLoading] = useState(true);
 
+  const selectTab = (tab) => {
+    if (!tab) return;
+    setActiveTab(tab);
+    if (ADVANCED_TABS.has(tab)) {
+      setAdvancedOpen(true);
+    } else if (PAYROLL_TABS.has(tab)) {
+      setAdvancedOpen(false);
+    }
+  };
+
   // Scroll to top when component mounts
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -49,9 +82,9 @@ const SalaryManagement = () => {
   // Handle URL parameters for tab selection
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
-    const tab = urlParams.get('tab');
+    const tab = urlParams.get("tab");
     if (tab) {
-      setActiveTab(tab);
+      selectTab(tab);
     }
   }, [location.search]);
 
@@ -111,19 +144,25 @@ const SalaryManagement = () => {
     }).format(amount);
   };
 
-  // Scroll to top when component mounts
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
+  const isPayrollTab = PAYROLL_TABS.has(activeTab);
+  const isAdvancedTab = ADVANCED_TABS.has(activeTab);
+  const payrollTabKey = isPayrollTab ? activeTab : "";
+  const advancedTabKey = isAdvancedTab ? activeTab : "structures";
+  // Controlled only by advancedOpen — do not force-open just because an advanced tab is selected
+  const advancedAccordionKey = advancedOpen ? "advanced" : null;
 
-  // Handle URL parameters for tab selection
-  useEffect(() => {
-    const urlParams = new URLSearchParams(location.search);
-    const tab = urlParams.get('tab');
-    if (tab) {
-      setActiveTab(tab);
+  const handleAdvancedAccordion = (key) => {
+    const open = key === "advanced";
+    setAdvancedOpen(open);
+    if (open) {
+      if (!ADVANCED_TABS.has(activeTab)) {
+        setActiveTab("structures");
+      }
+    } else if (ADVANCED_TABS.has(activeTab)) {
+      // Leaving advanced: return to primary payroll path so collapse sticks
+      setActiveTab("simple-payroll");
     }
-  }, [location.search]);
+  };
 
   return (
     <Container fluid className="mt-4">
@@ -142,32 +181,13 @@ const SalaryManagement = () => {
                       <h2 className="salary-header-title mb-1">
                         Salary Management
                       </h2>
-                      <div className="salary-header-badge">
-                        HR Dashboard
-                      </div>
+                      <div className="salary-header-badge">HR Dashboard</div>
                     </div>
                   </div>
                   <p className="salary-header-description mb-0">
-                    Manage salary structures, previews, and generate salary slips with comprehensive payroll analytics
+                    Run payroll in one place: set monthly salary and
+                    adjustments, preview, then generate salary slips.
                   </p>
-                </div>
-                <div className="d-flex gap-2 salary-action-buttons">
-                  <Button 
-                    variant="light" 
-                    href="/salary-preview-management"
-                    className="salary-action-btn d-flex align-items-center"
-                  >
-                    <FaEye className="me-2" />
-                    Preview Management
-                  </Button>
-                  <Button 
-                    variant="light" 
-                    href="/salary-templates"
-                    className="salary-action-btn d-flex align-items-center"
-                  >
-                    <FaCogs className="me-2" />
-                    Templates
-                  </Button>
                 </div>
               </div>
             </Card.Body>
@@ -201,7 +221,20 @@ const SalaryManagement = () => {
           </Card>
         </Col>
         <Col md={4}>
-          <Card className="shadow-sm h-100">
+          <Card
+            className="shadow-sm h-100"
+            role="button"
+            tabIndex={0}
+            style={{ cursor: "pointer" }}
+            onClick={() => selectTab("slips")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                selectTab("slips");
+              }
+            }}
+            aria-label="View salary slips for last month"
+          >
             <Card.Body className="d-flex align-items-center">
               <div
                 className="rounded-circle bg-success bg-opacity-10 p-3 me-3 flex-shrink-0"
@@ -224,7 +257,20 @@ const SalaryManagement = () => {
           </Card>
         </Col>
         <Col md={4}>
-          <Card className="shadow-sm h-100">
+          <Card
+            className="shadow-sm h-100"
+            role="button"
+            tabIndex={0}
+            style={{ cursor: "pointer" }}
+            onClick={() => selectTab("reports")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                selectTab("reports");
+              }
+            }}
+            aria-label="View payroll reports and payout breakdown"
+          >
             <Card.Body className="d-flex align-items-center">
               <div
                 className="rounded-circle bg-warning bg-opacity-10 p-3 me-3 flex-shrink-0"
@@ -260,7 +306,11 @@ const SalaryManagement = () => {
                 </h3>
                 <small className="text-muted">All time</small>
               </div>
-              <Button variant="outline-info" size="sm" onClick={() => setActiveTab("slips")}>
+              <Button
+                variant="outline-info"
+                size="sm"
+                onClick={() => selectTab("slips")}
+              >
                 View
               </Button>
             </Card.Body>
@@ -272,12 +322,20 @@ const SalaryManagement = () => {
               <div>
                 <h6 className="mb-1 text-muted">Salary Structures</h6>
                 <h3 className="mb-0">
-                  {loading ? <Spinner animation="border" size="sm" /> : stats.totalStructures}
+                  {loading ? (
+                    <Spinner animation="border" size="sm" />
+                  ) : (
+                    stats.totalStructures
+                  )}
                 </h3>
                 <small className="text-muted">All employees</small>
               </div>
-              <Button variant="outline-warning" size="sm" onClick={() => setActiveTab("structures")}>
-                Manage
+              <Button
+                variant="outline-warning"
+                size="sm"
+                onClick={() => selectTab("structures")}
+              >
+                Advanced
               </Button>
             </Card.Body>
           </Card>
@@ -288,49 +346,130 @@ const SalaryManagement = () => {
               <div>
                 <h6 className="mb-1 text-muted">Salary Templates</h6>
                 <h3 className="mb-0">
-                  {loading ? <Spinner animation="border" size="sm" /> : stats.totalTemplates}
+                  {loading ? (
+                    <Spinner animation="border" size="sm" />
+                  ) : (
+                    stats.totalTemplates
+                  )}
                 </h3>
                 <small className="text-muted">Reusable templates</small>
               </div>
-              <Button variant="outline-danger" size="sm" onClick={() => setActiveTab("templates")}>
-                Manage
+              <Button
+                variant="outline-danger"
+                size="sm"
+                onClick={() => selectTab("templates")}
+              >
+                Advanced
               </Button>
             </Card.Body>
           </Card>
         </Col>
       </Row>
 
-      {/* Tabs */}
-      <Card className="shadow-sm">
-        <Card.Body>
+      {/* Primary payroll path */}
+      <Card className="shadow-sm mb-3 salary-payroll-card">
+        <Card.Header className="bg-white border-bottom-0 pt-3 pb-0">
+          <h5 className="mb-1">Payroll</h5>
+          <p className="text-muted small mb-0">
+            Day-to-day path: set pay → preview → generate slips
+          </p>
+        </Card.Header>
+        <Card.Body className="salary-payroll-card-body">
           <Tabs
-            activeKey={activeTab}
-            onSelect={(k) => setActiveTab(k)}
+            activeKey={payrollTabKey}
+            onSelect={(k) => selectTab(k)}
             className="mb-3"
           >
-            <Tab eventKey="slips" title="Salary Slips">
-              <SalarySlipList />
+            <Tab eventKey="simple-payroll" title="Payroll">
+              {activeTab === "simple-payroll" && <SimplePayrollTab />}
+            </Tab>
+            <Tab eventKey="previews" title="Salary Preview">
+              {activeTab === "previews" && <HRSalaryPreviewManagement />}
             </Tab>
             <Tab eventKey="generate" title="Generate Slips">
-              <GenerateSalarySlips />
+              {activeTab === "generate" && <GenerateSalarySlips />}
             </Tab>
-            <Tab eventKey="structures" title="Salary Structures">
-              <SalaryStructures />
-            </Tab>
-            <Tab eventKey="previews" title="Salary Previews">
-              <HRSalaryPreviewManagement />
-            </Tab>
-            <Tab eventKey="templates" title="Templates">
-              <TemplateManagement />
+            <Tab eventKey="slips" title="Salary Slips">
+              {activeTab === "slips" && <SalarySlipList />}
             </Tab>
             <Tab eventKey="reports" title="Reports">
-              <PayrollSummary />
+              {activeTab === "reports" && <PayrollSummary />}
             </Tab>
           </Tabs>
+          {!isPayrollTab && (
+            <p className="text-muted small mb-0">
+              You are viewing Advanced tools below. Switch tabs here to return
+              to the main payroll path.
+            </p>
+          )}
         </Card.Body>
       </Card>
 
+      {/* Advanced / legacy */}
+      <Accordion
+        activeKey={advancedAccordionKey}
+        onSelect={handleAdvancedAccordion}
+        className="shadow-sm mb-4 salary-mgmt-advanced-accordion"
+      >
+        <Accordion.Item eventKey="advanced" className="border-0">
+          <Accordion.Header>
+            <div>
+              <strong>Advanced / Legacy</strong>
+              <div className="text-muted small fw-normal">
+                Pay periods, approval workflows, bank/NEFT exports, dual-run
+                validation, allowance structures, and templates — only when needed
+              </div>
+            </div>
+          </Accordion.Header>
+          <Accordion.Body>
+            <Tabs
+              activeKey={advancedTabKey}
+              onSelect={(k) => selectTab(k)}
+              className="mb-3"
+            >
+              <Tab eventKey="structures" title="Salary Structures">
+                {activeTab === "structures" && <SalaryStructures />}
+              </Tab>
+              <Tab eventKey="periods" title="Pay Periods">
+                {activeTab === "periods" && <PayrollPeriods />}
+              </Tab>
+              <Tab eventKey="approvals" title="Approvals">
+                {activeTab === "approvals" && <PayrollApprovals />}
+              </Tab>
+              <Tab eventKey="exports" title="Exports">
+                {activeTab === "exports" && <PayrollExports />}
+              </Tab>
+              <Tab eventKey="dual-run" title="Dual-run">
+                {activeTab === "dual-run" && <PayrollDualRun />}
+              </Tab>
+              <Tab eventKey="templates" title="Templates">
+                {activeTab === "templates" && <TemplateManagement />}
+              </Tab>
+            </Tabs>
+          </Accordion.Body>
+        </Accordion.Item>
+      </Accordion>
+
       <style>{`
+        /* Keep Payroll above Advanced so table action menus overlay correctly */
+        .salary-payroll-card {
+          position: relative;
+          z-index: 5;
+        }
+        .salary-payroll-card-body,
+        .salary-payroll-card-body .tab-content,
+        .salary-payroll-card-body .tab-pane,
+        .salary-payroll-card-body .card,
+        .salary-payroll-card-body .card-body,
+        .salary-payroll-card-body .table-responsive {
+          overflow: visible !important;
+        }
+        /* Advanced accordion stays underneath open action menus */
+        .salary-mgmt-advanced-accordion {
+          position: relative;
+          z-index: 1;
+        }
+
         /* Salary Management Header Styles */
         .salary-header-card {
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);

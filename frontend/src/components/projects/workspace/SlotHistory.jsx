@@ -10,6 +10,7 @@ import SlotGroupHeader from './SlotGroupHeader';
 import WorkItemDetailsModal from '../../workitems/WorkItemDetailsModal';
 import EditWorkItemModal from '../../workitems/EditWorkItemModal';
 import { useAuth } from '../../../context/AuthContext';
+import { checkPageAccess, PAGE_ACCESS } from '../../../constants/pageAccess';
 
 /**
  * SlotHistory Component
@@ -17,7 +18,7 @@ import { useAuth } from '../../../context/AuthContext';
  * Uses the same slot design as the Work tab
  */
 const SlotHistory = ({ project, onRefresh, refreshKey }) => {
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
   const [selectedMonthSlots, setSelectedMonthSlots] = useState([]);
   const [groupedWorkItems, setGroupedWorkItems] = useState({ slotted: {}, unassigned: [] });
   const [expandedSlots, setExpandedSlots] = useState({});
@@ -213,15 +214,11 @@ const SlotHistory = ({ project, onRefresh, refreshKey }) => {
   };
 
   // Check if user can manage slots
-  const canManageSlots = 
-    user?.role === 'admin' || 
-    user?.role === 'superadmin' || 
-    user?.role === 'hr' ||
-    user?.role === 'manager' ||
-    user?.role === 'hod' ||
+  const canManageSlots =
+    checkPageAccess(canAccess, PAGE_ACCESS.projectManage) ||
     user?._id === project.projectHead?._id;
 
-  const canDeleteWork = ['admin', 'superadmin', 'hr', 'manager'].includes(user?.role);
+  const canDeleteWork = checkPageAccess(canAccess, PAGE_ACCESS.workManage);
 
   // Helper function to check if user can edit a work item
   const canEditWorkItem = (workItem) => {
@@ -230,7 +227,7 @@ const SlotHistory = ({ project, onRefresh, refreshKey }) => {
     const isAssigned = workItem.assignedTo?._id?.toString() === userId;
     const isAssignedMultiple = workItem.assignedToMultiple?.some(id => (id._id || id).toString() === userId);
     const isProjectHead = project?.projectHead?._id?.toString() === userId;
-    const isAdmin = ['admin', 'superadmin', 'hod', 'manager'].includes(user?.role);
+    const isAdmin = canAccess('projects.project.manage', ['admin', 'superadmin', 'hod', 'manager']);
     
     return isCreator || isAssigned || isAssignedMultiple || isProjectHead || isAdmin;
   };

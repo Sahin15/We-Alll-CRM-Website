@@ -216,7 +216,7 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
           // Load team members for this project
           try {
             setLoadingData(true);
-            const usersRes = await userApi.getAllUsers({ limit: 1000 });
+            const usersRes = await userApi.getAllUsers({ status: 'active', limit: 1000 });
             const allFetchedUsers = Array.isArray(usersRes) ? usersRes : (usersRes.data || usersRes.users || []);
             
             let teamMembers = [];

@@ -6,6 +6,7 @@ import {
 import { toast } from 'react-toastify';
 import { FaPlus, FaEye } from 'react-icons/fa';
 import { useAuth } from '../../../context/AuthContext';
+import { PAGE_ACCESS, checkPageAccess } from '../../../constants/pageAccess';
 import { listGRs } from '../../../api/procurementApi';
 import ProcurementBreadcrumb from '../../../components/procurement/ProcurementBreadcrumb';
 
@@ -20,10 +21,10 @@ const formatDate = (date) =>
 
 export default function GoodsReceiptList() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { canAccess } = useAuth();
 
   // hr and manager can also create GRs per backend writeRoles
-  const canWrite = ['admin', 'superadmin', 'accounts', 'hr', 'manager'].includes(user?.role);
+  const canWrite = checkPageAccess(canAccess, PAGE_ACCESS.procurementOpsWrite);
 
   const [grs, setGrs] = useState([]);
   const [loading, setLoading] = useState(true);

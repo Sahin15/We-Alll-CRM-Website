@@ -10,22 +10,37 @@ import {
   getCategories,
   updateDisplayOrder,
 } from "../controllers/serviceController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
 
-// Public routes (for clients to view services)
+const SERVICE_ADMIN_ROLES = ["admin", "superadmin"];
+const serviceManage = requireModulePermission("billing", "billing.subscription.manage", {
+  legacyRoles: SERVICE_ADMIN_ROLES,
+});
+
 router.get("/", getAllServices);
 router.get("/categories", getCategories);
 router.get("/by-category", getServicesByCategory);
 router.get("/:id", getServiceById);
 
-// Protected routes (admin only)
-router.post("/", protect, authorizeRoles("admin", "superadmin"), createService);
-router.put("/:id", protect, authorizeRoles("admin", "superadmin"), updateService);
-router.delete("/:id", protect, authorizeRoles("admin", "superadmin"), deleteService);
-router.patch("/:id/toggle-status", protect, authorizeRoles("admin", "superadmin"), toggleServiceStatus);
-router.post("/display-order", protect, authorizeRoles("admin", "superadmin"), updateDisplayOrder);
+router.post("/", protect, serviceManage, createService);
+router.put("/:id", protect, serviceManage, updateService);
+router.delete("/:id", protect, serviceManage, deleteService);
+router.patch(
+  "/:id/toggle-status",
+  protect,
+  serviceManage,
+  toggleServiceStatus
+);
+router.post(
+  "/display-order",
+  protect,
+  serviceManage,
+  updateDisplayOrder
+);
 
 export default router;

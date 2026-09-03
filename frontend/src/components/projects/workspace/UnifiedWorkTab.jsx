@@ -3,6 +3,7 @@ import { Card, Button, Table, Badge, Modal, Form, Row, Col, Collapse, Alert } fr
 import { FaEdit, FaTrash, FaEye, FaPlus } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../../context/AuthContext';
+import { checkPageAccess, PAGE_ACCESS } from '../../../constants/pageAccess';
 import projectApi from '../../../api/projectApi';
 import workItemApi from '../../../api/workItemApi';
 import workCalendarApi from '../../../api/workCalendarApi';
@@ -17,7 +18,7 @@ import EditWorkItemModal from '../../workitems/EditWorkItemModal';
  * Handles both slot-based and regular work items
  */
 const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
   const [loading, setLoading] = useState(true);
   const [workItems, setWorkItems] = useState([]);
   const [slots, setSlots] = useState([]);
@@ -291,11 +292,11 @@ const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
     return 'Unassigned';
   };
 
-  const canManageWork = ['admin', 'superadmin', 'hr', 'manager'].includes(user?.role) ||
+  const canManageWork = checkPageAccess(canAccess, PAGE_ACCESS.workManage) ||
     user?._id === project.projectHead?._id ||
     project.assignedUsers?.some(u => (u._id || u) === user?._id);
 
-  const canDeleteWork = ['admin', 'superadmin', 'hr', 'manager'].includes(user?.role);
+  const canDeleteWork = checkPageAccess(canAccess, PAGE_ACCESS.workManage);
 
   // Helper function to check if user can edit a work item
   const canEditWorkItem = (workItem) => {
@@ -304,7 +305,7 @@ const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
     const isAssigned = workItem.assignedTo?._id?.toString() === userId;
     const isAssignedMultiple = workItem.assignedToMultiple?.some(id => (id._id || id).toString() === userId);
     const isProjectHead = project?.projectHead?._id?.toString() === userId;
-    const isAdmin = ['admin', 'superadmin', 'hod', 'manager'].includes(user?.role);
+    const isAdmin = canAccess('projects.project.manage', ['admin', 'superadmin', 'hod', 'manager']);
     
     return isCreator || isAssigned || isAssignedMultiple || isProjectHead || isAdmin;
   };
@@ -457,6 +458,16 @@ const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
                                         {item.isEdited && (
                                           <Badge bg="warning" style={{ fontSize: '0.7rem', padding: '2px 6px', marginLeft: '8px' }} title="This work item has been edited">
                                             ✏️ Edited
+                                          </Badge>
+                                        )}
+                                        {(item.deliverableTitle || item.deliverableId) && (
+                                          <Badge bg="purple" style={{ backgroundColor: '#6f42c1', color: '#fff', fontSize: '0.7rem', padding: '2px 6px', marginLeft: '6px' }}>
+                                            🎯 {item.deliverableTitle || 'Deliverable'}
+                                          </Badge>
+                                        )}
+                                        {item.plannedMonth && item.plannedMonth.year && (
+                                          <Badge bg="secondary" style={{ fontSize: '0.7rem', padding: '2px 6px', marginLeft: '6px' }}>
+                                            📅 {item.plannedMonth.year}-{String(item.plannedMonth.month).padStart(2, '0')}
                                           </Badge>
                                         )}
                                       </div>

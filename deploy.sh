@@ -8,9 +8,10 @@ set -e  # Stop on any error
 
 echo "🚀 Starting deployment..."
 
-# 1. Stash any local changes and pull latest code
+# 1. Pull latest code (discard local lockfile drift from npm install on server)
 echo "📥 Pulling latest code from GitHub..."
-git stash
+git checkout -- backend/package-lock.json frontend/package-lock.json 2>/dev/null || true
+git stash push -m "pre-deploy-$(date +%Y%m%d)" 2>/dev/null || true
 git pull origin main
 
 # 2. Install backend dependencies

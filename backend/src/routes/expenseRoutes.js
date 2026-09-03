@@ -29,48 +29,175 @@ import {
   getExpenseTypes,
   getPurposeTypeMatrix,
 } from "../controllers/expenseController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
+import { requireModulePermission, requireModulePermissionAny } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
 
-// All routes are protected (require authentication)
+const EXPENSE_APPROVE_ROLES = ["admin", "hr", "superadmin", "manager"];
+const EXPENSE_BUDGET_ADMIN_ROLES = ["admin", "superadmin"];
+const EXPENSE_SELF_ROLES = [
+  "employee",
+  "hod",
+  "sales",
+  "manager",
+  "hr",
+  "admin",
+  "superadmin",
+];
+
+const EXPENSE_VIEW_ROLES = [...new Set([...EXPENSE_SELF_ROLES, ...EXPENSE_APPROVE_ROLES])];
+
 router.use(protect);
 
-// Specific routes (must come before parameterized routes)
-router.get("/my-expenses", getMyExpenses);
-router.get("/stats", getExpenseStats);
-router.get("/category/stats", getCategoryStats);
-router.get("/purposes", getExpensePurposes);
-router.get("/types", getExpenseTypes);
-router.get("/tracking/reimbursement", authorizeRoles("admin", "hr", "superadmin", "manager"), getReimbursementTracking);
-router.get("/analytics/overview", authorizeRoles("admin", "hr", "superadmin", "manager"), getExpenseAnalytics);
-router.get("/analytics/trends", authorizeRoles("admin", "hr", "superadmin", "manager"), getMonthlyTrends);
-router.get("/analytics/budget", authorizeRoles("admin", "hr", "superadmin", "manager"), getBudgetTracking);
-router.get("/analytics/budget-with-limits", authorizeRoles("admin", "hr", "superadmin", "manager"), getBudgetTrackingWithLimits);
-router.get("/analytics/purpose-type-matrix", authorizeRoles("admin", "hr", "superadmin", "manager"), getPurposeTypeMatrix);
-router.get("/budget/all", authorizeRoles("admin", "superadmin"), getAllBudgets);
-router.get("/budget/:category", authorizeRoles("admin", "hr", "superadmin", "manager"), getBudgetByCategory);
-router.get("/financial-years", authorizeRoles("admin", "hr", "superadmin", "manager"), getFinancialYears);
+router.get(
+  "/my-expenses",
+  requireModulePermission("finance", "expense.claim.create", { legacyRoles: EXPENSE_SELF_ROLES }),
+  getMyExpenses
+);
+router.get(
+  "/stats",
+  requireModulePermission("finance", "expense.claim.create", { legacyRoles: EXPENSE_SELF_ROLES }),
+  getExpenseStats
+);
+router.get(
+  "/category/stats",
+  requireModulePermission("finance", "expense.claim.create", { legacyRoles: EXPENSE_SELF_ROLES }),
+  getCategoryStats
+);
+router.get(
+  "/purposes",
+  requireModulePermission("finance", "expense.claim.create", { legacyRoles: EXPENSE_SELF_ROLES }),
+  getExpensePurposes
+);
+router.get(
+  "/types",
+  requireModulePermission("finance", "expense.claim.create", { legacyRoles: EXPENSE_SELF_ROLES }),
+  getExpenseTypes
+);
+router.get(
+  "/tracking/reimbursement",
+  requireModulePermission("finance", "expense.claim.approve", { legacyRoles: EXPENSE_APPROVE_ROLES }),
+  getReimbursementTracking
+);
+router.get(
+  "/analytics/overview",
+  requireModulePermission("finance", "expense.claim.approve", { legacyRoles: EXPENSE_APPROVE_ROLES }),
+  getExpenseAnalytics
+);
+router.get(
+  "/analytics/trends",
+  requireModulePermission("finance", "expense.claim.approve", { legacyRoles: EXPENSE_APPROVE_ROLES }),
+  getMonthlyTrends
+);
+router.get(
+  "/analytics/budget",
+  requireModulePermission("finance", "expense.claim.approve", { legacyRoles: EXPENSE_APPROVE_ROLES }),
+  getBudgetTracking
+);
+router.get(
+  "/analytics/budget-with-limits",
+  requireModulePermission("finance", "expense.claim.approve", { legacyRoles: EXPENSE_APPROVE_ROLES }),
+  getBudgetTrackingWithLimits
+);
+router.get(
+  "/analytics/purpose-type-matrix",
+  requireModulePermission("finance", "expense.claim.approve", { legacyRoles: EXPENSE_APPROVE_ROLES }),
+  getPurposeTypeMatrix
+);
+router.get(
+  "/budget/all",
+  requireModulePermission("finance", "expense.claim.approve", { legacyRoles: EXPENSE_BUDGET_ADMIN_ROLES }),
+  getAllBudgets
+);
+router.get(
+  "/budget/:category",
+  requireModulePermission("finance", "expense.claim.approve", { legacyRoles: EXPENSE_APPROVE_ROLES }),
+  getBudgetByCategory
+);
+router.get(
+  "/financial-years",
+  requireModulePermission("finance", "expense.claim.approve", { legacyRoles: EXPENSE_APPROVE_ROLES }),
+  getFinancialYears
+);
 
-// General routes
-router.post("/", createExpense);
-router.get("/", authorizeRoles("admin", "hr", "superadmin", "manager"), getAllExpenses);
+router.post(
+  "/",
+  requireModulePermission("finance", "expense.claim.create", { legacyRoles: EXPENSE_SELF_ROLES }),
+  createExpense
+);
+router.get(
+  "/",
+  requireModulePermission("finance", "expense.claim.approve", { legacyRoles: EXPENSE_APPROVE_ROLES }),
+  getAllExpenses
+);
 
-// POST routes
-router.post("/search/advanced", searchExpenses);
-router.post("/export/data", authorizeRoles("admin", "hr", "superadmin", "manager"), exportExpenses);
-router.post("/bulk/approve", authorizeRoles("admin", "hr", "superadmin"), bulkApproveExpenses);
-router.post("/bulk/reject", authorizeRoles("admin", "hr", "superadmin"), bulkRejectExpenses);
-router.post("/budget/set", authorizeRoles("admin", "superadmin"), setBudget);
-router.post("/budget/bulk-set", authorizeRoles("admin", "superadmin"), setBulkBudgets);
+router.post(
+  "/search/advanced",
+  requireModulePermission("finance", "expense.claim.create", { legacyRoles: EXPENSE_SELF_ROLES }),
+  searchExpenses
+);
+router.post(
+  "/export/data",
+  requireModulePermission("finance", "expense.claim.approve", { legacyRoles: EXPENSE_APPROVE_ROLES }),
+  exportExpenses
+);
+router.post(
+  "/bulk/approve",
+  requireModulePermission("finance", "expense.claim.approve", { legacyRoles: ["admin", "hr", "superadmin"] }),
+  bulkApproveExpenses
+);
+router.post(
+  "/bulk/reject",
+  requireModulePermission("finance", "expense.claim.approve", { legacyRoles: ["admin", "hr", "superadmin"] }),
+  bulkRejectExpenses
+);
+router.post(
+  "/budget/set",
+  requireModulePermission("finance", "expense.claim.approve", { legacyRoles: EXPENSE_BUDGET_ADMIN_ROLES }),
+  setBudget
+);
+router.post(
+  "/budget/bulk-set",
+  requireModulePermission("finance", "expense.claim.approve", { legacyRoles: EXPENSE_BUDGET_ADMIN_ROLES }),
+  setBulkBudgets
+);
 
-// Parameterized routes (must come last)
-router.get("/:id", getExpenseById);
-router.put("/:id", updateExpense);
-router.delete("/:id", deleteExpense);
-router.patch("/:id/approve", authorizeRoles("admin", "hr", "superadmin"), approveExpense);
-router.patch("/:id/reject", authorizeRoles("admin", "hr", "superadmin"), rejectExpense);
-router.patch("/:id/reimburse", authorizeRoles("admin", "hr", "superadmin"), markAsReimbursed);
+router.get(
+  "/:id",
+  requireModulePermissionAny(
+    "finance",
+    ["expense.claim.create", "expense.claim.approve"],
+    { legacyRoles: EXPENSE_VIEW_ROLES }
+  ),
+  getExpenseById
+);
+router.put(
+  "/:id",
+  requireModulePermission("finance", "expense.claim.create", { legacyRoles: EXPENSE_SELF_ROLES }),
+  updateExpense
+);
+router.delete(
+  "/:id",
+  requireModulePermission("finance", "expense.claim.create", { legacyRoles: EXPENSE_SELF_ROLES }),
+  deleteExpense
+);
+router.patch(
+  "/:id/approve",
+  requireModulePermission("finance", "expense.claim.approve", { legacyRoles: ["admin", "hr", "superadmin"] }),
+  approveExpense
+);
+router.patch(
+  "/:id/reject",
+  requireModulePermission("finance", "expense.claim.approve", { legacyRoles: ["admin", "hr", "superadmin"] }),
+  rejectExpense
+);
+router.patch(
+  "/:id/reimburse",
+  requireModulePermission("finance", "expense.claim.approve", { legacyRoles: ["admin", "hr", "superadmin"] }),
+  markAsReimbursed
+);
 
 export default router;

@@ -84,36 +84,32 @@ const CreateProjectModal = ({ show, onHide, onSuccess, editProject = null }) => 
 
   const loadData = async () => {
     try {
-      const [clientsRes, deptsRes, usersRes] = await Promise.all([
+      const [clientsResult, deptsResult, usersResult] = await Promise.allSettled([
         clientApi.getAllClients(),
         departmentApi.getAllDepartments(),
-        userApi.getAllUsers()
+        userApi.getAllUsers({ status: 'active', limit: 1000 }),
       ]);
-      
-      // Handle different response formats
+
+      const clientsRes = clientsResult.status === 'fulfilled' ? clientsResult.value : [];
+      let deptsRes = deptsResult.status === 'fulfilled' ? deptsResult.value : [];
+      if (deptsResult.status === 'rejected' && deptsResult.reason?.response?.status === 403) {
+        try {
+          deptsRes = await departmentApi.getDepartmentDirectory();
+        } catch {
+          deptsRes = [];
+        }
+      }
+      const usersRes = usersResult.status === 'fulfilled' ? usersResult.value : [];
+
       const clientsData = Array.isArray(clientsRes) ? clientsRes : (clientsRes.data || clientsRes.clients || []);
       const deptsData = Array.isArray(deptsRes) ? deptsRes : (deptsRes.data || deptsRes.departments || []);
       const usersData = Array.isArray(usersRes) ? usersRes : (usersRes.data || usersRes.users || []);
-      
-      console.log('Raw responses:', { clientsRes, deptsRes, usersRes });
-      console.log('Processed data:', { 
-        clients: clientsData, 
-        departments: deptsData, 
-        users: usersData 
-      });
-      
+
       setClients(clientsData);
       setDepartments(deptsData);
       setUsers(usersData);
-      
-      console.log('Loaded data:', { 
-        clients: clientsData.length, 
-        departments: deptsData.length, 
-        users: usersData.length 
-      });
     } catch (error) {
       console.error('Error loading data:', error);
-      console.error('Error details:', error.response?.data || error.message);
       toast.error('Failed to load form data: ' + (error.response?.data?.message || error.message));
     }
   };

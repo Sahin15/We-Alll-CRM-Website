@@ -9,6 +9,7 @@ import {
   FaUniversity, FaCreditCard, FaMoneyBillWave, FaFileContract, FaVolumeUp, FaTimes
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
+import { PAGE_ACCESS, checkPageAccess } from "../../constants/pageAccess";
 import ProfilePictureUpload from "../../components/profile/ProfilePictureUpload";
 import NotificationSettings from "../../components/notifications/NotificationSettings";
 import api from "../../services/api";
@@ -18,7 +19,7 @@ import "../../styles/modal-mobile.css";
 import "../../styles/profile-tabs.css";
 
 const MyProfile = () => {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, canAccess } = useAuth();
   const [activeTab, setActiveTab] = useState(
     ['admin', 'superadmin'].includes(user?.role) ? 'personal' : 'personal'
   );
@@ -72,7 +73,7 @@ const MyProfile = () => {
 
   // Document categories based on user role
   const getDocumentCategories = () => {
-    const isHROrAdmin = ['hr', 'admin', 'superadmin'].includes(user?.role);
+    const isHROrAdmin = checkPageAccess(canAccess, PAGE_ACCESS.profileHrView);
     
     const employeeCategories = [
       { value: 'aadhaar', label: 'Aadhaar Card', icon: <FaIdCard />, oneTime: true },
@@ -298,6 +299,19 @@ const MyProfile = () => {
         }
       }
       
+      if (doc?.path?.startsWith('https://')) {
+        const link = window.document.createElement('a');
+        link.href = doc.path;
+        link.setAttribute('download', filename);
+        link.setAttribute('target', '_blank');
+        link.rel = 'noopener noreferrer';
+        window.document.body.appendChild(link);
+        link.click();
+        link.remove();
+        toast.success('Document downloaded successfully');
+        return;
+      }
+
       const response = await api.get(`/users/documents/${documentId}/download`, {
         responseType: 'blob'
       });
@@ -327,7 +341,6 @@ const MyProfile = () => {
       }
       
       toast.error(errorMessage, { duration: 6000 });
-      toast.error(errorMessage);
     }
   };
 
@@ -341,12 +354,20 @@ const MyProfile = () => {
         toast.error('Access denied: This document does not belong to you.');
         return;
       }
+
+      if (doc.path?.startsWith('https://')) {
+        setViewingDocument({
+          ...doc,
+          url: doc.path,
+        });
+        setShowDocumentViewer(true);
+        return;
+      }
       
       const response = await api.get(`/users/documents/${doc._id}/download`, {
         responseType: 'blob'
       });
       
-      // Create blob with proper MIME type
       const blob = new Blob([response.data], { type: doc.mimetype || response.data.type });
       const url = window.URL.createObjectURL(blob);
       
@@ -524,9 +545,9 @@ const MyProfile = () => {
   };
 
   const roleBadge = getRoleBadge(user?.role, user?.funBadge);
-  const isHROrAdmin = ['hr', 'admin', 'superadmin'].includes(user?.role);
-  const isAdmin = ['admin', 'superadmin'].includes(user?.role);
-  const isEmployee = ['employee', 'hod', 'hr', 'manager'].includes(user?.role);
+  const isHROrAdmin = checkPageAccess(canAccess, PAGE_ACCESS.profileHrView);
+  const isAdmin = checkPageAccess(canAccess, PAGE_ACCESS.platformAdmin);
+  const isEmployee = checkPageAccess(canAccess, PAGE_ACCESS.profileStaffView);
 
   const openDocumentModal = (category = '', documentId = null) => {
     setDocumentType(category);
@@ -1084,7 +1105,7 @@ const MyProfile = () => {
               <Tabs
                 activeKey={activeTab}
                 onSelect={(k) => setActiveTab(k)}
-                className="pt-3"
+                className="pt-3 profile-tabs-fill"
               >
             {/* Admin Profile Layout - Matches the image exactly */}
             {isAdmin ? (
@@ -1528,7 +1549,7 @@ const MyProfile = () => {
                     <Form.Group>
                       <Form.Label>Employee ID</Form.Label>
                       <div className="form-control-plaintext border rounded p-2 bg-light">
-                        {user?.employeeId || user?._id?.slice(-6).toUpperCase() || 'N/A'}
+                        {user?.employeeId || 'Not assigned'}
                       </div>
                     </Form.Group>
                   </Col>

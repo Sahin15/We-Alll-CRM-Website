@@ -10,6 +10,7 @@ import {
   FaFileInvoiceDollar,
 } from 'react-icons/fa';
 import { useAuth } from '../../../context/AuthContext';
+import { PAGE_ACCESS, checkPageAccess } from '../../../constants/pageAccess';
 import {
   getPO, issuePO, cancelPO, getPOPdf, listGRs, listInvoices,
 } from '../../../api/procurementApi';
@@ -32,13 +33,10 @@ const formatDateTime = (dateStr) =>
       })
     : '—';
 
-// Roles allowed to issue / cancel POs
-const PRIVILEGED_ROLES = ['admin', 'accounts', 'superadmin', 'manager'];
-
 export default function PurchaseOrderDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { canAccess } = useAuth();
 
   const [po, setPo] = useState(null);
   const [grs, setGrs] = useState([]);
@@ -55,7 +53,7 @@ export default function PurchaseOrderDetails() {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
 
-  const isPrivileged = PRIVILEGED_ROLES.includes(user?.role?.toLowerCase());
+  const canWrite = checkPageAccess(canAccess, PAGE_ACCESS.procurementWrite);
 
   // ── Fetch PO + related data ─────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
@@ -209,7 +207,7 @@ export default function PurchaseOrderDetails() {
 
         <div className="d-flex gap-2 flex-wrap">
           {/* Issue button — draft only, privileged users */}
-          {po.status === 'draft' && isPrivileged && (
+          {po.status === 'draft' && canWrite && (
             <Button variant="success" onClick={handleIssue} disabled={issuing}>
               {issuing
                 ? <Spinner size="sm" animation="border" className="me-1" />
@@ -219,7 +217,7 @@ export default function PurchaseOrderDetails() {
           )}
 
           {/* Cancel button — draft only, privileged users */}
-          {po.status === 'draft' && isPrivileged && (
+          {po.status === 'draft' && canWrite && (
             <Button variant="outline-danger" onClick={() => { setCancelModal(true); setCancelReason(''); }}>
               <FaTimes className="me-1" /> Cancel PO
             </Button>

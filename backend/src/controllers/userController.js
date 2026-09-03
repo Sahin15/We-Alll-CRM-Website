@@ -5,6 +5,8 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import logger from '../utils/logger.js';
 import { buildTextSearch } from '../utils/queryOptimizer.js';
+import { mergeExcludePastMembersFilter, mergeActiveEmployeeFilter } from '../utils/employeeQueryUtils.js';
+import { generateNextEmployeeId, normalizeEmployeeId, isValidEmployeeIdFormat, isEmployeeIdTaken } from '../services/employeeIdService.js';
 
 //generate token
 const generateToken = (id) => {
@@ -106,10 +108,36 @@ export const registerUser = async (req, res) => {
   }
 };
 
+/**
+ * Active user roster for meeting attendee pickers (no team.user.view required).
+ * Gated by company.meeting.view — available to all standard employees and HoD.
+ */
+export const getMeetingDirectory = async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 1000, 1000);
+
+    const users = await User.find({
+      status: "active",
+      isActive: { $ne: false },
+      role: { $ne: "superadmin" },
+    })
+      .select("_id name email role department profilePicture designation status")
+      .populate("department", "name")
+      .sort({ name: 1 })
+      .limit(limit)
+      .lean();
+
+    res.status(200).json(users);
+  } catch (error) {
+    logger.error("Error in getMeetingDirectory:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 // Get all users (optimized but backward compatible)
 export const getUsers = async (req, res) => {
   try {
-    const { search, role, department, status, limit = 100, skip = 0 } = req.query;
+    const { search, role, department, status, excludePast, limit = 100, skip = 0 } = req.query;
     
     let query = {};
     
@@ -143,19 +171,20 @@ export const getUsers = async (req, res) => {
       }
     }
     
-    // Status filter — also exclude isActive:false users when filtering for active
-    if (status) {
+    // Status filter — use shared roster helpers (single source of truth for spellings/values)
+    if (status === 'active') {
+      Object.assign(query, mergeActiveEmployeeFilter(query));
+    } else if (status) {
       query.status = status;
-      if (status === 'active') {
-        query.isActive = { $ne: false };
-      }
+    } else if (excludePast === 'true') {
+      Object.assign(query, mergeExcludePastMembersFilter(query));
     }
     
-    logger.info('getUsers query:', query);
+    logger.info('getUsers query:', JSON.stringify(query));
     
     // Optimized query with pagination and all necessary fields for display
     const users = await User.find(query)
-      .select('_id name email role department profilePicture designation status isActive employeeId joiningDate hireDate phone reactivationDate')
+      .select('_id name email role department profilePicture designation status isActive employeeId joiningDate hireDate phone reactivationDate dateOfBirth employmentType')
       .populate('department', 'name')
       .sort({ createdAt: -1 })
       .limit(parseInt(limit))
@@ -205,9 +234,11 @@ export const loginUser = async (req, res) => {
       message: "Login successful",
       user: {
         id: user._id,
+        _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
+        profilePicture: user.profilePicture || null,
         isHeadOfDepartment: user.isHeadOfDepartment || false,
         headOfDepartment: user.headOfDepartment || null,
         headOfProjects: user.headOfProjects || [],
@@ -413,6 +444,61 @@ export const updateUser = async (req, res) => {
       }
     }
 
+    // Employee ID — preserve assigned IDs; validate new WA-YY-XXXX assignments
+    if (Object.prototype.hasOwnProperty.call(updateData, "employeeId")) {
+      const incomingRaw =
+        typeof updateData.employeeId === "string"
+          ? updateData.employeeId.trim()
+          : updateData.employeeId;
+      const currentId = user.employeeId?.trim() || "";
+
+      if (currentId) {
+        const incomingNormalized = normalizeEmployeeId(incomingRaw || "");
+        const currentNormalized = normalizeEmployeeId(currentId);
+
+        if (incomingNormalized !== currentNormalized) {
+          if (!["superadmin", "admin"].includes(req.user.role)) {
+            return res.status(400).json({
+              message: "Employee ID cannot be changed once assigned. Contact an administrator if a correction is required.",
+            });
+          }
+
+          if (!incomingNormalized) {
+            return res.status(400).json({ message: "Employee ID cannot be removed once assigned." });
+          }
+
+          if (!isValidEmployeeIdFormat(incomingNormalized)) {
+            return res.status(400).json({
+              message: "Employee ID must match format WA-YY-XXXX (e.g. WA-26-0002).",
+            });
+          }
+
+          if (await isEmployeeIdTaken(User, incomingNormalized, user._id)) {
+            return res.status(400).json({ message: "Employee ID is already assigned to another employee." });
+          }
+
+          updateData.employeeId = incomingNormalized;
+        } else {
+          delete updateData.employeeId;
+        }
+      } else if (incomingRaw) {
+        const normalized = normalizeEmployeeId(incomingRaw);
+        if (!isValidEmployeeIdFormat(normalized)) {
+          return res.status(400).json({
+            message: "Employee ID must match format WA-YY-XXXX (e.g. WA-26-0002).",
+          });
+        }
+
+        if (await isEmployeeIdTaken(User, normalized, user._id)) {
+          return res.status(400).json({ message: "Employee ID is already assigned to another employee." });
+        }
+
+        updateData.employeeId = normalized;
+      } else {
+        delete updateData.employeeId;
+      }
+    }
+
     // Handle internship details specifically
     if (updateData.internshipDetails) {
       logger.info("Processing internship details:", updateData.internshipDetails);
@@ -553,6 +639,7 @@ export const updateEmployeeStatus = async (req, res) => {
 
     // Update status and audit fields
     user.status = status;
+    user.isActive = status === "active";
     user.statusChangedAt = new Date();
     user.statusChangedBy = req.user._id;
     // Always clear reactivationDate unless explicitly setting to inactive with a date
@@ -739,57 +826,32 @@ export const changePassword = async (req, res) => {
 // Generate next employee ID sequence
 export const getNextEmployeeIdSequence = async (req, res) => {
   try {
-    const { joiningDate, employmentType } = req.body;
+    const { joiningDate, employmentType, excludeUserId } = req.body;
 
-    // Validate input
-    if (!joiningDate) {
-      return res.status(400).json({ message: "Joining date is required" });
-    }
-
-    if (employmentType !== 'full-time') {
-      return res.status(400).json({ 
-        message: "Only permanent (full-time) employees can be assigned an employee ID" 
-      });
-    }
-
-    // Get all employees with employee IDs, sorted by sequence number
-    const employeesWithIds = await User.find({
-      employeeId: { $exists: true, $ne: null }
-    }).exec();
-
-    // Extract sequence numbers from existing employee IDs
-    // Format: WA-YY-XXXX
-    let maxSequence = 1; // Start from 1, will be incremented to 2
-
-    employeesWithIds.forEach(emp => {
-      if (emp.employeeId) {
-        const parts = emp.employeeId.split('-');
-        if (parts.length === 3) {
-          const sequence = parseInt(parts[2], 10);
-          if (!isNaN(sequence) && sequence > maxSequence) {
-            maxSequence = sequence;
-          }
-        }
-      }
+    const result = await generateNextEmployeeId(User, {
+      joiningDate,
+      employmentType,
+      excludeUserId: excludeUserId || req.body.userId || null,
     });
 
-    // Next sequence number
-    const nextSequence = maxSequence + 1;
-
-    // Generate employee ID
-    const year = new Date(joiningDate).getFullYear().toString().slice(-2);
-    const sequenceStr = String(nextSequence).padStart(4, '0');
-    const employeeId = `WA-${year}-${sequenceStr}`;
-
-    logger.info("Generated employee ID:", { employeeId, nextSequence });
+    logger.info("Generated employee ID:", result);
 
     res.status(200).json({
-      employeeId,
-      sequence: nextSequence,
-      message: "Employee ID generated successfully"
+      employeeId: result.employeeId,
+      sequence: result.sequence,
+      message: "Employee ID generated successfully",
     });
   } catch (error) {
     logger.error("Error in getNextEmployeeIdSequence:", error);
+
+    if (
+      error.message === "Joining date is required" ||
+      error.message === "Invalid joining date" ||
+      error.message.includes("Only permanent (full-time)")
+    ) {
+      return res.status(400).json({ message: error.message });
+    }
+
     res.status(500).json({ message: "Server error" });
   }
 };

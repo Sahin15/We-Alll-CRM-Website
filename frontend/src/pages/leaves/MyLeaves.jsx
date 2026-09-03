@@ -16,7 +16,7 @@ import { FaPlus, FaTimes, FaInfoCircle, FaExclamationTriangle, FaEye } from "rea
 import { toast } from "react-toastify";
 import { leaveApi } from "../../api/leaveApi";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
-import { LEAVE_TYPE_DETAILS } from "../../utils/constants";
+import { LEAVE_TYPE_DETAILS, getLeaveTypeLabel } from "../../utils/constants";
 import ApplyWFHModal from "../../components/wfh/ApplyWFHModal";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -25,6 +25,7 @@ import {
   getAllowedLeaveTypes,
   isFullTimeEmployee,
 } from "../../utils/leaveEligibility";
+import { getLeaveRequestDays } from "../../utils/leaveDays";
 
 const MyLeaves = () => {
   const { user } = useAuth();
@@ -39,7 +40,7 @@ const MyLeaves = () => {
   const allowedLeaveTypes = getAllowedLeaveTypes(user, leaveBalance);
 
   const [formData, setFormData] = useState({
-    leaveType: isFullTimeEmployee(user) ? "personal" : "unpaid",
+    leaveType: isFullTimeEmployee(user) ? "casual" : "unpaid",
     startDate: "",
     endDate: "",
     reason: "",
@@ -78,32 +79,8 @@ const MyLeaves = () => {
     }
   };
 
-  const calculateDays = (startDate, endDate) => {
-    if (!startDate || !endDate) return 0;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    return Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
-  };
-
-  const validateAdvanceNotice = (leaveType, startDate) => {
-    if (!startDate) return { valid: true };
-    
-    const start = new Date(startDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const daysDifference = Math.ceil((start - today) / (1000 * 60 * 60 * 24));
-    const requiredDays = LEAVE_TYPE_DETAILS[leaveType]?.advanceNotice || 0;
-    
-    if (daysDifference < requiredDays) {
-      return {
-        valid: false,
-        message: `${LEAVE_TYPE_DETAILS[leaveType]?.name} requires ${requiredDays} days advance notice`
-      };
-    }
-    
-    return { valid: true };
-  };
+  const calculateDays = (leaveType, startDate, endDate) =>
+    getLeaveRequestDays(leaveType, startDate, endDate);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -115,15 +92,8 @@ const MyLeaves = () => {
       return;
     }
 
-    // Validate advance notice
-    const advanceNoticeCheck = validateAdvanceNotice(formData.leaveType, formData.startDate);
-    if (!advanceNoticeCheck.valid) {
-      toast.error(advanceNoticeCheck.message);
-      return;
-    }
-
     // Check leave balance (skip for unpaid leave)
-    const requestedDays = calculateDays(formData.startDate, formData.endDate);
+    const requestedDays = calculateDays(formData.leaveType, formData.startDate, formData.endDate);
     
     if (paidLeaveEligible && formData.leaveType !== 'unpaid') {
       const availableBalance = leaveBalance?.earned?.remaining || 0;
@@ -146,7 +116,7 @@ const MyLeaves = () => {
       toast.success("Leave request submitted successfully");
       setShowModal(false);
       setFormData({
-        leaveType: "personal",
+        leaveType: paidLeaveEligible ? "casual" : "unpaid",
         startDate: "",
         endDate: "",
         reason: "",
@@ -229,7 +199,9 @@ const MyLeaves = () => {
                       </div>
                       <div>
                         <ProgressBar 
-                          now={(leaveBalance.earned.used / leaveBalance.earned.earned) * 100} 
+                          now={leaveBalance.earned.earned > 0
+                            ? (leaveBalance.earned.used / leaveBalance.earned.earned) * 100
+                            : 0}
                           variant="primary"
                           style={{ width: '100px', height: '8px' }}
                         />
@@ -272,12 +244,11 @@ const MyLeaves = () => {
                         <tr key={leave._id}>
                           <td>
                             <Badge bg={
-                              leave.leaveType === 'personal' ? 'primary' :
+                              leave.leaveType === 'casual' || leave.leaveType === 'personal' || leave.leaveType === 'vacation' ? 'primary' :
                               leave.leaveType === 'medical' ? 'danger' :
-                              leave.leaveType === 'vacation' ? 'success' :
                               leave.leaveType === 'half_day' ? 'warning' : 'secondary'
                             } className="text-capitalize">
-                              {LEAVE_TYPE_DETAILS[leave.leaveType]?.name || leave.leaveType}
+                              {getLeaveTypeLabel(leave.leaveType)}
                             </Badge>
                           </td>
                           <td>{formatDate(leave.startDate)}</td>
@@ -356,9 +327,12 @@ const MyLeaves = () => {
               <Form.Label>Leave Type *</Form.Label>
               <Form.Select
                 value={formData.leaveType}
-                onChange={(e) =>
-                  setFormData({ ...formData, leaveType: e.target.value })
-                }
+                onChange={(e) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    leaveType: e.target.value,
+                  }));
+                }}
                 required
               >
                 {Object.entries(LEAVE_TYPE_DETAILS)
@@ -371,12 +345,6 @@ const MyLeaves = () => {
               </Form.Select>
               <Form.Text className="text-muted">
                 {LEAVE_TYPE_DETAILS[formData.leaveType]?.description}
-                <br />
-                <strong>Advance Notice Required:</strong> {
-                  LEAVE_TYPE_DETAILS[formData.leaveType]?.advanceNotice === 0 
-                    ? 'Same day application allowed' 
-                    : `${LEAVE_TYPE_DETAILS[formData.leaveType]?.advanceNotice} days`
-                }
               </Form.Text>
             </Form.Group>
 
@@ -387,9 +355,12 @@ const MyLeaves = () => {
                   <Form.Control
                     type="date"
                     value={formData.startDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, startDate: e.target.value })
-                    }
+                    onChange={(e) => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        startDate: e.target.value,
+                      }));
+                    }}
                     required
                   />
                 </Form.Group>
@@ -413,7 +384,7 @@ const MyLeaves = () => {
             {formData.startDate && formData.endDate && (
               <Alert variant="info" className="mb-3">
                 <FaInfoCircle className="me-2" />
-                <strong>Leave Duration:</strong> {calculateDays(formData.startDate, formData.endDate)} day(s)
+                <strong>Leave Duration:</strong> {calculateDays(formData.leaveType, formData.startDate, formData.endDate)} day(s)
                 <br />
                 {formData.leaveType === 'unpaid' ? (
                   <span>
@@ -422,7 +393,7 @@ const MyLeaves = () => {
                 ) : (
                   <>
                     <strong>Available Balance:</strong> {leaveBalance?.earned?.remaining || 0} day(s) (earned leaves)
-                    {calculateDays(formData.startDate, formData.endDate) > (leaveBalance?.earned?.remaining || 0) && (
+                    {calculateDays(formData.leaveType, formData.startDate, formData.endDate) > (leaveBalance?.earned?.remaining || 0) && (
                       <div className="text-danger mt-1">
                         <FaExclamationTriangle className="me-1" />
                         Insufficient earned leave balance! You have earned {leaveBalance?.earned?.earned || 0} out of 24 annual leaves.
@@ -430,13 +401,6 @@ const MyLeaves = () => {
                     )}
                   </>
                 )}
-              </Alert>
-            )}
-
-            {formData.startDate && !validateAdvanceNotice(formData.leaveType, formData.startDate).valid && (
-              <Alert variant="warning" className="mb-3">
-                <FaExclamationTriangle className="me-2" />
-                {validateAdvanceNotice(formData.leaveType, formData.startDate).message}
               </Alert>
             )}
 
@@ -463,8 +427,7 @@ const MyLeaves = () => {
               type="submit"
               disabled={
                 isSubmitting ||
-                !validateAdvanceNotice(formData.leaveType, formData.startDate).valid || 
-                (paidLeaveEligible && formData.leaveType !== 'unpaid' && calculateDays(formData.startDate, formData.endDate) > (leaveBalance?.earned?.remaining || 0))
+                (paidLeaveEligible && formData.leaveType !== 'unpaid' && calculateDays(formData.leaveType, formData.startDate, formData.endDate) > (leaveBalance?.earned?.remaining || 0))
               }
             >
               {isSubmitting ? 'Submitting...' : 'Submit Request'}

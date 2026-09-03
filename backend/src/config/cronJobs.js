@@ -11,6 +11,7 @@ import Meeting from "../models/meetingModel.js";
 import ProcurementInvoice from "../models/procurementInvoiceModel.js";
 import { notifySlotDeadlineApproaching, notifySlotOverdue } from "../utils/slotNotifications.js";
 import NotificationService from "../services/notificationService.js";
+import { syncHoDAssignments } from "../services/hodSyncService.js";
 
 // Helper: create notification for a user
 const createNotificationForUser = async (
@@ -787,6 +788,20 @@ export const initializeCronJobs = () => {
   // Run daily at 1 AM: Auto-reactivate inactive employees whose reactivation date has passed
   cron.schedule("0 1 * * *", () => {
     checkReactivationDates();
+  });
+
+  // Run daily at 2 AM: Reconcile Department.head with User HoD fields
+  cron.schedule("0 2 * * *", async () => {
+    try {
+      const result = await syncHoDAssignments();
+      if (result.userUpdates.length || result.departmentUpdates.length) {
+        console.log(
+          `[CronJob] HoD sync applied: ${result.usersUpdated} users, ${result.departmentsUpdated} departments, ${result.issues.length} issues`
+        );
+      }
+    } catch (error) {
+      console.error('[CronJob] syncHoDAssignments error:', error.message);
+    }
   });
 
   

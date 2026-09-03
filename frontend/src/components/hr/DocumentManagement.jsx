@@ -64,7 +64,7 @@ const DocumentManagement = () => {
       setLoading(true);
       
       // Fetch all employees
-      const empResponse = await api.get('/users');
+      const empResponse = await api.get('/users', { params: { excludePast: true, limit: 1000 } });
       const employeeData = empResponse.data.filter(u => u.role === 'employee' || u.role === 'hod');
       setEmployees(employeeData);
       
@@ -447,7 +447,7 @@ const DocumentManagement = () => {
                           <Button
                             size="sm"
                             variant="outline-secondary"
-                            onClick={() => window.location.href = `/users/${emp._id}`}
+                            onClick={() => window.location.href = `/employees/${emp._id}`}
                           >
                             View Profile
                           </Button>

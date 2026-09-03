@@ -19,6 +19,7 @@ import { FaPlus, FaEdit, FaTrash, FaEye, FaFilter, FaEnvelope, FaCheck, FaHistor
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
+import { PAGE_ACCESS, checkPageAccess } from "../../constants/pageAccess";
 import { leadApi } from "../../api/leadApi";
 import emailService from "../../services/emailService";
 import EmailHistoryModal from "../../components/leads/EmailHistoryModal";
@@ -29,7 +30,8 @@ import { formatDate } from "../../utils/helpers";
 import "./LeadList.css";
 
 const LeadList = () => {
-  const { user, token } = useAuth();
+  const { user, token, canAccess } = useAuth();
+  const canManageLeads = checkPageAccess(canAccess, PAGE_ACCESS.crmLeadManage);
   const { id } = useParams(); // For edit mode
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -71,8 +73,8 @@ const LeadList = () => {
   const [selectedLeadForHistory, setSelectedLeadForHistory] = useState(null);
 
   // Team / assignment state — assign access for hod, manager, admin, superadmin, or Sales department members
-  const isManager = ['admin', 'superadmin', 'manager', 'hod'].includes(user?.role) || 
-                    user?.department?.name === 'Sales' || 
+  const isManager = canManageLeads ||
+                    user?.department?.name === 'Sales' ||
                     user?.department === 'Sales';
   const [myLeadsOnly, setMyLeadsOnly] = useState(() => sessionStorage.getItem('leadListMyOnly') !== 'false');
   const [filterAssignedTo, setFilterAssignedTo] = useState('');
@@ -128,7 +130,7 @@ const LeadList = () => {
   useEffect(() => {
     if (isManager) {
       import('../../api/userApi').then(({ userApi }) => {
-        userApi.getAllUsers().then(res => {
+        userApi.getAllUsers({ status: 'active', limit: 1000 }).then(res => {
           const users = Array.isArray(res.data) ? res.data : (res.data?.users || []);
           // Only show Sales department members
           const salesMembers = users.filter(u => {
@@ -328,7 +330,7 @@ const LeadList = () => {
     if (!user) return false;
     
     // Admin, superadmin, hr, and manager can edit any lead
-    if (['admin', 'superadmin', 'hr', 'manager'].includes(user.role)) {
+    if (canManageLeads) {
       return true;
     }
     

@@ -5,7 +5,14 @@
 
 import Project from "../models/projectModel.js";
 import WorkItem from "../models/workItemModel.js";
+import ProjectExpectation from "../models/projectExpectationModel.js";
+import ProjectCommitment from "../models/projectCommitmentModel.js";
+import ProjectActivityLog from "../models/projectActivityLogModel.js";
 import { getProjectStatistics, getTeamWorkload } from "../services/projectProgressService.js";
+import { calculateMonthProgress } from "../services/projectMonthProgressService.js";
+import { canUserViewProject } from "../services/resourceVisibilityService.js";
+import { healProjectTeamMembership } from "../services/projectRosterService.js";
+import { stripPastMembersFromProject } from "../utils/employeeQueryUtils.js";
 
 // @desc    Get project workspace data (overview)
 // @route   GET /api/projects/:id/workspace
@@ -15,12 +22,12 @@ export const getProjectWorkspace = async (req, res) => {
     const { id } = req.params;
     
     // Get project
-    const project = await Project.findById(id)
+    let project = await Project.findById(id)
       .populate("client", "name company email phone")
       .populate("department", "name")
-      .populate("projectHead", "name email designation")
-      .populate("assignedUsers", "name email designation")
-      .populate("teamMembers.user", "name email role designation")
+      .populate("projectHead", "name email designation status")
+      .populate("assignedUsers", "name email designation status")
+      .populate("teamMembers.user", "name email role designation status")
       .populate("teamMembers.assignedBy", "name email")
       .populate("createdBy", "name email");
     
@@ -32,18 +39,34 @@ export const getProjectWorkspace = async (req, res) => {
     }
     
     // Check access
-    const isProjectHead = project.projectHead?._id?.toString() === req.user._id.toString();
-    const isTeamMember = project.assignedUsers?.some(
-      user => user._id.toString() === req.user._id.toString()
-    );
-    const isAdmin = ["admin", "superadmin", "hod", "hr", "manager"].includes(req.user.role);
-    
-    if (!isProjectHead && !isTeamMember && !isAdmin) {
+    const hasAccess = await canUserViewProject(req.user, project);
+    if (!hasAccess) {
       return res.status(403).json({
         success: false,
         error: { code: "FORBIDDEN", message: "Access denied" },
       });
     }
+
+    // Sync legacy assignedUsers into teamMembers for Team tab display
+    const { healed } = await healProjectTeamMembership(project, {
+      assignedBy: req.user?._id,
+    });
+    if (healed) {
+      project = await Project.findById(id)
+        .populate("client", "name company email phone")
+        .populate("department", "name")
+        .populate("projectHead", "name email designation status")
+        .populate("assignedUsers", "name email designation status")
+        .populate("teamMembers.user", "name email role designation status")
+        .populate("teamMembers.assignedBy", "name email")
+        .populate("createdBy", "name email");
+    }
+
+    const projectData = project.toObject ? project.toObject() : project;
+    stripPastMembersFromProject(projectData);
+
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     
     // Get statistics with error handling
     let statistics = {
@@ -72,10 +95,53 @@ export const getProjectWorkspace = async (req, res) => {
     } catch (workloadError) {
       // Use empty array on error
     }
+
+    // Get live monthly progress
+    let monthProgress = null;
+    try {
+      monthProgress = await calculateMonthProgress(id, currentMonthKey);
+    } catch (mpError) {
+      // Ignore if month progress fails
+    }
+
+    // Get expectations and commitments count
+    let expectationsSummary = { total: 0, met: 0, open: 0 };
+    let commitmentsCount = 0;
+    try {
+      const expectations = await ProjectExpectation.find({ project: id }).lean();
+      expectationsSummary = {
+        total: expectations.length,
+        met: expectations.filter((e) => e.status === "met").length,
+        open: expectations.filter((e) => e.status === "open" || e.status === "in_progress").length,
+      };
+      commitmentsCount = await ProjectCommitment.countDocuments({ project: id });
+    } catch (expError) {
+      // Ignore
+    }
+
+    // Get recent activities
+    let recentActivities = [];
+    try {
+      recentActivities = await ProjectActivityLog.find({ project: id })
+        .populate("actor", "name email avatar")
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .lean();
+    } catch (actError) {
+      // Ignore
+    }
     
     res.status(200).json({
       success: true,
-      data: { project, statistics, teamWorkload },
+      data: {
+        project: projectData,
+        statistics,
+        teamWorkload,
+        monthProgress,
+        expectationsSummary,
+        commitmentsCount,
+        recentActivities,
+      },
     });
   } catch (error) {
     res.status(500).json({
@@ -104,6 +170,16 @@ export const getWorkBoard = async (req, res) => {
         error: {
           code: "NOT_FOUND",
           message: "Project not found",
+        },
+      });
+    }
+
+    if (!canUserViewProject(req.user, project)) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: "FORBIDDEN",
+          message: "Access denied",
         },
       });
     }

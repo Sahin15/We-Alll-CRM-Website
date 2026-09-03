@@ -293,6 +293,10 @@ const userSchema = new mongoose.Schema(
       enum: ["active", "inactive", "terminated", "offboarded"],
       default: "active",
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
     // Lifecycle audit fields
     reactivationDate: {
       type: Date,
@@ -452,6 +456,14 @@ userSchema.pre('deleteOne', async function(next) {
 userSchema.pre('remove', function(next) {
   if (this.role === 'superadmin') {
     throw new Error('Cannot delete superadmin account');
+  }
+  next();
+});
+
+// Keep isActive aligned with employment status
+userSchema.pre('save', function(next) {
+  if (this.isModified('status')) {
+    this.isActive = this.status === 'active';
   }
   next();
 });

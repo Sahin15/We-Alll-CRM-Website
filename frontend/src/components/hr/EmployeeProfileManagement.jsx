@@ -26,7 +26,7 @@ import GenerateHrDocumentModal, {
   getSlugForCategory,
 } from "./GenerateHrDocumentModal";
 import toast from "../../utils/toast";
-import { generateNewEmployeeId } from "../../utils/employeeIdGenerator";
+import { generateNewEmployeeId, formatEmployeeIdDisplay } from "../../utils/employeeIdGenerator";
 import StatusBadge from "./StatusBadge";
 import StatusChangeModal from "./StatusChangeModal";
 import "../../styles/pages-mobile.css";
@@ -66,6 +66,9 @@ const EmployeeProfileManagement = () => {
   const [sameAsCurrentAddress, setSameAsCurrentAddress] = useState(false);
   const [isIntern, setIsIntern] = useState(false);
   const [currentEmploymentType, setCurrentEmploymentType] = useState('');
+  const [draftEmployeeId, setDraftEmployeeId] = useState('');
+  const [draftJoiningDate, setDraftJoiningDate] = useState('');
+  const [generatingEmployeeId, setGeneratingEmployeeId] = useState(false);
   const [showCustomDesignation, setShowCustomDesignation] = useState(false);
   const [customDesignation, setCustomDesignation] = useState('');
 
@@ -224,12 +227,19 @@ const EmployeeProfileManagement = () => {
     }
   }, [editMode.contact]);
 
-  // Track if user is an intern
+  // Track employment type + job draft fields (avoid clobbering unsaved generated ID)
   useEffect(() => {
     const employmentType = user?.employmentType || '';
     setIsIntern(employmentType === 'intern');
     setCurrentEmploymentType(employmentType);
-  }, [user?.employmentType]);
+
+    if (!editMode.job) {
+      setDraftEmployeeId(user?.employeeId || '');
+      setDraftJoiningDate(
+        user?.joiningDate ? new Date(user.joiningDate).toISOString().split('T')[0] : ''
+      );
+    }
+  }, [user?.employmentType, user?.employeeId, user?.joiningDate, editMode.job]);
 
 
 
@@ -271,7 +281,7 @@ const EmployeeProfileManagement = () => {
 
   const fetchEmployees = async () => {
     try {
-      const response = await api.get('/users');
+      const response = await api.get('/users', { params: { excludePast: true, limit: 1000 } });
       // Filter to get only employees, HR, HOD, admin, superadmin, manager (potential managers)
       const potentialManagers = response.data.filter(emp => 
         emp._id !== userId && // Exclude current user
@@ -360,8 +370,8 @@ const EmployeeProfileManagement = () => {
         updateData = {
           designation: designationValue,
           department: document.getElementById('job-department')?.value || user?.department?._id,
-          employeeId: document.getElementById('job-employeeId')?.value || user?.employeeId,
-          joiningDate: document.getElementById('job-joiningDate')?.value || user?.joiningDate,
+          employeeId: draftEmployeeId || document.getElementById('job-employeeId')?.value || user?.employeeId,
+          joiningDate: draftJoiningDate || document.getElementById('job-joiningDate')?.value || user?.joiningDate,
           employmentType: (() => {
             const selected = document.getElementById('job-employmentType')?.value;
             if (selected && selected.trim()) return selected;
@@ -461,33 +471,38 @@ const EmployeeProfileManagement = () => {
   };
 
   const handleGenerateEmployeeId = async () => {
+    const joiningDate = draftJoiningDate || document.getElementById('job-joiningDate')?.value;
+    const employmentType =
+      currentEmploymentType ||
+      document.getElementById('job-employmentType')?.value ||
+      user?.employmentType ||
+      'full-time';
+
+    if (!joiningDate) {
+      toast.error('Please set the joining date first');
+      return;
+    }
+
+    if (employmentType !== 'full-time') {
+      toast.error('Only permanent (full-time) employees can be assigned an employee ID');
+      return;
+    }
+
+    if (user?.employeeId) {
+      toast.error('This employee already has an ID assigned');
+      return;
+    }
+
     try {
-      const joiningDate = document.getElementById('job-joiningDate')?.value;
-      const employmentType = document.getElementById('job-employmentType')?.value;
-
-      if (!joiningDate) {
-        toast.error('Please set the joining date first');
-        return;
-      }
-
-      if (employmentType !== 'full-time') {
-        toast.error('Only permanent (full-time) employees can be assigned an employee ID');
-        return;
-      }
-
-      // Generate the employee ID
-      const generatedId = await generateNewEmployeeId(joiningDate, employmentType);
-      
-      // Set the generated ID in the input field
-      const employeeIdInput = document.getElementById('job-employeeId');
-      if (employeeIdInput) {
-        employeeIdInput.value = generatedId;
-      }
-
+      setGeneratingEmployeeId(true);
+      const generatedId = await generateNewEmployeeId(joiningDate, employmentType, userId);
+      setDraftEmployeeId(generatedId);
       toast.success(`Employee ID generated: ${generatedId}`);
     } catch (error) {
       console.error('Error generating employee ID:', error);
       toast.error(error.message || 'Failed to generate employee ID');
+    } finally {
+      setGeneratingEmployeeId(false);
     }
   };
 
@@ -828,10 +843,10 @@ const EmployeeProfileManagement = () => {
                       <Button
                         variant="outline-secondary"
                         size="sm"
-                        title="Offer letters are created under Team → Offer Letters before joining"
-                        onClick={() => navigate("/hr/offers")}
+                        title="Offer letters are created under Hiring Management before joining"
+                        onClick={() => navigate("/hr/hiring")}
                       >
-                        Offers
+                        Hiring
                       </Button>
                     ) : (
                       isGeneratableDocType(docType.key) && (
@@ -1581,25 +1596,33 @@ const EmployeeProfileManagement = () => {
                               <div style={{ flex: 1 }}>
                                 <Form.Control
                                   type="text"
-                                  defaultValue={user?.employeeId || ''}
+                                  value={draftEmployeeId}
+                                  onChange={(e) => {
+                                    if (!user?.employeeId) {
+                                      setDraftEmployeeId(e.target.value.toUpperCase());
+                                    }
+                                  }}
                                   placeholder="Enter employee ID"
                                   id="job-employeeId"
+                                  readOnly={!!user?.employeeId}
                                 />
                               </div>
                               <Button
                                 variant="primary"
                                 onClick={() => handleGenerateEmployeeId()}
                                 disabled={
-                                  !user?.joiningDate || 
-                                  currentEmploymentType !== 'full-time' ||
-                                  !!user?.employeeId
+                                  generatingEmployeeId ||
+                                  !draftJoiningDate ||
+                                  (currentEmploymentType || user?.employmentType || 'full-time') !== 'full-time' ||
+                                  !!user?.employeeId ||
+                                  !!draftEmployeeId
                                 }
                                 title={
-                                  user?.employeeId
+                                  user?.employeeId || draftEmployeeId
                                     ? 'Employee already has an ID'
-                                    : !user?.joiningDate 
-                                    ? 'Set joining date first' 
-                                    : currentEmploymentType !== 'full-time'
+                                    : !draftJoiningDate
+                                    ? 'Set joining date first'
+                                    : (currentEmploymentType || user?.employmentType) !== 'full-time'
                                     ? 'Only permanent employees can get employee ID'
                                     : 'Generate employee ID'
                                 }
@@ -1609,12 +1632,12 @@ const EmployeeProfileManagement = () => {
                                   minWidth: '100px'
                                 }}
                               >
-                                Generate
+                                {generatingEmployeeId ? '...' : 'Generate'}
                               </Button>
                             </div>
                           ) : (
                             <div className="form-control-plaintext border rounded p-2 bg-light">
-                              {user?.employeeId || '—'}
+                              {formatEmployeeIdDisplay(user?.employeeId, '—')}
                             </div>
                           )}
                         </Form.Group>
@@ -1681,7 +1704,8 @@ const EmployeeProfileManagement = () => {
                           {editMode.job ? (
                             <Form.Control
                               type="date"
-                              defaultValue={user?.joiningDate ? new Date(user.joiningDate).toISOString().split('T')[0] : ''}
+                              value={draftJoiningDate}
+                              onChange={(e) => setDraftJoiningDate(e.target.value)}
                               id="job-joiningDate"
                             />
                           ) : (
@@ -2251,12 +2275,30 @@ const EmployeeProfileManagement = () => {
                         <Alert variant="info" className="mb-2">
                           <FaFileAlt className="me-2" />
                           Personal and HR documents for this employee. Monthly salary slips are under{' '}
-                          <strong>Salary → Salary Slips</strong>. New offer letters (pre-join) are created under{' '}
-                          <strong>Team → Offer Letters</strong>.
+                          <strong>Salary → Salary Slips</strong>. Pre-join offer letters are created in{' '}
+                          <strong>Hiring Management</strong> when a candidate is selected in the pipeline.
                         </Alert>
                         {linkedOffer && (
                           <Alert variant="success">
                             <strong>Linked offer:</strong> {linkedOffer.offerNumber}
+                            {linkedOffer.hiringRequestId?.requestNumber && (
+                              <>
+                                {' '}
+                                | <strong>Hiring request:</strong>{' '}
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="p-0 align-baseline"
+                                  onClick={() =>
+                                    navigate(
+                                      `/hr/hiring/requests/${linkedOffer.hiringRequestId._id || linkedOffer.hiringRequestId}`
+                                    )
+                                  }
+                                >
+                                  {linkedOffer.hiringRequestId.requestNumber}
+                                </Button>
+                              </>
+                            )}
                             {linkedOffer.documentUrl && (
                               <>
                                 {' '}

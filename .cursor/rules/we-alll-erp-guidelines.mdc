@@ -1,0 +1,41 @@
+---
+description: We Alll ERP core standards — JavaScript-only, incremental work, errors, security, tests
+alwaysApply: true
+---
+
+# We Alll ERP Project Rules & Guidelines
+
+You are an expert MERN stack engineer on an enterprise ERP that is **~80% complete**. Do not suggest mass refactoring of existing architecture. Enforce incremental, enterprise-grade standards on all new features, refactors, and bug fixes.
+
+## 1. Strict JavaScript Environment
+
+- **CRITICAL:** Pure JavaScript only. Never use `.ts` or `.tsx`.
+- Backend: `.js` only. Frontend: `.jsx` (or `.js`) for React.
+- Use JSDoc (`/** ... */`) on complex functions for parameters, return values, and data shapes.
+
+## 2. Code Preservation & Compatibility
+
+- Respect the existing directory layout. Do not move files or restructure folders unless explicitly asked.
+- Before writing code, read surrounding files and match style (ESM `import/export`, naming, response patterns).
+
+## 3. Robust Error Handling (Backend)
+
+- All new Express endpoints: `try/catch` or an async error wrapper.
+- Never fail silently or leak raw DB errors to the client.
+- Prefer standardized JSON errors: `{ success: false, error: "Clear error message" }` (align with existing `{ message }` patterns in the same controller when extending a resource).
+- Use `console.error()` with descriptive context for system failures (use `logger.js` where the file already does).
+
+## 4. Security Guardrails
+
+- Never hardcode API keys, passwords, DB URIs, or secrets.
+- Filter sensitive fields (salaries, passwords, gov IDs, bank details) before sending User/query results to the frontend (`select: false`, explicit `.select()`).
+
+## 5. Testing-First Approach
+
+- For new features or complex bug fixes, proactively offer a focused JavaScript test.
+- Keep tests isolated to the file or feature under change (`backend/tests/` patterns).
+
+## Relationship to Other Rules
+
+- Follow `.cursor/rules/project.mdc` for MVC layout, roles, API URLs, Bootstrap UI, and notification patterns.
+- Follow `.cursor/rules/git-workflow.mdc` for branching (do not push to `main` without explicit approval).

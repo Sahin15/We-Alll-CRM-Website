@@ -42,8 +42,10 @@ import {
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
+import { PAGE_ACCESS, checkPageAccess } from "../../constants/pageAccess";
 import { clientApi } from "../../api/clientApi";
 import { departmentApi } from "../../api/departmentApi";
+import { canViewAllCompanyClients } from "../../utils/resourceVisibility";
 import { formatDate } from "../../utils/helpers";
 import { decodeArrayHtmlEntities } from "../../utils/htmlDecoder";
 
@@ -77,7 +79,10 @@ const dropdownStyles = `
 const ClientList = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { user, canAccess, authzEffective, canPermission } = useAuth();
+  const visibilityParams = { user, authzEffective, canPermission };
+  const viewAllClients = canViewAllCompanyClients(visibilityParams);
+  const canManageClients = checkPageAccess(canAccess, PAGE_ACCESS.crmClientManage);
   const [clients, setClients] = useState([]);
   const [filteredClients, setFilteredClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -114,9 +119,11 @@ const ClientList = () => {
   useEffect(() => {
     if (user) {
       fetchClients();
-      fetchDepartments();
+      if (canManageClients) {
+        fetchDepartments();
+      }
     }
-  }, [user]);
+  }, [user, viewAllClients, canManageClients]);
 
   useEffect(() => {
     applyFilters();
@@ -192,23 +199,21 @@ const ClientList = () => {
         return;
       }
       
-      // Use different API endpoint based on user role
+      // Company viewers see all clients; others see clients linked to their project assignments
       let response;
-      if (user?.role === 'employee' || user?.role === 'hod') {
-        // Employees and HoDs get clients from their assigned projects
-        response = await clientApi.getMyClients();
-      } else {
-        // Admin, superadmin, hr, manager get all clients
+      if (viewAllClients) {
         response = await clientApi.getAllClients();
+      } else {
+        response = await clientApi.getMyClients();
       }
       
-      setClients(decodeArrayHtmlEntities(response.data));
+      setClients(decodeArrayHtmlEntities(response.data) || []);
     } catch (error) {
       console.error("Client fetch error:", error);
       console.error("Error response:", error.response);
       
       // Handle 403 errors specifically for employees
-      if (error.response?.status === 403 && (user?.role === 'employee' || user?.role === 'hod')) {
+      if (error.response?.status === 403 && !viewAllClients) {
         toast.info("You can only see clients from projects you're working on. No clients found in your assigned projects.");
         setClients([]);
       } else {
@@ -347,7 +352,7 @@ const ClientList = () => {
         await clientApi.updateClient(currentClient._id, formData);
         
         // Update department assignments if user has permission
-        if (['hr', 'manager', 'admin', 'superadmin'].includes(user?.role) && selectedDepartments.length > 0) {
+        if (canManageClients && selectedDepartments.length > 0) {
           try {
             await clientApi.assignDepartments(currentClient._id, selectedDepartments);
           } catch (deptError) {
@@ -364,7 +369,7 @@ const ClientList = () => {
         console.log('Client creation response:', response);
         
         // Assign departments if user has permission and departments are selected
-        if (['hr', 'manager', 'admin', 'superadmin'].includes(user?.role) && selectedDepartments.length > 0) {
+        if (canManageClients && selectedDepartments.length > 0) {
           try {
             await clientApi.assignDepartments(response.data.client._id, selectedDepartments);
           } catch (deptError) {
@@ -484,15 +489,15 @@ const ClientList = () => {
                 </div>
                 <div>
                   <h2 className="mb-1 fw-bold text-dark">
-                    {user?.role === 'employee' || user?.role === 'hod' 
-                      ? 'My Clients' 
-                      : 'Client Management Hub'
+                    {viewAllClients
+                      ? 'Client Management Hub'
+                      : 'My Clients'
                     }
                   </h2>
                   <p className="mb-0 text-muted">
-                    {user?.role === 'employee' || user?.role === 'hod'
-                      ? 'Clients from your assigned projects and work assignments'
-                      : 'Comprehensive client relationship management and business insights'
+                    {viewAllClients
+                      ? 'Comprehensive client relationship management and business insights'
+                      : 'Clients where you work on at least one project (or are the account manager)'
                     }
                   </p>
                 </div>
@@ -1333,7 +1338,7 @@ const ClientList = () => {
             </Row>
 
             {/* Department Assignment Section - Only for HR/Manager/Admin */}
-            {['hr', 'manager', 'admin', 'superadmin'].includes(user?.role) && (
+            {canManageClients && (
               <Row>
                 <Col md={12}>
                   <Form.Group className="mb-3">
@@ -1344,7 +1349,8 @@ const ClientList = () => {
                     </Form.Label>
                     <div className="border rounded p-3" style={{ backgroundColor: '#f8f9fa' }}>
                       <Form.Text className="text-muted d-block mb-3">
-                        Select which operational departments will work with this client. HR and administrative departments have access to all clients by default.
+                        Optional label for which departments work with this client.
+                        This does not grant access — people only see a client/project when they are added to the project team.
                       </Form.Text>
                       {departmentsLoading ? (
                         <div className="text-center py-3">

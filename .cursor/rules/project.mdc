@@ -38,17 +38,18 @@ api module → page component → route guard → sidebar entry
 
 **Backend (route level):**
 ```js
-router.METHOD("/path", protect, authorizeRoles("role1", "role2"), controllerFn);
+router.METHOD("/path", protect, requireModulePermission("module", "permission.key", { legacyRoles: ["role1"] }), controllerFn);
 ```
 
 **Frontend (route level):**
 ```jsx
-<RoleBasedRoute allowedRoles={["admin", "hr"]}><Page /></RoleBasedRoute>
+<PermissionRoute permission="permission.key" fallbackRoles={["admin", "hr"]}><Page /></PermissionRoute>
 ```
 
 **Frontend (component level):**
 ```jsx
-const canWrite = ['admin', 'superadmin', 'accounts'].includes(user?.role);
+const { canAccess } = useAuth();
+const canWrite = canAccess("permission.key", ["admin", "superadmin", "accounts"]);
 {canWrite && <Button>Create</Button>}
 ```
 

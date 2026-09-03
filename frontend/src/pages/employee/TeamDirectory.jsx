@@ -23,8 +23,8 @@ const TeamDirectory = () => {
   const fetchData = async () => {
     try {
       const [employeesRes, departmentsRes] = await Promise.all([
-        api.get('/users'),
-        api.get('/departments')
+        api.get('/users/meeting-directory', { params: { limit: 1000 } }),
+        api.get('/departments/directory')
       ]);
       
       // Filter only employees (same as EmployeeList)

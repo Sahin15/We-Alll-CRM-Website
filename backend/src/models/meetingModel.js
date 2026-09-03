@@ -59,6 +59,20 @@ const meetingSchema = new mongoose.Schema(
     notes: {
       type: String,
     },
+    client: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Client",
+      default: null,
+    },
+    project: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Project",
+      default: null,
+    },
+    projectMonthKey: {
+      type: String, // e.g. "YYYY-MM"
+      default: null,
+    },
   },
   {
     timestamps: true,

@@ -3,6 +3,8 @@ import { Container, Row, Col, Card, Button, ButtonGroup, Badge } from 'react-boo
 import { FaPlus, FaTh, FaList, FaEye, FaEdit, FaTrash } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
+import { PAGE_ACCESS, checkPageAccess } from '../../constants/pageAccess';
+import { canViewAllCompanyProjects } from '../../utils/resourceVisibility';
 import projectApi from '../../api/projectApi';
 import clientApi from '../../api/clientApi';
 import { departmentApi } from '../../api/departmentApi';
@@ -22,7 +24,12 @@ import SimplifiedProjectModal from '../../components/projects/SimplifiedProjectM
  * - Cached data to avoid unnecessary reloads
  */
 const ProjectListPage = () => {
-  const { user } = useAuth();
+  const { user, canAccess, authzEffective, canPermission } = useAuth();
+  const visibilityParams = { user, authzEffective, canPermission };
+  const canViewAllProjects = canViewAllCompanyProjects(visibilityParams);
+  const canFilterProjectsAdmin = checkPageAccess(canAccess, PAGE_ACCESS.projectFilterAdmin);
+  const canManageProjects = checkPageAccess(canAccess, PAGE_ACCESS.projectManage);
+  const isPlatformAdmin = checkPageAccess(canAccess, PAGE_ACCESS.platformAdmin);
   const [projects, setProjects] = useState([]);
   const [clients, setClients] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -49,30 +56,70 @@ const ProjectListPage = () => {
     }
   }, [user?.id]);
 
+  const getProjectsByRole = useCallback(async () => {
+    // Company-wide viewers (admin/hr/manager or COMPANY grant) see all projects.
+    // Everyone else — including HoD / project head — only sees projects they are on
+    // (projectHead, assignedUsers, or active teamMembers).
+    if (canViewAllProjects) {
+      return projectApi.getAllProjects();
+    }
+    return projectApi.getMyProjects();
+  }, [canViewAllProjects]);
+
+  const fetchDepartmentsForFilters = useCallback(async () => {
+    if (!canFilterProjectsAdmin) {
+      return [];
+    }
+    try {
+      const data = await departmentApi.getAllDepartments();
+      return Array.isArray(data) ? data : data?.data || data?.departments || [];
+    } catch (error) {
+      if (error.response?.status === 403) {
+        try {
+          const directory = await departmentApi.getDepartmentDirectory();
+          return Array.isArray(directory) ? directory : [];
+        } catch {
+          return [];
+        }
+      }
+      return [];
+    }
+  }, [canFilterProjectsAdmin]);
+
+  const fetchClientsForFilters = useCallback(async () => {
+    if (!canFilterProjectsAdmin) {
+      return [];
+    }
+    try {
+      const response = await clientApi.getAllClients();
+      return response.data || response.clients || [];
+    } catch {
+      return [];
+    }
+  }, [canFilterProjectsAdmin]);
+
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      
-      // Parallel API calls for better performance
-      const projectsPromise = getProjectsByRole();
-      const clientsPromise = ['admin', 'superadmin', 'hr', 'hod', 'manager'].includes(user?.role)
-        ? clientApi.getAllClients()
-        : Promise.resolve({ data: [], clients: [] });
-      const departmentsPromise = ['admin', 'superadmin', 'hr', 'hod', 'manager'].includes(user?.role)
-        ? departmentApi.getAllDepartments()
-        : Promise.resolve({ data: [], departments: [] });
 
-      const [projectsRes, clientsRes, deptsRes] = await Promise.all([
-        projectsPromise,
-        clientsPromise,
-        departmentsPromise
+      const [projectsResult, clientsResult, departmentsResult] = await Promise.allSettled([
+        getProjectsByRole(),
+        fetchClientsForFilters(),
+        fetchDepartmentsForFilters(),
       ]);
 
-      // Handle different response formats
-      const projectsData = projectsRes.data || projectsRes.projects || projectsRes || [];
+      if (projectsResult.status === 'rejected') {
+        throw projectsResult.reason;
+      }
+
+      const projectsRes = projectsResult.value;
+      const projectsData =
+        projectsRes?.data ||
+        projectsRes?.projects ||
+        (Array.isArray(projectsRes) ? projectsRes : []);
       setProjects(Array.isArray(projectsData) ? projectsData : []);
-      setClients(clientsRes.data || clientsRes.clients || []);
-      setDepartments(deptsRes.data || deptsRes.departments || []);
+      setClients(clientsResult.status === 'fulfilled' ? clientsResult.value : []);
+      setDepartments(departmentsResult.status === 'fulfilled' ? departmentsResult.value : []);
     } catch (error) {
       console.error('Error loading data:', error);
       toast.error('Failed to load projects');
@@ -82,36 +129,7 @@ const ProjectListPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [user?.role]);
-
-  const getProjectsByRole = useCallback(async () => {
-    if (['admin', 'superadmin', 'hr', 'manager'].includes(user?.role)) {
-      return projectApi.getAllProjects();
-    } else if (user?.role === 'hod') {
-      const [deptProjectsRes, myProjectsRes] = await Promise.allSettled([
-        projectApi.getMyDepartmentProjects(),
-        projectApi.getMyProjects()
-      ]);
-
-      const deptProjects = deptProjectsRes.status === 'fulfilled'
-        ? (deptProjectsRes.value?.data || deptProjectsRes.value?.projects || deptProjectsRes.value || [])
-        : [];
-      const myProjects = myProjectsRes.status === 'fulfilled'
-        ? (myProjectsRes.value?.data || myProjectsRes.value?.projects || myProjectsRes.value || [])
-        : [];
-
-      // Merge and deduplicate by _id
-      const merged = [...deptProjects, ...myProjects];
-      const seen = new Set();
-      return merged.filter(p => {
-        if (!p?._id || seen.has(p._id.toString())) return false;
-        seen.add(p._id.toString());
-        return true;
-      });
-    } else {
-      return projectApi.getMyProjects();
-    }
-  }, [user?.role]);
+  }, [getProjectsByRole, fetchClientsForFilters, fetchDepartmentsForFilters]);
 
   const handleEdit = useCallback((project) => {
     setEditingProject(project);
@@ -227,7 +245,7 @@ const ProjectListPage = () => {
     setDisplayLimit(50); // Reset pagination
   }, []);
 
-  const canCreateProject = ['admin', 'superadmin', 'hod', 'hr', 'manager'].includes(user?.role);
+  const canCreateProject = canManageProjects;
 
   if (loading) {
     return (
@@ -248,12 +266,9 @@ const ProjectListPage = () => {
         <Col>
           <h2>Projects</h2>
           <p className="text-muted">
-            {['admin', 'superadmin', 'hr', 'manager'].includes(user?.role) 
+            {canViewAllProjects
               ? 'View and manage all projects'
-              : user?.role === 'hod'
-              ? 'View and manage your department\'s projects'
-              : 'View and manage your assigned projects'
-            }
+              : 'View and manage projects you are assigned to'}
           </p>
         </Col>
         <Col xs="auto" className="d-flex align-items-center gap-2">
@@ -437,7 +452,7 @@ const ProjectListPage = () => {
                                   >
                                     <FaEye />
                                   </Button>
-                                  {['admin', 'superadmin', 'hr', 'hod', 'manager'].includes(user?.role) && (
+                                  {canFilterProjectsAdmin && (
                                     <Button
                                       variant="outline-secondary"
                                       size="sm"
@@ -450,7 +465,7 @@ const ProjectListPage = () => {
                                       <FaEdit />
                                     </Button>
                                   )}
-                                  {['admin', 'superadmin'].includes(user?.role) && (
+                                  {isPlatformAdmin && (
                                     <Button
                                       variant="outline-danger"
                                       size="sm"
@@ -579,7 +594,7 @@ const ProjectListPage = () => {
                                   >
                                     <FaEye />
                                   </Button>
-                                  {['admin', 'superadmin', 'hr', 'hod', 'manager'].includes(user?.role) && (
+                                  {canFilterProjectsAdmin && (
                                     <Button
                                       variant="outline-secondary"
                                       size="sm"
@@ -592,7 +607,7 @@ const ProjectListPage = () => {
                                       <FaEdit />
                                     </Button>
                                   )}
-                                  {['admin', 'superadmin'].includes(user?.role) && (
+                                  {isPlatformAdmin && (
                                     <Button
                                       variant="outline-danger"
                                       size="sm"

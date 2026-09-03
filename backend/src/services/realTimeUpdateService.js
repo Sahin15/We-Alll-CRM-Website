@@ -24,6 +24,7 @@ class RealTimeUpdateService {
     this.subscriptions = new Map(); // Map of subscriptionId -> subscription details
     this.conflictTracker = new Map(); // Track concurrent edits
     this.overdueCheckInterval = null;
+    this.overdueCheckInProgress = false;
     this.heartbeatInterval = null;
     
     // Configuration
@@ -381,6 +382,10 @@ class RealTimeUpdateService {
    * Broadcast overdue notification
    */
   broadcastOverdueNotification(overdueEntries) {
+    if (!overdueEntries?.length) {
+      return;
+    }
+
     const message = {
       type: 'overdueNotification',
       overdueEntries,
@@ -389,15 +394,15 @@ class RealTimeUpdateService {
     };
 
     // Send to all admin users
-    this.clients.forEach((connections, userId) => {
-      connections.forEach(ws => {
+    this.clients.forEach((connections) => {
+      connections.forEach((ws) => {
         if (['admin', 'super_admin', 'hr'].includes(ws.userRole)) {
           this.sendToClient(ws, message);
         }
       });
     });
 
-    logger.info('Overdue notification broadcasted', {
+    logger.debug('Overdue notification broadcasted', {
       count: overdueEntries.length
     });
   }
@@ -543,34 +548,50 @@ class RealTimeUpdateService {
    * Start monitoring for overdue work entries
    */
   startOverdueMonitoring() {
+    if (this.overdueCheckInterval) {
+      clearInterval(this.overdueCheckInterval);
+    }
+
+    this.overdueCheckInProgress = false;
+
     this.overdueCheckInterval = setInterval(async () => {
+      if (this.overdueCheckInProgress) {
+        return;
+      }
+
+      this.overdueCheckInProgress = true;
+
       try {
         const now = new Date();
-        
-        // Find overdue entries
+
+        // Only pick entries not already marked overdue.
+        // isOverdue is a Mongoose virtual (not stored), so filtering on it never sticks.
         const overdueEntries = await WorkCalendar.find({
           dueDate: { $lt: now },
-          status: { $nin: ['completed', 'cancelled'] },
-          isOverdue: { $ne: true }
+          status: { $nin: ['completed', 'cancelled', 'overdue'] },
         })
-        .populate('project', 'name client')
-        .populate('client', 'name')
-        .populate('assignedTo', 'name email')
-        .limit(100)
-        .lean();
+          .populate('project', 'name client')
+          .populate('client', 'name')
+          .populate('assignedTo', 'name email')
+          .limit(100)
+          .lean();
 
         if (overdueEntries.length > 0) {
-          // Update overdue flag
           await WorkCalendar.updateMany(
-            { _id: { $in: overdueEntries.map(e => e._id) } },
-            { $set: { isOverdue: true, status: 'overdue' } }
+            { _id: { $in: overdueEntries.map((entry) => entry._id) } },
+            { $set: { status: 'overdue' } }
           );
 
-          // Broadcast notification
           this.broadcastOverdueNotification(overdueEntries);
+
+          logger.info('Marked overdue work calendar entries', {
+            count: overdueEntries.length,
+          });
         }
       } catch (error) {
         logger.error('Error in overdue monitoring:', error);
+      } finally {
+        this.overdueCheckInProgress = false;
       }
     }, this.config.overdueCheckInterval);
 

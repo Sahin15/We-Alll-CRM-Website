@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { Modal, Form, Button, Row, Col, Alert } from 'react-bootstrap';
 import { FaCalendarAlt, FaFileAlt, FaPaperclip } from 'react-icons/fa';
 import { leaveApi } from '../../api/leaveApi';
-import { LEAVE_TYPE_DETAILS } from '../../utils/constants';
+import { LEAVE_TYPE_DETAILS, MAX_PHOTO_UPLOAD_BYTES, MAX_PHOTO_UPLOAD_MB } from '../../utils/constants';
 import { useAuth } from '../../context/AuthContext';
 import { getAllowedLeaveTypes, isFullTimeEmployee } from '../../utils/leaveEligibility';
+import { getLeaveRequestDays } from '../../utils/leaveDays';
 import moment from 'moment';
 import '../../pages/leaves/LeaveManagement.css';
 
@@ -13,7 +14,7 @@ const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
   const allowedLeaveTypes = getAllowedLeaveTypes(user);
 
   const [formData, setFormData] = useState({
-    leaveType: isFullTimeEmployee(user) ? 'personal' : 'unpaid',
+    leaveType: isFullTimeEmployee(user) ? 'casual' : 'unpaid',
     startDate: '',
     endDate: '',
     reason: '',
@@ -29,27 +30,29 @@ const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
     value,
     label: details.name,
     description: details.description,
-    advanceNotice: details.advanceNotice
   }));
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData((prev) => {
+      const next = { ...prev, [name]: value };
+      if (next.leaveType === 'half_day' && (name === 'startDate' || name === 'leaveType')) {
+        next.endDate = name === 'startDate' ? value : prev.startDate || prev.endDate;
+      }
+      return next;
+    });
     setError('');
   };
 
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files);
     const validFiles = [];
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSize = MAX_PHOTO_UPLOAD_BYTES;
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
 
     files.forEach(file => {
       if (file.size > maxSize) {
-        setError(`File "${file.name}" is too large. Maximum size is 5MB.`);
+        setError(`File "${file.name}" is too large. Maximum size is ${MAX_PHOTO_UPLOAD_MB}MB.`);
         return;
       }
       if (!allowedTypes.includes(file.type)) {
@@ -69,15 +72,8 @@ const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const calculateDays = () => {
-    if (formData.startDate && formData.endDate) {
-      const start = moment(formData.startDate);
-      const end = moment(formData.endDate);
-      const days = end.diff(start, 'days') + 1;
-      return days > 0 ? days : 0;
-    }
-    return 0;
-  };
+  const calculateDays = () =>
+    getLeaveRequestDays(formData.leaveType, formData.startDate, formData.endDate);
 
   const validateForm = () => {
     if (!formData.leaveType) {
@@ -94,6 +90,10 @@ const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
     }
     if (moment(formData.startDate).isAfter(moment(formData.endDate))) {
       setError('End date must be after start date');
+      return false;
+    }
+    if (formData.leaveType === 'half_day' && formData.startDate !== formData.endDate) {
+      setError('Half-day leave must be for a single date');
       return false;
     }
     if (moment(formData.startDate).isBefore(moment().startOf('day'))) {
@@ -169,12 +169,10 @@ const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
 
   const getLeaveTypeColor = (type) => {
     const colors = {
-      vacation: '#4F46E5',
-      sick: '#EF4444',
-      personal: '#06B6D4',
-      maternity: '#10B981',
-      paternity: '#8B5CF6',
-      unpaid: '#6B7280'
+      medical: '#EF4444',
+      casual: '#06B6D4',
+      half_day: '#F59E0B',
+      unpaid: '#6B7280',
     };
     return colors[type] || '#6B7280';
   };
@@ -222,9 +220,9 @@ const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
 
           {/* Date Selection */}
           <Row className="mb-3">
-            <Col md={6}>
+            <Col md={formData.leaveType === 'half_day' ? 12 : 6}>
               <Form.Group>
-                <Form.Label className="fw-bold">Start Date</Form.Label>
+                <Form.Label className="fw-bold">{formData.leaveType === 'half_day' ? 'Date' : 'Start Date'}</Form.Label>
                 <Form.Control
                   type="date"
                   name="startDate"
@@ -235,6 +233,7 @@ const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
                 />
               </Form.Group>
             </Col>
+            {formData.leaveType !== 'half_day' && (
             <Col md={6}>
               <Form.Group>
                 <Form.Label className="fw-bold">End Date</Form.Label>
@@ -248,6 +247,7 @@ const CreateLeaveModal = ({ show, onHide, onLeaveCreated }) => {
                 />
               </Form.Group>
             </Col>
+            )}
           </Row>
 
           {/* Duration Display */}

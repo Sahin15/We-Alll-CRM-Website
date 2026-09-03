@@ -3,12 +3,60 @@
  * Handles client-specific work tracking and reporting
  */
 
-import Project from '../models/projectModel.js';
-import WorkItem from '../models/workItemModel.js';
+import Project from "../models/projectModel.js";
+import WorkItem from "../models/workItemModel.js";
 import Slot from '../models/slotModel.js';
 import Client from '../models/clientModel.js';
 import User from '../models/userModel.js';
 import logger from '../utils/logger.js';
+import {
+  canUserViewClient,
+  buildAssignedProjectQueryForUser,
+} from '../services/resourceVisibilityService.js';
+
+/**
+ * Verify client exists and requester may view client work data.
+ *
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {string} clientId
+ * @returns {Promise<object|null>}
+ */
+async function requireClientWorkAccess(req, res, clientId) {
+  const client = await Client.findById(clientId);
+  if (!client) {
+    res.status(404).json({
+      success: false,
+      message: 'Client not found',
+    });
+    return null;
+  }
+
+  const allowed = await canUserViewClient(req.user, clientId);
+  if (!allowed) {
+    res.status(403).json({
+      success: false,
+      message: 'Access denied. You can only view work for clients you are assigned to through projects.',
+    });
+    return null;
+  }
+
+  return client;
+}
+
+/**
+ * Project IDs the user may see for a client.
+ *
+ * @param {object} user
+ * @param {string} clientId
+ * @returns {Promise<import('mongoose').Types.ObjectId[]>}
+ */
+async function getVisibleClientProjectIds(user, clientId) {
+  const projects = await Project.find(buildAssignedProjectQueryForUser(user, { client: clientId }))
+    .select('_id')
+    .lean();
+  return projects.map((project) => project._id);
+}
 
 /**
  * Get comprehensive work overview for a specific client
@@ -25,14 +73,9 @@ export const getClientWorkOverview = async (req, res) => {
       includeDeleted = false 
     } = req.query;
 
-    // Verify client exists
-    const client = await Client.findById(clientId);
-    if (!client) {
-      return res.status(404).json({
-        success: false,
-        message: 'Client not found'
-      });
-    }
+    // Verify client exists and requester has access
+    const client = await requireClientWorkAccess(req, res, clientId);
+    if (!client) return;
 
     // Build date filter
     const dateFilter = {};
@@ -42,8 +85,8 @@ export const getClientWorkOverview = async (req, res) => {
       if (endDate) dateFilter.createdAt.$lte = new Date(endDate);
     }
 
-    // Get all projects for this client
-    const projectQuery = { client: clientId };
+    // Projects visible to this user for the client
+    const projectQuery = buildAssignedProjectQueryForUser(req.user, { client: clientId });
     const projects = await Project.find(projectQuery)
       .populate('departments', 'name')
       .populate('projectHead', 'name email')
@@ -213,9 +256,10 @@ export const getClientSlots = async (req, res) => {
       limit = 50
     } = req.query;
 
-    // Get client projects
-    const projects = await Project.find({ client: clientId }).select('_id name');
-    const projectIds = projects.map(p => p._id);
+    const client = await requireClientWorkAccess(req, res, clientId);
+    if (!client) return;
+
+    const projectIds = await getVisibleClientProjectIds(req.user, clientId);
 
     if (projectIds.length === 0) {
       return res.json({
@@ -299,9 +343,10 @@ export const getClientWorkTimeline = async (req, res) => {
       limit = 100
     } = req.query;
 
-    // Get client projects
-    const projects = await Project.find({ client: clientId }).select('_id name');
-    const projectIds = projects.map(p => p._id);
+    const client = await requireClientWorkAccess(req, res, clientId);
+    if (!client) return;
+
+    const projectIds = await getVisibleClientProjectIds(req.user, clientId);
 
     if (projectIds.length === 0) {
       return res.json({
@@ -437,6 +482,9 @@ export const getClientWorkStatistics = async (req, res) => {
       period = '30d' // 7d, 30d, 90d, 1y
     } = req.query;
 
+    const client = await requireClientWorkAccess(req, res, clientId);
+    if (!client) return;
+
     // Calculate date range based on period
     const now = new Date();
     let startDate;
@@ -455,8 +503,10 @@ export const getClientWorkStatistics = async (req, res) => {
         startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     }
 
-    // Get client projects
-    const projects = await Project.find({ client: clientId }).select('_id name status');
+    // Get client projects visible to this user
+    const projects = await Project.find(buildAssignedProjectQueryForUser(req.user, { client: clientId }))
+      .select('_id name status')
+      .lean();
     const projectIds = projects.map(p => p._id);
 
     if (projectIds.length === 0) {

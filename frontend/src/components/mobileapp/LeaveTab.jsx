@@ -1,15 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { FaUmbrellaBeach, FaPlus, FaTimes, FaUpload, FaFileAlt, FaChevronDown } from 'react-icons/fa';
+import { FaUmbrellaBeach, FaPlus, FaTimes, FaFileAlt, FaChevronDown } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { leaveApi } from '../../api/leaveApi';
 import { useAuth } from '../../context/AuthContext';
 import { getAllowedLeaveTypes, isFullTimeEmployee } from '../../utils/leaveEligibility';
+import { getLeaveRequestDays } from '../../utils/leaveDays';
+import { MAX_PHOTO_UPLOAD_BYTES, MAX_PHOTO_UPLOAD_MB } from '../../utils/constants';
+import MobileFilePicker from './MobileFilePicker';
 
 const ALL_LEAVE_TYPES = [
-  { value: 'personal', label: 'Personal Leave' },
   { value: 'medical', label: 'Medical Leave' },
-  { value: 'vacation', label: 'Vacation Leave' },
-  { value: 'half_day', label: 'Half Day' },
+  { value: 'casual', label: 'Casual Leave' },
+  { value: 'half_day', label: 'Half Day Leave' },
   { value: 'unpaid', label: 'Unpaid Leave' },
 ];
 
@@ -88,7 +90,7 @@ export default function LeaveTab() {
   const { user } = useAuth();
   const allowedTypes = getAllowedLeaveTypes(user);
   const leaveTypes = ALL_LEAVE_TYPES.filter(t => allowedTypes.includes(t.value));
-  const defaultLeaveType = isFullTimeEmployee(user) ? 'personal' : 'unpaid';
+  const defaultLeaveType = isFullTimeEmployee(user) ? 'casual' : 'unpaid';
 
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -108,12 +110,11 @@ export default function LeaveTab() {
 
   useEffect(() => { fetchLeaves(); }, [fetchLeaves]);
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
+  const handleFileSelect = (file) => {
     if (!file) return;
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
     if (!validTypes.includes(file.type)) { toast.error('Please upload JPG, PNG or PDF'); return; }
-    if (file.size > 10 * 1024 * 1024) { toast.error('File must be less than 10MB'); return; }
+    if (file.size > MAX_PHOTO_UPLOAD_BYTES) { toast.error(`File must be less than ${MAX_PHOTO_UPLOAD_MB}MB`); return; }
     setDocument(file);
   };
 
@@ -123,6 +124,9 @@ export default function LeaveTab() {
     }
     if (new Date(form.endDate) < new Date(form.startDate)) {
       toast.error('End date must be after start date'); return;
+    }
+    if (form.leaveType === 'half_day' && form.startDate !== form.endDate) {
+      toast.error('Half-day leave must be for a single date'); return;
     }
     setSaving(true);
     try {
@@ -186,18 +190,42 @@ export default function LeaveTab() {
 
           <div style={{ marginBottom: '12px' }}>
             <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>Leave Type</label>
-            <LeaveTypeSelect value={form.leaveType} onChange={val => setForm({ ...form, leaveType: val })} leaveTypes={leaveTypes} />
+            <LeaveTypeSelect
+              value={form.leaveType}
+              onChange={(val) => setForm((prev) => ({
+                ...prev,
+                leaveType: val,
+                endDate: val === 'half_day' ? prev.startDate || prev.endDate : prev.endDate,
+              }))}
+              leaveTypes={leaveTypes}
+            />
           </div>
 
           <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
             <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>From *</label>
-              <input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} style={inputStyle} />
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
+                {form.leaveType === 'half_day' ? 'Date *' : 'From *'}
+              </label>
+              <input
+                type="date"
+                value={form.startDate}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setForm((prev) => ({
+                    ...prev,
+                    startDate: value,
+                    endDate: prev.leaveType === 'half_day' ? value : prev.endDate,
+                  }));
+                }}
+                style={inputStyle}
+              />
             </div>
+            {form.leaveType !== 'half_day' && (
             <div style={{ flex: 1 }}>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>To *</label>
               <input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} style={inputStyle} />
             </div>
+            )}
           </div>
 
           <div style={{ marginBottom: '12px' }}>
@@ -211,15 +239,11 @@ export default function LeaveTab() {
               Supporting Document <span style={{ color: '#9CA3AF', fontWeight: '400' }}>(optional)</span>
             </label>
             {!document ? (
-              <label style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                padding: '12px', border: '2px dashed #E5E7EB', borderRadius: '8px',
-                cursor: 'pointer', color: '#6B7280', fontSize: '0.85rem',
-              }}>
-                <FaUpload size={14} />
-                <span>Upload document (JPG, PNG, PDF, max 10MB)</span>
-                <input type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={handleFileChange} style={{ display: 'none' }} />
-              </label>
+              <MobileFilePicker
+                label="Take photo or upload document"
+                hint={`Camera, gallery, or PDF · max ${MAX_PHOTO_UPLOAD_MB}MB`}
+                onFileSelect={handleFileSelect}
+              />
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#F0FDF4', borderRadius: '8px', border: '1px solid #10B981' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#065F46' }}>

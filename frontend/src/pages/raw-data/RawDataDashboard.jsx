@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Container, Row, Col, Card, Spinner, Badge } from "react-bootstrap";
+import { Container, Row, Col, Card, Spinner, Badge, Alert } from "react-bootstrap";
 import { FaDatabase, FaPhone, FaCheckCircle, FaTimesCircle, FaClock, FaExclamationTriangle } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { rawDataApi } from "../../api/rawDataApi";
@@ -23,10 +23,12 @@ export default function RawDataDashboard() {
   const [sources, setSources] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      setAccessDenied(false);
       try {
         const [s, src, cat] = await Promise.all([
           rawDataApi.getDashboardSummary(),
@@ -34,16 +36,31 @@ export default function RawDataDashboard() {
           rawDataApi.getCategoryAnalysis(),
         ]);
         setSummary(s.data);
-        setSources(src.data.sources || []);
-        setCategories(cat.data.categories || []);
-      } catch {
-        toast.error("Failed to load dashboard");
+        setSources(src.data?.sources || []);
+        setCategories(cat.data?.categories || []);
+      } catch (error) {
+        if (error.response?.status === 403) {
+          setAccessDenied(true);
+        } else {
+          toast.error("Failed to load dashboard");
+        }
       } finally {
         setLoading(false);
       }
     };
     load();
   }, []);
+
+  if (accessDenied) {
+    return (
+      <Container className="py-4">
+        <Alert variant="warning">
+          You do not have permission to view raw data analytics. Contact an administrator
+          if you need access.
+        </Alert>
+      </Container>
+    );
+  }
 
   if (loading) {
     return (

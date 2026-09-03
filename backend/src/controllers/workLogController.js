@@ -6,6 +6,7 @@ import NotificationService from "../services/notificationService.js";
 import logger from "../utils/logger.js";
 import { getCurrentISTTime, getTodayMidnightIST, getTodayRangeIST } from "../utils/timezone.js";
 import * as XLSX from "xlsx";
+import { mergeActiveEmployeeFilter } from "../utils/employeeQueryUtils.js";
 
 /**
  * Detect low-effort / padding work logs.
@@ -233,9 +234,8 @@ export const getTodayWorkLog = async (req, res) => {
       .populate("concernRaisedBy", "name email");
 
     if (!workLog) {
-      return res.status(404).json({
-        message: "No work log found for today",
-      });
+      // 200 + null avoids noisy browser 404s when today's log is not created yet
+      return res.status(200).json(null);
     }
 
     res.status(200).json(workLog);
@@ -389,19 +389,23 @@ export const getAllWorkLogs = async (req, res) => {
     // Department filter - need to populate and filter
     let employeeIds = null;
     if (department) {
-      const employees = await User.find({ department }).select("_id");
+      const employees = await User.find(
+        mergeActiveEmployeeFilter({ department })
+      ).select("_id");
       employeeIds = employees.map((emp) => emp._id);
       query.employee = { $in: employeeIds };
     }
 
     // Search filter
     if (search) {
-      const searchEmployees = await User.find({
-        $or: [
-          { name: { $regex: search, $options: "i" } },
-          { email: { $regex: search, $options: "i" } },
-        ],
-      }).select("_id");
+      const searchEmployees = await User.find(
+        mergeActiveEmployeeFilter({
+          $or: [
+            { name: { $regex: search, $options: "i" } },
+            { email: { $regex: search, $options: "i" } },
+          ],
+        })
+      ).select("_id");
       
       const searchEmployeeIds = searchEmployees.map((emp) => emp._id);
       
@@ -811,7 +815,9 @@ export const getWorkLogStats = async (req, res) => {
 
     // Department filter
     if (department) {
-      const employees = await User.find({ department }).select("_id");
+      const employees = await User.find(
+        mergeActiveEmployeeFilter({ department })
+      ).select("_id");
       const employeeIds = employees.map((emp) => emp._id);
       query.employee = { $in: employeeIds };
     }
@@ -840,10 +846,10 @@ export const getWorkLogStats = async (req, res) => {
     ]);
 
     // Get total employees count
-    const employeeQuery = { role: { $in: ["employee", "hr", "hod", "manager"] } };
-    if (department) {
-      employeeQuery.department = department;
-    }
+    const employeeQuery = mergeActiveEmployeeFilter({
+      role: { $in: ["employee", "hr", "hod", "manager"] },
+      ...(department ? { department } : {}),
+    });
     const totalEmployees = await User.countDocuments(employeeQuery);
 
     res.status(200).json({
@@ -918,19 +924,23 @@ export const exportWorkLogs = async (req, res) => {
 
     // Department filter (only for admin/hr/manager)
     if (!isRestrictedUser && department) {
-      const employees = await User.find({ department }).select("_id");
+      const employees = await User.find(
+        mergeActiveEmployeeFilter({ department })
+      ).select("_id");
       const employeeIds = employees.map((emp) => emp._id);
       query.employee = { $in: employeeIds };
     }
 
     // Search filter (only for admin/hr/manager)
     if (!isRestrictedUser && search) {
-      const searchEmployees = await User.find({
-        $or: [
-          { name: { $regex: search, $options: "i" } },
-          { email: { $regex: search, $options: "i" } },
-        ],
-      }).select("_id");
+      const searchEmployees = await User.find(
+        mergeActiveEmployeeFilter({
+          $or: [
+            { name: { $regex: search, $options: "i" } },
+            { email: { $regex: search, $options: "i" } },
+          ],
+        })
+      ).select("_id");
       
       const searchEmployeeIds = searchEmployees.map((emp) => emp._id);
       
@@ -1033,10 +1043,16 @@ export const exportWorkLogs = async (req, res) => {
 export const getDepartmentWorkLogs = async (req, res) => {
   try {
     const { page = 1, limit = 10, status, startDate, endDate, search } = req.query;
-    const hodUserId = req.user._id;
 
-    // Get the department where user is HOD
-    const department = await Department.findOne({ head: hodUserId, status: "active" });
+    // Prefer department resolved by isHoD middleware; fall back to lookup
+    let department = req.hodDepartment;
+    if (!department) {
+      const hodUserId = req.user._id || req.user.id;
+      department = await Department.findOne({
+        status: "active",
+        $or: [{ head: hodUserId }, { head: String(hodUserId) }],
+      });
+    }
 
     if (!department) {
       return res.status(403).json({
@@ -1046,7 +1062,9 @@ export const getDepartmentWorkLogs = async (req, res) => {
     }
 
     // Get all employees in this department
-    const employees = await User.find({ department: department._id }).select("_id");
+    const employees = await User.find(
+      mergeActiveEmployeeFilter({ department: department._id })
+    ).select("_id");
     const employeeIds = employees.map((emp) => emp._id);
 
     if (employeeIds.length === 0) {
@@ -1091,13 +1109,15 @@ export const getDepartmentWorkLogs = async (req, res) => {
 
     // Search filter (by employee name or email)
     if (search) {
-      const searchEmployees = await User.find({
-        $or: [
-          { name: { $regex: search, $options: "i" } },
-          { email: { $regex: search, $options: "i" } },
-        ],
-        department: department._id,
-      }).select("_id");
+      const searchEmployees = await User.find(
+        mergeActiveEmployeeFilter({
+          $or: [
+            { name: { $regex: search, $options: "i" } },
+            { email: { $regex: search, $options: "i" } },
+          ],
+          department: department._id,
+        })
+      ).select("_id");
 
       const searchEmployeeIds = searchEmployees.map((emp) => emp._id);
       query.employee = { $in: searchEmployeeIds };

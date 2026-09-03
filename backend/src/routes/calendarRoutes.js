@@ -8,10 +8,14 @@ import {
   deleteCalendarEvent,
   getWorkflowAnalytics,
 } from "../controllers/calendarController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
+
+const WORKFLOW_ANALYTICS_ROLES = ["admin", "superadmin", "hr", "hod"];
 
 // All routes require authentication
 router.use(protect);
@@ -36,7 +40,9 @@ router.route("/events/:id")
 // Analytics endpoints
 router.get(
   "/analytics/workflow",
-  authorizeRoles("admin", "superadmin", "hr", "hod"),
+  requireModulePermission("reports", "reports.analytics.view", {
+    legacyRoles: WORKFLOW_ANALYTICS_ROLES,
+  }),
   getWorkflowAnalytics
 );
 

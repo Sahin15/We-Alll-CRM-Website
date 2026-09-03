@@ -21,11 +21,12 @@ import {
 } from 'react-icons/fa';
 import holidayApi from '../../api/holidayApi';
 import { useAuth } from '../../context/AuthContext';
+import { checkPageAccess, PAGE_ACCESS } from '../../constants/pageAccess';
 import { useNavigate } from 'react-router-dom';
 import './HolidaySection.css';
 
 const HolidaySection = () => {
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
   const navigate = useNavigate();
   const [holidays, setHolidays] = useState([]);
   const [upcomingHolidays, setUpcomingHolidays] = useState([]);
@@ -35,7 +36,7 @@ const HolidaySection = () => {
   const [showAllInExpanded, setShowAllInExpanded] = useState(false);
 
   // Check if user can manage holidays
-  const canManageHolidays = ['admin', 'superadmin', 'hr'].includes(user?.role);
+  const canManageHolidays = checkPageAccess(canAccess, PAGE_ACCESS.companyHolidayManage);
 
   const holidayTypeIcons = {
     public: <FaGift className="text-success" />,

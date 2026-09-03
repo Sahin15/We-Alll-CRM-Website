@@ -84,7 +84,7 @@ const SimplifiedProjectModal = ({ show, onHide, onSuccess, project = null }) => 
 
   const loadEmployees = async () => {
     try {
-      const response = await userApi.getAllUsers();
+      const response = await userApi.getAllUsers({ status: 'active', limit: 1000 });
       const allUsers = response.data || response.users || [];
       // Filter to only employees (not clients)
       const employeeList = allUsers.filter(u => u.role !== 'client');
@@ -100,7 +100,18 @@ const SimplifiedProjectModal = ({ show, onHide, onSuccess, project = null }) => 
       const deptList = Array.isArray(response) ? response : (response.data || response.departments || []);
       setDepartments(deptList);
     } catch (error) {
+      if (error.response?.status === 403) {
+        try {
+          const directory = await departmentApi.getDepartmentDirectory();
+          setDepartments(Array.isArray(directory) ? directory : []);
+          return;
+        } catch {
+          setDepartments([]);
+          return;
+        }
+      }
       console.error('Error loading departments:', error);
+      setDepartments([]);
     }
   };
 

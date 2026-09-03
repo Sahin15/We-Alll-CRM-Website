@@ -58,6 +58,7 @@ import {
 import { toast } from 'react-toastify';
 import moment from 'moment';
 import { useAuth } from '../../context/AuthContext';
+import { checkPageAccess, PAGE_ACCESS } from '../../constants/pageAccess';
 import { useNavigate } from 'react-router-dom';
 import departmentApi from '../../api/departmentApi';
 import projectApi from '../../api/projectApi';
@@ -90,7 +91,7 @@ import './WorkItemEnhancements.css';
  * - View-only interface for work progress monitoring
  */
 const EnhancedAdminWorkOverview = () => {
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
   const navigate = useNavigate();
   
   // State management
@@ -194,7 +195,7 @@ const EnhancedAdminWorkOverview = () => {
   });
 
   // Check admin access
-  const hasAdminAccess = ['admin', 'superadmin', 'hr', 'manager'].includes(user?.role);
+  const hasAdminAccess = checkPageAccess(canAccess, PAGE_ACCESS.workManage);
   
   // Set document title
   useEffect(() => {
@@ -792,7 +793,7 @@ const EnhancedAdminWorkOverview = () => {
       const [clients, projects, employees, departments] = await Promise.all([
         clientApi.getAllClients(),
         projectApi.getAllProjects(),
-        userApi.getAllUsers(),
+        userApi.getAllUsers({ status: 'active', limit: 1000 }),
         departmentApi.getAllDepartments()
       ]);
 

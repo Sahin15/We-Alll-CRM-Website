@@ -14,6 +14,7 @@ import RecentActivity from "../../components/dashboard/RecentActivity";
 import QuickActions from "../../components/dashboard/QuickActions";
 import GreetingBanner from "../../components/common/GreetingBanner";
 import { useAuth } from "../../context/AuthContext";
+import { PAGE_ACCESS, checkPageAccess } from "../../constants/pageAccess";
 import { attendanceApi } from "../../api/attendanceApi";
 import { leaveApi } from "../../api/leaveApi";
 import { projectApi } from "../../api/projectApi";
@@ -22,7 +23,8 @@ import FollowUpDashboard from "../../components/leads/FollowUpDashboard";
 import toast from "../../utils/toast";
 
 const EmployeeDashboard = () => {
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
+  const hasReportsAccess = checkPageAccess(canAccess, PAGE_ACCESS.reportsAnalytics);
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     attendance: 0,
@@ -38,7 +40,7 @@ const EmployeeDashboard = () => {
   // Check if user should have lead access based on role or department
   const shouldHaveLeadAccess = () => {
     // Admin, SuperAdmin, Manager always have access
-    if (['admin', 'superadmin', 'manager'].includes(user?.role)) {
+    if (hasReportsAccess) {
       return true;
     }
     // Sales department employees have access
@@ -99,7 +101,7 @@ const EmployeeDashboard = () => {
         console.error("   User department:", user?.department);
         
         // Even if API call fails, check if user should have access based on role
-        const hasRoleAccess = ['admin', 'superadmin', 'manager'].includes(user?.role);
+        const hasRoleAccess = hasReportsAccess;
         if (hasRoleAccess) {
           setHasLeadAccess(true);
         } else {

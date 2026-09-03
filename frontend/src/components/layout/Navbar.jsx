@@ -17,7 +17,6 @@ import {
   FaUserCircle, 
   FaSearch, 
   FaClock, 
-  FaPlus,
   FaHome,
   FaUsers,
   FaTasks,
@@ -27,17 +26,30 @@ import {
   FaExclamationTriangle,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
+import { checkPageAccess, PAGE_ACCESS } from "../../constants/pageAccess";
 import { resolveProfilePictureUrl } from "../../utils/profilePictureUrl";
+import "./NavbarUserDropdown.css";
+
+const withCacheBust = (url) => {
+  if (!url || !url.includes(".amazonaws.com")) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}v=${Date.now()}`;
+};
 import { useNavigate, useLocation } from "react-router-dom";
-import { useState, useEffect, useRef } from "react";
-import CompanySwitcher from "../admin/CompanySwitcher";
-import NotificationBell from "../notifications/NotificationBell";
-import QuickClockInOut from "../attendance/QuickClockInOut";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import api from "../../services/api";
 import workItemApi from "../../api/workItemApi";
 
+const CompanySwitcher = lazy(() => import("../admin/CompanySwitcher"));
+const NotificationBell = lazy(() => import("../notifications/NotificationBell"));
+const QuickClockInOut = lazy(() => import("../attendance/QuickClockInOut"));
+
+const NavbarLazy = ({ children }) => (
+  <Suspense fallback={null}>{children}</Suspense>
+);
+
 const Navbar = ({ toggleSidebar }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, canAccess } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
@@ -45,19 +57,19 @@ const Navbar = ({ toggleSidebar }) => {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [imageLoadError, setImageLoadError] = useState(false);
+  const [profileImgSrc, setProfileImgSrc] = useState(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const searchRef = useRef(null);
 
-  // Reset image load error when user profile picture changes
   useEffect(() => {
     setImageLoadError(false);
+    setProfileImgSrc(
+      user?.profilePicture ? resolveProfilePictureUrl(user.profilePicture) : null
+    );
   }, [user?.profilePicture]);
 
   // Check if user has permission to see company switcher
-  const canSwitchCompany =
-    user?.role === "admin" ||
-    user?.role === "superadmin" ||
-    user?.role === "accounts";
+  const canSwitchCompany = canAccess('billing.invoice.view', ['admin', 'superadmin', 'accounts']);
 
   // Define billing-related routes where company switcher should appear
   const BILLING_ROUTES = [
@@ -123,7 +135,7 @@ const Navbar = ({ toggleSidebar }) => {
       const results = [];
 
       // Search Users (for HR, Admin, SuperAdmin)
-      if (['hr', 'admin', 'superadmin'].includes(user?.role)) {
+      if (checkPageAccess(canAccess, PAGE_ACCESS.profileHrView)) {
         try {
           const usersRes = await api.get(`/users`);
           const users = usersRes.data
@@ -235,16 +247,15 @@ const Navbar = ({ toggleSidebar }) => {
   const getQuickActions = () => {
     if (user?.role === 'hr') {
       return []; // Removed Add Employee and Approve Leaves buttons from navbar
-    } else if (user?.role === 'admin' || user?.role === 'superadmin') {
-      return [
-        { label: 'Add Employee', icon: <FaPlus />, action: () => navigate('/employees/add') },
-        { label: 'View Reports', icon: <FaClock />, action: () => navigate('/dashboard') },
-      ];
     }
     return [];
   };
 
   const quickActions = getQuickActions();
+  const showStaffNavbarActions =
+    user?.role !== "admin" &&
+    user?.role !== "superadmin" &&
+    checkPageAccess(canAccess, PAGE_ACCESS.navbarStaffMenu);
 
   return (
     <BSNavbar 
@@ -415,25 +426,31 @@ const Navbar = ({ toggleSidebar }) => {
         {/* Company Switcher - visible only on billing pages for authorized users */}
         {showCompanySwitcher && (
           <div className="mx-auto">
-            <CompanySwitcher />
+            <NavbarLazy>
+              <CompanySwitcher />
+            </NavbarLazy>
           </div>
         )}
 
         {/* Right Section: Quick Actions, Notifications, User Menu */}
         <Nav className="ms-auto align-items-center gap-1 gap-md-2" style={{ overflow: 'visible' }}>
           {/* Clock In/Out for Employees, HR, HOD, Accounts, and Manager */}
-          {['employee', 'hr', 'hod', 'accounts', 'manager'].includes(user?.role) && (
+          {showStaffNavbarActions && (
             <>
               {/* Desktop version with labels */}
               <div className="d-none d-lg-flex me-2" style={{ position: 'relative', zIndex: 1 }}>
                 <div style={{ position: 'relative', zIndex: 1 }}>
-                  <QuickClockInOut showLabel={true} />
+                  <NavbarLazy>
+                    <QuickClockInOut showLabel={true} />
+                  </NavbarLazy>
                 </div>
               </div>
               {/* Mobile/Tablet version without labels (icon only) */}
               <div className="d-flex d-lg-none me-1" style={{ position: 'relative', zIndex: 1 }}>
                 <div style={{ position: 'relative', zIndex: 1 }}>
-                  <QuickClockInOut showLabel={false} size="sm" />
+                  <NavbarLazy>
+                    <QuickClockInOut showLabel={false} size="sm" />
+                  </NavbarLazy>
                 </div>
               </div>
             </>
@@ -465,7 +482,9 @@ const Navbar = ({ toggleSidebar }) => {
 
           {/* Notification Bell */}
           <div className="me-1 me-md-2">
-            <NotificationBell />
+            <NavbarLazy>
+              <NotificationBell />
+            </NavbarLazy>
           </div>
 
           {/* Work Mobile App Icon */}
@@ -473,15 +492,18 @@ const Navbar = ({ toggleSidebar }) => {
             <button
               onClick={() => navigate('/mobileapp')}
               title="Work App - Clock In/Out, Work Log, Leave, Expenses"
+              aria-label="Open Work App"
               style={{
                 background: 'none',
                 border: 'none',
                 cursor: 'pointer',
-                padding: '6px',
-                color: '#10B981',
+                padding: 0,
+                color: '#fff',
                 display: 'flex',
                 alignItems: 'center',
-                fontSize: '1.3rem',
+                justifyContent: 'center',
+                lineHeight: 1,
+                fontSize: '1.15rem',
               }}
             >
               📱
@@ -493,10 +515,10 @@ const Navbar = ({ toggleSidebar }) => {
             title={
               <div className="d-flex align-items-center">
                 <div className="profile-avatar-wrapper">
-                  {user?.profilePicture && !imageLoadError ? (
+                  {user?.profilePicture && !imageLoadError && profileImgSrc ? (
                     <Image
-                      key={user.profilePicture}
-                      src={resolveProfilePictureUrl(user.profilePicture)}
+                      key={profileImgSrc}
+                      src={profileImgSrc}
                       alt={user.name}
                       roundedCircle
                       width={42}
@@ -506,6 +528,15 @@ const Navbar = ({ toggleSidebar }) => {
                         objectFit: "cover"
                       }}
                       onError={() => {
+                        if (
+                          user.profilePicture?.includes(".amazonaws.com") &&
+                          !profileImgSrc.includes("v=")
+                        ) {
+                          setProfileImgSrc(
+                            withCacheBust(resolveProfilePictureUrl(user.profilePicture))
+                          );
+                          return;
+                        }
                         setImageLoadError(true);
                       }}
                     />
@@ -531,18 +562,32 @@ const Navbar = ({ toggleSidebar }) => {
             id="user-dropdown"
             align="end"
             className="user-dropdown"
+            popperConfig={{ strategy: "fixed" }}
           >
-            <div className="px-3 py-2 border-bottom bg-light" style={{ maxWidth: "280px" }}>
-              <div className="fw-bold text-truncate" style={{ maxWidth: "100%" }} title={user?.name || "User"}>
+            <div
+              className="user-dropdown-header"
+              style={{
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                color: "#ffffff",
+                padding: "16px 20px",
+                border: "none",
+              }}
+            >
+              <div
+                className="user-dropdown-name text-truncate"
+                title={user?.name || "User"}
+              >
                 {user?.name || "User"}
               </div>
-              <div className="small text-muted text-truncate" style={{ maxWidth: "100%" }}>
+              <div className="user-dropdown-email text-truncate">
                 {user?.email || "No email"}
               </div>
               <div className="mt-1">
-                <Badge bg="primary">
-                  {user?.role === 'employee' ? (user?.funBadge || 'Team Member') : user?.role.charAt(0).toUpperCase() + user?.role.slice(1)}
-                </Badge>
+                <span className="user-role-badge">
+                  {user?.role === "employee"
+                    ? user?.funBadge || "Team Member"
+                    : (user?.role || "User").toUpperCase()}
+                </span>
               </div>
             </div>
             <NavDropdown.Item onClick={() => navigate(user?.role === 'employee' ? '/employee/profile' : '/profile')}>
@@ -562,7 +607,9 @@ const Navbar = ({ toggleSidebar }) => {
               Settings
             </NavDropdown.Item>
             <NavDropdown.Divider />
-            <NavDropdown.Item onClick={handleLogoutClick}>Logout</NavDropdown.Item>
+            <NavDropdown.Item className="user-dropdown-logout" onClick={handleLogoutClick}>
+              Logout
+            </NavDropdown.Item>
           </NavDropdown>
         </Nav>
       </Container>
@@ -573,6 +620,7 @@ const Navbar = ({ toggleSidebar }) => {
         onHide={handleLogoutCancel}
         centered
         backdrop="static"
+        className="logout-confirm-modal"
       >
         <Modal.Header closeButton className="border-0 pb-0">
           <Modal.Title className="d-flex align-items-center">
@@ -589,7 +637,7 @@ const Navbar = ({ toggleSidebar }) => {
           </Modal.Title>
         </Modal.Header>
         <Modal.Body className="pt-2 pb-4">
-          <p className="mb-0 text-muted" style={{ fontSize: '1.05rem' }}>
+          <p className="mb-0 logout-confirm-message" style={{ fontSize: '1.05rem' }}>
             Are you sure you want to logout? You'll need to sign in again to access your account.
           </p>
         </Modal.Body>
@@ -625,6 +673,28 @@ const Navbar = ({ toggleSidebar }) => {
 
       {/* Custom CSS for dropdown styling and mobile responsiveness */}
       <style>{`
+        .logout-confirm-modal .modal-content,
+        .logout-confirm-modal .modal-header,
+        .logout-confirm-modal .modal-body,
+        .logout-confirm-modal .modal-footer {
+          background-color: #ffffff !important;
+          color: #212529 !important;
+        }
+
+        .logout-confirm-modal .modal-title,
+        .logout-confirm-modal .modal-title span {
+          color: #212529 !important;
+        }
+
+        .logout-confirm-modal .logout-confirm-message {
+          color: #495057 !important;
+        }
+
+        .logout-confirm-modal .btn-close {
+          filter: none !important;
+          opacity: 0.55;
+        }
+
         /* Mobile Navbar Adjustments */
         @media (max-width: 575.98px) {
           .mobile-navbar {
@@ -647,26 +717,14 @@ const Navbar = ({ toggleSidebar }) => {
           }
         }
         
-
-        /* User Dropdown Toggle Button */
-        .user-dropdown .dropdown-toggle {
-          background: rgba(255, 255, 255, 0.15) !important;
-          border-radius: 30px !important;
-          padding: 6px 16px 6px 6px !important;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-          border: 2px solid rgba(255, 255, 255, 0.2) !important;
-          display: flex !important;
-          align-items: center !important;
-          backdrop-filter: blur(10px) !important;
+        /* Ensure navbar doesn't clip dropdown */
+        .mobile-navbar,
+        .mobile-navbar .container-fluid,
+        .mobile-navbar .navbar-nav {
+          overflow: visible !important;
         }
-        
-        /* Mobile adjustments for user dropdown */
+
         @media (max-width: 575.98px) {
-          .user-dropdown .dropdown-toggle {
-            padding: 4px 8px 4px 4px !important;
-            border-radius: 25px !important;
-          }
-          
           .profile-avatar,
           .profile-avatar-placeholder {
             width: 36px !important;
@@ -681,157 +739,6 @@ const Navbar = ({ toggleSidebar }) => {
             width: 10px !important;
             height: 10px !important;
           }
-        }
-        
-        .user-dropdown .dropdown-toggle:hover {
-          background: rgba(255, 255, 255, 0.25) !important;
-          border-color: rgba(255, 255, 255, 0.4) !important;
-          transform: translateY(-2px);
-          box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2) !important;
-        }
-        
-        .user-dropdown .dropdown-toggle:active {
-          transform: translateY(0);
-        }
-        
-        .user-dropdown .dropdown-toggle::after {
-          color: white !important;
-          margin-left: 10px !important;
-          vertical-align: middle !important;
-          transition: transform 0.3s ease !important;
-        }
-        
-        .user-dropdown.show .dropdown-toggle::after {
-          transform: rotate(180deg);
-        }
-        
-        /* User Dropdown - Higher z-index to appear above other elements */
-        .user-dropdown {
-          position: relative !important;
-          z-index: 99999 !important;
-        }
-        
-        /* Ensure navbar doesn't clip dropdown */
-        .mobile-navbar,
-        .mobile-navbar .container-fluid,
-        .mobile-navbar .navbar-nav {
-          overflow: visible !important;
-        }
-        
-        /* Dropdown Menu */
-        .user-dropdown .dropdown-menu {
-          font-family: 'Inter', sans-serif !important;
-          border: none !important;
-          border-radius: 16px !important;
-          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15) !important;
-          padding: 0 !important;
-          margin-top: 12px !important;
-          min-width: 280px !important;
-          max-height: 420px !important;
-          overflow-y: auto !important;
-          animation: dropdownSlideIn 0.3s ease-out !important;
-          z-index: 99999 !important;
-          position: absolute !important;
-          top: 100% !important;
-          right: 0 !important;
-          left: auto !important;
-        }
-        
-        /* Mobile dropdown adjustments */
-        @media (max-width: 575.98px) {
-          .user-dropdown .dropdown-menu {
-            min-width: 260px !important;
-            margin-top: 8px !important;
-            border-radius: 12px !important;
-            right: 0 !important;
-            left: auto !important;
-          }
-        }
-        
-        @keyframes dropdownSlideIn {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        /* Dropdown Header */
-        .user-dropdown .dropdown-menu .border-bottom {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-          color: white !important;
-          padding: 16px 20px !important;
-          border: none !important;
-        }
-        
-        .user-dropdown .dropdown-menu .border-bottom .fw-bold {
-          font-size: 1rem !important;
-          font-weight: 600 !important;
-          margin-bottom: 4px !important;
-          color: white !important;
-          white-space: nowrap !important;
-          overflow: hidden !important;
-          text-overflow: ellipsis !important;
-          max-width: 240px !important;
-        }
-        
-        .user-dropdown .dropdown-menu .border-bottom .text-muted {
-          color: rgba(255, 255, 255, 0.85) !important;
-          font-size: 0.875rem !important;
-          white-space: nowrap !important;
-          overflow: hidden !important;
-          text-overflow: ellipsis !important;
-          max-width: 240px !important;
-        }
-        
-        .user-dropdown .dropdown-menu .border-bottom .badge {
-          margin-top: 8px !important;
-          padding: 6px 12px !important;
-          font-weight: 500 !important;
-          background: rgba(255, 255, 255, 0.25) !important;
-          backdrop-filter: blur(10px) !important;
-          border: 1px solid rgba(255, 255, 255, 0.3) !important;
-        }
-        
-        /* Dropdown Items */
-        .user-dropdown .dropdown-item {
-          padding: 14px 20px !important;
-          font-size: 0.95rem !important;
-          font-weight: 500 !important;
-          color: #374151 !important;
-          transition: all 0.2s ease !important;
-          border-left: 3px solid transparent !important;
-        }
-        
-        .user-dropdown .dropdown-item:hover {
-          background: linear-gradient(90deg, rgba(102, 126, 234, 0.08) 0%, rgba(102, 126, 234, 0.02) 100%) !important;
-          border-left-color: #667eea !important;
-          color: #667eea !important;
-          padding-left: 24px !important;
-        }
-        
-        .user-dropdown .dropdown-item:active {
-          background: linear-gradient(90deg, rgba(102, 126, 234, 0.12) 0%, rgba(102, 126, 234, 0.04) 100%) !important;
-        }
-        
-        /* Dropdown Divider */
-        .user-dropdown .dropdown-divider {
-          margin: 8px 0 !important;
-          border-color: rgba(0, 0, 0, 0.08) !important;
-        }
-        
-        /* Logout Item */
-        .user-dropdown .dropdown-item:last-child {
-          color: #ef4444 !important;
-          font-weight: 600 !important;
-        }
-        
-        .user-dropdown .dropdown-item:last-child:hover {
-          background: linear-gradient(90deg, rgba(239, 68, 68, 0.08) 0%, rgba(239, 68, 68, 0.02) 100%) !important;
-          border-left-color: #ef4444 !important;
         }
         
         /* Search Bar */

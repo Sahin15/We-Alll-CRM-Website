@@ -5,6 +5,7 @@ import toast from "../../utils/toast";
 import { useAuth } from "../../context/AuthContext";
 import { resolveProfilePictureUrl } from "../../utils/profilePictureUrl";
 import axios from "axios";
+import { MAX_PHOTO_UPLOAD_BYTES, MAX_PHOTO_UPLOAD_MB } from "../../utils/constants";
 import "./ProfilePictureUpload.css";
 
 const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
@@ -24,7 +25,17 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
   const cropContainerRef = useRef(null);
   const [imageLoaded, setImageLoaded] = useState(false);
 
-  const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  const getApiBaseUrl = () => {
+    if (import.meta.env.VITE_API_URL) {
+      return import.meta.env.VITE_API_URL.replace(/\/$/, "");
+    }
+    if (import.meta.env.PROD) {
+      return "/api";
+    }
+    return "http://localhost:5000/api";
+  };
+
+  const API_BASE_URL = getApiBaseUrl();
 
   // Update preview when user profile picture changes
   useEffect(() => {
@@ -78,7 +89,7 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
     });
 
     // Validate file
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    const maxSize = MAX_PHOTO_UPLOAD_BYTES;
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
     if (!allowedTypes.includes(file.type)) {
@@ -93,13 +104,23 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
     }
 
     if (file.size > maxSize) {
-      toast.error("❌ File too large. Please upload an image smaller than 10MB.", {
+      toast.error(`❌ File too large. Please upload an image smaller than ${MAX_PHOTO_UPLOAD_MB}MB.`, {
         duration: 4000,
         style: {
           background: '#EF4444',
           color: 'white',
         },
       });
+      return;
+    }
+
+    const isMobileViewport =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(max-width: 768px)').matches;
+
+    // Mobile browsers handle crop UI poorly; upload the selected photo directly.
+    if (isMobileViewport) {
+      uploadProfilePicture(file);
       return;
     }
 
@@ -404,7 +425,7 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
       
       let errorMessage = "Failed to upload profile picture";
       if (error.response?.status === 413) {
-        errorMessage = "File too large. Please choose an image smaller than 10MB.";
+        errorMessage = `File too large. Please choose an image smaller than ${MAX_PHOTO_UPLOAD_MB}MB.`;
       } else if (error.response?.status === 415) {
         errorMessage = "Invalid file type. Please use JPG, PNG, or WebP.";
       } else if (error.response?.data?.message) {
@@ -428,11 +449,10 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     handleFileSelect(file);
+    e.target.value = '';
   };
 
-  const handleClick = () => {
-    fileInputRef.current?.click();
-  };
+  const profilePictureInputId = 'profile-picture-file-input';
 
   const handleRemove = async () => {
     if (!window.confirm('🗑️ Remove Profile Picture\n\nAre you sure you want to permanently remove your profile picture? This action cannot be undone.')) {
@@ -603,10 +623,12 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
     <div className="profile-picture-upload">
       <input
         ref={fileInputRef}
+        id={profilePictureInputId}
         type="file"
-        accept="image/jpeg,image/jpg,image/png,image/webp"
+        accept="image/jpeg,image/jpg,image/png,image/webp,image/*"
         onChange={handleFileChange}
-        style={{ display: "none" }}
+        disabled={uploading}
+        className="profile-picture-file-input"
       />
 
       <div className="profile-picture-container">
@@ -635,15 +657,14 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
         </div>
 
         <div className="profile-picture-actions">
-          <Button
-            size="sm"
-            variant="primary"
-            onClick={handleClick}
-            disabled={uploading}
+          <label
+            htmlFor={profilePictureInputId}
+            className={`btn btn-sm btn-primary mb-0 ${uploading ? 'disabled' : ''}`}
+            style={{ cursor: uploading ? 'not-allowed' : 'pointer' }}
           >
             <FaCamera className="me-2" />
             {preview ? "Change" : "Upload"}
-          </Button>
+          </label>
           {preview && (
             <>
               <Button
@@ -670,11 +691,11 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
       </div>
 
       <small className="text-muted d-block mt-2 text-center">
-        JPG, PNG or WebP. Max 10MB.
+        JPG, PNG or WebP. Max {MAX_PHOTO_UPLOAD_MB}MB.
       </small>
 
       {/* Image Crop Modal */}
-      <Modal show={showCropModal} onHide={() => setShowCropModal(false)} size="lg" centered>
+      <Modal show={showCropModal} onHide={() => setShowCropModal(false)} size="lg" centered fullscreen="md-down">
         <Modal.Header closeButton>
           <Modal.Title>
             <FaCrop className="me-2" />
@@ -841,13 +862,14 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess }) => {
           <Button variant="secondary" onClick={() => setShowViewModal(false)}>
             Close
           </Button>
-          <Button variant="primary" onClick={() => {
-            setShowViewModal(false);
-            handleClick();
-          }}>
+          <label
+            htmlFor={profilePictureInputId}
+            className="btn btn-primary mb-0"
+            onClick={() => setShowViewModal(false)}
+          >
             <FaCamera className="me-2" />
             Change Picture
-          </Button>
+          </label>
         </Modal.Footer>
       </Modal>
     </div>

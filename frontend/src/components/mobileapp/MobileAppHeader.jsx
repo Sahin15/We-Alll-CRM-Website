@@ -7,6 +7,7 @@ import { useNotifications } from '../../context/NotificationContext';
 import ProfileSheet from './ProfileSheet';
 import SettingsSheet from './SettingsSheet';
 import NotificationSheet from './NotificationSheet';
+import { BRAND_LOGO_MINI } from '../../constants/branding';
 
 export default function MobileAppHeader() {
   const { user, logout } = useAuth();
@@ -44,7 +45,7 @@ export default function MobileAppHeader() {
         }}>
           {/* Left: Logo + name */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <img loading="lazy" src="/Wealll_mini.png" alt="WeAlll" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
+            <img loading="lazy" src={BRAND_LOGO_MINI} alt="WeAlll" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
             <span style={{ color: '#fff', fontWeight: '700', fontSize: '1.1rem' }}>WeAlll Office</span>
           </div>
 

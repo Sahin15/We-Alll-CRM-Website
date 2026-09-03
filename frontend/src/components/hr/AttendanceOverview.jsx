@@ -25,6 +25,7 @@ import {
 import toast from "../../utils/toast";
 import api from "../../services/api";
 import { formatDate } from "../../utils/helpers";
+import { dedupeAttendanceByISTDay } from "../../utils/attendanceHelpers";
 
 // Move styles outside component to prevent recreation
 const cardHoverStyle = {
@@ -124,7 +125,7 @@ const AttendanceOverview = () => {
       setLoading(true);
       // Fetch only today's attendance by default
       const response = await api.get(`/attendance?date=${today}`);
-      const todayAttendance = response.data;
+      const todayAttendance = dedupeAttendanceByISTDay(response.data || []);
       
       setAttendance(todayAttendance);
       
@@ -145,7 +146,7 @@ const AttendanceOverview = () => {
 
   const fetchEmployees = useCallback(async () => {
     try {
-      const response = await api.get("/users");
+      const response = await api.get("/users", { params: { status: 'active', limit: 1000 } });
       // Only show active employees for attendance management
       setEmployees(response.data.filter(u => 
         (u.role === "employee" || u.role === "hod" || u.role === "hr") &&
@@ -172,7 +173,7 @@ const AttendanceOverview = () => {
       }
       
       const response = await api.get(url);
-      const filteredData = response.data;
+      const filteredData = dedupeAttendanceByISTDay(response.data || []);
       
       setAttendance(filteredData);
       
@@ -399,14 +400,19 @@ const AttendanceOverview = () => {
 
   // Memoize the table rows to prevent unnecessary re-renders
   const tableRows = useMemo(() => {
-    return filteredAttendance.map((att) => (
+    return filteredAttendance.map((att) => {
+      const isEdited =
+        Array.isArray(att.modificationHistory) &&
+        att.modificationHistory.length > 0;
+      const isOnLeave = att.status === "on-leave";
+      return (
       <tr 
         key={att._id}
         style={{
-          backgroundColor: att.isManuallyModified ? 'rgba(255, 193, 7, 0.1)' : 'transparent',
-          borderLeft: att.isManuallyModified ? '3px solid #ffc107' : 'none'
+          backgroundColor: isEdited ? 'rgba(255, 193, 7, 0.1)' : 'transparent',
+          borderLeft: isEdited ? '3px solid #ffc107' : 'none'
         }}
-        title={att.isManuallyModified ? 'This record has been manually modified' : ''}
+        title={isEdited ? 'This record has been manually modified' : ''}
       >
         <td>
           <div className="d-flex align-items-center">
@@ -419,16 +425,24 @@ const AttendanceOverview = () => {
         </td>
         <td>{formatDateMemo(att.date)}</td>
         <td>
-          <small className={att.status === "late" ? "text-warning fw-bold" : ""}>
-            {formatTime(att.clockIn)}
-          </small>
+          {isOnLeave ? (
+            <Badge bg="primary">On Leave</Badge>
+          ) : (
+            <small className={att.status === "late" ? "text-warning fw-bold" : ""}>
+              {formatTime(att.clockIn)}
+            </small>
+          )}
         </td>
         <td>
-          <small>{formatTime(att.clockOut)}</small>
+          {isOnLeave ? (
+            <span className="text-muted">-</span>
+          ) : (
+            <small>{formatTime(att.clockOut)}</small>
+          )}
         </td>
         <td>
           <Badge bg="secondary">
-            {calculateWorkHours(att.clockIn, att.clockOut)}
+            {isOnLeave ? "0.00" : calculateWorkHours(att.clockIn, att.clockOut)}
           </Badge>
         </td>
         <td>{getStatusBadge(att.status)}</td>
@@ -451,7 +465,8 @@ const AttendanceOverview = () => {
           </div>
         </td>
       </tr>
-    ));
+      );
+    });
   }, [filteredAttendance, formatDateMemo, formatTime, calculateWorkHours, getStatusBadge, handleViewAttendance, handleEditAttendance]);
 
   if (loading) {

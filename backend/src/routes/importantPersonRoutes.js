@@ -1,12 +1,16 @@
 import express from "express";
 import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 import ImportantPerson from "../models/importantPersonModel.js";
 
 const router = express.Router();
 
+const manageSupport = requireModulePermission("support", "support.manage", {
+  legacyRoles: ["admin", "superadmin"],
+});
+
 // GET all active — all authenticated users
-router.get("/", protect, async (req, res) => {
+router.get("/", protect, requireModulePermission("support", "support.view"), async (req, res) => {
   try {
     const persons = await ImportantPerson.find({ isActive: true }).sort({ order: 1, createdAt: 1 });
     res.json(persons);
@@ -16,7 +20,7 @@ router.get("/", protect, async (req, res) => {
 });
 
 // GET all including inactive — admin/superadmin
-router.get("/all", protect, authorizeRoles("admin", "superadmin"), async (req, res) => {
+router.get("/all", protect, manageSupport, async (req, res) => {
   try {
     const persons = await ImportantPerson.find().sort({ order: 1, createdAt: 1 });
     res.json(persons);
@@ -26,7 +30,7 @@ router.get("/all", protect, authorizeRoles("admin", "superadmin"), async (req, r
 });
 
 // POST create — admin/superadmin
-router.post("/", protect, authorizeRoles("admin", "superadmin"), async (req, res) => {
+router.post("/", protect, manageSupport, async (req, res) => {
   try {
     const { name, role, phone, order } = req.body;
     if (!name?.trim()) return res.status(400).json({ message: "Name is required" });
@@ -38,7 +42,7 @@ router.post("/", protect, authorizeRoles("admin", "superadmin"), async (req, res
 });
 
 // PUT update — admin/superadmin
-router.put("/:id", protect, authorizeRoles("admin", "superadmin"), async (req, res) => {
+router.put("/:id", protect, manageSupport, async (req, res) => {
   try {
     const person = await ImportantPerson.findByIdAndUpdate(req.params.id, { $set: req.body }, { new: true, runValidators: true });
     if (!person) return res.status(404).json({ message: "Not found" });
@@ -49,7 +53,7 @@ router.put("/:id", protect, authorizeRoles("admin", "superadmin"), async (req, r
 });
 
 // DELETE — admin/superadmin
-router.delete("/:id", protect, authorizeRoles("admin", "superadmin"), async (req, res) => {
+router.delete("/:id", protect, manageSupport, async (req, res) => {
   try {
     const person = await ImportantPerson.findByIdAndDelete(req.params.id);
     if (!person) return res.status(404).json({ message: "Not found" });

@@ -66,7 +66,7 @@ export const useDashboardData = () => {
         policiesRes,
         meetingsRes,
       ] = await Promise.all([
-        cachedApiCall('dashboard_users', () => userApi.getAllUsers(), { 
+        cachedApiCall('dashboard_users', () => userApi.getAllUsers({ status: 'active', limit: 1000 }), { 
           ttl: 5 * 60 * 1000, 
           forceRefresh 
         }),
@@ -194,7 +194,7 @@ export const useDashboardData = () => {
       const apiStartTime = Date.now();
       try {
         await Promise.all([
-          userApi.getAllUsers().catch(() => { apiErrors++; }),
+          userApi.getAllUsers({ status: 'active', limit: 1000 }).catch(() => { apiErrors++; }),
           projectApi.getAllProjects().catch(() => { apiErrors++; }),
           clientApi.getAllClients().catch(() => { apiErrors++; }),
         ]);

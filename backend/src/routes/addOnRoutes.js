@@ -7,30 +7,28 @@ import {
   deleteAddOn,
   toggleAddOnStatus,
 } from "../controllers/addOnController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
 
-// Public route - get all active add-ons
-router.get("/", getAllAddOns);
+const ADDON_ADMIN_ROLES = ["admin", "superadmin"];
+const addOnManage = requireModulePermission("billing", "billing.subscription.manage", {
+  legacyRoles: ADDON_ADMIN_ROLES,
+});
 
-// Get add-on by ID
+router.get("/", getAllAddOns);
 router.get("/:id", getAddOnById);
 
-// Admin/Superadmin routes
-router.post("/", protect, authorizeRoles("admin", "superadmin"), createAddOn);
-router.put("/:id", protect, authorizeRoles("admin", "superadmin"), updateAddOn);
-router.delete(
-  "/:id",
-  protect,
-  authorizeRoles("admin", "superadmin"),
-  deleteAddOn
-);
+router.post("/", protect, addOnManage, createAddOn);
+router.put("/:id", protect, addOnManage, updateAddOn);
+router.delete("/:id", protect, addOnManage, deleteAddOn);
 router.put(
   "/:id/toggle-status",
   protect,
-  authorizeRoles("admin", "superadmin"),
+  addOnManage,
   toggleAddOnStatus
 );
 

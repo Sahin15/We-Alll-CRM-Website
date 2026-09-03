@@ -29,6 +29,7 @@ import {
 import { toast } from 'react-toastify';
 import moment from 'moment';
 import { useAuth } from '../../context/AuthContext';
+import { checkPageAccess, PAGE_ACCESS } from '../../constants/pageAccess';
 import workItemApi from '../../api/workItemApi';
 import workCalendarApi from '../../api/workCalendarApi';
 import './EnhancedExportPanel.css';
@@ -56,10 +57,10 @@ const EnhancedExportPanel = ({
   slotAnalytics = null,
   showSlotColumns = false
 }) => {
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
   
   // Check if user has permission to view export jobs
-  const canViewExportJobs = ['admin', 'superadmin', 'hr', 'manager'].includes(user?.role);
+  const canViewExportJobs = checkPageAccess(canAccess, PAGE_ACCESS.workManage);
   // Export configuration state
   const [exportConfig, setExportConfig] = useState({
     format: 'csv',

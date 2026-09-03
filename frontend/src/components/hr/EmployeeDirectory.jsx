@@ -41,7 +41,7 @@ const EmployeeDirectory = () => {
   const fetchEmployees = async () => {
     try {
       setLoading(true);
-      const response = await userApi.getAllUsers();
+      const response = await userApi.getAllUsers({ excludePast: true, limit: 1000 });
       const employeeList = response.data?.filter((u) => u.role === "employee" || u.role === "hod" || u.role === "hr") || [];
       setEmployees(employeeList);
       setFilteredEmployees(employeeList);
@@ -238,7 +238,7 @@ const EmployeeDirectory = () => {
                             variant="primary"
                             size="sm"
                             className="flex-fill"
-                            onClick={() => navigate(`/users/${emp._id}`)}
+                            onClick={() => navigate(`/employees/${emp._id}`)}
                             style={{ borderRadius: '8px', fontWeight: '600' }}
                           >
                             <FaEye className="me-1" />
@@ -326,7 +326,7 @@ const EmployeeDirectory = () => {
                           <Button
                             variant="outline-primary"
                             size="sm"
-                            onClick={() => navigate(`/users/${emp._id}`)}
+                            onClick={() => navigate(`/employees/${emp._id}`)}
                             title="View Details"
                             style={{ padding: '0.25rem 0.5rem' }}
                           >

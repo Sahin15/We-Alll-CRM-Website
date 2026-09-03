@@ -275,32 +275,36 @@ const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
 
   return (
     <Card className="greeting-banner shadow-lg mb-2" style={{ position: 'relative' }}>
-      <Card.Body className="text-white position-relative">
-        {/* Timer Component - Floating in top right */}
-        <BreakTimer />
-        
-        <Row className="align-items-start" style={{ position: 'relative', zIndex: 10 }}>
-          <Col xs={12}>
-            <div className="greeting-content">
-              <div className="d-flex align-items-center mb-2">
-                <span className="greeting-icon me-3">{greeting.icon}</span>
-                <h2 className="mb-0 greeting-text">
-                  {greeting.text}! 👋
-                </h2>
-              </div>
-              <p className="mb-1 greeting-subtitle">
-                {subtitle}, <strong className="user-name">{user?.name || "User"}</strong>
-              </p>
-              <small className="opacity-75 d-flex align-items-center">
-                <span className="date-badge">{formattedDate}</span>
-              </small>
-            </div>
-          </Col>
-        </Row>
-        
-        {/* Fun Message Section - Below greeting */}
+      <Card.Body className="text-white position-relative greeting-banner-body">
+        <div className="greeting-banner-layout">
+          <div className="greeting-banner-main">
+            <Row className="align-items-start">
+              <Col xs={12}>
+                <div className="greeting-content">
+                  <div className="d-flex align-items-center mb-2">
+                    <span className="greeting-icon me-3">{greeting.icon}</span>
+                    <h2 className="mb-0 greeting-text">
+                      {greeting.text}! 👋
+                    </h2>
+                  </div>
+                  <p className="mb-1 greeting-subtitle">
+                    {subtitle}, <strong className="user-name">{user?.name || "User"}</strong>
+                  </p>
+                  <small className="opacity-75 d-flex align-items-center">
+                    <span className="date-badge">{formattedDate}</span>
+                  </small>
+                </div>
+              </Col>
+            </Row>
+          </div>
+
+          <div className="greeting-banner-timer">
+            <BreakTimer />
+          </div>
+        </div>
+
         {funMessage && isInitialized && (
-          <div className="fun-message-box mt-3" data-type={funMessage.type} style={{ position: 'relative', zIndex: 10 }}>
+          <div className="fun-message-box mt-3" data-type={funMessage.type}>
             <span className="sparkle"></span>
             <span className="sparkle"></span>
             <span className="sparkle"></span>
@@ -347,6 +351,31 @@ const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
         
         .greeting-banner .card-body {
           padding: 1.25rem !important;
+        }
+
+        .greeting-banner-layout {
+          display: flex;
+          align-items: flex-start;
+          gap: 1rem;
+          position: relative;
+          z-index: 10;
+        }
+
+        .greeting-banner-main {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .greeting-banner-timer {
+          flex-shrink: 0;
+          width: 220px;
+          align-self: flex-start;
+        }
+
+        .greeting-banner-body > .fun-message-box {
+          width: 100%;
+          position: relative;
+          z-index: 10;
         }
         
         .greeting-banner::before {
@@ -929,13 +958,26 @@ const GreetingBanner = ({ subtitle = "Welcome to your dashboard" }) => {
           }
         }
         
+        /* Mobile + tablet: stack timer above greeting so it never overlaps fun message */
+        @media (max-width: 767.98px) {
+          .greeting-banner-layout {
+            flex-direction: column;
+            gap: 0.75rem;
+          }
+
+          .greeting-banner-timer {
+            width: 100%;
+            order: -1;
+          }
+        }
+
         /* Mobile Responsive Styles */
         @media (max-width: 575.98px) {
           .greeting-banner {
             border-radius: 12px;
             margin-top: 0;
           }
-          
+
           .greeting-icon {
             font-size: 1.75rem !important;
           }

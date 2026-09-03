@@ -30,7 +30,7 @@ const AssignSoftwareLicense = () => {
       setLoading(true);
       const [licenseRes, usersRes] = await Promise.all([
         getLicenseById(id),
-        getAllUsers({ limit: 1000 }),
+        getAllUsers({ status: 'active', limit: 1000 }),
       ]);
       setLicense(licenseRes.data);
       setUsers(usersRes.data || []);

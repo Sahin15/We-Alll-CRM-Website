@@ -18,113 +18,174 @@ import {
   getVipClients,
   assignDepartmentsToClient,
   getClientsByDepartment,
+  updateClientContacts,
+  getClientProjectsSummary,
 } from "../controllers/clientController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
+import { requireModulePermission, requireModulePermissionAny } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
 
-// Admin, superadmin, hr, manager can manage clients; hod can view
-router.post("/", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), createClient);
-router.get("/", protect, authorizeRoles("admin", "superadmin", "hr", "hod", "manager"), getClients);
+const CLIENT_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
+const CLIENT_LIST_ROLES = ["admin", "superadmin", "hr", "hod", "manager", "employee"];
+const CLIENT_EMPLOYEE_ROLES = ["employee", "hod"];
+const CLIENT_ASSIGNED_VIEW_ROLES = ["employee", "hod", "admin", "superadmin", "hr", "manager"];
+const CLIENT_ONBOARD_WRITE_ROLES = ["admin", "superadmin", "accounts", "manager"];
+const CLIENT_ONBOARD_READ_ROLES = ["admin", "superadmin", "accounts", "client", "manager"];
+const CLIENT_OVERVIEW_ROLES = ["admin", "superadmin", "accounts", "client"];
+const CLIENT_VIP_LIST_ROLES = ["admin", "superadmin", "hr", "hod", "manager"];
+const CLIENT_ACCOUNT_MANAGER_ROLES = ["admin", "superadmin", "manager"];
+const CLIENT_PLAN_ROLES = ["admin", "superadmin", "accounts", "manager"];
+const CLIENT_DETAIL_VIEW_ROLES = [
+  "admin",
+  "superadmin",
+  "hr",
+  "hod",
+  "manager",
+  "employee",
+  "accounts",
+  "sales",
+];
 
-// Employee route - get clients from their assigned projects
-router.get("/my-clients", protect, authorizeRoles("employee", "hod"), getEmployeeClients);
+router.post(
+  "/",
+  protect,
+  requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_MANAGE_ROLES }),
+  createClient
+);
+router.get(
+  "/",
+  protect,
+  requireModulePermissionAny(
+    "crm",
+    ["crm.client.view", "crm.client.view_assigned"],
+    { legacyRoles: CLIENT_LIST_ROLES }
+  ),
+  getClients
+);
+
+router.get(
+  "/my-clients",
+  protect,
+  requireModulePermission("crm", "crm.client.view_assigned", { legacyRoles: CLIENT_ASSIGNED_VIEW_ROLES }),
+  getEmployeeClients
+);
 
 router.get(
   "/:id",
   protect,
+  requireModulePermissionAny(
+    "crm",
+    ["crm.client.view", "crm.client.view_assigned"],
+    { legacyRoles: CLIENT_DETAIL_VIEW_ROLES }
+  ),
   getClientById
 );
 router.put(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_MANAGE_ROLES }),
   updateClient
+);
+router.put(
+  "/:id/contacts",
+  protect,
+  requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_MANAGE_ROLES }),
+  updateClientContacts
+);
+
+router.get(
+  "/:id/projects-summary",
+  protect,
+  requireModulePermissionAny(
+    "crm",
+    ["crm.client.view", "crm.client.view_assigned"],
+    { legacyRoles: CLIENT_DETAIL_VIEW_ROLES }
+  ),
+  getClientProjectsSummary
 );
 router.delete(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_MANAGE_ROLES }),
   deleteClient
 );
 
 router.get(
   "/:id/overview",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "client"),
+  requireModulePermission("crm", "crm.client.view", { legacyRoles: CLIENT_OVERVIEW_ROLES }),
   getClientOverview
 );
 
-// Client onboarding routes (admin/superadmin/accounts/manager)
 router.post(
   "/:id/onboard",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_ONBOARD_WRITE_ROLES }),
   initiateOnboarding
 );
 router.put(
   "/:id/onboarding-status",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_ONBOARD_WRITE_ROLES }),
   updateOnboardingStatus
 );
 router.put(
   "/:id/complete-onboarding",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_ONBOARD_WRITE_ROLES }),
   completeOnboarding
 );
 router.get(
   "/:id/onboarding",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "client", "manager"),
+  requireModulePermission("crm", "crm.client.view", { legacyRoles: CLIENT_ONBOARD_READ_ROLES }),
   getOnboardingDetails
 );
 router.put(
   "/:id/account-manager",
   protect,
-  authorizeRoles("admin", "superadmin", "manager"),
+  requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_ACCOUNT_MANAGER_ROLES }),
   assignAccountManager
 );
 router.put(
   "/:id/plan",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_PLAN_ROLES }),
   updateClientPlan
 );
 router.put(
   "/:id/renew",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager"),
+  requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_PLAN_ROLES }),
   renewClientPlan
 );
 
-// VIP Client Management Routes
 router.put(
   "/:id/vip",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_MANAGE_ROLES }),
   toggleClientVip
 );
 router.get(
   "/vip/list",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
+  requireModulePermission("crm", "crm.client.view", { legacyRoles: CLIENT_VIP_LIST_ROLES }),
   getVipClients
 );
 
-// Department Assignment Routes
 router.put(
   "/:id/departments",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_MANAGE_ROLES }),
   assignDepartmentsToClient
 );
 router.get(
   "/department/:departmentId",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "hod", "manager"),
+  requireModulePermission("crm", "crm.client.view", { legacyRoles: CLIENT_VIP_LIST_ROLES }),
   getClientsByDepartment
 );
 

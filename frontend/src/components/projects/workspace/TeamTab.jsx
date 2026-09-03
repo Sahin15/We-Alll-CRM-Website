@@ -101,56 +101,8 @@ const TeamTab = ({ project, onRefresh }) => {
 
   const loadAvailableUsers = async () => {
     try {
-      const response = await userApi.getAllUsers();
-      const allUsers = response.data || response.users || [];
-      
-      // Get current team member IDs
-      const teamMemberIds = [
-        ...(project.assignedUsers?.map((m) => m._id || m) || []),
-        ...(project.teamMembers?.map((m) => m.user?._id || m.user || m._id || m) || [])
-      ];
-      
-      // Get project head ID
-      const projectHeadId = project.projectHead?._id || project.projectHead;
-      
-      // Get project department ID
-      const projectDeptId = project.department?._id || project.department;
-      
-      // Filter users - prioritize same department but allow all employees if none available
-      const available = allUsers.filter((u) => {
-        // Only include employees and HoDs
-        if (u.role !== 'employee' && u.role !== 'hod') {
-          return false;
-        }
-        
-        // Exclude if already a team member
-        if (teamMemberIds.includes(u._id)) {
-          return false;
-        }
-        
-        // Exclude if project head (unless they're the current HoD wanting to add themselves)
-        if (u._id === projectHeadId && u._id !== user?._id) {
-          return false;
-        }
-        
-        // Allow all employees/HoDs (removed department restriction)
-        return true;
-      });
-      
-      // Sort: same department first, then others
-      if (projectDeptId) {
-        available.sort((a, b) => {
-          const aDeptId = a.department?._id || a.department;
-          const bDeptId = b.department?._id || b.department;
-          
-          const aMatch = aDeptId === projectDeptId ? 0 : 1;
-          const bMatch = bDeptId === projectDeptId ? 0 : 1;
-          
-          return aMatch - bMatch;
-        });
-      }
-      
-      setAvailableUsers(available);
+      const candidates = await projectApi.getTeamMemberCandidates(project._id);
+      setAvailableUsers(candidates);
     } catch (error) {
       console.error('Error loading users:', error);
       toast.error('Failed to load available users');

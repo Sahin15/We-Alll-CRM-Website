@@ -20,6 +20,7 @@ import {
 import { toast } from "react-toastify";
 import { salarySlipApi } from "../../api/salaryApi";
 import { useAuth } from "../../context/AuthContext";
+import { getCompanyYearOptions } from "../../constants/branding";
 
 const MySalarySlips = () => {
   const [slips, setSlips] = useState([]);
@@ -101,11 +102,7 @@ const MySalarySlips = () => {
     return <Badge bg={config.bg}>{config.text}</Badge>;
   };
 
-  const years = [];
-  const currentYear = new Date().getFullYear();
-  for (let i = currentYear; i >= currentYear - 5; i--) {
-    years.push(i);
-  }
+  const years = getCompanyYearOptions();
 
   if (loading) {
     return (
@@ -356,15 +353,22 @@ const MySalarySlips = () => {
                 <div className="d-flex justify-content-between mb-2">
                   <span>Professional Tax (PT)</span>
                   <strong>
-                    {formatCurrency(selectedSlip.deductions.professionalTax)}
+                    {formatCurrency(
+                      (selectedSlip.deductions.professionalTax || 0) > 0
+                        ? selectedSlip.deductions.professionalTax
+                        : selectedSlip.deductions.tds || 0
+                    )}
                   </strong>
                 </div>
-                <div className="d-flex justify-content-between mb-2">
-                  <span>TDS</span>
-                  <strong>
-                    {formatCurrency(selectedSlip.deductions.tds)}
-                  </strong>
-                </div>
+                {(selectedSlip.deductions.professionalTax || 0) > 0 &&
+                  (selectedSlip.deductions.tds || 0) > 0 && (
+                  <div className="d-flex justify-content-between mb-2">
+                    <span>Income Tax (TDS)</span>
+                    <strong>
+                      {formatCurrency(selectedSlip.deductions.tds)}
+                    </strong>
+                  </div>
+                )}
                 {selectedSlip.deductions.lossOfPay > 0 && (
                   <div className="d-flex justify-content-between mb-2">
                     <span>Loss of Pay</span>

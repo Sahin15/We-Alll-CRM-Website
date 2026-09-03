@@ -1,5 +1,6 @@
 import Lead from "../models/leadModel.js";
 import User from "../models/userModel.js";
+import { mergeExcludePastMembersFilter } from "../utils/employeeQueryUtils.js";
 
 // Create new lead
 export const createLead = async (req, res) => {
@@ -1035,7 +1036,9 @@ export const getTeamMeetings = async (req, res) => {
   try {
     // Get all users in the same department
     const manager = await User.findById(req.user._id).populate('department');
-    const teamMembers = await User.find({ department: manager.department._id });
+    const teamMembers = await User.find(
+      mergeExcludePastMembersFilter({ department: manager.department._id })
+    );
     const teamMemberIds = teamMembers.map(member => member._id);
 
     const leads = await Lead.find({

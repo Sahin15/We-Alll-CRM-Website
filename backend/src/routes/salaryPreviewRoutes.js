@@ -1,18 +1,30 @@
 import express from "express";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 import SalaryPreviewService from "../services/salaryPreviewService.js";
 
 const router = express.Router();
+const PAYROLL_MANAGE_ROLES = ["hr", "admin", "superadmin", "manager"];
+const PAYROLL_SELF_ROLES = [
+  "employee",
+  "hod",
+  "sales",
+  "hr",
+  "admin",
+  "superadmin",
+];
 const previewService = new SalaryPreviewService();
 
 // Generate salary preview for employee
 router.post("/generate", 
   protect, 
-  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   async (req, res) => {
     try {
-      const { employeeId, month, year, additionalData } = req.body;
+      const { employeeId, month, year, additionalData, workingDaysOverride } =
+        req.body;
 
       if (!employeeId || !month || !year) {
         return res.status(400).json({
@@ -24,7 +36,8 @@ router.post("/generate",
         employeeId, 
         month, 
         year, 
-        additionalData
+        additionalData || {},
+        workingDaysOverride || null
       );
 
       res.status(201).json({
@@ -44,7 +57,7 @@ router.post("/generate",
 // Bulk generate previews
 router.post("/bulk-generate",
   protect,
-  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   async (req, res) => {
     try {
       const { employeeIds, month, year, additionalData, workingDaysOverride } = req.body;
@@ -79,7 +92,7 @@ router.post("/bulk-generate",
 // Get working days info for a month (used for mid-month preview confirmation)
 router.get("/working-days-info",
   protect,
-  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   async (req, res) => {
     try {
       const month = parseInt(req.query.month);
@@ -134,14 +147,58 @@ router.get("/working-days-info",
 // Get employee's own salary preview
 router.get("/my-preview/:month/:year",
   protect,
+  requireModulePermission("finance", "payroll.slip.view_self", { legacyRoles: PAYROLL_SELF_ROLES }),
   async (req, res) => {
     try {
       const { month, year } = req.params;
       const employeeId = req.user.id;
 
-      const preview = await previewService.getPreview(employeeId, parseInt(month), parseInt(year));
+      const preview = await previewService.getPreview(
+        employeeId,
+        parseInt(month, 10),
+        parseInt(year, 10)
+      );
 
-      res.status(200).json(preview);
+      // Attach live simple DTO so employee UI matches Simple Payroll / HR
+      let simplePreview = null;
+      try {
+        const { getSimplePayrollPreview } = await import(
+          "../services/payroll/simplePayrollPreviewService.js"
+        );
+        const dto = await getSimplePayrollPreview({
+          employeeId,
+          month: parseInt(month, 10),
+          year: parseInt(year, 10),
+          automaticDeductions: 0,
+        });
+        if (dto?.applicable) {
+          simplePreview = dto;
+          // Keep stored breakdown aligned with live simple net for acknowledge/PDF paths
+          if (
+            preview.payrollMode === "simple" ||
+            dto.payrollMode === "simple"
+          ) {
+            if (
+              Number(preview.salaryBreakdown?.netSalary) !==
+              Number(dto.totals?.netSalary)
+            ) {
+              await previewService.syncSimplePreviewIfNeeded(preview);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn(
+          "[salaryPreview] my-preview simple DTO attach failed:",
+          err.message
+        );
+      }
+
+      const payload =
+        typeof preview.toJSON === "function" ? preview.toJSON() : preview;
+      res.status(200).json({
+        ...payload,
+        simplePreview,
+      });
     } catch (error) {
       
       res.status(404).json({
@@ -157,7 +214,7 @@ router.get("/my-preview/:month/:year",
 // MUST be defined before /:previewId routes to avoid Express matching "bulk-recalculate" as a previewId.
 router.post("/bulk-recalculate",
   protect,
-  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   async (req, res) => {
     try {
       const { month, year } = req.body;
@@ -218,25 +275,70 @@ router.post("/bulk-recalculate",
             isPartialMonth: leaveImpactResult.isPartialMonth || false
           };
 
-          preview.leaveImpact = leaveImpactResult;
-          preview.salaryBreakdown.deductions.lossOfPay = leaveImpactResult.deductionAmount;
+          const isSimple =
+            salaryStructure.payrollMode === "simple" ||
+            preview.payrollMode === "simple";
 
-          const earnings = preview.salaryBreakdown.earnings;
-          const deductions = preview.salaryBreakdown.deductions;
+          if (isSimple) {
+            // Simple payroll: rebuild from structure + adjustments; never auto LOP
+            const { buildSimpleSlipPayload } = await import(
+              "../services/payroll/simpleSlipPersist.js"
+            );
+            const { finalizePreviewBreakdown } = await import(
+              "../services/payroll/simpleSalaryPreviewBuild.js"
+            );
+            const simplePayload = await buildSimpleSlipPayload({
+              structure: salaryStructure,
+              employeeId,
+              month: parseInt(month, 10),
+              year: parseInt(year, 10),
+              lossOfPay: 0,
+            });
+            const finalized = finalizePreviewBreakdown({
+              earnings: simplePayload.earnings,
+              deductions: simplePayload.deductions,
+            });
+            preview.payrollMode = "simple";
+            preview.leaveImpact = {
+              ...leaveImpactResult,
+              deductionAmount: 0,
+              appliedToNet: false,
+              note: "Attendance/leave is review-only in simple payroll. Add a manual adjustment to deduct.",
+            };
+            preview.salaryBreakdown = {
+              earnings: finalized.earnings,
+              deductions: finalized.deductions,
+              grossSalary: finalized.grossSalary,
+              totalDeductions: finalized.totalDeductions,
+              netSalary: finalized.netSalary,
+            };
+          } else {
+            preview.leaveImpact = leaveImpactResult;
+            preview.salaryBreakdown.deductions.lossOfPay =
+              leaveImpactResult.deductionAmount;
 
-          const grossSalary = Object.values(earnings).reduce((sum, val) => {
-            if (Array.isArray(val)) return sum + val.reduce((s, i) => s + (i.amount || 0), 0);
-            return sum + (val || 0);
-          }, 0);
+            const earnings = preview.salaryBreakdown.earnings;
+            const deductions = preview.salaryBreakdown.deductions;
 
-          const totalDeductions = Object.values(deductions).reduce((sum, val) => {
-            if (Array.isArray(val)) return sum + val.reduce((s, i) => s + (i.amount || 0), 0);
-            return sum + (val || 0);
-          }, 0);
+            const grossSalary = Object.values(earnings).reduce((sum, val) => {
+              if (Array.isArray(val))
+                return sum + val.reduce((s, i) => s + (i.amount || 0), 0);
+              return sum + (val || 0);
+            }, 0);
 
-          preview.salaryBreakdown.grossSalary = grossSalary;
-          preview.salaryBreakdown.totalDeductions = totalDeductions;
-          preview.salaryBreakdown.netSalary = grossSalary - totalDeductions;
+            const totalDeductions = Object.values(deductions).reduce(
+              (sum, val) => {
+                if (Array.isArray(val))
+                  return sum + val.reduce((s, i) => s + (i.amount || 0), 0);
+                return sum + (val || 0);
+              },
+              0
+            );
+
+            preview.salaryBreakdown.grossSalary = grossSalary;
+            preview.salaryBreakdown.totalDeductions = totalDeductions;
+            preview.salaryBreakdown.netSalary = grossSalary - totalDeductions;
+          }
 
           await preview.save();
 
@@ -277,6 +379,7 @@ router.post("/bulk-recalculate",
 // Submit employee query on preview
 router.post("/:previewId/query",
   protect,
+  requireModulePermission("finance", "payroll.slip.view_self", { legacyRoles: PAYROLL_SELF_ROLES }),
   async (req, res) => {
     try {
       const { previewId } = req.params;
@@ -312,7 +415,7 @@ router.post("/:previewId/query",
 // HR respond to employee query
 router.post("/:previewId/query/:queryIndex/respond",
   protect,
-  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   async (req, res) => {
     try {
       const { previewId, queryIndex } = req.params;
@@ -349,6 +452,7 @@ router.post("/:previewId/query/:queryIndex/respond",
 // Employee acknowledge preview
 router.post("/:previewId/acknowledge",
   protect,
+  requireModulePermission("finance", "payroll.slip.view_self", { legacyRoles: PAYROLL_SELF_ROLES }),
   async (req, res) => {
     try {
       const { previewId } = req.params;
@@ -373,7 +477,7 @@ router.post("/:previewId/acknowledge",
 // HR finalize preview
 router.post("/:previewId/finalize",
   protect,
-  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   async (req, res) => {
     try {
       const { previewId } = req.params;
@@ -398,7 +502,7 @@ router.post("/:previewId/finalize",
 // Get all previews for a month (HR view)
 router.get("/month/:month/:year",
   protect,
-  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   async (req, res) => {
     try {
       const { month, year } = req.params;
@@ -428,7 +532,7 @@ router.get("/month/:month/:year",
 // Get previews requiring HR attention
 router.get("/attention/:month/:year",
   protect,
-  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   async (req, res) => {
     try {
       const { month, year } = req.params;
@@ -452,7 +556,7 @@ router.get("/attention/:month/:year",
 // Get preview statistics
 router.get("/statistics/:month/:year",
   protect,
-  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   async (req, res) => {
     try {
       const { month, year } = req.params;
@@ -476,7 +580,7 @@ router.get("/statistics/:month/:year",
 // Update preview with corrections
 router.put("/:previewId/corrections",
   protect,
-  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   async (req, res) => {
     try {
       const { previewId } = req.params;
@@ -512,7 +616,7 @@ router.put("/:previewId/corrections",
 // Convert finalized preview to salary slip
 router.post("/:previewId/convert-to-slip",
   protect,
-  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   async (req, res) => {
     try {
       const { previewId } = req.params;
@@ -537,7 +641,7 @@ router.post("/:previewId/convert-to-slip",
 // Delete preview
 router.delete("/:previewId",
   protect,
-  authorizeRoles("hr", "admin", "superadmin", "manager"),
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   async (req, res) => {
     try {
       const { previewId } = req.params;

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { FaEye, FaEyeSlash, FaSpinner } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
+import { BRAND_LOGO_MINI } from '../../constants/branding';
 
 export default function MobileAppLogin() {
   const { login } = useAuth();
@@ -41,7 +42,7 @@ export default function MobileAppLogin() {
     }}>
       {/* Logo */}
       <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-        <img loading="lazy" src="/Wealll_mini.png"
+        <img loading="lazy" src={BRAND_LOGO_MINI}
           alt="WeAlll Office"
           style={{ width: '72px', height: '72px', objectFit: 'contain', borderRadius: '18px', background: 'rgba(255,255,255,0.2)', padding: '10px', marginBottom: '12px' }}
         />

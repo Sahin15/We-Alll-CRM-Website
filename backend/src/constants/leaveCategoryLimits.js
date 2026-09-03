@@ -1,0 +1,2 @@
+export const ANNUAL_EARNED_LEAVE_LIMIT = 24;
+export const MONTHLY_EARNED_LEAVE_RATE = 2;

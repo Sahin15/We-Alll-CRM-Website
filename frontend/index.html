@@ -50,24 +50,46 @@
       
       // iOS-specific fixes and error detection
       (function() {
-        // Detect if app fails to load within 10 seconds
-        var loadTimeout = setTimeout(function() {
+        window.__WEALLL_APP_MOUNTED__ = false;
+
+        window.__WEALLL_LOAD_ERROR__ = null;
+
+        function showLoadError() {
+          if (window.__WEALLL_APP_MOUNTED__) return;
           var root = document.getElementById('root');
-          if (root && root.children.length === 1) {
-            // App didn't load, show error message
-            root.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#f8d7da;font-family:sans-serif;padding:20px;"><div style="text-align:center;color:#721c24;max-width:400px;"><h2 style="margin:0 0 10px;">Loading Error</h2><p>The app failed to load. Please try:</p><ul style="text-align:left;"><li>Refresh the page</li><li>Clear browser cache</li><li>Check your internet connection</li><li>Try a different browser</li></ul><button onclick="location.reload()" style="margin-top:20px;padding:10px 20px;background:#dc3545;color:white;border:none;border-radius:5px;font-size:16px;cursor:pointer;">Reload Page</button></div></div>';
+          if (!root || window.__WEALLL_APP_MOUNTED__) return;
+          var detail = window.__WEALLL_LOAD_ERROR__
+            ? '<p style="font-size:12px;color:#666;margin-top:8px;word-break:break-word;">' + window.__WEALLL_LOAD_ERROR__ + '</p>'
+            : '';
+          root.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#f8d7da;font-family:sans-serif;padding:20px;"><div style="text-align:center;color:#721c24;max-width:420px;"><h2 style="margin:0 0 10px;">Loading Error</h2><p>The app failed to load. Please try:</p><ul style="text-align:left;"><li>Hard refresh (Ctrl+Shift+R)</li><li>Clear browser cache / unregister service worker</li><li>Ensure the server ran <code>npm run build</code> after deploy</li></ul>' + detail + '<button onclick="location.reload()" style="margin-top:20px;padding:10px 20px;background:#dc3545;color:white;border:none;border-radius:5px;font-size:16px;cursor:pointer;">Reload Page</button></div></div>';
+        }
+
+        // Large production bundles can take >10s on slow networks — allow 45s
+        var loadTimeout = setTimeout(showLoadError, 45000);
+
+        // Capture failed JS/CSS asset loads (stale deploy, 404 chunks)
+        window.addEventListener('error', function(e) {
+          var target = e.target;
+          if (target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK')) {
+            window.__WEALLL_LOAD_ERROR__ = 'Failed to load: ' + (target.src || target.href || 'asset');
+            console.error('Asset load failed:', target.src || target.href);
+          } else if (e.message) {
+            window.__WEALLL_LOAD_ERROR__ = e.message;
           }
-        }, 10000);
+        }, true);
         
-        // Clear timeout when app loads successfully
-        window.addEventListener('load', function() {
-          setTimeout(function() {
-            var root = document.getElementById('root');
-            if (root && root.children.length > 1) {
-              clearTimeout(loadTimeout);
-            }
-          }, 1000);
+        // Clear timeout when React mounts (main.jsx sets __WEALLL_APP_MOUNTED__)
+        window.addEventListener('wealll-app-mounted', function() {
+          clearTimeout(loadTimeout);
         });
+
+        // If the main module is still downloading, extend patience (production ~8MB chunk)
+        var extendCheck = setInterval(function() {
+          if (window.__WEALLL_APP_MOUNTED__) {
+            clearInterval(extendCheck);
+            clearTimeout(loadTimeout);
+          }
+        }, 2000);
         
         // Catch and log any errors
         window.addEventListener('error', function(e) {

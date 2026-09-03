@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import pkg from "number-to-words";
+import { getCompanySettings } from "../config/companySettings.js";
 const { toWords } = pkg;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -41,9 +42,7 @@ export const generateSalarySlipPDF = async (salarySlip, outputPath) => {
       const stream = fs.createWriteStream(outputPath);
       doc.pipe(stream);
 
-      // Company details - We Alll information
-      const companyName = "We Alll";
-      const companyAddress = "Cluster Rajarhat 76, 14/4c, Action Area I, Newtown, Koch Pukur, West Bengal 700156 India";
+      const { legalName: companyName, address: companyAddress } = getCompanySettings();
 
       // Colors - matching the design
       const primaryColor = "#2c3e50";
@@ -202,16 +201,33 @@ export const generateSalarySlipPDF = async (salarySlip, outputPath) => {
       if (salarySlip.earnings.overtime > 0) earnings.push({ label: "Overtime", amount: salarySlip.earnings.overtime });
       if (salarySlip.earnings.arrears > 0) earnings.push({ label: "Arrears", amount: salarySlip.earnings.arrears });
 
-      // Deductions items
+      // Deductions items — Professional Tax first (company statutory deduction).
+      // Legacy simple-payroll slips may still have the amount on `tds`; show it as PT.
+      const rawTds = Number(salarySlip.deductions?.tds) || 0;
+      const rawPt = Number(salarySlip.deductions?.professionalTax) || 0;
+      const professionalTaxAmount = rawPt > 0 ? rawPt : rawTds;
+      const incomeTaxAmount = rawPt > 0 ? rawTds : 0;
+
       const deductions = [
-        { label: "Income Tax", amount: salarySlip.deductions.tds },
+        { label: "Professional Tax", amount: professionalTaxAmount },
         { label: "Provident Fund", amount: salarySlip.deductions.providentFund },
-        { label: "Professional Tax", amount: salarySlip.deductions.professionalTax },
       ];
 
+      if (incomeTaxAmount > 0) {
+        deductions.push({ label: "Income Tax", amount: incomeTaxAmount });
+      }
       if (salarySlip.deductions.esi > 0) deductions.push({ label: "ESI", amount: salarySlip.deductions.esi });
       if (salarySlip.deductions.lossOfPay > 0) deductions.push({ label: "Loss of Pay", amount: salarySlip.deductions.lossOfPay });
       if (salarySlip.deductions.advances > 0) deductions.push({ label: "Advance", amount: salarySlip.deductions.advances });
+      for (const item of salarySlip.deductions.otherDeductions || []) {
+        const amount = Number(item?.amount) || 0;
+        if (amount > 0) {
+          deductions.push({
+            label: item.name || "Other Deduction",
+            amount,
+          });
+        }
+      }
 
       // Draw table rows
       const maxRows = Math.max(earnings.length, deductions.length);

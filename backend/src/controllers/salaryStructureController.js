@@ -1,6 +1,8 @@
 import mongoose from "mongoose";
 import SalaryStructure from "../models/salaryStructureModel.js";
 import User from "../models/userModel.js";
+import { prepareStructureComponentFields } from "../services/payroll/structureComponentSync.js";
+import { prepareSimpleStructureFields } from "../services/payroll/simpleStructurePrepare.js";
 
 // Create new salary structure
 export const createSalaryStructure = async (req, res) => {
@@ -8,16 +10,7 @@ export const createSalaryStructure = async (req, res) => {
     const {
       employee,
       effectiveFrom,
-      basicSalary,
-      hra,
-      specialAllowance,
-      transportAllowance,
-      medicalAllowance,
       otherAllowances,
-      providentFund,
-      professionalTax,
-      tds,
-      esi,
       otherDeductions,
       notes,
     } = req.body;
@@ -41,20 +34,19 @@ export const createSalaryStructure = async (req, res) => {
       await activeStructure.save();
     }
 
+    const simpleFields = prepareSimpleStructureFields(req.body);
+    const synced = prepareStructureComponentFields({
+      ...req.body,
+      ...simpleFields,
+    });
+
     // Create new structure
     const salaryStructure = await SalaryStructure.create({
       employee,
       effectiveFrom,
-      basicSalary,
-      hra,
-      specialAllowance,
-      transportAllowance,
-      medicalAllowance,
+      ...synced,
+      ...simpleFields,
       otherAllowances,
-      providentFund,
-      professionalTax,
-      tds,
-      esi,
       otherDeductions,
       notes,
       createdBy: req.user.id,
@@ -68,9 +60,12 @@ export const createSalaryStructure = async (req, res) => {
       salaryStructure,
     });
   } catch (error) {
-    
-    res.status(500).json({
-      message: "Server error",
+    const status =
+      /components/i.test(error.message) || /monthlySalary/i.test(error.message)
+        ? 400
+        : 500;
+    res.status(status).json({
+      message: status === 400 ? error.message : "Server error",
       error: error.message,
     });
   }
@@ -182,20 +177,30 @@ export const updateSalaryStructure = async (req, res) => {
 
     // If updating an active structure, create a new one instead
     if (structure.status === "active") {
-      // Create a new structure with the updated values
-      const newStructure = new SalaryStructure({
-        employee: structure.employee,
-        effectiveFrom: req.body.effectiveFrom || structure.effectiveFrom,
-        basicSalary: req.body.basicSalary || structure.basicSalary,
+      const mergedBody = {
+        basicSalary: req.body.basicSalary !== undefined ? req.body.basicSalary : structure.basicSalary,
         hra: req.body.hra !== undefined ? req.body.hra : structure.hra,
         specialAllowance: req.body.specialAllowance !== undefined ? req.body.specialAllowance : structure.specialAllowance,
         transportAllowance: req.body.transportAllowance !== undefined ? req.body.transportAllowance : structure.transportAllowance,
         medicalAllowance: req.body.medicalAllowance !== undefined ? req.body.medicalAllowance : structure.medicalAllowance,
-        otherAllowances: req.body.otherAllowances || structure.otherAllowances,
         providentFund: req.body.providentFund !== undefined ? req.body.providentFund : structure.providentFund,
         professionalTax: req.body.professionalTax !== undefined ? req.body.professionalTax : structure.professionalTax,
         tds: req.body.tds !== undefined ? req.body.tds : structure.tds,
         esi: req.body.esi !== undefined ? req.body.esi : structure.esi,
+        components:
+          req.body.components !== undefined
+            ? req.body.components
+            : undefined,
+      };
+      // When components omitted, hydrate from merged flat (do not pass stale active components)
+      const synced = prepareStructureComponentFields(mergedBody);
+
+      // Create a new structure with the updated values
+      const newStructure = new SalaryStructure({
+        employee: structure.employee,
+        effectiveFrom: req.body.effectiveFrom || structure.effectiveFrom,
+        ...synced,
+        otherAllowances: req.body.otherAllowances || structure.otherAllowances,
         otherDeductions: req.body.otherDeductions || structure.otherDeductions,
         notes: req.body.notes || structure.notes,
         createdBy: req.user.id,
@@ -218,6 +223,22 @@ export const updateSalaryStructure = async (req, res) => {
       }
     });
 
+    const synced = prepareStructureComponentFields({
+      basicSalary: structure.basicSalary,
+      hra: structure.hra,
+      specialAllowance: structure.specialAllowance,
+      transportAllowance: structure.transportAllowance,
+      medicalAllowance: structure.medicalAllowance,
+      providentFund: structure.providentFund,
+      professionalTax: structure.professionalTax,
+      tds: structure.tds,
+      esi: structure.esi,
+      ...(req.body.components !== undefined
+        ? { components: req.body.components }
+        : {}),
+    });
+    Object.assign(structure, synced);
+
     await structure.save();
     await structure.populate("employee", "name email employeeId designation department");
 
@@ -226,9 +247,9 @@ export const updateSalaryStructure = async (req, res) => {
       salaryStructure: structure,
     });
   } catch (error) {
-    
-    res.status(500).json({
-      message: "Server error",
+    const status = /components/i.test(error.message) ? 400 : 500;
+    res.status(status).json({
+      message: status === 400 ? error.message : "Server error",
       error: error.message,
     });
   }
@@ -277,20 +298,6 @@ export const activateSalaryStructure = async (req, res) => {
       message: "Server error",
       error: error.message,
     });
-  }
-};
-
-// Delete ALL salary structures (superadmin/admin only — irreversible)
-export const deleteAllSalaryStructures = async (req, res) => {
-  try {
-    const result = await SalaryStructure.deleteMany({});
-    res.status(200).json({
-      message: `Deleted ${result.deletedCount} salary structure(s) successfully`,
-      deletedCount: result.deletedCount,
-    });
-  } catch (error) {
-    
-    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 

@@ -1,4 +1,4 @@
-import express from "express";  
+import express from "express";
 import {
   createSalaryStructure,
   getAllSalaryStructures,
@@ -7,91 +7,88 @@ import {
   updateSalaryStructure,
   activateSalaryStructure,
   deleteSalaryStructure,
-  deleteAllSalaryStructures,
   getSalaryStructureHistory
 } from "../controllers/salaryStructureController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
 
-// HR/Admin only routes
+const PAYROLL_MANAGE_ROLES = ["admin", "superadmin", "hr", "accounts", "manager"];
+const PAYROLL_SELF_ROLES = [
+  "employee",
+  "hod",
+  "sales",
+  "hr",
+  "admin",
+  "superadmin",
+];
+
 router.post(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "accounts", "manager"),
+  requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   createSalaryStructure
 );
 
 router.get(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "accounts", "manager"),
+  requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   getAllSalaryStructures
 );
 
-// IMPORTANT: Specific routes must come BEFORE generic /:id routes
 router.get(
   "/employee/:employeeId/active",
   protect,
-  // Allow HR/Admin roles OR the employee accessing their own salary
   (req, res, next) => {
-    const allowedRoles = ["admin", "superadmin", "hr", "accounts", "manager"];
+    const allowedRoles = PAYROLL_MANAGE_ROLES;
     const isOwnSalary = req.user._id.toString() === req.params.employeeId;
     if (allowedRoles.includes(req.user.role) || isOwnSalary) {
       return next();
     }
     return res.status(403).json({ message: "Access denied" });
   },
+  requireModulePermission("finance", "payroll.slip.view_self", { legacyRoles: PAYROLL_SELF_ROLES }),
   getActiveSalaryStructure
 );
 
 router.get(
   "/employee/:employeeId/history",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "accounts", "manager"),
-  (req, res, next) => {
-    
-    
-    next();
-  },
+  requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   getSalaryStructureHistory
 );
 
-// Generic /:id routes come AFTER specific routes
 router.get(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "accounts", "manager"),
+  requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   getSalaryStructureById
 );
 
 router.put(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "accounts", "manager"),
+  requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   updateSalaryStructure
 );
 
 router.put(
   "/:id/activate",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "accounts", "manager"),
+  requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   activateSalaryStructure
 );
 
-// IMPORTANT: /all must come BEFORE /:id
-router.delete(
-  "/all",
-  protect,
-  authorizeRoles("admin", "superadmin"),
-  deleteAllSalaryStructures
-);
+// DELETE /all removed (R2): mass wipe of compensation masters is not allowed.
 
 router.delete(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "accounts", "manager"),
+  requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   deleteSalaryStructure
 );
 

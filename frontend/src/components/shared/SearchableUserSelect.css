@@ -1,0 +1,60 @@
+/* Override global button min-height (24px) so list rows fit text + padding */
+.searchable-user-select-menu .list-group-item {
+  min-height: 44px !important;
+  height: auto !important;
+  padding: 10px 16px !important;
+  line-height: 1.35 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.searchable-user-select-menu .list-group-item-action {
+  width: 100%;
+}
+
+.searchable-user-select-field {
+  flex-wrap: nowrap;
+}
+
+.searchable-user-select-field .input-group-text,
+.searchable-user-select-field .form-control {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  line-height: 1.25;
+}
+
+.searchable-user-select-icon {
+  background: #fff;
+  padding-left: 12px;
+  padding-right: 8px;
+}
+
+.searchable-user-select-input {
+  border-left: 0;
+  padding-left: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.searchable-user-select-field:focus-within .searchable-user-select-icon,
+.searchable-user-select-field:focus-within .searchable-user-select-clear {
+  border-color: #86b7fe;
+}
+
+.searchable-user-select-clear {
+  background: #fff;
+  cursor: pointer;
+  padding-left: 8px;
+  padding-right: 12px;
+}
+
+.searchable-user-select-clear:hover {
+  background: #f8f9fa;
+}

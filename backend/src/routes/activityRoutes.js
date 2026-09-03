@@ -4,21 +4,18 @@ import {
   deleteOldActivities,
 } from "../controllers/activityController.js";
 import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
 
-// All routes require authentication
+const activityCleanup = requireModulePermission("auth", "auth.role.manage", {
+  legacyRoles: ["admin", "superadmin"],
+});
+
 router.use(protect);
 
-// Get my activities
 router.get("/my-activities", getMyActivities);
 
-// Delete old activities (admin only)
-router.delete(
-  "/cleanup",
-  authorizeRoles("admin", "superadmin"),
-  deleteOldActivities
-);
+router.delete("/cleanup", activityCleanup, deleteOldActivities);
 
 export default router;

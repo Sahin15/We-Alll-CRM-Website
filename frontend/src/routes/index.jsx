@@ -1,7 +1,8 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import { lazy, Suspense } from "react";
-import PWAShell from "../pages/app/PWAShell";
-import MobileAppShell from "../pages/mobileapp/MobileAppShell";
+import { Suspense, lazy } from "react";
+
+const PWAShell = lazy(() => import("../pages/app/PWAShell"));
+const MobileAppShell = lazy(() => import("../pages/mobileapp/MobileAppShell"));
 import { useAuth } from "../context/AuthContext";
 import { RouteLoadingFallback } from "../components/RouteWrapper";
 
@@ -11,228 +12,200 @@ import AuthLayout from "../components/layout/AuthLayout";
 
 // Protected Routes
 import ProtectedRoute from "./ProtectedRoute";
-import RoleBasedRoute from "./RoleBasedRoute";
+import PermissionRoute from "./PermissionRoute";
 
-// Diagnostics
-import NotificationDiagnostics from "../pages/NotificationDiagnostics";
-
-// Auth Pages
+// Auth Pages (eager — small, needed for first paint on /login)
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
 import ForgotPassword from "../pages/auth/ForgotPassword";
 import ResetPassword from "../pages/auth/ResetPassword";
 
-// Dashboard Pages - Lazy load for better performance
-const SuperAdminDashboard = lazy(() => import("../pages/dashboard/SuperAdminDashboard"));
-const AdminDashboard = lazy(() => import("../pages/dashboard/AdminDashboard"));
-const HRDashboard = lazy(() => import("../pages/dashboard/HRDashboard"));
-const AccountsDashboard = lazy(() => import("../pages/dashboard/AccountsDashboard"));
-const EmployeeDashboard = lazy(() => import("../pages/employee/EmployeeDashboard"));
-const ClientDashboard = lazy(() => import("../pages/dashboard/ClientDashboard"));
-const HoDDashboard = lazy(() => import("../pages/hod/HoDDashboard"));
+// All feature pages — lazy-loaded per route (see lazyPages.js)
+import * as Pages from "./lazyPages";
 
-// Employee Pages
-import MyProjects from "../pages/employee/MyProjects";
-import MyWorkPage from "../pages/employee/MyWorkPage";
-import AssignedWorkPage from "../pages/employee/AssignedWorkPage";
-import MyMeetings from "../pages/employee/MyMeetings";
-import TeamDirectory from "../pages/employee/TeamDirectory";
-import MySalarySlips from "../pages/employee/MySalarySlips";
-import MySalaryPreview from "../pages/employee/MySalaryPreview";
+const {
+  NotificationDiagnostics,
+  MyProjects,
+  MyWorkPage,
+  AssignedWorkPage,
+  MyMeetings,
+  TeamDirectory,
+  MySalarySlips,
+  MySalaryPreview,
+  Announcements,
+  EmployeeMyAttendance,
+  EmployeeMyLeaves,
+  EmployeeAttendanceReport,
+  TimeTracking,
+  Policies,
+  Settings,
+  SalaryManagement,
+  HRSalaryPreviewManagement,
+  TemplateManagement,
+  HRSettings,
+  HiringDashboard,
+  HiringRequestsManagement,
+  HiringRequestDetail,
+  HiringApplicationDetail,
+  ApplicantCVBank,
+  HiringOfferLetters,
+  HoDHiringRequests,
+  HoDCreateHiringRequest,
+  HoDHiringRequestDetail,
+  AdminSettings,
+  PermissionAssignment,
+  HODSettings,
+  UserList,
+  UserDetails,
+  EmployeeList,
+  AddEmployee,
+  EnhancedEmployeeWorkView,
+  EmployeeProfileManagement,
+  DepartmentList,
+  DepartmentDetails,
+  MyLeaves,
+  LeaveRequests,
+  LeaveManagement,
+  WFHManagement,
+  WorkOnLeaveDayManagement,
+  MyAttendance,
+  AttendanceTracking,
+  OvertimeStatistics,
+  MyWorkLog,
+  WorkLogHistory,
+  WorkLogManagement,
+  HoDWorkLogReview,
+  ClientList,
+  ClientDetails,
+  RawDataList,
+  CallerQueuePage,
+  RawDataDashboard,
+  LeadList,
+  LeadDetails,
+  ProjectList,
+  ProjectListPage,
+  ProjectDetails,
+  ProjectWorkspace,
+  CalendarPage,
+  MyWorkCalendar,
+  AdminWorkCalendarOverview,
+  EnhancedAdminWorkCalendarOverview,
+  MyProfile,
+  AdminBillingDashboard,
+  ServiceManagement,
+  PlanManagement,
+  SubscriptionManagement,
+  InvoiceManagement,
+  PaymentVerification,
+  ClientBillingDashboard,
+  ClientSubscriptions,
+  ClientInvoices,
+  ClientPayments,
+  NotificationManagement,
+  NotificationDashboard,
+  NotificationSettings,
+  HolidayManagement,
+  MyExpenses,
+  CreateExpense,
+  ExpenseDetails,
+  EditExpense,
+  ExpenseManagementConsolidated,
+  BudgetManagement,
+  AssetDashboard,
+  AssetList,
+  AddAsset,
+  EditAsset,
+  AssetDetails,
+  AssignAsset,
+  SendToRepair,
+  AssignmentHistory,
+  RepairLog,
+  WarrantyTracker,
+  MyAssets,
+  AssetManagement,
+  SoftwareLicenseDashboard,
+  SoftwareLicenseList,
+  AddSoftwareLicense,
+  EditSoftwareLicense,
+  SoftwareLicenseDetails,
+  AssignSoftwareLicense,
+  LicenseHistory,
+  LicenseExpiryAlerts,
+  MyLicenses,
+  SoftwareLicenseManagement,
+  MeetingManagement,
+  PolicyManagement,
+  AnnouncementManagement,
+  ReportsAnalytics,
+  NotFound,
+  Unauthorized,
+  GrowthSummitFinal,
+  SupportPage,
+  SupportManagement,
+  ProcurementDashboard,
+  MyPurchaseRequests,
+  CreatePurchaseRequest,
+  EditPurchaseRequest,
+  PurchaseRequestDetails,
+  PurchaseRequestApprovals,
+  PurchaseOrderList,
+  CreatePurchaseOrder,
+  PurchaseOrderDetails,
+  GoodsReceiptList,
+  CreateGoodsReceipt,
+  GoodsReceiptDetails,
+  VendorList,
+  CreateVendor,
+  EditVendor,
+  VendorDetails,
+  ProcurementInvoiceList,
+  CreateProcurementInvoice,
+  ProcurementInvoiceDetails,
+  ProcurementPaymentList,
+  RecordPayment,
+  ProcurementReports,
+  SuperAdminDashboard,
+  AdminDashboard,
+  HRDashboard,
+  AccountsDashboard,
+  EmployeeDashboard,
+  ClientDashboard,
+  HoDDashboard,
+} = Pages;
 
-// HR Pages
-import SalaryManagement from "../pages/hr/SalaryManagement";
-import HRSalaryPreviewManagement from "../components/salary/HRSalaryPreviewManagement";
-import TemplateManagement from "../components/salary/TemplateManagement";
-import Announcements from "../pages/employee/Announcements";
-import EmployeeMyAttendance from "../pages/employee/MyAttendance";
-import EmployeeMyLeaves from "../pages/employee/MyLeaves";
-import EmployeeAttendanceReport from "../pages/employee/EmployeeAttendanceReport";
-import TimeTracking from "../pages/employee/TimeTracking";
-import Policies from "../pages/employee/Policies";
-import Settings from "../pages/employee/Settings";
-// Removed old imports: MySlots, MyWork, MyTasks, MyProfileEnhanced
-import HRSettings from "../pages/hr/HRSettings";
-import AdminSettings from "../pages/admin/AdminSettings";
-import HODSettings from "../pages/hod/HODSettings";
+/** Matches backend WORK_ITEM_SELF_ROLES for work.item.* self-service routes. */
+const WORK_ITEM_SELF_ROLES = [
+  "employee",
+  "hod",
+  "sales",
+  "manager",
+  "hr",
+  "admin",
+  "superadmin",
+];
 
-// User Pages
-import UserList from "../pages/users/UserList";
-import UserDetails from "../pages/users/UserDetails";
-
-// Employee Management Pages
-import EmployeeList from "../pages/employees/EmployeeList";
-import AddEmployee from "../pages/employees/AddEmployee";
-import EnhancedEmployeeWorkView from "../pages/employees/EnhancedEmployeeWorkView";
-import EmployeeProfileManagement from "../components/hr/EmployeeProfileManagement";
-
-// Department Pages
-import DepartmentList from "../pages/departments/DepartmentList";
-import DepartmentDetails from "../pages/departments/DepartmentDetails";
-
-// Leave Pages
-import MyLeaves from "../pages/leaves/MyLeaves";
-import LeaveRequests from "../pages/leaves/LeaveRequests";
-import LeaveManagement from "../pages/leaves/LeaveManagement";
-
-// Attendance Pages
-import MyAttendance from "../pages/attendance/MyAttendance";
-import AttendanceTracking from "../pages/attendance/AttendanceTracking";
-import OvertimeStatistics from "../pages/attendance/OvertimeStatistics";
-
-// Work Log Pages
-import MyWorkLog from "../pages/worklog/MyWorkLog";
-import WorkLogHistory from "../pages/worklog/WorkLogHistory";
-import WorkLogManagement from "../pages/worklog/WorkLogManagement";
-import HoDWorkLogReview from "../pages/worklog/HoDWorkLogReview";
-
-// Client Pages
-import ClientList from "../pages/clients/ClientList";
-import ClientDetails from "../pages/clients/ClientDetails";
-
-// Raw Data Sheet
-import RawDataList from "../pages/raw-data/RawDataList";
-import CallerQueuePage from "../pages/raw-data/CallerQueuePage";
-import RawDataDashboard from "../pages/raw-data/RawDataDashboard";
-
-// Lead Pages
-import LeadList from "../pages/leads/LeadList";
-import LeadDetails from "../pages/leads/LeadDetails";
-
-// Project Pages
-import ProjectList from "../pages/projects/ProjectList";
-import ProjectListPage from "../pages/projects/ProjectListPage";
-import ProjectDetails from "../pages/projects/ProjectDetails";
-import ProjectWorkspace from "../pages/projects/ProjectWorkspace";
-
-// Calendar Pages
-import CalendarPage from "../pages/calendar/CalendarPage";
-// Removed old import: ContentCalendar
-
-// Work Calendar Pages
-import MyWorkCalendar from "../pages/work-calendar/MyWorkCalendar";
-import AdminWorkCalendarOverview from "../pages/work-calendar/AdminWorkCalendarOverview";
-import EnhancedAdminWorkCalendarOverview from "../pages/work-calendar/EnhancedAdminWorkCalendarOverview";
-
-// Profile Pages
-import MyProfile from "../pages/profile/MyProfile";
-
-// Admin Billing Pages
-import AdminBillingDashboard from "../pages/admin/AdminBillingDashboard";
-import ServiceManagement from "../pages/admin/ServiceManagement";
-import PlanManagement from "../pages/admin/PlanManagement";
-import SubscriptionManagement from "../pages/admin/SubscriptionManagement";
-import InvoiceManagement from "../pages/admin/InvoiceManagement";
-import PaymentVerification from "../pages/admin/PaymentVerification";
-
-// Client Billing Pages
-import ClientBillingDashboard from "../pages/client/ClientBillingDashboard";
-import ClientSubscriptions from "../pages/client/ClientSubscriptions";
-import ClientInvoices from "../pages/client/ClientInvoices";
-import ClientPayments from "../pages/client/ClientPayments";
-
-// Notification Management Pages
-import NotificationManagement from "../components/admin/NotificationManagement";
-import NotificationDashboard from "../components/notifications/NotificationDashboard";
-import NotificationSettings from "../components/notifications/NotificationSettings";
-
-// Holiday Management
-import HolidayManagement from "../components/hr/HolidayManagement";
-
-// Expense Pages
-import MyExpenses from "../pages/expenses/MyExpenses";
-import CreateExpense from "../pages/expenses/CreateExpense";
-import ExpenseDetails from "../pages/expenses/ExpenseDetails";
-import EditExpense from "../pages/expenses/EditExpense";
-import ExpenseManagementConsolidated from "../pages/expenses/ExpenseManagementConsolidated";
-import BudgetManagement from "../pages/expenses/BudgetManagement";
-
-// Asset Pages
-import AssetDashboard from "../pages/assets/AssetDashboard";
-import AssetList from "../pages/assets/AssetList";
-import AddAsset from "../pages/assets/AddAsset";
-import EditAsset from "../pages/assets/EditAsset";
-import AssetDetails from "../pages/assets/AssetDetails";
-import AssignAsset from "../pages/assets/AssignAsset";
-import SendToRepair from "../pages/assets/SendToRepair";
-import AssignmentHistory from "../pages/assets/AssignmentHistory";
-import RepairLog from "../pages/assets/RepairLog";
-import WarrantyTracker from "../pages/assets/WarrantyTracker";
-import MyAssets from "../pages/assets/MyAssets";
-import AssetManagement from "../pages/assets/AssetManagement";
-
-// Software License Pages
-import SoftwareLicenseDashboard from "../pages/licenses/SoftwareLicenseDashboard";
-import SoftwareLicenseList from "../pages/licenses/SoftwareLicenseList";
-import AddSoftwareLicense from "../pages/licenses/AddSoftwareLicense";
-import EditSoftwareLicense from "../pages/licenses/EditSoftwareLicense";
-import SoftwareLicenseDetails from "../pages/licenses/SoftwareLicenseDetails";
-import AssignSoftwareLicense from "../pages/licenses/AssignSoftwareLicense";
-import LicenseHistory from "../pages/licenses/LicenseHistory";
-import LicenseExpiryAlerts from "../pages/licenses/LicenseExpiryAlerts";
-import MyLicenses from "../pages/licenses/MyLicenses";
-import SoftwareLicenseManagement from "../pages/licenses/SoftwareLicenseManagement";
-
-// Company Management Pages
-import MeetingManagement from "../pages/meetings/MeetingManagement";
-import PolicyManagement from "../pages/policies/PolicyManagement";
-import AnnouncementManagement from "../pages/announcements/AnnouncementManagement";
-import ReportsAnalytics from "../pages/reports/ReportsAnalytics";
-
-// Error Pages
-import NotFound from "../pages/errors/NotFound";
-import Unauthorized from "../pages/errors/Unauthorized";
-import GrowthSummitFinal from "../pages/GrowthSummitFinal";
-import SupportPage from "../pages/support/SupportPage";
-import SupportManagement from "../pages/support/SupportManagement";
-
-// Procurement Pages
-import ProcurementDashboard from "../pages/procurement/ProcurementDashboard";
-import MyPurchaseRequests from "../pages/procurement/purchase-requests/MyPurchaseRequests";
-import CreatePurchaseRequest from "../pages/procurement/purchase-requests/CreatePurchaseRequest";
-import EditPurchaseRequest from "../pages/procurement/purchase-requests/EditPurchaseRequest";
-import PurchaseRequestDetails from "../pages/procurement/purchase-requests/PurchaseRequestDetails";
-import PurchaseRequestApprovals from "../pages/procurement/purchase-requests/PurchaseRequestApprovals";
-import PurchaseOrderList from "../pages/procurement/purchase-orders/PurchaseOrderList";
-import CreatePurchaseOrder from "../pages/procurement/purchase-orders/CreatePurchaseOrder";
-import PurchaseOrderDetails from "../pages/procurement/purchase-orders/PurchaseOrderDetails";
-import GoodsReceiptList from "../pages/procurement/goods-receipts/GoodsReceiptList";
-import CreateGoodsReceipt from "../pages/procurement/goods-receipts/CreateGoodsReceipt";
-import GoodsReceiptDetails from "../pages/procurement/goods-receipts/GoodsReceiptDetails";
-import VendorList from "../pages/procurement/vendors/VendorList";
-import CreateVendor from "../pages/procurement/vendors/CreateVendor";
-import EditVendor from "../pages/procurement/vendors/EditVendor";
-import VendorDetails from "../pages/procurement/vendors/VendorDetails";
-import ProcurementInvoiceList from "../pages/procurement/invoices/ProcurementInvoiceList";
-import CreateProcurementInvoice from "../pages/procurement/invoices/CreateProcurementInvoice";
-import ProcurementInvoiceDetails from "../pages/procurement/invoices/ProcurementInvoiceDetails";
-import ProcurementPaymentList from "../pages/procurement/payments/ProcurementPaymentList";
-import RecordPayment from "../pages/procurement/payments/RecordPayment";
-import ProcurementReports from "../pages/procurement/reports/ProcurementReports";
-
-const AppRoutes = () => {
+const RoleDashboard = () => {
   const { user } = useAuth();
 
-  const getDashboardByRole = () => {
-    if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/login" replace />;
 
-    switch (user.role) {
-      case "superadmin":
-        return <SuperAdminDashboard />;
-      case "admin":
-        return <AdminDashboard />;
-      case "hr":
-        return <HRDashboard />;
-      case "accounts":
-        return <AccountsDashboard />;
-      case "client":
-        return <ClientDashboard />;
-      default:
-        // Employee, HoD, Manager all use EmployeeDashboard (it has role-specific sections built in)
-        return <EmployeeDashboard />;
-    }
-  };
+  switch (user.role) {
+    case "superadmin":
+      return <SuperAdminDashboard />;
+    case "admin":
+      return <AdminDashboard />;
+    case "hr":
+      return <HRDashboard />;
+    case "accounts":
+      return <AccountsDashboard />;
+    case "client":
+      return <ClientDashboard />;
+    default:
+      return <EmployeeDashboard />;
+  }
+};
 
+const AppRoutes = () => {
   return (
     <Routes>
       {/* Public Routes */}
@@ -250,7 +223,9 @@ const AppRoutes = () => {
         path="/app"
         element={
           <ProtectedRoute>
-            <PWAShell />
+            <Suspense fallback={<RouteLoadingFallback />}>
+              <PWAShell />
+            </Suspense>
           </ProtectedRoute>
         }
       />
@@ -258,7 +233,11 @@ const AppRoutes = () => {
       {/* Work Mobile App Route - outside MainLayout, handles its own auth */}
       <Route
         path="/mobileapp"
-        element={<MobileAppShell />}
+        element={
+          <Suspense fallback={<RouteLoadingFallback />}>
+            <MobileAppShell />
+          </Suspense>
+        }
       />
       
 
@@ -274,88 +253,191 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       >
-        {/* Dashboard - Role-based */}
+        {/* Dashboard - Role-based (Authorization V2 pilot) */}
         <Route path="/dashboard" element={
-          <Suspense fallback={<RouteLoadingFallback />}>
-            {getDashboardByRole()}
-          </Suspense>
+          <PermissionRoute
+            permission="dashboard.view"
+            fallbackRoles={[
+              "superadmin",
+              "admin",
+              "hr",
+              "accounts",
+              "employee",
+              "client",
+              "hod",
+              "manager",
+            ]}
+          >
+            <Suspense fallback={<RouteLoadingFallback />}>
+              <RoleDashboard />
+            </Suspense>
+          </PermissionRoute>
         } />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-        {/* User Management - Admin/SuperAdmin */}
+        {/* User Management — admin accounts (/users); grant team.user.update in Permission Assignment */}
         <Route
           path="/users"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="team.user.update"
+              module="team"
+              fallbackRoles={["superadmin"]}
+            >
               <UserList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/users/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="team.user.update"
+              module="team"
+              fallbackRoles={["superadmin"]}
+            >
               <UserDetails />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Employee Management - HR/Admin */}
+        {/* Employee Management (Authorization V2 pilot) */}
         <Route
           path="/employees"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="team.user.view"
+              alternatePermissions={["team.user.create", "team.user.update"]}
+              module="team"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <EmployeeList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/employees/add"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="team.user.create"
+              alternatePermissions={["team.user.update"]}
+              module="team"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <AddEmployee />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
         <Route
           path="/employees/:userId/profile"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="team.user.view"
+              module="team"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <EmployeeProfileManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/employees/:userId/work"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="team.user.view"
+              module="team"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <EnhancedEmployeeWorkView />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/employees/:userId"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="team.user.view"
+              module="team"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <EmployeeProfileManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Department Management */}
-        <Route path="/departments" element={<DepartmentList />} />
-        <Route path="/departments/:id" element={<DepartmentDetails />} />
+        {/* Department Management (Authorization V2 pilot) */}
+        <Route
+          path="/departments"
+          element={
+            <PermissionRoute
+              permission="team.department.view"
+              alternatePermissions={["team.department.manage"]}
+              menuAllowedRoles={["admin", "superadmin", "hr", "manager"]}
+              module="team"
+            >
+              <DepartmentList />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/departments/:id"
+          element={
+            <PermissionRoute
+              permission="team.department.view"
+              alternatePermissions={["team.department.manage"]}
+              menuAllowedRoles={["admin", "superadmin", "hr", "manager"]}
+              module="team"
+            >
+              <DepartmentDetails />
+            </PermissionRoute>
+          }
+        />
 
-        {/* Leave Management */}
-        <Route path="/leaves" element={<LeaveManagement />} />
-        <Route path="/leaves/my-leaves" element={<MyLeaves />} />
+        {/* Leave Management (Authorization V2 pilot) */}
+        <Route path="/leaves" element={
+          <PermissionRoute
+            permission="leave.request.view"
+            module="leave"
+            fallbackRoles={["admin", "superadmin", "hr", "hod", "manager"]}
+          >
+            <LeaveManagement />
+          </PermissionRoute>
+        } />
+        <Route path="/leaves/my-leaves" element={
+          <PermissionRoute permission="leave.request.view_self" module="leave">
+            <MyLeaves />
+          </PermissionRoute>
+        } />
         <Route
           path="/leaves/requests"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="leave.request.approve"
+              module="leave"
+              fallbackRoles={["admin", "superadmin", "hr", "hod", "manager"]}
+            >
               <LeaveRequests />
-            </RoleBasedRoute>
+            </PermissionRoute>
+          }
+        />
+
+        {/* WFH & Work-on-Leave (Authorization V2 pilot — wired orphaned pages) */}
+        <Route path="/wfh" element={
+          <PermissionRoute permission="leave.request.view_self" module="wfh">
+            <WFHManagement />
+          </PermissionRoute>
+        } />
+        <Route
+          path="/admin/work-on-leave-day"
+          element={
+            <PermissionRoute
+              permission="leave.request.approve"
+              module="wfh"
+              fallbackRoles={["admin", "superadmin", "hr"]}
+            >
+              <WorkOnLeaveDayManagement />
+            </PermissionRoute>
           }
         />
 
@@ -363,224 +445,575 @@ const AppRoutes = () => {
         <Route
           path="/salary-management"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "accounts", "manager"]}>
+            <PermissionRoute
+              permission="payroll.slip.manage"
+              module="finance"
+              fallbackRoles={["admin", "superadmin", "hr", "accounts", "manager"]}
+            >
               <SalaryManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/salary-preview-management"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "accounts", "manager"]}>
+            <PermissionRoute
+              permission="payroll.slip.manage"
+              module="finance"
+              fallbackRoles={["admin", "superadmin", "hr", "accounts", "manager"]}
+            >
               <HRSalaryPreviewManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/salary-templates"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "accounts", "manager"]}>
+            <PermissionRoute
+              permission="payroll.structure.manage"
+              module="finance"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <TemplateManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Attendance Management */}
-        <Route path="/attendance/my-attendance" element={<MyAttendance />} />
+        {/* Attendance Management (Authorization V2 pilot) */}
+        <Route path="/attendance/my-attendance" element={
+          <PermissionRoute permission="attendance.record.view_self" module="attendance">
+            <MyAttendance />
+          </PermissionRoute>
+        } />
         <Route
           path="/attendance/tracking"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "hod", "manager"]}>
+            <PermissionRoute
+              permission="attendance.record.view"
+              module="attendance"
+              fallbackRoles={["admin", "superadmin", "hr", "hod", "manager"]}
+            >
               <AttendanceTracking />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/attendance/overtime-statistics"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="attendance.record.manage"
+              module="attendance"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <OvertimeStatistics />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Work Log Management */}
-        <Route path="/worklog/today" element={<MyWorkLog />} />
-        <Route path="/worklog/history" element={<WorkLogHistory />} />
+        {/* Work Log Management (Authorization V2 pilot) */}
+        <Route path="/worklog/today" element={
+          <PermissionRoute permission="worklog.entry.view_self" module="worklog">
+            <MyWorkLog />
+          </PermissionRoute>
+        } />
+        <Route path="/worklog/history" element={
+          <PermissionRoute permission="worklog.entry.view_self" module="worklog">
+            <WorkLogHistory />
+          </PermissionRoute>
+        } />
         <Route
           path="/admin/worklog-management"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="worklog.entry.review"
+              module="worklog"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <WorkLogManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/hod/worklog-review"
           element={
-            <RoleBasedRoute allowedRoles={["hod"]}>
+            <PermissionRoute
+              permission="worklog.entry.review"
+              module="worklog"
+              fallbackRoles={["hod"]}
+              requiresDepartmentHead
+            >
               <HoDWorkLogReview />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
         {/* Employee Portal Routes */}
         <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
-        <Route path="/employee/my-work" element={<MyWorkPage />} />
-        <Route path="/employee/assigned-work" element={<AssignedWorkPage />} />
-        <Route path="/employee/meetings" element={<MyMeetings />} />
+        <Route
+          path="/employee/my-work"
+          element={
+            <PermissionRoute
+              permission="work.item.view"
+              module="work"
+              fallbackRoles={WORK_ITEM_SELF_ROLES}
+            >
+              <MyWorkPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/employee/assigned-work"
+          element={
+            <PermissionRoute
+              permission="work.item.view"
+              module="work"
+              fallbackRoles={WORK_ITEM_SELF_ROLES}
+            >
+              <AssignedWorkPage />
+            </PermissionRoute>
+          }
+        />
+        <Route path="/employee/meetings" element={
+          <PermissionRoute permission="company.meeting.view" module="company">
+            <MyMeetings />
+          </PermissionRoute>
+        } />
         <Route path="/employee/attendance" element={<Navigate to="/attendance/my-attendance" replace />} />
-        <Route path="/employee/attendance-report/:employeeId" element={<EmployeeAttendanceReport />} />
-        <Route path="/employee/leaves" element={<EmployeeMyLeaves />} />
-        <Route path="/employee/salary-slips" element={<MySalarySlips />} />
-        <Route path="/employee/salary-preview" element={<MySalaryPreview />} />
-        <Route path="/employee/projects" element={<MyProjects />} />
+        <Route path="/employee/attendance-report/:employeeId" element={
+          <PermissionRoute
+            permission="attendance.record.view"
+            module="attendance"
+            fallbackRoles={["admin", "superadmin", "hr", "hod", "manager"]}
+          >
+            <EmployeeAttendanceReport />
+          </PermissionRoute>
+        } />
+        <Route path="/employee/leaves" element={
+          <PermissionRoute permission="leave.request.view_self" module="leave">
+            <EmployeeMyLeaves />
+          </PermissionRoute>
+        } />
+        <Route path="/employee/salary-slips" element={
+          <PermissionRoute permission="payroll.slip.view_self" module="finance">
+            <MySalarySlips />
+          </PermissionRoute>
+        } />
+        <Route path="/employee/salary-preview" element={
+          <PermissionRoute permission="payroll.slip.view_self" module="finance">
+            <MySalaryPreview />
+          </PermissionRoute>
+        } />
+        <Route
+          path="/employee/projects"
+          element={
+            <PermissionRoute permission="projects.project.view" module="projects">
+              <MyProjects />
+            </PermissionRoute>
+          }
+        />
         <Route path="/employee/time-tracking" element={<TimeTracking />} />
         <Route path="/employee/team" element={<TeamDirectory />} />
-        <Route path="/employee/announcements" element={<Announcements />} />
-        <Route path="/employee/notifications" element={<Announcements />} />
-        <Route path="/employee/policies" element={<Policies />} />
+        <Route path="/employee/announcements" element={
+          <PermissionRoute permission="company.announcement.view" module="company">
+            <Announcements />
+          </PermissionRoute>
+        } />
+        <Route path="/employee/notifications" element={
+          <PermissionRoute permission="company.announcement.view" module="company">
+            <Announcements />
+          </PermissionRoute>
+        } />
+        <Route path="/employee/policies" element={
+          <PermissionRoute permission="company.policy.view" module="company">
+            <Policies />
+          </PermissionRoute>
+        } />
         <Route path="/employee/settings" element={<Settings />} />
-        <Route path="/employee/profile" element={<MyProfile />} />
+        <Route path="/employee/profile" element={
+          <PermissionRoute permission="profile.view">
+            <MyProfile />
+          </PermissionRoute>
+        } />
         {/* Removed old routes: /my-work-old, /slots, /tasks */}
 
         {/* Settings Routes for Different Roles */}
         <Route
           path="/hr/settings"
           element={
-            <RoleBasedRoute allowedRoles={["hr"]}>
+            <PermissionRoute permission="dashboard.view" module="dashboard" fallbackRoles={["hr"]}>
               <HRSettings />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/admin/settings"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager"]}>
+            <PermissionRoute
+              permission="dashboard.view"
+              module="dashboard"
+              fallbackRoles={["admin", "superadmin", "manager"]}
+            >
               <AdminSettings />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         
         {/* Holiday Management Routes */}
         <Route
+          path="/hr/offers"
+          element={<Navigate to="/hr/hiring/offer-letters" replace />}
+        />
+        {/* Hiring (Authorization V2 pilot) */}
+        <Route
+          path="/hr/hiring"
+          element={
+            <PermissionRoute
+              permission="hiring.pipeline.manage"
+              module="hiring"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <HiringDashboard />
+              </Suspense>
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/hr/hiring/requests"
+          element={
+            <PermissionRoute
+              permission="hiring.pipeline.manage"
+              alternatePermissions={["hiring.request.view"]}
+              companyWideAlternates={["hiring.request.view"]}
+              module="hiring"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <HiringRequestsManagement />
+              </Suspense>
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/hr/hiring/requests/:id"
+          element={
+            <PermissionRoute
+              permission="hiring.pipeline.manage"
+              alternatePermissions={["hiring.request.view"]}
+              companyWideAlternates={["hiring.request.view"]}
+              module="hiring"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <HiringRequestDetail />
+              </Suspense>
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/hr/hiring/applications/:id"
+          element={
+            <PermissionRoute
+              permission="hiring.pipeline.manage"
+              module="hiring"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <HiringApplicationDetail />
+              </Suspense>
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/hr/hiring/applicants"
+          element={
+            <PermissionRoute
+              permission="hiring.pipeline.manage"
+              module="hiring"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <ApplicantCVBank />
+              </Suspense>
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/hr/hiring/offer-letters"
+          element={
+            <PermissionRoute
+              permission="hiring.pipeline.manage"
+              module="hiring"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <HiringOfferLetters />
+              </Suspense>
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/hod/hiring/requests"
+          element={
+            <PermissionRoute
+              permission="hiring.request.view"
+              module="hiring"
+              fallbackRoles={["hod"]}
+              requiresDepartmentHead
+            >
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <HoDHiringRequests />
+              </Suspense>
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/hod/hiring/requests/:id"
+          element={
+            <PermissionRoute
+              permission="hiring.request.view"
+              module="hiring"
+              fallbackRoles={["hod"]}
+              requiresDepartmentHead
+            >
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <HoDHiringRequestDetail />
+              </Suspense>
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/hod/hiring/requests/new"
+          element={
+            <PermissionRoute
+              permission="hiring.request.create"
+              module="hiring"
+              fallbackRoles={["hod"]}
+              requiresDepartmentHead
+            >
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <HoDCreateHiringRequest />
+              </Suspense>
+            </PermissionRoute>
+          }
+        />
+        <Route
           path="/hr/holidays"
           element={
-            <RoleBasedRoute allowedRoles={["hr"]}>
+            <PermissionRoute permission="leave.request.approve" module="leave" fallbackRoles={["hr"]}>
               <HolidayManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/admin/holidays"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager"]}>
+            <PermissionRoute
+              permission="leave.request.approve"
+              module="leave"
+              fallbackRoles={["admin", "superadmin", "manager"]}
+            >
               <HolidayManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         
         <Route
           path="/hod/settings"
           element={
-            <RoleBasedRoute allowedRoles={["hod"]}>
+            <PermissionRoute permission="dashboard.view" module="dashboard" fallbackRoles={["hod"]}>
               <HODSettings />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/hod/dashboard"
           element={
-            <RoleBasedRoute allowedRoles={["hod"]}>
+            <PermissionRoute permission="dashboard.view" module="dashboard" fallbackRoles={["hod"]}>
               <HoDDashboard />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Client Management */}
+        {/* Client Management (Authorization V2 pilot) */}
         <Route
           path="/clients"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "manager"]}>
+            <PermissionRoute
+              permission="crm.client.view"
+              alternatePermissions={["crm.client.view_assigned"]}
+              module="crm"
+              fallbackRoles={["admin", "superadmin", "hr", "employee", "hod", "manager"]}
+            >
               <ClientList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/clients/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "manager"]}>
+            <PermissionRoute
+              permission="crm.client.view"
+              alternatePermissions={["crm.client.view_assigned"]}
+              module="crm"
+              fallbackRoles={["admin", "superadmin", "hr", "employee", "hod", "manager"]}
+            >
               <ClientDetails />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Raw Data Sheet - Before Leads */}
+        {/* Raw Data Sheet (Authorization V2 pilot) */}
         <Route
           path="/raw-data"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "manager"]}>
+            <PermissionRoute
+              permission="crm.rawdata.manage"
+              module="crm"
+              fallbackRoles={["admin", "superadmin", "employee", "hod", "manager"]}
+            >
               <RawDataList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/raw-data/queue"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "manager"]}>
+            <PermissionRoute
+              permission="crm.rawdata.manage"
+              module="crm"
+              fallbackRoles={["admin", "superadmin", "employee", "hod", "manager"]}
+            >
               <CallerQueuePage />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/raw-data/dashboard"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="crm.rawdata.analytics.view"
+              module="crm"
+              fallbackRoles={["admin", "superadmin", "manager"]}
+            >
               <RawDataDashboard />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Lead Management */}
+        {/* Lead Management (Authorization V2 pilot) */}
         <Route
           path="/leads"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "accounts", "manager"]}>
+            <PermissionRoute
+              permission="crm.lead.view"
+              module="crm"
+              fallbackRoles={["admin", "superadmin", "employee", "hod", "accounts", "manager"]}
+            >
               <LeadList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/leads/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "accounts", "manager"]}>
+            <PermissionRoute
+              permission="crm.lead.view"
+              module="crm"
+              fallbackRoles={["admin", "superadmin", "employee", "hod", "accounts", "manager"]}
+            >
               <LeadDetails />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/leads/:id/edit"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "employee", "hod", "accounts", "manager"]}>
+            <PermissionRoute
+              permission="crm.lead.manage"
+              module="crm"
+              fallbackRoles={["admin", "superadmin", "employee", "hod", "accounts", "manager"]}
+            >
               <LeadList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
 
 
-        {/* Project Management */}
-        <Route path="/projects" element={<ProjectListPage />} />
-        <Route path="/projects-old" element={<ProjectList />} />
-        <Route path="/projects/:id" element={<ProjectWorkspace />} />
-        <Route path="/projects/:id/old" element={<ProjectDetails />} />
+        {/* Project Management (Authorization V2 pilot) */}
+        <Route
+          path="/projects"
+          element={
+            <PermissionRoute permission="projects.project.view" module="projects">
+              <ProjectListPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/projects-old"
+          element={
+            <PermissionRoute permission="projects.project.view" module="projects">
+              <ProjectList />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/projects/:id"
+          element={
+            <PermissionRoute permission="projects.project.view" module="projects">
+              <ProjectWorkspace />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/projects/:id/old"
+          element={
+            <PermissionRoute permission="projects.project.view" module="projects">
+              <ProjectDetails />
+            </PermissionRoute>
+          }
+        />
 
-        {/* Work Items Management - For Notification Links */}
-        <Route path="/work-items/:id" element={<MyWorkPage />} />
-        
+        {/* Work Items Management - For Notification Links (Authorization V2 pilot) */}
+        <Route
+          path="/work-items/:id"
+          element={
+            <PermissionRoute
+              permission="work.item.view"
+              module="work"
+              fallbackRoles={WORK_ITEM_SELF_ROLES}
+            >
+              <MyWorkPage />
+            </PermissionRoute>
+          }
+        />
+
         {/* Employee Slots - For Notification Links */}
-        <Route path="/employee/slots" element={<MyWorkPage />} />
-        <Route path="/employee/slots/:id" element={<MyWorkPage />} />
+        <Route
+          path="/employee/slots"
+          element={
+            <PermissionRoute
+              permission="work.item.view"
+              module="work"
+              fallbackRoles={WORK_ITEM_SELF_ROLES}
+            >
+              <MyWorkPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/employee/slots/:id"
+          element={
+            <PermissionRoute
+              permission="work.item.view"
+              module="work"
+              fallbackRoles={WORK_ITEM_SELF_ROLES}
+            >
+              <MyWorkPage />
+            </PermissionRoute>
+          }
+        />
 
         {/* Calendar Views */}
         <Route path="/calendar" element={<CalendarPage />} />
@@ -589,136 +1022,208 @@ const AppRoutes = () => {
         <Route
           path="/work-calendar/my-calendar"
           element={
-            <RoleBasedRoute allowedRoles={["employee", "admin", "superadmin", "hr", "hod", "manager"]}>
+            <PermissionRoute
+              permission="work.item.view"
+              module="work"
+              fallbackRoles={WORK_ITEM_SELF_ROLES}
+            >
               <MyWorkCalendar />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/work-calendar/admin-overview"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="work.dashboard.view"
+              module="work"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <AdminWorkCalendarOverview />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/work-calendar/enhanced-admin-overview"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="work.dashboard.view"
+              module="work"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <EnhancedAdminWorkCalendarOverview />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Profile - Unified */}
-        <Route path="/profile" element={<MyProfile />} />
-        <Route path="/my-profile" element={<MyProfile />} />
+        {/* Profile - Unified (Authorization V2 pilot) */}
+        <Route path="/profile" element={
+          <PermissionRoute permission="profile.view">
+            <MyProfile />
+          </PermissionRoute>
+        } />
+        <Route path="/my-profile" element={
+          <PermissionRoute permission="profile.view">
+            <MyProfile />
+          </PermissionRoute>
+        } />
         {/* Removed old routes: /content-calendar, MyProfileEnhanced */}
 
-        {/* Admin Billing Routes */}
+        {/* Admin Billing Routes (Authorization V2 pilot) */}
         <Route
           path="/admin/billing"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager", "hod"]}>
+            <PermissionRoute
+              permission="billing.invoice.view"
+              module="billing"
+              fallbackRoles={["admin", "superadmin", "accounts", "manager", "hod"]}
+            >
               <AdminBillingDashboard />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/admin/services"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager", "hod"]}>
+            <PermissionRoute
+              permission="billing.subscription.manage"
+              module="billing"
+              fallbackRoles={["admin", "superadmin", "accounts", "manager", "hod"]}
+            >
               <ServiceManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/admin/plans"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager", "hod"]}>
+            <PermissionRoute
+              permission="billing.subscription.manage"
+              module="billing"
+              fallbackRoles={["admin", "superadmin", "accounts", "manager", "hod"]}
+            >
               <PlanManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/admin/subscriptions"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager", "hod"]}>
+            <PermissionRoute
+              permission="billing.subscription.view"
+              module="billing"
+              fallbackRoles={["admin", "superadmin", "accounts", "manager", "hod"]}
+            >
               <SubscriptionManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/admin/invoices"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager", "hod"]}>
+            <PermissionRoute
+              permission="billing.invoice.view"
+              module="billing"
+              fallbackRoles={["admin", "superadmin", "accounts", "manager", "hod"]}
+            >
               <InvoiceManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/admin/payments"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "manager", "hod"]}>
+            <PermissionRoute
+              permission="billing.payment.verify"
+              module="billing"
+              fallbackRoles={["admin", "superadmin", "accounts", "manager", "hod"]}
+            >
               <PaymentVerification />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Client Billing Routes */}
+        {/* Client Billing Routes (Authorization V2 pilot) */}
         <Route
           path="/client/billing"
           element={
-            <RoleBasedRoute allowedRoles={["client"]}>
+            <PermissionRoute
+              permission="billing.invoice.view"
+              module="billing"
+              fallbackRoles={["client"]}
+            >
               <ClientBillingDashboard />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/client/subscriptions"
           element={
-            <RoleBasedRoute allowedRoles={["client"]}>
+            <PermissionRoute
+              permission="billing.subscription.view"
+              module="billing"
+              fallbackRoles={["client"]}
+            >
               <ClientSubscriptions />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/client/invoices"
           element={
-            <RoleBasedRoute allowedRoles={["client"]}>
+            <PermissionRoute
+              permission="billing.invoice.view"
+              module="billing"
+              fallbackRoles={["client"]}
+            >
               <ClientInvoices />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/client/payments"
           element={
-            <RoleBasedRoute allowedRoles={["client"]}>
+            <PermissionRoute
+              permission="billing.invoice.view"
+              module="billing"
+              fallbackRoles={["client"]}
+            >
               <ClientPayments />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Company Management Routes */}
+        {/* Company Management Routes (Authorization V2 pilot) */}
         <Route
           path="/meetings"
-          element={<MeetingManagement />}
+          element={
+            <PermissionRoute permission="company.meeting.view" module="company">
+              <MeetingManagement />
+            </PermissionRoute>
+          }
         />
         <Route
           path="/policies"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="company.policy.manage"
+              module="company"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <PolicyManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/announcements"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="company.announcement.manage"
+              module="company"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <AnnouncementManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         
@@ -726,9 +1231,13 @@ const AppRoutes = () => {
         <Route
           path="/reports"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="reports.analytics.view"
+              module="reports"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
+            >
               <ReportsAnalytics />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
@@ -736,33 +1245,49 @@ const AppRoutes = () => {
         <Route
           path="/admin/notifications/manage"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager"]}>
+            <PermissionRoute
+              permission="company.announcement.manage"
+              module="company"
+              fallbackRoles={["admin", "superadmin", "manager"]}
+            >
               <NotificationManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/admin/notifications/create"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager"]}>
+            <PermissionRoute
+              permission="company.announcement.manage"
+              module="company"
+              fallbackRoles={["admin", "superadmin", "manager"]}
+            >
               <NotificationManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/admin/notifications/dashboard"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager"]}>
+            <PermissionRoute
+              permission="company.announcement.manage"
+              module="company"
+              fallbackRoles={["admin", "superadmin", "manager"]}
+            >
               <NotificationDashboard />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/admin/notifications/settings"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager"]}>
+            <PermissionRoute
+              permission="company.announcement.manage"
+              module="company"
+              fallbackRoles={["admin", "superadmin", "manager"]}
+            >
               <NotificationSettings />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
@@ -776,97 +1301,133 @@ const AppRoutes = () => {
         <Route
           path="/expenses/my-expenses"
           element={
-            <RoleBasedRoute allowedRoles={["employee", "hod", "manager", "hr", "admin", "superadmin"]}>
+            <PermissionRoute permission="expense.claim.create" module="finance">
               <MyExpenses />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/expenses/create"
           element={
-            <RoleBasedRoute allowedRoles={["employee", "hod", "manager", "hr", "admin", "superadmin"]}>
+            <PermissionRoute permission="expense.claim.create" module="finance">
               <CreateExpense />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/expenses/:id"
           element={
-            <RoleBasedRoute allowedRoles={["employee", "hod", "manager", "hr", "admin", "superadmin"]}>
+            <PermissionRoute
+              permission="expense.claim.create"
+              module="finance"
+              fallbackRoles={["employee", "hod", "sales", "manager", "hr", "admin", "superadmin", "accounts"]}
+            >
               <ExpenseDetails />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/expenses/:id/edit"
           element={
-            <RoleBasedRoute allowedRoles={["employee", "hod", "manager", "hr", "admin", "superadmin"]}>
+            <PermissionRoute permission="expense.claim.create" module="finance">
               <EditExpense />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/expenses/approvals"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="expense.claim.approve"
+              module="finance"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <ExpenseManagementConsolidated />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/expenses/management"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="expense.claim.approve"
+              module="finance"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <ExpenseManagementConsolidated />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/expenses/reimbursement"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="expense.claim.approve"
+              module="finance"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <ExpenseManagementConsolidated />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/expenses/search"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="expense.claim.approve"
+              module="finance"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <ExpenseManagementConsolidated />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/expenses/analytics"
           element={
-            <RoleBasedRoute allowedRoles={["employee", "hod", "manager", "hr", "admin", "superadmin"]}>
+            <PermissionRoute
+              permission="expense.claim.approve"
+              module="finance"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <ExpenseManagementConsolidated />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/expenses/budget"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="expense.claim.approve"
+              module="finance"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <ExpenseManagementConsolidated />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/expenses/reports"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="expense.claim.approve"
+              module="finance"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <ExpenseManagementConsolidated />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/expenses/budget-management"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="expense.claim.approve"
+              module="finance"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <BudgetManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
@@ -875,106 +1436,154 @@ const AppRoutes = () => {
         <Route
           path="/assets/dashboard"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute
+              permission="assets.asset.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
+            >
               <AssetDashboard />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/assets/add"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="assets.asset.manage"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <AddAsset />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/assets/assignments/history"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute
+              permission="assets.asset.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
+            >
               <AssignmentHistory />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/assets/history"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute
+              permission="assets.asset.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
+            >
               <AssignmentHistory />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/assets/repairs"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute
+              permission="assets.asset.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
+            >
               <RepairLog />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/assets/warranty"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute
+              permission="assets.asset.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
+            >
               <WarrantyTracker />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/assets/my-assets"
           element={
-            <RoleBasedRoute allowedRoles={["employee", "admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute permission="assets.asset.view" module="resources">
               <MyAssets />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/assets/management"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "employee", "hod"]}>
+            <PermissionRoute
+              permission="assets.asset.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "employee", "hod"]}
+            >
               <AssetManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         {/* Dynamic routes MUST come after static routes */}
         <Route
           path="/assets/:id/assign"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="assets.asset.manage"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <AssignAsset />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/assets/:id/repair"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="assets.asset.manage"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <SendToRepair />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/assets/:id/edit"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="assets.asset.manage"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <EditAsset />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/assets/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute
+              permission="assets.asset.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
+            >
               <AssetDetails />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/assets"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute
+              permission="assets.asset.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
+            >
               <AssetList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
@@ -982,292 +1591,433 @@ const AppRoutes = () => {
         <Route
           path="/licenses/dashboard"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute
+              permission="licenses.license.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
+            >
               <SoftwareLicenseDashboard />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/licenses"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute
+              permission="licenses.license.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
+            >
               <SoftwareLicenseList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/licenses/add"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="licenses.license.manage"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <AddSoftwareLicense />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/licenses/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute
+              permission="licenses.license.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
+            >
               <SoftwareLicenseDetails />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/licenses/:id/edit"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="licenses.license.manage"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <EditSoftwareLicense />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/licenses/:id/assign"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="licenses.license.manage"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <AssignSoftwareLicense />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/licenses/:id/history"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager"]}>
+            <PermissionRoute
+              permission="licenses.license.manage"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+            >
               <LicenseHistory />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/licenses/expiry-alerts"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute
+              permission="licenses.license.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
+            >
               <LicenseExpiryAlerts />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/licenses/my-licenses"
           element={
-            <RoleBasedRoute allowedRoles={["employee", "admin", "superadmin", "hr", "manager", "hod"]}>
+            <PermissionRoute permission="licenses.license.view" module="resources">
               <MyLicenses />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/licenses/management"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "hr", "manager", "employee", "hod"]}>
+            <PermissionRoute
+              permission="licenses.license.view"
+              module="resources"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "employee", "hod"]}
+            >
               <SoftwareLicenseManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Support Routes */}
-        <Route path="/support" element={<SupportPage />} />
+        {/* Support Routes (Authorization V2 pilot) */}
+        <Route path="/support" element={
+          <PermissionRoute permission="support.view" module="support">
+            <SupportPage />
+          </PermissionRoute>
+        } />
         <Route
           path="/admin/support-management"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin"]}>
+            <PermissionRoute
+              permission="support.manage"
+              module="support"
+              fallbackRoles={["admin", "superadmin"]}
+            >
               <SupportManagement />
-            </RoleBasedRoute>
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/admin/permission-assignments"
+          element={
+            <PermissionRoute
+              permission="auth.permission.assign"
+              module="auth"
+              fallbackRoles={["admin", "superadmin"]}
+            >
+              <PermissionAssignment />
+            </PermissionRoute>
           }
         />
 
-        {/* Procurement Management Routes */}
+        {/* Procurement Management Routes (Authorization V2 pilot) */}
         <Route
           path="/procurement"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hod", "manager", "hr", "employee"]}>
+            <PermissionRoute
+              permission="procurement.pr.create"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts", "hod", "manager", "hr", "employee"]}
+            >
               <ProcurementDashboard />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
-        
-        {/* Purchase Requests - All roles can view/create their own */}
+
         <Route
           path="/procurement/purchase-requests/create"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}>
+            <PermissionRoute
+              permission="procurement.pr.create"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}
+            >
               <CreatePurchaseRequest />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/purchase-requests/approvals"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hod"]}>
+            <PermissionRoute
+              permission="procurement.pr.approve_hod"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts", "hod"]}
+            >
               <PurchaseRequestApprovals />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/purchase-requests/my"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}>
+            <PermissionRoute
+              permission="procurement.pr.create"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}
+            >
               <MyPurchaseRequests />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/purchase-requests/:id/edit"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}>
+            <PermissionRoute
+              permission="procurement.pr.create"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}
+            >
               <EditPurchaseRequest />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/purchase-requests/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}>
+            <PermissionRoute
+              permission="procurement.pr.create"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}
+            >
               <PurchaseRequestDetails />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/purchase-requests"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}>
+            <PermissionRoute
+              permission="procurement.pr.create"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "manager", "accounts", "employee", "hr", "hod"]}
+            >
               <MyPurchaseRequests />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Purchase Orders - Admin/Accounts can write; HR/HoD/Manager can read */}
         <Route
           path="/procurement/purchase-orders"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}>
+            <PermissionRoute
+              permission="procurement.pr.view_self"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}
+            >
               <PurchaseOrderList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/purchase-orders/create"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+            <PermissionRoute
+              permission="procurement.po.manage"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts"]}
+            >
               <CreatePurchaseOrder />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/purchase-orders/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}>
+            <PermissionRoute
+              permission="procurement.pr.view_self"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}
+            >
               <PurchaseOrderDetails />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Goods Receipts - Admin/Accounts/HR can create, others read-only */}
         <Route
           path="/procurement/goods-receipts"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}>
+            <PermissionRoute
+              permission="procurement.pr.view_self"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}
+            >
               <GoodsReceiptList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/goods-receipts/create"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hr"]}>
+            <PermissionRoute
+              permission="procurement.po.manage"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts", "hr"]}
+            >
               <CreateGoodsReceipt />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/goods-receipts/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}>
+            <PermissionRoute
+              permission="procurement.pr.view_self"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}
+            >
               <GoodsReceiptDetails />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Vendors - Admin/Accounts only */}
         <Route
           path="/procurement/vendors"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+            <PermissionRoute
+              permission="procurement.vendor.manage"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts"]}
+            >
               <VendorList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/vendors/create"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+            <PermissionRoute
+              permission="procurement.vendor.manage"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts"]}
+            >
               <CreateVendor />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/vendors/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+            <PermissionRoute
+              permission="procurement.vendor.manage"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts"]}
+            >
               <VendorDetails />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/vendors/:id/edit"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+            <PermissionRoute
+              permission="procurement.vendor.manage"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts"]}
+            >
               <EditVendor />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Procurement Invoices - Admin/Accounts can write; HR/HoD/Manager can read */}
         <Route
           path="/procurement/invoices"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}>
+            <PermissionRoute
+              permission="procurement.pr.view_self"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}
+            >
               <ProcurementInvoiceList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/invoices/create"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+            <PermissionRoute
+              permission="procurement.po.manage"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts"]}
+            >
               <CreateProcurementInvoice />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/invoices/:id"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}>
+            <PermissionRoute
+              permission="procurement.pr.view_self"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}
+            >
               <ProcurementInvoiceDetails />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Procurement Payments - Admin/Accounts can write; HR/HoD/Manager can read */}
         <Route
           path="/procurement/payments"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}>
+            <PermissionRoute
+              permission="procurement.pr.view_self"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts", "hr", "hod", "manager"]}
+            >
               <ProcurementPaymentList />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
         <Route
           path="/procurement/payments/record"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+            <PermissionRoute
+              permission="procurement.po.manage"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts"]}
+            >
               <RecordPayment />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 
-        {/* Procurement Reports - Admin/Accounts only */}
         <Route
           path="/procurement/reports"
           element={
-            <RoleBasedRoute allowedRoles={["admin", "superadmin", "accounts"]}>
+            <PermissionRoute
+              permission="procurement.po.manage"
+              module="procurement"
+              fallbackRoles={["admin", "superadmin", "accounts"]}
+            >
               <ProcurementReports />
-            </RoleBasedRoute>
+            </PermissionRoute>
           }
         />
 

@@ -30,7 +30,7 @@ import WorkLogSubmissionModal from "../../components/worklog/WorkLogSubmissionMo
 import MyOvertimeHistory from "../../components/attendance/MyOvertimeHistory";
 import AttendanceCalendar from "../../components/attendance/AttendanceCalendar";
 import { workLogApi } from "../../api/workLogApi";
-import * as XLSX from "xlsx";
+import { loadXlsx } from "../../utils/lazyLibs";
 import "../../styles/table-mobile.css";
 import "../../styles/modal-mobile.css";
 
@@ -225,7 +225,7 @@ const MyAttendance = () => {
     }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     try {
       const exportData = attendances.map((a) => ({
         Date: formatDate(a.date),
@@ -242,6 +242,7 @@ const MyAttendance = () => {
         Notes: a.notes || "",
       }));
 
+      const XLSX = await loadXlsx();
       const ws = XLSX.utils.json_to_sheet(exportData);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Attendance");
@@ -532,7 +533,7 @@ const MyAttendance = () => {
                     const workHours = a.status === 'on-leave' ? '-' : formatHours(a.workHours || 0);
                     const overtime = formatHours(a.overtime || 0);
                     const clockIn = a.status === 'on-leave' ? 'On Leave' : formatTime(a.clockIn);
-                    const clockOut = a.status === 'on-leave' ? 'On Leave' : (a.clockOut ? formatTime(a.clockOut) : 'N/A');
+                    const clockOut = a.status === 'on-leave' ? '-' : (a.clockOut ? formatTime(a.clockOut) : 'N/A');
                     const dateFormatted = formatDateDDMMYYYY(a.date);
                     
                     return `
@@ -897,7 +898,7 @@ const MyAttendance = () => {
                           <td>{attendance.status === 'on-leave' ? <Badge bg="secondary">On Leave</Badge> : formatTime(attendance.clockIn)}</td>
                           <td>
                             {attendance.status === 'on-leave' 
-                              ? <Badge bg="secondary">On Leave</Badge>
+                              ? <span className="text-muted">-</span>
                               : attendance.clockOut
                               ? formatTime(attendance.clockOut)
                               : <Badge bg="warning">In Progress</Badge>}

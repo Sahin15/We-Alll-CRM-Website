@@ -12,6 +12,7 @@ import {
   FaShoppingCart, FaFileInvoice, FaRupeeSign, FaClock, FaChartPie,
 } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
+import { PAGE_ACCESS, checkPageAccess } from '../../constants/pageAccess';
 import {
   getSummary,
   getBudgetUtilisation,
@@ -60,11 +61,11 @@ const SummaryCard = ({ icon: Icon, title, value, sub, color, loading }) => (
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 const ProcurementDashboard = () => {
-  const { user } = useAuth();
+  const { canAccess } = useAuth();
 
   // Only admin/superadmin/accounts can view the analytics dashboard.
   // hr, manager, hod, employee are redirected to their own purchase requests.
-  const canViewDashboard = ['admin', 'superadmin', 'accounts'].includes(user?.role);
+  const canViewDashboard = checkPageAccess(canAccess, PAGE_ACCESS.procurementDashboard);
   if (!canViewDashboard) {
     return <Navigate to="/procurement/purchase-requests/my" replace />;
   }

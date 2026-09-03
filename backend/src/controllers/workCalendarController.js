@@ -15,6 +15,7 @@ import analyticsEngine from "../services/analyticsEngine.js";
 import exportService from "../services/exportService.js";
 import realTimeUpdateService from "../services/realTimeUpdateService.js";
 import slotManagementService from "../services/slotManagementService.js";
+import { mergeActiveEmployeeFilter } from "../utils/employeeQueryUtils.js";
 
 /**
  * Comprehensive Work Calendar Controller
@@ -54,36 +55,26 @@ export const getEmployeeWorkCalendar = async (req, res) => {
       });
     }
 
-    // Build date range filter - temporarily disabled for debugging
+    // Build date range filter for calendar entries
     const dateFilter = {};
-    // Commenting out date filter to see all work calendar entries
-    // if (startDate && endDate) {
-    //   dateFilter.$or = [
-    //     {
-    //       startDate: { 
-    //         $gte: new Date(startDate), 
-    //         $lte: new Date(endDate) 
-    //       }
-    //     },
-    //     {
-    //       endDate: { 
-    //         $gte: new Date(startDate), 
-    //         $lte: new Date(endDate) 
-    //       }
-    //     },
-    //     {
-    //       $and: [
-    //         { startDate: { $lte: new Date(startDate) } },
-    //         { endDate: { $gte: new Date(endDate) } }
-    //       ]
-    //     }
-    //   ];
-    // }
+    if (startDate && endDate) {
+      const rangeStart = new Date(startDate);
+      const rangeEnd = new Date(endDate);
+      dateFilter.$or = [
+        { startDate: { $gte: rangeStart, $lte: rangeEnd } },
+        { endDate: { $gte: rangeStart, $lte: rangeEnd } },
+        {
+          $and: [
+            { startDate: { $lte: rangeStart } },
+            { endDate: { $gte: rangeEnd } },
+          ],
+        },
+      ];
+    }
 
-    // Get work calendar entries - show ALL entries for debugging
     const workCalendarQuery = {
-      assignedTo: employeeId
-      // Temporarily not applying date filter: ...dateFilter
+      assignedTo: employeeId,
+      ...dateFilter,
     };
 
     if (status) workCalendarQuery.status = status;
@@ -97,52 +88,58 @@ export const getEmployeeWorkCalendar = async (req, res) => {
       .populate('department', 'name')
       .populate('assignedTo', 'name email')
       .populate('collaborators.user', 'name email')
-      .sort({ startDate: 1 });
+      .sort({ startDate: 1 })
+      .lean();
 
     logger.info(`Found ${workCalendarEntries.length} work calendar entries for employee ${employeeId}`);
 
-    // Get work items for the employee (to auto-generate calendar entries if needed)
+    // Work items in the requested window (single + multiple assignees)
     const workItemsQuery = {
-      assignedTo: employeeId
+      $or: [
+        { assignedTo: employeeId },
+        { assignedToMultiple: employeeId },
+      ],
+      isDeleted: { $ne: true },
     };
 
-    // For work items, use a broader date range to show all relevant items
     if (startDate && endDate) {
-      const extendedStartDate = new Date(startDate);
-      extendedStartDate.setDate(extendedStartDate.getDate() - 30); // 30 days before
-      const extendedEndDate = new Date(endDate);
-      extendedEndDate.setDate(extendedEndDate.getDate() + 30); // 30 days after
-      
       workItemsQuery.dueDate = {
-        $gte: extendedStartDate,
-        $lte: extendedEndDate
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
       };
     }
 
     const workItems = await WorkItem.find(workItemsQuery)
       .populate('project', 'name client status departments')
       .populate('assignedTo', 'name email')
-      .sort({ dueDate: 1 });
+      .select('-comments -statusHistory -attachments')
+      .sort({ dueDate: 1 })
+      .lean();
 
     logger.info(`Found ${workItems.length} work items for employee ${employeeId}`);
 
-    // Auto-generate calendar entries for work items that don't have them
-    const existingWorkItemIds = workCalendarEntries
-      .filter(entry => entry.sourceModel === 'WorkItem')
-      .map(entry => entry.sourceId.toString());
+    // Auto-sync is expensive (N+1 DB writes) — only run when explicitly requested
+    const shouldSyncCalendar = req.query.syncCalendar === 'true';
+    let allEntries = workCalendarEntries;
 
-    const newCalendarEntries = [];
-    for (const workItem of workItems) {
-      if (!existingWorkItemIds.includes(workItem._id.toString())) {
-        const calendarEntry = await createWorkCalendarEntry(workItem);
-        if (calendarEntry) {
-          newCalendarEntries.push(calendarEntry);
+    if (shouldSyncCalendar) {
+      const existingWorkItemIds = new Set(
+        workCalendarEntries
+          .filter((entry) => entry.sourceModel === 'WorkItem' && entry.sourceId)
+          .map((entry) => entry.sourceId.toString())
+      );
+
+      const newCalendarEntries = [];
+      for (const workItem of workItems) {
+        if (!existingWorkItemIds.has(workItem._id.toString())) {
+          const calendarEntry = await createWorkCalendarEntry(workItem);
+          if (calendarEntry) {
+            newCalendarEntries.push(calendarEntry);
+          }
         }
       }
+      allEntries = [...workCalendarEntries, ...newCalendarEntries];
     }
-
-    // Combine existing and new entries
-    const allEntries = [...workCalendarEntries, ...newCalendarEntries];
 
     // Get employee details
     const employee = await User.findById(employeeId)
@@ -1148,7 +1145,7 @@ export const createWorkCalendarEntry = async (workItem) => {
     }
 
     if (!departmentId) {
-      logger.error(`No department found for project: ${project._id}`);
+      logger.debug(`No department found for project: ${project._id}`);
       return null;
     }
 
@@ -1477,7 +1474,10 @@ const getFilterOptions = async () => {
     Department.find({}).select('name').lean(),
     Project.find({}).select('name client').populate('client', 'name').lean(),
     Client.find({}).select('name').lean(),
-    User.find({ role: { $in: ['employee', 'hod'] } }).select('name email department').populate('department', 'name').lean()
+    User.find(mergeActiveEmployeeFilter({ role: { $in: ['employee', 'hod'] } }))
+      .select('name email department')
+      .populate('department', 'name')
+      .lean()
   ]);
 
   return {
@@ -2901,10 +2901,13 @@ const getEnhancedFilterOptions = async () => {
     const [clients, projects, employees, departments] = await Promise.all([
       Client.find({ status: 'active' }).select('name email company').sort({ name: 1 }),
       Project.find({ status: 'active' }).populate('client', 'name serviceCompany').select('name client').sort({ name: 1 }),
-      User.find({ 
-        role: { $in: ['employee', 'hod', 'manager'] },
-        status: 'active' 
-      }).select('name email role department').sort({ name: 1 }),
+      User.find(
+        mergeActiveEmployeeFilter({
+          role: { $in: ['employee', 'hod', 'manager'] },
+        })
+      )
+        .select('name email role department')
+        .sort({ name: 1 }),
       Department.find({ status: 'active' }).select('name description').sort({ name: 1 })
     ]);
 

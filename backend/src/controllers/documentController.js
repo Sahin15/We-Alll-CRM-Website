@@ -31,12 +31,15 @@ const fileFilter = (req, file, cb) => {
 
   const isValidExtension = allowedExtensions.includes(ext);
   const isValidMimetype = allowedMimetypes.includes(file.mimetype);
+  const isGenericBinary =
+    file.mimetype === 'application/octet-stream' ||
+    file.mimetype === 'binary/octet-stream';
 
-  if (isValidExtension && isValidMimetype) {
+  if (isValidExtension && (isValidMimetype || isGenericBinary)) {
     return cb(null, true);
-  } else {
-    cb(new Error(`Invalid file type. Allowed: JPEG, JPG, PNG, PDF, DOC, DOCX. Got: ${ext} (${file.mimetype})`));
   }
+
+  cb(new Error(`Invalid file type. Allowed: JPEG, JPG, PNG, PDF, DOC, DOCX. Got: ${ext} (${file.mimetype})`));
 };
 
 const upload = multer({
@@ -211,14 +214,14 @@ const getUserDocuments = async (req, res) => {
     // Transform documents to include uploadedAt field and proper URL for frontend compatibility
     const transformedDocuments = documents.map(doc => {
       const docObj = doc.toObject();
+      const isS3 = docObj.path?.startsWith("https://");
       return {
         ...docObj,
-        userId: docObj.userId.toString(), // Ensure userId is string for frontend comparison
+        userId: docObj.userId.toString(),
         uploadedAt: docObj.createdAt,
-        // Add URL for viewing/downloading
-        url: `/api/users/documents/${docObj._id}/download`,
-        fileUrl: `/api/users/documents/${docObj._id}/download`,
-        documentUrl: `/api/users/documents/${docObj._id}/download`
+        url: isS3 ? docObj.path : `/api/users/documents/${docObj._id}/download`,
+        fileUrl: isS3 ? docObj.path : `/api/users/documents/${docObj._id}/download`,
+        documentUrl: isS3 ? docObj.path : `/api/users/documents/${docObj._id}/download`,
       };
     });
     
@@ -284,7 +287,7 @@ const downloadDocument = async (req, res) => {
       return res.status(403).json({ message: 'Access denied. You can only download your own documents.' });
     }
 
-    // If path is an S3 URL, redirect to it
+    // S3 objects are publicly readable via URL; IAM may deny GetObject but HTTP works
     if (document.path && document.path.startsWith('https://')) {
       return res.redirect(document.path);
     }

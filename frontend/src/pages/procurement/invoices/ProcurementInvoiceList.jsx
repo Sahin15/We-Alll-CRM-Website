@@ -6,6 +6,7 @@ import {
 import { toast } from 'react-toastify';
 import { FaPlus, FaEye } from 'react-icons/fa';
 import { useAuth } from '../../../context/AuthContext';
+import { PAGE_ACCESS, checkPageAccess } from '../../../constants/pageAccess';
 import { listInvoices } from '../../../api/procurementApi';
 import ProcurementBreadcrumb from '../../../components/procurement/ProcurementBreadcrumb';
 import PaymentDueAlert from '../../../components/procurement/PaymentDueAlert';
@@ -56,9 +57,9 @@ const STATUS_FILTERS = [
 
 export default function ProcurementInvoiceList() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { canAccess } = useAuth();
 
-  const canWrite = ['admin', 'superadmin', 'accounts'].includes(user?.role);
+  const canWrite = checkPageAccess(canAccess, PAGE_ACCESS.procurementWrite);
 
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -7,9 +7,10 @@ import "react-datepicker/dist/react-datepicker.css";
 import "./index.css";
 import "./styles/card-header-fix.css";
 import { initMobileDebug } from "./utils/mobileDebug";
+import { registerPwaUpdateHandler } from "./utils/pwaUpdate";
 
-// Initialize mobile debugging in production
 initMobileDebug();
+registerPwaUpdateHandler();
 
 // Register service worker early for push notifications
 if ('serviceWorker' in navigator) {
@@ -43,6 +44,9 @@ try {
       <App />
     </React.StrictMode>
   );
+
+  window.__WEALLL_APP_MOUNTED__ = true;
+  window.dispatchEvent(new Event("wealll-app-mounted"));
   
 } catch (error) {
   console.error("Failed to mount React app:", error);

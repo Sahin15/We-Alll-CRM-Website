@@ -174,11 +174,11 @@ export const updateMeeting = async (req, res) => {
       return res.status(404).json({ message: "Meeting not found" });
     }
 
-    // Only organizer can update
-    if (meeting.organizer.toString() !== req.user.id) {
+    // Organizer or HR/admin can update
+    if (!canModifyMeetingAttendees(meeting, req.user)) {
       return res
         .status(403)
-        .json({ message: "Only organizer can update the meeting" });
+        .json({ message: "Only the organizer or HR/admin can update the meeting" });
     }
 
     // Get old attendees before update
@@ -290,6 +290,108 @@ export const deleteMeeting = async (req, res) => {
   } catch (error) {
     
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+/**
+ * Whether the requester may modify meeting attendees.
+ *
+ * @param {object} meeting
+ * @param {object} user
+ * @returns {boolean}
+ */
+function canModifyMeetingAttendees(meeting, user) {
+  if (!meeting || !user?.id) return false;
+
+  const manageRoles = ['admin', 'superadmin', 'hr', 'manager'];
+  if (manageRoles.includes(user.role)) {
+    return true;
+  }
+
+  return meeting.organizer.toString() === String(user.id);
+}
+
+// Add attendees to a scheduled meeting
+export const addMeetingAttendees = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { attendeeIds } = req.body;
+
+    if (!Array.isArray(attendeeIds) || attendeeIds.length === 0) {
+      return res.status(400).json({ message: 'attendeeIds must be a non-empty array' });
+    }
+
+    const meeting = await Meeting.findById(id);
+    if (!meeting) {
+      return res.status(404).json({ message: 'Meeting not found' });
+    }
+
+    if (!canModifyMeetingAttendees(meeting, req.user)) {
+      return res.status(403).json({
+        message: 'Only the organizer or HR/admin can add attendees to this meeting',
+      });
+    }
+
+    if (!['scheduled', 'ongoing'].includes(meeting.status)) {
+      return res.status(400).json({
+        message: 'Attendees can only be added to scheduled or ongoing meetings',
+      });
+    }
+
+    const existingIds = new Set(meeting.attendees.map((attendee) => attendee.toString()));
+    const organizerId = meeting.organizer.toString();
+    const newAttendeeIds = attendeeIds
+      .map((attendeeId) => String(attendeeId))
+      .filter((attendeeId) => attendeeId !== organizerId && !existingIds.has(attendeeId));
+
+    if (newAttendeeIds.length === 0) {
+      return res.status(400).json({ message: 'All selected users are already attendees' });
+    }
+
+    meeting.attendees.push(...newAttendeeIds);
+    await meeting.save();
+
+    const activityPromises = newAttendeeIds.map((attendeeId) =>
+      Activity.create({
+        user: attendeeId,
+        type: 'meeting_scheduled',
+        title: 'Meeting Scheduled',
+        description: `You have been invited to "${meeting.title}"`,
+        relatedId: meeting._id,
+        relatedModel: 'Meeting',
+        icon: 'calendar',
+        color: 'info',
+      })
+    );
+    await Promise.all(activityPromises);
+
+    try {
+      await NotificationService.sendToMultiple(
+        newAttendeeIds,
+        '📅 Meeting Invitation',
+        `You have been added to: ${meeting.title}`,
+        {
+          type: 'meeting_scheduled',
+          data: { meetingId: meeting._id.toString(), title: meeting.title },
+          actionUrl: '/meetings',
+          senderId: req.user.id,
+        }
+      );
+    } catch (notificationError) {
+      console.error('Failed to notify new meeting attendees:', notificationError);
+    }
+
+    const populatedMeeting = await Meeting.findById(meeting._id)
+      .populate('organizer', 'name email')
+      .populate('attendees', 'name email department');
+
+    res.json({
+      message: `${newAttendeeIds.length} attendee(s) added successfully`,
+      meeting: populatedMeeting,
+      addedCount: newAttendeeIds.length,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 

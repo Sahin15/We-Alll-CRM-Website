@@ -3,6 +3,7 @@ import {
   createDepartment,
   getDepartments,
   getOperationalDepartments,
+  getDepartmentDirectory,
   getDepartmentById,
   updateDepartment,
   deleteDepartment,
@@ -18,23 +19,65 @@ import {
   getDepartmentMembers,
   getDepartmentStats,
 } from "../controllers/departmentController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
-import { isHoDOfDepartment } from "../middleware/hodMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
+import { requireModulePermission } from "../authz/authzMiddleware.js";
+import {
+  isHoDOfDepartment,
+  allowDeptViewOrHoDOfDepartment,
+} from "../middleware/hodMiddleware.js";
 
 const router = express.Router();
+
+const DEPT_VIEW_ROLES = ["manager", "hr", "admin", "superadmin"];
+
+const CLIENT_DEPT_ASSIGN_ROLES = ["manager", "hr", "admin", "superadmin"];
+
+const DEPT_DIRECTORY_ROLES = [
+  "employee",
+  "hod",
+  "sales",
+  "telecaller",
+  "manager",
+  "hr",
+  "admin",
+  "superadmin",
+  "accounts",
+  "client",
+];
+
+const deptView = requireModulePermission("team", "team.department.view", {
+  legacyRoles: DEPT_VIEW_ROLES,
+});
+
+const DEPT_MANAGE_ROLES = ["admin", "superadmin"];
+const DEPT_HOD_OPS_ROLES = ["admin", "superadmin", "hr", "manager"];
+const DEPT_ANALYTICS_ROLES = ["admin", "superadmin", "hr", "manager"];
+const DEPT_ANALYTICS_DETAIL_ROLES = [
+  "admin",
+  "superadmin",
+  "hr",
+  "manager",
+  "hod",
+  "employee",
+];
 
 // Analytics routes
 router.get(
   "/analytics/summary",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  requireModulePermission("team", "team.department.view", {
+    legacyRoles: DEPT_ANALYTICS_ROLES,
+  }),
   getAllDepartmentsAnalytics
 );
 router.get(
   "/:id/analytics",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager", "hod", "employee"),
+  requireModulePermission("team", "team.department.view", {
+    legacyRoles: DEPT_ANALYTICS_DETAIL_ROLES,
+  }),
   getDepartmentAnalytics
 );
 
@@ -42,68 +85,85 @@ router.get(
 router.post(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin"),
+  requireModulePermission("team", "team.department.manage", {
+    legacyRoles: DEPT_MANAGE_ROLES,
+  }),
   createDepartment
 );
-router.get("/", protect, getDepartments);
+router.get("/", protect, deptView, getDepartments);
 
-// Get only operational departments (for client assignment)
-router.get("/operational", protect, getOperationalDepartments);
+router.get(
+  "/directory",
+  protect,
+  requireModulePermission("dashboard", "dashboard.view", {
+    legacyRoles: DEPT_DIRECTORY_ROLES,
+  }),
+  getDepartmentDirectory
+);
+
+router.get(
+  "/operational",
+  protect,
+  requireModulePermission("crm", "crm.client.manage", {
+    legacyRoles: CLIENT_DEPT_ASSIGN_ROLES,
+  }),
+  getOperationalDepartments
+);
 
 // HoD Management (New) - MUST come before /:id route
 router.post(
   "/:departmentId/assign-hod",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  requireModulePermission("team", "team.user.update", {
+    legacyRoles: DEPT_HOD_OPS_ROLES,
+  }),
   assignHoD
 );
 router.delete(
   "/:departmentId/remove-hod",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  requireModulePermission("team", "team.user.update", {
+    legacyRoles: DEPT_HOD_OPS_ROLES,
+  }),
   removeHoD
 );
 
-// HoD Access Routes - MUST come before /:id route
-router.get(
-  "/:departmentId/projects",
-  protect,
-  isHoDOfDepartment,
-  getDepartmentProjects
-);
-router.get(
-  "/:departmentId/members",
-  protect,
-  isHoDOfDepartment,
-  getDepartmentMembers
-);
-router.get(
-  "/:departmentId/stats",
-  protect,
-  isHoDOfDepartment,
-  getDepartmentStats
-);
+// HoD Access Routes - MUST come before /:id route (isHoDOfDepartment is sufficient; no team.department.view)
+router.get("/:departmentId/projects", protect, isHoDOfDepartment, getDepartmentProjects);
+router.get("/:departmentId/members", protect, isHoDOfDepartment, getDepartmentMembers);
+router.get("/:departmentId/stats", protect, isHoDOfDepartment, getDepartmentStats);
 
 // Department head management
 router.put(
   "/:departmentId/head/:userId",
   protect,
-  authorizeRoles("admin", "superadmin"),
+  requireModulePermission("team", "team.department.manage", {
+    legacyRoles: DEPT_MANAGE_ROLES,
+  }),
   setDepartmentHead
 );
 
 // Generic /:id routes - MUST come AFTER specific routes
-router.get("/:id", protect, getDepartmentById);
+router.get(
+  "/:id",
+  protect,
+  allowDeptViewOrHoDOfDepartment(deptView),
+  getDepartmentById
+);
 router.put(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin"),
+  requireModulePermission("team", "team.department.manage", {
+    legacyRoles: DEPT_MANAGE_ROLES,
+  }),
   updateDepartment
 );
 router.delete(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin"),
+  requireModulePermission("team", "team.department.manage", {
+    legacyRoles: DEPT_MANAGE_ROLES,
+  }),
   deleteDepartment
 );
 
@@ -111,19 +171,25 @@ router.delete(
 router.put(
   "/:departmentId/employees/bulk",
   protect,
-  authorizeRoles("admin", "superadmin"),
+  requireModulePermission("team", "team.department.manage", {
+    legacyRoles: DEPT_MANAGE_ROLES,
+  }),
   bulkAssignEmployees
 );
 router.put(
   "/:departmentId/add/:userId",
   protect,
-  authorizeRoles("admin", "superadmin"),
+  requireModulePermission("team", "team.department.manage", {
+    legacyRoles: DEPT_MANAGE_ROLES,
+  }),
   addEmployeeToDepartment
 );
 router.put(
   "/:departmentId/remove/:userId",
   protect,
-  authorizeRoles("admin", "superadmin"),
+  requireModulePermission("team", "team.department.manage", {
+    legacyRoles: DEPT_MANAGE_ROLES,
+  }),
   removeEmployeeFromDepartment
 );
 

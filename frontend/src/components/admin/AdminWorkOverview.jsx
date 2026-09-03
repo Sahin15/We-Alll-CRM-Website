@@ -4,6 +4,7 @@ import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
+import { checkPageAccess, PAGE_ACCESS } from '../../constants/pageAccess';
 import workCalendarApi from '../../api/workCalendarApi';
 import departmentApi from '../../api/departmentApi';
 import projectApi from '../../api/projectApi';
@@ -20,7 +21,7 @@ const localizer = momentLocalizer(moment);
  * with advanced filtering, analytics, and PDF export capabilities
  */
 const AdminWorkOverview = () => {
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
   const [loading, setLoading] = useState(true);
   const [workData, setWorkData] = useState(null);
   const [filterOptions, setFilterOptions] = useState({});
@@ -46,7 +47,7 @@ const AdminWorkOverview = () => {
 
 
   // Check if user has admin privileges
-  const hasAdminAccess = ['admin', 'superadmin', 'hr', 'manager'].includes(user?.role);
+  const hasAdminAccess = checkPageAccess(canAccess, PAGE_ACCESS.workManage);
 
   useEffect(() => {
     if (hasAdminAccess) {
@@ -67,7 +68,7 @@ const AdminWorkOverview = () => {
         departmentApi.getAllDepartments(),
         projectApi.getAllProjects(),
         clientApi.getAllClients(),
-        userApi.getAllUsers()
+        userApi.getAllUsers({ status: 'active', limit: 1000 })
       ]);
 
       setFilterOptions({

@@ -11,88 +11,78 @@ import {
   generateInvoicePDF,
   deleteInvoice,
 } from "../controllers/invoiceController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
 
-// Create invoice (admin/accounts)
+const INVOICE_MANAGE_ROLES = ["admin", "superadmin", "accounts", "manager", "hod"];
+const INVOICE_READ_ROLES = ["admin", "superadmin", "accounts", "client"];
+const INVOICE_DELETE_ROLES = ["admin", "superadmin", "manager"];
+const CLIENT_ROLES = ["client"];
+
 router.post(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"),
+  requireModulePermission("billing", "billing.invoice.manage", { legacyRoles: INVOICE_MANAGE_ROLES }),
   createInvoice
 );
-
-// Get all invoices (admin/accounts)
 router.get(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"),
+  requireModulePermission("billing", "billing.invoice.view", { legacyRoles: INVOICE_MANAGE_ROLES }),
   getAllInvoices
 );
-
-// Get logged-in client's own invoices
 router.get(
   "/my-invoices",
   protect,
-  authorizeRoles("client"),
+  requireModulePermission("billing", "billing.invoice.view", { legacyRoles: CLIENT_ROLES }),
   getMyInvoices
 );
-
-// Get client invoices (admin viewing specific client)
 router.get(
   "/client/:clientId",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "client"),
+  requireModulePermission("billing", "billing.invoice.view", { legacyRoles: INVOICE_READ_ROLES }),
   getClientInvoices
 );
-
-// Get invoice by ID (must come after specific routes)
 router.get(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "client"),
+  requireModulePermission("billing", "billing.invoice.view", { legacyRoles: INVOICE_READ_ROLES }),
   getInvoiceById
 );
-
-// Update invoice
 router.put(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"),
+  requireModulePermission("billing", "billing.invoice.manage", { legacyRoles: INVOICE_MANAGE_ROLES }),
   updateInvoice
 );
-
-// Update invoice status
 router.patch(
   "/:id/status",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"),
+  requireModulePermission("billing", "billing.invoice.manage", { legacyRoles: INVOICE_MANAGE_ROLES }),
   updateInvoiceStatus
 );
-
-// Send invoice
 router.post(
   "/:id/send",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "manager", "hod"),
+  requireModulePermission("billing", "billing.invoice.manage", { legacyRoles: INVOICE_MANAGE_ROLES }),
   sendInvoice
 );
-
-// Generate PDF
 router.get(
   "/:id/pdf",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "client", "hod"),
+  requireModulePermission("billing", "billing.invoice.view", {
+    legacyRoles: ["admin", "superadmin", "accounts", "client", "hod"],
+  }),
   generateInvoicePDF
 );
-
-// Delete invoice
 router.delete(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "manager"),
+  requireModulePermission("billing", "billing.invoice.manage", { legacyRoles: INVOICE_DELETE_ROLES }),
   deleteInvoice
 );
 

@@ -1,6 +1,6 @@
 import express from 'express';
 import { protect } from '../middleware/authMiddleware.js';
-import { authorizeRoles } from '../middleware/roleMiddleware.js';
+import { requireModulePermission } from '../authz/authzMiddleware.js';
 import {
   recordPayment,
   listPayments,
@@ -10,11 +10,19 @@ import {
 const router = express.Router();
 
 const writeRoles = ['admin', 'superadmin', 'accounts'];
-const readRoles  = ['admin', 'superadmin', 'accounts', 'hr', 'hod', 'manager', 'employee'];
+const readRoles = ['admin', 'superadmin', 'accounts', 'hr', 'hod', 'manager', 'employee'];
 
-// IMPORTANT: Specific routes must come BEFORE parameterized routes
-router.post('/', protect, authorizeRoles(...writeRoles), recordPayment);
-router.get('/', protect, authorizeRoles(...readRoles), listPayments);
-router.get('/:id', protect, authorizeRoles(...readRoles), getPayment);
+const procurementRead = requireModulePermission('procurement', 'procurement.pr.view_self', {
+  legacyRoles: readRoles,
+});
+
+router.post(
+  '/',
+  protect,
+  requireModulePermission('procurement', 'procurement.po.manage', { legacyRoles: writeRoles }),
+  recordPayment
+);
+router.get('/', protect, procurementRead, listPayments);
+router.get('/:id', protect, procurementRead, getPayment);
 
 export default router;

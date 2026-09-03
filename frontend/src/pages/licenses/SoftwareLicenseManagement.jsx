@@ -5,6 +5,7 @@ import {
   FaCalendarAlt, FaHistory
 } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
+import { PAGE_ACCESS, checkPageAccess } from '../../constants/pageAccess';
 import useScrollToTop from '../../hooks/useScrollToTop';
 import SoftwareLicenseDashboard from './SoftwareLicenseDashboard';
 import SoftwareLicenseList from './SoftwareLicenseList';
@@ -15,10 +16,10 @@ import MyLicenses from './MyLicenses';
 import '../../styles/profile-tabs.css';
 
 const SoftwareLicenseManagement = () => {
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
   useScrollToTop();
 
-  const isHROrAdmin = ['hr', 'admin', 'superadmin', 'manager', 'hod'].includes(user?.role);
+  const isHROrAdmin = checkPageAccess(canAccess, PAGE_ACCESS.licensesManage);
   const isEmployee = user?.role === 'employee';
 
   // Employees cannot access the admin dashboard endpoint, so default them to My Licenses
@@ -31,7 +32,7 @@ const SoftwareLicenseManagement = () => {
           <Tabs
             activeKey={activeTab}
             onSelect={(k) => setActiveTab(k)}
-            className="nav-tabs-custom"
+            className="nav-tabs-custom profile-tabs-fill"
             style={{ borderBottom: '2px solid #e9ecef' }}
           >
             {/* Dashboard Tab - HR/Admin/Manager/HoD only */}

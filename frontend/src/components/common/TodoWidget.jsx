@@ -29,15 +29,16 @@ import toast from "../../utils/toast";
 import { todoApi } from "../../api/todoApi";
 import { formatDate } from "../../utils/helpers";
 import { useAuth } from "../../context/AuthContext";
+import { checkPageAccess, PAGE_ACCESS } from "../../constants/pageAccess";
 import { useNavigate } from "react-router-dom";
 
 const TodoWidget = ({ isCollapsed = false }) => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
 
   // Show the 📱 App button only to admin, superadmin, manager, and Sales dept
   const showAppButton =
-    ['admin', 'superadmin', 'manager'].includes(user?.role) ||
+    checkPageAccess(canAccess, PAGE_ACCESS.reportsAnalytics) ||
     user?.department?.name?.toLowerCase() === 'sales' ||
     user?.department?.toLowerCase?.() === 'sales';
   const [todos, setTodos] = useState([]);

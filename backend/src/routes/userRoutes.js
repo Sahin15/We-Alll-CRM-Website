@@ -2,6 +2,7 @@ import express from "express";
 import {
   registerUser,
   getUsers,
+  getMeetingDirectory,
   loginUser,
   getUserById,
   updateUserProfile,
@@ -13,8 +14,10 @@ import {
   changePassword,
   getNextEmployeeIdSequence,
 } from "../controllers/userController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
+import { requireModulePermission, requireModulePermissionAny } from "../authz/authzMiddleware.js";
 import { uploadDocument, handleDocumentUploadError } from "../middleware/documentMiddleware.js";
 import {
   upload as documentUpload,
@@ -28,25 +31,68 @@ import {
 
 const router = express.Router();
 
+const USER_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
+const USER_LIST_ROLES = [...USER_MANAGE_ROLES, "hod"];
+const USER_ADMIN_ROLES = ["superadmin"];
+
+const userView = requireModulePermissionAny(
+  "team",
+  ["team.user.view", "projects.project.manage"],
+  { legacyRoles: USER_LIST_ROLES }
+);
+
+const userAdminUpdate = requireModulePermission("team", "team.user.update", {
+  legacyRoles: USER_ADMIN_ROLES,
+});
+
+/** HR/manager employee profile edits — not the /users admin roster. */
+const userStaffUpdate = requireModulePermissionAny(
+  "team",
+  ["team.user.update", "team.user.create"],
+  { legacyRoles: USER_MANAGE_ROLES }
+);
+
 // Registration endpoint - used by admins to add users (not public)
-router.post("/register", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), registerUser);
+router.post(
+  "/register",
+  protect,
+  requireModulePermission("team", "team.user.create", { legacyRoles: USER_MANAGE_ROLES }),
+  registerUser
+);
 router.post("/login", loginUser);
-router.get("/", protect, getUsers);
-router.get("/employees", protect, async (req, res) => {
+router.get(
+  "/meeting-directory",
+  protect,
+  requireModulePermission("company", "company.meeting.view", {
+    legacyRoles: [...USER_MANAGE_ROLES, "employee", "hod", "sales", "telecaller", "accounts", "client"],
+  }),
+  getMeetingDirectory
+);
+router.get("/", protect, userView, getUsers);
+router.get(
+  "/employees",
+  protect,
+  userView,
+  async (req, res) => {
   try {
     const User = (await import("../models/userModel.js")).default;
-    // Get all users except superadmin, sorted by name
-    const employees = await User.find({ role: { $ne: 'superadmin' } })
-      .select('-password')
-      .populate('department', 'name')
-      .populate('reportingManager', 'name')
+    const { mergeExcludePastMembersFilter } = await import(
+      "../utils/employeeQueryUtils.js"
+    );
+    // Employable roster: exclude terminated/offboarded past members
+    const employees = await User.find(
+      mergeExcludePastMembersFilter({ role: { $ne: "superadmin" } })
+    )
+      .select("-password")
+      .populate("department", "name")
+      .populate("reportingManager", "name")
       .sort({ name: 1 });
     res.json(employees);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
-router.get("/me", protect, async (req, res) => {
+router.get("/me", protect, requireModulePermission("profile", "profile.view"), async (req, res) => {
   try {
     const User = (await import("../models/userModel.js")).default;
     const user = await User.findById(req.user._id)
@@ -96,7 +142,7 @@ router.get("/official-documents", protect, (req, res, next) => {
 }, getOfficialDocuments);
 router.post("/documents", protect, documentUpload.single('document'), uploadUserDocument);
 router.post("/official-documents", protect, documentUpload.single('document'), uploadOfficialDocument);
-router.post("/:id/official-documents", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), documentUpload.single('document'), async (req, res, next) => {
+router.post("/:id/official-documents", protect, userStaffUpdate, documentUpload.single('document'), async (req, res, next) => {
   try {
     const { id: userId } = req.params;
 
@@ -133,7 +179,7 @@ router.post("/:id/official-documents", protect, authorizeRoles("admin", "superad
 router.delete("/documents/:documentId", protect, deleteUserDocument);
 
 // Pending documents endpoint (placeholder for now)
-router.get("/documents/pending", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), (req, res) => {
+router.get("/documents/pending", protect, requireModulePermission("team", "team.user.view", { legacyRoles: USER_MANAGE_ROLES }), (req, res) => {
   // TODO: Implement pending document approvals functionality
   res.status(200).json([]);
 });
@@ -143,13 +189,18 @@ router.post("/request-password-reset", requestPasswordReset);
 router.post("/reset-password/:token", resetPassword);
 
 // Change password route (for authenticated users to change their own password)
-router.put("/change-password", protect, changePassword);
+router.put("/change-password", protect, requireModulePermission("profile", "profile.update"), changePassword);
 
-// Generate next employee ID sequence
-router.post("/next-employee-id-sequence", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), getNextEmployeeIdSequence);
+// Generate next employee ID sequence (HR/admin while editing employee profiles)
+router.post(
+  "/next-employee-id-sequence",
+  protect,
+  userStaffUpdate,
+  getNextEmployeeIdSequence
+);
 
 // Clear broken profile picture
-router.patch("/clear-broken-profile-picture", protect, async (req, res) => {
+router.patch("/clear-broken-profile-picture", protect, requireModulePermission("profile", "profile.update"), async (req, res) => {
   try {
     const { clearBrokenProfilePicture } = await import("../controllers/uploadController.js");
     await clearBrokenProfilePicture(req, res);
@@ -160,7 +211,11 @@ router.patch("/clear-broken-profile-picture", protect, async (req, res) => {
 });
 
 // Get documents for a specific user (for HR/Admin)
-router.get("/:id/documents", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), async (req, res) => {
+router.get(
+  "/:id/documents",
+  protect,
+  requireModulePermission("team", "team.user.view", { legacyRoles: USER_MANAGE_ROLES }),
+  async (req, res) => {
   try {
     const { id: userId } = req.params;
     const Document = (await import("../models/documentModel.js")).default;
@@ -186,20 +241,30 @@ router.get("/:id/documents", protect, authorizeRoles("admin", "superadmin", "hr"
   }
 });
 
-router.get("/:id", protect, getUserById);
-router.put("/profile", protect, updateUserProfile);
-router.put("/:id/profile", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), updateUser);
+router.get("/:id", protect, userView, getUserById);
+router.put("/profile", protect, requireModulePermission("profile", "profile.update"), updateUserProfile);
+router.put(
+  "/:id/profile",
+  protect,
+  userStaffUpdate,
+  updateUser
+);
 router.put(
   "/:id/status",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager"),
+  userStaffUpdate,
   updateEmployeeStatus
 );
-router.put("/:id", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), updateUser);
+router.put(
+  "/:id",
+  protect,
+  userStaffUpdate,
+  updateUser
+);
 router.delete(
   "/:id",
   protect,
-  authorizeRoles("superadmin"),
+  requireModulePermission("team", "team.user.update", { legacyRoles: ["superadmin"] }),
   async (req, res) => {
     try {
       const { id } = req.params;
@@ -219,7 +284,11 @@ router.delete(
 );
 
 // Reset password route (for admin/hr to reset other users' passwords)
-router.put("/:id/reset-password", protect, authorizeRoles("admin", "superadmin", "hr", "manager"), async (req, res) => {
+router.put(
+  "/:id/reset-password",
+  protect,
+  userAdminUpdate,
+  async (req, res) => {
   try {
     const { id } = req.params;
     const { newPassword } = req.body;

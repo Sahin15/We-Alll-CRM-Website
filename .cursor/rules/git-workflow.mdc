@@ -1,0 +1,12 @@
+---
+description: Git branching — work on feature branches, never push to main without approval
+alwaysApply: true
+---
+
+# Git Workflow
+
+- Work on the **feature branch for the current task** (see `GIT-WORKFLOW.md` for branch names).
+- Before editing, use the branch that matches what the user asked for; if unsure, run `git branch --show-current`.
+- Commit and push only to that branch — never directly to `main`.
+- Do not merge into `main` unless the user explicitly asks.
+- Stage only files relevant to the current task.

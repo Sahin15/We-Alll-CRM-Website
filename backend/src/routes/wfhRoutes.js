@@ -10,46 +10,66 @@ import {
   checkWFHStatus,
   getWFHStatistics,
 } from "../controllers/wfhController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
 
-// Employee routes
-router.post("/apply", protect, applyWFH);
-router.get("/my-requests", protect, getMyWFHRequests);
-router.delete("/:id", protect, cancelWFHRequest);
-router.get("/check/:date", protect, checkWFHStatus);
+const WFH_VIEW_ROLES = ["admin", "superadmin", "hr", "manager", "hod"];
+const WFH_APPROVE_ROLES = ["admin", "superadmin", "hr", "manager", "hod"];
+const WFH_SELF_ROLES = [
+  "employee",
+  "hod",
+  "sales",
+  "manager",
+  "hr",
+  "admin",
+  "superadmin",
+];
+
+const wfhCreate = requireModulePermission("wfh", "leave.request.create", {
+  legacyRoles: WFH_SELF_ROLES,
+});
+const wfhViewSelf = requireModulePermission("wfh", "leave.request.view_self", {
+  legacyRoles: WFH_SELF_ROLES,
+});
+
+router.post("/apply", protect, wfhCreate, applyWFH);
+router.get("/my-requests", protect, wfhViewSelf, getMyWFHRequests);
+router.delete("/:id", protect, wfhCreate, cancelWFHRequest);
+router.get("/check/:date", protect, wfhViewSelf, checkWFHStatus);
 
 // HR/Admin/Manager/HoD routes
 router.get(
   "/all",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager", "hod"),
+  requireModulePermission("wfh", "leave.request.view", { legacyRoles: WFH_VIEW_ROLES }),
   getAllWFHRequests
 );
 router.get(
   "/pending",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager", "hod"),
+  requireModulePermission("wfh", "leave.request.view", { legacyRoles: WFH_VIEW_ROLES }),
   getPendingWFHRequests
 );
 router.put(
   "/:id/approve",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager", "hod"),
+  requireModulePermission("wfh", "leave.request.approve", { legacyRoles: WFH_APPROVE_ROLES }),
   approveWFHRequest
 );
 router.put(
   "/:id/reject",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager", "hod"),
+  requireModulePermission("wfh", "leave.request.approve", { legacyRoles: WFH_APPROVE_ROLES }),
   rejectWFHRequest
 );
 router.get(
   "/statistics",
   protect,
-  authorizeRoles("admin", "superadmin", "hr", "manager", "hod"),
+  requireModulePermission("wfh", "leave.request.view", { legacyRoles: WFH_VIEW_ROLES }),
   getWFHStatistics
 );
 

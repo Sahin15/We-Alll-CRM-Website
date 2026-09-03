@@ -15,9 +15,16 @@ import {
 import { toast } from "react-toastify";
 import { FaEye, FaQuestionCircle, FaCheckCircle, FaClock, FaExclamationTriangle } from "react-icons/fa";
 import { salaryPreviewApi } from "../../api/salaryApi";
+import { payrollSimplePreviewApi } from "../../api/payrollSimpleApi";
+import SimplePayrollPreviewPanels from "./SimplePayrollPreviewPanels";
+import {
+  isSimpleSalaryPreview,
+  mapStoredPreviewToSimpleDto,
+} from "../../utils/simpleSalaryPreviewView";
 
 const SalaryPreview = ({ month, year, onPreviewUpdate }) => {
   const [preview, setPreview] = useState(null);
+  const [simpleViewDto, setSimpleViewDto] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showQueryModal, setShowQueryModal] = useState(false);
   const [queryText, setQueryText] = useState("");
@@ -33,11 +40,41 @@ const SalaryPreview = ({ month, year, onPreviewUpdate }) => {
   const fetchPreview = async () => {
     try {
       setLoading(true);
+      setSimpleViewDto(null);
       const response = await salaryPreviewApi.getMyPreview(month, year);
-      setPreview(response.data);
+      const stored = response.data;
+      setPreview(stored);
+
+      // Prefer live simple DTO from my-preview (or simple-preview API)
+      if (stored?.simplePreview?.applicable) {
+        setSimpleViewDto(stored.simplePreview);
+        return;
+      }
+
+      const preferSimple = isSimpleSalaryPreview(stored);
+      try {
+        const employeeId = stored.employee?._id || stored.employee;
+        const res = await payrollSimplePreviewApi.get({
+          employee: employeeId,
+          month,
+          year,
+          automaticDeductions: 0,
+        });
+        const dto = res.data?.data ?? res.data;
+        if (dto?.applicable) {
+          setSimpleViewDto(dto);
+        } else if (preferSimple) {
+          setSimpleViewDto(mapStoredPreviewToSimpleDto(stored));
+        }
+      } catch {
+        if (preferSimple) {
+          setSimpleViewDto(mapStoredPreviewToSimpleDto(stored));
+        }
+      }
     } catch (error) {
       if (error.response?.status === 404) {
         setPreview(null);
+        setSimpleViewDto(null);
       } else {
         console.error("Error fetching salary preview:", error);
         toast.error("Failed to load salary preview");
@@ -179,6 +216,15 @@ const SalaryPreview = ({ month, year, onPreviewUpdate }) => {
             </Alert>
           )}
 
+          {simpleViewDto ? (
+            <div className="mb-4">
+              <SimplePayrollPreviewPanels
+                preview={simpleViewDto}
+                formatCurrency={formatCurrency}
+              />
+            </div>
+          ) : (
+            <>
           {/* Working Days Breakdown */}
           <Row className="mb-4">
             <Col md={6}>
@@ -338,9 +384,13 @@ const SalaryPreview = ({ month, year, onPreviewUpdate }) => {
             <h4 className="mb-1">Net Salary</h4>
             <h2 className="mb-0">{formatCurrency(preview.salaryBreakdown.netSalary)}</h2>
           </Alert>
+            </>
+          )}
 
           {/* Leave Breakdown Details */}
-          {preview.leaveImpact.leaveBreakdown && preview.leaveImpact.leaveBreakdown.length > 0 && (
+          {preview.payrollMode !== "simple" &&
+            preview.leaveImpact.leaveBreakdown &&
+            preview.leaveImpact.leaveBreakdown.length > 0 && (
             <Accordion className="mb-4">
               <Accordion.Item eventKey="0">
                 <Accordion.Header>Leave Details</Accordion.Header>

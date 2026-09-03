@@ -1,13 +1,14 @@
 import { Row, Col, Form, Button, ButtonGroup, Badge } from 'react-bootstrap';
 import { FaFilter } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
+import { checkPageAccess, PAGE_ACCESS } from '../../constants/pageAccess';
 
 /**
  * ProjectFilters Component
  * Provides filtering controls for projects
  */
 const ProjectFilters = ({ filters, onFilterChange, onClearFilters, clients, departments, projects = [] }) => {
-  const { user } = useAuth();
+  const { canAccess } = useAuth();
   const handleChange = (field, value) => {
     onFilterChange({ ...filters, [field]: value });
   };
@@ -17,7 +18,7 @@ const ProjectFilters = ({ filters, onFilterChange, onClearFilters, clients, depa
   ).length;
 
   // Check if user has access to client/department filters
-  const canViewClientFilters = ['admin', 'superadmin', 'hr', 'hod', 'manager'].includes(user?.role);
+  const canViewClientFilters = checkPageAccess(canAccess, PAGE_ACCESS.projectFilterAdmin);
 
   // Calculate project counts by service company
   const weAlllCount = projects.filter(p => p.client?.serviceCompany === 'We Alll').length;

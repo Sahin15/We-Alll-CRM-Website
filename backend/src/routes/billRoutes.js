@@ -1,6 +1,8 @@
 import express from "express";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 import {
   createBill,
   getAllBills,
@@ -17,73 +19,73 @@ import {
 
 const router = express.Router();
 
-// Write operations: admin/superadmin/accounts only
+const BILL_MANAGE_ROLES = ["admin", "superadmin", "accounts", "hod"];
+const BILL_READ_ROLES = ["admin", "superadmin", "accounts", "client"];
+
 router.post(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "hod"),
+  requireModulePermission("billing", "billing.invoice.manage", { legacyRoles: BILL_MANAGE_ROLES }),
   createBill
 );
 router.put(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "hod"),
+  requireModulePermission("billing", "billing.invoice.manage", { legacyRoles: BILL_MANAGE_ROLES }),
   updateBill
 );
 router.delete(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "hod"),
+  requireModulePermission("billing", "billing.invoice.manage", { legacyRoles: BILL_MANAGE_ROLES }),
   deleteBill
 );
 router.post(
   "/:id/send",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "hod"),
+  requireModulePermission("billing", "billing.invoice.manage", { legacyRoles: BILL_MANAGE_ROLES }),
   sendBillToClient
 );
 router.put(
   "/:id/mark-paid",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "hod"),
+  requireModulePermission("billing", "billing.invoice.manage", { legacyRoles: BILL_MANAGE_ROLES }),
   markBillAsPaid
 );
 router.put(
   "/:id/discount",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "hod"),
+  requireModulePermission("billing", "billing.invoice.manage", { legacyRoles: BILL_MANAGE_ROLES }),
   applyDiscount
 );
-
-// Read operations
 router.get(
   "/",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "hod"),
+  requireModulePermission("billing", "billing.invoice.view", { legacyRoles: BILL_MANAGE_ROLES }),
   getAllBills
 );
 router.get(
   "/overdue",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "hod"),
+  requireModulePermission("billing", "billing.invoice.view", { legacyRoles: BILL_MANAGE_ROLES }),
   getOverdueBills
 );
 router.get(
   "/client/:clientId",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "client"),
+  requireModulePermission("billing", "billing.invoice.view", { legacyRoles: BILL_READ_ROLES }),
   getClientBills
 );
 router.get(
   "/:id",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "client"),
+  requireModulePermission("billing", "billing.invoice.view", { legacyRoles: BILL_READ_ROLES }),
   getBillById
 );
 router.get(
   "/:id/pdf",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts", "client"),
+  requireModulePermission("billing", "billing.invoice.view", { legacyRoles: BILL_READ_ROLES }),
   getBillPDF
 );
 

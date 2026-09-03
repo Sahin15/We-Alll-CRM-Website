@@ -3,6 +3,7 @@ import { Row, Col, Card, Badge, Button, Modal, Form } from 'react-bootstrap';
 import { FaEdit, FaTrash, FaEye } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../../context/AuthContext';
+import { checkPageAccess, PAGE_ACCESS } from '../../../constants/pageAccess';
 import projectApi from '../../../api/projectApi';
 import workItemApi from '../../../api/workItemApi';
 import WorkItemDetailsModal from '../../workitems/WorkItemDetailsModal';
@@ -11,7 +12,7 @@ import WorkItemDetailsModal from '../../workitems/WorkItemDetailsModal';
  * KanbanTab - Dedicated Kanban board view for project work items
  */
 const KanbanTab = ({ project, onRefresh }) => {
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
   const [loading, setLoading] = useState(true);
   const [workItems, setWorkItems] = useState([]);
   const [groupedWorkItems, setGroupedWorkItems] = useState({ slotted: {}, unassigned: [] });
@@ -213,7 +214,7 @@ const KanbanTab = ({ project, onRefresh }) => {
     return colors[priority] || 'secondary';
   };
 
-  const canManageWork = ['admin', 'superadmin', 'hr', 'manager'].includes(user?.role) ||
+  const canManageWork = checkPageAccess(canAccess, PAGE_ACCESS.workManage) ||
     user?._id === project.projectHead?._id ||
     project.assignedUsers?.some(u => (u._id || u) === user?._id);
 
@@ -369,6 +370,28 @@ const KanbanTab = ({ project, onRefresh }) => {
                               style={{ fontSize: '0.7rem' }}
                             >
                               ✓ Active
+                            </Badge>
+                          )}
+
+                          {/* Deliverable Link Badge */}
+                          {(item.deliverableTitle || item.deliverableId) && (
+                            <Badge
+                              bg="purple"
+                              style={{ backgroundColor: '#6f42c1', color: '#fff', fontSize: '0.7rem' }}
+                              className="mb-2 me-1"
+                            >
+                              🎯 {item.deliverableTitle || 'Linked Deliverable'}
+                            </Badge>
+                          )}
+
+                          {/* Planned Month Badge */}
+                          {item.plannedMonth && item.plannedMonth.year && (
+                            <Badge
+                              bg="outline-primary"
+                              style={{ border: '1px solid #0d6efd', color: '#0d6efd', fontSize: '0.7rem' }}
+                              className="mb-2 me-1"
+                            >
+                              📅 {item.plannedMonth.year}-{String(item.plannedMonth.month).padStart(2, '0')}
                             </Badge>
                           )}
 

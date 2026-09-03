@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Modal, Form, Button } from "react-bootstrap";
 import { toast } from "react-toastify";
 import { rawDataApi } from "../../api/rawDataApi";
-import api from "../../services/api";
 
 export default function AssignModal({ show, recordIds, onHide, onAssigned }) {
   const [callerId, setCallerId] = useState("");
@@ -10,16 +9,15 @@ export default function AssignModal({ show, recordIds, onHide, onAssigned }) {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    // Fetch users from Telecaller department
-    api.get("/users?limit=100&department=Telecaller")
-      .then(res => setUsers(res.data.users || res.data.data || []))
+    if (!show) return;
+    rawDataApi
+      .getAssignableStaff("Telecaller", { limit: 100 })
+      .then((res) => setUsers(res.data?.data ?? []))
       .catch(() => {
-        // Fallback: fetch all users if department filter doesn't work
-        api.get("/users?limit=100")
-          .then(res => setUsers(res.data.users || res.data.data || []))
-          .catch(() => {});
+        toast.error("Failed to load telecallers");
+        setUsers([]);
       });
-  }, []);
+  }, [show]);
 
   const handleAssign = async () => {
     if (!callerId) return toast.error("Select a caller");

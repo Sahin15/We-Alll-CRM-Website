@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Modal, Card, Row, Col, Badge, Table, Button, Form } from 'react-bootstrap';
+import { Modal, Card, Row, Col, Badge, Table, Button, Form, Spinner } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import { attendanceApi } from '../../api/attendanceApi';
 import holidayApi from '../../api/holidayApi';
 import { formatDate, formatTime, getStatusVariant } from '../../utils/helpers';
-import { formatWorkHours } from '../../utils/attendanceHelpers';
+import { formatWorkHours, toISTDateString, eachDateStringInRange, isSundayIST } from '../../utils/attendanceHelpers';
 import AttendanceCalendar from './AttendanceCalendar';
 
 const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
   const [attendances, setAttendances] = useState([]);
   const [holidays, setHolidays] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState({
     startDate: '',
     endDate: ''
@@ -18,35 +18,24 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
   const [viewType, setViewType] = useState('table'); // 'calendar' or 'table'
 
   // Helper function to format date to IST (YYYY-MM-DD)
-  const formatDateToIST = (date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
+  const formatDateToIST = (date) => toISTDateString(date);
 
-  // Helper function to check if a date is Sunday
+  // Helper function to check if a date is Sunday (IST calendar day)
   const isSunday = (date) => {
-    const d = new Date(date);
-    return d.getDay() === 0;
+    const dateStr = typeof date === 'string' ? date : toISTDateString(date);
+    return isSundayIST(dateStr);
   };
 
   // Helper function to check if a date is a holiday
   const isHoliday = (date) => {
-    const dateStr = formatDateToIST(new Date(date));
-    return holidays.some(holiday => {
-      const holidayDate = formatDateToIST(new Date(holiday.date));
-      return holidayDate === dateStr;
-    });
+    const dateStr = typeof date === 'string' ? date : toISTDateString(date);
+    return holidays.some((holiday) => toISTDateString(holiday.date) === dateStr);
   };
 
   // Helper function to get holiday name
   const getHolidayName = (date) => {
-    const dateStr = formatDateToIST(new Date(date));
-    const holiday = holidays.find(h => {
-      const holidayDate = formatDateToIST(new Date(h.date));
-      return holidayDate === dateStr;
-    });
+    const dateStr = typeof date === 'string' ? date : toISTDateString(date);
+    const holiday = holidays.find((h) => toISTDateString(h.date) === dateStr);
     return holiday ? holiday.name : null;
   };
 
@@ -68,17 +57,6 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
     return '#28a745'; // Green for normal working days
   };
 
-  // Fetch holidays
-  const fetchHolidays = async () => {
-    try {
-      const response = await holidayApi.getHolidays();
-      setHolidays(response.data || []);
-    } catch (error) {
-      console.error("Error fetching holidays:", error);
-      // Don't show error toast for holidays, it's not critical
-    }
-  };
-
   useEffect(() => {
     if (show && employee) {
       // Set default to current month
@@ -94,24 +72,37 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
         endDate: endDateStr
       });
       
-      loadAttendance(employee._id, startDateStr, endDateStr);
-      fetchHolidays();
+      loadDetails(employee._id, startDateStr, endDateStr);
     }
   }, [show, employee]);
 
-  const loadAttendance = async (employeeId, startDate, endDate) => {
+  const parseHolidays = (payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    return [];
+  };
+
+  const loadDetails = async (employeeId, startDate, endDate) => {
+    setLoading(true);
+    setAttendances([]);
     try {
-      setLoading(true);
-      const params = {
-        employee: employeeId,
-        startDate,
-        endDate
-      };
-      const response = await attendanceApi.getAllAttendance(params);
-      setAttendances(response.data || []);
+      const [attendanceRes, holidayRes] = await Promise.all([
+        attendanceApi.getAllAttendance({
+          employee: employeeId,
+          startDate,
+          endDate,
+        }),
+        holidayApi.getHolidays().catch((error) => {
+          console.error("Error fetching holidays:", error);
+          return { data: [] };
+        }),
+      ]);
+      setAttendances(attendanceRes.data || []);
+      setHolidays(parseHolidays(holidayRes));
     } catch (error) {
       console.error('Error loading attendance:', error);
       toast.error('Failed to load attendance records');
+      setAttendances([]);
     } finally {
       setLoading(false);
     }
@@ -127,7 +118,7 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
       toast.error('Please select both start and end dates');
       return;
     }
-    loadAttendance(employee._id, dateRange.startDate, dateRange.endDate);
+    loadDetails(employee._id, dateRange.startDate, dateRange.endDate);
   };
 
   const handleQuickSelect = (type) => {
@@ -152,18 +143,11 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
     }
 
     // Convert to IST date strings (YYYY-MM-DD)
-    const formatDateToIST = (date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
-
     const start = formatDateToIST(startDate);
     const end = formatDateToIST(endDate);
     
     setDateRange({ startDate: start, endDate: end });
-    loadAttendance(employee._id, start, end);
+    loadDetails(employee._id, start, end);
   };
 
   const handleDownloadPDF = () => {
@@ -226,76 +210,96 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
 
   // Generate all dates in the range for table view (excluding future dates)
   const getAllDatesInRange = () => {
-    const allDates = [];
-    const startDate = new Date(dateRange.startDate);
-    const endDate = new Date(dateRange.endDate);
-    
-    // Get today's date for comparison
-    const today = new Date();
-    const todayString = today.getFullYear() + '-' + 
-                       String(today.getMonth() + 1).padStart(2, '0') + '-' + 
-                       String(today.getDate()).padStart(2, '0');
-    
-    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-      const dateStr = d.getFullYear() + '-' + 
-                     String(d.getMonth() + 1).padStart(2, '0') + '-' + 
-                     String(d.getDate()).padStart(2, '0');
-      
-      // Skip future dates
-      if (dateStr > todayString) {
-        continue;
-      }
-      
-      // Find attendance record for this date
-      const attendance = attendances.find(a => {
-        if (!a.date) return false;
-        const aDate = new Date(a.date);
-        const aDateStr = aDate.getFullYear() + '-' + 
-                        String(aDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                        String(aDate.getDate()).padStart(2, '0');
-        return aDateStr === dateStr;
-      });
-      
-      if (attendance) {
-        allDates.push(attendance);
-      } else {
-        // Check if this date is a Sunday or Holiday
-        const dateObj = new Date(dateStr);
-        const isSundayDate = isSunday(dateObj);
-        const isHolidayDate = isHoliday(dateObj);
-        
-        // Determine status: if Sunday or Holiday, mark as 'no-data', otherwise mark as 'absent'
-        const status = (isSundayDate || isHolidayDate) ? 'no-data' : 'absent';
-        
-        // Create a placeholder for dates without records
-        allDates.push({
-          _id: dateStr,
-          date: new Date(dateStr),
-          status: status,
-          employee: employee._id,
-          clockIn: null,
-          clockOut: null,
-          workHours: 0,
-          breaks: [],
-          overtime: 0,
-        });
+    if (loading || !dateRange.startDate || !dateRange.endDate) return [];
+
+    const todayIST = toISTDateString(new Date());
+    const attendanceByDate = new Map();
+    for (const record of attendances) {
+      if (!record?.date) continue;
+      const key = toISTDateString(record.date);
+      if (!key) continue;
+      // Prefer on-leave over absent when duplicate keys exist (IST day match)
+      const existing = attendanceByDate.get(key);
+      if (
+        !existing ||
+        (existing.status === 'absent' && record.status === 'on-leave') ||
+        (existing.status === 'no-data' && record.status && record.status !== 'no-data')
+      ) {
+        attendanceByDate.set(key, record);
       }
     }
-    
-    return allDates.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    const allDates = [];
+    for (const dateStr of eachDateStringInRange(dateRange.startDate, dateRange.endDate)) {
+      if (dateStr > todayIST) continue;
+
+      const attendance = attendanceByDate.get(dateStr);
+      if (attendance) {
+        allDates.push(attendance);
+        continue;
+      }
+
+      const isSundayDate = isSunday(dateStr);
+      const isHolidayDate = isHoliday(dateStr);
+      let status = 'absent';
+      if (isHolidayDate) {
+        status = 'holiday';
+      } else if (isSundayDate) {
+        status = 'weekend';
+      }
+
+      allDates.push({
+        _id: dateStr,
+        date: dateStr,
+        status,
+        employee: employee._id,
+        clockIn: null,
+        clockOut: null,
+        workHours: 0,
+        breaks: [],
+        overtime: 0,
+      });
+    }
+
+    return allDates.sort((a, b) => {
+      const aKey = toISTDateString(a.date);
+      const bKey = toISTDateString(b.date);
+      return bKey.localeCompare(aKey);
+    });
   };
 
-  // Calculate statistics
+  const formatAttendanceStatusLabel = (status) => {
+    switch (status) {
+      case 'no-data':
+        return 'No Data';
+      case 'absent':
+        return 'Absent';
+      case 'on-leave':
+        return 'On Leave';
+      case 'half-day':
+        return 'Half Day';
+      case 'weekend':
+        return 'Weekend';
+      case 'holiday':
+        return 'Holiday';
+      default:
+        return status || '—';
+    }
+  };
+
+  // Calculate statistics from all dates in range
   const allDatesWithStatus = getAllDatesInRange();
   const stats = {
-    present: attendances.filter(a => a.status === 'present').length,
-    late: attendances.filter(a => a.status === 'late').length,
-    halfDay: attendances.filter(a => a.status === 'half-day').length,
+    present: allDatesWithStatus.filter(a => a.status === 'present').length,
+    late: allDatesWithStatus.filter(a => a.status === 'late').length,
+    halfDay: allDatesWithStatus.filter(a => a.status === 'half-day').length,
     absent: allDatesWithStatus.filter(a => a.status === 'absent').length,
-    onLeave: attendances.filter(a => a.status === 'on-leave').length,
+    onLeave: allDatesWithStatus.filter(a => a.status === 'on-leave').length,
+    weekend: allDatesWithStatus.filter(a => a.status === 'weekend').length,
+    holiday: allDatesWithStatus.filter(a => a.status === 'holiday').length,
     totalHours: attendances.reduce((sum, a) => sum + (a.workHours || 0), 0).toFixed(2),
     totalOvertime: attendances.reduce((sum, a) => sum + (a.overtime || 0), 0).toFixed(2),
-    totalDays: attendances.length
+    totalDays: allDatesWithStatus.length
   };
 
   if (!employee) return null;
@@ -391,7 +395,7 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
           <Col xs={6} md={4} lg={2}>
             <Card className="border-0 shadow-sm h-100" style={{ borderLeft: '4px solid #198754' }}>
               <Card.Body className="p-2 text-center">
-                <h5 className="text-success mb-0 fw-bold">{stats.present}</h5>
+                <h5 className="text-success mb-0 fw-bold">{loading ? '—' : stats.present}</h5>
                 <small className="text-muted d-block">Present</small>
               </Card.Body>
             </Card>
@@ -399,7 +403,7 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
           <Col xs={6} md={4} lg={2}>
             <Card className="border-0 shadow-sm h-100" style={{ borderLeft: '4px solid #ffc107' }}>
               <Card.Body className="p-2 text-center">
-                <h5 className="text-warning mb-0 fw-bold">{stats.late}</h5>
+                <h5 className="text-warning mb-0 fw-bold">{loading ? '—' : stats.late}</h5>
                 <small className="text-muted d-block">Late</small>
               </Card.Body>
             </Card>
@@ -407,7 +411,7 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
           <Col xs={6} md={4} lg={2}>
             <Card className="border-0 shadow-sm h-100" style={{ borderLeft: '4px solid #0dcaf0' }}>
               <Card.Body className="p-2 text-center">
-                <h5 className="text-info mb-0 fw-bold">{stats.halfDay}</h5>
+                <h5 className="text-info mb-0 fw-bold">{loading ? '—' : stats.halfDay}</h5>
                 <small className="text-muted d-block">Half Day</small>
               </Card.Body>
             </Card>
@@ -415,7 +419,7 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
           <Col xs={6} md={4} lg={2}>
             <Card className="border-0 shadow-sm h-100" style={{ borderLeft: '4px solid #dc3545' }}>
               <Card.Body className="p-2 text-center">
-                <h5 className="text-danger mb-0 fw-bold">{stats.absent}</h5>
+                <h5 className="text-danger mb-0 fw-bold">{loading ? '—' : stats.absent}</h5>
                 <small className="text-muted d-block">Absent</small>
               </Card.Body>
             </Card>
@@ -423,7 +427,7 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
           <Col xs={6} md={4} lg={2}>
             <Card className="border-0 shadow-sm h-100" style={{ borderLeft: '4px solid #0d6efd' }}>
               <Card.Body className="p-2 text-center">
-                <h5 className="text-primary mb-0 fw-bold">{stats.onLeave}</h5>
+                <h5 className="text-primary mb-0 fw-bold">{loading ? '—' : stats.onLeave}</h5>
                 <small className="text-muted d-block">On Leave</small>
               </Card.Body>
             </Card>
@@ -431,7 +435,7 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
           <Col xs={6} md={4} lg={2}>
             <Card className="border-0 shadow-sm h-100" style={{ borderLeft: '4px solid #0d6efd' }}>
               <Card.Body className="p-2 text-center">
-                <h5 className="text-primary mb-0 fw-bold">{stats.totalHours}</h5>
+                <h5 className="text-primary mb-0 fw-bold">{loading ? '—' : stats.totalHours}</h5>
                 <small className="text-muted d-block">Total Hrs</small>
               </Card.Body>
             </Card>
@@ -476,11 +480,17 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
             </div>
           </Card.Header>
           <Card.Body className="p-0">
-            {viewType === 'calendar' ? (
+            {loading ? (
+              <div className="text-center py-5">
+                <Spinner animation="border" variant="primary" />
+                <p className="text-muted mt-3 mb-0">Loading attendance details...</p>
+              </div>
+            ) : viewType === 'calendar' ? (
               // Calendar View
               <div className="p-3">
                 <AttendanceCalendar
                   attendances={allDatesWithStatus}
+                  holidays={holidays}
                   selectedMonth={new Date(dateRange.startDate).getMonth()}
                   selectedYear={new Date(dateRange.startDate).getFullYear()}
                   employeeName={employee.name}
@@ -540,7 +550,7 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
                             </td>
                             <td className="py-2 px-3">
                               {attendance.status === 'on-leave' ? (
-                                <Badge bg="primary">On Leave</Badge>
+                                <span className="text-muted">-</span>
                               ) : attendance.clockOut ? (
                                 formatTime(attendance.clockOut)
                               ) : (
@@ -561,7 +571,7 @@ const EmployeeAttendanceDetails = ({ show, onHide, employee }) => {
                             <td className="py-2 px-3">
                               <div className="d-flex align-items-center gap-2 flex-wrap">
                                 <Badge bg={getStatusVariant(attendance.status)} className="px-2">
-                                  {attendance.status === 'no-data' ? 'No Data' : attendance.status === 'absent' ? 'Absent' : attendance.status}
+                                  {formatAttendanceStatusLabel(attendance.status)}
                                 </Badge>
                                 {attendance.isWFH && (
                                   <span

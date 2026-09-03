@@ -18,12 +18,13 @@ import { FaArrowLeft, FaEdit, FaUsers, FaChartBar, FaCrown, FaUserShield } from 
 import { toast } from "react-toastify";
 import { departmentApi } from "../../api/departmentApi";
 import { useAuth } from "../../context/AuthContext";
+import { PAGE_ACCESS, checkPageAccess } from "../../constants/pageAccess";
 
 const DepartmentDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, checkPermission } = useAuth();
-  const isAdmin = checkPermission(["admin", "superadmin", "hr"]);
+  const { user, canAccess } = useAuth();
+  const isAdmin = checkPageAccess(canAccess, PAGE_ACCESS.departmentAdmin);
   const isHOD = user?.role === "hod";
   const isEmployee = user?.role === "employee";
   const [department, setDepartment] = useState(null);

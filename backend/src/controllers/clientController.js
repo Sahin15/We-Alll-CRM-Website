@@ -10,6 +10,17 @@ import logger from '../utils/logger.js';
 import { buildTextSearch } from '../utils/queryOptimizer.js';
 import { securityService } from '../services/securityService.js';
 import NotificationService from "../services/notificationService.js";
+import {
+  collectPersonallyAssignedClientIds,
+  resolveAssignedClientsTargetUserId,
+} from "../services/clientAccessService.js";
+import {
+  buildClientListQuery,
+  canUserViewClient,
+  canViewAssignedClients,
+  buildAssignedProjectQueryForUser,
+  filterProjectsVisibleToUser,
+} from "../services/resourceVisibilityService.js";
 
 // Add new client
 export const createClient = async (req, res) => {
@@ -245,6 +256,8 @@ export const getClients = async (req, res) => {
     
     // Industry filter
     if (industry) query.industry = industry;
+
+    query = await buildClientListQuery(req.user, query);
     
     logger.info('getClients query:', query);
     
@@ -296,32 +309,12 @@ export const getClientById = async (req, res) => {
       return res.status(404).json({ message: "Client not found" });
     }
 
-    // Permission check
-    const isAdminRole = ['admin', 'superadmin', 'hr', 'manager', 'hod'].includes(req.user.role);
-    
-    if (!isAdminRole) {
-      // For employees, check if they're assigned to any project for this client
-      const Project = (await import('../models/projectModel.js')).default;
-      
-      const assignedProject = await Project.findOne({
-        client: req.params.id,
-        $or: [
-          { projectHead: req.user.id },
-          { assignedUsers: req.user.id },
-          { 'teamMembers.user': req.user.id }
-        ]
+    const hasAccess = await canUserViewClient(req.user, req.params.id);
+
+    if (!hasAccess) {
+      return res.status(403).json({
+        message: "Access denied. You can only view clients you work with through project assignments.",
       });
-
-      
-
-      if (!assignedProject) {
-        
-        return res.status(403).json({ 
-          message: "Access denied. You must be assigned to a project for this client to view their details." 
-        });
-      }
-      
-      
     }
 
     res.status(200).json(client);
@@ -331,145 +324,32 @@ export const getClientById = async (req, res) => {
   }
 };
 
-// Get clients accessible to employee/HoD (based on department assignments)
+// Get clients personally assigned to an employee/HoD (My Clients)
 export const getEmployeeClients = async (req, res) => {
   try {
-    const { search, status, industry } = req.query;
-    const userId = req.user.id;
-    const userRole = req.user.role;
-    
-    logger.info(`🔍 Getting clients for user: ${userId} (${userRole})`);
-    
-    let clientIds = [];
-    
-    if (userRole === 'hod') {
-      // HoD can see clients assigned to their department
-      const user = await User.findById(userId).select('headOfDepartment isHeadOfDepartment').populate('headOfDepartment', 'type');
-      
-      if (user.isHeadOfDepartment && user.headOfDepartment) {
-        // Check if this is an administrative department
-        const department = user.headOfDepartment;
-        
-        if (department.type === 'administrative') {
-          // Administrative department HoDs can see all clients
-          logger.info(`📋 Administrative HoD - access to all clients`);
-          const allClients = await Client.find().select('_id').lean();
-          clientIds = allClients.map(client => client._id.toString());
-        } else {
-          // Operational department HoDs see ONLY clients from projects they're personally assigned to
-          // (same as regular employees — project-based access, not department-based)
-          
-          // Get projects directly assigned to HoD
-          const userProjects = await Project.find({
-            $or: [
-              { assignedUsers: userId },
-              { projectHead: userId },
-              { 'teamMembers.user': userId },
-              { createdBy: userId }
-            ]
-          })
-          .select('client')
-          .populate('client', '_id')
-          .lean();
-          
-          const projectClientIds = userProjects
-            .filter(project => project.client)
-            .map(project => project.client._id.toString());
-          
-          logger.info(`📋 HoD project clients: [${projectClientIds.join(', ')}]`);
-          
-          // Get projects from work items assigned to HoD
-          const userWorkItems = await WorkItem.find({
-            $or: [
-              { assignedTo: userId },
-              { assignedToMultiple: userId }
-            ]
-          })
-          .select('project')
-          .populate({
-            path: 'project',
-            select: 'client',
-            populate: {
-              path: 'client',
-              select: '_id'
-            }
-          })
-          .lean();
-          
-          const workItemClientIds = userWorkItems
-            .filter(workItem => workItem.project && workItem.project.client)
-            .map(workItem => workItem.project.client._id.toString());
-          
-          logger.info(`📋 HoD work item clients: [${workItemClientIds.join(', ')}]`);
-          
-          // Only project-based clients — no department-level client access
-          clientIds = [...new Set([...projectClientIds, ...workItemClientIds])];
-        }
-      }
-    } else if (userRole === 'employee') {
-      // Check if employee is in an administrative department
-      const user = await User.findById(userId).populate('department', 'type');
-      
-      if (user.department && user.department.type === 'administrative') {
-        // Administrative department employees can see all clients
-        logger.info(`📋 Administrative employee - access to all clients`);
-        const allClients = await Client.find().select('_id').lean();
-        clientIds = allClients.map(client => client._id.toString());
-      } else {
-        // Regular employees can see clients from:
-        // 1. Projects they're directly assigned to
-        // 2. Projects from work items assigned to them
-        
-        // Get projects directly assigned to employee
-        const userProjects = await Project.find({
-          $or: [
-            { assignedUsers: userId },
-            { projectHead: userId },
-            { 'teamMembers.user': userId },
-            { createdBy: userId }
-          ]
-        })
-        .select('client')
-        .populate('client', '_id')
-        .lean();
-        
-        // Get projects from work items assigned to employee
-        const userWorkItems = await WorkItem.find({
-          $or: [
-            { assignedTo: userId },
-            { assignedToMultiple: userId }
-          ]
-        })
-        .select('project')
-        .populate({
-          path: 'project',
-          select: 'client',
-          populate: {
-            path: 'client',
-            select: '_id'
-          }
-        })
-        .lean();
-        
-        // Combine clients from both sources
-        const projectClientIds = userProjects
-          .filter(project => project.client)
-          .map(project => project.client._id.toString());
-        
-        const workItemClientIds = userWorkItems
-          .filter(workItem => workItem.project && workItem.project.client)
-          .map(workItem => workItem.project.client._id.toString());
-        
-        clientIds = [...new Set([...projectClientIds, ...workItemClientIds])];
-        
-        logger.info(`📋 Employee project clients: [${projectClientIds.join(', ')}]`);
-        logger.info(`📋 Employee work item clients: [${workItemClientIds.join(', ')}]`);
-        logger.info(`📋 Combined unique clients: [${clientIds.join(', ')}]`);
-      }
+    const { search, status, industry, employeeId } = req.query;
+
+    const targetResolution = resolveAssignedClientsTargetUserId(req.user, employeeId);
+    if (!targetResolution.allowed) {
+      return res.status(targetResolution.status || 403).json({
+        message: targetResolution.message || 'Access denied',
+      });
     }
+
+    const userId = targetResolution.targetUserId;
+    const requesterId = String(req.user.id || req.user._id);
+
+    if (userId === requesterId && !canViewAssignedClients(req.user)) {
+      return res.status(403).json({
+        message: 'Access denied. Client assignment visibility has been restricted for your account.',
+      });
+    }
+
+    logger.info(`Getting personally assigned clients for user: ${userId}`);
+
+    const clientIds = await collectPersonallyAssignedClientIds(userId);
     
     if (clientIds.length === 0) {
-      logger.info(`❌ No clients found for user: ${userId}`);
       return res.status(200).json([]);
     }
     
@@ -484,8 +364,6 @@ export const getEmployeeClients = async (req, res) => {
     if (status) query.status = status;
     if (industry) query.industry = industry;
     
-    logger.info('🔍 Final client query:', query);
-    
     // Get filtered clients with department information
     const clients = await Client.find(query)
       .select('name email phone whatsappnumber company ownername address industry website targetAudience audienceGender previousChallenges legalGuidelines yearlyTurnover expectations serviceCompany status isVip vipLevel vipSince createdAt assignedDepartments')
@@ -494,10 +372,7 @@ export const getEmployeeClients = async (req, res) => {
       .sort({ isVip: -1, vipLevel: 1, createdAt: -1 })
       .lean();
     
-    logger.success(`✅ Found ${clients.length} accessible clients for user: ${userId}`);
-    clients.forEach(client => {
-      logger.info(`  - Client: "${client.name}" (Departments: ${client.assignedDepartments?.map(d => d.name).join(', ') || 'None'})`);
-    });
+    logger.info(`Found ${clients.length} accessible clients for user: ${userId}`);
     
     res.status(200).json(clients);
   } catch (error) {
@@ -623,20 +498,27 @@ export const getClientOverview = async (req, res) => {
     const { id } = req.params;
     const user = req.user;
 
+    const clientId = id;
+
     // If the requester is a client, enforce access to their own client record only
     if (user.role === "client") {
       const clientByEmail = await Client.findOne({ email: user.email }).select(
         "_id name email"
       );
-      if (!clientByEmail || clientByEmail._id.toString() !== id) {
+      if (!clientByEmail || clientByEmail._id.toString() !== clientId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+    } else {
+      const hasAccess = await canUserViewClient(user, clientId);
+      if (!hasAccess) {
         return res.status(403).json({ message: "Access denied" });
       }
     }
 
-    const clientId = id;
+    const projectQuery = buildAssignedProjectQueryForUser(user, { client: clientId });
 
-    // Projects and assigned team members
-    const projects = await Project.find({ client: clientId })
+    // Projects and assigned team members (scoped to user's assignments unless company viewer)
+    const projects = await Project.find(projectQuery)
       .select(
         "name status progress priority startDate endDate assignedUsers milestones tasks deliverables services"
       )
@@ -1009,6 +891,8 @@ export const getClientsByDepartment = async (req, res) => {
     if (status) query.status = status;
     if (industry) query.industry = industry;
 
+    query = await buildClientListQuery(req.user, query);
+
     const clients = await Client.find(query)
       .select('name email phone company serviceCompany status industry isVip vipLevel vipSince createdAt assignedDepartments')
       .populate('createdBy', 'name email')
@@ -1101,6 +985,8 @@ export const getVipClients = async (req, res) => {
       query.vipLevel = vipLevel;
     }
 
+    query = await buildClientListQuery(req.user, query);
+
     const vipClients = await Client.find(query)
       .select('name email phone company isVip vipLevel vipSince vipNotes status industry createdAt')
       .populate('createdBy', 'name email')
@@ -1119,5 +1005,135 @@ export const getVipClients = async (req, res) => {
       message: "Server error", 
       error: error.message 
     });
+  }
+};
+
+/**
+ * Update client contacts list
+ * PUT /api/clients/:id/contacts
+ */
+export const updateClientContacts = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { contacts } = req.body;
+
+    if (!Array.isArray(contacts)) {
+      return res.status(400).json({ message: "contacts must be an array" });
+    }
+
+    const hasAccess = await canUserViewClient(req.user, id);
+    if (!hasAccess) {
+      return res.status(403).json({ message: "Access denied to this client" });
+    }
+
+    const client = await Client.findById(id);
+    if (!client) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    // Validate email format and required fields for each contact
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    for (const contact of contacts) {
+      if (!contact.name || !contact.name.trim()) {
+        return res.status(400).json({ message: "Each contact must have a name" });
+      }
+      if (!contact.type || !["Phone", "Email", "WhatsApp"].includes(contact.type)) {
+        return res.status(400).json({ message: "Invalid contact type" });
+      }
+      if (!contact.value || !contact.value.trim()) {
+        return res.status(400).json({ message: "Each contact must have a value" });
+      }
+      if (contact.type === "Email" && !emailRegex.test(contact.value.trim())) {
+        return res.status(400).json({ message: `Invalid email address: ${contact.value}` });
+      }
+    }
+
+    client.contacts = contacts;
+    await client.save();
+
+    await securityService.logAuditEvent({
+      userId: req.user._id || req.user.id,
+      action: "UPDATE_CLIENT_CONTACTS",
+      resource: "Client",
+      resourceId: client._id,
+      details: { contactCount: contacts.length },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Client contacts updated successfully",
+      contacts: client.contacts,
+    });
+  } catch (error) {
+    logger.error("Error updating client contacts:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+/**
+ * Get client projects summary grouped by status
+ * GET /api/clients/:id/projects-summary
+ */
+export const getClientProjectsSummary = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const hasAccess = await canUserViewClient(req.user, id);
+    if (!hasAccess) {
+      return res.status(403).json({ message: "Access denied to this client" });
+    }
+
+    const client = await Client.findById(id);
+    if (!client) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    // Find all projects linked to this client
+    const rawProjects = await Project.find({ client: id })
+      .populate("projectHead", "name email avatar")
+      .populate("teamMembers.user", "name email avatar")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Filter projects user is allowed to view
+    const visibleProjects = filterProjectsVisibleToUser(req.user, rawProjects);
+
+    // Group projects by status: Active, On Hold, Completed, Pending
+    const active = [];
+    const onHold = [];
+    const completed = [];
+    const pending = [];
+
+    visibleProjects.forEach((proj) => {
+      const st = proj.status || "Pending";
+      if (st === "Active") {
+        active.push(proj);
+      } else if (st === "On Hold") {
+        onHold.push(proj);
+      } else if (st === "Completed") {
+        completed.push(proj);
+      } else {
+        pending.push(proj);
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        all: visibleProjects,
+        active,
+        onHold,
+        completed,
+        pending,
+        totalCount: visibleProjects.length,
+        activeCount: active.length,
+        onHoldCount: onHold.length,
+        completedCount: completed.length,
+        pendingCount: pending.length,
+      },
+    });
+  } catch (error) {
+    logger.error("Error fetching client projects summary:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };

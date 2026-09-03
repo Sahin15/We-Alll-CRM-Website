@@ -3,6 +3,7 @@ import { FaTimes, FaKey, FaEye, FaEyeSlash, FaBell, FaMoon, FaSun, FaShieldAlt }
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
+import { APP_VERSION } from '../../constants/branding';
 
 export default function SettingsSheet({ onClose }) {
   const { user } = useAuth();
@@ -106,7 +107,7 @@ export default function SettingsSheet({ onClose }) {
             {/* App info */}
             <div style={{ padding: '20px 20px 0', textAlign: 'center' }}>
               <div style={{ fontSize: '0.75rem', color: '#9CA3AF' }}>WeAlll Office App</div>
-              <div style={{ fontSize: '0.7rem', color: '#D1D5DB', marginTop: '2px' }}>v5.0.2</div>
+              <div style={{ fontSize: '0.7rem', color: '#D1D5DB', marginTop: '2px' }}>v{APP_VERSION}</div>
             </div>
           </div>
         )}

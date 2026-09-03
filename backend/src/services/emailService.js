@@ -348,7 +348,7 @@ class EmailService {
                     <p>📞 Phone: +91-XXXXXXXXXX</p>
                     <p>💬 WhatsApp: +91-XXXXXXXXXX</p>
                     <p>🌐 Website: www.wealll.com</p>
-                    <p>📍 Address: Your Office Address, Kolkata</p>
+                    <p>📍 Address: Unit 8A, 4th Floor, Tower 1, Globsyn Crystal, Salt Lake Electronics Complex, Street No. 17, EP Block, Sector V, Kolkata – 700091, West Bengal, India</p>
                 </div>
                 <p style="font-size: 12px; margin-top: 20px;">
                     This email was sent because you visited our booth at Vyapaar Expo, New Town. 
@@ -674,8 +674,8 @@ Team We Alll
                                 </p>
                                 
                                 <p style="margin:10px 0 18px; font-size:12px; line-height:1.6; color:#cbd5e1;">
-                                    📍 14/4C Cluster Rajarhat 76, Action Area 1,<br>
-                                    Newtown, Koch Pukur, West Bengal – 700156
+                                    📍 Unit 8A, 4th Floor, Tower 1, Globsyn Crystal, Salt Lake Electronics Complex,<br>
+                                    Street No. 17, EP Block, Sector V, Kolkata – 700091, West Bengal, India
                                 </p>
                                 
                                 <p style="margin:0; font-size:11px; color:#94a3b8;">© 2026 WeAlll. All Rights Reserved.</p>
@@ -716,7 +716,7 @@ Contact Us:
 📞 +91 82408 58613
 📧 amit@wealll.com
 🌐 wealll.com
-📍 14/4C Cluster Rajarhat 76, Action Area 1, Newtown, Koch Pukur, West Bengal – 700156
+📍 Unit 8A, 4th Floor, Tower 1, Globsyn Crystal, Salt Lake Electronics Complex, Street No. 17, EP Block, Sector V, Kolkata – 700091, West Bengal, India
 
 © 2026 WeAlll. All Rights Reserved.
     `;

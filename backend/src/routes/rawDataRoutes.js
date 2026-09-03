@@ -1,50 +1,72 @@
 import express from "express";
 import { protect } from "../middleware/authMiddleware.js";
+import { requireModulePermission } from "../authz/authzMiddleware.js";
+import { attachDepartmentForAuthz } from "../authz/attachDepartmentContext.js";
 import {
-  createRecord, getRecords, getRecord, updateRecord, deleteRecord,
+  createRecord,
+  getRecords,
+  getRecord,
+  updateRecord,
+  deleteRecord,
   checkDuplicate,
-  lockRecord, unlockRecord, updateCallResult, getCallHistory,
+  lockRecord,
+  unlockRecord,
+  updateCallResult,
+  getCallHistory,
   getTodayQueue,
-  assignRecord, bulkAssign, reassignRecord,
+  assignRecord,
+  bulkAssign,
+  reassignRecord,
   convertToLead,
   batchImport,
-  getDashboardSummary, getSourceAnalysis, getCategoryAnalysis,
+  getDashboardSummary,
+  getSourceAnalysis,
+  getCategoryAnalysis,
+  getAssignableStaff,
 } from "../controllers/rawDataController.js";
 
 const router = express.Router();
 
-router.use(protect);
+const CRM_RAWDATA_ROLES = ["admin", "superadmin", "manager", "employee", "hod", "sales"];
+const CRM_RAWDATA_DEPARTMENTS = ["Sales", "Telecaller"];
 
-// Dashboard
-router.get("/dashboard/summary", getDashboardSummary);
-router.get("/dashboard/source-analysis", getSourceAnalysis);
-router.get("/dashboard/category-analysis", getCategoryAnalysis);
+const rawDataLegacyGate = {
+  legacyRoles: CRM_RAWDATA_ROLES,
+  legacyDepartments: CRM_RAWDATA_DEPARTMENTS,
+};
 
-// Queue
-router.get("/queue/today", getTodayQueue);
+const crmRawDataManage = requireModulePermission("crm", "crm.rawdata.manage", rawDataLegacyGate);
 
-// Duplicate check & batch import
-router.post("/check-duplicate", checkDuplicate);
-router.post("/batch-import", batchImport);
+const rawDataAnalytics = requireModulePermission("crm", "crm.rawdata.analytics.view", {
+  legacyRoles: ["admin", "superadmin", "manager"],
+});
 
-// Bulk assign
-router.post("/bulk-assign", bulkAssign);
+router.use(protect, attachDepartmentForAuthz);
 
-// CRUD
-router.route("/").get(getRecords).post(createRecord);
-router.route("/:id").get(getRecord).put(updateRecord).delete(deleteRecord);
+router.get("/dashboard/summary", rawDataAnalytics, getDashboardSummary);
+router.get("/dashboard/source-analysis", rawDataAnalytics, getSourceAnalysis);
+router.get("/dashboard/category-analysis", rawDataAnalytics, getCategoryAnalysis);
 
-// Calling operations
-router.post("/:id/lock", lockRecord);
-router.post("/:id/unlock", unlockRecord);
-router.post("/:id/call-result", updateCallResult);
-router.get("/:id/history", getCallHistory);
+router.get("/queue/today", crmRawDataManage, getTodayQueue);
+router.get("/assignable-staff", crmRawDataManage, getAssignableStaff);
 
-// Assignment
-router.post("/:id/assign", assignRecord);
-router.post("/:id/reassign", reassignRecord);
+router.post("/check-duplicate", crmRawDataManage, checkDuplicate);
+router.post("/batch-import", crmRawDataManage, batchImport);
+router.post("/bulk-assign", crmRawDataManage, bulkAssign);
 
-// Conversion
-router.post("/:id/convert-to-lead", convertToLead);
+router.get("/", crmRawDataManage, getRecords);
+router.post("/", crmRawDataManage, createRecord);
+router.get("/:id", crmRawDataManage, getRecord);
+router.put("/:id", crmRawDataManage, updateRecord);
+router.delete("/:id", crmRawDataManage, deleteRecord);
+
+router.post("/:id/lock", crmRawDataManage, lockRecord);
+router.post("/:id/unlock", crmRawDataManage, unlockRecord);
+router.post("/:id/call-result", crmRawDataManage, updateCallResult);
+router.get("/:id/history", crmRawDataManage, getCallHistory);
+
+router.post("/:id/assign", crmRawDataManage, assignRecord);
+router.post("/:id/reassign", crmRawDataManage, reassignRecord);
+router.post("/:id/convert-to-lead", crmRawDataManage, convertToLead);
 
 export default router;

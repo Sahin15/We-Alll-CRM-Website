@@ -113,6 +113,12 @@ const salaryPreviewSchema = new mongoose.Schema({
       required: true
     }
   },
+
+  /** SMB simple payroll vs legacy allowance breakdown. Omit default so older docs are not forced to legacy. */
+  payrollMode: {
+    type: String,
+    enum: ["legacy", "simple"],
+  },
   
   // Employee interaction
   employeeViewed: {
@@ -206,15 +212,16 @@ salaryPreviewSchema.set('toObject', { virtuals: true });
 // Static method to generate preview for employee
 salaryPreviewSchema.statics.generatePreview = async function(employeeId, month, year, additionalData = {}, workingDaysOverride = null) {
   try {
-    // Check if preview already exists
     const existingPreview = await this.findOne({
       employee: employeeId,
       month,
       year
     });
 
-    if (existingPreview) {
-      throw new Error("Preview already exists for this month");
+    if (existingPreview && existingPreview.status === "finalized") {
+      throw new Error(
+        "Cannot regenerate a finalized salary preview for this month"
+      );
     }
 
     const WorkingDaysCalculator = (await import("../services/workingDaysCalculator.js")).default;
@@ -251,7 +258,7 @@ salaryPreviewSchema.statics.generatePreview = async function(employeeId, month, 
       workingDaysResult = await workingDaysCalc.calculateWorkingDays(month, year, employee.department?._id);
     }
     
-    // Calculate leave impact
+    // Calculate leave impact (informational; simple mode does not auto-apply LOP to net)
     const leaveImpactResult = await leaveImpactCalc.calculateLeaveDeduction(employeeId, month, year, salaryStructure);
 
     // Use effectiveWorkingDays so mid-month generation doesn't count future days as absent
@@ -262,68 +269,139 @@ salaryPreviewSchema.statics.generatePreview = async function(employeeId, month, 
       isPartialMonth: leaveImpactResult.isPartialMonth || false
     };
 
-    // Prepare salary breakdown
-    const earnings = {
-      basicSalary: salaryStructure.basicSalary,
-      hra: salaryStructure.hra,
-      specialAllowance: salaryStructure.specialAllowance,
-      transportAllowance: salaryStructure.transportAllowance,
-      medicalAllowance: salaryStructure.medicalAllowance,
-      otherAllowances: salaryStructure.otherAllowances || [],
-      bonus: additionalData.bonus || 0,
-      overtime: additionalData.overtime || 0,
-      arrears: additionalData.arrears || 0,
-      reimbursements: additionalData.reimbursements || 0,
-      incentives: additionalData.incentives || 0
-    };
+    let earnings;
+    let deductions;
+    let grossSalary;
+    let totalDeductions;
+    let netSalary;
 
-    const deductions = {
-      providentFund: salaryStructure.providentFund,
-      professionalTax: salaryStructure.professionalTax,
-      tds: salaryStructure.tds,
-      esi: salaryStructure.esi,
-      lossOfPay: leaveImpactResult.deductionAmount,
-      advances: additionalData.advances || 0,
-      loans: additionalData.loans || 0,
-      otherDeductions: salaryStructure.otherDeductions || []
-    };
+    const isSimple = salaryStructure.payrollMode === "simple";
 
-    // Calculate totals
-    const grossSalary = Object.values(earnings).reduce((sum, val) => {
-      if (Array.isArray(val)) {
-        return sum + val.reduce((arrSum, item) => arrSum + (item.amount || 0), 0);
-      }
-      return sum + (val || 0);
-    }, 0);
+    if (isSimple) {
+      const { buildSimpleSlipPayload } = await import(
+        "../services/payroll/simpleSlipPersist.js"
+      );
+      const { finalizePreviewBreakdown } = await import(
+        "../services/payroll/simpleSalaryPreviewBuild.js"
+      );
+      const simplePayload = await buildSimpleSlipPayload({
+        structure: salaryStructure,
+        employeeId,
+        month,
+        year,
+        lossOfPay: 0,
+        extras: {
+          bonus: additionalData.bonus || 0,
+          overtime: additionalData.overtime || 0,
+          arrears: additionalData.arrears || 0,
+          reimbursements: additionalData.reimbursements || 0,
+          incentives: additionalData.incentives || 0,
+          advances: additionalData.advances || 0,
+          loans: additionalData.loans || 0,
+        },
+      });
+      const finalized = finalizePreviewBreakdown({
+        earnings: simplePayload.earnings,
+        deductions: simplePayload.deductions,
+      });
+      earnings = finalized.earnings;
+      deductions = finalized.deductions;
+      grossSalary = finalized.grossSalary;
+      totalDeductions = finalized.totalDeductions;
+      netSalary = finalized.netSalary;
+    } else {
+      // Prepare salary breakdown (legacy allowance path)
+      earnings = {
+        basicSalary: salaryStructure.basicSalary,
+        hra: salaryStructure.hra,
+        specialAllowance: salaryStructure.specialAllowance,
+        transportAllowance: salaryStructure.transportAllowance,
+        medicalAllowance: salaryStructure.medicalAllowance,
+        otherAllowances: salaryStructure.otherAllowances || [],
+        bonus: additionalData.bonus || 0,
+        overtime: additionalData.overtime || 0,
+        arrears: additionalData.arrears || 0,
+        reimbursements: additionalData.reimbursements || 0,
+        incentives: additionalData.incentives || 0
+      };
 
-    const totalDeductions = Object.values(deductions).reduce((sum, val) => {
-      if (Array.isArray(val)) {
-        return sum + val.reduce((arrSum, item) => arrSum + (item.amount || 0), 0);
-      }
-      return sum + (val || 0);
-    }, 0);
+      deductions = {
+        providentFund: salaryStructure.providentFund,
+        professionalTax: salaryStructure.professionalTax,
+        tds: salaryStructure.tds,
+        esi: salaryStructure.esi,
+        lossOfPay: leaveImpactResult.deductionAmount,
+        advances: additionalData.advances || 0,
+        loans: additionalData.loans || 0,
+        otherDeductions: salaryStructure.otherDeductions || []
+      };
 
-    const netSalary = grossSalary - totalDeductions;
+      // Calculate totals
+      grossSalary = Object.values(earnings).reduce((sum, val) => {
+        if (Array.isArray(val)) {
+          return sum + val.reduce((arrSum, item) => arrSum + (item.amount || 0), 0);
+        }
+        return sum + (val || 0);
+      }, 0);
 
-    // Set review deadline (5 days from generation)
+      totalDeductions = Object.values(deductions).reduce((sum, val) => {
+        if (Array.isArray(val)) {
+          return sum + val.reduce((arrSum, item) => arrSum + (item.amount || 0), 0);
+        }
+        return sum + (val || 0);
+      }, 0);
+
+      netSalary = grossSalary - totalDeductions;
+    }
+
+    // Set review deadline (5 days from generation / refresh)
     const reviewDeadline = new Date();
     reviewDeadline.setDate(reviewDeadline.getDate() + 5);
 
-    // Create preview
+    // Simple mode: leave deduction is informational only (manual adjustments)
+    const leaveImpactForPreview = isSimple
+      ? {
+          ...leaveImpactResult,
+          deductionAmount: 0,
+          appliedToNet: false,
+          note: "Attendance/leave is review-only in simple payroll. Add a manual adjustment to deduct.",
+        }
+      : leaveImpactResult;
+
+    const breakdown = {
+      earnings,
+      deductions,
+      grossSalary,
+      totalDeductions,
+      netSalary,
+    };
+
+    // Upsert: refresh existing non-finalized preview so Simple Payroll and
+    // Salary Preview stay on the same numbers after adjustments change.
+    if (existingPreview) {
+      existingPreview.payrollMode = isSimple ? "simple" : "legacy";
+      existingPreview.workingDaysBreakdown = effectiveWorkingDaysResult;
+      existingPreview.leaveImpact = leaveImpactForPreview;
+      existingPreview.salaryBreakdown = breakdown;
+      existingPreview.reviewDeadline = reviewDeadline;
+      existingPreview.status = "generated";
+      existingPreview.employeeViewed = false;
+      existingPreview.employeeViewedAt = undefined;
+      existingPreview.acknowledgedBy = undefined;
+      existingPreview.acknowledgedAt = undefined;
+      await existingPreview.save();
+      return existingPreview;
+    }
+
     const preview = new this({
       employee: employeeId,
       month,
       year,
+      payrollMode: isSimple ? "simple" : "legacy",
       workingDaysBreakdown: effectiveWorkingDaysResult,
-      leaveImpact: leaveImpactResult,
-      salaryBreakdown: {
-        earnings,
-        deductions,
-        grossSalary,
-        totalDeductions,
-        netSalary
-      },
-      reviewDeadline
+      leaveImpact: leaveImpactForPreview,
+      salaryBreakdown: breakdown,
+      reviewDeadline,
     });
 
     await preview.save();

@@ -95,6 +95,33 @@ const salaryStructureSchema = new mongoose.Schema(
         reason: String,
       },
     ],
+
+    /**
+     * Optional V2 component lines (R7). Flat fields above remain the V1 shadow.
+     * When empty, engine falls back to catalog + flat v1Field mapping.
+     */
+    components: [
+      {
+        code: { type: String, required: true, uppercase: true, trim: true },
+        name: { type: String, default: "", trim: true },
+        type: {
+          type: String,
+          enum: ["earning", "deduction", "employer"],
+          default: "earning",
+        },
+        amount: { type: Number, default: 0, min: 0 },
+        calcMethod: {
+          type: String,
+          enum: ["fixed", "formula", "manual", "attendance"],
+          default: "fixed",
+        },
+        formula: { type: String, default: "", trim: true },
+        taxable: { type: Boolean, default: true },
+        statutory: { type: Boolean, default: false },
+        v1Field: { type: String, default: "", trim: true },
+        displayOrder: { type: Number, default: 0 },
+      },
+    ],
     
     // Calculated fields
     grossSalary: {
@@ -132,6 +159,25 @@ const salaryStructureSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+
+    /**
+     * SMB simplified mode (docs/PAYROLL_SIMPLIFIED_MODEL.md).
+     * legacy = existing flat allowance fields; simple = Monthly Salary focus.
+     */
+    payrollMode: {
+      type: String,
+      enum: ["legacy", "simple"],
+      default: "legacy",
+    },
+    monthlySalary: {
+      type: Number,
+      default: null,
+      min: [0, "Monthly salary cannot be negative"],
+    },
+    tdsEnabled: {
+      type: Boolean,
+      default: false,
+    },
     
     // Template tracking (enhanced fields)
     generatedFromTemplate: {
@@ -157,6 +203,27 @@ const salaryStructureSchema = new mongoose.Schema(
 
 // Calculate gross salary before saving
 salaryStructureSchema.pre("save", function (next) {
+  // SMB simple mode: Monthly Salary is the only earning base
+  if (this.payrollMode === "simple") {
+    const monthly =
+      Number(this.monthlySalary) >= 0 && this.monthlySalary != null
+        ? Number(this.monthlySalary)
+        : Number(this.basicSalary) || 0;
+    this.monthlySalary = monthly;
+    this.basicSalary = monthly;
+    this.grossSalary = monthly;
+    // Simple mode: statutory PF/PT/ESI are not part of the model
+    this.providentFund = 0;
+    this.professionalTax = 0;
+    this.esi = 0;
+    const tdsOnly = this.tdsEnabled ? Number(this.tds) || 0 : 0;
+    if (!this.tdsEnabled) this.tds = 0;
+    this.totalDeductions = tdsOnly;
+    this.netSalary = this.grossSalary - this.totalDeductions;
+    this.ctc = this.grossSalary * 12;
+    return next();
+  }
+
   // Calculate gross salary (all earnings)
   let gross = this.basicSalary + this.hra + this.specialAllowance + 
               this.transportAllowance + this.medicalAllowance;

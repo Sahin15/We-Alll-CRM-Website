@@ -146,8 +146,8 @@ function WorkLogModal({ show, onSubmitAndClockOut, onSkip, onCancel, isManager }
 
 // ─── Main HomeTab ─────────────────────────────────────────────────────────────
 export default function HomeTab() {
-  const { user } = useAuth();
-  const isManager = ['manager', 'admin', 'superadmin', 'hr', 'hod'].includes(user?.role);
+  const { user, canAccess } = useAuth();
+  const isManager = canAccess('worklog.entry.review', ['manager', 'admin', 'superadmin', 'hr', 'hod']);
 
   const [attendance, setAttendance] = useState(null);
   const [leaveBalance, setLeaveBalance] = useState(null);

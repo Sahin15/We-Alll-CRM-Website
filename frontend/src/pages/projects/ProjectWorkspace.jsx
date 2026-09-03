@@ -5,12 +5,16 @@ import { FaArrowLeft } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import projectApi from '../../api/projectApi';
 import OverviewTab from '../../components/projects/workspace/OverviewTab';
+import ExpectationsTab from '../../components/projects/workspace/ExpectationsTab';
 import SimplifiedTeamTab from '../../components/projects/workspace/SimplifiedTeamTab';
 import UnifiedWorkTab from '../../components/projects/workspace/UnifiedWorkTab';
 import KanbanTab from '../../components/projects/workspace/KanbanTab';
 import SlotHistory from '../../components/projects/workspace/SlotHistory';
 import ProjectCredentials from '../../components/projects/ProjectCredentials';
+import BusinessDocumentsTab from '../../components/documents/BusinessDocumentsTab';
+import ReportsTab from '../../components/projects/workspace/ReportsTab';
 import { useAuth } from '../../context/AuthContext';
+import { PAGE_ACCESS, checkPageAccess } from '../../constants/pageAccess';
 
 /**
  * ProjectWorkspace Component
@@ -24,10 +28,14 @@ const ProjectWorkspace = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [refreshKey, setRefreshKey] = useState(0); // Add refresh key to force component updates
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
+  const canEditByRole = canAccess(
+    PAGE_ACCESS.projectManage.permission,
+    ['admin', 'superadmin', 'hod']
+  );
 
-  const canEdit = ["admin", "superadmin", "hod"].includes(user?.role) || 
-                  (project?.projectHead?._id === user?._id) || 
+  const canEdit = canEditByRole ||
+                  (project?.projectHead?._id === user?._id) ||
                   (project?.projectHead === user?._id);
   
   const isTeamMember = project?.teamMembers?.some(
@@ -181,6 +189,17 @@ const ProjectWorkspace = () => {
         </Tab>
         
         <Tab 
+          eventKey="expectations" 
+          title={
+            <span style={{ fontWeight: activeTab === 'expectations' ? '600' : '500' }}>
+              🎯 Expectations
+            </span>
+          }
+        >
+          <ExpectationsTab project={project} canEdit={canEdit} />
+        </Tab>
+        
+        <Tab 
           eventKey="credentials" 
           title={
             <span style={{ fontWeight: activeTab === 'credentials' ? '600' : '500' }}>
@@ -235,6 +254,28 @@ const ProjectWorkspace = () => {
           }
         >
           <SlotHistory project={project} onRefresh={loadProject} refreshKey={refreshKey} />
+        </Tab>
+
+        <Tab 
+          eventKey="documents" 
+          title={
+            <span style={{ fontWeight: activeTab === 'documents' ? '600' : '500' }}>
+              📁 Documents
+            </span>
+          }
+        >
+          <BusinessDocumentsTab projectId={id} canEdit={canEdit} />
+        </Tab>
+
+        <Tab 
+          eventKey="reports" 
+          title={
+            <span style={{ fontWeight: activeTab === 'reports' ? '600' : '500' }}>
+              📈 Reports
+            </span>
+          }
+        >
+          <ReportsTab project={project} canEdit={canEdit} />
         </Tab>
       </Tabs>
     </Container>

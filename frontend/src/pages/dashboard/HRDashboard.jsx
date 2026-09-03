@@ -22,6 +22,8 @@ import {
   FaChartLine,
   FaMoneyBillWave,
   FaHome,
+  FaUserPlus,
+  FaExclamationTriangle,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import StatCard from "../../components/dashboard/StatCard";
@@ -41,6 +43,7 @@ import ReportsAnalytics from "../../components/hr/ReportsAnalytics";
 import OvertimeApprovalPanel from "../../components/hr/OvertimeApprovalPanel";
 import WFHApprovalPanel from "../../components/wfh/WFHApprovalPanel";
 import { useAuth } from "../../context/AuthContext";
+import { PAGE_ACCESS, checkPageAccess } from "../../constants/pageAccess";
 import { userApi } from "../../api/userApi";
 import { leaveApi } from "../../api/leaveApi";
 import { attendanceApi } from "../../api/attendanceApi";
@@ -48,12 +51,15 @@ import { departmentApi } from "../../api/departmentApi";
 import { leadApi } from "../../api/leadApi";
 import { getPendingOvertimeEntries } from "../../api/overtimeApi";
 import { getPendingWFHRequests } from "../../api/wfhApi";
+import { hiringRequestApi } from "../../api/hiringRequestApi";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
 import toast from "../../utils/toast";
 import TodoWidget from "../../components/common/TodoWidget";
 
 const HRDashboard = () => {
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
+  const hasReportsAccess = checkPageAccess(canAccess, PAGE_ACCESS.reportsAnalytics);
+  const hasLeadsAccess = checkPageAccess(canAccess, PAGE_ACCESS.crmLeadView);
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     employees: 0,
@@ -64,6 +70,7 @@ const HRDashboard = () => {
     lateToday: 0,
     pendingOvertime: 0,
     pendingWFH: 0,
+    pendingHiring: 0,
   });
   const [loading, setLoading] = useState(true);
   const [pendingLeaves, setPendingLeaves] = useState([]);
@@ -93,23 +100,30 @@ const HRDashboard = () => {
       // Get today's date in YYYY-MM-DD format
       const today = new Date().toISOString().split('T')[0];
       
-      // Fetch users data — only active employees for accurate count
-      const usersRes = await userApi.getAllUsers({ status: 'active', limit: 1000 });
-      // Fetch leave data
-      const leaveRes = await leaveApi.getAllLeaves({ status: "pending" });
-      // Fetch today's attendance data only
-      const attendanceRes = await attendanceApi.getAllAttendance({ date: today });
-      // Fetch department data
-      const departmentRes = await departmentApi.getAllDepartments();
-      // Fetch leads data (only for roles with access: admin, superadmin, manager, or Sales department)
-      let leadsRes = { data: [] };
-      if (['admin', 'superadmin', 'manager'].includes(user?.role) || user?.department === 'Sales') {
-        try {
-          leadsRes = await leadApi.getAllLeads();
-        } catch (error) {
-          console.log('Could not fetch leads data');
-        }
-      }
+      // Parallel fetches — sequential awaits were stacking multiple RTTs on every HR load
+      const [
+        usersRes,
+        leaveRes,
+        attendanceRes,
+        departmentRes,
+        leadsSettled,
+        overtimeSettled,
+        wfhSettled,
+        hiringSettled,
+      ] = await Promise.all([
+        userApi.getAllUsers({ status: 'active', limit: 1000 }),
+        leaveApi.getAllLeaves({ status: "pending" }),
+        attendanceApi.getAllAttendance({ date: today }),
+        departmentApi.getAllDepartments(),
+        hasLeadsAccess
+          ? leadApi.getAllLeads().catch(() => ({ data: [] }))
+          : Promise.resolve({ data: [] }),
+        getPendingOvertimeEntries().catch(() => ({ total: 0 })),
+        getPendingWFHRequests().catch(() => ({ data: [] })),
+        hiringRequestApi.pendingCount().catch(() => ({ data: { count: 0 } })),
+      ]);
+
+      const leadsRes = leadsSettled;
 
       // Count all who clocked in today (present, late, half-day) as "present today"
       const todayPresentCount = attendanceRes.data?.filter((a) => 
@@ -127,23 +141,9 @@ const HRDashboard = () => {
       ) || [];
       setLateEntries(lateEntriesData);
 
-      // Fetch pending overtime count
-      let pendingOvertimeCount = 0;
-      try {
-        const overtimeRes = await getPendingOvertimeEntries();
-        pendingOvertimeCount = overtimeRes.total || 0;
-      } catch (error) {
-        console.log('Could not fetch pending overtime:', error);
-      }
-
-      // Fetch pending WFH count
-      let pendingWFHCount = 0;
-      try {
-        const wfhRes = await getPendingWFHRequests();
-        pendingWFHCount = wfhRes.data?.length || 0;
-      } catch (error) {
-        console.log('Could not fetch pending WFH requests:', error);
-      }
+      const pendingOvertimeCount = overtimeSettled?.total || 0;
+      const pendingWFHCount = wfhSettled?.data?.length || 0;
+      const pendingHiringCount = hiringSettled?.data?.count || 0;
 
       setStats({
         // usersRes already filtered to active employees only by the API
@@ -159,6 +159,7 @@ const HRDashboard = () => {
         lateToday: todayLateCount,
         pendingOvertime: pendingOvertimeCount,
         pendingWFH: pendingWFHCount,
+        pendingHiring: pendingHiringCount,
       });
 
       // Set pending leaves for table
@@ -397,6 +398,13 @@ const HRDashboard = () => {
       },
     },
     {
+      label: "Hiring Requests",
+      icon: <FaUserPlus />,
+      path: "/hr/hiring/requests",
+      variant: "primary",
+      badge: stats.pendingHiring > 0 ? stats.pendingHiring : null,
+    },
+    {
       label: "View Attendance",
       icon: <FaClock />,
       path: "/attendance/tracking",
@@ -465,16 +473,29 @@ const HRDashboard = () => {
             />
           </div>
         </Col>
-        <Col lg={3} md={6}>
-          <div onClick={handleLeadsCardClick} style={{ cursor: 'pointer', height: '100%' }}>
-            <StatCard
-              title="Total Leads"
-              value={stats.leads}
-              icon={<FaChartLine />}
-              bgColor="info"
-            />
-          </div>
-        </Col>
+        {hasLeadsAccess ? (
+          <Col lg={3} md={6}>
+            <div onClick={handleLeadsCardClick} style={{ cursor: 'pointer', height: '100%' }}>
+              <StatCard
+                title="Total Leads"
+                value={stats.leads}
+                icon={<FaChartLine />}
+                bgColor="info"
+              />
+            </div>
+          </Col>
+        ) : (
+          <Col lg={3} md={6}>
+            <div onClick={handleLateEntriesCardClick} style={{ cursor: 'pointer', height: '100%' }}>
+              <StatCard
+                title="Late Today"
+                value={stats.lateToday}
+                icon={<FaExclamationTriangle />}
+                bgColor="danger"
+              />
+            </div>
+          </Col>
+        )}
       </Row>
 
       {/* Salary Management Card */}
@@ -676,7 +697,7 @@ const HRDashboard = () => {
                   <td>{emp.email}</td>
                   <td>{emp.department?.name || 'N/A'}</td>
                   <td>
-                    <Button size="sm" variant="outline-primary" onClick={() => navigate(`/users/${emp._id}`)}>
+                    <Button size="sm" variant="outline-primary" onClick={() => navigate(`/employees/${emp._id}`)}>
                       <FaEye className="me-1" />View
                     </Button>
                   </td>
@@ -841,7 +862,7 @@ const HRDashboard = () => {
         </Modal.Body>
       </Modal>
 
-      {/* Leads Modal */}
+      {hasLeadsAccess && (
       <Modal show={showLeadsModal} onHide={() => setShowLeadsModal(false)} size="lg" centered>
         <Modal.Header closeButton>
           <Modal.Title><FaChartLine className="me-2 text-primary" />All Leads ({leadsList.length})</Modal.Title>
@@ -880,6 +901,7 @@ const HRDashboard = () => {
           </Table>
         </Modal.Body>
       </Modal>
+      )}
     </Container>
   );
 };

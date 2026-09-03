@@ -10,6 +10,7 @@ import {
   Spinner,
   Pagination,
   Badge,
+  Alert,
 } from "react-bootstrap";
 import {
   FaEye,
@@ -65,6 +66,8 @@ const HoDWorkLogReview = () => {
   const [selectedLog, setSelectedLog] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
+
+  const [accessDenied, setAccessDenied] = useState(false);
 
   useEffect(() => {
     fetchDepartmentWorkLogs();
@@ -126,8 +129,14 @@ const HoDWorkLogReview = () => {
       const response = await workLogApi.getDepartmentWorkLogs(params);
       setWorkLogs(response.data);
       setPagination(response.pagination);
+      setAccessDenied(false);
     } catch (error) {
-      toast.error("Failed to fetch department work logs");
+      if (error.response?.status === 403) {
+        setAccessDenied(true);
+        setWorkLogs([]);
+      } else {
+        toast.error("Failed to fetch department work logs");
+      }
       console.error(error);
     } finally {
       setLoading(false);
@@ -253,6 +262,14 @@ const HoDWorkLogReview = () => {
           <p className="text-muted">Review and manage work logs for your department employees</p>
         </Col>
       </Row>
+
+      {accessDenied && (
+        <Alert variant="warning" className="mb-4">
+          You are not assigned as Head of Department. Use{" "}
+          <strong>Work Log Management</strong> for company-wide review, or contact HR
+          to update your department head assignment.
+        </Alert>
+      )}
 
       {/* Stats Cards */}
       {stats && (

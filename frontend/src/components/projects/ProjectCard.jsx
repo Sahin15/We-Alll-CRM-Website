@@ -2,6 +2,7 @@ import { Card, Badge, ProgressBar, Button } from 'react-bootstrap';
 import { FaUsers, FaTasks, FaCheckCircle, FaEye, FaEdit } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { checkPageAccess, PAGE_ACCESS } from '../../constants/pageAccess';
 
 /**
  * ProjectCard Component
@@ -9,7 +10,7 @@ import { useAuth } from '../../context/AuthContext';
  */
 const ProjectCard = ({ project, onEdit }) => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { canAccess } = useAuth();
 
   // Guard against undefined project
   if (!project) {
@@ -148,7 +149,7 @@ const ProjectCard = ({ project, onEdit }) => {
             {project.projectHead?.name || 'No project head'}
           </small>
           <div className="d-flex gap-2">
-            {['admin', 'superadmin', 'hr', 'manager', 'hod'].includes(user?.role) && (
+            {checkPageAccess(canAccess, PAGE_ACCESS.projectManage) && (
               <Button
                 variant="outline-secondary"
                 size="sm"

@@ -22,6 +22,8 @@ import {
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { salarySlipApi } from "../../api/salaryApi";
+import { payrollPeriodApi } from "../../api/payrollPeriodApi";
+import { getCompanyYearOptions } from "../../constants/branding";
 
 const SalarySlipList = () => {
   const [slips, setSlips] = useState([]);
@@ -50,10 +52,35 @@ const SalarySlipList = () => {
   const [selectedSlip, setSelectedSlip] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
+  const [gate, setGate] = useState(null);
 
   useEffect(() => {
     fetchSalarySlips();
   }, [filters, pagination.current]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!filters.month || !filters.year) {
+        setGate(null);
+        return;
+      }
+      try {
+        const res = await payrollPeriodApi.gatesStatus({
+          month: filters.month,
+          year: filters.year,
+        });
+        if (!cancelled) setGate(res.data?.data || null);
+      } catch {
+        if (!cancelled) setGate(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [filters.month, filters.year]);
+
+  const markPaidBlocked = Boolean(gate?.enabled && !gate?.allowed?.markPaid);
 
   const fetchSalarySlips = async () => {
     try {
@@ -109,7 +136,9 @@ const SalarySlipList = () => {
       fetchSalarySlips();
     } catch (error) {
       console.error("Error marking as paid:", error);
-      toast.error("Failed to mark as paid");
+      toast.error(
+        error.response?.data?.message || "Failed to mark as paid"
+      );
     } finally {
       setActionLoading(null);
     }
@@ -156,11 +185,7 @@ const SalarySlipList = () => {
     { value: 12, label: "December" },
   ];
 
-  const years = [];
-  const currentYear = new Date().getFullYear();
-  for (let i = currentYear; i >= currentYear - 5; i--) {
-    years.push(i);
-  }
+  const years = getCompanyYearOptions();
 
   return (
     <>
@@ -220,6 +245,14 @@ const SalarySlipList = () => {
           </Button>
         </Col>
       </Row>
+
+      {markPaidBlocked && (
+        <Alert variant="warning" className="py-2">
+          Period gates are on
+          {gate?.status ? ` (status: ${gate.status})` : " (period not opened)"}
+          . Mark as paid requires a <strong>locked</strong> pay period.
+        </Alert>
+      )}
 
       {/* Results Info */}
       <div className="d-flex justify-content-between align-items-center mb-3">
@@ -285,11 +318,11 @@ const SalarySlipList = () => {
                   {new Date(slip.paymentDate).toLocaleDateString("en-IN")}
                 </td>
                 <td>
-                  <Dropdown>
+                  <Dropdown align="end">
                     <Dropdown.Toggle variant="outline-secondary" size="sm">
                       Actions
                     </Dropdown.Toggle>
-                    <Dropdown.Menu>
+                    <Dropdown.Menu style={{ zIndex: 2000 }}>
                       <Dropdown.Item onClick={() => handleViewDetails(slip)}>
                         <FaEye className="me-1" />
                         View Details
@@ -304,9 +337,17 @@ const SalarySlipList = () => {
                       {slip.status !== "paid" && (
                         <Dropdown.Item
                           onClick={() => handleMarkAsPaid(slip._id)}
-                          disabled={actionLoading === slip._id}
+                          disabled={
+                            actionLoading === slip._id || markPaidBlocked
+                          }
+                          title={
+                            markPaidBlocked
+                              ? "Period must be locked to mark slips paid"
+                              : undefined
+                          }
                         >
                           Mark as Paid
+                          {markPaidBlocked ? " (period not locked)" : ""}
                         </Dropdown.Item>
                       )}
                     </Dropdown.Menu>
@@ -372,8 +413,20 @@ const SalarySlipList = () => {
               <Col md={6}>
                 <h6>Deductions</h6>
                 <p className="mb-1">PF: {formatCurrency(selectedSlip.deductions.providentFund)}</p>
-                <p className="mb-1">TDS: {formatCurrency(selectedSlip.deductions.tds)}</p>
-                <p className="mb-1">PT: {formatCurrency(selectedSlip.deductions.professionalTax)}</p>
+                <p className="mb-1">
+                  PT:{" "}
+                  {formatCurrency(
+                    (selectedSlip.deductions.professionalTax || 0) > 0
+                      ? selectedSlip.deductions.professionalTax
+                      : selectedSlip.deductions.tds || 0
+                  )}
+                </p>
+                {(selectedSlip.deductions.professionalTax || 0) > 0 &&
+                  (selectedSlip.deductions.tds || 0) > 0 && (
+                  <p className="mb-1">
+                    TDS: {formatCurrency(selectedSlip.deductions.tds)}
+                  </p>
+                )}
                 <p className="mb-1">
                   <strong>Total: {formatCurrency(selectedSlip.totalDeductions)}</strong>
                 </p>

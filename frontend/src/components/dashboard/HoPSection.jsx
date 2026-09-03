@@ -104,13 +104,12 @@ const HoPSection = ({ user }) => {
   const completedProjects = projects.filter(p => p.status === 'Completed').length;
 
   return (
-    <Card className="mb-4 border-0 shadow-sm" style={{ borderLeft: '4px solid #10b981' }}>
+    <Card className="dashboard-section-card mb-4 border-0 shadow-sm" style={{ borderLeft: '4px solid #10b981' }}>
       <Card.Header 
-        className="bg-gradient d-flex justify-content-between align-items-center cursor-pointer"
+        className="dashboard-section-header bg-gradient d-flex justify-content-between align-items-center"
         onClick={() => setExpanded(!expanded)}
         style={{ 
           background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%)',
-          cursor: 'pointer'
         }}
       >
         <div>

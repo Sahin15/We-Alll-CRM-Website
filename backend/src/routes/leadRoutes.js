@@ -31,214 +31,72 @@ import {
   setPrimaryContact,
   getLeadHistory,
 } from "../controllers/leadController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
-import { authorizeRolesOrDepartments } from "../middleware/departmentMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+import { requireModulePermission } from "../authz/authzMiddleware.js";
+import { attachDepartmentForAuthz } from "../authz/attachDepartmentContext.js";
 
 const router = express.Router();
 
-// Allowed roles and departments for lead management
-// Roles: admin, superadmin, manager, hr, employee, hod
-// Departments: Sales only
-const leadAccess = authorizeRolesOrDepartments(
-  ["admin", "superadmin", "manager", "hr", "employee", "hod"],
-  ["Sales"]
-);
+const LEAD_ACCESS_ROLES = ["admin", "superadmin", "manager", "employee", "hod", "sales"];
+const LEAD_ACCESS_DEPARTMENTS = ["Sales"];
+const LEAD_DELETE_ROLES = ["admin", "superadmin"];
+const LEAD_TEAM_MEETING_ROLES = ["admin", "superadmin", "manager"];
 
-// Create new lead
-router.post("/", protect, leadAccess, createLead);
+const leadLegacyGate = { legacyRoles: LEAD_ACCESS_ROLES, legacyDepartments: LEAD_ACCESS_DEPARTMENTS };
 
-// Create new lead (public endpoint for forms like Growth Summit)
+const crmLeadManage = requireModulePermission("crm", "crm.lead.manage", leadLegacyGate);
+const crmLeadView = requireModulePermission("crm", "crm.lead.view", leadLegacyGate);
+
 router.post("/public", createLead);
 
-// Get all leads
-router.get("/", protect, leadAccess, getAllLeads);
+router.use(protect, attachDepartmentForAuthz);
 
-// Get follow-up dashboard data
-router.get("/follow-ups/dashboard", protect, leadAccess, getFollowUpDashboard);
+router.post("/", crmLeadManage, createLead);
+router.get("/", crmLeadView, getAllLeads);
+router.get("/follow-ups/dashboard", crmLeadView, getFollowUpDashboard);
 
-// Dashboard meeting routes (MUST be before /:id routes)
-router.get(
-  "/meetings/my-meetings",
-  protect,
-  leadAccess,
-  getMyMeetings
-);
+router.get("/meetings/my-meetings", crmLeadView, getMyMeetings);
 router.get(
   "/meetings/team-meetings",
-  protect,
-  authorizeRoles("admin", "superadmin", "manager"),
+  requireModulePermission("crm", "crm.lead.view", { legacyRoles: LEAD_TEAM_MEETING_ROLES }),
   getTeamMeetings
 );
-router.get(
-  "/meetings/all-meetings",
-  protect,
-  leadAccess,
-  getAllMeetings
-);
+router.get("/meetings/all-meetings", crmLeadView, getAllMeetings);
 
-// Get lead by ID
-router.get("/:id", protect, leadAccess, getLeadById);
-
-// Update lead
-router.put("/:id", protect, leadAccess, updateLead);
-
-// Delete note from notes history (MUST be before /:id delete route)
-router.delete(
-  "/:id/notes/:noteId",
-  protect,
-  leadAccess,
-  deleteNote
-);
-
-// Delete lead (only admin/superadmin)
+router.get("/:id", crmLeadView, getLeadById);
+router.put("/:id", crmLeadManage, updateLead);
+router.delete("/:id/notes/:noteId", crmLeadManage, deleteNote);
 router.delete(
   "/:id",
-  protect,
-  authorizeRoles("admin", "superadmin"),
+  requireModulePermission("crm", "crm.lead.manage", { legacyRoles: LEAD_DELETE_ROLES }),
   deleteLead
 );
 
-// Assign lead to user
-router.put(
-  "/:id/assign",
-  protect,
-  leadAccess,
-  assignLead
-);
+router.put("/:id/assign", crmLeadManage, assignLead);
+router.put("/:id/status", crmLeadManage, updateLeadStatus);
+router.put("/:id/temperature", crmLeadManage, updateLeadTemperature);
 
-// Update lead status
-router.put(
-  "/:id/status",
-  protect,
-  leadAccess,
-  updateLeadStatus
-);
+router.post("/:id/follow-ups", crmLeadManage, scheduleFollowUp);
+router.get("/:id/follow-ups", crmLeadView, getLeadFollowUps);
+router.put("/:id/follow-ups/:followUpId/complete", crmLeadManage, completeFollowUp);
+router.put("/:id/follow-ups/:followUpId/cancel", crmLeadManage, cancelFollowUp);
 
-// Update lead temperature (Cold/Warm/Hot)
-router.put(
-  "/:id/temperature",
-  protect,
-  leadAccess,
-  updateLeadTemperature
-);
+router.post("/:id/followups", crmLeadManage, createFollowUp);
+router.put("/:id/followups/:followupId", crmLeadManage, updateFollowUp);
+router.patch("/:id/followups/:followupId/complete", crmLeadManage, completeFollowUp);
+router.delete("/:id/followups/:followupId", crmLeadManage, deleteFollowUp);
 
-// Follow-up management (legacy routes - keep for backward compatibility)
-router.post(
-  "/:id/follow-ups",
-  protect,
-  leadAccess,
-  scheduleFollowUp
-);
-router.get(
-  "/:id/follow-ups",
-  protect,
-  leadAccess,
-  getLeadFollowUps
-);
-router.put(
-  "/:id/follow-ups/:followUpId/complete",
-  protect,
-  leadAccess,
-  completeFollowUp
-);
-router.put(
-  "/:id/follow-ups/:followUpId/cancel",
-  protect,
-  leadAccess,
-  cancelFollowUp
-);
+router.get("/:id/meetings", crmLeadView, getLeadMeetings);
+router.post("/:id/meetings", crmLeadManage, createMeeting);
+router.put("/:id/meetings/:meetingId", crmLeadManage, updateMeeting);
+router.patch("/:id/meetings/:meetingId/complete", crmLeadManage, completeMeeting);
+router.patch("/:id/meetings/:meetingId/cancel", crmLeadManage, cancelMeeting);
 
-// Enhanced Follow-up routes
-router.post(
-  "/:id/followups",
-  protect,
-  leadAccess,
-  createFollowUp
-);
-router.put(
-  "/:id/followups/:followupId",
-  protect,
-  leadAccess,
-  updateFollowUp
-);
-router.patch(
-  "/:id/followups/:followupId/complete",
-  protect,
-  leadAccess,
-  completeFollowUp
-);
-router.delete(
-  "/:id/followups/:followupId",
-  protect,
-  leadAccess,
-  deleteFollowUp
-);
+router.post("/:id/contacts", crmLeadManage, addContact);
+router.put("/:id/contacts/:contactId", crmLeadManage, updateContact);
+router.delete("/:id/contacts/:contactId", crmLeadManage, deleteContact);
+router.patch("/:id/contacts/:contactId/primary", crmLeadManage, setPrimaryContact);
 
-// Meeting routes
-router.get(
-  "/:id/meetings",
-  protect,
-  leadAccess,
-  getLeadMeetings
-);
-router.post(
-  "/:id/meetings",
-  protect,
-  leadAccess,
-  createMeeting
-);
-router.put(
-  "/:id/meetings/:meetingId",
-  protect,
-  leadAccess,
-  updateMeeting
-);
-router.patch(
-  "/:id/meetings/:meetingId/complete",
-  protect,
-  leadAccess,
-  completeMeeting
-);
-router.patch(
-  "/:id/meetings/:meetingId/cancel",
-  protect,
-  leadAccess,
-  cancelMeeting
-);
-
-// Contact routes
-router.post(
-  "/:id/contacts",
-  protect,
-  leadAccess,
-  addContact
-);
-router.put(
-  "/:id/contacts/:contactId",
-  protect,
-  leadAccess,
-  updateContact
-);
-router.delete(
-  "/:id/contacts/:contactId",
-  protect,
-  leadAccess,
-  deleteContact
-);
-router.patch(
-  "/:id/contacts/:contactId/primary",
-  protect,
-  leadAccess,
-  setPrimaryContact
-);
-
-// History route
-router.get(
-  "/:id/history",
-  protect,
-  leadAccess,
-  getLeadHistory
-);
+router.get("/:id/history", crmLeadView, getLeadHistory);
 
 export default router;

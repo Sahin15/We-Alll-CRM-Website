@@ -4,10 +4,12 @@
  */
 
 /**
- * Check if user can view all projects
+ * Check if user can view all projects (role-only fallback; prefer resourceVisibilityService with full user).
+ * @param {string} userRole
+ * @returns {boolean}
  */
 export const canViewAllProjects = (userRole) => {
-  return ['admin', 'superadmin', 'hr', 'manager', 'hod'].includes(userRole);
+  return ['admin', 'superadmin', 'hr', 'manager'].includes(userRole);
 };
 
 /**

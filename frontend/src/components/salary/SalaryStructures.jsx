@@ -26,10 +26,11 @@ import SalaryStructureForm from "./SalaryStructureForm";
 import SalaryIncrementModal from "./SalaryIncrementModal";
 import api from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
+import { checkPageAccess, PAGE_ACCESS } from "../../constants/pageAccess";
 
 const SalaryStructures = () => {
-  const { user } = useAuth();
-  const isAdminOrSuperAdmin = ['admin', 'superadmin'].includes(user?.role);
+  const { canAccess } = useAuth();
+  const isAdminOrSuperAdmin = checkPageAccess(canAccess, PAGE_ACCESS.payrollManage);
   const [structures, setStructures] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);

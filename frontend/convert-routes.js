@@ -25,7 +25,7 @@ import AuthLayout from "../components/layout/AuthLayout";
 
 // Protected Routes
 import ProtectedRoute from "./ProtectedRoute";
-import RoleBasedRoute from "./RoleBasedRoute";
+import PermissionRoute from "./PermissionRoute";
 
 // Auth Pages - Keep eager loaded (needed immediately)
 import Login from "../pages/auth/Login";

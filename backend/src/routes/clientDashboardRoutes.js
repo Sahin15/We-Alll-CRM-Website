@@ -3,8 +3,10 @@ import {
   getClientDashboardStats,
   getClientDashboardStatsById,
 } from "../controllers/clientDashboardController.js";
-import { protect } from "../middleware/authMiddleware.js";
-import { authorizeRoles } from "../middleware/roleMiddleware.js";
+import { protect } from '../middleware/authMiddleware.js';
+
+
+import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
 
@@ -12,7 +14,7 @@ const router = express.Router();
 router.get(
   "/stats",
   protect,
-  authorizeRoles("client"),
+  requireModulePermission("dashboard", "dashboard.view", { legacyRoles: ["client"] }),
   getClientDashboardStats
 );
 
@@ -20,7 +22,9 @@ router.get(
 router.get(
   "/stats/:clientId",
   protect,
-  authorizeRoles("admin", "superadmin", "accounts"),
+  requireModulePermission("dashboard", "dashboard.view", {
+    legacyRoles: ["admin", "superadmin", "accounts"],
+  }),
   getClientDashboardStatsById
 );
 

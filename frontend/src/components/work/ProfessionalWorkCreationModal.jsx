@@ -234,7 +234,7 @@ const ProfessionalWorkCreationModal = ({
       // Load projects and users in parallel for faster loading
       const [projectsRes, usersRes] = await Promise.all([
         projectApi.getAllProjects(),
-        userApi.getAllUsers()
+        userApi.getAllUsers({ status: 'active', limit: 1000 })
       ]);
 
       const projectsData = projectsRes.data || [];

@@ -5,13 +5,15 @@ import { useParams, useNavigate } from "react-router-dom";
 import toast from "../../utils/toast";
 import { expenseApi, bulkApproveExpenses, bulkRejectExpenses } from "../../api/expenseApi";
 import { useAuth } from "../../context/AuthContext";
+import { PAGE_ACCESS, checkPageAccess } from "../../constants/pageAccess";
 import { formatDate, formatCurrency } from "../../utils/helpers";
 import { getPurposeLabel, getTypeLabel, getPurposeColor, getTypeColor } from "../../utils/expenseConstants";
 
 const ExpenseDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
+  const canApproveExpense = checkPageAccess(canAccess, PAGE_ACCESS.expenseApprove);
   const [expense, setExpense] = useState(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
@@ -29,7 +31,7 @@ const ExpenseDetails = () => {
     try {
       setLoading(true);
       const response = await expenseApi.getExpenseById(id);
-      setExpense(response.expense || response);
+      setExpense(response.expense || response.data || null);
     } catch (error) {
       console.error("Error fetching expense:", error);
       toast.error("Failed to load expense details");
@@ -97,13 +99,6 @@ const ExpenseDetails = () => {
     }
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-    }).format(amount);
-  };
-
   const getStatusBadge = (status) => {
     const colors = {
       pending: "warning",
@@ -112,6 +107,11 @@ const ExpenseDetails = () => {
       reimbursed: "success",
     };
     return colors[status] || "light";
+  };
+
+  const formatStatusLabel = (status) => {
+    if (!status) return "Unknown";
+    return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
   if (loading) {
@@ -149,7 +149,7 @@ const ExpenseDetails = () => {
           <h2 className="mb-0">Expense Details</h2>
         </div>
         <div className="d-flex gap-2">
-          {expense.status === "pending" && ['admin', 'superadmin', 'hr', 'manager'].includes(user?.role) && (
+          {expense.status === "pending" && canApproveExpense && (
             <>
               <Button 
                 variant="success"
@@ -202,7 +202,7 @@ const ExpenseDetails = () => {
                   </Col>
                   <Col md={6} className="text-md-end">
                     <Badge bg={getStatusBadge(expense.status)} className="me-2 p-2">
-                      {expense.status.charAt(0).toUpperCase() + expense.status.slice(1)}
+                      {formatStatusLabel(expense.status)}
                     </Badge>
                     {expense.expensePurpose && (
                       <Badge bg={getPurposeColor(expense.expensePurpose)} className="me-2 p-2">
@@ -226,7 +226,7 @@ const ExpenseDetails = () => {
                 </Col>
                 <Col md={6} className="mb-3">
                   <p className="text-muted mb-1 small">Payment Method</p>
-                  <p className="mb-0 text-capitalize">{expense.paymentMethod.replace(/_/g, " ")}</p>
+                  <p className="mb-0 text-capitalize">{(expense.paymentMethod || "other").replace(/_/g, " ")}</p>
                 </Col>
                 <Col md={6} className="mb-3">
                   <p className="text-muted mb-1 small">Merchant/Vendor</p>

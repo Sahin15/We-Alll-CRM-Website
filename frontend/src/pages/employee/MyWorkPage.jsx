@@ -9,7 +9,13 @@ import WorkItemListWithBulk from '../../components/workitems/WorkItemListWithBul
 import WorkItemDetailsModal from '../../components/workitems/WorkItemDetailsModal';
 import WorkItemSearch from '../../components/workitems/WorkItemSearch';
 import AssignWorkModal from '../../components/work/AssignWorkModal';
-import './MyWorkPage.css';
+import {
+  getEffectiveStatusForUser,
+  isPendingWorkItem,
+  isWorkItemForMyWork,
+  isWorkItemDueToday,
+  isWorkItemOverdue,
+} from '../../utils/workItemUtils';
 
 /**
  * MyWorkPage Component
@@ -22,6 +28,7 @@ const MyWorkPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  // Default to today's items so My Work opens focused on what is due now
   const [showTodayOnly, setShowTodayOnly] = useState(true);
   const [selectedDate, setSelectedDate] = useState(null);
   const [bulkMode, setBulkMode] = useState(false);
@@ -44,10 +51,17 @@ const MyWorkPage = () => {
     }
   };
 
+  // Only items assigned to me — work I gave others belongs on Assigned Work
+  const myAssignedItems = useMemo(
+    () => workItems.filter((item) => isWorkItemForMyWork(item, user?._id)),
+    [workItems, user?._id]
+  );
+
   // Calculate statistics
   const statistics = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const userId = user?._id;
     
     const currentMonth = today.getMonth();
     const currentYear = today.getFullYear();
@@ -62,7 +76,7 @@ const MyWorkPage = () => {
     let dueTodayItems = [];
     let inProgressItems = [];
 
-    workItems.forEach((item) => {
+    myAssignedItems.forEach((item) => {
       // Skip soft-deleted items (safety net)
       if (item.isDeleted) return;
 
@@ -77,29 +91,30 @@ const MyWorkPage = () => {
       }
 
       // Count completed this month
-      if (item.status === 'Done' && itemMonth === currentMonth && itemYear === currentYear) {
+      const itemStatus = getEffectiveStatusForUser(item, userId);
+      if (itemStatus === 'Done' && itemMonth === currentMonth && itemYear === currentYear) {
         completedThisMonth++;
       }
 
       // Count cancelled this month
-      if (item.status === 'Cancelled' && itemMonth === currentMonth && itemYear === currentYear) {
+      if (itemStatus === 'Cancelled' && itemMonth === currentMonth && itemYear === currentYear) {
         cancelledThisMonth++;
       }
 
-      // Count due today — only non-Done, non-Cancelled items
-      if (dueDate && dueDate.getTime() === today.getTime() && !['Done', 'Cancelled'].includes(item.status)) {
+      // Count due today — only pending items assigned to me
+      if (isWorkItemDueToday(item, userId)) {
         dueToday++;
         dueTodayItems.push(item);
       }
 
       // Count in progress
-      if (item.status === 'In Progress') {
+      if (itemStatus === 'In Progress') {
         inProgress++;
         inProgressItems.push(item);
       }
 
-      // Count overdue — use backend-computed flag; Done/Cancelled items are NEVER overdue
-      if (!['Done', 'Cancelled'].includes(item.status) && item.isOverdue === true) {
+      // Count overdue — only pending items assigned to me
+      if (isPendingWorkItem(item, userId) && isWorkItemOverdue(item, userId)) {
         overdue++;
         overdueItems.push(item);
       }
@@ -116,13 +131,23 @@ const MyWorkPage = () => {
       dueTodayItems: dueTodayItems.slice(0, 3),
       inProgressItems: inProgressItems.slice(0, 3),
     };
-  }, [workItems]);
+  }, [myAssignedItems, user?._id]);
 
   // Filter and sort work items
   const filteredItems = useMemo(() => {
-    let filtered = [...workItems];
+    let filtered = [...myAssignedItems];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const userId = user?._id;
+
+    const priorityRank = { Critical: 0, High: 1, Urgent: 1, Medium: 2, Low: 3 };
+    const statusRank = {
+      'In Progress': 0,
+      'To Do': 1,
+      Review: 2,
+      Done: 3,
+      Cancelled: 4,
+    };
 
     // Determine which date to filter by
     let filterDate = today;
@@ -133,13 +158,18 @@ const MyWorkPage = () => {
       filterDate = today;
     }
 
-    // Show work for selected/today date if toggle is on or date is selected
+    // Today: due today + overdue pending (still need attention).
+    // Custom date: exact due-date match only.
     if (showTodayOnly || selectedDate) {
       filtered = filtered.filter((item) => {
+        if (item.isDeleted || !item.dueDate) return false;
         const dueDate = new Date(item.dueDate);
         dueDate.setHours(0, 0, 0, 0);
-        // Show items due exactly on the selected date
-        return dueDate.getTime() === filterDate.getTime();
+        if (dueDate.getTime() === filterDate.getTime()) return true;
+        if (showTodayOnly && !selectedDate) {
+          return isPendingWorkItem(item, userId) && dueDate.getTime() < today.getTime();
+        }
+        return false;
       });
     }
 
@@ -154,32 +184,42 @@ const MyWorkPage = () => {
       );
     }
 
-    // Sort by priority: overdue first, then by due date, then completed items last
+    // Pending first, then overdue, then status/priority/due date; completed last
     filtered.sort((a, b) => {
-      const dateA = new Date(a.dueDate);
-      const dateB = new Date(b.dueDate);
-      dateA.setHours(0, 0, 0, 0);
-      dateB.setHours(0, 0, 0, 0);
-      
-      const isAOverdue = dateA < today && !['Done', 'Cancelled'].includes(a.status);
-      const isBOverdue = dateB < today && !['Done', 'Cancelled'].includes(b.status);
-      const isADone = ['Done', 'Cancelled'].includes(a.status);
-      const isBDone = ['Done', 'Cancelled'].includes(b.status);
-      
-      // Overdue items come first
-      if (isAOverdue && !isBOverdue) return -1;
-      if (!isAOverdue && isBOverdue) return 1;
-      
-      // Completed items come last
-      if (isADone && !isBDone) return 1;
-      if (!isADone && isBDone) return -1;
-      
-      // Then sort by due date (earliest first)
+      const aPending = isPendingWorkItem(a, userId);
+      const bPending = isPendingWorkItem(b, userId);
+      if (aPending !== bPending) return aPending ? -1 : 1;
+
+      const dueStart = (item) => {
+        if (!item.dueDate) return null;
+        const d = new Date(item.dueDate);
+        d.setHours(0, 0, 0, 0);
+        return d.getTime();
+      };
+
+      const aDue = dueStart(a);
+      const bDue = dueStart(b);
+      const aOverdue = aPending && aDue != null && aDue < today.getTime();
+      const bOverdue = bPending && bDue != null && bDue < today.getTime();
+      if (aOverdue !== bOverdue) return aOverdue ? -1 : 1;
+
+      const aStatus = getEffectiveStatusForUser(a, userId);
+      const bStatus = getEffectiveStatusForUser(b, userId);
+      const statusDiff =
+        (statusRank[aStatus] ?? 50) - (statusRank[bStatus] ?? 50);
+      if (statusDiff !== 0) return statusDiff;
+
+      const priorityDiff =
+        (priorityRank[a.priority] ?? 9) - (priorityRank[b.priority] ?? 9);
+      if (priorityDiff !== 0) return priorityDiff;
+
+      const dateA = aDue ?? Number.MAX_SAFE_INTEGER;
+      const dateB = bDue ?? Number.MAX_SAFE_INTEGER;
       return dateA - dateB;
     });
 
     return filtered;
-  }, [workItems, searchTerm, showTodayOnly, selectedDate]);
+  }, [myAssignedItems, searchTerm, showTodayOnly, selectedDate, user?._id]);
 
   const handleViewItem = (item) => {
     setSelectedItem(item);
@@ -189,11 +229,32 @@ const MyWorkPage = () => {
   const handleUpdateStatus = async (itemId, newStatus, completedAt = null, cancellationReason = null) => {
     try {
       await workItemApi.updateStatus(itemId, newStatus, completedAt, cancellationReason);
-      loadWorkItems();
+      await loadWorkItems();
 
-      // Update selected item if it's the one being updated
       if (selectedItem && selectedItem._id === itemId) {
-        setSelectedItem({ ...selectedItem, status: newStatus });
+        setSelectedItem((current) => {
+          if (!current) return current;
+          const next = { ...current, effectiveStatus: newStatus };
+          if (current.assignedToMultiple?.length) {
+            const assigneeStatuses = [...(current.assigneeStatuses || [])];
+            const userId = user?._id?.toString();
+            const existingIndex = assigneeStatuses.findIndex(
+              (entry) => (entry.assigneeId?._id || entry.assigneeId)?.toString() === userId
+            );
+            if (existingIndex >= 0) {
+              assigneeStatuses[existingIndex] = {
+                ...assigneeStatuses[existingIndex],
+                status: newStatus,
+              };
+            } else {
+              assigneeStatuses.push({ assigneeId: user?._id, status: newStatus });
+            }
+            next.assigneeStatuses = assigneeStatuses;
+          } else {
+            next.status = newStatus;
+          }
+          return next;
+        });
       }
     } catch (error) {
       console.error('Error updating status:', error);
@@ -343,22 +404,22 @@ const MyWorkPage = () => {
 
       {/* Alert Banners */}
       <Row className="mb-3 g-2">
-        {statistics.overdueItems.length > 0 && (
+        {statistics.overdue > 0 && (
           <Col xs={12}>
             <div className="alert-banner alert-danger">
               <div className="alert-icon">⚠️</div>
               <div className="alert-content">
-                <strong>Attention!</strong> You have {statistics.overdueItems.length} overdue item{statistics.overdueItems.length > 1 ? 's' : ''}. Please prioritize these.
+                <strong>Attention!</strong> You have {statistics.overdue} overdue item{statistics.overdue > 1 ? 's' : ''}. Please prioritize these.
               </div>
             </div>
           </Col>
         )}
-        {statistics.dueTodayItems.length > 0 && (
+        {statistics.dueToday > 0 && (
           <Col xs={12}>
             <div className="alert-banner alert-warning">
               <div className="alert-icon">⏰</div>
               <div className="alert-content">
-                <strong>Reminder:</strong> You have {statistics.dueTodayItems.length} item{statistics.dueTodayItems.length > 1 ? 's' : ''} due today!
+                <strong>Reminder:</strong> You have {statistics.dueToday} item{statistics.dueToday > 1 ? 's' : ''} due today!
               </div>
             </div>
           </Col>
@@ -432,11 +493,11 @@ const MyWorkPage = () => {
       </Card>
 
       {/* Work Items List */}
-      <Card style={{ overflow: 'visible' }}>
-        <Card.Body className="p-0" style={{ overflow: 'visible' }}>
+      <Card style={{ overflow: 'visible', maxWidth: '100%' }}>
+        <Card.Body className="p-0" style={{ overflow: 'visible', maxWidth: '100%' }}>
           <div className="p-3 border-bottom">
             <small className="text-muted">
-              Showing {filteredItems.length} of {workItems.length} items
+              Showing {filteredItems.length} of {myAssignedItems.length} items
             </small>
           </div>
           {bulkMode ? (
@@ -444,8 +505,9 @@ const MyWorkPage = () => {
               workItems={filteredItems}
               onViewItem={handleViewItem}
               onBulkAction={handleBulkAction}
+              currentUser={user}
               emptyMessage={
-                workItems.length === 0
+                myAssignedItems.length === 0
                   ? 'No work items assigned to you yet.'
                   : 'No items match your search criteria.'
               }
@@ -457,7 +519,7 @@ const MyWorkPage = () => {
               onStatusChange={handleUpdateStatus}
               currentUser={user}
               emptyMessage={
-                workItems.length === 0
+                myAssignedItems.length === 0
                   ? 'No work items assigned to you yet.'
                   : 'No items match your search criteria.'
               }

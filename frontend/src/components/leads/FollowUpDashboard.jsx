@@ -6,13 +6,14 @@ import { toast } from "react-toastify";
 import { leadApi } from "../../api/leadApi";
 import { formatDate } from "../../utils/helpers";
 import { useAuth } from "../../context/AuthContext";
+import { checkPageAccess, PAGE_ACCESS } from "../../constants/pageAccess";
 
 const FollowUpDashboard = () => {
-  const { user } = useAuth();
+  const { canAccess } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [myOnly, setMyOnly] = useState(false);
-  const isManager = ['admin', 'superadmin', 'manager', 'hod'].includes(user?.role);
+  const isManager = checkPageAccess(canAccess, PAGE_ACCESS.crmLeadManage);
   const [followUpData, setFollowUpData] = useState({
     overdue: [],
     today: [],

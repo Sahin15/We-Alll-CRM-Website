@@ -11,6 +11,7 @@ import {
 import { FaXTwitter } from "react-icons/fa6";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { BRAND_LOGO_FULL, BRAND_NAME, APP_VERSION_LABEL } from "../../constants/branding";
 
 const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
   const { user } = useAuth();
@@ -42,10 +43,11 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
           <Row className="align-items-center">
             <Col md={6} className="text-center text-md-start mb-2 mb-md-0">
               <div className="d-flex align-items-center justify-content-center justify-content-md-start">
-                <div className="logo-full-container">
-                  <img loading="lazy" src="/We Alll Office Logo.png" 
-                    alt="We Alll Office" 
-                    className="logo-img-full"
+                <div className="footer-logo-container">
+                  <img
+                    src={BRAND_LOGO_FULL}
+                    alt={BRAND_NAME}
+                    className="footer-logo-img"
                   />
                 </div>
                 <div className="footer-tagline">
@@ -103,7 +105,7 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
               >
                 © {currentYear} We Alll. All rights reserved.
                 <span className="ms-2 text-white-50">
-                  V 5.0.2
+                  {APP_VERSION_LABEL}
                 </span>
               </div>
             </Col>
@@ -218,8 +220,8 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
           box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
         }
 
-        /* Full logo container - when expanded */
-        .logo-full-container {
+        /* Footer logo */
+        .footer-logo-container {
           width: 180px;
           height: 60px;
           flex-shrink: 0;
@@ -236,23 +238,22 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
           margin-right: 12px;
         }
 
-        .logo-full-container:hover {
+        .footer-logo-container:hover {
           background: rgba(255, 255, 255, 0.25);
           backdrop-filter: blur(15px);
           transform: scale(1.05);
-          box-shadow: 
+          box-shadow:
             0 12px 35px rgba(0, 0, 0, 0.2),
             0 6px 16px rgba(0, 0, 0, 0.15);
           border: 1px solid rgba(255, 255, 255, 0.35);
         }
 
-        .logo-full-container:hover .logo-img-full {
+        .footer-logo-container:hover .footer-logo-img {
           filter: contrast(1.2) saturate(1.2) brightness(1.15);
           transform: scale(1.15);
         }
 
-        /* Full logo image */
-        .logo-img-full {
+        .footer-logo-img {
           width: 120%;
           height: 120%;
           object-fit: contain;
@@ -260,6 +261,7 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
           filter: contrast(1.1) saturate(1.1) brightness(1.1);
           transition: all 0.3s ease;
           transform: scale(1.1);
+          opacity: 1;
         }
 
         .footer-tagline {
@@ -404,7 +406,7 @@ const Footer = ({ sidebarCollapsed = false, isMobile = false }) => {
             padding-right: 1rem !important;
           }
 
-          .logo-full-container {
+          .footer-logo-container {
             width: 140px;
             height: 45px;
             margin-right: 10px;

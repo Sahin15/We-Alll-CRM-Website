@@ -7,6 +7,7 @@ import { getCurrentFinancialYear, getFinancialYearForDate, getFinancialYearDateR
 import { formatDate, formatDateTime, formatCurrency, formatCurrencyWithSymbol } from "../utils/dateFormatter.js";
 import { asyncHandler, sendSuccess, sendError, sendValidationError, sendPaginatedSuccess } from "../middleware/errorHandler.js";
 import { validatePositiveAmount, validateNotFutureDate, validateRequiredFields, validatePendingStatus } from "../utils/validators.js";
+import { hasPermission } from "../authz/policyEngine.js";
 
 // Create a new expense
 export const createExpense = asyncHandler(async (req, res) => {
@@ -177,8 +178,11 @@ export const getExpenseById = asyncHandler(async (req, res) => {
     return sendError(res, "Expense not found", 404);
   }
 
-  // Check authorization
-  if (expense.employee._id.toString() !== req.user._id.toString() && req.user.role !== "admin" && req.user.role !== "hr" && req.user.role !== "superadmin") {
+  const isOwner =
+    expense.employee?._id?.toString() === req.user._id.toString();
+  const canViewAsApprover = hasPermission(req.user, "expense.claim.approve");
+
+  if (!isOwner && !canViewAsApprover) {
     return sendError(res, "Not authorized to view this expense", 403);
   }
 

@@ -15,7 +15,7 @@ const DOCUMENT_MIME_TYPES = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
 ];
 
-const MAX_DOCUMENT_SIZE = 15 * 1024 * 1024; // 15MB for documents (increased for high-res photos)
+const MAX_DOCUMENT_SIZE = AWS_CONFIG.maxFileSize;
 
 /**
  * Upload document to AWS S3
@@ -25,6 +25,30 @@ const MAX_DOCUMENT_SIZE = 15 * 1024 * 1024; // 15MB for documents (increased for
  * @param {string} folder - S3 folder (default: documents)
  * @returns {Promise<string>} - S3 URL of uploaded document
  */
+const isAllowedDocumentMime = (mimeType, originalName) => {
+  if (DOCUMENT_MIME_TYPES.includes(mimeType)) return true;
+
+  const ext = originalName.split(".").pop()?.toLowerCase();
+  const extToMime = {
+    pdf: "application/pdf",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    doc: "application/msword",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  };
+
+  if (
+    (mimeType === "application/octet-stream" || mimeType === "binary/octet-stream") &&
+    ext &&
+    extToMime[ext]
+  ) {
+    return true;
+  }
+
+  return false;
+};
+
 export const uploadDocumentToS3 = async (
   fileBuffer,
   originalName,
@@ -32,8 +56,7 @@ export const uploadDocumentToS3 = async (
   folder = "documents"
 ) => {
   try {
-    // Validate file type
-    if (!DOCUMENT_MIME_TYPES.includes(mimeType)) {
+    if (!isAllowedDocumentMime(mimeType, originalName)) {
       throw new Error(
         `Invalid file type. Allowed types: PDF, JPG, PNG, DOC, DOCX`
       );
@@ -45,6 +68,20 @@ export const uploadDocumentToS3 = async (
         `File size exceeds maximum allowed size of ${MAX_DOCUMENT_SIZE / (1024 * 1024)}MB`
       );
     }
+
+    const ext = originalName.split(".").pop()?.toLowerCase();
+    const extToMime = {
+      pdf: "application/pdf",
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      png: "image/png",
+      doc: "application/msword",
+      docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    };
+    const resolvedMimeType =
+      mimeType === "application/octet-stream" || mimeType === "binary/octet-stream"
+        ? extToMime[ext] || mimeType
+        : mimeType;
 
     // Generate unique filename
     const fileExtension = originalName.split(".").pop();
@@ -58,8 +95,7 @@ export const uploadDocumentToS3 = async (
       Bucket: AWS_CONFIG.bucketName,
       Key: fileName,
       Body: fileBuffer,
-      ContentType: mimeType,
-      ACL: "public-read", // Make file publicly accessible
+      ContentType: resolvedMimeType,
       Metadata: {
         originalName: originalName,
         uploadedAt: new Date().toISOString(),
@@ -85,12 +121,11 @@ export const uploadDocumentToS3 = async (
  */
 export const deleteDocumentFromS3 = async (documentUrl) => {
   try {
-    // Extract key from URL
-    const urlParts = documentUrl.split(".amazonaws.com/");
-    if (urlParts.length < 2) {
+    const { extractS3KeyFromUrl } = await import("./s3KeyUtils.js");
+    const key = extractS3KeyFromUrl(documentUrl);
+    if (!key) {
       throw new Error("Invalid S3 URL");
     }
-    const key = urlParts[1];
 
     const deleteParams = {
       Bucket: AWS_CONFIG.bucketName,
@@ -113,15 +148,13 @@ export const deleteDocumentFromS3 = async (documentUrl) => {
  * @returns {boolean} - Validation result
  */
 export const validateDocumentFile = (file) => {
-  // Check file size
   if (file.size > MAX_DOCUMENT_SIZE) {
     throw new Error(
       `File size exceeds maximum allowed size of ${MAX_DOCUMENT_SIZE / (1024 * 1024)}MB`
     );
   }
 
-  // Check file type
-  if (!DOCUMENT_MIME_TYPES.includes(file.mimetype)) {
+  if (!isAllowedDocumentMime(file.mimetype, file.originalname)) {
     throw new Error(
       `Invalid file type. Allowed types: PDF, JPG, PNG, DOC, DOCX`
     );

@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Spinner } from "react-bootstrap";
+import { BRAND_LOGO_FULL, BRAND_NAME } from "../constants/branding";
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -17,8 +18,8 @@ const ProtectedRoute = ({ children }) => {
       >
         <div className="text-center">
           {/* Logo */}
-          <img loading="lazy" src="/We Alll Office Logo.png" 
-            alt="We Alll Office" 
+          <img loading="lazy" src={BRAND_LOGO_FULL}
+            alt={BRAND_NAME}
             style={{ 
               width: "200px", 
               marginBottom: "2rem",
