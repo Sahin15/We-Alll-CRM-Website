@@ -461,6 +461,40 @@ class NotificationService {
       throw error;
     }
   }
+
+  /**
+   * Notify an employee that their salary slip is available.
+   * @param {string} employeeId - User ObjectId
+   * @param {number} month - 1-12
+   * @param {number} year
+   * @param {Object} [extra]
+   * @param {string} [extra.slipId]
+   * @param {string} [extra.senderId]
+   */
+  static async sendSalarySlipNotification(employeeId, month, year, extra = {}) {
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
+    const monthLabel = monthNames[Number(month) - 1] || String(month);
+    const title = 'Salary slip available';
+    const body = `Your salary slip for ${monthLabel} ${year} is ready to view.`;
+
+    return this.sendToUser(employeeId, title, body, {
+      type: 'salary_slip_generated',
+      data: {
+        month: Number(month),
+        year: Number(year),
+        slipId: extra.slipId || null,
+        notificationKind: 'salary_slip',
+      },
+      actionUrl: '/employee/salary-slips',
+      icon: 'salary',
+      tag: `salary-slip-${year}-${month}`,
+      priority: 'normal',
+      senderId: extra.senderId || null,
+    });
+  }
 }
 
 export default NotificationService;

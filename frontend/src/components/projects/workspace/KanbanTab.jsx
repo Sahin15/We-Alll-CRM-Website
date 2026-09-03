@@ -373,6 +373,28 @@ const KanbanTab = ({ project, onRefresh }) => {
                             </Badge>
                           )}
 
+                          {/* Deliverable Link Badge */}
+                          {(item.deliverableTitle || item.deliverableId) && (
+                            <Badge
+                              bg="purple"
+                              style={{ backgroundColor: '#6f42c1', color: '#fff', fontSize: '0.7rem' }}
+                              className="mb-2 me-1"
+                            >
+                              🎯 {item.deliverableTitle || 'Linked Deliverable'}
+                            </Badge>
+                          )}
+
+                          {/* Planned Month Badge */}
+                          {item.plannedMonth && item.plannedMonth.year && (
+                            <Badge
+                              bg="outline-primary"
+                              style={{ border: '1px solid #0d6efd', color: '#0d6efd', fontSize: '0.7rem' }}
+                              className="mb-2 me-1"
+                            >
+                              📅 {item.plannedMonth.year}-{String(item.plannedMonth.month).padStart(2, '0')}
+                            </Badge>
+                          )}
+
                           {/* Priority Badge */}
                           <Badge
                             bg={getPriorityColor(item.priority)}

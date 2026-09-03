@@ -18,6 +18,8 @@ import {
   getVipClients,
   assignDepartmentsToClient,
   getClientsByDepartment,
+  updateClientContacts,
+  getClientProjectsSummary,
 } from "../controllers/clientController.js";
 import { protect } from '../middleware/authMiddleware.js';
 
@@ -86,6 +88,23 @@ router.put(
   protect,
   requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_MANAGE_ROLES }),
   updateClient
+);
+router.put(
+  "/:id/contacts",
+  protect,
+  requireModulePermission("crm", "crm.client.manage", { legacyRoles: CLIENT_MANAGE_ROLES }),
+  updateClientContacts
+);
+
+router.get(
+  "/:id/projects-summary",
+  protect,
+  requireModulePermissionAny(
+    "crm",
+    ["crm.client.view", "crm.client.view_assigned"],
+    { legacyRoles: CLIENT_DETAIL_VIEW_ROLES }
+  ),
+  getClientProjectsSummary
 );
 router.delete(
   "/:id",

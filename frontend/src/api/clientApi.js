@@ -61,6 +61,10 @@ export const clientApi = {
   assignDepartments: async (id, departmentIds) => {
     return api.put(`/clients/${id}/departments`, { departmentIds });
   },
+
+  // Contacts and Projects Summary
+  updateClientContacts: (id, contacts) => api.put(`/clients/${id}/contacts`, { contacts }),
+  getClientProjectsSummary: (id) => api.get(`/clients/${id}/projects-summary`),
 };
 
 export default clientApi;

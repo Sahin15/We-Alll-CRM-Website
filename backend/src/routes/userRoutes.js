@@ -32,11 +32,14 @@ import {
 const router = express.Router();
 
 const USER_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
+const USER_LIST_ROLES = [...USER_MANAGE_ROLES, "hod"];
 const USER_ADMIN_ROLES = ["superadmin"];
 
-const userView = requireModulePermission("team", "team.user.view", {
-  legacyRoles: USER_MANAGE_ROLES,
-});
+const userView = requireModulePermissionAny(
+  "team",
+  ["team.user.view", "projects.project.manage"],
+  { legacyRoles: USER_LIST_ROLES }
+);
 
 const userAdminUpdate = requireModulePermission("team", "team.user.update", {
   legacyRoles: USER_ADMIN_ROLES,

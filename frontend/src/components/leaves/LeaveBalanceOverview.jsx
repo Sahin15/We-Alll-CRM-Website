@@ -88,7 +88,7 @@ const LeaveBalanceOverview = () => {
       "Employee", "ID", "Department", "Employment Type",
       "Earned (Year)", "Used (Year)", "Remaining",
       ...(selectedMonth ? [`Used (${monthLabel})`, `Unpaid (${monthLabel})`, `Late (${monthLabel})`, `Absent (${monthLabel})`] : []),
-      "Personal", "Medical", "Vacation", "Half Day (×0.5)", "Unpaid (Year)", "Late (Year)", "Absent (Year)"
+      "Medical Used", "Casual Used", "Unpaid (Year)", "Late (Year)", "Absent (Year)"
     ];
 
     const rows = filtered.map(s => [
@@ -100,10 +100,8 @@ const LeaveBalanceOverview = () => {
       isPaidLeaveEligibleRow(s) ? s.year.totalUsed : "—",
       isPaidLeaveEligibleRow(s) ? s.year.remaining : "N/A",
       ...(selectedMonth ? [s.month?.totalUsed ?? 0, s.month?.unpaid ?? 0, s.month?.late ?? 0, s.month?.absent ?? 0] : []),
-      s.year.personal,
       s.year.medical,
-      s.year.vacation,
-      s.year.halfDay,
+      s.year.casual,
       s.year.unpaid,
       s.year.late ?? 0,
       s.year.absent ?? 0
@@ -145,10 +143,8 @@ const LeaveBalanceOverview = () => {
       { header: "Earned", dataKey: "earned" },
       { header: "Used", dataKey: "used" },
       { header: "Remaining", dataKey: "remaining" },
-      { header: "Personal", dataKey: "personal" },
-      { header: "Medical", dataKey: "medical" },
-      { header: "Vacation", dataKey: "vacation" },
-      { header: "Half Day", dataKey: "halfDay" },
+      { header: "Medical Used", dataKey: "medical" },
+      { header: "Casual Used", dataKey: "casual" },
       { header: "Unpaid", dataKey: "unpaid" },
       { header: "Late (Year)", dataKey: "late" },
       { header: "Absent (Year)", dataKey: "absent" },
@@ -175,10 +171,8 @@ const LeaveBalanceOverview = () => {
         remaining: isPaidLeaveEligibleRow(s)
           ? (s.year.remaining % 1 === 0 ? s.year.remaining : s.year.remaining.toFixed(1))
           : "N/A",
-        personal: s.year.personal || "—",
         medical: s.year.medical || "—",
-        vacation: s.year.vacation || "—",
-        halfDay: s.year.halfDay > 0 ? s.year.halfDay : "—",
+        casual: s.year.casual || "—",
         unpaid: s.year.unpaid > 0 ? s.year.unpaid : "—",
         late: (s.year.late ?? 0) > 0 ? s.year.late : "—",
         absent: (s.year.absent ?? 0) > 0 ? s.year.absent : "—",
@@ -206,10 +200,8 @@ const LeaveBalanceOverview = () => {
         earned:   { halign: "center" },
         used:     { halign: "center" },
         remaining:{ halign: "center" },
-        personal: { halign: "center" },
         medical:  { halign: "center" },
-        vacation: { halign: "center" },
-        halfDay:  { halign: "center" },
+        casual:   { halign: "center" },
         unpaid:   { halign: "center" },
         ...(selectedMonth ? {
           monthUsed:   { halign: "center" },
@@ -409,10 +401,8 @@ const LeaveBalanceOverview = () => {
                   <th className="text-center">Earned</th>
                   <th className="text-center">Used</th>
                   <th className="text-center">Remaining</th>
-                  <th className="text-center">Personal</th>
-                  <th className="text-center">Medical</th>
-                  <th className="text-center">Vacation</th>
-                  <th className="text-center text-nowrap">Half Day</th>
+                  <th className="text-center">Medical Used</th>
+                  <th className="text-center">Casual Used</th>
                   <th className="text-center">Unpaid</th>
                   <th className="text-center">Late</th>
                   <th className="text-center">Absent</th>
@@ -478,14 +468,8 @@ const LeaveBalanceOverview = () => {
                         <span className="text-muted">N/A</span>
                       )}
                     </td>
-                    <td className="text-center align-middle">{s.year.personal || "—"}</td>
                     <td className="text-center align-middle">{s.year.medical || "—"}</td>
-                    <td className="text-center align-middle">{s.year.vacation || "—"}</td>
-                    <td className="text-center align-middle">
-                      {s.year.halfDay > 0 ? (
-                        <Badge bg="info">{s.year.halfDay}</Badge>
-                      ) : "—"}
-                    </td>
+                    <td className="text-center align-middle">{s.year.casual || "—"}</td>
                     <td className="text-center align-middle">
                       {s.year.unpaid > 0 ? (
                         <Badge bg="danger">{s.year.unpaid}</Badge>

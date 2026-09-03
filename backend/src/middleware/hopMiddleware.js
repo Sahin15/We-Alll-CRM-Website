@@ -125,8 +125,11 @@ export const canManageProject = async (req, res, next) => {
       });
     }
 
-    // Check if user is HoP
-    if (project.projectHead && project.projectHead.toString() === userId.toString()) {
+    const uid = String(userId);
+
+    // Check if user is HoP (supports ObjectId or string refs)
+    const projectHeadId = String(project.projectHead?._id || project.projectHead || "");
+    if (projectHeadId && projectHeadId === uid) {
       req.hopProject = project;
       req.canManage = true;
       req.manageRole = "hop";
@@ -135,7 +138,8 @@ export const canManageProject = async (req, res, next) => {
 
     // Check if user is HoD of project's department
     if (project.department && project.department.head) {
-      if (project.department.head.toString() === userId.toString()) {
+      const deptHeadId = String(project.department.head._id || project.department.head);
+      if (deptHeadId === uid) {
         req.hopProject = project;
         req.canManage = true;
         req.manageRole = "hod";
@@ -143,12 +147,13 @@ export const canManageProject = async (req, res, next) => {
       }
     }
 
-    // Check if user is a team member (for team management operations)
-    const isTeamMember = project.assignedUsers?.some(assignedUser => 
-      (assignedUser?._id || assignedUser).toString() === userId.toString()
-    ) || project.teamMembers?.some(member => 
-      (member.user?._id || member.user).toString() === userId.toString()
-    );
+    // Check if user is an active team member (for team management operations)
+    const isTeamMember = project.assignedUsers?.some((assignedUser) =>
+      String(assignedUser?._id || assignedUser) === uid
+    ) || project.teamMembers?.some((member) => {
+      if (member?.isActive === false) return false;
+      return String(member.user?._id || member.user) === uid;
+    });
 
     if (isTeamMember) {
       req.hopProject = project;

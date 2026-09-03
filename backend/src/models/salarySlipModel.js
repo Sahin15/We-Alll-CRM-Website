@@ -89,6 +89,7 @@ const salarySlipSchema = new mongoose.Schema(
       tds: { type: Number, default: 0 },
       esi: { type: Number, default: 0 },
       lossOfPay: { type: Number, default: 0 },
+      /** @deprecated Legacy field — must remain 0 when lossOfPay includes unpaid/absence impact (R1). */
       unpaidLeaveDeduction: { type: Number, default: 0 },
       advances: { type: Number, default: 0 },
       loans: { type: Number, default: 0 },
@@ -127,6 +128,30 @@ const salarySlipSchema = new mongoose.Schema(
     },
     pdfGeneratedAt: {
       type: Date,
+    },
+    /** Storage backend metadata (S3 or local). pdfUrl remains the canonical access URL. */
+    pdfStorage: {
+      provider: {
+        type: String,
+        enum: ["s3", "local"],
+      },
+      key: {
+        type: String,
+      },
+      path: {
+        type: String,
+      },
+      generatedAt: {
+        type: Date,
+      },
+      generatedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      version: {
+        type: Number,
+        default: 1,
+      },
     },
     status: {
       type: String,
@@ -333,6 +358,15 @@ salarySlipSchema.pre("save", function (next) {
   
   // Calculate net salary
   this.netSalary = this.totalEarnings - this.totalDeductions;
+
+  // PH-05: fail closed — never persist a negative net slip
+  if (this.netSalary < 0) {
+    return next(
+      new Error(
+        `Net salary cannot be negative (₹${this.netSalary}). Adjust earnings or deductions.`
+      )
+    );
+  }
   
   next();
 });

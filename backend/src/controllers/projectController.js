@@ -9,6 +9,7 @@ import {
   getPersonalProjectMembershipFilter,
   isUserPersonallyAssignedToProject,
 } from '../services/projectAccessService.js';
+import { healProjectTeamMembership } from '../services/projectRosterService.js';
 import {
   buildProjectListQuery,
   canUserViewProject,
@@ -441,7 +442,7 @@ export const removeUserFromProject = async (req, res) => {
 // Get all projects assigned to the logged-in user
 export const getProjectsForUser = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.id || req.user._id;
 
     const projects = await Project.find(getPersonalProjectMembershipFilter(userId))
       .populate("client", "name email serviceCompany")
@@ -453,7 +454,14 @@ export const getProjectsForUser = async (req, res) => {
       .populate("projectHead", "name email")
       .sort({ createdAt: -1 });
 
-    res.status(200).json(projects);
+    // Strip soft-removed members consistently with list endpoint
+    const leanProjects = projects.map((p) => {
+      const obj = p.toObject ? p.toObject() : p;
+      stripPastMembersFromProject(obj);
+      return obj;
+    });
+
+    res.status(200).json(leanProjects);
   } catch (error) {
     
     res.status(500).json({ message: "Server error" });
@@ -503,19 +511,22 @@ export const getProjectById = async (req, res) => {
       .populate("teamMembers.user", "name email role designation status")
       .populate("teamMembers.assignedBy", "name email")
       .populate("createdBy", "name email")
-      .populate("tasks.assignedTo", "name email")
-      .lean();
+      .populate("tasks.assignedTo", "name email");
 
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
     }
 
-    stripPastMembersFromProject(project);
+    // Heal legacy assignedUsers-only membership so Team UI stays in sync
+    await healProjectTeamMembership(project, { assignedBy: req.user?._id });
+
+    const projectData = project.toObject ? project.toObject() : project;
+    stripPastMembersFromProject(projectData);
 
     // Deduplicate assignedUsers array
-    if (project.assignedUsers && project.assignedUsers.length > 0) {
+    if (projectData.assignedUsers && projectData.assignedUsers.length > 0) {
       const seenIds = new Set();
-      project.assignedUsers = project.assignedUsers.filter(user => {
+      projectData.assignedUsers = projectData.assignedUsers.filter(user => {
         const userId = user._id?.toString() || user.toString();
         if (seenIds.has(userId)) {
           return false;
@@ -526,9 +537,9 @@ export const getProjectById = async (req, res) => {
     }
 
     // Deduplicate teamMembers array
-    if (project.teamMembers && project.teamMembers.length > 0) {
+    if (projectData.teamMembers && projectData.teamMembers.length > 0) {
       const seenTeamIds = new Set();
-      project.teamMembers = project.teamMembers.filter(member => {
+      projectData.teamMembers = projectData.teamMembers.filter(member => {
         const memberId = member.user?._id?.toString() || member.user?.toString();
         if (seenTeamIds.has(memberId)) {
           return false;
@@ -541,14 +552,14 @@ export const getProjectById = async (req, res) => {
     // Client access check
     if (req.user.role === "client") {
       const clientByEmail = await Client.findOne({ email: req.user.email }).select("_id").lean();
-      if (!clientByEmail || project.client._id.toString() !== clientByEmail._id.toString()) {
+      if (!clientByEmail || projectData.client._id.toString() !== clientByEmail._id.toString()) {
         return res.status(403).json({ message: "Access denied" });
       }
     }
 
     // Employee access check (includes HoD) — personal project team only unless company viewer
     if (!canViewAllCompanyProjects(req.user) && req.user.role !== 'client') {
-      const hasAccess = userHasProjectAccess(req.user, project);
+      const hasAccess = userHasProjectAccess(req.user, projectData);
       
       if (!hasAccess) {
         return res.status(403).json({
@@ -557,7 +568,7 @@ export const getProjectById = async (req, res) => {
       }
     }
 
-    return res.status(200).json(project);
+    return res.status(200).json(projectData);
   } catch (error) {
     logger.error("Error in getProjectById:", error.message);
     return res.status(500).json({ message: "Server error" });
@@ -836,7 +847,22 @@ export const updateTask = async (req, res) => {
 export const addDeliverable = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, fileUrl, status } = req.body;
+    const {
+      title,
+      description,
+      fileUrl,
+      status,
+      owner,
+      priority,
+      plannedDate,
+      progress,
+      relatedExpectationIds,
+      relatedCommitmentIds,
+      workItemIds,
+      evidenceDocumentIds,
+      notes,
+      monthKey,
+    } = req.body;
 
     if (!title)
       return res.status(400).json({ message: "Deliverable title is required" });
@@ -844,13 +870,27 @@ export const addDeliverable = async (req, res) => {
     const project = await Project.findById(id);
     if (!project) return res.status(404).json({ message: "Project not found" });
 
-    project.deliverables.push({ title, description, fileUrl, status });
+    project.deliverables.push({
+      title,
+      description,
+      fileUrl,
+      status: status || "pending",
+      owner: owner || null,
+      priority: priority || "medium",
+      plannedDate: plannedDate || null,
+      progress: progress || 0,
+      relatedExpectationIds: relatedExpectationIds || [],
+      relatedCommitmentIds: relatedCommitmentIds || [],
+      workItemIds: workItemIds || [],
+      evidenceDocumentIds: evidenceDocumentIds || [],
+      notes: notes ? notes.trim() : "",
+      monthKey: monthKey || null,
+    });
     await project.save();
 
     return res.status(201).json({ message: "Deliverable added", project });
   } catch (error) {
-    
-    return res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -1184,24 +1224,51 @@ export const addTeamMember = async (req, res) => {
     );
 
     if (existingMember) {
+      if (existingMember.isActive === false) {
+        existingMember.isActive = true;
+        existingMember.role = role || existingMember.role || "other";
+        existingMember.assignedBy = req.user._id;
+        existingMember.assignedAt = new Date();
+
+        if (!project.assignedUsers) {
+          project.assignedUsers = [];
+        }
+        const alreadyAssigned = project.assignedUsers.some(
+          (id) => (id?._id || id).toString() === userId.toString()
+        );
+        if (!alreadyAssigned) {
+          project.assignedUsers.push(userId);
+        }
+
+        await project.save();
+        await User.findByIdAndUpdate(userId, {
+          $addToSet: { assignedProjects: projectId },
+        });
+
+        const updatedProject = await Project.findById(projectId)
+          .populate("teamMembers.user", "name email designation employeeId")
+          .populate("teamMembers.assignedBy", "name email")
+          .populate("assignedUsers", "name email role")
+          .populate("projectHead", "name email designation");
+
+        return res.status(200).json({
+          success: true,
+          message: "Team member reactivated successfully",
+          data: updatedProject,
+        });
+      }
+
       return res.status(400).json({
         success: false,
         message: "User is already a team member",
       });
     }
 
-    // Also check if already in assignedUsers
+    // Legacy: user may be in assignedUsers but missing from teamMembers
     const userIdString = userId.toString();
     const isAlreadyAssigned = project.assignedUsers?.some(
       (id) => (id?._id || id).toString() === userIdString
     );
-    
-    if (isAlreadyAssigned) {
-      return res.status(400).json({
-        success: false,
-        message: "User is already assigned to this project",
-      });
-    }
 
     // Add team member
     project.teamMembers.push({
@@ -1209,6 +1276,7 @@ export const addTeamMember = async (req, res) => {
       role: role || "other",
       assignedBy: req.user._id,
       assignedAt: new Date(),
+      isActive: true,
     });
 
     // Also add to assignedUsers for backward compatibility
@@ -1385,9 +1453,10 @@ export const getProjectTeam = async (req, res) => {
     const { projectId } = req.params;
 
     const project = await Project.findById(projectId)
-      .populate("teamMembers.user", "name email designation employeeId")
+      .populate("teamMembers.user", "name email designation employeeId status")
       .populate("teamMembers.assignedBy", "name email")
-      .populate("projectHead", "name email designation");
+      .populate("assignedUsers", "name email designation employeeId status")
+      .populate("projectHead", "name email designation status");
 
     if (!project) {
       return res.status(404).json({
@@ -1396,16 +1465,25 @@ export const getProjectTeam = async (req, res) => {
       });
     }
 
+    await healProjectTeamMembership(project, { assignedBy: req.user?._id });
+    await project.populate("teamMembers.user", "name email designation employeeId status");
+    await project.populate("teamMembers.assignedBy", "name email");
+
+    const activeMembers = (project.teamMembers || []).filter(
+      (member) => member?.isActive !== false && member?.user
+    );
+
     res.status(200).json({
       success: true,
       data: {
         projectHead: project.projectHead,
-        teamMembers: project.teamMembers,
-        totalMembers: project.teamMembers.length,
+        teamMembers: activeMembers,
+        assignedUsers: project.assignedUsers,
+        totalMembers: activeMembers.length,
       },
     });
   } catch (error) {
-    
+
     res.status(500).json({
       success: false,
       message: "Error fetching project team",
@@ -1419,9 +1497,12 @@ export const getProjectTeam = async (req, res) => {
  */
 export const getMyLeadingProjects = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user.id || req.user._id;
+    // Match projectHead whether stored as ObjectId or string
+    const membership = getPersonalProjectMembershipFilter(userId);
+    const projectHeadRef = membership.$or.find((clause) => clause.projectHead)?.projectHead;
 
-    const projects = await Project.find({ projectHead: userId })
+    const projects = await Project.find({ projectHead: projectHeadRef })
       .populate("client", "name email serviceCompany")
       .populate("department", "name")
       .populate("teamMembers.user", "name email designation")
@@ -1443,7 +1524,8 @@ export const getMyLeadingProjects = async (req, res) => {
 };
 
 /**
- * Get projects in my department (for HoD)
+ * Get projects in my department where I am personally on the team.
+ * HoDs no longer see every department project — only ones they belong to.
  */
 export const getMyDepartmentProjects = async (req, res) => {
   try {
@@ -1457,9 +1539,13 @@ export const getMyDepartmentProjects = async (req, res) => {
     }
 
     const departmentId = user.headOfDepartment._id;
+    const membership = getPersonalProjectMembershipFilter(req.user.id || req.user._id);
 
     const projects = await Project.find({
-      $or: [{ department: departmentId }, { departments: departmentId }],
+      $and: [
+        membership,
+        { $or: [{ department: departmentId }, { departments: departmentId }] },
+      ],
     })
       .populate("client", "name email serviceCompany")
       .populate("projectHead", "name email designation")

@@ -14,6 +14,7 @@ const COMPANY_MEETING_MANAGE_ROLES = ['admin', 'superadmin', 'hr', 'manager'];
 
 /**
  * Company pilot parity: view for all roles; policy/announcement manage for admin gate roles.
+ * BUG-AUTHZ-001 fixed on staging: admin also receives company.meeting.view.
  */
 describe('Authorization V2 — Company pilot parity', () => {
   test.each(ALL_LEGACY_ROLES)('role %s has company view permissions', (role) => {

@@ -10,14 +10,10 @@ export const protect = async (req, res, next) => {
     }
     
     const decode = jwt.verify(token, process.env.JWT_SECRET);
-    // Include sensitive fields that users should see in their own profile
-    const user = await User.findById(decode.id)
-      .select("-password")
-      .select("+bankDetails.accountNumber")
-      .select("+governmentIds.panNumber")
-      .select("+governmentIds.aadhaarNumber")
-      .select("+governmentIds.uanNumber")
-      .select("+governmentIds.esicNumber");
+    // Lean auth user — sensitive profile fields are loaded only on GET /users/me
+    const user = await User.findById(decode.id).select(
+      "_id name email role status isActive department isHeadOfDepartment headOfDepartment headOfProjects"
+    );
     
     if (!user) {
       return res.status(401).json({ message: "User not found" });

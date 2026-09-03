@@ -102,6 +102,30 @@
   box-shadow: 0 6px 12px rgba(13, 202, 240, 0.15) !important;
 }
 
+/* Collapsible dashboard sections (HoD/HoP) — stable layout on hover */
+.dashboard-section-card {
+  max-width: 100%;
+  transform: none !important;
+  transition: box-shadow 0.2s ease !important;
+}
+
+.dashboard-section-card:hover {
+  transform: none !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+}
+
+.dashboard-section-header {
+  cursor: pointer;
+  transform: none !important;
+  transition: opacity 0.2s ease !important;
+}
+
+.dashboard-section-header:hover {
+  transform: none !important;
+  box-shadow: none !important;
+  opacity: 0.95;
+}
+
 /* Table row hover - NO movement */
 .table-hover tbody tr {
   transition: background-color 0.2s ease;

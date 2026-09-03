@@ -41,10 +41,36 @@ const payrollViewSelf = requireModulePermission("finance", "payroll.slip.view_se
   legacyRoles: PAYROLL_SELF_ROLES,
 });
 
+// Static paths MUST be registered before `/:id` so they are not shadowed.
+router.get(
+  "/",
+  protect,
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
+  getAllSalarySlips
+);
+
 router.get("/my-slips", protect, payrollViewSelf, getMySalarySlips);
-router.get("/:id", protect, payrollViewSelf, getSalarySlipById);
-router.get("/:id/download-pdf", protect, payrollViewSelf, downloadSalarySlipPDF);
-router.post("/:id/track-download", protect, payrollViewSelf, trackDownload);
+
+router.get(
+  "/employee/:employeeId",
+  protect,
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
+  getEmployeeSalarySlips
+);
+
+router.get(
+  "/reports/payroll-summary",
+  protect,
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
+  getPayrollSummary
+);
+
+router.get(
+  "/stats/overview",
+  protect,
+  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
+  getOverallStats
+);
 
 router.post(
   "/generate",
@@ -60,25 +86,11 @@ router.post(
   bulkGenerateSalarySlips
 );
 
-router.put(
-  "/:id/recalculate",
-  protect,
-  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
-  recalculateSalarySlip
-);
-
 router.post(
   "/bulk-recalculate",
   protect,
   requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
   bulkRecalculateSalarySlips
-);
-
-router.post(
-  "/:id/send-email",
-  protect,
-  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
-  sendSalarySlipEmail
 );
 
 router.post(
@@ -88,18 +100,23 @@ router.post(
   sendBulkSalarySlipEmails
 );
 
-router.get(
-  "/employee/:employeeId",
+// Parametric routes after static paths
+router.get("/:id", protect, payrollViewSelf, getSalarySlipById);
+router.get("/:id/download-pdf", protect, payrollViewSelf, downloadSalarySlipPDF);
+router.post("/:id/track-download", protect, payrollViewSelf, trackDownload);
+
+router.put(
+  "/:id/recalculate",
   protect,
   requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
-  getEmployeeSalarySlips
+  recalculateSalarySlip
 );
 
-router.get(
-  "/",
+router.post(
+  "/:id/send-email",
   protect,
   requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
-  getAllSalarySlips
+  sendSalarySlipEmail
 );
 
 router.put(
@@ -121,20 +138,6 @@ router.put(
   protect,
   requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MARK_PAID_ROLES }),
   markAsPaid
-);
-
-router.get(
-  "/reports/payroll-summary",
-  protect,
-  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
-  getPayrollSummary
-);
-
-router.get(
-  "/stats/overview",
-  protect,
-  requireModulePermission("finance", "payroll.slip.manage", { legacyRoles: PAYROLL_MANAGE_ROLES }),
-  getOverallStats
 );
 
 export default router;

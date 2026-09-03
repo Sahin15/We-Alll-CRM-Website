@@ -51,6 +51,11 @@ export const PERMISSION_CATALOG = [
   // Projects
   { key: 'projects.project.view', module: 'projects', description: 'View projects' },
   { key: 'projects.project.manage', module: 'projects', description: 'Manage projects' },
+  { key: 'projects.report.view', module: 'projects', description: 'View monthly project reports' },
+  { key: 'projects.report.manage', module: 'projects', description: 'Edit and submit monthly project reports' },
+  { key: 'projects.report.approve', module: 'projects', description: 'Review and approve monthly project reports' },
+  { key: 'projects.document.view', module: 'projects', description: 'View business documents' },
+  { key: 'projects.document.manage', module: 'projects', description: 'Upload, replace, or delete business documents' },
 
   // Work items
   { key: 'work.item.view', module: 'work', description: 'View work items' },
@@ -103,6 +108,11 @@ export const PERMISSION_CATALOG = [
   { key: 'payroll.structure.manage', module: 'finance', description: 'Manage salary structures' },
   { key: 'payroll.slip.view_self', module: 'finance', description: 'View own salary slips' },
   { key: 'payroll.slip.manage', module: 'finance', description: 'Manage salary slips' },
+  { key: 'payroll.period.manage', module: 'finance', description: 'Open, freeze, lock, and unlock payroll periods' },
+  { key: 'payroll.component.manage', module: 'finance', description: 'Manage salary component catalog' },
+  { key: 'payroll.run.process', module: 'finance', description: 'Run payroll dual-run / processing tools' },
+  { key: 'payroll.approval.manage', module: 'finance', description: 'Create and act on payroll approval workflows' },
+  { key: 'payroll.bank.export', module: 'finance', description: 'Export payroll bank NEFT CSV and compliance registers' },
 
   // Resources
   { key: 'assets.asset.view', module: 'resources', description: 'View assets' },

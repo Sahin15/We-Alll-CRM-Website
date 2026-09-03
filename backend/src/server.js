@@ -1,3 +1,5 @@
+import "./config/env.js";
+
 // Suppress Node.js deprecation warnings
 process.removeAllListeners('warning');
 process.on('warning', (warning) => {
@@ -9,7 +11,6 @@ process.on('warning', (warning) => {
 
 import express from "express";
 import mongoose from "mongoose";
-import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
 import { protect } from "./middleware/authMiddleware.js";
@@ -21,6 +22,11 @@ import adminRoutes from "./routes/adminRoutes.js";
 import clientRoutes from "./routes/clientRoutes.js";
 import clientWorkRoutes from "./routes/clientWorkRoutes.js";
 import projectRoutes from "./routes/projectRoutes.js";
+import projectExpectationRoutes from "./routes/projectExpectationRoutes.js";
+import projectCommitmentRoutes from "./routes/projectCommitmentRoutes.js";
+import projectMonthRoutes from "./routes/projectMonthRoutes.js";
+import businessDocumentRoutes from "./routes/businessDocumentRoutes.js";
+import projectActivityRoutes from "./routes/projectActivityRoutes.js";
 import departmentRoutes from "./routes/departmentRoutes.js";
 import leaveRoutes from "./routes/leaveRoutes.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
@@ -53,6 +59,14 @@ import salaryStructureRoutes from "./routes/salaryStructureRoutes.js";
 import salarySlipRoutes from "./routes/salarySlipRoutes.js";
 import salaryPreviewRoutes from "./routes/salaryPreviewRoutes.js";
 import salaryTemplateRoutes from "./routes/salaryTemplateRoutes.js";
+import payrollPeriodRoutes from "./routes/payrollPeriodRoutes.js";
+import salaryComponentRoutes from "./routes/salaryComponentRoutes.js";
+import payrollRunRoutes from "./routes/payrollRunRoutes.js";
+import payrollApprovalRoutes from "./routes/payrollApprovalRoutes.js";
+import payrollReportRoutes from "./routes/payrollReportRoutes.js";
+import payrollJobRoutes from "./routes/payrollJobRoutes.js";
+import payrollAdjustmentRoutes from "./routes/payrollAdjustmentRoutes.js";
+import payrollSimplePreviewRoutes from "./routes/payrollSimplePreviewRoutes.js";
 import emailRoutes from "./routes/emailRoutes.js";
 import wfhRoutes from "./routes/wfhRoutes.js";
 import workLogRoutes from "./routes/workLogRoutes.js";
@@ -92,10 +106,9 @@ import realTimeUpdateService from "./services/realTimeUpdateService.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config();
 connectDB();
 
-runStartupAuthzValidation({ verbose: process.env.AUTHZ_VALIDATE_VERBOSE === 'true' });
+runStartupAuthzValidation({ verbose: process.env.AUTHZ_VALIDATE_VERBOSE === "true" });
 
 const app = express();
 app.set("trust proxy", 1);
@@ -281,6 +294,11 @@ app.use("/api/admin", apiLimiter, adminRoutes);
 app.use("/api/clients", apiLimiter, clientRoutes);
 app.use("/api/clients", apiLimiter, clientWorkRoutes);
 app.use("/api/projects", apiLimiter, projectRoutes);
+app.use("/api", apiLimiter, projectExpectationRoutes);
+app.use("/api", apiLimiter, projectCommitmentRoutes);
+app.use("/api", apiLimiter, projectMonthRoutes);
+app.use("/api", apiLimiter, businessDocumentRoutes);
+app.use("/api", apiLimiter, projectActivityRoutes);
 app.use("/api/departments", apiLimiter, departmentRoutes);
 app.use("/api/leaves", apiLimiter, leaveRoutes);
 app.use("/api/attendance", apiLimiter, attendanceRoutes);
@@ -317,6 +335,14 @@ app.use("/api/salary-structures", apiLimiter, salaryStructureRoutes);
 app.use("/api/salary-slips", apiLimiter, salarySlipRoutes);
 app.use("/api/salary-preview", apiLimiter, salaryPreviewRoutes);
 app.use("/api/salary-templates", apiLimiter, salaryTemplateRoutes);
+app.use("/api/payroll/periods", apiLimiter, payrollPeriodRoutes);
+app.use("/api/payroll/components", apiLimiter, salaryComponentRoutes);
+app.use("/api/payroll/runs", apiLimiter, payrollRunRoutes);
+app.use("/api/payroll/approvals", apiLimiter, payrollApprovalRoutes);
+app.use("/api/payroll/reports", apiLimiter, payrollReportRoutes);
+app.use("/api/payroll/jobs", apiLimiter, payrollJobRoutes);
+app.use("/api/payroll/adjustments", apiLimiter, payrollAdjustmentRoutes);
+app.use("/api/payroll/simple-preview", apiLimiter, payrollSimplePreviewRoutes);
 app.use("/api/emails", apiLimiter, emailRoutes);
 app.use("/api/wfh", apiLimiter, wfhRoutes);
 app.use("/api/worklogs", apiLimiter, workLogRoutes);
@@ -390,6 +416,30 @@ mongoose
     }, 100);
     
     console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
+
+    try {
+      const { getPeriodGatesProductionWarning } = await import(
+        "./services/payroll/payrollPeriodGates.js"
+      );
+      const payrollGateWarn = getPeriodGatesProductionWarning();
+      if (payrollGateWarn) console.warn(payrollGateWarn);
+    } catch (e) {
+      console.warn("[payroll] period gate config check skipped:", e.message);
+    }
+
+    try {
+      const {
+        reclaimStalePayrollJobs,
+        schedulePayrollJobRunner,
+      } = await import("./services/payroll/payrollJobService.js");
+      const { reclaimed } = await reclaimStalePayrollJobs();
+      if (reclaimed > 0) {
+        console.warn(`[payrollJob] boot reclaim: ${reclaimed} stale running job(s) requeued`);
+      }
+      schedulePayrollJobRunner();
+    } catch (e) {
+      console.warn("[payrollJob] boot reclaim skipped:", e.message);
+    }
 
     // Import and check Firebase initialization
     const { firebaseInitialized, messaging } = await import('./config/firebaseAdmin.js');

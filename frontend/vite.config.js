@@ -38,11 +38,13 @@ export default defineConfig({
     host: "127.0.0.1",
     proxy: {
       "/api": {
-        target: "http://localhost:5000",
+        // Use 127.0.0.1 — `localhost` can resolve to ::1 on Windows and fail
+        // with ECONNREFUSED when the backend listens on IPv4 only.
+        target: "http://127.0.0.1:5000",
         changeOrigin: true,
       },
       "/uploads": {
-        target: "http://localhost:5000",
+        target: "http://127.0.0.1:5000",
         changeOrigin: true,
       },
     },
@@ -71,7 +73,15 @@ export default defineConfig({
             if (id.includes("/components/hr/EmployeeProfileManagement"))
               return "employee-profile";
             if (id.includes("/components/admin/Enhanced")) return "admin-tools";
-            if (id.includes("/pages/dashboard/")) return "dashboards";
+            // Per-role dashboard chunks (do NOT merge all dashboards into one ~700KB file)
+            if (id.includes("/pages/dashboard/AdminDashboard")) return "dashboard-admin";
+            if (id.includes("/pages/dashboard/SuperAdminDashboard"))
+              return "dashboard-superadmin";
+            if (id.includes("/pages/dashboard/HRDashboard")) return "dashboard-hr";
+            if (id.includes("/pages/employee/EmployeeDashboard"))
+              return "dashboard-employee";
+            if (id.includes("/pages/hod/HoDDashboard")) return "dashboard-hod";
+            if (id.includes("/pages/dashboard/")) return "dashboard-other";
             if (id.includes("/pages/attendance/")) return "attendance-pages";
             if (id.includes("/pages/expenses/")) return "expenses";
             return undefined;

@@ -96,6 +96,10 @@ const notificationSchema = new mongoose.Schema(
         'hiring_offer',
         'hiring_application',
         'hiring_interview',
+        // Payroll / Salary
+        'salary_slip',
+        'salary_slip_generated',
+        'salary_slip_sent',
       ],
       default: 'general',
     },

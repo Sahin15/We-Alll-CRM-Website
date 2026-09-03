@@ -156,11 +156,8 @@ export function hasPermissionAccess({
   if (!user || !permission) return false;
 
   if (requiresDepartmentHead && !isDepartmentHead(user)) {
-    const permissionKeys = [permission, ...alternatePermissions].filter(Boolean);
-    const hasDirectGrant =
-      authzEffective?.permissions &&
-      permissionKeys.some((key) => canPermission(key));
-    if (!hasDirectGrant) return false;
+    // Strict: company-wide review permission must not open HoD-only pages
+    return false;
   }
 
   const finish = (permitted) => {

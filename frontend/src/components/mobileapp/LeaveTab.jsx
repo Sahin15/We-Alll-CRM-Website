@@ -9,10 +9,9 @@ import { MAX_PHOTO_UPLOAD_BYTES, MAX_PHOTO_UPLOAD_MB } from '../../utils/constan
 import MobileFilePicker from './MobileFilePicker';
 
 const ALL_LEAVE_TYPES = [
-  { value: 'personal', label: 'Personal Leave' },
   { value: 'medical', label: 'Medical Leave' },
-  { value: 'vacation', label: 'Vacation Leave' },
-  { value: 'half_day', label: 'Half Day' },
+  { value: 'casual', label: 'Casual Leave' },
+  { value: 'half_day', label: 'Half Day Leave' },
   { value: 'unpaid', label: 'Unpaid Leave' },
 ];
 
@@ -91,7 +90,7 @@ export default function LeaveTab() {
   const { user } = useAuth();
   const allowedTypes = getAllowedLeaveTypes(user);
   const leaveTypes = ALL_LEAVE_TYPES.filter(t => allowedTypes.includes(t.value));
-  const defaultLeaveType = isFullTimeEmployee(user) ? 'personal' : 'unpaid';
+  const defaultLeaveType = isFullTimeEmployee(user) ? 'casual' : 'unpaid';
 
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -125,6 +124,9 @@ export default function LeaveTab() {
     }
     if (new Date(form.endDate) < new Date(form.startDate)) {
       toast.error('End date must be after start date'); return;
+    }
+    if (form.leaveType === 'half_day' && form.startDate !== form.endDate) {
+      toast.error('Half-day leave must be for a single date'); return;
     }
     setSaving(true);
     try {
@@ -193,7 +195,7 @@ export default function LeaveTab() {
               onChange={(val) => setForm((prev) => ({
                 ...prev,
                 leaveType: val,
-                endDate: val === 'half_day' ? prev.startDate : prev.endDate,
+                endDate: val === 'half_day' ? prev.startDate || prev.endDate : prev.endDate,
               }))}
               leaveTypes={leaveTypes}
             />
@@ -201,25 +203,29 @@ export default function LeaveTab() {
 
           <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
             <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>From *</label>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
+                {form.leaveType === 'half_day' ? 'Date *' : 'From *'}
+              </label>
               <input
                 type="date"
                 value={form.startDate}
                 onChange={(e) => {
-                  const startDate = e.target.value;
+                  const value = e.target.value;
                   setForm((prev) => ({
                     ...prev,
-                    startDate,
-                    endDate: prev.leaveType === 'half_day' ? startDate : prev.endDate,
+                    startDate: value,
+                    endDate: prev.leaveType === 'half_day' ? value : prev.endDate,
                   }));
                 }}
                 style={inputStyle}
               />
             </div>
+            {form.leaveType !== 'half_day' && (
             <div style={{ flex: 1 }}>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>To *</label>
               <input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} style={inputStyle} />
             </div>
+            )}
           </div>
 
           <div style={{ marginBottom: '12px' }}>

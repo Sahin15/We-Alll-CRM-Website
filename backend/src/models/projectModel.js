@@ -40,7 +40,7 @@ const projectSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Pending", "Active", "On Hold", "Cancelled"],
+      enum: ["Pending", "Active", "On Hold", "Cancelled", "Completed"],
       default: "Pending",
     },
     priority: {
@@ -185,6 +185,16 @@ const projectSchema = new mongoose.Schema(
           default: "pending",
         },
         completedAt: Date,
+        owner: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        deliverableIds: [
+          {
+            type: mongoose.Schema.Types.ObjectId,
+          }
+        ],
+        notes: String,
       },
     ],
     tasks: [
@@ -295,6 +305,55 @@ const projectSchema = new mongoose.Schema(
           type: String,
           enum: ["pending", "delivered", "approved", "revision_needed"],
           default: "pending",
+        },
+        owner: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        priority: {
+          type: String,
+          enum: ["low", "medium", "high", "urgent"],
+          default: "medium",
+        },
+        plannedDate: {
+          type: Date,
+        },
+        progress: {
+          type: Number,
+          default: 0,
+          min: 0,
+          max: 100,
+        },
+        relatedExpectationIds: [
+          {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "ProjectExpectation",
+          }
+        ],
+        relatedCommitmentIds: [
+          {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "ProjectCommitment",
+          }
+        ],
+        workItemIds: [
+          {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "WorkItem",
+          }
+        ],
+        evidenceDocumentIds: [
+          {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "BusinessDocument",
+          }
+        ],
+        notes: {
+          type: String,
+          trim: true,
+        },
+        monthKey: {
+          type: String,
         },
       },
     ],

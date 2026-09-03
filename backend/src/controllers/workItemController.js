@@ -8,6 +8,13 @@ import { syncProjectProgress } from "../services/projectProgressService.js";
 import notificationService from "../services/notificationService.js";
 import NotificationService from "../services/notificationService.js";
 import { logWorkItemOperation, logSecurityEvent } from "../utils/auditLogger.js";
+import {
+  computeDueDateFlags,
+  getEffectiveStatusForUser,
+  isPendingForUser,
+  isWorkItemForMyWork,
+  syncGlobalStatusFromAssignees,
+} from "../utils/workItemStatusUtils.js";
 
 // @desc    Get all work items for current user (My Work)
 // @route   GET /api/work-items/my-work
@@ -16,15 +23,17 @@ const getMyWorkItems = async (req, res) => {
   try {
     const { status, type, project, priority, dueDate, search, visibility } = req.query;
     
-    // Build query - support both single and multiple assignee fields
-    // Include draft items if user is the creator
+    // My Work: only items assigned to me (single or multi).
+    // Work I created for others belongs on Assigned Work (/created-by/me).
+    // Match ObjectId or string refs for assignee fields.
+    const userId = req.user._id;
+    const userRef = { $in: [userId, String(userId)] };
     const query = {
-      isDeleted: { $ne: true }, // Always exclude soft-deleted items
+      isDeleted: { $ne: true },
       $or: [
-        { assignedTo: req.user._id },
-        { assignedToMultiple: req.user._id },
-        { createdBy: req.user._id, visibility: 'draft' } // Show own draft items
-      ]
+        { assignedTo: userRef },
+        { assignedToMultiple: userRef },
+      ],
     };
     
     // Apply filters
@@ -47,20 +56,27 @@ const getMyWorkItems = async (req, res) => {
       query.dueDate = { $lte: new Date(dueDate) };
     }
     
-    // Apply search
+    // Apply search without dropping assignee visibility filters
     if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-        { tags: { $regex: search, $options: "i" } },
+      const visibilityFilter = { $or: query.$or };
+      query.$and = [
+        visibilityFilter,
+        {
+          $or: [
+            { title: { $regex: search, $options: "i" } },
+            { description: { $regex: search, $options: "i" } },
+            { tags: { $regex: search, $options: "i" } },
+          ],
+        },
       ];
+      delete query.$or;
     }
     
     // Optimized query with lean() for better performance
     const workItems = await WorkItem.find(query)
-      .populate("project", "name client")
       .populate({
         path: "project",
+        select: "name client",
         populate: {
           path: "client",
           select: "name company",
@@ -72,18 +88,20 @@ const getMyWorkItems = async (req, res) => {
       .populate("assigneeStatuses.assigneeId", "name email")
       .select("-comments -statusHistory -attachments")
       .sort({ dueDate: 1, createdAt: -1 })
-      .limit(500)
       .lean();
     
-    // Compute isOverdue for each item (lean() strips virtuals)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const workItemsWithVirtuals = workItems.map(item => {
-      const due = item.dueDate ? new Date(item.dueDate) : null;
-      if (due) due.setHours(0, 0, 0, 0);
-      const isOverdue = item.status !== 'Done' && due && due < today;
-      const isDueToday = item.status !== 'Done' && due && due.getTime() === today.getTime();
-      return { ...item, isOverdue, isDueToday };
+    // Compute per-user effective status and due flags (lean() strips virtuals)
+    const workItemsWithVirtuals = workItems
+      .filter((item) => isWorkItemForMyWork(item, userId))
+      .map((item) => {
+      const dueFlags = computeDueDateFlags(item, req.user._id);
+      return {
+        ...item,
+        effectiveStatus: dueFlags.effectiveStatus,
+        isOverdue: dueFlags.isOverdue,
+        isDueToday: dueFlags.isDueToday,
+        daysUntilDue: dueFlags.daysUntilDue,
+      };
     });
     
     res.status(200).json({
@@ -200,12 +218,13 @@ const getAllWorkItems = async (req, res) => {
       .populate("assignedTo", "name email")
       .populate("assignedToMultiple", "name email")
       .populate("createdBy", "name email")
-      .populate("comments.user", "name email")
       .populate({
         path: "slotAssignment.assignedSlot",
         select: "slotNumber slotIdentifier slotType"
       })
-      .sort({ dueDate: 1, createdAt: -1 });
+      .select("-comments -statusHistory -attachments")
+      .sort({ dueDate: 1, createdAt: -1 })
+      .lean();
 
     // Debug: Log slot assignment data
     res.status(200).json({
@@ -335,6 +354,12 @@ const createWorkItem = async (req, res) => {
       // Draft/Scheduled fields
       visibility,
       scheduledActivationDate,
+      // V2 planning fields
+      deliverableId,
+      expectationId,
+      commitmentId,
+      plannedMonth,
+      delayReason,
     } = req.body;
     
     // ENHANCED VALIDATION - Check required fields based on type
@@ -428,6 +453,15 @@ const createWorkItem = async (req, res) => {
       tags: Array.isArray(tags) ? tags : (tags ? [tags] : []),
       visibility: visibility || 'active',
     };
+
+    if (deliverableId) workItemData.deliverableId = deliverableId;
+    if (expectationId) workItemData.expectationId = expectationId;
+    if (commitmentId) workItemData.commitmentId = commitmentId;
+    if (plannedMonth) workItemData.plannedMonth = plannedMonth;
+    if (delayReason) {
+      workItemData.delayReason = delayReason;
+      workItemData.delayedAt = new Date();
+    }
 
     // Add scheduled activation date if provided
     if (visibility === 'scheduled' && scheduledActivationDate) {
@@ -695,7 +729,16 @@ const updateWorkItem = async (req, res) => {
       "estimatedHours",
       "actualHours",
       "assignedTo", // Anyone with access can reassign
+      "deliverableId",
+      "expectationId",
+      "commitmentId",
+      "plannedMonth",
+      "delayReason",
     ];
+
+    if (req.body.delayReason && req.body.delayReason !== workItem.delayReason) {
+      workItem.delayedAt = new Date();
+    }
     
     Object.keys(req.body).forEach((key) => {
       if (allowedUpdates.includes(key)) {
@@ -1034,7 +1077,7 @@ const updateWorkItemStatus = async (req, res) => {
             updatedAt: new Date(),
           });
         }
-        // DO NOT update global status for multiple assignees (except Cancelled above)
+        syncGlobalStatusFromAssignees(workItem);
       }
     } else {
       // For single assignee, update global status
@@ -1779,18 +1822,36 @@ const getOverdueWorkItems = async (req, res) => {
     today.setHours(0, 0, 0, 0);
     
     const workItems = await WorkItem.find({
-      assignedTo: req.user._id,
-      status: { $ne: "Done" },
+      $or: [
+        { assignedTo: req.user._id },
+        { assignedToMultiple: req.user._id },
+      ],
       dueDate: { $lt: today },
+      isDeleted: { $ne: true },
     })
       .populate("project", "name client")
       .populate("assignedTo", "name email")
-      .sort({ dueDate: 1 });
+      .populate("assignedToMultiple", "name email")
+      .populate("assigneeStatuses.assigneeId", "name email")
+      .sort({ dueDate: 1 })
+      .lean();
+
+    const overdueItems = workItems
+      .filter((item) => computeDueDateFlags(item, req.user._id).isOverdue)
+      .map((item) => {
+        const dueFlags = computeDueDateFlags(item, req.user._id);
+        return {
+          ...item,
+          effectiveStatus: dueFlags.effectiveStatus,
+          isOverdue: dueFlags.isOverdue,
+          isDueToday: dueFlags.isDueToday,
+        };
+      });
     
     res.status(200).json({
       success: true,
-      count: workItems.length,
-      data: workItems,
+      count: overdueItems.length,
+      data: overdueItems,
     });
   } catch (error) {
     
@@ -3132,20 +3193,22 @@ export const getPendingWorkCount = async (req, res) => {
       });
     }
 
-    // Count active work items for this user on the specified due date
-    const count = await WorkItem.countDocuments({
+    const pendingItems = await WorkItem.find({
       $or: [
         { assignedTo: userId },
-        { assignedToMultiple: userId }
+        { assignedToMultiple: userId },
       ],
-      status: { $in: ["To Do", "In Progress"] },
       dueDate: {
         $gte: dueDateObj,
-        $lte: dueDateEndObj
+        $lte: dueDateEndObj,
       },
-      visibility: { $in: ["active", "scheduled"] }, // Only count active/scheduled items
-      isDeleted: { $ne: true }
-    });
+      visibility: { $in: ["active", "scheduled"] },
+      isDeleted: { $ne: true },
+    })
+      .select("status assignedTo assignedToMultiple assigneeStatuses")
+      .lean();
+
+    const count = pendingItems.filter((item) => isPendingForUser(item, userId)).length;
 
     res.status(200).json({
       success: true,
@@ -3238,17 +3301,39 @@ export const activateWorkItem = async (req, res) => {
 };
 
 
-// @desc    Get all work items created by current user
+/**
+ * True when the work item is assigned to at least one person other than `userId`
+ * (or is still unassigned / draft-like so the assigner can manage it).
+ * @param {object} item - Lean work item (populated or raw ids)
+ * @param {string} userIdStr - Current user id as string
+ */
+const isAssignedWorkForCreator = (item, userIdStr) => {
+  const multi = (item.assignedToMultiple || [])
+    .map((a) => (a && (a._id || a)).toString())
+    .filter(Boolean);
+  if (multi.length > 0) {
+    return multi.some((id) => id !== userIdStr);
+  }
+  const assignee = item.assignedTo && (item.assignedTo._id || item.assignedTo);
+  if (!assignee) return true;
+  return assignee.toString() !== userIdStr;
+};
+
+// @desc    Get work items the current user assigned to other team members
 // @route   GET /api/work-items/created-by/me
 // @access  Private
 export const getCreatedByMe = async (req, res) => {
   try {
     const { status, type, project, priority, dueDate, search } = req.query;
-    
-    // Build query - only items created by current user
+    const userId = req.user._id;
+    const userIdStr = String(userId);
+    const userRef = { $in: [userId, userIdStr] };
+
+    // Assigned Work: items I created (assigned by me). Self-only assignments
+    // belong on My Work, not here — filtered after fetch for ObjectId safety.
     const query = {
-      createdBy: req.user._id,
-      isDeleted: { $ne: true }
+      createdBy: userRef,
+      isDeleted: { $ne: true },
     };
     
     // Apply filters
@@ -3298,13 +3383,16 @@ export const getCreatedByMe = async (req, res) => {
       .populate("assigneeStatuses.assigneeId", "name email")
       .select("-comments -statusHistory -attachments")
       .sort({ dueDate: 1, createdAt: -1 })
-      .limit(500)
       .lean();
+
+    const assignedToOthers = workItems.filter((item) =>
+      isAssignedWorkForCreator(item, userIdStr)
+    );
     
     res.status(200).json({
       success: true,
-      count: workItems.length,
-      data: workItems,
+      count: assignedToOthers.length,
+      data: assignedToOthers,
     });
   } catch (error) {
     res.status(500).json({

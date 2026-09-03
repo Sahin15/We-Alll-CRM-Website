@@ -7,7 +7,6 @@ import {
   updateSalaryStructure,
   activateSalaryStructure,
   deleteSalaryStructure,
-  deleteAllSalaryStructures,
   getSalaryStructureHistory
 } from "../controllers/salaryStructureController.js";
 import { protect } from '../middleware/authMiddleware.js';
@@ -18,7 +17,6 @@ import { requireModulePermission } from "../authz/authzMiddleware.js";
 const router = express.Router();
 
 const PAYROLL_MANAGE_ROLES = ["admin", "superadmin", "hr", "accounts", "manager"];
-const PAYROLL_DELETE_ALL_ROLES = ["admin", "superadmin"];
 const PAYROLL_SELF_ROLES = [
   "employee",
   "hod",
@@ -85,12 +83,7 @@ router.put(
   activateSalaryStructure
 );
 
-router.delete(
-  "/all",
-  protect,
-  requireModulePermission("finance", "payroll.structure.manage", { legacyRoles: PAYROLL_DELETE_ALL_ROLES }),
-  deleteAllSalaryStructures
-);
+// DELETE /all removed (R2): mass wipe of compensation masters is not allowed.
 
 router.delete(
   "/:id",

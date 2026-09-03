@@ -68,11 +68,11 @@ const LeaveApprovalModal = ({ show, onHide, leave, onAction }) => {
 
   const getLeaveTypeColor = (type) => {
     const colors = {
-      vacation: 'primary',
-      sick: 'danger',
+      medical: 'danger',
+      casual: 'info',
       personal: 'info',
-      maternity: 'success',
-      paternity: 'success',
+      vacation: 'info',
+      half_day: 'warning',
       unpaid: 'secondary'
     };
     return colors[type] || 'secondary';

@@ -1,5 +1,15 @@
-import { useState, useEffect } from 'react';
-import { Row, Col, Card, Badge, ProgressBar, ListGroup, Alert } from 'react-bootstrap';
+import { useState, useEffect } from "react";
+import {
+  Row,
+  Col,
+  Card,
+  Badge,
+  ProgressBar,
+  ListGroup,
+  Alert,
+  Spinner,
+  Table,
+} from "react-bootstrap";
 import {
   FaCalendar,
   FaUser,
@@ -10,524 +20,421 @@ import {
   FaExclamationTriangle,
   FaBuilding,
   FaChartLine,
+  FaBullseye,
+  FaHistory,
+  FaEnvelope,
+  FaPhone,
+  FaUserTie,
   FaFire,
-  FaClipboardList
-} from 'react-icons/fa';
-import { toast } from 'react-toastify';
-import projectApi from '../../../api/projectApi';
-import { formatDate } from '../../../utils/helpers';
+} from "react-icons/fa";
+import { toast } from "react-toastify";
+import projectApi from "../../../api/projectApi";
+import { formatDate } from "../../../utils/helpers";
 
 /**
- * OverviewTab Component - Modern & Professional
- * Displays comprehensive project information, statistics, and insights
+ * OverviewTab Component - Upgraded V2 Executive Dashboard
+ * Displays real-time project health, deliverables, team workload, and activity logs
  */
 const OverviewTab = ({ project, onRefresh }) => {
+  const projectId = project?._id || project?.id;
   const [workspaceData, setWorkspaceData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadWorkspaceData();
-  }, [project._id]);
+    if (projectId) {
+      loadWorkspaceData();
+    }
+  }, [projectId]);
 
   const loadWorkspaceData = async () => {
     try {
       setLoading(true);
-      const response = await projectApi.getProjectWorkspace(project._id);
-      setWorkspaceData(response.data || response);
+      const response = await projectApi.getProjectWorkspace(projectId);
+      const data = response.data?.data || response.data || response;
+      setWorkspaceData(data);
     } catch (error) {
-      setWorkspaceData({
-        project: project,
-        statistics: {
-          total: 0,
-          toDo: 0,
-          inProgress: 0,
-          review: 0,
-          done: 0,
-          overdue: 0,
-          completionRate: 0
-        },
-        teamWorkload: []
-      });
-      toast.error('Failed to load project statistics');
+      console.error("Failed to load workspace data:", error);
+      toast.error("Failed to load project workspace data");
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusColor = (status) => {
-    const colors = {
-      Active: 'success',
-      'On Hold': 'warning',
-      Completed: 'info',
-      Cancelled: 'danger'
-    };
-    return colors[status] || 'secondary';
-  };
-
-  const getStatusBgColor = (status) => {
-    const colors = {
-      Active: '#d1f4e0',
-      'On Hold': '#fff3cd',
-      Completed: '#cfe2ff',
-      Cancelled: '#ffe5e5'
-    };
-    return colors[status] || '#f8f9fa';
-  };
-
   if (loading) {
     return (
       <div className="text-center py-5">
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
+        <Spinner animation="border" variant="primary" />
+        <p className="mt-2 text-muted">Loading project overview & metrics...</p>
       </div>
     );
   }
 
-  const stats = workspaceData?.statistics || {
-    total: 0,
-    toDo: 0,
-    inProgress: 0,
-    review: 0,
-    done: 0,
-    overdue: 0,
-    completionRate: 0
+  const proj = workspaceData?.project || project;
+  const stats = workspaceData?.statistics || {};
+  const teamWorkload = workspaceData?.teamWorkload || [];
+  const monthProgress = workspaceData?.monthProgress || {};
+  const expectationsSummary = workspaceData?.expectationsSummary || { total: 0, met: 0, open: 0 };
+  const commitmentsCount = workspaceData?.commitmentsCount || 0;
+  const recentActivities = workspaceData?.recentActivities || [];
+
+  const healthStatus = monthProgress.healthStatus || "healthy";
+  const achievementPercent = monthProgress.achievementPercent ?? stats.completionRate ?? 0;
+  const totalDeliverables = monthProgress.totalPlannedDeliverables || 0;
+  const completedDeliverables = monthProgress.completedDeliverables || 0;
+  const delayedDeliverables = monthProgress.delayedDeliverables || 0;
+
+  const totalTasks = monthProgress.totalWorkItems ?? stats.total ?? 0;
+  const completedTasks = monthProgress.completedWorkItems ?? stats.done ?? 0;
+  const overdueTasks = monthProgress.overdueWorkItems ?? stats.overdue ?? 0;
+
+  const deliverables = proj.deliverables || [];
+
+  const getHealthBadge = (health) => {
+    switch (health) {
+      case "healthy":
+        return <Badge bg="success" className="px-3 py-2 fs-6">Healthy</Badge>;
+      case "at_risk":
+        return <Badge bg="warning" text="dark" className="px-3 py-2 fs-6">At Risk</Badge>;
+      case "critical":
+        return <Badge bg="danger" className="px-3 py-2 fs-6">Critical</Badge>;
+      default:
+        return <Badge bg="secondary" className="px-3 py-2 fs-6">On Track</Badge>;
+    }
   };
 
-  const byStatus = {
-    'To Do': stats.toDo || 0,
-    'In Progress': stats.inProgress || 0,
-    'Review': stats.review || 0,
-    'Done': stats.done || 0
+  const getDeliverableBadge = (status) => {
+    switch (status) {
+      case "delivered":
+      case "approved":
+        return <Badge bg="success">Delivered</Badge>;
+      case "delayed":
+        return <Badge bg="danger">Delayed</Badge>;
+      case "pending":
+      default:
+        return <Badge bg="secondary">Pending</Badge>;
+    }
   };
-
-  const progressPercentage = project.slotConfiguration?.enableSlotSystem && project.progressTracking?.calculationMethod === 'slot-based' 
-    ? (project.progressTracking?.progressPercentage || 0)
-    : (project.progress || 0);
-
-  const totalSlots = project.slotConfiguration?.enableSlotSystem 
-    ? (project.progressTracking?.totalSlots || project.slotConfiguration?.totalSlots || 0)
-    : stats.total;
-
-  const completedItems = project.slotConfiguration?.enableSlotSystem 
-    ? (project.progressTracking?.completedSlots || 0)
-    : stats.done;
 
   return (
-    <div style={{ background: '#f8f9fa', minHeight: '100vh', padding: '1.5rem 0' }}>
-      {/* Hero Section - Project Overview */}
-      <Card className="mb-4 border-0 shadow-sm" style={{ borderRadius: '16px', overflow: 'hidden' }}>
-        <div 
+    <div className="mt-3">
+      {/* Executive Hero & Project Health Banner */}
+      <Card className="mb-4 border-0 shadow-sm overflow-hidden" style={{ borderRadius: "16px", borderLeft: "6px solid #2563eb" }}>
+        <div
           style={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            padding: '2rem',
-            color: 'white'
+            background: "linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)",
+            padding: "2rem",
+            color: "#1e293b",
           }}
         >
           <Row className="align-items-center">
             <Col md={8}>
               <div className="mb-3">
-                <h2 style={{ fontWeight: '700', marginBottom: '0.5rem' }}>
-                  {project.name}
-                </h2>
-                {project.description && (
-                  <p style={{ fontSize: '0.95rem', opacity: 0.95, marginBottom: 0 }}>
-                    {project.description}
-                  </p>
+                <div className="d-flex align-items-center gap-2 mb-2">
+                  <h2 className="fw-bold mb-0 text-dark">{proj.name}</h2>
+                  {getHealthBadge(healthStatus)}
+                </div>
+                {proj.description && (
+                  <p className="text-secondary mb-0">{proj.description}</p>
                 )}
               </div>
-              <div className="d-flex gap-3 flex-wrap">
-                <Badge 
-                  bg="light" 
-                  text="dark"
-                  style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: '600' }}
-                >
-                  {project.status}
+              <div className="d-flex gap-2 flex-wrap">
+                <Badge bg="primary" className="px-3 py-2">
+                  Status: {proj.status || "Active"}
                 </Badge>
-                {project.client && (
-                  <Badge 
-                    bg="light" 
-                    text="dark"
-                    style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: '600' }}
-                  >
-                    📋 {project.client.name}
+                {proj.client && (
+                  <Badge bg="white" text="dark" className="border px-3 py-2 shadow-sm">
+                    📋 Client: {proj.client.company || proj.client.name}
                   </Badge>
                 )}
-                {project.slotConfiguration?.enableSlotSystem && (
-                  <Badge 
-                    bg="light" 
-                    text="dark"
-                    style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: '600' }}
-                  >
-                    🎯 Slot-Based
+                {proj.department && (
+                  <Badge bg="white" text="dark" className="border px-3 py-2 shadow-sm">
+                    🏢 Service: {proj.department.name || "General"}
                   </Badge>
                 )}
               </div>
             </Col>
-            <Col md={4} className="text-center">
-              <div style={{ fontSize: '3.5rem', fontWeight: '700', marginBottom: '0.5rem' }}>
-                {progressPercentage}%
-              </div>
+            <Col md={4} className="text-center border-start border-primary border-opacity-25 ps-4">
+              <div className="fs-1 fw-bold text-primary mb-1">{achievementPercent}%</div>
               <ProgressBar
-                now={progressPercentage}
-                variant="light"
-                style={{ height: '8px', backgroundColor: 'rgba(255,255,255,0.3)' }}
-                className="mb-3"
+                now={achievementPercent}
+                variant={achievementPercent >= 80 ? "success" : achievementPercent >= 50 ? "warning" : "danger"}
+                style={{ height: "10px", backgroundColor: "#cbd5e1" }}
+                className="mb-2"
               />
-              <small style={{ opacity: 0.9 }}>
-                {project.slotConfiguration?.enableSlotSystem ? 'Slot Progress' : 'Overall Progress'}
-              </small>
+              <small className="text-muted fw-semibold">Overall Delivery Achievement</small>
             </Col>
           </Row>
         </div>
       </Card>
 
-      {/* Key Metrics - 4 Column Grid */}
+      {/* 4 Executive KPI Cards */}
       <Row className="g-3 mb-4">
-        {/* Total Items */}
+        {/* Planned Deliverables */}
         <Col lg={3} md={6}>
-          <Card className="h-100 border-0 shadow-sm" style={{ borderRadius: '12px', transition: 'all 0.3s' }}>
+          <Card className="h-100 border-0 shadow-sm" style={{ borderRadius: "12px" }}>
             <Card.Body className="p-4">
               <div className="d-flex justify-content-between align-items-start">
                 <div>
-                  <small className="text-muted d-block mb-2" style={{ fontWeight: '500' }}>
-                    Total Items
-                  </small>
-                  <h3 style={{ fontWeight: '700', color: '#2c3e50', marginBottom: 0 }}>
-                    {totalSlots}
+                  <small className="text-muted d-block mb-1 fw-semibold">Planned Deliverables</small>
+                  <h3 className="fw-bold text-dark mb-0">
+                    {completedDeliverables} / {totalDeliverables}
                   </h3>
-                </div>
-                <div 
-                  className="rounded-circle d-flex align-items-center justify-content-center"
-                  style={{
-                    width: '50px',
-                    height: '50px',
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    color: 'white'
-                  }}
-                >
-                  <FaTasks style={{ fontSize: '1.25rem' }} />
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        {/* In Progress */}
-        <Col lg={3} md={6}>
-          <Card className="h-100 border-0 shadow-sm" style={{ borderRadius: '12px', transition: 'all 0.3s' }}>
-            <Card.Body className="p-4">
-              <div className="d-flex justify-content-between align-items-start">
-                <div>
-                  <small className="text-muted d-block mb-2" style={{ fontWeight: '500' }}>
-                    In Progress
-                  </small>
-                  <h3 style={{ fontWeight: '700', color: '#0d6efd', marginBottom: 0 }}>
-                    {byStatus['In Progress']}
-                  </h3>
-                </div>
-                <div 
-                  className="rounded-circle d-flex align-items-center justify-content-center"
-                  style={{
-                    width: '50px',
-                    height: '50px',
-                    background: '#e7f1ff',
-                    color: '#0d6efd'
-                  }}
-                >
-                  <FaClock style={{ fontSize: '1.25rem' }} />
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        {/* Completed */}
-        <Col lg={3} md={6}>
-          <Card className="h-100 border-0 shadow-sm" style={{ borderRadius: '12px', transition: 'all 0.3s' }}>
-            <Card.Body className="p-4">
-              <div className="d-flex justify-content-between align-items-start">
-                <div>
-                  <small className="text-muted d-block mb-2" style={{ fontWeight: '500' }}>
-                    Completed
-                  </small>
-                  <h3 style={{ fontWeight: '700', color: '#198754', marginBottom: 0 }}>
-                    {completedItems}/{totalSlots}
-                  </h3>
-                  <small className="text-muted" style={{ fontSize: '0.8rem' }}>
-                    {progressPercentage}% done
-                  </small>
-                </div>
-                <div 
-                  className="rounded-circle d-flex align-items-center justify-content-center"
-                  style={{
-                    width: '50px',
-                    height: '50px',
-                    background: '#d1f4e0',
-                    color: '#198754'
-                  }}
-                >
-                  <FaCheckCircle style={{ fontSize: '1.25rem' }} />
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        {/* Overdue */}
-        <Col lg={3} md={6}>
-          <Card className="h-100 border-0 shadow-sm" style={{ borderRadius: '12px', transition: 'all 0.3s' }}>
-            <Card.Body className="p-4">
-              <div className="d-flex justify-content-between align-items-start">
-                <div>
-                  <small className="text-muted d-block mb-2" style={{ fontWeight: '500' }}>
-                    Overdue
-                  </small>
-                  <h3 style={{ fontWeight: '700', color: '#dc3545', marginBottom: 0 }}>
-                    {stats.overdue || 0}
-                  </h3>
-                </div>
-                <div 
-                  className="rounded-circle d-flex align-items-center justify-content-center"
-                  style={{
-                    width: '50px',
-                    height: '50px',
-                    background: '#ffe5e5',
-                    color: '#dc3545'
-                  }}
-                >
-                  <FaFire style={{ fontSize: '1.25rem' }} />
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Alert for Overdue Items */}
-      {stats.overdue > 0 && (
-        <Alert variant="danger" className="mb-4 border-0" style={{ borderRadius: '12px' }}>
-          <div className="d-flex align-items-center">
-            <FaExclamationTriangle className="me-3" style={{ fontSize: '1.25rem' }} />
-            <div>
-              <strong>Attention Required!</strong>
-              <p className="mb-0 mt-1">
-                This project has {stats.overdue} overdue item{stats.overdue > 1 ? 's' : ''} that need immediate attention.
-              </p>
-            </div>
-          </div>
-        </Alert>
-      )}
-
-      {/* Main Content Grid */}
-      <Row className="g-4 mb-4">
-        {/* Project Information */}
-        <Col lg={6}>
-          <Card className="h-100 border-0 shadow-sm" style={{ borderRadius: '12px' }}>
-            <Card.Header className="bg-white border-0 p-4" style={{ borderBottom: '1px solid #e9ecef' }}>
-              <h6 style={{ fontWeight: '700', color: '#2c3e50', marginBottom: 0 }}>
-                📋 Project Information
-              </h6>
-            </Card.Header>
-            <Card.Body className="p-4">
-              <div className="mb-4">
-                <small className="text-muted d-block mb-2" style={{ fontWeight: '500' }}>Project Head</small>
-                <div className="d-flex align-items-center">
-                  <div 
-                    className="rounded-circle d-flex align-items-center justify-content-center me-3"
-                    style={{
-                      width: '40px',
-                      height: '40px',
-                      background: '#e7f1ff',
-                      color: '#0d6efd',
-                      fontWeight: '600'
-                    }}
-                  >
-                    {project.projectHead?.name?.charAt(0).toUpperCase()}
-                  </div>
-                  <strong>{project.projectHead?.name || 'Not assigned'}</strong>
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <small className="text-muted d-block mb-2" style={{ fontWeight: '500' }}>Services</small>
-                <div className="d-flex align-items-center">
-                  <FaBuilding className="me-2 text-muted" />
-                  <strong>
-                    {project.departments && project.departments.length > 0
-                      ? project.departments.map(d => (typeof d === 'object' ? d.name : d)).join(', ')
-                      : project.department?.name || 'Not assigned'}
-                  </strong>
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <small className="text-muted d-block mb-2" style={{ fontWeight: '500' }}>Team Size</small>
-                <div className="d-flex align-items-center">
-                  <FaUsers className="me-2 text-muted" />
-                  <strong>{project.assignedUsers?.length || 0} members</strong>
-                </div>
-              </div>
-
-              <div>
-                <small className="text-muted d-block mb-2" style={{ fontWeight: '500' }}>Created By</small>
-                <div className="d-flex align-items-center justify-content-between">
-                  <div className="d-flex align-items-center">
-                    <FaUser className="me-2 text-muted" />
-                    <strong>{project.createdBy?.name || 'System'}</strong>
-                  </div>
-                  {project.createdAt && (
-                    <small className="text-muted">{formatDate(project.createdAt)}</small>
+                  {delayedDeliverables > 0 ? (
+                    <small className="text-danger fw-semibold">{delayedDeliverables} Delayed</small>
+                  ) : (
+                    <small className="text-success fw-semibold">On Schedule</small>
                   )}
                 </div>
+                <div
+                  className="rounded-circle d-flex align-items-center justify-content-center bg-primary text-white"
+                  style={{ width: "48px", height: "48px" }}
+                >
+                  <FaBullseye size={22} />
+                </div>
               </div>
             </Card.Body>
           </Card>
         </Col>
 
-        {/* Timeline & Dates */}
-        <Col lg={6}>
-          <Card className="h-100 border-0 shadow-sm" style={{ borderRadius: '12px' }}>
-            <Card.Header className="bg-white border-0 p-4" style={{ borderBottom: '1px solid #e9ecef' }}>
-              <h6 style={{ fontWeight: '700', color: '#2c3e50', marginBottom: 0 }}>
-                📅 Timeline
-              </h6>
-            </Card.Header>
+        {/* Work Items / Tasks */}
+        <Col lg={3} md={6}>
+          <Card className="h-100 border-0 shadow-sm" style={{ borderRadius: "12px" }}>
             <Card.Body className="p-4">
-              <div className="mb-4">
-                <div className="d-flex justify-content-between mb-2">
-                  <small className="text-muted" style={{ fontWeight: '500' }}>Project Duration</small>
-                  <small className="fw-bold">
-                    {project.startDate && project.endDate
-                      ? `${Math.ceil((new Date(project.endDate) - new Date(project.startDate)) / (1000 * 60 * 60 * 24))} days`
-                      : 'Not set'}
+              <div className="d-flex justify-content-between align-items-start">
+                <div>
+                  <small className="text-muted d-block mb-1 fw-semibold">Work Items / Tasks</small>
+                  <h3 className="fw-bold text-dark mb-0">
+                    {completedTasks} / {totalTasks}
+                  </h3>
+                  {overdueTasks > 0 ? (
+                    <small className="text-danger fw-semibold">{overdueTasks} Overdue Tasks</small>
+                  ) : (
+                    <small className="text-success fw-semibold">No Overdue Tasks</small>
+                  )}
+                </div>
+                <div
+                  className="rounded-circle d-flex align-items-center justify-content-center bg-info text-white"
+                  style={{ width: "48px", height: "48px" }}
+                >
+                  <FaTasks size={22} />
+                </div>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+
+        {/* Expectations & Commitments */}
+        <Col lg={3} md={6}>
+          <Card className="h-100 border-0 shadow-sm" style={{ borderRadius: "12px" }}>
+            <Card.Body className="p-4">
+              <div className="d-flex justify-content-between align-items-start">
+                <div>
+                  <small className="text-muted d-block mb-1 fw-semibold">Expectations & Goals</small>
+                  <h3 className="fw-bold text-dark mb-0">
+                    {expectationsSummary.met} / {expectationsSummary.total} Met
+                  </h3>
+                  <small className="text-muted fw-semibold">
+                    {commitmentsCount} Tracked Commitments
                   </small>
                 </div>
-                {project.startDate && project.endDate && (
-                  <ProgressBar
-                    now={Math.min(
-                      ((new Date() - new Date(project.startDate)) /
-                        (new Date(project.endDate) - new Date(project.startDate))) *
-                      100,
-                      100
-                    )}
-                    variant="info"
-                    style={{ height: '6px' }}
-                  />
-                )}
+                <div
+                  className="rounded-circle d-flex align-items-center justify-content-center bg-success text-white"
+                  style={{ width: "48px", height: "48px" }}
+                >
+                  <FaCheckCircle size={22} />
+                </div>
               </div>
+            </Card.Body>
+          </Card>
+        </Col>
 
-              <ListGroup variant="flush">
-                <ListGroup.Item className="px-0 py-3 border-0">
-                  <div className="d-flex justify-content-between">
-                    <span className="text-muted">Start Date</span>
-                    <strong>{formatDate(project.startDate)}</strong>
-                  </div>
-                </ListGroup.Item>
-                <ListGroup.Item className="px-0 py-3 border-0">
-                  <div className="d-flex justify-content-between">
-                    <span className="text-muted">End Date</span>
-                    <strong>{project.endDate ? formatDate(project.endDate) : 'Not set'}</strong>
-                  </div>
-                </ListGroup.Item>
-                <ListGroup.Item className="px-0 py-3 border-0">
-                  <div className="d-flex justify-content-between">
-                    <span className="text-muted">Created</span>
-                    <strong>{formatDate(project.createdAt)}</strong>
-                  </div>
-                </ListGroup.Item>
-              </ListGroup>
+        {/* Team Members */}
+        <Col lg={3} md={6}>
+          <Card className="h-100 border-0 shadow-sm" style={{ borderRadius: "12px" }}>
+            <Card.Body className="p-4">
+              <div className="d-flex justify-content-between align-items-start">
+                <div>
+                  <small className="text-muted d-block mb-1 fw-semibold">Team Size</small>
+                  <h3 className="fw-bold text-dark mb-0">
+                    {proj.assignedUsers?.length || proj.teamMembers?.length || 0} Members
+                  </h3>
+                  <small className="text-muted fw-semibold">
+                    Head: {proj.projectHead?.name || "Unassigned"}
+                  </small>
+                </div>
+                <div
+                  className="rounded-circle d-flex align-items-center justify-content-center bg-secondary text-white"
+                  style={{ width: "48px", height: "48px" }}
+                >
+                  <FaUsers size={22} />
+                </div>
+              </div>
             </Card.Body>
           </Card>
         </Col>
       </Row>
 
-      {/* Work Items Status Breakdown */}
-      <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: '12px' }}>
-        <Card.Header className="bg-white border-0 p-4" style={{ borderBottom: '1px solid #e9ecef' }}>
-          <h6 style={{ fontWeight: '700', color: '#2c3e50', marginBottom: 0 }}>
-            📊 Work Items by Status
-          </h6>
-        </Card.Header>
-        <Card.Body className="p-4">
-          <Row className="g-3">
-            {[
-              { label: 'To Do', value: byStatus['To Do'], icon: FaClipboardList, color: '#6c757d', bg: '#f8f9fa' },
-              { label: 'In Progress', value: byStatus['In Progress'], icon: FaClock, color: '#0d6efd', bg: '#e7f1ff' },
-              { label: 'Review', value: byStatus.Review, icon: FaChartLine, color: '#ffc107', bg: '#fff3cd' },
-              { label: 'Done', value: byStatus.Done, icon: FaCheckCircle, color: '#198754', bg: '#d1f4e0' }
-            ].map((status, idx) => {
-              const Icon = status.icon;
-              return (
-                <Col md={3} key={idx}>
-                  <div 
-                    className="p-4 rounded-3 text-center"
-                    style={{
-                      background: status.bg,
-                      border: `2px solid ${status.color}`,
-                      transition: 'all 0.3s'
-                    }}
-                  >
-                    <Icon style={{ fontSize: '1.5rem', color: status.color, marginBottom: '0.5rem' }} />
-                    <h4 style={{ fontWeight: '700', color: status.color, marginBottom: '0.25rem' }}>
-                      {status.value}
-                    </h4>
-                    <small style={{ fontWeight: '600', color: status.color }}>
-                      {status.label}
-                    </small>
+      {/* Main Split Grid */}
+      <Row className="g-4 mb-4">
+        {/* Left Column: Client & Project Info + Deliverables */}
+        <Col lg={7}>
+          {/* Client & Project Info */}
+          <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: "12px" }}>
+            <Card.Header className="bg-white py-3 border-0">
+              <h6 className="mb-0 fw-bold text-dark">📋 Client & Project Information</h6>
+            </Card.Header>
+            <Card.Body className="p-4">
+              <Row className="g-3">
+                <Col md={6}>
+                  <div className="mb-3">
+                    <small className="text-muted d-block mb-1 fw-semibold">Client Company</small>
+                    <div className="fw-bold">{proj.client?.company || proj.client?.name || "Not assigned"}</div>
+                    {proj.client?.email && (
+                      <small className="text-muted d-block">
+                        <FaEnvelope className="me-1" size={12} />
+                        {proj.client.email}
+                      </small>
+                    )}
+                    {proj.client?.phone && (
+                      <small className="text-muted d-block">
+                        <FaPhone className="me-1" size={12} />
+                        {proj.client.phone}
+                      </small>
+                    )}
                   </div>
                 </Col>
-              );
-            })}
-          </Row>
-        </Card.Body>
-      </Card>
 
-      {/* Slot System Info (if enabled) */}
-      {project.slotConfiguration?.enableSlotSystem && (
-        <Card className="border-0 shadow-sm" style={{ borderRadius: '12px' }}>
-          <Card.Header className="bg-white border-0 p-4" style={{ borderBottom: '1px solid #e9ecef' }}>
-            <h6 style={{ fontWeight: '700', color: '#2c3e50', marginBottom: 0 }}>
-              🎯 Slot System Status
-            </h6>
-          </Card.Header>
-          <Card.Body className="p-4">
-            <Row className="g-4 mb-4">
-              <Col md={4}>
-                <div className="text-center">
-                  <div style={{ fontSize: '2.5rem', fontWeight: '700', color: '#667eea', marginBottom: '0.5rem' }}>
-                    {project.progressTracking?.totalSlots || project.slotConfiguration?.totalSlots || 0}
+                <Col md={6}>
+                  <div className="mb-3">
+                    <small className="text-muted d-block mb-1 fw-semibold">Project Head (Lead)</small>
+                    <div className="d-flex align-items-center gap-2">
+                      <FaUserTie className="text-primary" />
+                      <div>
+                        <div className="fw-bold">{proj.projectHead?.name || "Not assigned"}</div>
+                        <small className="text-muted">{proj.projectHead?.designation || proj.projectHead?.email}</small>
+                      </div>
+                    </div>
                   </div>
-                  <small className="text-muted" style={{ fontWeight: '500' }}>Total Slots</small>
-                </div>
-              </Col>
-              <Col md={4}>
-                <div className="text-center">
-                  <div style={{ fontSize: '2.5rem', fontWeight: '700', color: '#198754', marginBottom: '0.5rem' }}>
-                    {project.progressTracking?.completedSlots || 0}
+                </Col>
+
+                <Col md={6}>
+                  <div className="mb-3">
+                    <small className="text-muted d-block mb-1 fw-semibold">Department / Service</small>
+                    <div className="fw-semibold">
+                      {proj.departments && proj.departments.length > 0
+                        ? proj.departments.map((d) => (typeof d === "object" ? d.name : d)).join(", ")
+                        : proj.department?.name || "General"}
+                    </div>
                   </div>
-                  <small className="text-muted" style={{ fontWeight: '500' }}>Completed Slots</small>
-                </div>
-              </Col>
-              <Col md={4}>
-                <div className="text-center">
-                  <div style={{ fontSize: '2.5rem', fontWeight: '700', color: '#0d6efd', marginBottom: '0.5rem' }}>
-                    {(project.progressTracking?.totalSlots || project.slotConfiguration?.totalSlots || 0) - (project.progressTracking?.completedSlots || 0)}
+                </Col>
+
+                <Col md={6}>
+                  <div className="mb-3">
+                    <small className="text-muted d-block mb-1 fw-semibold">Project Timeline</small>
+                    <div className="fw-semibold">
+                      {proj.startDate ? formatDate(proj.startDate) : "Not set"} &rarr;{" "}
+                      {proj.endDate ? formatDate(proj.endDate) : "Ongoing"}
+                    </div>
                   </div>
-                  <small className="text-muted" style={{ fontWeight: '500' }}>Remaining Slots</small>
+                </Col>
+              </Row>
+            </Card.Body>
+          </Card>
+
+          {/* Key Deliverables Summary */}
+          <Card className="border-0 shadow-sm" style={{ borderRadius: "12px" }}>
+            <Card.Header className="bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+              <h6 className="mb-0 fw-bold text-dark">🎯 Planned Deliverables Breakdown</h6>
+              <small className="text-muted">{deliverables.length} Total Deliverables</small>
+            </Card.Header>
+            <Card.Body className="p-4">
+              {deliverables.length > 0 ? (
+                <Table responsive hover className="align-middle mb-0">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Deliverable</th>
+                      <th>Status</th>
+                      <th>Target Month</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {deliverables.slice(0, 5).map((d, idx) => (
+                      <tr key={idx}>
+                        <td className="fw-semibold">{d.title}</td>
+                        <td>{getDeliverableBadge(d.status)}</td>
+                        <td>{d.monthKey || (d.plannedDate ? formatDate(d.plannedDate) : "-")}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              ) : (
+                <p className="text-muted mb-0 text-center py-3">No deliverables defined for this project yet.</p>
+              )}
+            </Card.Body>
+          </Card>
+        </Col>
+
+        {/* Right Column: Team Workload + Activity Log */}
+        <Col lg={5}>
+          {/* Team Workload Distribution */}
+          <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: "12px" }}>
+            <Card.Header className="bg-white py-3 border-0">
+              <h6 className="mb-0 fw-bold text-dark">👥 Team Workload Distribution</h6>
+            </Card.Header>
+            <Card.Body className="p-4">
+              {teamWorkload.length > 0 ? (
+                <div className="d-flex flex-column gap-3">
+                  {teamWorkload.map((member, idx) => (
+                    <div key={idx} className="border-bottom pb-2">
+                      <div className="d-flex justify-content-between align-items-center mb-1">
+                        <span className="fw-bold">{member.user?.name || "Team Member"}</span>
+                        <small className="fw-bold text-primary">
+                          {member.done} / {member.total} Tasks Done
+                        </small>
+                      </div>
+                      <ProgressBar
+                        now={member.completionRate}
+                        variant={member.completionRate >= 80 ? "success" : "info"}
+                        style={{ height: "6px" }}
+                      />
+                    </div>
+                  ))}
                 </div>
-              </Col>
-            </Row>
-            
-            <Alert variant="info" className="mb-0 border-0" style={{ borderRadius: '8px' }}>
-              <small>
-                <strong>💡 How to mark slots as completed:</strong> Go to the <strong>Work</strong> tab, expand a slot, and mark the assigned work items as "Done". 
-                When all work items in a slot are completed, the slot will be automatically marked as completed and the progress will update.
-              </small>
-            </Alert>
-          </Card.Body>
-        </Card>
-      )}
+              ) : (
+                <p className="text-muted mb-0 text-center py-3">No active task workload assigned to team members yet.</p>
+              )}
+            </Card.Body>
+          </Card>
+
+          {/* Recent Planning Activity Stream */}
+          <Card className="border-0 shadow-sm" style={{ borderRadius: "12px" }}>
+            <Card.Header className="bg-white py-3 border-0 d-flex align-items-center gap-2">
+              <FaHistory className="text-primary" />
+              <h6 className="mb-0 fw-bold text-dark">📜 Recent Planning Activity</h6>
+            </Card.Header>
+            <Card.Body className="p-4">
+              {recentActivities.length > 0 ? (
+                <div className="timeline ps-3 border-start">
+                  {recentActivities.map((act) => (
+                    <div key={act._id} className="mb-3 position-relative ps-3">
+                      <div
+                        className="position-absolute bg-primary rounded-circle"
+                        style={{ width: "8px", height: "8px", left: "-17px", top: "6px" }}
+                      />
+                      <div className="fw-semibold small mb-1">{act.message}</div>
+                      <small className="text-muted d-block">
+                        By {act.actor ? act.actor.name : "System"} on {formatDate(act.createdAt)}
+                      </small>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted mb-0 text-center py-3">No recent activity logs recorded yet.</p>
+              )}
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
     </div>
   );
 };

@@ -24,9 +24,14 @@ export function getAccessRolesForUser(user) {
     return LEGACY_ROLE_TO_ACCESS_ROLES.employee || [];
   }
 
-  if (roleKey === 'hod' || (user.isHeadOfDepartment && roleKey === 'employee')) {
+  // HoD grants apply whenever the user is flagged as department head (any base role)
+  if (roleKey === 'hod' || user.isHeadOfDepartment) {
+    const base =
+      roleKey === 'hod'
+        ? LEGACY_ROLE_TO_ACCESS_ROLES.employee || []
+        : definitions;
     return [
-      ...(LEGACY_ROLE_TO_ACCESS_ROLES.employee || []),
+      ...base,
       ...(LEGACY_ROLE_TO_ACCESS_ROLES.hod || []).filter((d) => d.accessRole === 'department_head'),
     ];
   }

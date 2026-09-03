@@ -1,5 +1,3 @@
-import { initializeApp, getApps } from 'firebase/app';
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import api from './api';
 import toast from '../utils/toast';
 
@@ -17,12 +15,56 @@ const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY || '';
 let _app = null;
 let _messaging = null;
 let _initPromise = null;
+/** @type {((messaging: unknown, next: (payload: unknown) => void) => void)|null} */
+let _onMessage = null;
+/** @type {((messaging: unknown, options: object) => Promise<string>)|null} */
+let _getToken = null;
 
-// Shared AudioContext — reused to avoid browser limits on context creation
+const initializeFirebase = () => {
+  if (_initPromise) return _initPromise;
+
+  _initPromise = new Promise((resolve) => {
+    const run = async () => {
+      try {
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        const isStandalone = window.navigator.standalone === true;
+        if (isIOS && isSafari && !isStandalone) { resolve(false); return; }
+        if (typeof window === 'undefined' || !('indexedDB' in window)) { resolve(false); return; }
+
+        // Dynamic import keeps ~135KB Firebase off the critical boot path
+        const [{ initializeApp, getApps }, messagingMod] = await Promise.all([
+          import('firebase/app'),
+          import('firebase/messaging'),
+        ]);
+        _getToken = messagingMod.getToken;
+        _onMessage = messagingMod.onMessage;
+        _app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+        _messaging = messagingMod.getMessaging(_app);
+        resolve(true);
+      } catch (err) {
+        resolve(false);
+      }
+    };
+
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(() => { run(); }, { timeout: 2000 });
+    } else {
+      setTimeout(() => { run(); }, 500);
+    }
+  });
+
+  return _initPromise;
+};
+
+// Shared AudioContext — created only after a user gesture (browser autoplay policy)
 let _audioCtx = null;
+let _audioUnlocked = false;
+
 const getAudioCtx = () => {
+  if (!_audioUnlocked) return null;
   if (!_audioCtx) {
-    const Ctor = window.AudioContext || (window).webkitAudioContext;
+    const Ctor = window.AudioContext || window.webkitAudioContext;
     if (Ctor) _audioCtx = new Ctor();
   }
   return _audioCtx;
@@ -33,45 +75,41 @@ const NOTIFICATION_SOUNDS = {
   bell_chime: {
     tones: [
       { freq: 523, duration: 0.25, delay: 0 },
-      { freq: 659, duration: 0.25, delay: 0.15 }
-    ]
+      { freq: 659, duration: 0.25, delay: 0.15 },
+    ],
   },
   digital_ping: {
     tones: [
       { freq: 800, duration: 0.15, delay: 0 },
-      { freq: 1000, duration: 0.15, delay: 0.1 }
-    ]
+      { freq: 1000, duration: 0.15, delay: 0.1 },
+    ],
   },
   soft_chime: {
-    tones: [
-      { freq: 440, duration: 0.4, delay: 0 }
-    ]
+    tones: [{ freq: 440, duration: 0.4, delay: 0 }],
   },
   ascending_tones: {
     tones: [
       { freq: 440, duration: 0.15, delay: 0 },
       { freq: 523, duration: 0.15, delay: 0.12 },
-      { freq: 659, duration: 0.15, delay: 0.24 }
-    ]
+      { freq: 659, duration: 0.15, delay: 0.24 },
+    ],
   },
   melodic_alert: {
     tones: [
       { freq: 659, duration: 0.2, delay: 0 },
       { freq: 523, duration: 0.2, delay: 0.15 },
-      { freq: 659, duration: 0.25, delay: 0.3 }
-    ]
+      { freq: 659, duration: 0.25, delay: 0.3 },
+    ],
   },
   bright_ding: {
     tones: [
       { freq: 1046, duration: 0.2, delay: 0 },
-      { freq: 784, duration: 0.2, delay: 0.15 }
-    ]
+      { freq: 784, duration: 0.2, delay: 0.15 },
+    ],
   },
   subtle_beep: {
-    tones: [
-      { freq: 600, duration: 0.1, delay: 0 }
-    ]
-  }
+    tones: [{ freq: 600, duration: 0.1, delay: 0 }],
+  },
 };
 
 // Get user's saved notification settings
@@ -81,14 +119,15 @@ const getNotificationSettings = () => {
   return { sound, volume };
 };
 
-// Play notification sound based on user settings
-// Must be called from a user-gesture context at least once to unlock AudioContext
+// Play notification sound based on user settings.
+// Silent no-op until AudioContext is unlocked by a user gesture.
 export const playSound = async () => {
   try {
     const ctx = getAudioCtx();
     if (!ctx) return;
-    // Browser autoplay policy suspends AudioContext until a user gesture occurs
-    if (ctx.state === 'suspended') await ctx.resume();
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+    }
 
     const { sound, volume } = getNotificationSettings();
     const soundConfig = NOTIFICATION_SOUNDS[sound] || NOTIFICATION_SOUNDS.bell_chime;
@@ -108,7 +147,7 @@ export const playSound = async () => {
     };
 
     const now = ctx.currentTime;
-    soundConfig.tones.forEach(tone => {
+    soundConfig.tones.forEach((tone) => {
       playTone(tone.freq, now + tone.delay, tone.duration, volume);
     });
   } catch {
@@ -118,45 +157,24 @@ export const playSound = async () => {
 
 // Unlock AudioContext on first user interaction so sound works later
 const unlockAudio = () => {
-  const ctx = getAudioCtx();
-  if (ctx && ctx.state === 'suspended') {
-    ctx.resume().catch(() => {});
+  try {
+    _audioUnlocked = true;
+    const ctx = getAudioCtx();
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+  } catch {
+    // ignore
   }
   document.removeEventListener('click', unlockAudio);
   document.removeEventListener('keydown', unlockAudio);
+  document.removeEventListener('touchstart', unlockAudio);
 };
-document.addEventListener('click', unlockAudio, { once: true });
-document.addEventListener('keydown', unlockAudio, { once: true });
-
-const initializeFirebase = () => {
-  if (_initPromise) return _initPromise;
-
-  _initPromise = new Promise((resolve) => {
-    const run = () => {
-      try {
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-        const isStandalone = window.navigator.standalone === true;
-        if (isIOS && isSafari && !isStandalone) { resolve(false); return; }
-        if (typeof window === 'undefined' || !('indexedDB' in window)) { resolve(false); return; }
-
-        _app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-        _messaging = getMessaging(_app);
-        resolve(true);
-      } catch (err) {
-        resolve(false);
-      }
-    };
-
-    if ('requestIdleCallback' in window) {
-      requestIdleCallback(run, { timeout: 2000 });
-    } else {
-      setTimeout(run, 500);
-    }
-  });
-
-  return _initPromise;
-};
+if (typeof document !== 'undefined') {
+  document.addEventListener('click', unlockAudio, { once: true });
+  document.addEventListener('keydown', unlockAudio, { once: true });
+  document.addEventListener('touchstart', unlockAudio, { once: true });
+}
 
 class NotificationService {
   constructor() {
@@ -175,9 +193,11 @@ class NotificationService {
     if (isIOS && isSafari && !isStandalone) return false;
 
     // Check HTTPS (required for service workers on production)
-    const isHTTPS = window.location.protocol === 'https:' || window.location.hostname === 'localhost';
+    const host = window.location.hostname;
+    const isLocalHost = host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+    const isHTTPS = window.location.protocol === 'https:' || isLocalHost;
     if (!isHTTPS) {
-      console.warn('[FCM] ⚠️  HTTPS required for push notifications (localhost is allowed)');
+      // Quiet in local HTTP (e.g. 127.0.0.1) — expected; no console spam
       return false;
     }
 
@@ -244,7 +264,7 @@ class NotificationService {
 
       while (!token && retries < maxRetries) {
         try {
-          token = await getToken(_messaging, { vapidKey: VAPID_KEY });
+          token = await _getToken(_messaging, { vapidKey: VAPID_KEY });
           if (token) {
             break;
           }
@@ -284,9 +304,9 @@ class NotificationService {
   }
 
   setupForegroundListener() {
-    if (!_messaging) return;
+    if (!_messaging || !_onMessage) return;
 
-    onMessage(_messaging, (payload) => {
+    _onMessage(_messaging, (payload) => {
       // FCM can send notification-only, data-only, or both
       // Always fall back to data fields if notification object is missing
       const title = payload.notification?.title || payload.data?.title || 'New Notification';

@@ -1349,7 +1349,8 @@ const ClientList = () => {
                     </Form.Label>
                     <div className="border rounded p-3" style={{ backgroundColor: '#f8f9fa' }}>
                       <Form.Text className="text-muted d-block mb-3">
-                        Select which operational departments will work with this client. HR and administrative departments have access to all clients by default.
+                        Optional label for which departments work with this client.
+                        This does not grant access — people only see a client/project when they are added to the project team.
                       </Form.Text>
                       {departmentsLoading ? (
                         <div className="text-center py-3">

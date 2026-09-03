@@ -34,7 +34,12 @@ import {
   FaUserPlus,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
-import { hasPermissionAccess, hasExplicitPermissionGrant, passesLegacyRoleMenuGate } from "../../utils/authzAccess";
+import { PAGE_ACCESS } from "../../constants/pageAccess";
+import {
+  hasPermissionAccess,
+  hasExplicitPermissionGrant,
+  passesLegacyRoleMenuGate,
+} from "../../utils/authzAccess";
 import { BRAND_LOGO_FULL, BRAND_NAME } from "../../constants/branding";
 import "./Sidebar.css";
 
@@ -56,7 +61,7 @@ const CRM_RAWDATA_ANALYTICS_ROLES = ["admin", "superadmin", "manager"];
 const CRM_LEAD_ROLES = ["admin", "superadmin", "manager", "employee", "hod"];
 const CRM_CLIENT_ROLES = ["admin", "superadmin", "hr", "employee", "hod", "manager"];
 const BILLING_ROLES = ["admin", "superadmin", "accounts", "manager", "hod"];
-const WORK_SELF_ROLES = ["employee", "admin", "superadmin", "hr", "hod", "manager"];
+const WORK_SELF_ROLES = ["employee", "admin", "superadmin", "hr", "hod", "manager", "sales"];
 const WORKLOG_SELF_ROLES = ["employee", "admin", "superadmin", "hr", "hod", "manager"];
 const PROJECT_VIEW_ROLES = ["admin", "superadmin", "hr", "employee", "hod", "manager"];
 const RESOURCE_ROLES = ["admin", "superadmin", "hr", "manager", "employee", "hod"];
@@ -295,7 +300,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           icon: <FaChartBar />,
           label: "Work Dashboard",
           permission: "work.dashboard.view",
-          fallbackRoles: REPORTS_ROLES,
+          fallbackRoles: PAGE_ACCESS.workDashboard.fallbackRoles,
         },
       ],
     },
