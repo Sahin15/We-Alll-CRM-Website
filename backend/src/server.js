@@ -1,3 +1,5 @@
+import "./config/env.js";
+
 // Suppress Node.js deprecation warnings
 process.removeAllListeners('warning');
 process.on('warning', (warning) => {
@@ -9,7 +11,6 @@ process.on('warning', (warning) => {
 
 import express from "express";
 import mongoose from "mongoose";
-import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
 import { protect } from "./middleware/authMiddleware.js";
@@ -105,10 +106,9 @@ import realTimeUpdateService from "./services/realTimeUpdateService.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config();
 connectDB();
 
-runStartupAuthzValidation({ verbose: process.env.AUTHZ_VALIDATE_VERBOSE === 'true' });
+runStartupAuthzValidation({ verbose: process.env.AUTHZ_VALIDATE_VERBOSE === "true" });
 
 const app = express();
 app.set("trust proxy", 1);

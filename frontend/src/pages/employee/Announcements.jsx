@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Container, Card, Badge, Alert, Spinner, Form, InputGroup, Modal, Button, Row, Col, Tabs, Tab } from 'react-bootstrap';
-import { FaBullhorn, FaBell, FaEye, FaCalendarAlt, FaUser, FaBuilding, FaExclamationTriangle, FaInfoCircle, FaCheckCircle, FaTrash, FaComments, FaPlus } from 'react-icons/fa';
+import { FaBullhorn, FaBell, FaEye, FaCalendarAlt, FaUser, FaExclamationTriangle, FaInfoCircle, FaCheckCircle, FaTrash, FaComments, FaPlus } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { useNotifications } from '../../context/NotificationContext';
 import { useAuth } from '../../context/AuthContext';
@@ -28,7 +28,7 @@ const Announcements = () => {
   const [feedbackRefreshTrigger, setFeedbackRefreshTrigger] = useState(0);
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
   const [announcementFormData, setAnnouncementFormData] = useState({
-    title: '', content: '', type: 'general', priority: 'normal', department: ''
+    title: '', content: '', type: 'general', priority: 'normal'
   });
   const [submittingAnnouncement, setSubmittingAnnouncement] = useState(false);
 
@@ -94,7 +94,7 @@ const Announcements = () => {
       await announcementApi.createAnnouncement(announcementFormData);
       toast.success('Announcement created successfully');
       setShowAnnouncementForm(false);
-      setAnnouncementFormData({ title: '', content: '', type: 'general', priority: 'normal', department: '' });
+      setAnnouncementFormData({ title: '', content: '', type: 'general', priority: 'normal' });
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to create announcement');
@@ -149,7 +149,7 @@ const Announcements = () => {
   const renderCard = (item) => (
     <Card
       key={`${item.itemType}-${item._id}`}
-      className={`mb-3 shadow-sm cursor-pointer border-start border-4 ${item.itemType === 'notification' && !item.isRead ? 'border-primary bg-light' : item.type === 'important' || item.type === 'urgent' ? 'border-danger' : 'border-secondary'}`}
+      className={`announcement-list-card mb-3 shadow-sm border-start border-4 ${item.itemType === 'notification' && !item.isRead ? 'border-primary bg-light' : item.type === 'important' || item.type === 'urgent' ? 'border-danger' : 'border-secondary'}`}
       onClick={() => handleItemClick(item)}
     >
       <Card.Body className="p-3">
@@ -166,7 +166,6 @@ const Announcements = () => {
             <div className="d-flex gap-3 text-muted small">
               <span><FaUser className="me-1"/>{item.createdBy?.name || item.sender?.name || 'System'}</span>
               <span><FaCalendarAlt className="me-1"/>{formatDate(item.createdAt)}</span>
-              {item.department && <span><FaBuilding className="me-1"/>{item.department.name}</span>}
             </div>
           </div>
           <div className="text-end">
@@ -255,7 +254,7 @@ const Announcements = () => {
               </div>
               {filteredItems.filter(i => i.itemType === 'announcement').length === 0
                 ? emptyCard(<FaInfoCircle size={48} className="text-muted mb-3"/>, loading ? 'Loading...' : 'No items found', 'Try adjusting your search or filter criteria')
-                : <div className="space-y-3">{filteredItems.filter(i => i.itemType === 'announcement').map(renderCard)}</div>
+                : <div className="announcement-list space-y-3">{filteredItems.filter(i => i.itemType === 'announcement').map(renderCard)}</div>
               }
             </Tab>
 
@@ -265,7 +264,7 @@ const Announcements = () => {
               </div>
               {filteredItems.filter(i=>i.itemType==='announcement').length === 0
                 ? emptyCard(<FaBullhorn size={48} className="text-muted mb-3"/>, 'No announcements found', 'Check back later for new announcements')
-                : <div className="space-y-3">{filteredItems.filter(i=>i.itemType==='announcement').map(renderCard)}</div>
+                : <div className="announcement-list space-y-3">{filteredItems.filter(i=>i.itemType==='announcement').map(renderCard)}</div>
               }
             </Tab>
 
@@ -327,7 +326,6 @@ const Announcements = () => {
               <div className="d-flex gap-3 text-muted small mb-3 flex-wrap">
                 <span><FaUser className="me-1"/><strong>From:</strong> {selectedItem.createdBy?.name || selectedItem.sender?.name || 'System'}</span>
                 <span><FaCalendarAlt className="me-1"/><strong>Date:</strong> {formatDate(selectedItem.createdAt)}</span>
-                {selectedItem.department && <span><FaBuilding className="me-1"/><strong>Dept:</strong> {selectedItem.department.name}</span>}
               </div>
               <hr/>
               {renderContent(selectedItem)}
@@ -397,13 +395,6 @@ const Announcements = () => {
                 </Form.Group>
               </Col>
             </Row>
-            <Form.Group className="mb-3">
-              <Form.Label>Department (Optional)</Form.Label>
-              <Form.Control type="text" placeholder="Leave empty for all departments"
-                value={announcementFormData.department}
-                onChange={e => setAnnouncementFormData({...announcementFormData, department: e.target.value})}/>
-              <Form.Text className="text-muted">Leave empty to send to all employees</Form.Text>
-            </Form.Group>
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowAnnouncementForm(false)} disabled={submittingAnnouncement}>Cancel</Button>
@@ -416,8 +407,27 @@ const Announcements = () => {
 
       <style>{`
         .line-clamp-2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-        .cursor-pointer { cursor:pointer; }
+        .announcement-list { max-width:100%; overflow-x:hidden; }
         .space-y-3 > * + * { margin-top:0.75rem; }
+        .announcement-list-card {
+          cursor:pointer;
+          max-width:100%;
+          transform:none !important;
+          transition:box-shadow 0.2s ease, background-color 0.2s ease !important;
+        }
+        .announcement-list-card:hover {
+          transform:none !important;
+          box-shadow:0 4px 14px rgba(0, 0, 0, 0.08) !important;
+        }
+        .announcement-list-card.border-secondary:hover {
+          border-left-color:var(--bs-secondary) !important;
+        }
+        .announcement-list-card.border-primary:hover {
+          border-left-color:var(--bs-primary) !important;
+        }
+        .announcement-list-card.border-danger:hover {
+          border-left-color:var(--bs-danger) !important;
+        }
       `}</style>
     </Container>
   );

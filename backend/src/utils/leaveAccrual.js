@@ -2,11 +2,30 @@ import {
   ANNUAL_EARNED_LEAVE_LIMIT,
   MONTHLY_EARNED_LEAVE_RATE,
 } from "../constants/leaveCategoryLimits.js";
+import { getISTDateKey } from "./timezone.js";
 
 function toDate(value) {
   if (!value) return null;
   const date = value instanceof Date ? value : new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/**
+ * Calendar Y-M-D in Asia/Kolkata (safe on UTC or IST servers).
+ * @param {Date|string|null} value
+ * @returns {{ year: number, month: number, day: number } | null}
+ */
+export function getISTDateParts(value) {
+  const date = toDate(value);
+  if (!date) return null;
+  const key = getISTDateKey(date);
+  const [year, month, day] = key.split("-").map(Number);
+  return { year, month, day };
+}
+
+/** Current leave calendar year in IST. */
+export function getCurrentLeaveYear(referenceDate = new Date()) {
+  return getISTDateParts(referenceDate)?.year ?? new Date().getFullYear();
 }
 
 function hadInternshipRecord(employee) {
@@ -51,24 +70,23 @@ export function calculateEarnedLeaves(
   accrualDate = null,
   referenceDate = new Date()
 ) {
-  const currentDate = toDate(referenceDate) || new Date();
-  const currentYear = currentDate.getFullYear();
-  const currentMonth = currentDate.getMonth() + 1;
-  const anchor = toDate(accrualDate);
+  const currentParts = getISTDateParts(referenceDate);
+  if (!currentParts) return 0;
+
+  const { year: currentYear, month: currentMonth, day: currentDay } = currentParts;
+  const anchorParts = getISTDateParts(accrualDate);
 
   if (year > currentYear) {
     return 0;
   }
 
   if (year < currentYear) {
-    if (anchor) {
-      const joiningYear = anchor.getFullYear();
-      if (joiningYear > year) {
+    if (anchorParts) {
+      if (anchorParts.year > year) {
         return 0;
       }
-      if (joiningYear === year) {
-        const joiningMonth = anchor.getMonth() + 1;
-        const monthsWorked = 12 - joiningMonth + 1;
+      if (anchorParts.year === year) {
+        const monthsWorked = 12 - anchorParts.month + 1;
         return Math.min(
           monthsWorked * MONTHLY_EARNED_LEAVE_RATE,
           ANNUAL_EARNED_LEAVE_LIMIT
@@ -78,26 +96,21 @@ export function calculateEarnedLeaves(
     return ANNUAL_EARNED_LEAVE_LIMIT;
   }
 
-  // Current year
-  if (anchor) {
-    const joiningYear = anchor.getFullYear();
-    const joiningMonth = anchor.getMonth() + 1;
-    const joiningDay = anchor.getDate();
-    const currentDay = currentDate.getDate();
-
-    if (joiningYear > currentYear) {
+  // Current IST calendar year
+  if (anchorParts) {
+    if (anchorParts.year > currentYear) {
       return 0;
     }
 
-    if (joiningYear === currentYear) {
-      if (joiningMonth > currentMonth) {
+    if (anchorParts.year === currentYear) {
+      if (anchorParts.month > currentMonth) {
         return 0;
       }
-      if (joiningMonth === currentMonth && joiningDay > currentDay) {
+      if (anchorParts.month === currentMonth && anchorParts.day > currentDay) {
         return 0;
       }
 
-      const monthsWorked = currentMonth - joiningMonth + 1;
+      const monthsWorked = currentMonth - anchorParts.month + 1;
       return Math.min(
         monthsWorked * MONTHLY_EARNED_LEAVE_RATE,
         ANNUAL_EARNED_LEAVE_LIMIT

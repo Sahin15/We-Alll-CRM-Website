@@ -22,6 +22,7 @@ import { toast } from "react-toastify";
 import { salarySlipApi } from "../../api/salaryApi";
 import { payrollPeriodApi } from "../../api/payrollPeriodApi";
 import api from "../../services/api";
+import { getCompanyYearOptions } from "../../constants/branding";
 
 const GenerateSalarySlips = () => {
   // Default to previous month — current month's slips are typically not generated yet
@@ -196,11 +197,7 @@ const GenerateSalarySlips = () => {
     { value: 12, label: "December" },
   ];
 
-  const years = [];
-  const currentYear = new Date().getFullYear();
-  for (let i = currentYear; i >= currentYear - 2; i--) {
-    years.push(i);
-  }
+  const years = getCompanyYearOptions();
 
   return (
     <>

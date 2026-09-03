@@ -621,6 +621,13 @@ body {
     font-size: 0.875rem;
     min-width: 100%;
   }
+
+  /* Keep navbar profile menu at fixed card width (do not stretch full-bleed) */
+  .mobile-navbar .user-dropdown .dropdown-menu {
+    min-width: 260px !important;
+    width: 260px !important;
+    max-width: 280px !important;
+  }
   
   .dropdown-item {
     padding: 10px 14px;

@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Table, Badge, Button, Dropdown, Modal, Form } from 'react-bootstrap';
 import { FaEye, FaClock, FaExclamationTriangle, FaCalendarAlt, FaCheckCircle, FaEdit } from 'react-icons/fa';
 import { formatDate } from '../../utils/helpers';
@@ -11,11 +12,81 @@ import {
 import AssigneeStatusDisplay from './AssigneeStatusDisplay';
 import './WorkItemList.css';
 
+const STATUS_MENU_GAP = 8;
+const STATUS_MENU_ITEM_HEIGHT = 52;
+const STATUS_MENU_ITEM_COUNT = 4;
+
 const StatusSelector = ({ status, onStatusChange, getStatusColor }) => {
   const [showMenu, setShowMenu] = useState(false);
+  const [menuPosition, setMenuPosition] = useState(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancellationReason, setCancellationReason] = useState('');
   const wrapperRef = useRef(null);
+  const menuRef = useRef(null);
+
+  const computeMenuPosition = useCallback((triggerEl, menuEl) => {
+    const rect = triggerEl.getBoundingClientRect();
+    const menuHeight = menuEl?.getBoundingClientRect().height
+      ?? STATUS_MENU_ITEM_COUNT * STATUS_MENU_ITEM_HEIGHT;
+    const spaceBelow = window.innerHeight - rect.bottom - STATUS_MENU_GAP;
+    const spaceAbove = rect.top - STATUS_MENU_GAP;
+    const openUp = spaceBelow < menuHeight && spaceAbove > spaceBelow;
+
+    let top = openUp
+      ? rect.top - menuHeight - STATUS_MENU_GAP
+      : rect.bottom + STATUS_MENU_GAP;
+
+    top = Math.max(
+      STATUS_MENU_GAP,
+      Math.min(top, window.innerHeight - menuHeight - STATUS_MENU_GAP)
+    );
+
+    return {
+      top,
+      left: rect.left,
+      width: Math.max(rect.width, 140),
+      openUp,
+    };
+  }, []);
+
+  const updateMenuPosition = useCallback(() => {
+    if (!wrapperRef.current) return;
+    setMenuPosition(computeMenuPosition(wrapperRef.current, menuRef.current));
+  }, [computeMenuPosition]);
+
+  // Close menu when clicking outside; reposition on scroll/resize
+  useEffect(() => {
+    if (!showMenu) return;
+
+    const handleClickOutside = (event) => {
+      const target = event.target;
+      if (
+        wrapperRef.current?.contains(target) ||
+        menuRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setShowMenu(false);
+    };
+
+    const handleReposition = () => updateMenuPosition();
+
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('scroll', handleReposition, true);
+    window.addEventListener('resize', handleReposition);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleReposition, true);
+      window.removeEventListener('resize', handleReposition);
+    };
+  }, [showMenu, updateMenuPosition]);
+
+  useLayoutEffect(() => {
+    if (showMenu) {
+      updateMenuPosition();
+    }
+  }, [showMenu, updateMenuPosition]);
   
   // Cancelled is a terminal state — cannot change from it
   if (status === 'Cancelled') {
@@ -62,40 +133,39 @@ const StatusSelector = ({ status, onStatusChange, getStatusColor }) => {
     setShowCancelModal(false);
   };
 
-  // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-        setShowMenu(false);
-      }
-    };
-
+  const handleToggleMenu = (event) => {
+    event.stopPropagation();
     if (showMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-      };
+      setShowMenu(false);
+      setMenuPosition(null);
+      return;
     }
-  }, [showMenu]);
+    if (wrapperRef.current) {
+      setMenuPosition(computeMenuPosition(wrapperRef.current, null));
+    }
+    setShowMenu(true);
+  };
 
-  return (
-    <div className="status-selector-wrapper" ref={wrapperRef}>
-      <button
-        className={`status-selector-btn status-${status.toLowerCase().replace(' ', '-')}`}
-        onClick={() => setShowMenu(!showMenu)}
-      >
-        <span className="status-emoji">{statusEmojis[status]}</span>
-        <span className="status-text">{status}</span>
-        <span className="status-arrow">▼</span>
-      </button>
-      
-      {showMenu && (
-        <div className="status-selector-menu">
+  const menuPortal = showMenu && menuPosition
+    ? createPortal(
+        <div
+          ref={menuRef}
+          className={`status-selector-menu status-selector-menu-portal${menuPosition.openUp ? ' opens-up' : ''}`}
+          style={{
+            position: 'fixed',
+            top: menuPosition.top,
+            left: menuPosition.left,
+            width: menuPosition.width,
+            zIndex: 10500,
+          }}
+        >
           {statuses.map((s) => (
             <button
               key={s}
+              type="button"
               className={`status-menu-item ${s === status ? 'active' : ''}`}
-              onClick={() => {
+              onClick={(event) => {
+                event.stopPropagation();
                 handleSelectStatus(s);
               }}
             >
@@ -104,8 +174,24 @@ const StatusSelector = ({ status, onStatusChange, getStatusColor }) => {
               {s === status && <span className="menu-check">✓</span>}
             </button>
           ))}
-        </div>
-      )}
+        </div>,
+        document.body
+      )
+    : null;
+
+  return (
+    <div className={`status-selector-wrapper${showMenu ? ' is-open' : ''}`} ref={wrapperRef}>
+      <button
+        type="button"
+        className={`status-selector-btn status-${status.toLowerCase().replace(' ', '-')}`}
+        onClick={handleToggleMenu}
+      >
+        <span className="status-emoji">{statusEmojis[status]}</span>
+        <span className="status-text">{status}</span>
+        <span className="status-arrow">▼</span>
+      </button>
+
+      {menuPortal}
 
       <Modal
         show={showCancelModal}
@@ -331,7 +417,7 @@ const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, curren
                 </td>
 
                 {/* Status Column */}
-                <td onClick={(e) => e.stopPropagation()}>
+                <td className="status-cell" onClick={(e) => e.stopPropagation()}>
                   {showAssigneeStatus && item.assignedToMultiple && item.assignedToMultiple.length > 1 ? (
                     <AssigneeStatusDisplay workItem={item} />
                   ) : canEdit(item) && onStatusChange ? (

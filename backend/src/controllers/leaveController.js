@@ -2,11 +2,13 @@ import LeaveRequest from "../models/leaveRequestModel.js";
 import User from "../models/userModel.js";
 import NotificationService from "../services/notificationService.js";
 import { getLeaveRequestDays } from "../utils/leaveDays.js";
-import { getTodayMidnightIST } from "../utils/timezone.js";
 import {
   normalizeLeaveTypeForCreate,
 } from "../constants/leaveTypes.js";
 import { ANNUAL_EARNED_LEAVE_LIMIT } from "../constants/leaveCategoryLimits.js";
+import { getCurrentLeaveYear } from "../utils/leaveAccrual.js";
+import { getISTDateKey, getISTMidnightForYmd } from "../utils/timezone.js";
+import { getISTDayBounds } from "../utils/attendanceISTDay.js";
 
 // Create leave request
 export const createLeaveRequest = async (req, res) => {
@@ -102,7 +104,7 @@ export const createLeaveRequest = async (req, res) => {
       reason,
       attachments: attachmentUrls,
       numberOfDays,
-      leaveYear: start.getFullYear()
+      leaveYear: parseInt(getISTDateKey(start).slice(0, 4), 10),
     });
 
     
@@ -117,7 +119,7 @@ export const createLeaveRequest = async (req, res) => {
         
         await NotificationService.sendToUser(
           employeeData.reportingManager._id,
-          '≡ƒôï New Leave Request',
+          'New Leave Request',
           `${employeeData.name} has requested ${normalizedLeaveType} leave`,
           {
             type: 'leave_request',
@@ -131,7 +133,7 @@ export const createLeaveRequest = async (req, res) => {
       // Also send to HR department
       
       await NotificationService.sendToRole('hr',
-        '≡ƒôï New Leave Request',
+        'New Leave Request',
         `${employeeData.name} has requested ${normalizedLeaveType} leave for ${numberOfDays} day(s)`,
         {
           type: 'leave_request',
@@ -165,7 +167,7 @@ export const createLeaveRequest = async (req, res) => {
 export const getLeaveBalance = async (req, res) => {
   try {
     const employeeId = req.params.employeeId || req.user.id;
-    const year = parseInt(req.query.year) || new Date().getFullYear();
+    const year = parseInt(req.query.year, 10) || getCurrentLeaveYear();
 
     // Check if user can access this employee's data
     if (employeeId !== req.user.id && !['admin', 'superadmin', 'hr', 'hod'].includes(req.user.role)) {
@@ -189,18 +191,21 @@ export const getLeaveBalance = async (req, res) => {
 export const getLeaveUsageSummary = async (req, res) => {
   try {
     const employeeId = req.params.employeeId;
-    const year = parseInt(req.query.year) || new Date().getFullYear();
+    const year = parseInt(req.query.year, 10) || getCurrentLeaveYear();
 
     // Check if user can access this data
     if (!['admin', 'superadmin', 'hr', 'hod'].includes(req.user.role)) {
       return res.status(403).json({ message: "Access denied" });
     }
 
+    const yearStart = getISTMidnightForYmd(year, 1, 1);
+    const yearEnd = getISTMidnightForYmd(year + 1, 1, 1);
+
     // Get all approved leaves for the employee in chronological order
     const approvedLeaves = await LeaveRequest.find({
-      employee: employeeId, // Mongoose will automatically convert string to ObjectId
+      employee: employeeId,
       status: 'approved',
-      leaveYear: year
+      startDate: { $gte: yearStart, $lt: yearEnd },
     }).sort({ startDate: 1 });
 
     // Calculate cumulative usage
@@ -248,7 +253,7 @@ export const getBulkLeaveUsageSummaries = async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    const year = parseInt(req.query.year) || new Date().getFullYear();
+    const year = parseInt(req.query.year, 10) || getCurrentLeaveYear();
     const employeeIds = String(req.query.employeeIds || "")
       .split(",")
       .map((id) => id.trim())
@@ -413,28 +418,27 @@ export const approveLeaveRequest = async (req, res) => {
       const startDate = new Date(leaveRequest.startDate);
       const endDate = new Date(leaveRequest.endDate);
       
-      // Loop through each day in the leave period
+      // Loop through each IST calendar day in the leave period
       const currentDate = new Date(startDate);
       let recordsCreated = 0;
       let recordsUpdated = 0;
       
       while (currentDate <= endDate) {
-        // Use IST midnight for consistent date comparison and storage
-        const istMidnight = getTodayMidnightIST(currentDate);
-        const nextIstMidnight = new Date(istMidnight.getTime() + 24 * 60 * 60 * 1000);
+        const ymd = getISTDateKey(currentDate);
+        const [year, month, day] = ymd.split("-").map(Number);
+        const istMidnight = getISTMidnightForYmd(year, month, day);
+        const { start: dayStart, endExclusive: dayEnd } = getISTDayBounds(ymd);
         
-        // Check if attendance record already exists for this date
+        // Match either UTC-midnight or IST-midnight storage for this IST day
         const existingRecord = await Attendance.findOne({
           employee: leaveRequest.employee,
           date: {
-            $gte: istMidnight,
-            $lt: nextIstMidnight
+            $gte: dayStart,
+            $lt: dayEnd,
           }
         });
         
         if (!existingRecord) {
-          // Create new attendance record with "on-leave" status
-          // Don't set clockIn/clockOut for leave records - they shouldn't show work hours
           await Attendance.create({
             employee: leaveRequest.employee,
             date: istMidnight,
@@ -443,14 +447,12 @@ export const approveLeaveRequest = async (req, res) => {
             overtime: 0,
             notes: `On ${leaveRequest.leaveType} leave (Approved by ${approvedBy})`,
             approvedBy: approvedBy,
-            isManuallyModified: true, // Mark as manually set so it won't be recalculated
+            isManuallyModified: true,
             originalStatus: 'on-leave'
           });
           
           recordsCreated++;
         } else {
-          // Record already exists - UPDATE it to "on-leave" status
-          // This handles cases where employee clocked in or auto-absent was created before leave was approved
           await Attendance.findByIdAndUpdate(
             existingRecord._id,
             {
@@ -464,7 +466,7 @@ export const approveLeaveRequest = async (req, res) => {
               notes: `On ${leaveRequest.leaveType} leave (Approved by ${approvedBy})`,
               approvedBy: approvedBy,
               isManuallyModified: true,
-              originalStatus: existingRecord.status // Store the original status before changing to on-leave
+              originalStatus: existingRecord.status
             },
             { new: true }
           );
@@ -472,8 +474,7 @@ export const approveLeaveRequest = async (req, res) => {
           recordsUpdated++;
         }
         
-        // Move to next day
-        currentDate.setDate(currentDate.getDate() + 1);
+        currentDate.setTime(currentDate.getTime() + 24 * 60 * 60 * 1000);
       }
       
     } catch (attendanceError) {
@@ -486,7 +487,7 @@ export const approveLeaveRequest = async (req, res) => {
       if (employeeData) {
         await NotificationService.sendToUser(
           employeeData._id,
-          'Γ£à Leave Request Approved',
+          'Leave Request Approved',
           `Your ${leaveRequest.leaveType} leave request has been approved`,
           {
             type: 'leave_approval',
@@ -568,7 +569,7 @@ export const rejectLeaveRequest = async (req, res) => {
       if (employeeData) {
         await NotificationService.sendToUser(
           employeeData._id,
-          'Γ¥î Leave Request Rejected',
+          'Leave Request Rejected',
           `Your ${leaveRequest.leaveType} leave request has been rejected`,
           {
             type: 'leave_rejection',
@@ -699,7 +700,7 @@ export const updateLeaveRequest = async (req, res) => {
           employee,
           effectiveLeaveType,
           numberOfDays,
-          start.getFullYear()
+          parseInt(getISTDateKey(start).slice(0, 4), 10)
         );
       } catch (balanceError) {
         return res.status(400).json({ message: balanceError.message });

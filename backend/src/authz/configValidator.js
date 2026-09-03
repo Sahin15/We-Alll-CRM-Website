@@ -768,11 +768,19 @@ export function runStartupAuthzValidation(options = {}) {
   const report = runAuthzConfigValidation(options);
   const formatted = formatValidationReport(report);
 
+  const verbose = options.verbose === true;
+
   if (report.summary.errorCount > 0) {
     console.error(`[authz] Configuration validation found error(s):\n${formatted}`);
   } else if (report.summary.warningCount > 0) {
-    console.warn(`[authz] Configuration validation warning(s):\n${formatted}`);
-  } else if (options.verbose !== false) {
+    if (verbose) {
+      console.warn(`[authz] Configuration validation warning(s):\n${formatted}`);
+    } else {
+      console.log(
+        `[authz] OK — ${report.summary.okCount} passed, ${report.summary.warningCount} warning(s) (set AUTHZ_VALIDATE_VERBOSE=true for details)`
+      );
+    }
+  } else if (verbose) {
     console.log(`[authz] Configuration validation passed.\n${formatted}`);
   }
 

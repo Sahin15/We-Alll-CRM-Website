@@ -1,6 +1,6 @@
 {
   "name": "crm-backend",
-  "version": "5.2.0",
+  "version": "5.2.9",
   "description": "Backend for CRM project (MERN) - Node, Express, MongoDB",
   "type": "module",
   "main": "src/server.js",
@@ -19,8 +19,7 @@
     "create-superadmin": "node scripts/createSuperAdmin.js",
     "reset-superadmin-password": "node scripts/resetSuperAdminPassword.js",
     "demote-superadmin": "node scripts/demoteSuperAdmin.js",
-    "puppeteer:install": "node scripts/ensure-puppeteer-chrome.js",
-    "prestart": "node scripts/ensure-puppeteer-chrome.js"
+    "puppeteer:install": "node scripts/ensure-puppeteer-chrome.js"
   },
   "author": "Sahin",
   "license": "MIT",

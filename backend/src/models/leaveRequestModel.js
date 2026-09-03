@@ -9,11 +9,22 @@ import {
   getLeaveBalanceCategory,
   getLeaveDayCount,
   isPaidLeaveType,
+  isPayrollEarnedLeaveDeduction,
 } from "../constants/leaveTypes.js";
 import {
   calculateEarnedLeaves as computeEarnedLeaves,
+  getCurrentLeaveYear,
   resolveAccrualDate,
 } from "../utils/leaveAccrual.js";
+import { getISTMidnightForYmd } from "../utils/timezone.js";
+
+/** Inclusive IST calendar-year bounds for leave startDate queries. */
+function getISTYearBounds(year) {
+  return {
+    start: getISTMidnightForYmd(year, 1, 1),
+    endExclusive: getISTMidnightForYmd(year + 1, 1, 1),
+  };
+}
 
 const leaveRequestSchema = new mongoose.Schema(
   {
@@ -75,7 +86,13 @@ const leaveRequestSchema = new mongoose.Schema(
     applicationDate: {
       type: Date,
       default: Date.now
-    }
+    },
+    /** "payroll" = created by earned-leave salary cover; always counts toward earned used */
+    source: {
+      type: String,
+      enum: ["employee", "payroll"],
+      default: "employee",
+    },
   },
   {
     timestamps: true,
@@ -125,16 +142,17 @@ leaveRequestSchema.statics.getAccrualDate = function (employee) {
 };
 
 leaveRequestSchema.statics.calculateEarnedLeaves = function (
-  year = new Date().getFullYear(),
-  accrualDate = null
+  year = getCurrentLeaveYear(),
+  accrualDate = null,
+  referenceDate = new Date()
 ) {
-  return computeEarnedLeaves(year, accrualDate);
+  return computeEarnedLeaves(year, accrualDate, referenceDate);
 };
 
 leaveRequestSchema.statics.buildLeaveBalance = function (
   employee,
   approvedLeaves,
-  year = new Date().getFullYear()
+  year = getCurrentLeaveYear()
 ) {
   const employmentType = employee?.employmentType;
   const isFullTime = this.isFullTimeEmployee(employee);
@@ -161,7 +179,9 @@ leaveRequestSchema.statics.buildLeaveBalance = function (
     if (leave.leaveType !== "unpaid" && isPaidLeaveType(leave.leaveType)) {
       const countsTowardEarned =
         isFullTime &&
-        (!accrualDate || new Date(leave.startDate) >= new Date(accrualDate));
+        (isPayrollEarnedLeaveDeduction(leave) ||
+          !accrualDate ||
+          new Date(leave.startDate) >= new Date(accrualDate));
 
       if (countsTowardEarned) {
         totalPaidLeavesUsed += days;
@@ -202,16 +222,20 @@ leaveRequestSchema.statics.buildLeaveBalance = function (
 };
 
 // Static method to get comprehensive leave balance for an employee
-leaveRequestSchema.statics.getLeaveBalance = async function(employeeId, year = new Date().getFullYear()) {
+leaveRequestSchema.statics.getLeaveBalance = async function(
+  employeeId,
+  year = getCurrentLeaveYear()
+) {
   const User = mongoose.model('User');
   const employee = await User.findById(employeeId).select(
     'joiningDate employmentType fullTimeStartDate internshipDetails createdAt'
   );
 
+  const { start, endExclusive } = getISTYearBounds(year);
   const approvedLeaves = await this.find({
     employee: employeeId,
     status: 'approved',
-    leaveYear: year
+    startDate: { $gte: start, $lt: endExclusive },
   });
 
   return this.buildLeaveBalance(employee, approvedLeaves, year);
@@ -219,7 +243,7 @@ leaveRequestSchema.statics.getLeaveBalance = async function(employeeId, year = n
 
 leaveRequestSchema.statics.getBulkLeaveBalances = async function(
   employeeIds,
-  year = new Date().getFullYear()
+  year = getCurrentLeaveYear()
 ) {
   const User = mongoose.model("User");
   const uniqueIds = [...new Set(employeeIds.map(String))].filter(Boolean);
@@ -231,10 +255,11 @@ leaveRequestSchema.statics.getBulkLeaveBalances = async function(
     .select("joiningDate employmentType fullTimeStartDate internshipDetails createdAt")
     .lean();
 
+  const { start, endExclusive } = getISTYearBounds(year);
   const approvedLeaves = await this.find({
     employee: { $in: uniqueIds },
     status: "approved",
-    leaveYear: year,
+    startDate: { $gte: start, $lt: endExclusive },
   }).lean();
 
   const leavesByEmployee = {};
@@ -260,7 +285,7 @@ leaveRequestSchema.statics.getBulkLeaveBalances = async function(
 };
 
 // Static method to validate leave request against earned balance
-leaveRequestSchema.statics.validateLeaveRequest = async function(employeeId, leaveType, numberOfDays, year = new Date().getFullYear()) {
+leaveRequestSchema.statics.validateLeaveRequest = async function(employeeId, leaveType, numberOfDays, year = getCurrentLeaveYear()) {
   if (leaveType === 'unpaid') {
     return true;
   }

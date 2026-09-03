@@ -31,6 +31,7 @@ import { getLeaveRequestDays } from "../../utils/leaveDays";
 import {
   getEffectiveStatusForUser,
   isPendingWorkItem,
+  isWorkItemAssignedToUser,
   isWorkItemOverdue,
 } from "../../utils/workItemUtils";
 import TodoWidget from "../../components/common/TodoWidget";
@@ -364,13 +365,13 @@ const EmployeeDashboard = () => {
         }
       }
 
-      // Process tasks
+      // Process tasks — only items assigned to this user (not work they assigned to others)
       let pendingTasks = 0;
       if (tasksRes.status === 'fulfilled') {
         const allTasks = tasksRes.value.data || [];
-        pendingTasks = allTasks.filter((t) => isPendingWorkItem(t, user?._id) && !t.isDeleted).length;
+        pendingTasks = allTasks.filter((t) => isPendingWorkItem(t, user?._id)).length;
         const topTasks = allTasks
-          .filter((t) => isPendingWorkItem(t, user?._id) && !t.isDeleted)
+          .filter((t) => isPendingWorkItem(t, user?._id))
           .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
           .slice(0, 3);
         setRecentTasks(topTasks);
@@ -986,19 +987,25 @@ const EmployeeDashboard = () => {
   const handleTasksCardClick = async () => {
     try {
       const response = await workItemApi.getMyWork({ type: 'task' });
-      const allTasks = response.data || [];
-      
+      // Match Pending Tasks card: only work assigned to me (exclude created-for-others / drafts)
+      const allTasks = (response.data || []).filter(
+        (t) =>
+          isWorkItemAssignedToUser(t, user?._id) &&
+          !t.isDeleted &&
+          t.visibility !== 'draft'
+      );
+
       const pending = allTasks.filter((t) => getEffectiveStatusForUser(t, user?._id) === 'To Do');
       const inProgress = allTasks.filter((t) => getEffectiveStatusForUser(t, user?._id) === 'In Progress');
       const completed = allTasks.filter((t) => getEffectiveStatusForUser(t, user?._id) === 'Done');
-      
+
       setTasksDetails({
         all: allTasks,
         pending,
         inProgress,
         completed
       });
-      
+
       setShowTasksModal(true);
     } catch (error) {
       console.error('Error fetching tasks details:', error);
@@ -1992,7 +1999,13 @@ const EmployeeDashboard = () => {
                 <div className="progress mt-3" style={{ height: '10px' }}>
                   <div 
                     className="progress-bar bg-primary" 
-                    style={{ width: `${(leaveDetails.earned.used / leaveDetails.earned.earned) * 100}%` }}
+                    style={{
+                      width: `${
+                        leaveDetails.earned.earned > 0
+                          ? (leaveDetails.earned.used / leaveDetails.earned.earned) * 100
+                          : 0
+                      }%`,
+                    }}
                   ></div>
                 </div>
                 <div className="d-flex justify-content-between mt-2">

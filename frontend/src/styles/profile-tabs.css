@@ -1,9 +1,11 @@
 /* ============================================
-   PROFILE TABS - DESKTOP ONLY
+   PROFILE TABS - scoped to .profile-tabs-fill
+   Only pages that want full-width-stretched tabs
+   should add this class to their <Tabs> wrapper.
    ============================================ */
 
-/* Make tabs fill entire width on desktop */
-.nav-tabs {
+.profile-tabs-fill .nav-tabs,
+.profile-tabs-fill.nav-tabs {
   width: 100% !important;
   flex-wrap: nowrap !important;
   overflow-x: auto !important;
@@ -12,18 +14,21 @@
   scrollbar-width: none !important;
 }
 
-.nav-tabs::-webkit-scrollbar {
+.profile-tabs-fill .nav-tabs::-webkit-scrollbar,
+.profile-tabs-fill.nav-tabs::-webkit-scrollbar {
   display: none !important;
 }
 
-.nav-tabs .nav-link {
+.profile-tabs-fill .nav-tabs .nav-link,
+.profile-tabs-fill.nav-tabs .nav-link {
   flex-shrink: 0 !important;
   white-space: nowrap !important;
   text-align: center !important;
 }
 
 @media (min-width: 768px) {
-  .nav-tabs .nav-link {
+  .profile-tabs-fill .nav-tabs .nav-link,
+  .profile-tabs-fill.nav-tabs .nav-link {
     flex: 1 !important;
   }
 }

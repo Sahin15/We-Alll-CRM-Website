@@ -4,13 +4,14 @@
 .modern-table-container {
   background: #ffffff;
   border-radius: 12px;
-  overflow: visible !important;
+  overflow-x: auto;
+  overflow-y: visible;
   padding: 0;
 }
 
-/* Ensure parent card also has visible overflow */
+/* Ensure parent card also has visible overflow for dropdowns */
 .modern-table-container:has(.modern-work-table) {
-  overflow: visible !important;
+  overflow-y: visible;
 }
 
 .modern-work-table {
@@ -19,6 +20,8 @@
   overflow: visible;
   border-collapse: separate;
   border-spacing: 0;
+  table-layout: fixed;
+  width: 100%;
 }
 
 .modern-work-table thead {
@@ -85,6 +88,13 @@
   vertical-align: middle;
   border: none;
   color: #2d3748;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Status dropdown renders via portal; cell must not clip the trigger */
+.modern-work-table tbody td.status-cell {
+  overflow: visible;
 }
 
 /* Row States */
@@ -308,24 +318,39 @@
   transition: transform 0.2s ease;
 }
 
-.status-selector-wrapper:has(.status-selector-menu) .status-selector-btn .status-arrow {
+.status-selector-wrapper.is-open .status-selector-btn .status-arrow {
   transform: rotate(180deg);
 }
 
 /* Status Selector Menu */
 .status-selector-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
   background: white;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  margin-top: 8px;
-  z-index: 10000;
   overflow: hidden;
   animation: slideDown 0.2s ease-out;
+}
+
+.status-selector-menu-portal {
+  margin-top: 0;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+}
+
+.status-selector-menu.opens-up {
+  animation: slideUp 0.2s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideDown {

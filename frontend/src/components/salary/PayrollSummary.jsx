@@ -17,6 +17,7 @@ import {
 import { toast } from "react-toastify";
 import { salarySlipApi } from "../../api/salaryApi";
 import { departmentApi } from "../../api/departmentApi";
+import { getCompanyYearOptions } from "../../constants/branding";
 
 /**
  * Ensure byDepartment always has every org department (zeros if no slips).
@@ -115,11 +116,7 @@ const PayrollSummary = () => {
     { value: 12, label: "December" },
   ];
 
-  const years = [];
-  const currentYear = new Date().getFullYear();
-  for (let i = currentYear; i >= currentYear - 5; i--) {
-    years.push(i);
-  }
+  const years = getCompanyYearOptions();
 
   if (loading) {
     return (

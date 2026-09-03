@@ -12,6 +12,7 @@ import {
   computeDueDateFlags,
   getEffectiveStatusForUser,
   isPendingForUser,
+  isWorkItemForMyWork,
   syncGlobalStatusFromAssignees,
 } from "../utils/workItemStatusUtils.js";
 
@@ -22,8 +23,9 @@ const getMyWorkItems = async (req, res) => {
   try {
     const { status, type, project, priority, dueDate, search, visibility } = req.query;
     
-    // My Work: items assigned to me OR that I created/assigned to others.
-    // Match ObjectId or string refs for assignee/creator fields.
+    // My Work: only items assigned to me (single or multi).
+    // Work I created for others belongs on Assigned Work (/created-by/me).
+    // Match ObjectId or string refs for assignee fields.
     const userId = req.user._id;
     const userRef = { $in: [userId, String(userId)] };
     const query = {
@@ -31,7 +33,6 @@ const getMyWorkItems = async (req, res) => {
       $or: [
         { assignedTo: userRef },
         { assignedToMultiple: userRef },
-        { createdBy: userRef },
       ],
     };
     
@@ -73,9 +74,9 @@ const getMyWorkItems = async (req, res) => {
     
     // Optimized query with lean() for better performance
     const workItems = await WorkItem.find(query)
-      .populate("project", "name client")
       .populate({
         path: "project",
+        select: "name client",
         populate: {
           path: "client",
           select: "name company",
@@ -87,11 +88,12 @@ const getMyWorkItems = async (req, res) => {
       .populate("assigneeStatuses.assigneeId", "name email")
       .select("-comments -statusHistory -attachments")
       .sort({ dueDate: 1, createdAt: -1 })
-      .limit(500)
       .lean();
     
     // Compute per-user effective status and due flags (lean() strips virtuals)
-    const workItemsWithVirtuals = workItems.map((item) => {
+    const workItemsWithVirtuals = workItems
+      .filter((item) => isWorkItemForMyWork(item, userId))
+      .map((item) => {
       const dueFlags = computeDueDateFlags(item, req.user._id);
       return {
         ...item,
@@ -216,12 +218,13 @@ const getAllWorkItems = async (req, res) => {
       .populate("assignedTo", "name email")
       .populate("assignedToMultiple", "name email")
       .populate("createdBy", "name email")
-      .populate("comments.user", "name email")
       .populate({
         path: "slotAssignment.assignedSlot",
         select: "slotNumber slotIdentifier slotType"
       })
-      .sort({ dueDate: 1, createdAt: -1 });
+      .select("-comments -statusHistory -attachments")
+      .sort({ dueDate: 1, createdAt: -1 })
+      .lean();
 
     // Debug: Log slot assignment data
     res.status(200).json({
@@ -3298,17 +3301,39 @@ export const activateWorkItem = async (req, res) => {
 };
 
 
-// @desc    Get all work items created by current user
+/**
+ * True when the work item is assigned to at least one person other than `userId`
+ * (or is still unassigned / draft-like so the assigner can manage it).
+ * @param {object} item - Lean work item (populated or raw ids)
+ * @param {string} userIdStr - Current user id as string
+ */
+const isAssignedWorkForCreator = (item, userIdStr) => {
+  const multi = (item.assignedToMultiple || [])
+    .map((a) => (a && (a._id || a)).toString())
+    .filter(Boolean);
+  if (multi.length > 0) {
+    return multi.some((id) => id !== userIdStr);
+  }
+  const assignee = item.assignedTo && (item.assignedTo._id || item.assignedTo);
+  if (!assignee) return true;
+  return assignee.toString() !== userIdStr;
+};
+
+// @desc    Get work items the current user assigned to other team members
 // @route   GET /api/work-items/created-by/me
 // @access  Private
 export const getCreatedByMe = async (req, res) => {
   try {
     const { status, type, project, priority, dueDate, search } = req.query;
-    
-    // Build query - only items created by current user
+    const userId = req.user._id;
+    const userIdStr = String(userId);
+    const userRef = { $in: [userId, userIdStr] };
+
+    // Assigned Work: items I created (assigned by me). Self-only assignments
+    // belong on My Work, not here — filtered after fetch for ObjectId safety.
     const query = {
-      createdBy: req.user._id,
-      isDeleted: { $ne: true }
+      createdBy: userRef,
+      isDeleted: { $ne: true },
     };
     
     // Apply filters
@@ -3358,13 +3383,16 @@ export const getCreatedByMe = async (req, res) => {
       .populate("assigneeStatuses.assigneeId", "name email")
       .select("-comments -statusHistory -attachments")
       .sort({ dueDate: 1, createdAt: -1 })
-      .limit(500)
       .lean();
+
+    const assignedToOthers = workItems.filter((item) =>
+      isAssignedWorkForCreator(item, userIdStr)
+    );
     
     res.status(200).json({
       success: true,
-      count: workItems.length,
-      data: workItems,
+      count: assignedToOthers.length,
+      data: assignedToOthers,
     });
   } catch (error) {
     res.status(500).json({
