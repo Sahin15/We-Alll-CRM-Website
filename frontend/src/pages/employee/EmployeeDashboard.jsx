@@ -33,6 +33,7 @@ import {
   isPendingWorkItem,
   isWorkItemOverdue,
 } from "../../utils/workItemUtils";
+import growthTrackApi from "../../api/growthTrackApi";
 import TodoWidget from "../../components/common/TodoWidget";
 import ConfirmModal from "../../components/common/ConfirmModal";
 import GreetingBanner from "../../components/common/GreetingBanner";
@@ -221,6 +222,19 @@ const EmployeeDashboard = () => {
     daysWorked: 0
   });
 
+  const [activeGrowthTrack, setActiveGrowthTrack] = useState(null);
+
+  useEffect(() => {
+    if (activeGrowthTrack && activeGrowthTrack.stage === "critical") {
+      document.body.classList.add("pip-active");
+    } else {
+      document.body.classList.remove("pip-active");
+    }
+    return () => {
+      document.body.classList.remove("pip-active");
+    };
+  }, [activeGrowthTrack]);
+
   useEffect(() => {
     let isMounted = true;
     
@@ -339,7 +353,8 @@ const EmployeeDashboard = () => {
         attendanceRecordsRes,
         leaveBalanceRes,
         announcementsRes,
-        projectsRes
+        projectsRes,
+        growthTrackRes
       ] = await Promise.allSettled([
         api.get("/attendance/today"),
         workItemApi.getMyWork({ type: 'task' }),
@@ -349,7 +364,8 @@ const EmployeeDashboard = () => {
         api.get('/attendance/my-attendance'),
         api.get('/leaves/balance'),
         api.get('/announcements'),
-        api.get('/projects')
+        api.get('/projects'),
+        growthTrackApi.getMyActiveTrack()
       ]);
 
       // Process attendance status — only update when the API returns a definitive answer
@@ -467,6 +483,13 @@ const EmployeeDashboard = () => {
       let attendanceToday = "Not Clocked In";
       if (attendanceRes.status === 'fulfilled' && attendanceRes.value.data && attendanceRes.value.data.clockIn) {
         attendanceToday = attendanceRes.value.data.clockOut ? "Completed" : "Present";
+      }
+
+      // Process growth track
+      if (growthTrackRes.status === "fulfilled" && growthTrackRes.value?.data) {
+        setActiveGrowthTrack(growthTrackRes.value.data);
+      } else {
+        setActiveGrowthTrack(null);
       }
 
       // Update stats
@@ -1056,6 +1079,127 @@ const EmployeeDashboard = () => {
     <Container fluid className="py-2 dashboard-container">
       {/* Greeting Banner */}
       <GreetingBanner subtitle="Welcome to your dashboard" />
+
+      {/* Growth Track Alerts */}
+      {activeGrowthTrack && (
+        <div className="mb-4">
+          {activeGrowthTrack.stage === "concern" && (
+            <Alert variant="warning" className="border-0 shadow-sm d-flex align-items-center gap-3" style={{ borderRadius: '12px', background: '#fffbeb', borderLeft: '5px solid #d97706' }}>
+              <div className="bg-warning bg-opacity-20 p-2 rounded-circle d-flex align-items-center justify-content-center">
+                ⚠️
+              </div>
+              <div style={{ color: '#666' }}>
+                <strong style={{ color: '#b45309' }}>Performance Concern: </strong>
+                <span>
+                  Your manager has raised a performance concern regarding your recently delayed tasks, attendance, or work quality. Please focus on assigned targets and refer to the <a href="/growth-track" style={{ fontWeight: '600', color: '#b45309' }}>Growth Track</a> page for details and to acknowledge this notice.
+                </span>
+              </div>
+            </Alert>
+          )}
+
+          {activeGrowthTrack.stage === "improvement" && (
+            <Alert variant="warning" className="border-0 shadow-sm d-flex align-items-center gap-3" style={{ borderRadius: '12px', background: '#fffbeb', borderLeft: '5px solid #f59e0b' }}>
+              <div className="bg-warning bg-opacity-20 p-2 rounded-circle d-flex align-items-center justify-content-center">
+                ⚠️
+              </div>
+              <div style={{ color: '#666' }}>
+                <strong style={{ color: '#b45309' }}>Official Performance Review: </strong>
+                <span>
+                  You are currently under a structured performance review. Your reporting manager or HR has issued an official improvement notice. Please visit your <a href="/growth-track" style={{ fontWeight: '600', color: '#b45309' }}>Growth Track</a> page to view expectations, acknowledge the notice, and track progress.
+                </span>
+              </div>
+            </Alert>
+          )}
+
+          {activeGrowthTrack.stage === "critical" && (
+            <div className="pip-banner p-4 mb-4 shadow-sm" style={{ position: 'relative', overflow: 'hidden' }}>
+              <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+                <div style={{ flex: 1 }}>
+                  <div className="d-flex align-items-center gap-2 mb-2">
+                    <span className="badge bg-danger px-3 py-2" style={{ fontSize: '0.8rem', fontWeight: '700' }}>
+                      Performance Improvement Plan Active
+                    </span>
+                    <span className="text-muted" style={{ fontSize: '0.85rem' }}>
+                      Stage: Critical Review Stage (Growth Track)
+                    </span>
+                  </div>
+                  <h5 className="mb-2" style={{ fontWeight: '700', color: '#7f1d1d' }}>
+                    Your recent performance needs improvement. Please focus on assigned targets and follow manager guidance during this review period.
+                  </h5>
+                  <p className="mb-0 text-muted" style={{ fontSize: '0.9rem' }}>
+                    {(() => {
+                      if (!activeGrowthTrack.startDate) return "Your Growth Track review cycle is active.";
+                      const start = new Date(activeGrowthTrack.startDate);
+                      const now = new Date();
+                      const elapsedDays = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+                      const totalDays = activeGrowthTrack.endDate 
+                        ? Math.max(1, Math.floor((new Date(activeGrowthTrack.endDate) - start) / (1000 * 60 * 60 * 24)))
+                        : 30;
+                      
+                      if (elapsedDays < 1) {
+                        return "📢 Day 1: Your Growth Track (PIP) has started today. Please review your weekly targets and focus on improvement.";
+                      } else if (elapsedDays < 7) {
+                        return "📢 Week 1: Your improvement period is underway. Please work closely with your manager to achieve your targets.";
+                      } else if (elapsedDays < 8) {
+                        return "📢 Week 1 Review: Your first week is complete. Your first weekly review meeting is approaching.";
+                      } else if (elapsedDays < totalDays / 2) {
+                        return "📢 Status Update: Progress is being monitored. Maintain focus on your weekly targets.";
+                      } else if (elapsedDays < totalDays / 2 + 1) {
+                        return "📢 Midpoint: You have reached the midpoint of your Growth Track. Progress is actively monitored, keep up the effort.";
+                      } else if (elapsedDays < totalDays - 7) {
+                        return "📢 Status Update: Progress is being monitored. Maintain focus on your weekly targets.";
+                      } else if (elapsedDays < totalDays) {
+                        return "📢 Final Week: You are in the final week of your review cycle. Your final performance review is approaching.";
+                      } else {
+                        return "📢 Cycle Concluded: Your review cycle is complete. Your manager and HR will finalize the outcome of your Growth Track.";
+                      }
+                    })()}
+                  </p>
+                </div>
+                <div className="d-flex flex-column align-items-end justify-content-center text-md-end gap-1" style={{ minWidth: '180px' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#b91c1c' }}>
+                    Cycle Completion
+                  </div>
+                  {(() => {
+                    const start = new Date(activeGrowthTrack.startDate || Date.now());
+                    const now = new Date();
+                    const totalDays = activeGrowthTrack.endDate
+                      ? Math.max(1, Math.floor((new Date(activeGrowthTrack.endDate) - start) / (1000 * 60 * 60 * 24)))
+                      : 30;
+                    const elapsedDays = Math.max(0, Math.floor((now - start) / (1000 * 60 * 60 * 24)));
+                    const progressPercent = Math.min(100, Math.max(0, Math.round((elapsedDays / totalDays) * 100)));
+                    
+                    return (
+                      <div className="w-100">
+                        <div className="progress mb-1" style={{ height: '10px', borderRadius: '5px', background: '#fee2e2', overflow: 'hidden' }}>
+                          <div 
+                            className="progress-bar bg-danger" 
+                            role="progressbar" 
+                            style={{ width: `${progressPercent}%`, borderRadius: '5px' }} 
+                            aria-valuenow={progressPercent} 
+                            aria-valuemin="0" 
+                            aria-valuemax="100"
+                          />
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                          {progressPercent}% Complete ({elapsedDays}/{totalDays} days)
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  <a 
+                    href="/growth-track" 
+                    className="btn btn-danger btn-sm mt-2 w-100" 
+                    style={{ fontWeight: '600', background: 'linear-gradient(135deg, #ef4444 0%, #f59e0b 100%)', border: 'none' }}
+                  >
+                    View Targets & Reviews
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* HoD Section - Shows if user is Head of Department */}
       {user && (user.isHeadOfDepartment || user.headOfDepartment) && (

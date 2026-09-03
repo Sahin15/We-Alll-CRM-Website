@@ -34,6 +34,7 @@ const EMPLOYEE_STANDARD_GRANTS = [
   { permission: 'payroll.slip.view_self', scope: SCOPES.SELF },
   { permission: 'assets.asset.view', scope: SCOPES.SELF },
   { permission: 'licenses.license.view', scope: SCOPES.SELF },
+  { permission: 'growth_track.view', scope: SCOPES.SELF },
 ];
 
 const DEPARTMENT_HEAD_GRANTS = [
@@ -50,6 +51,8 @@ const DEPARTMENT_HEAD_GRANTS = [
   { permission: 'projects.report.manage', scope: SCOPES.OWN_DEPARTMENT },
   { permission: 'projects.document.manage', scope: SCOPES.OWN_DEPARTMENT },
   { permission: 'reports.analytics.view', scope: SCOPES.OWN_DEPARTMENT },
+  { permission: 'growth_track.view', scope: SCOPES.OWN_DEPARTMENT },
+  { permission: 'growth_track.manage', scope: SCOPES.OWN_DEPARTMENT },
 ];
 
 /** @type {Record<string, AccessRoleDefinition[]>} */
@@ -136,6 +139,8 @@ export const LEGACY_ROLE_TO_ACCESS_ROLES = {
         { permission: 'profile.update', scope: SCOPES.SELF },
         { permission: 'auth.role.manage', scope: SCOPES.COMPANY },
         { permission: 'auth.permission.assign', scope: SCOPES.COMPANY },
+        { permission: 'growth_track.view', scope: SCOPES.COMPANY },
+        { permission: 'growth_track.manage', scope: SCOPES.COMPANY },
       ],
     },
   ],
@@ -187,6 +192,8 @@ export const LEGACY_ROLE_TO_ACCESS_ROLES = {
         { permission: 'reports.analytics.view', scope: SCOPES.COMPANY },
         { permission: 'profile.view', scope: SCOPES.SELF },
         { permission: 'profile.update', scope: SCOPES.SELF },
+        { permission: 'growth_track.view', scope: SCOPES.COMPANY },
+        { permission: 'growth_track.manage', scope: SCOPES.COMPANY },
         ...EMPLOYEE_STANDARD_GRANTS.filter(
           (g) => !['profile.view', 'profile.update', 'dashboard.view'].includes(g.permission)
         ),
@@ -281,6 +288,8 @@ export const LEGACY_ROLE_TO_ACCESS_ROLES = {
         { permission: 'hiring.request.view', scope: SCOPES.COMPANY },
         { permission: 'profile.view', scope: SCOPES.SELF },
         { permission: 'profile.update', scope: SCOPES.SELF },
+        { permission: 'growth_track.view', scope: SCOPES.COMPANY },
+        { permission: 'growth_track.manage', scope: SCOPES.COMPANY },
         ...EMPLOYEE_STANDARD_GRANTS.filter(
           (g) => !['profile.view', 'profile.update', 'dashboard.view'].includes(g.permission)
         ),
