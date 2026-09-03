@@ -106,6 +106,24 @@ export const getOperationalDepartments = async (req, res) => {
   }
 };
 
+/**
+ * Lightweight department list for employee team directory filters.
+ * Does not expose admin department management data.
+ */
+export const getDepartmentDirectory = async (req, res) => {
+  try {
+    const departments = await Department.find({ status: "active" })
+      .select("_id name")
+      .sort({ name: 1 })
+      .lean();
+
+    res.status(200).json(departments);
+  } catch (error) {
+    logger.error("Error in getDepartmentDirectory:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 // Get department by ID
 export const getDepartmentById = async (req, res) => {
   try {

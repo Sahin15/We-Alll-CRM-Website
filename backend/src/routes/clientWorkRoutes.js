@@ -12,15 +12,35 @@ import {
   getClientWorkStatistics
 } from '../controllers/clientWorkController.js';
 
+import { requireModulePermissionAny } from '../authz/authzMiddleware.js';
+
 const router = express.Router();
+
+const CLIENT_WORK_VIEW_ROLES = [
+  "admin",
+  "superadmin",
+  "hr",
+  "hod",
+  "manager",
+  "employee",
+  "accounts",
+  "sales",
+  "client"
+];
 
 // All routes require authentication
 router.use(protect);
 
+const checkClientWorkPermission = requireModulePermissionAny(
+  "crm",
+  ["crm.client.view", "crm.client.view_assigned"],
+  { legacyRoles: CLIENT_WORK_VIEW_ROLES }
+);
+
 // Client work overview routes
-router.get('/:clientId/work-overview', getClientWorkOverview);
-router.get('/:clientId/slots', getClientSlots);
-router.get('/:clientId/timeline', getClientWorkTimeline);
-router.get('/:clientId/statistics', getClientWorkStatistics);
+router.get('/:clientId/work-overview', checkClientWorkPermission, getClientWorkOverview);
+router.get('/:clientId/slots', checkClientWorkPermission, getClientSlots);
+router.get('/:clientId/timeline', checkClientWorkPermission, getClientWorkTimeline);
+router.get('/:clientId/statistics', checkClientWorkPermission, getClientWorkStatistics);
 
 export default router;

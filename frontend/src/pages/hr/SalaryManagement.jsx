@@ -26,6 +26,7 @@ import TemplateManagement from "../../components/salary/TemplateManagement";
 import PayrollPeriods from "../../components/salary/PayrollPeriods";
 import PayrollApprovals from "../../components/salary/PayrollApprovals";
 import PayrollExports from "../../components/salary/PayrollExports";
+import PayrollDualRun from "../../components/salary/PayrollDualRun";
 import SimplePayrollTab from "../../components/salary/SimplePayrollTab";
 import { salarySlipApi } from "../../api/salaryApi";
 import api from "../../services/api";
@@ -39,12 +40,13 @@ const PAYROLL_TABS = new Set([
   "reports",
 ]);
 
-/** Legacy: periods/gates, workflows, bank exports, allowance forms, templates. */
+/** Legacy: periods/gates, workflows, bank exports, dual-run, allowance forms, templates. */
 const ADVANCED_TABS = new Set([
   "structures",
   "templates",
   "approvals",
   "exports",
+  "dual-run",
   "periods",
 ]);
 
@@ -414,8 +416,8 @@ const SalaryManagement = () => {
             <div>
               <strong>Advanced / Legacy</strong>
               <div className="text-muted small fw-normal">
-                Pay periods, approval workflows, bank/NEFT exports, allowance
-                structures, and templates — only when needed
+                Pay periods, approval workflows, bank/NEFT exports, dual-run
+                validation, allowance structures, and templates — only when needed
               </div>
             </div>
           </Accordion.Header>
@@ -436,6 +438,9 @@ const SalaryManagement = () => {
               </Tab>
               <Tab eventKey="exports" title="Exports">
                 {activeTab === "exports" && <PayrollExports />}
+              </Tab>
+              <Tab eventKey="dual-run" title="Dual-run">
+                {activeTab === "dual-run" && <PayrollDualRun />}
               </Tab>
               <Tab eventKey="templates" title="Templates">
                 {activeTab === "templates" && <TemplateManagement />}

@@ -119,6 +119,31 @@ const workItemSchema = new mongoose.Schema(
     completedAt: {
       type: Date,
     },
+    deliverableId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+    },
+    expectationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ProjectExpectation",
+      default: null,
+    },
+    commitmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ProjectCommitment",
+      default: null,
+    },
+    plannedMonth: {
+      year: { type: Number },
+      month: { type: Number },
+    },
+    delayReason: {
+      type: String,
+      trim: true,
+    },
+    delayedAt: {
+      type: Date,
+    },
     
     // Content-Specific Fields (Only for type='content')
     platform: {
@@ -1041,6 +1066,9 @@ workItemSchema.statics.findActive = function (query = {}) {
 workItemSchema.statics.findDeleted = function (query = {}) {
   return this.find({ ...query, isDeleted: true });
 };
+
+workItemSchema.index({ project: 1, "plannedMonth.year": 1, "plannedMonth.month": 1 });
+workItemSchema.index({ deliverableId: 1 });
 
 const WorkItem = mongoose.model("WorkItem", workItemSchema);
 

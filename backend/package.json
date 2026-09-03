@@ -1,6 +1,6 @@
 {
   "name": "crm-backend",
-  "version": "5.0.7",
+  "version": "5.2.9",
   "description": "Backend for CRM project (MERN) - Node, Express, MongoDB",
   "type": "module",
   "main": "src/server.js",
@@ -10,16 +10,16 @@
     "kill-port": "node scripts/kill-port.js 5000",
     "start": "node src/server.js",
     "lint": "eslint . --ext .js",
-    "test": "cross-env NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
+    "test": "cross-env NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --forceExit",
     "authz:rollout-status": "node scripts/authz-rollout-status.js",
+    "authz:validate": "node scripts/authz-validate.js",
     "authz:test": "cross-env NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand tests/authz",
     "seed": "node src/seed/seedRoles.js",
     "seed:policies": "node src/seeders/policySeed.js",
     "create-superadmin": "node scripts/createSuperAdmin.js",
     "reset-superadmin-password": "node scripts/resetSuperAdminPassword.js",
     "demote-superadmin": "node scripts/demoteSuperAdmin.js",
-    "puppeteer:install": "node scripts/ensure-puppeteer-chrome.js",
-    "prestart": "node scripts/ensure-puppeteer-chrome.js"
+    "puppeteer:install": "node scripts/ensure-puppeteer-chrome.js"
   },
   "author": "Sahin",
   "license": "MIT",

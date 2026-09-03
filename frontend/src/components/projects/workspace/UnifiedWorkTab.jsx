@@ -460,6 +460,16 @@ const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
                                             ✏️ Edited
                                           </Badge>
                                         )}
+                                        {(item.deliverableTitle || item.deliverableId) && (
+                                          <Badge bg="purple" style={{ backgroundColor: '#6f42c1', color: '#fff', fontSize: '0.7rem', padding: '2px 6px', marginLeft: '6px' }}>
+                                            🎯 {item.deliverableTitle || 'Deliverable'}
+                                          </Badge>
+                                        )}
+                                        {item.plannedMonth && item.plannedMonth.year && (
+                                          <Badge bg="secondary" style={{ fontSize: '0.7rem', padding: '2px 6px', marginLeft: '6px' }}>
+                                            📅 {item.plannedMonth.year}-{String(item.plannedMonth.month).padStart(2, '0')}
+                                          </Badge>
+                                        )}
                                       </div>
                                     </td>
                                     <td style={{ padding: '12px 20px' }}>{getAssigneeDisplay(item)}</td>

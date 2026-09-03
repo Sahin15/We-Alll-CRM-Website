@@ -42,7 +42,8 @@ describe("simpleSalaryPreviewBuild", () => {
     expect(finalized.deductions.lossOfPay).toBe(0);
     expect(finalized.earnings.basicSalary).toBe(30000);
     expect(finalized.earnings.bonus).toBe(2000);
-    expect(finalized.deductions.tds).toBe(1500);
+    expect(finalized.deductions.professionalTax).toBe(1500);
+    expect(finalized.deductions.tds).toBe(0);
     // 30000 + 2000 - 1500 = 30500
     expect(finalized.netSalary).toBe(30500);
   });

@@ -8,6 +8,10 @@ import {
   assertWorkflowType,
   buildStandardStages,
 } from "./payrollApprovalHelpers.js";
+import {
+  assertBulkApproveAllowed,
+  getBulkApproveCapabilities,
+} from "./bulkApproveGuard.js";
 
 /**
  * Resolve default stage approvers by role, or use explicit IDs.
@@ -139,13 +143,21 @@ export async function actOnPayrollApproval({
 }
 
 /**
- * Bulk-approve remaining stages (privileged shortcut).
+ * Bulk-approve remaining stages (PH-13: privileged emergency shortcut only).
  */
 export async function bulkApprovePayrollWorkflow({
   workflowId,
   userId,
+  user = null,
   comments = "Bulk approved",
+  confirmBypass = false,
 }) {
+  assertBulkApproveAllowed({
+    user: user || { role: null },
+    confirmBypass,
+    comments,
+  });
+
   const workflow = await ApprovalWorkflow.findById(workflowId);
   if (!workflow) {
     throw new Error("Approval workflow not found");
@@ -154,4 +166,11 @@ export async function bulkApprovePayrollWorkflow({
     throw new Error("Workflow is not in progress");
   }
   return workflow.bulkApprove(userId, comments);
+}
+
+/**
+ * @param {{ role?: string }|null|undefined} user
+ */
+export function getPayrollApprovalCapabilities(user) {
+  return getBulkApproveCapabilities(user);
 }

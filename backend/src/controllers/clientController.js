@@ -19,6 +19,7 @@ import {
   canUserViewClient,
   canViewAssignedClients,
   buildAssignedProjectQueryForUser,
+  filterProjectsVisibleToUser,
 } from "../services/resourceVisibilityService.js";
 
 // Add new client
@@ -344,13 +345,11 @@ export const getEmployeeClients = async (req, res) => {
       });
     }
 
-    logger.info(`🔍 Getting personally assigned clients for user: ${userId}`);
+    logger.info(`Getting personally assigned clients for user: ${userId}`);
 
     const clientIds = await collectPersonallyAssignedClientIds(userId);
-    logger.info(`📋 Personally assigned clients: [${clientIds.join(', ')}]`);
     
     if (clientIds.length === 0) {
-      logger.info(`❌ No clients found for user: ${userId}`);
       return res.status(200).json([]);
     }
     
@@ -365,8 +364,6 @@ export const getEmployeeClients = async (req, res) => {
     if (status) query.status = status;
     if (industry) query.industry = industry;
     
-    logger.info('🔍 Final client query:', query);
-    
     // Get filtered clients with department information
     const clients = await Client.find(query)
       .select('name email phone whatsappnumber company ownername address industry website targetAudience audienceGender previousChallenges legalGuidelines yearlyTurnover expectations serviceCompany status isVip vipLevel vipSince createdAt assignedDepartments')
@@ -375,10 +372,7 @@ export const getEmployeeClients = async (req, res) => {
       .sort({ isVip: -1, vipLevel: 1, createdAt: -1 })
       .lean();
     
-    logger.success(`✅ Found ${clients.length} accessible clients for user: ${userId}`);
-    clients.forEach(client => {
-      logger.info(`  - Client: "${client.name}" (Departments: ${client.assignedDepartments?.map(d => d.name).join(', ') || 'None'})`);
-    });
+    logger.info(`Found ${clients.length} accessible clients for user: ${userId}`);
     
     res.status(200).json(clients);
   } catch (error) {
@@ -1011,5 +1005,135 @@ export const getVipClients = async (req, res) => {
       message: "Server error", 
       error: error.message 
     });
+  }
+};
+
+/**
+ * Update client contacts list
+ * PUT /api/clients/:id/contacts
+ */
+export const updateClientContacts = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { contacts } = req.body;
+
+    if (!Array.isArray(contacts)) {
+      return res.status(400).json({ message: "contacts must be an array" });
+    }
+
+    const hasAccess = await canUserViewClient(req.user, id);
+    if (!hasAccess) {
+      return res.status(403).json({ message: "Access denied to this client" });
+    }
+
+    const client = await Client.findById(id);
+    if (!client) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    // Validate email format and required fields for each contact
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    for (const contact of contacts) {
+      if (!contact.name || !contact.name.trim()) {
+        return res.status(400).json({ message: "Each contact must have a name" });
+      }
+      if (!contact.type || !["Phone", "Email", "WhatsApp"].includes(contact.type)) {
+        return res.status(400).json({ message: "Invalid contact type" });
+      }
+      if (!contact.value || !contact.value.trim()) {
+        return res.status(400).json({ message: "Each contact must have a value" });
+      }
+      if (contact.type === "Email" && !emailRegex.test(contact.value.trim())) {
+        return res.status(400).json({ message: `Invalid email address: ${contact.value}` });
+      }
+    }
+
+    client.contacts = contacts;
+    await client.save();
+
+    await securityService.logAuditEvent({
+      userId: req.user._id || req.user.id,
+      action: "UPDATE_CLIENT_CONTACTS",
+      resource: "Client",
+      resourceId: client._id,
+      details: { contactCount: contacts.length },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Client contacts updated successfully",
+      contacts: client.contacts,
+    });
+  } catch (error) {
+    logger.error("Error updating client contacts:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+/**
+ * Get client projects summary grouped by status
+ * GET /api/clients/:id/projects-summary
+ */
+export const getClientProjectsSummary = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const hasAccess = await canUserViewClient(req.user, id);
+    if (!hasAccess) {
+      return res.status(403).json({ message: "Access denied to this client" });
+    }
+
+    const client = await Client.findById(id);
+    if (!client) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    // Find all projects linked to this client
+    const rawProjects = await Project.find({ client: id })
+      .populate("projectHead", "name email avatar")
+      .populate("teamMembers.user", "name email avatar")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Filter projects user is allowed to view
+    const visibleProjects = filterProjectsVisibleToUser(req.user, rawProjects);
+
+    // Group projects by status: Active, On Hold, Completed, Pending
+    const active = [];
+    const onHold = [];
+    const completed = [];
+    const pending = [];
+
+    visibleProjects.forEach((proj) => {
+      const st = proj.status || "Pending";
+      if (st === "Active") {
+        active.push(proj);
+      } else if (st === "On Hold") {
+        onHold.push(proj);
+      } else if (st === "Completed") {
+        completed.push(proj);
+      } else {
+        pending.push(proj);
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        all: visibleProjects,
+        active,
+        onHold,
+        completed,
+        pending,
+        totalCount: visibleProjects.length,
+        activeCount: active.length,
+        onHoldCount: onHold.length,
+        completedCount: completed.length,
+        pendingCount: pending.length,
+      },
+    });
+  } catch (error) {
+    logger.error("Error fetching client projects summary:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };

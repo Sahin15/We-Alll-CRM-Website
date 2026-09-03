@@ -38,7 +38,7 @@ export default function SimplePayrollPreviewPanels({
   return (
     <>
       <Alert variant="light" className="border small mb-3">
-        Simple payroll — Monthly Salary ± manual adjustments − TDS = Net.
+        Simple payroll — Monthly Salary ± manual adjustments − Professional Tax = Net.
         Attendance is review-only unless a manual deduction was added.
       </Alert>
 
@@ -49,7 +49,7 @@ export default function SimplePayrollPreviewPanels({
         </Alert>
       )}
 
-      <Accordion defaultActiveKey={["0", "4"]} alwaysOpen>
+      <Accordion defaultActiveKey={["0", "5"]} alwaysOpen>
         <Accordion.Item eventKey="0">
           <Accordion.Header>
             Monthly Salary —{" "}
@@ -67,7 +67,7 @@ export default function SimplePayrollPreviewPanels({
 
         <Accordion.Item eventKey="1">
           <Accordion.Header>
-            Attendance report (review only)
+            Salary or leave deduction
             {preview.attendanceReport?.suggestedDeduction > 0 && (
               <Badge bg="warning" text="dark" className="ms-2">
                 Suggested{" "}
@@ -77,8 +77,8 @@ export default function SimplePayrollPreviewPanels({
           </Accordion.Header>
           <Accordion.Body>
             <Alert variant="light" className="border small py-2">
-              Nothing here is deducted automatically. HR adds a manual adjustment
-              on Payroll if needed.
+              Review-only leave impact. Nothing is deducted until HR adds a
+              salary or leave deduction on Payroll.
             </Alert>
             <Row className="g-2 small mb-2">
               <Col xs={6} md={3}>
@@ -119,6 +119,45 @@ export default function SimplePayrollPreviewPanels({
         </Accordion.Item>
 
         <Accordion.Item eventKey="2">
+          <Accordion.Header>
+            Salary or leave deduction
+            {preview.attendanceReport?.earnedLeave?.remaining != null && (
+              <Badge bg="success" className="ms-2">
+                EL {preview.attendanceReport.earnedLeave.remaining} day(s)
+              </Badge>
+            )}
+          </Accordion.Header>
+          <Accordion.Body>
+            <Alert variant="light" className="border small py-2">
+              HR can deduct from salary (cuts net) or from earned leave (full
+              salary paid). Actions are available on the Payroll tab.
+            </Alert>
+            {preview.attendanceReport?.earnedLeave ? (
+              <Row className="g-2 small mb-0">
+                <Col xs={6} md={4}>
+                  <div className="text-muted">Earned leave remaining</div>
+                  <strong>
+                    {preview.attendanceReport.earnedLeave.eligible
+                      ? `${preview.attendanceReport.earnedLeave.remaining} day(s)`
+                      : "Not eligible"}
+                  </strong>
+                </Col>
+                <Col xs={6} md={4}>
+                  <div className="text-muted">Suggested unpaid days</div>
+                  <strong>
+                    {preview.attendanceReport?.unpaidLeaveDays ?? 0} day(s)
+                  </strong>
+                </Col>
+              </Row>
+            ) : (
+              <p className="small text-muted mb-0">
+                Leave balance details are shown when generating from Payroll.
+              </p>
+            )}
+          </Accordion.Body>
+        </Accordion.Item>
+
+        <Accordion.Item eventKey="3">
           <Accordion.Header>
             Manual Adjustments —{" "}
             {formatCurrency(preview.sections?.manualAdjustments?.amount)}
@@ -169,24 +208,24 @@ export default function SimplePayrollPreviewPanels({
           </Accordion.Body>
         </Accordion.Item>
 
-        <Accordion.Item eventKey="3">
+        <Accordion.Item eventKey="4">
           <Accordion.Header>
-            TDS —{" "}
+            Professional Tax —{" "}
             {preview.sections?.tds?.enabled
               ? formatCurrency(preview.sections?.tds?.amount)
               : "Off"}
           </Accordion.Header>
           <Accordion.Body className="small text-muted">
             {preview.sections?.tds?.enabled
-              ? "TDS is enabled on the active simple structure."
+              ? "Professional Tax is enabled on the active simple structure."
               : preview.sections?.tds?.amount > 0
-                ? "TDS amount stored on this preview."
-                : "TDS is disabled for this employee."}
+                ? "Professional Tax amount stored on this preview."
+                : "Professional Tax is disabled for this employee."}
           </Accordion.Body>
         </Accordion.Item>
 
-        <Accordion.Item eventKey="4">
-          <Accordion.Header>
+        <Accordion.Item eventKey="5" className="payroll-final-net-item">
+          <Accordion.Header className="payroll-final-net-header">
             Final Net —{" "}
             {preview.totals?.rejected
               ? "Rejected"
@@ -195,8 +234,8 @@ export default function SimplePayrollPreviewPanels({
                     preview.totals?.netSalary
                 )}
           </Accordion.Header>
-          <Accordion.Body>
-            <Row className="small">
+          <Accordion.Body className="payroll-final-net-body">
+            <Row className="small g-1 mb-0">
               <Col xs={6}>Monthly</Col>
               <Col xs={6} className="text-end">
                 {formatCurrency(preview.totals?.monthlySalary)}
@@ -205,14 +244,16 @@ export default function SimplePayrollPreviewPanels({
               <Col xs={6} className="text-end">
                 {formatCurrency(preview.totals?.adjustmentsTotal)}
               </Col>
-              <Col xs={6}>− TDS</Col>
+              <Col xs={6}>− Professional Tax</Col>
               <Col xs={6} className="text-end">
                 {formatCurrency(preview.totals?.tdsAmount)}
               </Col>
-              <Col xs={6} className="fw-semibold pt-2">
+            </Row>
+            <Row className="small g-0 mt-2 payroll-final-net-total rounded">
+              <Col xs={6} className="fw-semibold py-2 px-3">
                 Net
               </Col>
-              <Col xs={6} className="text-end fw-semibold pt-2">
+              <Col xs={6} className="text-end fw-semibold py-2 px-3">
                 {preview.totals?.rejected
                   ? "—"
                   : formatCurrency(preview.totals?.netSalary)}
@@ -221,6 +262,27 @@ export default function SimplePayrollPreviewPanels({
           </Accordion.Body>
         </Accordion.Item>
       </Accordion>
+      <style>{`
+        .payroll-final-net-item {
+          border: 1px solid #198754 !important;
+          border-radius: 8px;
+          overflow: hidden;
+        }
+        .payroll-final-net-header {
+          background: linear-gradient(135deg, #d1e7dd 0%, #e8f5e9 100%) !important;
+          font-weight: 600;
+        }
+        .payroll-final-net-header:not(.collapsed) {
+          background: linear-gradient(135deg, #b8dfc8 0%, #d1e7dd 100%) !important;
+        }
+        .payroll-final-net-body {
+          background: #f8fdf9;
+        }
+        .payroll-final-net-total {
+          background: linear-gradient(135deg, #198754 0%, #20c997 100%);
+          color: #fff;
+        }
+      `}</style>
     </>
   );
 }

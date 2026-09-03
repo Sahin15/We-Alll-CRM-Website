@@ -6,6 +6,7 @@
 import SalaryStructure from "../../models/salaryStructureModel.js";
 import PayrollAdjustment from "../../models/payrollAdjustmentModel.js";
 import LeaveImpactCalculator from "../leaveImpactCalculator.js";
+import LeaveRequest from "../../models/leaveRequestModel.js";
 import {
   computeSimpleNet,
   perDaySalary,
@@ -73,6 +74,7 @@ export function buildSimplePreviewDto({
     id: a._id?.toString?.() || a.id || null,
     type: a.type,
     amount: Math.abs(Number(a.amount) || 0),
+    leaveDays: a.leaveDays != null ? Number(a.leaveDays) : null,
     signedAmount: signedAdjustmentAmount(a),
     status: a.status || "draft",
     reason: a.reason || "",
@@ -118,7 +120,13 @@ export function buildSimplePreviewDto({
             : null,
       },
       tds: {
-        label: "TDS",
+        // Key kept as `tds` for API compatibility; label is Professional Tax.
+        label: "Professional Tax",
+        enabled: Boolean(structure.tdsEnabled),
+        amount: tds,
+      },
+      professionalTax: {
+        label: "Professional Tax",
         enabled: Boolean(structure.tdsEnabled),
         amount: tds,
       },
@@ -192,11 +200,42 @@ export async function getSimplePayrollPreview({
   const dayRate = perDaySalary(monthly);
 
   /** @type {object|null} */
+  let earnedLeaveSummary = null;
+
+  const loadEarnedLeaveSummary = async (absentDaysOnly = 0) => {
+    try {
+      const balance = await LeaveRequest.getLeaveBalance(employeeId, year);
+      const remaining = balance.eligibleForPaidLeave
+        ? balance.earned.remaining
+        : 0;
+      earnedLeaveSummary = {
+        earnedLeave: {
+          eligible: balance.eligibleForPaidLeave,
+          earned: balance.earned.earned,
+          used: balance.earned.used,
+          remaining,
+          total: balance.earned.total,
+        },
+        daysCoverableByLeave: Math.min(absentDaysOnly, remaining),
+      };
+    } catch (balanceErr) {
+      console.warn("[simplePayrollPreview] leave balance failed:", balanceErr.message);
+      earnedLeaveSummary = {
+        earnedLeave: null,
+        daysCoverableByLeave: 0,
+        balanceError: balanceErr.message,
+      };
+    }
+  };
+
+  /** @type {object|null} */
   let attendanceReport = null;
   let suggestedLopAmount = 0;
   let suggestedLopDays = 0;
 
   if (includeLeaveImpact) {
+    await loadEarnedLeaveSummary(0);
+
     try {
       const calc = new LeaveImpactCalculator();
       const impact = await calc.calculateLeaveDeduction(employeeId, month, year, {
@@ -205,32 +244,60 @@ export async function getSimplePayrollPreview({
       });
       suggestedLopAmount = Math.round(Number(impact?.deductionAmount) || 0);
       suggestedLopDays = Number(impact?.unpaidLeaves) || 0;
+      const absentDaysOnly = Number(impact?.absentDays) || 0;
+
+      await loadEarnedLeaveSummary(absentDaysOnly);
+
+      const absentEntry = impact.leaveBreakdown?.find((b) => b.leaveType === "absent");
+      const { earnedLeave, daysCoverableByLeave } = earnedLeaveSummary || {};
+
       attendanceReport = {
         unpaidLeaveDays: suggestedLopDays,
+        absentDaysOnly,
         paidLeaveDays: Number(impact?.paidLeaves) || 0,
         suggestedDeduction: suggestedLopAmount,
         perDaySalary: dayRate,
+        earnedLeave: earnedLeave || null,
+        daysCoverableByLeave: daysCoverableByLeave ?? 0,
+        salarySavedIfLeaveUsed: amountForDays(
+          monthly,
+          daysCoverableByLeave ?? 0,
+          DEFAULT_DAY_DIVISOR
+        ),
         detail:
           suggestedLopDays > 0
-            ? `${suggestedLopDays} unpaid day(s) × ${dayRate} (suggestion only — not applied)`
-            : "No unpaid leave suggested for this period",
-        note: "Deductions are manual. Review attendance and add an adjustment if needed.",
+            ? `${suggestedLopDays} unpaid day(s) × ₹${dayRate} (suggestion only — not applied to net salary)`
+            : absentDaysOnly > 0
+              ? `${absentDaysOnly} absent day(s) detected — choose salary deduction or earned leave below`
+              : "No unpaid days suggested for this period",
+        note: "Choose one: deduct from salary (reduces net pay) or deduct from earned leave (no salary cut, reduces leave balance).",
+        absentDates: (absentEntry?.absentDates || []).map((d) =>
+          new Date(d).toISOString().slice(0, 10)
+        ),
+        balanceError: earnedLeaveSummary?.balanceError || null,
       };
     } catch (err) {
       console.warn(
         "[simplePayrollPreview] leave impact failed:",
         err.message
       );
+      const { earnedLeave, daysCoverableByLeave } = earnedLeaveSummary || {};
       attendanceReport = {
         unpaidLeaveDays: 0,
+        absentDaysOnly: 0,
         paidLeaveDays: 0,
         suggestedDeduction: 0,
         perDaySalary: dayRate,
-        detail: "Attendance/leave data unavailable",
-        note: "Deductions are manual. Add an adjustment if HR decides to deduct.",
+        earnedLeave: earnedLeave || null,
+        daysCoverableByLeave: daysCoverableByLeave ?? 0,
+        detail: "Attendance/leave impact unavailable for this period",
+        note: "Earned leave balance is shown when available. Add adjustments manually if needed.",
         error: err.message,
+        balanceError: earnedLeaveSummary?.balanceError || null,
       };
     }
+  } else {
+    await loadEarnedLeaveSummary(0);
   }
 
   let automaticDeductions = 0;
@@ -266,7 +333,19 @@ export async function getSimplePayrollPreview({
     dto.month = parseInt(month, 10);
     dto.year = parseInt(year, 10);
     dto.employee = employeeId;
-    dto.attendanceReport = attendanceReport;
+    dto.attendanceReport =
+      attendanceReport ||
+      (earnedLeaveSummary?.earnedLeave
+        ? {
+            earnedLeave: earnedLeaveSummary.earnedLeave,
+            daysCoverableByLeave: earnedLeaveSummary.daysCoverableByLeave ?? 0,
+            suggestedDeduction: 0,
+            unpaidLeaveDays: 0,
+            absentDaysOnly: 0,
+            perDaySalary: dayRate,
+            note: "Earned leave balance for reference.",
+          }
+        : null);
     dto.applyAutomaticDeductions = Boolean(
       applyAutomaticDeductions ||
         (autoOverride != null && autoOverride !== "" && Number(autoOverride) > 0)

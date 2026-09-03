@@ -204,11 +204,12 @@ const PayrollExports = () => {
             onChange={(e) => setStatus(e.target.value)}
           >
             {(
-              capabilities?.lifecycleStatuses || [
+              capabilities?.bankExportAllowedStatuses || [
                 "approved",
-                "generated",
-                "paid",
                 "sent",
+                "viewed",
+                "downloaded",
+                "paid",
               ]
             ).map((s) => (
               <option key={s} value={s}>
@@ -220,10 +221,10 @@ const PayrollExports = () => {
       </div>
 
       <Alert variant="light" className="border small">
-        Default bank export status is{" "}
+        Bank NEFT only exports slips that are{" "}
+        <strong>approved</strong> (or V1 sent/viewed/downloaded/paid). Draft and{" "}
+        <code>generated</code> are blocked. Default filter:{" "}
         <strong>{capabilities?.defaultBankExportStatus || "approved"}</strong>.
-        Change the filter if your slips still use V1 statuses (e.g.{" "}
-        <code>generated</code>).
       </Alert>
 
       {exportBlocked && (

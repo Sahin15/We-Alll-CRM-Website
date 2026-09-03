@@ -14,16 +14,7 @@ import {
   isValidEmployeeIdFormat,
   isEmployeeIdTaken,
 } from "../services/employeeIdService.js";
-
-const HR_ROLES = ["hr", "admin", "superadmin", "manager"];
-
-const assertHrAccess = (req, res) => {
-  if (!HR_ROLES.includes(req.user.role)) {
-    res.status(403).json({ message: "Insufficient permissions" });
-    return false;
-  }
-  return true;
-};
+import { assertHrAccess } from "../utils/hiringAccess.js";
 
 const generateOfferNumber = async () => {
   const year = new Date().getFullYear();

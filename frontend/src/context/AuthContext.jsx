@@ -46,34 +46,77 @@ const safeLocalStorage = {
   }
 };
 
+const AUTHZ_CACHE_KEY = "authz_effective_cache";
+const AUTHZ_CACHE_TTL_MS = 5 * 60 * 1000;
+const USER_REFRESH_TS_KEY = "user_profile_refreshed_at";
+const USER_REFRESH_TTL_MS = 5 * 60 * 1000;
+
+/** @returns {object|null} Cached authz payload or null if missing/stale */
+const readAuthzCache = () => {
+  try {
+    const raw = sessionStorage.getItem(AUTHZ_CACHE_KEY);
+    if (!raw) return null;
+    const { data, ts } = JSON.parse(raw);
+    if (!data || Date.now() - ts > AUTHZ_CACHE_TTL_MS) return null;
+    return data;
+  } catch {
+    return null;
+  }
+};
+
+/** @param {object} data */
+const writeAuthzCache = (data) => {
+  try {
+    sessionStorage.setItem(AUTHZ_CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
+  } catch {
+    /* ignore quota errors */
+  }
+};
+
+const clearAuthzCache = () => {
+  try {
+    sessionStorage.removeItem(AUTHZ_CACHE_KEY);
+  } catch {
+    /* ignore */
+  }
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(safeLocalStorage.getItem("token"));
   const [loading, setLoading] = useState(true);
-  const [authzEffective, setAuthzEffective] = useState(null);
+  const [authzEffective, setAuthzEffective] = useState(() => readAuthzCache());
   const [authzLoading, setAuthzLoading] = useState(false);
   const healthMonitorCleanup = useRef(null);
 
   const loadAuthzEffective = useCallback(async (options = {}) => {
-    const { silent = false } = options;
-    if (!isAuthzV2AnyModuleEnabled()) {
-      setAuthzEffective(null);
-      return null;
+    const { force = false } = options;
+    const cached = !force ? readAuthzCache() : null;
+
+    if (cached) {
+      setAuthzEffective(cached);
+      setAuthzLoading(false);
+      // Refresh in background without blocking routes
+      authzApi.getEffective()
+        .then((data) => {
+          setAuthzEffective(data);
+          writeAuthzCache(data);
+        })
+        .catch(() => {});
+      return cached;
     }
-    if (!silent) {
-      setAuthzLoading(true);
-    }
+
+    setAuthzLoading(true);
     try {
       const data = await authzApi.getEffective();
       setAuthzEffective(data);
+      writeAuthzCache(data);
       return data;
     } catch {
       setAuthzEffective(null);
       return null;
     } finally {
-      if (!silent) {
-        setAuthzLoading(false);
-      }
+      setAuthzLoading(false);
     }
   }, []);
 
@@ -88,19 +131,29 @@ export const AuthProvider = ({ children }) => {
           try {
             const parsedUser = JSON.parse(storedUser);
             setUser(parsedUser);
+            // Unblock UI immediately with cached session — refresh in background
+            setLoading(false);
 
-            // Refresh profile from API (includes profilePicture; fixes stale localStorage)
-            try {
-              const response = await authApi.getCurrentUser();
-              const freshUser = response?.data?.user;
-              if (freshUser) {
-                setUser(freshUser);
-                safeLocalStorage.setItem("user", JSON.stringify(freshUser));
-              }
-            } catch {
-              // Keep cached user if refresh fails (offline, etc.)
+            const lastRefresh = Number(sessionStorage.getItem(USER_REFRESH_TS_KEY) || 0);
+            const shouldRefreshProfile = Date.now() - lastRefresh > USER_REFRESH_TTL_MS;
+            if (shouldRefreshProfile) {
+              authApi
+                .getCurrentUser()
+                .then((response) => {
+                  const freshUser = response?.data?.user;
+                  if (freshUser) {
+                    setUser(freshUser);
+                    safeLocalStorage.setItem("user", JSON.stringify(freshUser));
+                  }
+                  sessionStorage.setItem(USER_REFRESH_TS_KEY, String(Date.now()));
+                })
+                .catch(() => {
+                  /* keep cached user */
+                });
             }
-            loadAuthzEffective();
+
+            loadAuthzEffective({ silent: true });
+            return;
           } catch (parseError) {
             safeLocalStorage.removeItem("token");
             safeLocalStorage.removeItem("user");
@@ -168,6 +221,12 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     safeLocalStorage.removeItem("token");
     safeLocalStorage.removeItem("user");
+    clearAuthzCache();
+    try {
+      sessionStorage.removeItem(USER_REFRESH_TS_KEY);
+    } catch {
+      /* ignore */
+    }
     setToken(null);
     setUser(null);
     setAuthzEffective(null);
@@ -218,21 +277,29 @@ export const AuthProvider = ({ children }) => {
   }, [user, token]);
 
   useEffect(() => {
-    if (!token || !isAuthzV2AnyModuleEnabled()) return undefined;
+    if (!token) return undefined;
+
+    const AUTHZ_STALE_MS = 5 * 60 * 1000;
+    let lastAuthzFetch = Date.now();
 
     const refreshOnFocus = () => {
+      if (Date.now() - lastAuthzFetch < AUTHZ_STALE_MS) return;
+      lastAuthzFetch = Date.now();
       loadAuthzEffective({ silent: true });
     };
 
-    window.addEventListener("focus", refreshOnFocus);
-    document.addEventListener("visibilitychange", () => {
+    const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         refreshOnFocus();
       }
-    });
+    };
+
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [token, loadAuthzEffective]);
 
@@ -255,10 +322,10 @@ export const AuthProvider = ({ children }) => {
       }
       return authzEffective.permissions.includes(permission);
     }
-    if (isAuthzV2AnyModuleEnabled()) {
+    if (isAuthzV2AnyModuleEnabled() || authzLoading) {
       return false;
     }
-    return true;
+    return false;
   };
 
   /**

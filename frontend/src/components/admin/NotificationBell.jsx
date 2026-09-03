@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { FaBell, FaTimes } from "react-icons/fa";
 import { Dropdown } from "react-bootstrap";
 import { useNotifications } from "../../context/NotificationContext";
+import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import "./NotificationBell.css";
 
@@ -13,9 +14,11 @@ const NotificationBell = () => {
     markAsRead,
     markAllAsRead,
     deleteNotification,
+    fetchNotifications,
   } = useNotifications();
   const [show, setShow] = useState(false);
   const navigate = useNavigate();
+  const { user } = useAuth();
   const dropdownRef = useRef(null);
 
   // Close dropdown when clicking outside
@@ -84,7 +87,11 @@ const NotificationBell = () => {
       }
       // Employee notifications
       else if (notification.data.employeeId) {
-        navigate(`/users/${notification.data.employeeId}`);
+        const profilePath =
+          user?.role === "admin" || user?.role === "superadmin"
+            ? `/users/${notification.data.employeeId}`
+            : `/employees/${notification.data.employeeId}`;
+        navigate(profilePath);
       }
       // Project notifications
       else if (notification.data.projectId) {
@@ -174,6 +181,13 @@ const NotificationBell = () => {
     return icons[type] || "ℹ️";
   };
 
+  // Some older notifications were saved with a corrupted icon prefix (encoding issue),
+  // e.g. "≡ƒôï New Leave Request". Strip leading non-alphanumeric garbage.
+  const sanitizeNotificationTitle = (title) => {
+    if (typeof title !== "string") return "";
+    return title.replace(/^[^a-zA-Z0-9]+/, "");
+  };
+
   const formatTime = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -193,7 +207,11 @@ const NotificationBell = () => {
     <div className="notification-bell-container" ref={dropdownRef}>
       <button
         className="notification-bell-btn"
-        onClick={() => setShow(!show)}
+        onClick={() => {
+          const next = !show;
+          setShow(next);
+          if (next) fetchNotifications();
+        }}
         aria-label="Notifications"
       >
         <FaBell size={20} />
@@ -239,7 +257,7 @@ const NotificationBell = () => {
                     {getNotificationIcon(notification.type)}
                   </div>
                   <div className="notification-content">
-                    <div className="notification-title">{notification.title}</div>
+                    <div className="notification-title">{sanitizeNotificationTitle(notification.title)}</div>
                     <div className="notification-message">{notification.body || notification.message}</div>
                     <div className="notification-time">{formatTime(notification.createdAt)}</div>
                   </div>

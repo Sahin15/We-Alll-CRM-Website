@@ -19,7 +19,7 @@ const router = express.Router();
 
 const SUBSCRIPTION_MANAGE_ROLES = ["admin", "superadmin", "accounts", "manager", "hod"];
 const SUBSCRIPTION_CREATE_ROLES = ["admin", "superadmin", "client", "accounts", "hod"];
-const SUBSCRIPTION_READ_ROLES = ["admin", "superadmin", "accounts", "client", "hod"];
+const SUBSCRIPTION_READ_ROLES = ["admin", "superadmin", "accounts", "client", "hod", "manager", "hr", "employee"];
 const SUBSCRIPTION_CANCEL_ROLES = ["admin", "superadmin", "client"];
 const SUBSCRIPTION_DELETE_ROLES = ["admin", "superadmin", "manager"];
 const CLIENT_ROLES = ["client"];

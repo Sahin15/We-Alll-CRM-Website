@@ -46,7 +46,7 @@ export const getMyNotifications = async (req, res) => {
     res.status(200).json({
       notifications,
       unreadCount,
-      total: await Notification.countDocuments({ recipient: userId }),
+      total: notifications.length + parseInt(skip, 10),
     });
   } catch (error) {
     

@@ -7,8 +7,12 @@ import WorkingDaysCalculator from "../services/workingDaysCalculator.js";
 import LeaveImpactCalculator from "../services/leaveImpactCalculator.js";
 import notificationService from "../services/notificationService.js";
 import { calculateProRataSalarySlip } from "../utils/proRataSalaryCalculator.js";
-import { dualRunPayroll } from "../services/payroll/payrollEngine.js";
-import { resolveAttendanceMoneyDeductions } from "../services/payroll/payrollCorrectnessHelpers.js";
+import { resolveSlipFieldsFromEngine } from "../services/payroll/persistableSlipMapper.js";
+import { buildStandardGenerateSlipMoney } from "../services/payroll/generatePayrollMoneyPolicy.js";
+import {
+  assertNonNegativeNetFromMaps,
+  sendNegativeNetError,
+} from "../services/payroll/negativeNetGuard.js";
 import {
   assertPeriodAllows,
   sendPeriodGateError,
@@ -323,9 +327,6 @@ export const generateSalarySlip = async (req, res) => {
     // Calculate attendance using enhanced calculator
     const attendance = await calculateAttendance(employeeId, month, year);
 
-    // Calculate Loss of Pay using enhanced calculation
-    const lossOfPay = attendance.lossOfPayAmount || attendance.leaveImpactDetails.totalLeaveDeduction;
-
     let earnings;
     let deductions;
     let simpleMeta = null;
@@ -362,66 +363,61 @@ export const generateSalarySlip = async (req, res) => {
         throw simpleErr;
       }
     } else {
-      // Prepare earnings (use pro-rata values if applicable)
-      earnings = {
-        basicSalary: proRataData.earnings.basicSalary || salaryStructure.basicSalary,
-        hra: proRataData.earnings.hra || salaryStructure.hra,
-        specialAllowance: proRataData.earnings.specialAllowance || salaryStructure.specialAllowance,
-        transportAllowance: proRataData.earnings.transportAllowance || salaryStructure.transportAllowance,
-        medicalAllowance: proRataData.earnings.medicalAllowance || salaryStructure.medicalAllowance,
-        otherAllowances: salaryStructure.otherAllowances || [],
-        bonus: bonus || 0,
-        overtime: overtime || 0,
-        arrears: arrears || 0,
-        reimbursements: reimbursements || 0,
-        incentives: incentives || 0
-      };
-
-      // R1: single attendance money path
-      const attendanceMoney = resolveAttendanceMoneyDeductions(lossOfPay);
-      deductions = {
-        providentFund: proRataData.deductions.providentFund || salaryStructure.providentFund,
-        professionalTax: proRataData.deductions.professionalTax || salaryStructure.professionalTax,
-        tds: proRataData.deductions.tds || salaryStructure.tds,
-        esi: proRataData.deductions.esi || salaryStructure.esi,
-        lossOfPay: attendanceMoney.lossOfPay,
-        unpaidLeaveDeduction: attendanceMoney.unpaidLeaveDeduction,
-        advances: advances || 0,
-        loans: loans || 0,
-        otherDeductions: salaryStructure.otherDeductions || []
-      };
-    }
-
-    const attendanceMoneyForDual = resolveAttendanceMoneyDeductions(
-      deductions.lossOfPay
-    );
-
-    // Milestone 4: dual-run V1 vs V2 engine (log only — slip still persists mapped amounts)
-    try {
-      const dual = dualRunPayroll(salaryStructure, {
-        bonus: earnings.bonus,
-        overtime: earnings.overtime,
-        arrears: earnings.arrears,
-        reimbursements: earnings.reimbursements,
-        incentives: earnings.incentives,
-        advances: deductions.advances,
-        loans: deductions.loans,
-        lossOfPay: attendanceMoneyForDual.lossOfPay,
-        lopDays: attendance.unpaidLeaves,
+      // PH-03/PH-04: shared attendance OT/half-day + LOP on persisted earnings gross
+      const money = await buildStandardGenerateSlipMoney({
+        employeeId,
+        month,
+        year,
+        structure: salaryStructure,
+        proRataData,
+        attendance,
+        extras: {
+          bonus,
+          overtime,
+          arrears,
+          reimbursements,
+          incentives,
+          advances,
+          loans,
+        },
       });
-      if (!dual.diff.withinTolerance) {
-        console.warn(
-          `[payroll-dual-run] mismatch employee=${employeeId} ${month}/${year} netDiff=${dual.diff.netSalary}`,
-          dual.diff
-        );
-      } else {
-        console.info(
-          `[payroll-dual-run] match employee=${employeeId} ${month}/${year} net=${dual.v1.totals.netSalary}`
-        );
+      earnings = money.earnings;
+      deductions = money.deductions;
+
+      // PH-01: dual-run + persist V2 when PAYROLL_V2_ENGINE=true; keep V1 maps when false
+      try {
+        const structureForEngine = {
+          ...(typeof salaryStructure.toObject === "function"
+            ? salaryStructure.toObject()
+            : salaryStructure),
+          basicSalary: earnings.basicSalary,
+          hra: earnings.hra,
+          specialAllowance: earnings.specialAllowance,
+          transportAllowance: earnings.transportAllowance,
+          medicalAllowance: earnings.medicalAllowance,
+          providentFund: deductions.providentFund,
+          professionalTax: deductions.professionalTax,
+          tds: deductions.tds,
+          esi: deductions.esi,
+          otherAllowances: earnings.otherAllowances,
+          otherDeductions: deductions.otherDeductions,
+          grossSalary: money.perDaySalary * 30,
+        };
+        const resolved = resolveSlipFieldsFromEngine({
+          structure: structureForEngine,
+          overrides: money.engineOverrides,
+          fallbackEarnings: earnings,
+          fallbackDeductions: deductions,
+        });
+        earnings = resolved.earnings;
+        deductions = resolved.deductions;
+      } catch (dualRunError) {
+        console.error("[payroll-dual-run] failed:", dualRunError.message);
       }
-    } catch (dualRunError) {
-      console.error("[payroll-dual-run] failed:", dualRunError.message);
     }
+
+    // PH-05: fail closed — do not persist negative nets
+    assertNonNegativeNetFromMaps(earnings, deductions);
 
     // Calculate YTD
     const ytd = await SalarySlip.calculateYTD(employeeId, year, month - 1);
@@ -502,6 +498,7 @@ export const generateSalarySlip = async (req, res) => {
     });
   } catch (error) {
     if (sendPeriodGateError(res, error)) return;
+    if (sendNegativeNetError(res, error)) return;
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -566,9 +563,6 @@ export const bulkGenerateSalarySlips = async (req, res) => {
         // Calculate attendance using enhanced calculator
         const attendance = await calculateAttendance(employee._id, month, year);
 
-        // R1: single LOP path (LeaveImpact only)
-        const lossOfPay = attendance.lossOfPayAmount || attendance.leaveImpactDetails.totalLeaveDeduction;
-
         let earnings;
         let deductions;
 
@@ -594,33 +588,58 @@ export const bulkGenerateSalarySlips = async (req, res) => {
             continue;
           }
         } else {
-          const attendanceMoney = resolveAttendanceMoneyDeductions(lossOfPay);
-          earnings = {
-            basicSalary: salaryStructure.basicSalary,
-            hra: salaryStructure.hra,
-            specialAllowance: salaryStructure.specialAllowance,
-            transportAllowance: salaryStructure.transportAllowance,
-            medicalAllowance: salaryStructure.medicalAllowance,
-            otherAllowances: salaryStructure.otherAllowances || [],
-            bonus: 0,
-            overtime: 0,
-            arrears: 0,
-            reimbursements: 0,
-            incentives: 0
-          };
+          const proRataData = await checkAndCalculateProRata(
+            employee._id,
+            month,
+            year,
+            salaryStructure
+          );
+          const money = await buildStandardGenerateSlipMoney({
+            employeeId: employee._id,
+            month,
+            year,
+            structure: salaryStructure,
+            proRataData,
+            attendance,
+            extras: {},
+          });
+          earnings = money.earnings;
+          deductions = money.deductions;
 
-          deductions = {
-            providentFund: salaryStructure.providentFund,
-            professionalTax: salaryStructure.professionalTax,
-            tds: salaryStructure.tds,
-            esi: salaryStructure.esi,
-            lossOfPay: attendanceMoney.lossOfPay,
-            unpaidLeaveDeduction: attendanceMoney.unpaidLeaveDeduction,
-            advances: 0,
-            loans: 0,
-            otherDeductions: salaryStructure.otherDeductions || []
-          };
+          // PH-01: same persist selection as single generate
+          try {
+            const structureForEngine = {
+              ...(typeof salaryStructure.toObject === "function"
+                ? salaryStructure.toObject()
+                : salaryStructure),
+              basicSalary: earnings.basicSalary,
+              hra: earnings.hra,
+              specialAllowance: earnings.specialAllowance,
+              transportAllowance: earnings.transportAllowance,
+              medicalAllowance: earnings.medicalAllowance,
+              providentFund: deductions.providentFund,
+              professionalTax: deductions.professionalTax,
+              tds: deductions.tds,
+              esi: deductions.esi,
+              otherAllowances: earnings.otherAllowances,
+              otherDeductions: deductions.otherDeductions,
+              grossSalary: money.perDaySalary * 30,
+            };
+            const resolved = resolveSlipFieldsFromEngine({
+              structure: structureForEngine,
+              overrides: money.engineOverrides,
+              fallbackEarnings: earnings,
+              fallbackDeductions: deductions,
+            });
+            earnings = resolved.earnings;
+            deductions = resolved.deductions;
+          } catch (dualRunError) {
+            console.error("[payroll-dual-run] bulk failed:", dualRunError.message);
+          }
         }
+
+        // PH-05
+        assertNonNegativeNetFromMaps(earnings, deductions);
 
         // Calculate YTD
         const ytd = await SalarySlip.calculateYTD(employee._id, year, month - 1);
@@ -681,7 +700,8 @@ export const bulkGenerateSalarySlips = async (req, res) => {
         results.failed.push({
           employeeId: employee.employeeId,
           name: employee.name,
-          reason: error.message
+          reason: error.message,
+          code: error.code || undefined,
         });
       }
     }
@@ -867,6 +887,9 @@ export const updateSalarySlip = async (req, res) => {
       });
     }
 
+    // PH-08: block edits when period is locked/paid (gates on)
+    await assertPeriodAllows("mutate", slip.year, slip.month);
+
     // Update allowed fields
     const allowedUpdates = [
       "bonus", "overtime", "arrears", "reimbursements", "incentives",
@@ -893,7 +916,7 @@ export const updateSalarySlip = async (req, res) => {
       salarySlip: slip
     });
   } catch (error) {
-    
+    if (sendPeriodGateError(res, error)) return;
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -918,13 +941,16 @@ export const deleteSalarySlip = async (req, res) => {
       });
     }
 
+    // PH-08
+    await assertPeriodAllows("mutate", slip.year, slip.month);
+
     await SalarySlip.findByIdAndDelete(id);
 
     res.status(200).json({
       message: "Salary slip deleted successfully"
     });
   } catch (error) {
-    
+    if (sendPeriodGateError(res, error)) return;
     res.status(500).json({
       message: "Server error",
       error: error.message
@@ -1416,7 +1442,8 @@ export const recalculateSalarySlip = async (req, res) => {
       });
     }
 
-    await assertPeriodAllows("generate", slip.year, slip.month);
+    // PH-08: recalc is a mutation — blocked when period locked/paid
+    await assertPeriodAllows("mutate", slip.year, slip.month);
 
     const salaryStructure = slip.salaryStructure;
     if (!salaryStructure) {

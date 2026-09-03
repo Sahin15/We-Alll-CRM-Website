@@ -9,7 +9,7 @@ describe("simpleSlipPersist (SP-04)", () => {
     expect(isSimplePayrollStructure({ payrollMode: "legacy" })).toBe(false);
   });
 
-  it("maps monthly salary, LOP, bonus adjustment, and TDS into slip fields", () => {
+  it("maps monthly salary, LOP, bonus adjustment, and Professional Tax into slip fields", () => {
     const { earnings, deductions, simpleMeta } = mapSimpleStructureToSlipFields({
       structure: {
         payrollMode: "simple",
@@ -32,7 +32,8 @@ describe("simpleSlipPersist (SP-04)", () => {
     expect(earnings.hra).toBe(0);
     expect(earnings.bonus).toBe(2000);
     expect(deductions.lossOfPay).toBe(1000);
-    expect(deductions.tds).toBe(1500);
+    expect(deductions.professionalTax).toBe(1500);
+    expect(deductions.tds).toBe(0);
     expect(deductions.unpaidLeaveDeduction).toBe(0);
     expect(deductions.otherDeductions).toEqual([
       { name: "late_deduction", amount: 1000, reason: "3 lates" },
@@ -55,7 +56,7 @@ describe("simpleSlipPersist (SP-04)", () => {
     ).toThrow(/negative/i);
   });
 
-  it("ignores leftover PF/PT/ESI so slip net matches Simple Payroll computeSimpleNet", () => {
+  it("maps structure tds amount onto professionalTax and ignores leftover PF/PT/ESI", () => {
     const { deductions, simpleMeta } = mapSimpleStructureToSlipFields({
       structure: {
         payrollMode: "simple",
@@ -72,10 +73,10 @@ describe("simpleSlipPersist (SP-04)", () => {
     });
 
     expect(deductions.providentFund).toBe(0);
-    expect(deductions.professionalTax).toBe(0);
     expect(deductions.esi).toBe(0);
-    expect(deductions.tds).toBe(2000);
-    // 50000 + 1000 - 2000 = 49000 (PF/PT/ESI excluded)
+    expect(deductions.tds).toBe(0);
+    expect(deductions.professionalTax).toBe(2000);
+    // 50000 + 1000 - 2000 = 49000 (legacy PF/PT/ESI excluded; configured tax → PT)
     expect(simpleMeta.netSalary).toBe(49000);
   });
 });

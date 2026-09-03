@@ -28,6 +28,9 @@ const payrollJobSchema = new mongoose.Schema(
     },
     results: { type: mongoose.Schema.Types.Mixed, default: null },
     error: { type: String, default: "" },
+    /** PH-09: updated while running so crash / multi-instance can reclaim */
+    heartbeatAt: { type: Date, default: null },
+    reclaimCount: { type: Number, default: 0, min: 0 },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -41,6 +44,7 @@ const payrollJobSchema = new mongoose.Schema(
 
 payrollJobSchema.index({ createdAt: -1 });
 payrollJobSchema.index({ type: 1, status: 1, year: -1, month: -1 });
+payrollJobSchema.index({ status: 1, heartbeatAt: 1 });
 
 export { PAYROLL_JOB_TYPES, PAYROLL_JOB_STATUSES };
 

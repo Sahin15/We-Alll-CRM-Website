@@ -1,6 +1,14 @@
 import LeaveRequest from "../models/leaveRequestModel.js";
 import WorkingDaysCalculator from "./workingDaysCalculator.js";
 import { isLeaveTypePaid } from "./payroll/leaveImpactCodes.js";
+import {
+  getCivilDayOfWeek,
+  getISTDateKey,
+  getISTMidnightForYmd,
+  getMonthBoundsIST,
+  getTodayISTDateKey,
+  listDateKeysInclusive,
+} from "../utils/timezone.js";
 
 class LeaveImpactCalculator {
   constructor() {
@@ -8,7 +16,9 @@ class LeaveImpactCalculator {
   }
 
   /**
-   * Calculate leave deduction for an employee in a specific month
+   * Calculate leave deduction for an employee in a specific month.
+   * All calendar matching uses Asia/Kolkata so UTC production matches IST localhost.
+   *
    * Rules:
    * - Approved leave (any type) = PAID, no deduction
    * - Absent days (no clock-in, not on approved leave) = DEDUCTION
@@ -19,15 +29,31 @@ class LeaveImpactCalculator {
       const workingDaysResult = await this.workingDaysCalculator.getWorkingDays(month, year);
       const actualWorkingDays = workingDaysResult.workingDays;
 
-      // Per-day salary = gross / 30 (fixed, used ONLY for deductions)
-      // Total salary is always the same regardless of working days in the month
-      const grossSalary = salaryStructure.grossSalary || 0;
-      const perDaySalary = grossSalary / 30;
+      // PH-04: per-day from flat earnings gross when grossSalary missing/0
+      // (generate path may recompute LOP on pro-rated persisted gross)
+      const { computeFlatGross, computePerDaySalary } = await import(
+        "./payroll/payrollCorrectnessHelpers.js"
+      );
+      const grossSalary =
+        Number(salaryStructure.grossSalary) ||
+        computeFlatGross(salaryStructure);
+      const perDaySalary = computePerDaySalary(grossSalary, 30);
+
+      const monthBounds = getMonthBoundsIST(year, month);
+      const todayKey = getTodayISTDateKey();
+      let effectiveEndKey = monthBounds.endKey;
+      if (todayKey < monthBounds.startKey) {
+        effectiveEndKey = null;
+      } else if (todayKey < monthBounds.endKey) {
+        effectiveEndKey = todayKey;
+      }
+      const isPartialMonth =
+        Boolean(effectiveEndKey) && effectiveEndKey < monthBounds.endKey;
 
       // Get all APPROVED leave records for the month
       const leaveRecords = await this.getLeaveRecordsForMonth(employeeId, month, year);
 
-      // Build a set of dates covered by approved leaves
+      // Build a set of IST date keys covered by approved leaves
       const approvedLeaveDates = new Set();
       let totalPaidLeaves = 0;
 
@@ -35,74 +61,92 @@ class LeaveImpactCalculator {
         const leaveDays = this.calculateLeaveDaysInMonth(leave, month, year);
         totalPaidLeaves += leaveDays;
 
-        // Mark each date as covered by approved leave
-        const monthStart = new Date(year, month - 1, 1);
-        const monthEnd = new Date(year, month, 0);
-        const leaveStart = new Date(Math.max(new Date(leave.startDate), monthStart));
-        const leaveEnd = new Date(Math.min(new Date(leave.endDate), monthEnd));
-
-        for (let d = new Date(leaveStart); d <= leaveEnd; d.setDate(d.getDate() + 1)) {
-          approvedLeaveDates.add(d.toDateString());
+        const leaveStartKey = getISTDateKey(leave.startDate);
+        const leaveEndKey = getISTDateKey(leave.endDate);
+        const overlapStart =
+          leaveStartKey > monthBounds.startKey
+            ? leaveStartKey
+            : monthBounds.startKey;
+        const overlapEnd =
+          leaveEndKey < monthBounds.endKey ? leaveEndKey : monthBounds.endKey;
+        for (const key of listDateKeysInclusive(overlapStart, overlapEnd)) {
+          approvedLeaveDates.add(key);
         }
       }
 
-      // Get attendance records for the month to find absent days
+      // Get attendance records for the month (IST bounds — works on UTC VPS)
       const Attendance = (await import("../models/attendanceModel.js")).default;
-      const monthStart = new Date(year, month - 1, 1);
-      const monthEnd = new Date(year, month, 0);
+      let attendanceEnd = monthBounds.end;
+      if (effectiveEndKey) {
+        const [ey, em, ed] = effectiveEndKey.split("-").map(Number);
+        const next = new Date(Date.UTC(ey, em - 1, ed + 1));
+        attendanceEnd = new Date(
+          getISTMidnightForYmd(
+            next.getUTCFullYear(),
+            next.getUTCMonth() + 1,
+            next.getUTCDate()
+          ).getTime() - 1
+        );
+      }
 
-      // Only count absences up to today if generating for current month
-      const today = new Date();
-      const effectiveEnd = monthEnd < today ? monthEnd : today;
-      const isPartialMonth = effectiveEnd < monthEnd;
+      const attendanceRecords = effectiveEndKey
+        ? await Attendance.find({
+            employee: employeeId,
+            date: { $gte: monthBounds.start, $lte: attendanceEnd },
+          })
+        : [];
 
-      const attendanceRecords = await Attendance.find({
-        employee: employeeId,
-        date: { $gte: monthStart, $lte: effectiveEnd }
-      });
+      // PH-02: status matters — a row with status "absent" is unpaid, not present
+      const attendanceStatusByDate = new Map();
+      for (const record of attendanceRecords) {
+        const dateKey = getISTDateKey(record.date);
+        attendanceStatusByDate.set(dateKey, record.status || "present");
+      }
 
-      // Build set of dates with attendance records
-      const attendanceDates = new Set(
-        attendanceRecords.map(a => new Date(a.date).toDateString())
-      );
-
-      // Count absent days: working days with no attendance AND no approved leave
+      // Count absent days: no record, OR record marked absent (and not on approved leave)
       let absentDays = 0;
       const absentDates = [];
-      let effectiveWorkingDays = 0; // Working days up to effectiveEnd (may be less than full month)
+      let effectiveWorkingDays = 0;
 
-      // Build a set of Saturday dates that are non-working (from workingDaysResult)
-      // For 5-day work pattern, all Saturdays are off; for 6-day, none are.
+      // Non-working Saturdays as IST keys (5-day pattern)
       const nonWorkingSaturdayDates = new Set(
-        (workingDaysResult.breakdown?.saturdays || []).map(d => new Date(d).toDateString())
+        (workingDaysResult.breakdown?.saturdays || []).map((d) =>
+          getISTDateKey(d)
+        )
       );
 
-      for (let d = new Date(monthStart); d <= effectiveEnd; d.setDate(d.getDate() + 1)) {
-        const dayOfWeek = d.getDay();
-        const dateStr = d.toDateString();
+      const holidayKeys = new Set(
+        (workingDaysResult.holidayDates || []).map((hd) => getISTDateKey(hd))
+      );
+
+      const dayKeys = effectiveEndKey
+        ? listDateKeysInclusive(monthBounds.startKey, effectiveEndKey)
+        : [];
+
+      for (const dateKey of dayKeys) {
+        const dayOfWeek = getCivilDayOfWeek(dateKey);
 
         // Skip Sundays (always off)
         if (dayOfWeek === 0) continue;
 
         // Skip Saturdays that are non-working days (respects 5-day vs 6-day work pattern)
-        if (dayOfWeek === 6 && nonWorkingSaturdayDates.has(dateStr)) continue;
+        if (dayOfWeek === 6 && nonWorkingSaturdayDates.has(dateKey)) continue;
 
         // Skip holidays
-        const isHoliday = workingDaysResult.holidayDates?.some(
-          hd => new Date(hd).toDateString() === dateStr
-        );
-        if (isHoliday) continue;
+        if (holidayKeys.has(dateKey)) continue;
 
         // Skip if covered by approved leave
-        if (approvedLeaveDates.has(dateStr)) continue;
+        if (approvedLeaveDates.has(dateKey)) continue;
 
         // This is a working day within the effective period
         effectiveWorkingDays++;
 
-        // If no attendance record for this working day = absent
-        if (!attendanceDates.has(dateStr)) {
+        const status = attendanceStatusByDate.get(dateKey);
+        // Missing punch, or explicit absent status → LOP day
+        if (status == null || status === "absent") {
           absentDays++;
-          absentDates.push(new Date(d));
+          const [ay, am, ad] = dateKey.split("-").map(Number);
+          absentDates.push(getISTMidnightForYmd(ay, am, ad));
         }
       }
 
@@ -168,7 +212,7 @@ class LeaveImpactCalculator {
   }
 
   /**
-   * Get leave records that affect a specific month
+   * Get leave records that affect a specific month (IST month bounds).
    * @param {string} employeeId - Employee ID
    * @param {number} month - Month (1-12)
    * @param {number} year - Year
@@ -176,8 +220,7 @@ class LeaveImpactCalculator {
    */
   async getLeaveRecordsForMonth(employeeId, month, year) {
     try {
-      const startDate = new Date(year, month - 1, 1);
-      const endDate = new Date(year, month, 0);
+      const { start: startDate, end: endDate } = getMonthBoundsIST(year, month);
 
       const leaves = await LeaveRequest.find({
         employee: employeeId,
@@ -207,7 +250,7 @@ class LeaveImpactCalculator {
   }
 
   /**
-   * Calculate how many leave days fall within a specific month
+   * Calculate how many leave days fall within a specific month (IST calendar).
    * @param {Object} leave - Leave record
    * @param {number} month - Month (1-12)
    * @param {number} year - Year
@@ -215,24 +258,19 @@ class LeaveImpactCalculator {
    */
   calculateLeaveDaysInMonth(leave, month, year) {
     try {
-      const monthStart = new Date(year, month - 1, 1);
-      const monthEnd = new Date(year, month, 0);
+      const { startKey, endKey } = getMonthBoundsIST(year, month);
+      const leaveStartKey = getISTDateKey(leave.startDate);
+      const leaveEndKey = getISTDateKey(leave.endDate);
 
-      const leaveStart = new Date(leave.startDate);
-      const leaveEnd = new Date(leave.endDate);
+      const overlapStart =
+        leaveStartKey > startKey ? leaveStartKey : startKey;
+      const overlapEnd = leaveEndKey < endKey ? leaveEndKey : endKey;
+      const keys = listDateKeysInclusive(overlapStart, overlapEnd);
+      const daysDiff = keys.length;
 
-      // Determine the overlap period
-      const overlapStart = new Date(Math.max(monthStart.getTime(), leaveStart.getTime()));
-      const overlapEnd = new Date(Math.min(monthEnd.getTime(), leaveEnd.getTime()));
-
-      // If no overlap, return 0
-      if (overlapStart > overlapEnd) {
+      if (daysDiff <= 0) {
         return 0;
       }
-
-      // Calculate days in overlap period
-      const timeDiff = overlapEnd.getTime() - overlapStart.getTime();
-      const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1; // +1 to include both start and end dates
 
       // Handle half-day leaves
       if (leave.isHalfDay) {

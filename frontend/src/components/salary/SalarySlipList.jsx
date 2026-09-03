@@ -23,6 +23,7 @@ import {
 import { toast } from "react-toastify";
 import { salarySlipApi } from "../../api/salaryApi";
 import { payrollPeriodApi } from "../../api/payrollPeriodApi";
+import { getCompanyYearOptions } from "../../constants/branding";
 
 const SalarySlipList = () => {
   const [slips, setSlips] = useState([]);
@@ -184,11 +185,7 @@ const SalarySlipList = () => {
     { value: 12, label: "December" },
   ];
 
-  const years = [];
-  const currentYear = new Date().getFullYear();
-  for (let i = currentYear; i >= currentYear - 5; i--) {
-    years.push(i);
-  }
+  const years = getCompanyYearOptions();
 
   return (
     <>
@@ -416,8 +413,20 @@ const SalarySlipList = () => {
               <Col md={6}>
                 <h6>Deductions</h6>
                 <p className="mb-1">PF: {formatCurrency(selectedSlip.deductions.providentFund)}</p>
-                <p className="mb-1">TDS: {formatCurrency(selectedSlip.deductions.tds)}</p>
-                <p className="mb-1">PT: {formatCurrency(selectedSlip.deductions.professionalTax)}</p>
+                <p className="mb-1">
+                  PT:{" "}
+                  {formatCurrency(
+                    (selectedSlip.deductions.professionalTax || 0) > 0
+                      ? selectedSlip.deductions.professionalTax
+                      : selectedSlip.deductions.tds || 0
+                  )}
+                </p>
+                {(selectedSlip.deductions.professionalTax || 0) > 0 &&
+                  (selectedSlip.deductions.tds || 0) > 0 && (
+                  <p className="mb-1">
+                    TDS: {formatCurrency(selectedSlip.deductions.tds)}
+                  </p>
+                )}
                 <p className="mb-1">
                   <strong>Total: {formatCurrency(selectedSlip.totalDeductions)}</strong>
                 </p>

@@ -8,7 +8,7 @@ Last Updated: 2026-07-27
 
 **Goal:** Persist V2 totals on newly generated slips by setting `PAYROLL_V2_ENGINE=true` on a named environment, only after R3 dual-run CTO sign-off.
 
-**Code path (already shipped):** `selectPersistableTotals` in `payrollEngine.js` — when the flag is true, process/generate paths that use the engine persist V2 totals; dual-run logging can continue.
+**Code path (PH-01):** `selectPersistableTotals` + `resolveSlipFieldsFromEngine` (`persistableSlipMapper.js`) — when the flag is true, `generateSalarySlip` / bulk generate persist V2-mapped earnings/deductions; when false, V1 maps (including pro-rata) are unchanged. Dual-run logging continues.
 
 **This milestone does not flip the flag in git.** Default remains false (see `backend/.env.example`).
 

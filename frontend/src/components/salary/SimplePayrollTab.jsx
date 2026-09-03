@@ -26,6 +26,7 @@ import {
   payrollAdjustmentApi,
   payrollSimplePreviewApi,
 } from "../../api/payrollSimpleApi";
+import { leaveApi } from "../../api/leaveApi";
 import { attendanceApi } from "../../api/attendanceApi";
 
 const MONTH_NAMES = [
@@ -67,9 +68,11 @@ const statusBadge = (status) => {
  * HR Simple Payroll tab (SP-05): structure + preview + adjustments for one employee/month.
  */
 const SimplePayrollTab = () => {
-  const prev = useMemo(() => {
+  // Default to previous month: salary is paid on the 10th for the prior month
+  // (e.g. July pay is processed in August).
+  const currentPeriod = useMemo(() => {
     const now = new Date();
-    const m = now.getMonth();
+    const m = now.getMonth(); // 0-indexed = previous calendar month as 1–12
     return {
       month: m === 0 ? 12 : m,
       year: m === 0 ? now.getFullYear() - 1 : now.getFullYear(),
@@ -79,8 +82,8 @@ const SimplePayrollTab = () => {
   const [employees, setEmployees] = useState([]);
   const [employeeId, setEmployeeId] = useState("");
   const [search, setSearch] = useState("");
-  const [month, setMonth] = useState(prev.month);
-  const [year, setYear] = useState(prev.year);
+  const [month, setMonth] = useState(currentPeriod.month);
+  const [year, setYear] = useState(currentPeriod.year);
 
   const [structure, setStructure] = useState(null);
   const [structureLoading, setStructureLoading] = useState(false);
@@ -88,6 +91,8 @@ const SimplePayrollTab = () => {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [adjustments, setAdjustments] = useState([]);
   const [adjLoading, setAdjLoading] = useState(false);
+  const [leaveBalance, setLeaveBalance] = useState(null);
+  const [leaveBalanceLoading, setLeaveBalanceLoading] = useState(false);
   const [attendanceSummary, setAttendanceSummary] = useState(null);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -103,6 +108,12 @@ const SimplePayrollTab = () => {
   });
 
   const [showAdjModal, setShowAdjModal] = useState(false);
+  const [showDeductModal, setShowDeductModal] = useState(false);
+  const [deductForm, setDeductForm] = useState({
+    method: "salary",
+    days: "1",
+    reason: "",
+  });
   const [adjForm, setAdjForm] = useState({
     type: "bonus",
     amount: "",
@@ -197,6 +208,23 @@ const SimplePayrollTab = () => {
     }
   }, [employeeId, month, year]);
 
+  const loadLeaveBalance = useCallback(async () => {
+    if (!employeeId) {
+      setLeaveBalance(null);
+      return;
+    }
+    setLeaveBalanceLoading(true);
+    try {
+      const res = await leaveApi.getLeaveBalance(employeeId, year);
+      setLeaveBalance(res.data?.balance || null);
+    } catch (err) {
+      console.error(err);
+      setLeaveBalance(null);
+    } finally {
+      setLeaveBalanceLoading(false);
+    }
+  }, [employeeId, year]);
+
   const loadAttendance = useCallback(async () => {
     if (!employeeId) {
       setAttendanceSummary(null);
@@ -245,9 +273,16 @@ const SimplePayrollTab = () => {
       loadStructure(),
       loadPreview(),
       loadAdjustments(),
+      loadLeaveBalance(),
       loadAttendance(),
     ]);
-  }, [loadStructure, loadPreview, loadAdjustments, loadAttendance]);
+  }, [
+    loadStructure,
+    loadPreview,
+    loadAdjustments,
+    loadLeaveBalance,
+    loadAttendance,
+  ]);
 
   useEffect(() => {
     loadEmployees();
@@ -258,6 +293,7 @@ const SimplePayrollTab = () => {
       setStructure(null);
       setPreview(null);
       setAdjustments([]);
+      setLeaveBalance(null);
       setAttendanceSummary(null);
       return;
     }
@@ -283,22 +319,152 @@ const SimplePayrollTab = () => {
     return Math.round(perDayRate * days);
   }, [adjForm.days, perDayRate]);
 
-  const openSuggestedDeduction = () => {
-    const unpaid = preview?.attendanceReport?.unpaidLeaveDays || 0;
-    const suggested = preview?.attendanceReport?.suggestedDeduction || 0;
-    setAdjForm({
-      type: "absent_deduction",
-      amount: suggested > 0 ? String(suggested) : "",
-      direction: "",
-      reason:
-        unpaid > 0
-          ? `Attendance-based deduction (${unpaid} unpaid day(s))`
-          : "Attendance-based deduction",
-      remarks: preview?.attendanceReport?.detail || "",
-      amountMode: "per_day",
-      days: unpaid > 0 ? String(unpaid) : "1",
+  const earnedLeaveInfo = useMemo(() => {
+    const fromPreview = preview?.attendanceReport?.earnedLeave;
+    if (fromPreview) return fromPreview;
+    if (!leaveBalance) return null;
+    return {
+      eligible: leaveBalance.eligibleForPaidLeave,
+      earned: leaveBalance.earned?.earned ?? 0,
+      used: leaveBalance.earned?.used ?? 0,
+      remaining: leaveBalance.earned?.remaining ?? 0,
+      total: leaveBalance.earned?.total ?? 24,
+    };
+  }, [preview, leaveBalance]);
+
+  const formatEarnedLeaveDisplay = () => {
+    if (previewLoading || leaveBalanceLoading) return "Loading…";
+    if (!earnedLeaveInfo) return "Unavailable";
+    if (!earnedLeaveInfo.eligible) return "Not eligible (non full-time)";
+    return `${earnedLeaveInfo.remaining} day(s)`;
+  };
+
+  const buildDeductionReason = (method, days) => {
+    const d = Math.max(1, Number(days) || 1);
+    return method === "leave"
+      ? `Earned leave deducted for ${d} day(s) instead of salary`
+      : `Salary deduction for ${d} day(s)`;
+  };
+
+  /**
+   * Salary vs earned-leave cover for absences must be exclusive for the month.
+   * @returns {"salary"|"leave"|null}
+   */
+  const absenceCoverChoice = useMemo(() => {
+    const active = (adjustments || []).filter(
+      (a) => a.status === "draft" || a.status === "approved"
+    );
+    if (active.some((a) => a.type === "leave_balance_deduction")) {
+      return "leave";
+    }
+    if (active.some((a) => a.type === "absent_deduction")) {
+      return "salary";
+    }
+    return null;
+  }, [adjustments]);
+
+  const openDeductionModal = (method = "salary") => {
+    if (absenceCoverChoice && absenceCoverChoice !== method) {
+      toast.error(
+        absenceCoverChoice === "leave"
+          ? "Earned leave deduction already exists for this month. Void it before deducting from salary."
+          : "Salary deduction already exists for this month. Void it before deducting from earned leave."
+      );
+      return;
+    }
+    if (method === "leave" && !earnedLeaveInfo?.eligible) {
+      toast.error("Employee is not eligible for earned leave");
+      return;
+    }
+    const suggestedDays =
+      preview?.attendanceReport?.unpaidLeaveDays ||
+      preview?.attendanceReport?.absentDaysOnly ||
+      1;
+    const days = Math.max(1, Number(suggestedDays) || 1);
+    setDeductForm({
+      method,
+      days: String(days),
+      reason: buildDeductionReason(method, days),
     });
-    setShowAdjModal(true);
+    setShowDeductModal(true);
+  };
+
+  const deductPreviewAmount = useMemo(() => {
+    const days = Math.max(0, Number(deductForm.days) || 0);
+    return Math.round(perDayRate * days);
+  }, [deductForm.days, perDayRate]);
+
+  const handleSubmitDeductionChoice = async (e) => {
+    e.preventDefault();
+    const days = Number(deductForm.days);
+    if (!(days > 0) || Number.isNaN(days)) {
+      toast.error("Enter a valid number of days");
+      return;
+    }
+    if (!deductForm.reason.trim()) {
+      toast.error("Reason is required");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      if (deductForm.method === "leave") {
+        const remaining = earnedLeaveInfo?.remaining ?? 0;
+        if (!earnedLeaveInfo?.eligible) {
+          toast.error("Employee is not eligible for earned leave");
+          return;
+        }
+        if (days > remaining) {
+          toast.error(`Only ${remaining} day(s) remaining in earned leave balance`);
+          return;
+        }
+        await payrollAdjustmentApi.deductLeaveBalance({
+          employee: employeeId,
+          month,
+          year,
+          days,
+          reason: deductForm.reason.trim(),
+        });
+        toast.success(
+          `Earned leave deducted for ${days} day(s). Leave balance and attendance are updated.`
+        );
+      } else {
+        await payrollAdjustmentApi.create({
+          employee: employeeId,
+          month,
+          year,
+          type: "absent_deduction",
+          amount: deductPreviewAmount,
+          reason: `${deductForm.reason.trim()} (${days} day(s) @ ${formatInr(perDayRate)}/day)`,
+          remarks: preview?.attendanceReport?.detail || "",
+        });
+        toast.success("Salary deduction created — approve it in Adjustments");
+      }
+      setShowDeductModal(false);
+      setDeductForm({ method: "salary", days: "1", reason: "" });
+      await Promise.all([loadAdjustments(), loadPreview(), loadLeaveBalance()]);
+    } catch (err) {
+      toast.error(
+        err.response?.data?.error ||
+          err.response?.data?.message ||
+          "Failed to create deduction"
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const formatAdjustmentType = (type) => {
+    if (type === "leave_balance_deduction") return "Earned leave deduction";
+    return type?.replace(/_/g, " ") || type;
+  };
+
+  const formatAdjustmentAmount = (adj) => {
+    if (adj.type === "leave_balance_deduction") {
+      const days = adj.leaveDays ?? adj.payrollMeta?.daysDeducted;
+      return days != null ? `${days} day(s) from balance` : "Leave balance";
+    }
+    return formatInr(adj.amount);
   };
 
   const countWeekends = (m, y, upToDay) => {
@@ -488,7 +654,7 @@ const SimplePayrollTab = () => {
         amountMode: "fixed",
         days: "1",
       });
-      await Promise.all([loadAdjustments(), loadPreview()]);
+      await Promise.all([loadAdjustments(), loadPreview(), loadLeaveBalance()]);
     } catch (err) {
       toast.error(err.response?.data?.error || "Failed to create adjustment");
     } finally {
@@ -501,7 +667,7 @@ const SimplePayrollTab = () => {
     try {
       await payrollAdjustmentApi.approve(id);
       toast.success("Adjustment approved");
-      await Promise.all([loadAdjustments(), loadPreview()]);
+      await Promise.all([loadAdjustments(), loadPreview(), loadLeaveBalance()]);
     } catch (err) {
       toast.error(err.response?.data?.error || "Approve failed");
     } finally {
@@ -522,7 +688,7 @@ const SimplePayrollTab = () => {
       toast.success("Adjustment voided");
       setVoidTarget(null);
       setVoidReason("");
-      await Promise.all([loadAdjustments(), loadPreview()]);
+      await Promise.all([loadAdjustments(), loadPreview(), loadLeaveBalance()]);
     } catch (err) {
       toast.error(err.response?.data?.error || "Void failed");
     } finally {
@@ -734,7 +900,7 @@ const SimplePayrollTab = () => {
                         "Net salary would be negative — approve fewer deductions or fix adjustments."}
                     </Alert>
                   )}
-                  <Accordion defaultActiveKey={["0", "4"]} alwaysOpen>
+                  <Accordion defaultActiveKey={["0", "5"]} alwaysOpen>
                     <Accordion.Item eventKey="0">
                       <Accordion.Header>
                         Monthly Salary —{" "}
@@ -761,9 +927,9 @@ const SimplePayrollTab = () => {
                       </Accordion.Header>
                       <Accordion.Body>
                         <Alert variant="light" className="border small py-2">
-                          Nothing here is deducted automatically. If HR decides
-                          to deduct, add a manual adjustment below (or use the
-                          button).
+                          Nothing here is deducted automatically. Review counts
+                          below, then use Salary or leave deduction to apply a
+                          deduction if needed.
                         </Alert>
                         {attendanceLoading ? (
                           <Spinner animation="border" size="sm" />
@@ -800,7 +966,9 @@ const SimplePayrollTab = () => {
                               </strong>
                             </Col>
                             <Col xs={6} md={3}>
-                              <div className="text-muted">Unpaid leave (suggested)</div>
+                              <div className="text-muted">
+                                Unpaid leave (suggested)
+                              </div>
                               <strong>
                                 {preview.attendanceReport?.unpaidLeaveDays ?? 0}{" "}
                                 day(s)
@@ -832,14 +1000,155 @@ const SimplePayrollTab = () => {
                         <Button
                           size="sm"
                           variant="outline-primary"
-                          onClick={openSuggestedDeduction}
+                          disabled={busy || absenceCoverChoice === "leave"}
+                          onClick={() => openDeductionModal("salary")}
+                          title={
+                            absenceCoverChoice === "leave"
+                              ? "Void the earned leave deduction first"
+                              : undefined
+                          }
                         >
                           <FaPlus className="me-1" />
-                          Add manual deduction from attendance
+                          Deduct from salary using this report
                         </Button>
                       </Accordion.Body>
                     </Accordion.Item>
                     <Accordion.Item eventKey="2">
+                      <Accordion.Header>
+                        Salary or leave deduction
+                        {preview.attendanceReport?.suggestedDeduction > 0 && (
+                          <Badge bg="warning" text="dark" className="ms-2">
+                            Suggested{" "}
+                            {formatInr(
+                              preview.attendanceReport.suggestedDeduction
+                            )}
+                          </Badge>
+                        )}
+                      </Accordion.Header>
+                      <Accordion.Body>
+                        <div className="border rounded p-3 mb-3 bg-light">
+                          <div className="text-muted small mb-1">Available leave balance</div>
+                          {previewLoading || leaveBalanceLoading ? (
+                            <Spinner animation="border" size="sm" />
+                          ) : earnedLeaveInfo?.eligible ? (
+                            <div className="fs-5 fw-semibold text-success">
+                              {earnedLeaveInfo.remaining} day(s)
+                            </div>
+                          ) : (
+                            <span className="small text-muted">
+                              {formatEarnedLeaveDisplay()}
+                            </span>
+                          )}
+                          {preview?.attendanceReport?.balanceError && (
+                            <div className="small text-danger mt-1">
+                              Could not load balance:{" "}
+                              {preview.attendanceReport.balanceError}
+                            </div>
+                          )}
+                        </div>
+
+                        {preview.attendanceReport?.suggestedDeduction > 0 && (
+                          <p className="small text-muted mb-2">
+                            {preview.attendanceReport.detail}
+                          </p>
+                        )}
+
+                        {absenceCoverChoice && (
+                          <Alert variant="info" className="small py-2">
+                            {absenceCoverChoice === "leave"
+                              ? "Earned leave deduction is already set for this month. Void it in Adjustments to switch to salary deduction."
+                              : "Salary deduction is already set for this month. Void it in Adjustments to switch to earned leave."}
+                          </Alert>
+                        )}
+
+                        <Row className="g-2 mb-3">
+                          <Col md={6}>
+                            <div
+                              className={`border rounded p-3 h-100${
+                                absenceCoverChoice === "salary"
+                                  ? " border-primary"
+                                  : absenceCoverChoice === "leave"
+                                    ? " opacity-50"
+                                    : ""
+                              }`}
+                            >
+                              <div className="fw-semibold text-primary mb-2">
+                                Deduct from salary
+                                {absenceCoverChoice === "salary" && (
+                                  <Badge bg="primary" className="ms-2">
+                                    Selected
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-muted small mb-3">
+                                Reduces net salary by per-day rate × days chosen.
+                              </p>
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                disabled={
+                                  busy || absenceCoverChoice === "leave"
+                                }
+                                onClick={() => openDeductionModal("salary")}
+                              >
+                                {absenceCoverChoice === "salary"
+                                  ? "Add another salary deduction"
+                                  : "Choose salary deduction"}
+                              </Button>
+                            </div>
+                          </Col>
+                          <Col md={6}>
+                            <div
+                              className={`border rounded p-3 h-100${
+                                absenceCoverChoice === "leave"
+                                  ? " border-success"
+                                  : absenceCoverChoice === "salary"
+                                    ? " opacity-50"
+                                    : ""
+                              }`}
+                            >
+                              <div className="fw-semibold text-success mb-2">
+                                Deduct from earned leave
+                                {absenceCoverChoice === "leave" && (
+                                  <Badge bg="success" className="ms-2">
+                                    Selected
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-muted small mb-3">
+                                Deducts from earned leave balance — full salary
+                                is paid.
+                              </p>
+                              <Button
+                                size="sm"
+                                variant="success"
+                                disabled={
+                                  busy ||
+                                  !earnedLeaveInfo?.eligible ||
+                                  absenceCoverChoice === "salary" ||
+                                  absenceCoverChoice === "leave"
+                                }
+                                onClick={() => openDeductionModal("leave")}
+                                title={
+                                  absenceCoverChoice === "salary"
+                                    ? "Void the salary deduction first to use earned leave"
+                                    : absenceCoverChoice === "leave"
+                                      ? "Void the existing leave deduction to create a new one"
+                                      : earnedLeaveInfo?.eligible
+                                        ? `${earnedLeaveInfo.remaining} day(s) available`
+                                        : "Employee is not eligible for earned leave"
+                                }
+                              >
+                                {absenceCoverChoice === "leave"
+                                  ? "Leave deduction already set"
+                                  : "Choose leave deduction"}
+                              </Button>
+                            </div>
+                          </Col>
+                        </Row>
+                      </Accordion.Body>
+                    </Accordion.Item>
+                    <Accordion.Item eventKey="3">
                       <Accordion.Header>
                         Manual Adjustments —{" "}
                         {formatInr(
@@ -880,10 +1189,18 @@ const SimplePayrollTab = () => {
                               {preview.sections.manualAdjustments.lines.map(
                                 (line, idx) => (
                                   <tr key={line.id || idx}>
-                                    <td>{line.type}</td>
+                                    <td>{formatAdjustmentType(line.type)}</td>
                                     <td>
-                                      {line.signedAmount >= 0 ? "+" : ""}
-                                      {formatInr(line.signedAmount)}
+                                      {line.type === "leave_balance_deduction" ? (
+                                        <span className="text-success">
+                                          {line.leaveDays ?? 0} day(s) — no salary cut
+                                        </span>
+                                      ) : (
+                                        <>
+                                          {line.signedAmount >= 0 ? "+" : ""}
+                                          {formatInr(line.signedAmount)}
+                                        </>
+                                      )}
                                     </td>
                                     <td>{statusBadge(line.status)}</td>
                                     <td className="small">{line.reason}</td>
@@ -895,7 +1212,7 @@ const SimplePayrollTab = () => {
                         )}
                       </Accordion.Body>
                     </Accordion.Item>
-                    <Accordion.Item eventKey="3">
+                    <Accordion.Item eventKey="4">
                       <Accordion.Header>
                         TDS —{" "}
                         {preview.sections?.tds?.enabled
@@ -908,15 +1225,15 @@ const SimplePayrollTab = () => {
                           : "TDS is disabled for this employee."}
                       </Accordion.Body>
                     </Accordion.Item>
-                    <Accordion.Item eventKey="4">
-                      <Accordion.Header>
+                    <Accordion.Item eventKey="5" className="payroll-final-net-item">
+                      <Accordion.Header className="payroll-final-net-header">
                         Final Net —{" "}
                         {preview.totals?.rejected
                           ? "Rejected"
                           : formatInr(preview.sections?.netSalary?.amount)}
                       </Accordion.Header>
-                      <Accordion.Body>
-                        <Row className="small">
+                      <Accordion.Body className="payroll-final-net-body">
+                        <Row className="small g-1 mb-0">
                           <Col xs={6}>Monthly</Col>
                           <Col xs={6} className="text-end">
                             {formatInr(preview.totals?.monthlySalary)}
@@ -929,10 +1246,12 @@ const SimplePayrollTab = () => {
                           <Col xs={6} className="text-end">
                             {formatInr(preview.totals?.tdsAmount)}
                           </Col>
-                          <Col xs={6} className="fw-semibold pt-2">
+                        </Row>
+                        <Row className="small g-0 mt-2 payroll-final-net-total rounded">
+                          <Col xs={6} className="fw-semibold py-2 px-3">
                             Net
                           </Col>
-                          <Col xs={6} className="text-end fw-semibold pt-2">
+                          <Col xs={6} className="text-end fw-semibold py-2 px-3">
                             {preview.totals?.rejected
                               ? "—"
                               : formatInr(preview.totals?.netSalary)}
@@ -941,6 +1260,30 @@ const SimplePayrollTab = () => {
                       </Accordion.Body>
                     </Accordion.Item>
                   </Accordion>
+                  <style>{`
+                    .payroll-final-net-item {
+                      border: 1px solid #198754 !important;
+                      border-radius: 8px;
+                      overflow: hidden;
+                    }
+                    .payroll-final-net-header {
+                      background: linear-gradient(135deg, #d1e7dd 0%, #e8f5e9 100%) !important;
+                      font-weight: 600;
+                    }
+                    .payroll-final-net-header:not(.collapsed) {
+                      background: linear-gradient(135deg, #b8dfc8 0%, #d1e7dd 100%) !important;
+                    }
+                    .payroll-final-net-body {
+                      background: #f8fdf9;
+                    }
+                    .payroll-final-net-total {
+                      background: linear-gradient(135deg, #198754 0%, #20c997 100%);
+                      color: #fff;
+                    }
+                    .payroll-final-net-total .col-6 {
+                      font-size: 1.05rem;
+                    }
+                  `}</style>
                 </>
               )}
             </Card.Body>
@@ -1015,8 +1358,8 @@ const SimplePayrollTab = () => {
                   <tbody>
                     {adjustments.map((adj) => (
                       <tr key={adj._id}>
-                        <td>{adj.type}</td>
-                        <td>{formatInr(adj.amount)}</td>
+                        <td>{formatAdjustmentType(adj.type)}</td>
+                        <td>{formatAdjustmentAmount(adj)}</td>
                         <td>{statusBadge(adj.status)}</td>
                         <td className="small">{adj.reason}</td>
                         <td>
@@ -1162,6 +1505,123 @@ const SimplePayrollTab = () => {
             </Button>
             <Button type="submit" variant="primary" disabled={busy}>
               {busy ? <Spinner size="sm" animation="border" /> : "Save"}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+
+      {/* HR choice: salary vs earned leave deduction */}
+      <Modal show={showDeductModal} onHide={() => setShowDeductModal(false)} centered>
+        <Form onSubmit={handleSubmitDeductionChoice}>
+          <Modal.Header closeButton>
+            <Modal.Title>
+              {deductForm.method === "leave"
+                ? "Deduct from earned leave"
+                : "Deduct from salary"}
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <Row className="g-2 mb-3">
+              <Col xs={6}>
+                <div
+                  className={`border rounded p-3 h-100${
+                    deductForm.method === "salary"
+                      ? " border-primary bg-primary bg-opacity-10"
+                      : " opacity-50"
+                  }`}
+                >
+                  <div className="d-flex align-items-center justify-content-between mb-1">
+                    <span className="fw-semibold text-primary small">
+                      Deduct from salary
+                    </span>
+                    {deductForm.method === "salary" && (
+                      <Badge bg="primary">Selected</Badge>
+                    )}
+                  </div>
+                  <p className="text-muted small mb-0">
+                    Reduces net by per-day rate × days.
+                  </p>
+                </div>
+              </Col>
+              <Col xs={6}>
+                <div
+                  className={`border rounded p-3 h-100${
+                    deductForm.method === "leave"
+                      ? " border-success bg-success bg-opacity-10"
+                      : " opacity-50"
+                  }`}
+                >
+                  <div className="d-flex align-items-center justify-content-between mb-1">
+                    <span className="fw-semibold text-success small">
+                      Deduct from earned leave
+                    </span>
+                    {deductForm.method === "leave" && (
+                      <Badge bg="success">Selected</Badge>
+                    )}
+                  </div>
+                  <p className="text-muted small mb-0">
+                    Uses leave balance — full salary paid.
+                  </p>
+                </div>
+              </Col>
+            </Row>
+            <Form.Group className="mb-3">
+              <Form.Label>Number of days</Form.Label>
+              <Form.Control
+                type="number"
+                min="1"
+                step="1"
+                required
+                value={deductForm.days}
+                onChange={(e) => {
+                  const days = e.target.value;
+                  setDeductForm((f) => ({
+                    ...f,
+                    days,
+                    reason: buildDeductionReason(f.method, days),
+                  }));
+                }}
+              />
+              {deductForm.method === "salary" ? (
+                <Form.Text className="text-muted">
+                  Salary deduction: {formatInr(deductPreviewAmount)} (
+                  {formatInr(perDayRate)}/day)
+                </Form.Text>
+              ) : (
+                <Form.Text className="text-muted">
+                  Available earned leave: {earnedLeaveInfo?.remaining ?? 0} day(s)
+                </Form.Text>
+              )}
+            </Form.Group>
+            <Form.Group className="mb-0">
+              <Form.Label>Reason</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={2}
+                required
+                value={deductForm.reason}
+                onChange={(e) =>
+                  setDeductForm((f) => ({ ...f, reason: e.target.value }))
+                }
+              />
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setShowDeductModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant={deductForm.method === "leave" ? "success" : "primary"}
+              disabled={busy}
+            >
+              {busy ? (
+                <Spinner size="sm" animation="border" />
+              ) : deductForm.method === "leave" ? (
+                "Create leave deduction"
+              ) : (
+                "Create salary deduction"
+              )}
             </Button>
           </Modal.Footer>
         </Form>

@@ -1,3 +1,5 @@
+import "./config/env.js";
+
 // Suppress Node.js deprecation warnings
 process.removeAllListeners('warning');
 process.on('warning', (warning) => {
@@ -9,7 +11,6 @@ process.on('warning', (warning) => {
 
 import express from "express";
 import mongoose from "mongoose";
-import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
 import { protect } from "./middleware/authMiddleware.js";
@@ -21,6 +22,11 @@ import adminRoutes from "./routes/adminRoutes.js";
 import clientRoutes from "./routes/clientRoutes.js";
 import clientWorkRoutes from "./routes/clientWorkRoutes.js";
 import projectRoutes from "./routes/projectRoutes.js";
+import projectExpectationRoutes from "./routes/projectExpectationRoutes.js";
+import projectCommitmentRoutes from "./routes/projectCommitmentRoutes.js";
+import projectMonthRoutes from "./routes/projectMonthRoutes.js";
+import businessDocumentRoutes from "./routes/businessDocumentRoutes.js";
+import projectActivityRoutes from "./routes/projectActivityRoutes.js";
 import departmentRoutes from "./routes/departmentRoutes.js";
 import leaveRoutes from "./routes/leaveRoutes.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
@@ -86,6 +92,7 @@ import procurementInvoiceRoutes from "./routes/procurementInvoiceRoutes.js";
 import procurementPaymentRoutes from "./routes/procurementPaymentRoutes.js";
 import procurementDashboardRoutes from "./routes/procurementDashboardRoutes.js";
 import authzRoutes from "./routes/authzRoutes.js";
+import { runStartupAuthzValidation } from "./authz/startupValidation.js";
 // Legacy routes removed - use workItemRoutes instead
 // Old: taskRoutes, slotRoutes, workRoutes → New: workItemRoutes
 import { initializeCronJobs } from "./config/cronJobs.js";
@@ -100,8 +107,9 @@ import realTimeUpdateService from "./services/realTimeUpdateService.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config();
 connectDB();
+
+runStartupAuthzValidation({ verbose: process.env.AUTHZ_VALIDATE_VERBOSE === "true" });
 
 const app = express();
 app.set("trust proxy", 1);
@@ -138,7 +146,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json({ limit: "10mb" })); // Limit payload size
+app.use(express.json({ limit: "25mb" })); // Limit payload size
 app.use(sanitizeInput); // Sanitize MongoDB queries
 app.use(s3ProxyMiddleware); // Serve profile pictures via /api/upload/profile-picture/:fileName
 app.use(auditMiddleware); // Audit logging for authenticated requests
@@ -287,6 +295,11 @@ app.use("/api/admin", apiLimiter, adminRoutes);
 app.use("/api/clients", apiLimiter, clientRoutes);
 app.use("/api/clients", apiLimiter, clientWorkRoutes);
 app.use("/api/projects", apiLimiter, projectRoutes);
+app.use("/api", apiLimiter, projectExpectationRoutes);
+app.use("/api", apiLimiter, projectCommitmentRoutes);
+app.use("/api", apiLimiter, projectMonthRoutes);
+app.use("/api", apiLimiter, businessDocumentRoutes);
+app.use("/api", apiLimiter, projectActivityRoutes);
 app.use("/api/departments", apiLimiter, departmentRoutes);
 app.use("/api/leaves", apiLimiter, leaveRoutes);
 app.use("/api/attendance", apiLimiter, attendanceRoutes);
@@ -405,6 +418,30 @@ mongoose
     }, 100);
     
     console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
+
+    try {
+      const { getPeriodGatesProductionWarning } = await import(
+        "./services/payroll/payrollPeriodGates.js"
+      );
+      const payrollGateWarn = getPeriodGatesProductionWarning();
+      if (payrollGateWarn) console.warn(payrollGateWarn);
+    } catch (e) {
+      console.warn("[payroll] period gate config check skipped:", e.message);
+    }
+
+    try {
+      const {
+        reclaimStalePayrollJobs,
+        schedulePayrollJobRunner,
+      } = await import("./services/payroll/payrollJobService.js");
+      const { reclaimed } = await reclaimStalePayrollJobs();
+      if (reclaimed > 0) {
+        console.warn(`[payrollJob] boot reclaim: ${reclaimed} stale running job(s) requeued`);
+      }
+      schedulePayrollJobRunner();
+    } catch (e) {
+      console.warn("[payrollJob] boot reclaim skipped:", e.message);
+    }
 
     // Import and check Firebase initialization
     const { firebaseInitialized, messaging } = await import('./config/firebaseAdmin.js');

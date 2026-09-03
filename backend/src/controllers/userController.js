@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import logger from '../utils/logger.js';
 import { buildTextSearch } from '../utils/queryOptimizer.js';
-import { mergeExcludePastMembersFilter } from '../utils/employeeQueryUtils.js';
+import { mergeExcludePastMembersFilter, mergeActiveEmployeeFilter } from '../utils/employeeQueryUtils.js';
 import { generateNextEmployeeId, normalizeEmployeeId, isValidEmployeeIdFormat, isEmployeeIdTaken } from '../services/employeeIdService.js';
 
 //generate token
@@ -108,6 +108,32 @@ export const registerUser = async (req, res) => {
   }
 };
 
+/**
+ * Active user roster for meeting attendee pickers (no team.user.view required).
+ * Gated by company.meeting.view — available to all standard employees and HoD.
+ */
+export const getMeetingDirectory = async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 1000, 1000);
+
+    const users = await User.find({
+      status: "active",
+      isActive: { $ne: false },
+      role: { $ne: "superadmin" },
+    })
+      .select("_id name email role department profilePicture designation status")
+      .populate("department", "name")
+      .sort({ name: 1 })
+      .limit(limit)
+      .lean();
+
+    res.status(200).json(users);
+  } catch (error) {
+    logger.error("Error in getMeetingDirectory:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 // Get all users (optimized but backward compatible)
 export const getUsers = async (req, res) => {
   try {
@@ -145,21 +171,20 @@ export const getUsers = async (req, res) => {
       }
     }
     
-    // Status filter — also exclude isActive:false users when filtering for active
-    if (status) {
+    // Status filter — use shared roster helpers (single source of truth for spellings/values)
+    if (status === 'active') {
+      Object.assign(query, mergeActiveEmployeeFilter(query));
+    } else if (status) {
       query.status = status;
-      if (status === 'active') {
-        query.isActive = { $ne: false };
-      }
     } else if (excludePast === 'true') {
-      Object.assign(query, mergeExcludePastMembersFilter());
+      Object.assign(query, mergeExcludePastMembersFilter(query));
     }
     
-    logger.info('getUsers query:', query);
+    logger.info('getUsers query:', JSON.stringify(query));
     
     // Optimized query with pagination and all necessary fields for display
     const users = await User.find(query)
-      .select('_id name email role department profilePicture designation status isActive employeeId joiningDate hireDate phone reactivationDate')
+      .select('_id name email role department profilePicture designation status isActive employeeId joiningDate hireDate phone reactivationDate dateOfBirth employmentType')
       .populate('department', 'name')
       .sort({ createdAt: -1 })
       .limit(parseInt(limit))

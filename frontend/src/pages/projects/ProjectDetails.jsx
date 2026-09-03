@@ -178,56 +178,9 @@ const ProjectDetails = () => {
 
   const fetchAvailableMembers = async () => {
     try {
-      // Fetch all employees from the project's department
-      const response = await userApi.getAllUsers({ status: 'active', limit: 1000 });
-      const allUsers = response.data || [];
-      
-      // Filter out users who are already team members
-      const assignedUserIds = project?.assignedUsers?.map(u => u._id || u) || [];
-      const teamMemberIds = project?.teamMembers?.map(m => m.user?._id || m.user || m._id || m) || [];
-      const currentMemberIds = [...assignedUserIds, ...teamMemberIds];
-      const projectHeadId = project?.projectHead?._id || project?.projectHead;
-      const projectDeptId = project?.department?._id || project?.department;
-      
-      // console.log('Project department:', projectDeptId);
-      // console.log('Current member IDs:', currentMemberIds);
-      // console.log('Project head ID:', projectHeadId);
-      
-      const available = allUsers.filter(u => {
-        // Only include employees and HoDs (exclude admins, clients, superadmins)
-        if (u.role !== 'employee' && u.role !== 'hod') {
-          return false;
-        }
-        
-        // Exclude if already a team member
-        if (currentMemberIds.includes(u._id)) {
-          return false;
-        }
-        
-        // Exclude if project head
-        if (u._id === projectHeadId) {
-          return false;
-        }
-        
-        // Allow all employees/HoDs (removed department restriction)
-        return true;
-      });
-      
-      // Sort: same department first, then others
-      if (projectDeptId) {
-        available.sort((a, b) => {
-          const aDeptId = a.department?._id || a.department;
-          const bDeptId = b.department?._id || b.department;
-          
-          const aMatch = aDeptId === projectDeptId ? 0 : 1;
-          const bMatch = bDeptId === projectDeptId ? 0 : 1;
-          
-          return aMatch - bMatch;
-        });
-      }
-      
-      setAvailableMembers(available);
-      // console.log('Filtered available members:', available.map(u => ({ name: u.name, dept: u.department })));
+      if (!project?._id) return;
+      const candidates = await projectApi.getTeamMemberCandidates(project._id);
+      setAvailableMembers(candidates);
     } catch (error) {
       console.error("Failed to fetch available members:", error);
       toast.error("Failed to load available members");

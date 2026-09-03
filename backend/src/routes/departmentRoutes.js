@@ -3,6 +3,7 @@ import {
   createDepartment,
   getDepartments,
   getOperationalDepartments,
+  getDepartmentDirectory,
   getDepartmentById,
   updateDepartment,
   deleteDepartment,
@@ -22,18 +23,28 @@ import { protect } from '../middleware/authMiddleware.js';
 
 
 import { requireModulePermission } from "../authz/authzMiddleware.js";
-import { isHoDOfDepartment } from "../middleware/hodMiddleware.js";
+import {
+  isHoDOfDepartment,
+  allowDeptViewOrHoDOfDepartment,
+} from "../middleware/hodMiddleware.js";
 
 const router = express.Router();
 
-const DEPT_VIEW_ROLES = [
+const DEPT_VIEW_ROLES = ["manager", "hr", "admin", "superadmin"];
+
+const CLIENT_DEPT_ASSIGN_ROLES = ["manager", "hr", "admin", "superadmin"];
+
+const DEPT_DIRECTORY_ROLES = [
   "employee",
   "hod",
   "sales",
+  "telecaller",
   "manager",
   "hr",
   "admin",
   "superadmin",
+  "accounts",
+  "client",
 ];
 
 const deptView = requireModulePermission("team", "team.department.view", {
@@ -83,7 +94,23 @@ router.post(
 );
 router.get("/", protect, deptView, getDepartments);
 
-router.get("/operational", protect, deptView, getOperationalDepartments);
+router.get(
+  "/directory",
+  protect,
+  requireModulePermission("dashboard", "dashboard.view", {
+    legacyRoles: DEPT_DIRECTORY_ROLES,
+  }),
+  getDepartmentDirectory
+);
+
+router.get(
+  "/operational",
+  protect,
+  requireModulePermission("crm", "crm.client.manage", {
+    legacyRoles: CLIENT_DEPT_ASSIGN_ROLES,
+  }),
+  getOperationalDepartments
+);
 
 // HoD Management (New) - MUST come before /:id route
 router.post(
@@ -103,10 +130,10 @@ router.delete(
   removeHoD
 );
 
-// HoD Access Routes - MUST come before /:id route
-router.get("/:departmentId/projects", protect, isHoDOfDepartment, deptView, getDepartmentProjects);
-router.get("/:departmentId/members", protect, isHoDOfDepartment, deptView, getDepartmentMembers);
-router.get("/:departmentId/stats", protect, isHoDOfDepartment, deptView, getDepartmentStats);
+// HoD Access Routes - MUST come before /:id route (isHoDOfDepartment is sufficient; no team.department.view)
+router.get("/:departmentId/projects", protect, isHoDOfDepartment, getDepartmentProjects);
+router.get("/:departmentId/members", protect, isHoDOfDepartment, getDepartmentMembers);
+router.get("/:departmentId/stats", protect, isHoDOfDepartment, getDepartmentStats);
 
 // Department head management
 router.put(
@@ -119,7 +146,12 @@ router.put(
 );
 
 // Generic /:id routes - MUST come AFTER specific routes
-router.get("/:id", protect, deptView, getDepartmentById);
+router.get(
+  "/:id",
+  protect,
+  allowDeptViewOrHoDOfDepartment(deptView),
+  getDepartmentById
+);
 router.put(
   "/:id",
   protect,

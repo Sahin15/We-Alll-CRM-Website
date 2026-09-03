@@ -3,6 +3,7 @@ import {
   canViewAllCompanyProjects,
   canViewAssignedClients,
   isPermissionExplicitlyDenied,
+  canUserViewProjectById,
   COMPANY_VIEWER_ROLES,
 } from '../src/services/resourceVisibilityService.js';
 
@@ -54,5 +55,20 @@ describe('resourceVisibilityService', () => {
 
   test('employee retains assigned client permission by default', () => {
     expect(canViewAssignedClients(employeeUser)).toBe(true);
+  });
+
+  test('canUserViewProjectById allows team member with project document', async () => {
+    const project = {
+      _id: '69804ed9cd9c1b54302c818a',
+      teamMembers: [{ user: employeeUser._id, isActive: true }],
+    };
+
+    await expect(canUserViewProjectById(employeeUser, project)).resolves.toBe(true);
+  });
+
+  test('canUserViewProjectById allows company viewers without team membership', async () => {
+    const projectId = '69804ed9cd9c1b54302c818a';
+
+    await expect(canUserViewProjectById(adminUser, projectId)).resolves.toBe(true);
   });
 });

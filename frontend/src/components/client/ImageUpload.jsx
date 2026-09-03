@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { Form, Button, Image, Spinner, Alert } from "react-bootstrap";
 import { FaCloudUploadAlt, FaTrash, FaCheckCircle } from "react-icons/fa";
 import axios from "axios";
+import { MAX_PHOTO_UPLOAD_BYTES, MAX_PHOTO_UPLOAD_MB } from "../../utils/constants";
 import "./ImageUpload.css";
 
 const ImageUpload = ({ onUploadSuccess, onUploadError, existingImage = null }) => {
@@ -16,7 +17,7 @@ const ImageUpload = ({ onUploadSuccess, onUploadError, existingImage = null }) =
 
   // Validate file
   const validateFile = (file) => {
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSize = MAX_PHOTO_UPLOAD_BYTES;
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
     if (!allowedTypes.includes(file.type)) {
@@ -24,7 +25,7 @@ const ImageUpload = ({ onUploadSuccess, onUploadError, existingImage = null }) =
     }
 
     if (file.size > maxSize) {
-      return "File size exceeds 5MB. Please upload a smaller image.";
+      return `File size exceeds ${MAX_PHOTO_UPLOAD_MB}MB. Please upload a smaller image.`;
     }
 
     return null;

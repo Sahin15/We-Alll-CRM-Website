@@ -1,16 +1,18 @@
 /**
  * Central visibility rules for clients and projects.
  *
- * Business rules:
- * - Working on a client = working on at least one of that client's projects (team membership).
- * - Users see ALL projects they are assigned to, and clients linked to those projects.
- * - If a client has projects A and B and the user works only on A, they see the client and project A only.
- * - Company-wide visibility: admin, superadmin, hr, manager by default.
- * - Direct permission grants can widen (COMPANY scope) or deny access for any permission.
+ * Business rules (simple):
+ * - Do not assign users on clients for access control.
+ * - Users see projects only when they are on the project team
+ *   (projectHead, assignedUsers, or active teamMembers).
+ * - Users see a client only when they are on at least one of that client's projects.
+ * - Company-wide visibility: admin, superadmin, hr, manager by default
+ *   (or explicit COMPANY/PLATFORM permission grants).
  */
 
 import { getEffectiveGrants } from '../authz/legacyAdapter.js';
 import { SCOPES } from '../authz/scopes.js';
+import Project from '../models/projectModel.js';
 import {
   buildUserProjectMembershipFilter,
   collectPersonallyAssignedClientIds,
@@ -93,6 +95,10 @@ export function canViewAllCompanyProjects(user) {
   }
 
   if (hasCompanyWideScopeForPermission(user, 'projects.project.view')) {
+    return true;
+  }
+
+  if (hasCompanyWideScopeForPermission(user, 'projects.project.manage')) {
     return true;
   }
 
@@ -179,7 +185,20 @@ export async function canUserViewClient(user, clientId) {
 }
 
 /**
- * Whether the requester may view a specific project record.
+ * @param {object} project
+ * @returns {boolean}
+ */
+function projectHasTeamMembershipFields(project) {
+  if (!project || typeof project !== 'object') return false;
+  return (
+    project.projectHead !== undefined ||
+    Array.isArray(project.assignedUsers) ||
+    Array.isArray(project.teamMembers)
+  );
+}
+
+/**
+ * Whether the requester may view a specific project record (populated document).
  *
  * @param {object} user
  * @param {object} project
@@ -191,6 +210,31 @@ export function canUserViewProject(user, project) {
 
   if (user.role === 'client') {
     return false;
+  }
+
+  return isUserPersonallyAssignedToProject(String(user.id || user._id), project);
+}
+
+/**
+ * Whether the requester may view a project by id or document.
+ * Loads team membership fields when only an id/ref is provided.
+ *
+ * @param {object} user
+ * @param {object | string | import('mongoose').Types.ObjectId} projectOrId
+ * @returns {Promise<boolean>}
+ */
+export async function canUserViewProjectById(user, projectOrId) {
+  if (!user || !projectOrId) return false;
+  if (canViewAllCompanyProjects(user)) return true;
+  if (user.role === 'client') return false;
+
+  let project = projectOrId;
+  if (!projectHasTeamMembershipFields(project)) {
+    const projectId = String(projectOrId._id || projectOrId);
+    project = await Project.findById(projectId)
+      .select('projectHead assignedUsers teamMembers')
+      .lean();
+    if (!project) return false;
   }
 
   return isUserPersonallyAssignedToProject(String(user.id || user._id), project);

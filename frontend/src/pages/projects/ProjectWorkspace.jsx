@@ -5,11 +5,14 @@ import { FaArrowLeft } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import projectApi from '../../api/projectApi';
 import OverviewTab from '../../components/projects/workspace/OverviewTab';
+import ExpectationsTab from '../../components/projects/workspace/ExpectationsTab';
 import SimplifiedTeamTab from '../../components/projects/workspace/SimplifiedTeamTab';
 import UnifiedWorkTab from '../../components/projects/workspace/UnifiedWorkTab';
 import KanbanTab from '../../components/projects/workspace/KanbanTab';
 import SlotHistory from '../../components/projects/workspace/SlotHistory';
 import ProjectCredentials from '../../components/projects/ProjectCredentials';
+import BusinessDocumentsTab from '../../components/documents/BusinessDocumentsTab';
+import ReportsTab from '../../components/projects/workspace/ReportsTab';
 import { useAuth } from '../../context/AuthContext';
 import { PAGE_ACCESS, checkPageAccess } from '../../constants/pageAccess';
 
@@ -186,6 +189,17 @@ const ProjectWorkspace = () => {
         </Tab>
         
         <Tab 
+          eventKey="expectations" 
+          title={
+            <span style={{ fontWeight: activeTab === 'expectations' ? '600' : '500' }}>
+              🎯 Expectations
+            </span>
+          }
+        >
+          <ExpectationsTab project={project} canEdit={canEdit} />
+        </Tab>
+        
+        <Tab 
           eventKey="credentials" 
           title={
             <span style={{ fontWeight: activeTab === 'credentials' ? '600' : '500' }}>
@@ -240,6 +254,28 @@ const ProjectWorkspace = () => {
           }
         >
           <SlotHistory project={project} onRefresh={loadProject} refreshKey={refreshKey} />
+        </Tab>
+
+        <Tab 
+          eventKey="documents" 
+          title={
+            <span style={{ fontWeight: activeTab === 'documents' ? '600' : '500' }}>
+              📁 Documents
+            </span>
+          }
+        >
+          <BusinessDocumentsTab projectId={id} canEdit={canEdit} />
+        </Tab>
+
+        <Tab 
+          eventKey="reports" 
+          title={
+            <span style={{ fontWeight: activeTab === 'reports' ? '600' : '500' }}>
+              📈 Reports
+            </span>
+          }
+        >
+          <ReportsTab project={project} canEdit={canEdit} />
         </Tab>
       </Tabs>
     </Container>

@@ -66,43 +66,55 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
 
   useEffect(() => {
     loadTeamMembers();
-    loadAvailableUsers();
-  }, [currentProject._id, currentProject.teamMembers, currentProject.assignedUsers, currentProject.projectHead]);
+    if (canManageTeam) {
+      loadAvailableUsers();
+    }
+  }, [currentProject._id, currentProject.teamMembers, currentProject.assignedUsers, currentProject.projectHead, canManageTeam]);
 
   const loadTeamMembers = () => {
     try {
       setLoading(true);
-      let members = [];
-      
-      // First, get members from teamMembers array (newer structure with populated user data)
-      if (currentProject.teamMembers && currentProject.teamMembers.length > 0) {
-        members = currentProject.teamMembers.map(member => {
-          // If member.user is populated (object), use it; otherwise it's just the ID
-          if (typeof member.user === 'object' && member.user !== null) {
-            return member.user; // This is the populated user object
-          } else {
-            return member.user || member; // Fallback to ID
-          }
+      const byId = new Map();
+
+      // Prefer teamMembers (role metadata), then fill gaps from assignedUsers
+      if (currentProject.teamMembers?.length) {
+        currentProject.teamMembers.forEach((member) => {
+          if (member?.isActive === false) return;
+          const userObj =
+            typeof member.user === 'object' && member.user !== null
+              ? member.user
+              : null;
+          const memberId = String(
+            userObj?._id || member.user || member._id || ''
+          );
+          if (!memberId || memberId === 'undefined') return;
+          byId.set(memberId, userObj || { _id: memberId });
         });
-      } else {
-        // Fallback to assignedUsers (older structure)
-        members = currentProject.assignedUsers || [];
       }
-      
-      // Add project head if not in the list
+
+      (currentProject.assignedUsers || []).forEach((user) => {
+        const memberId = String(user?._id || user || '');
+        if (!memberId || memberId === 'undefined') return;
+        if (!byId.has(memberId)) {
+          byId.set(memberId, typeof user === 'object' ? user : { _id: memberId });
+        }
+      });
+
       if (currentProject.projectHead) {
-        const headId = currentProject.projectHead._id || currentProject.projectHead;
-        const headExists = members.some(m => {
-          const memberId = m._id || m;
-          return memberId === headId;
-        });
-        
-        if (!headExists) {
-          members.unshift(currentProject.projectHead);
+        const headId = String(
+          currentProject.projectHead._id || currentProject.projectHead
+        );
+        if (headId && !byId.has(headId)) {
+          byId.set(
+            headId,
+            typeof currentProject.projectHead === 'object'
+              ? currentProject.projectHead
+              : { _id: headId }
+          );
         }
       }
-      
-      setTeamMembers(members);
+
+      setTeamMembers([...byId.values()]);
     } catch (error) {
       console.error('Error loading team members:', error);
       toast.error('Failed to load team members');
@@ -113,40 +125,11 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
 
   const loadAvailableUsers = async () => {
     try {
-      const response = await userApi.getAllUsers({ status: 'active', limit: 1000 });
-      const allUsers = response.data || response || [];
-      
-      // Get all current team member IDs from both teamMembers and assignedUsers
-      const currentTeamIds = new Set();
-      
-      // Add from teamMembers (objects with user property)
-      if (currentProject.teamMembers) {
-        currentProject.teamMembers.forEach(member => {
-          const userId = member.user?._id || member.user;
-          if (userId) currentTeamIds.add(userId);
-        });
-      }
-      
-      // Add from assignedUsers (direct user IDs or objects)
-      if (currentProject.assignedUsers) {
-        currentProject.assignedUsers.forEach(user => {
-          const userId = user._id || user;
-          if (userId) currentTeamIds.add(userId);
-        });
-      }
-      
-      // Add project head
-      if (currentProject.projectHead) {
-        const headId = currentProject.projectHead._id || currentProject.projectHead;
-        if (headId) currentTeamIds.add(headId);
-      }
-      
-      // Filter out users already in the team
-      const available = allUsers.filter(u => !currentTeamIds.has(u._id));
-      
-      setAvailableUsers(available);
+      const candidates = await projectApi.getTeamMemberCandidates(currentProject._id);
+      setAvailableUsers(candidates);
     } catch (error) {
       console.error('Error loading available users:', error);
+      toast.error('Failed to load available users');
     }
   };
 

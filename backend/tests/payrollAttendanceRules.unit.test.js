@@ -21,8 +21,9 @@ describe("leaveImpactCodes", () => {
 
   it("classifies leave types", () => {
     expect(getLeavePayImpact("casual")).toBe("paid");
+    expect(getLeavePayImpact("medical")).toBe("paid");
     expect(getLeavePayImpact("LOP")).toBe("unpaid");
-    expect(getLeavePayImpact("personal")).toBe("unpaid");
+    expect(getLeavePayImpact("personal")).toBe("paid");
     expect(isLeaveTypePaid("sick")).toBe(true);
     expect(isLeaveTypePaid("leave_without_pay")).toBe(false);
   });

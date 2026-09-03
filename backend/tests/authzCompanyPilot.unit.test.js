@@ -14,25 +14,14 @@ const COMPANY_MEETING_MANAGE_ROLES = ['admin', 'superadmin', 'hr', 'manager'];
 
 /**
  * Company pilot parity: view for all roles; policy/announcement manage for admin gate roles.
+ * BUG-AUTHZ-001 fixed on staging: admin also receives company.meeting.view.
  */
 describe('Authorization V2 — Company pilot parity', () => {
-  test.each(ALL_LEGACY_ROLES.filter((role) => role !== 'admin'))(
-    'role %s has company view permissions',
-    (role) => {
-      const user = makeAuthzTestUser(role);
-      for (const permission of COMPANY_VIEW_PERMISSIONS) {
-        expect(hasPermission(user, permission)).toBe(true);
-      }
+  test.each(ALL_LEGACY_ROLES)('role %s has company view permissions', (role) => {
+    const user = makeAuthzTestUser(role);
+    for (const permission of COMPANY_VIEW_PERMISSIONS) {
+      expect(hasPermission(user, permission)).toBe(true);
     }
-  );
-
-  test('BUG-AUTHZ-001: admin has company.meeting.manage but lacks company.meeting.view', () => {
-    const user = makeAuthzTestUser('admin');
-    expect(hasPermission(user, 'company.meeting.manage')).toBe(true);
-    expect(hasPermission(user, 'company.policy.view')).toBe(true);
-    expect(hasPermission(user, 'company.announcement.view')).toBe(true);
-    // Known mapping gap: GET /meetings requires company.meeting.view (see meetingRoutes.js)
-    expect(hasPermission(user, 'company.meeting.view')).toBe(false);
   });
 
   test.each(ALL_LEGACY_ROLES)(

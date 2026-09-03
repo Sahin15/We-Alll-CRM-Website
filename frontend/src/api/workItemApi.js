@@ -133,7 +133,7 @@ export const workItemApi = {
    * @returns {Promise} Updated work item
    */
   reassignWorkItem: async (id, newAssigneeId) => {
-    const response = await api.patch(`/work-items/${id}/reassign`, { 
+    const response = await api.put(`/work-items/${id}/reassign`, { 
       newAssigneeId 
     });
     return response.data;

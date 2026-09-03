@@ -15,7 +15,7 @@ const DOCUMENT_MIME_TYPES = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
 ];
 
-const MAX_DOCUMENT_SIZE = 15 * 1024 * 1024; // 15MB for documents (increased for high-res photos)
+const MAX_DOCUMENT_SIZE = AWS_CONFIG.maxFileSize;
 
 /**
  * Upload document to AWS S3

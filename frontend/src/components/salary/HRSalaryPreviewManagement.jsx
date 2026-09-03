@@ -37,8 +37,8 @@ import {
 } from "../../api/payrollSimpleApi";
 import api from "../../services/api";
 import SimplePayrollPreviewPanels from "./SimplePayrollPreviewPanels";
-import {
-  isSimpleSalaryPreview,
+import { getCompanyYearOptions } from "../../constants/branding";
+import {  isSimpleSalaryPreview,
   mapStoredPreviewToSimpleDto,
 } from "../../utils/simpleSalaryPreviewView";
 
@@ -677,20 +677,12 @@ const HRSalaryPreviewManagement = () => {
     ));
   };
 
-  const generateYearOptions = () => {
-    const currentYear = new Date().getFullYear();
-    const years = [];
-    
-    for (let year = currentYear; year >= currentYear - 2; year--) {
-      years.push(year);
-    }
-    
-    return years.map(year => (
+  const generateYearOptions = () =>
+    getCompanyYearOptions().map((year) => (
       <option key={year} value={year}>
         {year}
       </option>
     ));
-  };
 
   return (
     <div>
