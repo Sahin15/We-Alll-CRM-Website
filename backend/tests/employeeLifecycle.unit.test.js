@@ -9,6 +9,7 @@
 
 import { describe, it, expect, beforeEach } from "@jest/globals";
 import fc from "fast-check";
+import { isSystemAccessBlocked } from "../src/utils/employeeQueryUtils.js";
 
 // ─── Pure logic helpers (mirrors the controller / service logic) ──────────────
 
@@ -85,11 +86,11 @@ function partitionEmployees(employees) {
 }
 
 /**
- * Determines whether the auth middleware should block a user.
- * Mirrors authMiddleware.protect logic.
+ * Determines whether login and auth middleware should block a user.
+ * Mirrors loginUser + authMiddleware.protect logic.
  */
 function shouldBlockUser(userStatus) {
-  return userStatus === "terminated" || userStatus === "offboarded";
+  return isSystemAccessBlocked({ status: userStatus });
 }
 
 /**
@@ -243,7 +244,7 @@ describe("Property 2 & 3 — Employee section partition and Past Members count",
 });
 
 // ── Property 5: Auth middleware blocks terminated/offboarded ──────────────────
-describe("Property 5 — Auth middleware blocks terminated and offboarded users", () => {
+describe("Property 5 — Login and auth block terminated and offboarded users", () => {
   /**
    * **Validates: Requirements 3.1, 3.2, 3.4**
    */

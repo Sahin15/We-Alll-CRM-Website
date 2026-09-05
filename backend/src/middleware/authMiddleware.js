@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import User from "../models/userModel.js";
 import { attachDirectPermissionGrants } from "../authz/attachDirectGrants.js";
+import { isSystemAccessBlocked } from "../utils/employeeQueryUtils.js";
 
 export const protect = async (req, res, next) => {
   try {
@@ -19,8 +20,7 @@ export const protect = async (req, res, next) => {
       return res.status(401).json({ message: "User not found" });
     }
 
-    // Block terminated and offboarded employees from accessing the system
-    if (user.status === "terminated" || user.status === "offboarded") {
+    if (isSystemAccessBlocked(user)) {
       return res.status(403).json({
         message: "Your account has been deactivated. Please contact HR.",
       });
