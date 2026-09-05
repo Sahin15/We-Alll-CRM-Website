@@ -15,6 +15,7 @@
     "authz:validate": "node scripts/authz-validate.js",
     "authz:test": "cross-env NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand tests/authz",
     "seed": "node src/seed/seedRoles.js",
+    "seed:uat": "node scripts/seed-uat.js",
     "seed:policies": "node src/seeders/policySeed.js",
     "create-superadmin": "node scripts/createSuperAdmin.js",
     "reset-superadmin-password": "node scripts/resetSuperAdminPassword.js",

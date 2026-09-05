@@ -257,7 +257,25 @@ const Navbar = ({ toggleSidebar }) => {
     user?.role !== "superadmin" &&
     checkPageAccess(canAccess, PAGE_ACCESS.navbarStaffMenu);
 
+  const isUatEnv = import.meta.env.VITE_APP_ENV === "uat";
+
   return (
+    <>
+      {isUatEnv && (
+        <div
+          className="text-center py-1 px-2 fw-semibold small"
+          style={{
+            background: "#f59e0b",
+            color: "#1f2937",
+            zIndex: 1040,
+            position: "sticky",
+            top: 0,
+          }}
+        >
+          <FaExclamationTriangle className="me-1" />
+          UAT environment — demo data only. Emails and push notifications are disabled.
+        </div>
+      )}
     <BSNavbar 
       className="shadow-sm py-2 mobile-navbar" 
       sticky="top"
@@ -814,6 +832,7 @@ const Navbar = ({ toggleSidebar }) => {
         }
       `}</style>
     </BSNavbar>
+    </>
   );
 };
 
