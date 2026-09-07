@@ -1,3 +1,5 @@
+<!-- CI/CD pipeline test -->
+
 # 🏢 We Alll CRM - Enterprise Management System
 
 A comprehensive Customer Relationship Management and Enterprise Resource Planning system built with MERN stack (MongoDB, Express, React, Node.js) for modern digital agencies and businesses.
@@ -9,6 +11,7 @@ A comprehensive Customer Relationship Management and Enterprise Resource Plannin
 ## ✨ Key Features
 
 ### 👥 Advanced User Management
+
 - **Multi-role system**: Admin, SuperAdmin, HR, HoD, HoP, Manager, Employee, Client
 - **Role-based access control** with granular permissions
 - **Department-based organization** with Head of Department (HoD) management
@@ -16,6 +19,7 @@ A comprehensive Customer Relationship Management and Enterprise Resource Plannin
 - **Employee onboarding** with automated project assignments
 
 ### ⏰ Smart Attendance System
+
 - **Real-time clock in/out** with location tracking
 - **Automated status calculation** (Present, Late, Half-day, Absent)
 - **Manual attendance modifications** (HR/Admin only)
@@ -24,6 +28,7 @@ A comprehensive Customer Relationship Management and Enterprise Resource Plannin
 - **Late arrival tracking** with automated notifications
 
 ### 🏖️ Complete Leave Management
+
 - **Leave request submission** with multiple leave types
 - **Multi-level approval workflow** (HoD → HR → Admin)
 - **Leave balance tracking** with carry-forward rules
@@ -32,6 +37,7 @@ A comprehensive Customer Relationship Management and Enterprise Resource Plannin
 - **DD/MM/YYYY date format** for better localization
 
 ### 📁 Advanced Project Management
+
 - **Dual-company support**: We Alll and Kolkata Digital separation
 - **Automatic project creation** when onboarding new clients
 - **Smart project categorization**: Auto-generated vs. Complete projects
@@ -41,6 +47,7 @@ A comprehensive Customer Relationship Management and Enterprise Resource Plannin
 - **Workload balancing** across team members
 
 ### 🎯 Work Item Management
+
 - **Unified work tracking** system replacing legacy slot management
 - **Smart employee assignment** based on department and availability
 - **Work progress tracking** with status updates (To Do, In Progress, Done)
@@ -49,6 +56,7 @@ A comprehensive Customer Relationship Management and Enterprise Resource Plannin
 - **Work item analytics** and reporting
 
 ### 👥 Client Relationship Management
+
 - **Comprehensive client profiles** with business information
 - **Service company separation** (We Alll vs. Kolkata Digital)
 - **Client onboarding** with automatic project creation
@@ -57,6 +65,7 @@ A comprehensive Customer Relationship Management and Enterprise Resource Plannin
 - **Won client celebrations** with team notifications
 
 ### � DEnhanced Communication System
+
 - **Company-wide announcements** with rich text formatting
 - **Targeted announcements** by role, department, or individual users
 - **Real-time notification system** with proper cleanup
@@ -65,12 +74,14 @@ A comprehensive Customer Relationship Management and Enterprise Resource Plannin
 - **Orphaned notification cleanup** for deleted announcements
 
 ### 📅 Integrated Calendar & Scheduling
+
 - **Holiday management** with responsive card layouts
 - **Event scheduling** with department coordination
 - **Work deadline tracking** with automated reminders
 - **Content calendar** for marketing activities
 
 ### 💰 Business Management
+
 - **Multi-company billing** (We Alll and Kolkata Digital)
 - **Invoice generation** with PDF export capabilities
 - **Payment tracking** with status management
@@ -78,6 +89,7 @@ A comprehensive Customer Relationship Management and Enterprise Resource Plannin
 - **Subscription management** for recurring services
 
 ### 📊 Intelligent Dashboards
+
 - **Role-specific dashboards** with relevant metrics
 - **Real-time data visualization** using Chart.js
 - **Performance analytics** with trend analysis
@@ -89,6 +101,7 @@ A comprehensive Customer Relationship Management and Enterprise Resource Plannin
 ## 🛠️ Tech Stack
 
 ### Frontend
+
 - **React 18** - Modern UI framework with hooks
 - **Vite 7.3.1** - Lightning-fast build tool
 - **React Bootstrap 5** - Responsive UI components
@@ -100,6 +113,7 @@ A comprehensive Customer Relationship Management and Enterprise Resource Plannin
 - **React Icons** - Comprehensive icon library
 
 ### Backend
+
 - **Node.js 21.7.3** - JavaScript runtime
 - **Express.js** - Web application framework
 - **MongoDB Atlas** - Cloud database with clustering
@@ -112,6 +126,7 @@ A comprehensive Customer Relationship Management and Enterprise Resource Plannin
 - **Winston** - Advanced logging system
 
 ### DevOps & Infrastructure
+
 - **Ubuntu Server** - Production environment
 - **Nginx** - Reverse proxy and static file serving
 - **PM2** - Process management and monitoring
@@ -123,11 +138,14 @@ A comprehensive Customer Relationship Management and Enterprise Resource Plannin
 ## 🏗️ System Architecture
 
 ### Multi-Company Structure
+
 The system supports two service companies:
+
 - **We Alll** - Primary digital marketing services
 - **Kolkata Digital** - Secondary digital services
 
 ### Role Hierarchy
+
 ```
 SuperAdmin (System Owner)
 ├── Admin (Company Management)
@@ -140,6 +158,7 @@ SuperAdmin (System Owner)
 ```
 
 ### Data Flow
+
 ```
 Client Onboarding → Auto Project Creation → Team Assignment → Work Distribution → Progress Tracking → Completion
 ```
@@ -158,12 +177,14 @@ Client Onboarding → Auto Project Creation → Team Assignment → Work Distrib
 ## 🚀 Installation & Setup
 
 ### 1. Clone Repository
+
 ```bash
 git clone https://github.com/Sahin15/We-Alll-CRM-Website.git
 cd We-Alll-CRM-Website
 ```
 
 ### 2. Backend Setup
+
 ```bash
 cd backend
 npm install
@@ -180,6 +201,7 @@ npm run dev
 ```
 
 ### 3. Frontend Setup
+
 ```bash
 cd frontend
 npm install
@@ -192,15 +214,18 @@ npm run dev
 ```
 
 ### 4. Access Application
-- **Frontend:** http://localhost:5173
-- **Backend API:** http://localhost:5000
-- **Health Check:** http://localhost:5000/api/health
+
+- **Frontend:** [http://localhost:5173](http://localhost:5173)
+- **Backend API:** [http://localhost:5000](http://localhost:5000)
+- **Health Check:** [http://localhost:5000/api/health](http://localhost:5000/api/health)
 
 ### 5. Default SuperAdmin Login
+
 ```
 Email: admin@wealll.cloud
 Password: Admin@123456
 ```
+
 ⚠️ **Change password immediately after first login!**
 
 ---
@@ -264,6 +289,7 @@ We-Alll-CRM-Website/
 ## 🔧 Configuration
 
 ### Backend Environment Variables (.env)
+
 ```env
 # Server Configuration
 NODE_ENV=production
@@ -293,6 +319,7 @@ EMAIL_PASSWORD=your-app-password
 ```
 
 ### Frontend Environment Variables (.env)
+
 ```env
 VITE_API_URL=https://api.yourdomain.com/api
 ```
@@ -302,36 +329,42 @@ VITE_API_URL=https://api.yourdomain.com/api
 ## 🎯 Recent Major Updates
 
 ### ✅ **Service Company Separation (Latest)**
+
 - **Dual-company filtering** for clients and projects
 - **Real-time count badges** showing distribution
 - **Consistent UI patterns** across client and project management
 - **Backend optimization** for proper data population
 
 ### ✅ **Project Management Overhaul**
+
 - **Auto-project creation** when onboarding clients
 - **Smart project categorization** (Needs Details vs. Complete)
 - **Enhanced project editing** with comprehensive fields
 - **Employee access management** for project visibility
 
 ### ✅ **Work Item System Enhancement**
+
 - **Unified work tracking** replacing complex slot system
 - **Improved date filtering** with timezone support
 - **Department-based work assignment** optimization
 - **Progress tracking** with visual indicators
 
 ### ✅ **Client Management Improvements**
+
 - **VIP client system** with priority levels
 - **Enhanced client profiles** with business information
 - **Won client notifications** with team celebrations
 - **Service company categorization** for better organization
 
 ### ✅ **UI/UX Enhancements**
+
 - **Holiday section redesign** with responsive cards
 - **Date format standardization** (DD/MM/YYYY)
 - **Notification system cleanup** for deleted announcements
 - **Admin dashboard consolidation** with all HR features
 
 ### ✅ **System Optimization**
+
 - **Script cleanup** - Removed 48 obsolete files, kept 16 essential
 - **Database query optimization** with proper indexing
 - **Performance improvements** with lazy loading
@@ -341,22 +374,25 @@ VITE_API_URL=https://api.yourdomain.com/api
 
 ## 👥 User Roles & Detailed Permissions
 
-| Role | Key Permissions | Dashboard Features |
-|------|----------------|-------------------|
-| **SuperAdmin** | Complete system control, user role management, system settings | Full analytics, user management, system health |
-| **Admin** | All business operations, user management, financial oversight | Company-wide metrics, revenue analytics, team performance |
-| **HR** | Employee lifecycle, attendance, leave management, announcements | HR analytics, attendance reports, leave statistics |
-| **Manager** | Department coordination, project oversight, team management | Department metrics, project progress, team workload |
-| **HoD** | Department-specific management, team attendance, project approval | Department dashboard, team performance, project status |
-| **HoP** | Project leadership, task assignment, team coordination | Project metrics, team workload, task completion |
-| **Employee** | Personal tasks, attendance, leave requests, project participation | Personal dashboard, task list, attendance history |
-| **Client** | Project visibility, communication, billing information | Project progress, communication history, billing status |
+
+| Role           | Key Permissions                                                   | Dashboard Features                                        |
+| -------------- | ----------------------------------------------------------------- | --------------------------------------------------------- |
+| **SuperAdmin** | Complete system control, user role management, system settings    | Full analytics, user management, system health            |
+| **Admin**      | All business operations, user management, financial oversight     | Company-wide metrics, revenue analytics, team performance |
+| **HR**         | Employee lifecycle, attendance, leave management, announcements   | HR analytics, attendance reports, leave statistics        |
+| **Manager**    | Department coordination, project oversight, team management       | Department metrics, project progress, team workload       |
+| **HoD**        | Department-specific management, team attendance, project approval | Department dashboard, team performance, project status    |
+| **HoP**        | Project leadership, task assignment, team coordination            | Project metrics, team workload, task completion           |
+| **Employee**   | Personal tasks, attendance, leave requests, project participation | Personal dashboard, task list, attendance history         |
+| **Client**     | Project visibility, communication, billing information            | Project progress, communication history, billing status   |
+
 
 ---
 
 ## 📊 API Documentation
 
 ### Authentication Endpoints
+
 ```
 POST /api/auth/register          # Register new user
 POST /api/auth/login             # User login
@@ -367,6 +403,7 @@ POST /api/auth/forgot-password   # Password reset request
 ```
 
 ### User Management
+
 ```
 GET    /api/users                # Get all users (filtered by role)
 GET    /api/users/:id            # Get specific user
@@ -377,6 +414,7 @@ PUT    /api/users/:id/role       # Change user role
 ```
 
 ### Client Management
+
 ```
 GET    /api/clients              # Get all clients (with service company filter)
 POST   /api/clients              # Create client (auto-creates project)
@@ -386,6 +424,7 @@ PUT    /api/clients/:id/vip      # Toggle VIP status
 ```
 
 ### Project Management
+
 ```
 GET    /api/projects             # Get projects (role-based filtering)
 POST   /api/projects             # Create project
@@ -396,6 +435,7 @@ GET    /api/projects/my-department # Get department projects (HoD)
 ```
 
 ### Work Item Management
+
 ```
 GET    /api/work-items           # Get work items (filtered)
 POST   /api/work-items           # Create work item
@@ -405,6 +445,7 @@ PUT    /api/work-items/:id/status # Update work status
 ```
 
 ### Attendance System
+
 ```
 POST   /api/attendance/clock-in  # Clock in
 POST   /api/attendance/clock-out # Clock out
@@ -415,6 +456,7 @@ GET    /api/attendance/reports   # Generate reports
 ```
 
 ### Leave Management
+
 ```
 GET    /api/leaves               # Get leave requests
 POST   /api/leaves               # Submit leave request
@@ -424,6 +466,7 @@ GET    /api/leaves/balance       # Get leave balance
 ```
 
 ### Communication System
+
 ```
 GET    /api/announcements        # Get announcements
 POST   /api/announcements        # Create announcement
@@ -438,6 +481,7 @@ PUT    /api/notifications/:id/read # Mark notification as read
 ## 🔒 Security Features
 
 ### Authentication & Authorization
+
 - **JWT-based authentication** with secure token management
 - **Role-based access control** with granular permissions
 - **Password hashing** using bcrypt with salt rounds
@@ -445,6 +489,7 @@ PUT    /api/notifications/:id/read # Mark notification as read
 - **Multi-level authorization** for sensitive operations
 
 ### Data Protection
+
 - **Input validation** with Mongoose schemas
 - **XSS protection** with sanitized inputs
 - **MongoDB injection prevention** through parameterized queries
@@ -452,6 +497,7 @@ PUT    /api/notifications/:id/read # Mark notification as read
 - **File upload security** with type and size restrictions
 
 ### Infrastructure Security
+
 - **HTTPS enforcement** in production
 - **Environment variable protection** for sensitive data
 - **AWS S3 security** with IAM roles and bucket policies
@@ -463,6 +509,7 @@ PUT    /api/notifications/:id/read # Mark notification as read
 ## 🧪 Testing & Quality Assurance
 
 ### Testing Strategy
+
 ```bash
 # Backend API testing
 cd backend
@@ -481,6 +528,7 @@ npm run format
 ```
 
 ### Quality Metrics
+
 - **Code coverage**: 85%+ target
 - **Performance**: <2s page load times
 - **Accessibility**: WCAG 2.1 AA compliance
@@ -492,6 +540,7 @@ npm run format
 ## 📈 Performance Optimization
 
 ### Frontend Optimizations
+
 - **Lazy loading** for routes and heavy components
 - **Image optimization** with WebP format support
 - **Bundle splitting** for optimal loading
@@ -499,6 +548,7 @@ npm run format
 - **Debounced search** to reduce API calls
 
 ### Backend Optimizations
+
 - **Database indexing** for frequently queried fields
 - **Query optimization** with population limits
 - **Response caching** for static data
@@ -506,6 +556,7 @@ npm run format
 - **Compression** for API responses
 
 ### Infrastructure Optimizations
+
 - **CDN integration** for static assets
 - **Gzip compression** for reduced bandwidth
 - **PM2 clustering** for load distribution
@@ -519,6 +570,7 @@ npm run format
 ### Production Deployment
 
 #### Server Requirements
+
 - **Ubuntu 20.04+** or similar Linux distribution
 - **Node.js 20.19.0+** or 22.12.0+
 - **MongoDB Atlas** connection
@@ -527,6 +579,7 @@ npm run format
 - **SSL certificate** for HTTPS
 
 #### Deployment Steps
+
 ```bash
 # 1. Clone and setup
 git clone https://github.com/Sahin15/We-Alll-CRM-Website.git
@@ -555,6 +608,7 @@ sudo certbot --nginx -d your-domain.com
 ```
 
 #### Environment Configuration
+
 ```env
 NODE_ENV=production
 PORT=5000
@@ -570,6 +624,7 @@ CORS_ORIGIN=https://your-domain.com
 ## 🗺️ Development Roadmap
 
 ### ✅ **Completed Features**
+
 - ✅ Multi-role user authentication system
 - ✅ Service company separation (We Alll & Kolkata Digital)
 - ✅ Advanced project management with auto-creation
@@ -585,6 +640,7 @@ CORS_ORIGIN=https://your-domain.com
 - ✅ Enhanced UI/UX with modern design patterns
 
 ### 🚧 **In Progress**
+
 - 🔄 Mobile application development (React Native)
 - 🔄 Advanced reporting system with PDF exports
 - 🔄 Real-time collaboration features
@@ -592,6 +648,7 @@ CORS_ORIGIN=https://your-domain.com
 - 🔄 Advanced analytics with machine learning insights
 
 ### 📋 **Planned Features**
+
 - 📅 **Q2 2024**: WebSocket integration for real-time updates
 - 📅 **Q2 2024**: Advanced workflow automation
 - 📅 **Q3 2024**: Mobile app release (iOS/Android)
@@ -602,6 +659,7 @@ CORS_ORIGIN=https://your-domain.com
 - 📅 **2025**: Advanced security features (2FA, SSO)
 
 ### 🎯 **Technical Improvements**
+
 - Microservices architecture migration
 - GraphQL API implementation
 - Advanced caching with Redis
@@ -616,6 +674,7 @@ CORS_ORIGIN=https://your-domain.com
 We welcome contributions! Please follow these guidelines:
 
 ### Development Process
+
 1. **Fork** the repository
 2. **Create** a feature branch (`git checkout -b feature/AmazingFeature`)
 3. **Commit** your changes (`git commit -m 'Add some AmazingFeature'`)
@@ -623,6 +682,7 @@ We welcome contributions! Please follow these guidelines:
 5. **Open** a Pull Request
 
 ### Code Standards
+
 - Follow ESLint configuration
 - Write meaningful commit messages
 - Add tests for new features
@@ -630,6 +690,7 @@ We welcome contributions! Please follow these guidelines:
 - Ensure backward compatibility
 
 ### Pull Request Guidelines
+
 - Provide clear description of changes
 - Include screenshots for UI changes
 - Reference related issues
@@ -647,11 +708,13 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 ## 👨‍💻 Development Team
 
 **Lead Developer**
+
 - **Sahin Mondal** - Full Stack Developer
 - GitHub: [@Sahin15](https://github.com/Sahin15)
-- Email: sahin@wealll.cloud
+- Email: [sahin@wealll.cloud](mailto:sahin@wealll.cloud)
 
 **Project Stakeholders**
+
 - **We Alll Digital** - Primary service company
 - **Kolkata Digital** - Secondary service company
 
@@ -660,24 +723,28 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 ## 🙏 Acknowledgments
 
 ### Technology Stack
+
 - **MERN Stack Community** - For the robust foundation
 - **React Team** - For the amazing frontend framework
 - **MongoDB Team** - For the flexible database solution
 - **Express.js Community** - For the lightweight backend framework
 
 ### UI/UX Libraries
+
 - **React Bootstrap** - For responsive components
 - **Chart.js** - For beautiful data visualizations
 - **React Icons** - For comprehensive icon library
 - **React Toastify** - For elegant notifications
 
 ### Infrastructure & Tools
+
 - **AWS** - For reliable cloud services
 - **MongoDB Atlas** - For managed database hosting
 - **PM2** - For production process management
 - **Nginx** - For efficient reverse proxy
 
 ### Open Source Community
+
 - All contributors and maintainers
 - Stack Overflow community
 - GitHub community
@@ -688,18 +755,21 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 ## 📞 Support & Contact
 
 ### Technical Support
+
 - **GitHub Issues**: [Create an issue](https://github.com/Sahin15/We-Alll-CRM-Website/issues)
-- **Email Support**: support@wealll.cloud
+- **Email Support**: [support@wealll.cloud](mailto:support@wealll.cloud)
 - **Documentation**: Check existing docs and guides
 
 ### Business Inquiries
-- **General**: info@wealll.cloud
-- **Sales**: sales@wealll.cloud
-- **Partnerships**: partnerships@wealll.cloud
+
+- **General**: [info@wealll.cloud](mailto:info@wealll.cloud)
+- **Sales**: [sales@wealll.cloud](mailto:sales@wealll.cloud)
+- **Partnerships**: [partnerships@wealll.cloud](mailto:partnerships@wealll.cloud)
 
 ### Emergency Support
-- **Critical Issues**: emergency@wealll.cloud
-- **System Downtime**: status@wealll.cloud
+
+- **Critical Issues**: [emergency@wealll.cloud](mailto:emergency@wealll.cloud)
+- **System Downtime**: [status@wealll.cloud](mailto:status@wealll.cloud)
 
 ---
 
@@ -719,6 +789,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 ## 🔄 Version History
 
 ### v2.1.0 (Latest) - January 2024
+
 - ✅ Service company separation for projects and clients
 - ✅ Enhanced project management with auto-creation
 - ✅ Improved work item tracking system
@@ -727,6 +798,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 - ✅ UI/UX improvements across all modules
 
 ### v2.0.0 - December 2023
+
 - ✅ Complete system overhaul
 - ✅ Multi-company support implementation
 - ✅ Advanced role-based access control
@@ -734,12 +806,14 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 - ✅ Enhanced dashboard analytics
 
 ### v1.5.0 - November 2023
+
 - ✅ Holiday management system
 - ✅ Leave management improvements
 - ✅ Notification system enhancements
 - ✅ Performance optimizations
 
 ### v1.0.0 - October 2023
+
 - ✅ Initial release
 - ✅ Basic CRM functionality
 - ✅ User management system
