@@ -11,7 +11,7 @@
     "start": "node src/server.js",
     "lint": "eslint . --ext .js",
     "test": "cross-env NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --forceExit",
-    "test:ci": "cross-env NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --forceExit --ci --maxWorkers=2 --testMatch=**/*.unit.test.js --testPathIgnorePatterns=employeeLifecycle",
+    "test:ci": "npm run authz:test",
     "authz:rollout-status": "node scripts/authz-rollout-status.js",
     "authz:validate": "node scripts/authz-validate.js",
     "authz:test": "cross-env NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand tests/authz",
