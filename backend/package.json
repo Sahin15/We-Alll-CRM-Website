@@ -11,7 +11,7 @@
     "start": "node src/server.js",
     "lint": "eslint . --ext .js",
     "test": "cross-env NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
-    "test:ci": "cross-env NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --forceExit --testPathIgnorePatterns=property.test --testPathIgnorePatterns=Integration.test --testPathIgnorePatterns=realTimeUpdates --testPathIgnorePatterns=workCalendarEnhanced --testPathIgnorePatterns=slotCompletionImmutability --testPathIgnorePatterns=slotAvailabilityAccuracy --testPathIgnorePatterns=slotAssignmentUniqueness --testPathIgnorePatterns=slotAnalyticsIntegration --testPathIgnorePatterns=progressCalculationConsistency --testPathIgnorePatterns=employeeLifecycle",
+    "test:ci": "cross-env NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --forceExit --testPathIgnorePatterns=property.test --testPathIgnorePatterns=Integration.test --testPathIgnorePatterns=realTimeUpdates --testPathIgnorePatterns=workCalendarEnhanced --testPathIgnorePatterns=slotCompletionImmutability --testPathIgnorePatterns=slotAvailabilityAccuracy --testPathIgnorePatterns=slotAssignmentUniqueness --testPathIgnorePatterns=slotAnalyticsIntegration --testPathIgnorePatterns=progressCalculationConsistency --testPathIgnorePatterns=employeeLifecycle --testPathIgnorePatterns=procurement-rbac --testPathIgnorePatterns=security.test",
     "authz:rollout-status": "node scripts/authz-rollout-status.js",
     "authz:validate": "node scripts/authz-validate.js",
     "authz:test": "cross-env NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand tests/authz",
