@@ -28,9 +28,13 @@ npm install
 npm run build
 cd ..
 
-# 4. Restart backend
+# 4. Restart backend (We Alll CRM only — do not pm2 restart all on shared VPS)
 echo "🔄 Restarting backend..."
-pm2 restart all
+for proc in wealll-backend wealll-office-backend; do
+  if pm2 describe "$proc" >/dev/null 2>&1; then
+    pm2 restart "$proc"
+  fi
+done
 pm2 save
 
 # 5. Reload nginx
