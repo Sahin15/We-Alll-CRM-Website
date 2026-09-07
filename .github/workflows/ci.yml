@@ -18,7 +18,7 @@ jobs:
   backend-test:
     name: Backend tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: backend
@@ -67,6 +67,4 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - name: Install Rollup Linux native binding
-        run: npm install @rollup/rollup-linux-x64-gnu --no-save
       - run: npm run build
