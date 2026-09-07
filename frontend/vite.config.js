@@ -56,7 +56,7 @@ export default defineConfig({
     outDir: "dist",
     assetsDir: "assets",
     sourcemap: false,
-    minify: "oxc",
+    minify: process.env.CI ? "esbuild" : "oxc",
     target: ["es2015", "safari11"],
     rollupOptions: {
       output: {
