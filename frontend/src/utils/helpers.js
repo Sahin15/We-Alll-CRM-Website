@@ -79,6 +79,48 @@ export const getInitials = (name) => {
     .slice(0, 2);
 };
 
+const OBJECT_ID_PATTERN = /^[a-f0-9]{24}$/i;
+
+/**
+ * Resolve a department ref (populated object, name string, or ObjectId) to a display name.
+ * @param {object|string|null|undefined} departmentRef
+ * @returns {string|null}
+ */
+export const formatDepartmentName = (departmentRef) => {
+  if (!departmentRef) return null;
+  if (typeof departmentRef === "object") {
+    return departmentRef.name || null;
+  }
+  const value = String(departmentRef).trim();
+  if (!value || OBJECT_ID_PATTERN.test(value)) return null;
+  return value;
+};
+
+/**
+ * Build a comma-separated department label for a project record.
+ * @param {{ departments?: Array, department?: object|string|null }} project
+ * @param {string} [fallback="General"]
+ * @returns {string}
+ */
+export const getProjectDepartmentLabel = (project, fallback = "General") => {
+  if (!project) return fallback;
+
+  const names = [];
+  if (Array.isArray(project.departments)) {
+    project.departments.forEach((dept) => {
+      const name = formatDepartmentName(dept);
+      if (name && !names.includes(name)) names.push(name);
+    });
+  }
+
+  const legacyName = formatDepartmentName(project.department);
+  if (legacyName && !names.includes(legacyName)) {
+    names.unshift(legacyName);
+  }
+
+  return names.length > 0 ? names.join(", ") : fallback;
+};
+
 // Truncate text
 export const truncate = (text, length = 50) => {
   if (!text) return "";

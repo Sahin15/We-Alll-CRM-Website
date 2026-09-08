@@ -29,7 +29,7 @@ import {
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import projectApi from "../../../api/projectApi";
-import { formatDate } from "../../../utils/helpers";
+import { formatDate, getProjectDepartmentLabel } from "../../../utils/helpers";
 
 /**
  * OverviewTab Component - Upgraded V2 Executive Dashboard
@@ -146,9 +146,9 @@ const OverviewTab = ({ project, onRefresh }) => {
                     📋 Client: {proj.client.company || proj.client.name}
                   </Badge>
                 )}
-                {proj.department && (
+                {getProjectDepartmentLabel(proj) !== "General" && (
                   <Badge bg="white" text="dark" className="border px-3 py-2 shadow-sm">
-                    🏢 Service: {proj.department.name || "General"}
+                    🏢 Service: {getProjectDepartmentLabel(proj)}
                   </Badge>
                 )}
               </div>
@@ -321,9 +321,7 @@ const OverviewTab = ({ project, onRefresh }) => {
                   <div className="mb-3">
                     <small className="text-muted d-block mb-1 fw-semibold">Department / Service</small>
                     <div className="fw-semibold">
-                      {proj.departments && proj.departments.length > 0
-                        ? proj.departments.map((d) => (typeof d === "object" ? d.name : d)).join(", ")
-                        : proj.department?.name || "General"}
+                      {getProjectDepartmentLabel(proj)}
                     </div>
                   </div>
                 </Col>
