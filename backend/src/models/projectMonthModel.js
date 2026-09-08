@@ -35,7 +35,11 @@ const projectMonthSchema = new mongoose.Schema(
         title: { type: String, required: true, trim: true },
         description: { type: String, trim: true },
         owner: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-        status: { type: String, enum: ["planned", "done", "dropped"], default: "planned" },
+        status: {
+          type: String,
+          enum: ["open", "in_progress", "achieved", "partially_achieved", "missed"],
+          default: "open",
+        },
         relatedDeliverableIds: [{ type: mongoose.Schema.Types.ObjectId }],
       }
     ],

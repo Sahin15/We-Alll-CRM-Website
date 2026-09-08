@@ -5,6 +5,56 @@ import { logProjectActivity } from "../services/projectActivityService.js";
 import { calculateMonthProgress } from "../services/projectMonthProgressService.js";
 import logger from "../utils/logger.js";
 
+const LEGACY_GOAL_STATUS = {
+  planned: "open",
+  done: "achieved",
+  dropped: "missed",
+};
+
+const VALID_GOAL_STATUSES = new Set([
+  "open",
+  "in_progress",
+  "achieved",
+  "partially_achieved",
+  "missed",
+]);
+
+/**
+ * Normalize goal status values from legacy schema to UI-facing values.
+ * @param {string|undefined|null} status
+ * @returns {string}
+ */
+export function normalizeGoalStatus(status) {
+  if (!status) return "open";
+  if (LEGACY_GOAL_STATUS[status]) return LEGACY_GOAL_STATUS[status];
+  if (VALID_GOAL_STATUSES.has(status)) return status;
+  return "open";
+}
+
+/**
+ * @param {Array<{ title?: string, status?: string }>|undefined|null} goals
+ * @returns {Array<{ title?: string, status?: string }>|undefined|null}
+ */
+export function normalizeGoals(goals) {
+  if (!Array.isArray(goals)) return goals;
+  return goals.map((goal) => ({
+    ...goal,
+    status: normalizeGoalStatus(goal?.status),
+  }));
+}
+
+/**
+ * @param {import("mongoose").Document|object} projectMonthDoc
+ * @returns {object}
+ */
+function serializeProjectMonth(projectMonthDoc) {
+  const data = projectMonthDoc.toObject ? projectMonthDoc.toObject() : { ...projectMonthDoc };
+  if (Array.isArray(data.goals)) {
+    data.goals = normalizeGoals(data.goals);
+  }
+  return data;
+}
+
 /**
  * Get or auto-create a ProjectMonth record for a given project and monthKey
  * GET /api/projects/:projectId/month?monthKey=2026-08
@@ -66,7 +116,7 @@ export const getOrCreateProjectMonth = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: projectMonth,
+      data: serializeProjectMonth(projectMonth),
     });
   } catch (error) {
     logger.error("Error in getOrCreateProjectMonth:", error);
@@ -97,7 +147,7 @@ export const updateProjectMonthGoals = async (req, res) => {
     const { status, goals, plannedDeliverables, nextMonthGoals, summaryNotes } = req.body;
 
     if (status !== undefined) projectMonth.status = status;
-    if (goals !== undefined) projectMonth.goals = goals;
+    if (goals !== undefined) projectMonth.goals = normalizeGoals(goals);
     if (plannedDeliverables !== undefined)
       projectMonth.plannedDeliverables = plannedDeliverables;
     if (nextMonthGoals !== undefined) projectMonth.nextMonthGoals = nextMonthGoals;
@@ -119,7 +169,7 @@ export const updateProjectMonthGoals = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: projectMonth,
+      data: serializeProjectMonth(projectMonth),
     });
   } catch (error) {
     logger.error("Error updating project month goals:", error);
@@ -240,7 +290,7 @@ export const submitProjectMonthReport = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: projectMonth,
+      data: serializeProjectMonth(projectMonth),
     });
   } catch (error) {
     logger.error("Error submitting project month report:", error);
@@ -305,7 +355,7 @@ export const reviewProjectMonthReport = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: projectMonth,
+      data: serializeProjectMonth(projectMonth),
     });
   } catch (error) {
     logger.error("Error reviewing project month report:", error);
