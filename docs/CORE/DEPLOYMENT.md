@@ -5,7 +5,7 @@
 | Environment | URL | Git branch | Server path | PM2 process | Backend port | MongoDB db |
 |-------------|-----|------------|-------------|-------------|--------------|------------|
 | Production | https://wealll.cloud | `main` | `/var/www/crm-app` | `crm-api` | 5000 | `crm-database` |
-| UAT | https://uat.wealll.cloud | `staging` | `/var/www/crm-uat` | `crm-uat-api` | 5001 | `crm-uat` |
+| UAT | https://uat.wealll.cloud | `staging` | `/root/crm-website-uat` (git/build) · `/var/www/crm-uat/frontend/dist` (nginx) | `crm-uat-api` | 5001 | `crm-uat` |
 
 UAT uses **seeded dummy data only** — never mirror production MongoDB into UAT.
 
@@ -33,13 +33,12 @@ Enable branch protection per [`.github/BRANCH_PROTECTION.md`](../.github/BRANCH_
 
 1. **DNS:** Add `A` record `uat.wealll.cloud` → same VPS IP as production.
 
-2. **Clone app:**
+2. **Clone app** (Hostinger VPS layout):
    ```bash
-   sudo mkdir -p /var/www/crm-uat
-   sudo chown $USER:$USER /var/www/crm-uat
-   git clone https://github.com/Sahin15/We-Alll-CRM-Website.git /var/www/crm-uat
-   cd /var/www/crm-uat
+   git clone https://github.com/Sahin15/We-Alll-CRM-Website.git /root/crm-website-uat
+   cd /root/crm-website-uat
    git checkout staging
+   mkdir -p /var/www/crm-uat/frontend/dist
    ```
 
 3. **Backend env:** Copy template and edit on server only:
@@ -52,23 +51,23 @@ Enable branch protection per [`.github/BRANCH_PROTECTION.md`](../.github/BRANCH_
 
 5. **PM2:**
    ```bash
-   cd /var/www/crm-uat/backend
+   cd /root/crm-website-uat/backend
    pm2 start src/server.js --name crm-uat-api
    pm2 save
    ```
 
-6. **nginx:** Use [`deploy/nginx/uat.wealll.cloud.conf`](../deploy/nginx/uat.wealll.cloud.conf):
+6. **nginx:** Use [`deploy/nginx/uat.wealll.cloud.conf`](../deploy/nginx/uat.wealll.cloud.conf) (installed as `crm-uat` on the VPS):
    ```bash
-   sudo cp deploy/nginx/uat.wealll.cloud.conf /etc/nginx/sites-available/uat.wealll.cloud
-   sudo ln -sf /etc/nginx/sites-available/uat.wealll.cloud /etc/nginx/sites-enabled/
+   sudo cp deploy/nginx/uat.wealll.cloud.conf /etc/nginx/sites-enabled/crm-uat
    sudo certbot --nginx -d uat.wealll.cloud
    sudo nginx -t && sudo systemctl reload nginx
    ```
 
-7. **Build & seed:**
+7. **Build, publish static files & seed:**
    ```bash
-   cd /var/www/crm-uat/frontend && npm install && npm run build:uat
-   cd /var/www/crm-uat/backend && npm run seed:uat
+   cd /root/crm-website-uat
+   bash deploy-uat.sh
+   cd backend && npm run seed:uat
    ```
 
 8. **GitHub secrets** (repo or `uat` environment): `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`.
@@ -86,9 +85,18 @@ The app also suppresses outbound email and FCM when `APP_ENV=uat`. Frontend show
 ### Refresh UAT seed data
 
 ```bash
-cd /var/www/crm-uat/backend
+cd /root/crm-website-uat/backend
 npm run seed:uat
 ```
+
+### Manual UAT deploy (VPS)
+
+```bash
+cd /root/crm-website-uat
+bash deploy-uat.sh
+```
+
+`deploy-uat.sh` builds in `/root/crm-website-uat`, rsyncs `frontend/dist` to `/var/www/crm-uat/frontend/dist`, restarts PM2, and reloads nginx.
 
 Demo users use `@demo.wealll.local` emails. Password documented in internal runbook only (see seed script output on server).
 

@@ -28,5 +28,5 @@ jobs:
           script_stop: true
           script: |
             set -e
-            cd /var/www/crm-uat
+            cd /root/crm-website-uat
             bash deploy-uat.sh
