@@ -11,7 +11,8 @@ import {
 } from '../../utils/workItemUtils';
 import AssigneeStatusDisplay from './AssigneeStatusDisplay';
 import {
-  getCreativeStatusBadgeVariant,
+  getCreativeListBadgeVariant,
+  getCreativeListDisplayStatus,
   getCreativeStatusProgress,
   isCreativeWorkflowItem,
 } from '../../utils/workItemStatusUtils';
@@ -428,14 +429,16 @@ const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, curren
                   ) : isCreativeWorkflowItem(item) ? (
                     <div>
                       <Badge
-                        bg={getCreativeStatusBadgeVariant(item.status)}
+                        bg={getCreativeListBadgeVariant(item.status)}
                         className="status-badge"
                       >
-                        {item.status}
+                        {getCreativeListDisplayStatus(item.status)}
                       </Badge>
-                      <div className="small text-muted mt-1">
-                        {getCreativeStatusProgress(item.status)}% workflow
-                      </div>
+                      {getCreativeListDisplayStatus(item.status) !== 'Done' && (
+                        <div className="small text-muted mt-1">
+                          {getCreativeStatusProgress(item.status)}% workflow
+                        </div>
+                      )}
                     </div>
                   ) : canEdit(item) && onStatusChange ? (
                     <StatusSelector

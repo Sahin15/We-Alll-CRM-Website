@@ -4,6 +4,8 @@ import {
   assertNoBackwardFromDelivered,
   START_WORK_STATUSES,
   SUBMIT_REVIEW_STATUSES,
+  resolveReviewDecision,
+  resolveQaPassFromBody,
 } from "../src/utils/creativeWorkflowRules.js";
 import {
   canPerformCreativeReview,
@@ -29,6 +31,25 @@ describe("creativeWorkflowRules", () => {
     expect(() =>
       assertStatusIn("Changes Requested", SUBMIT_REVIEW_STATUSES, "Submit for review")
     ).toThrow(/Submit for review is not allowed/);
+  });
+
+  it("resolves QA pass/fail from decision and legacy pass/passed fields", () => {
+    expect(resolveQaPassFromBody({ decision: "pass" })).toBe(true);
+    expect(resolveQaPassFromBody({ decision: "fail", notes: "fix logo" })).toBe(false);
+    expect(resolveQaPassFromBody({ passed: true })).toBe(true);
+    expect(resolveQaPassFromBody({ pass: true })).toBe(true);
+    expect(resolveQaPassFromBody({ pass: "true" })).toBe(true);
+    expect(resolveQaPassFromBody({ notes: "only notes" })).toBe(null);
+  });
+
+  it("resolves approve review decisions including Approve → QA aliases", () => {
+    expect(resolveReviewDecision("approve")).toBe("approve");
+    expect(resolveReviewDecision("  Approve  ")).toBe("approve");
+    expect(resolveReviewDecision("approve_qa")).toBe("approve");
+    expect(resolveReviewDecision("approve to qa")).toBe("approve");
+    expect(resolveReviewDecision("minor")).toBe("minor");
+    expect(resolveReviewDecision("request_major_rework")).toBe("major");
+    expect(resolveReviewDecision("unknown")).toBe(null);
   });
 
   it("blocks backward transitions from Delivered when slotted", () => {

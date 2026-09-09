@@ -41,7 +41,8 @@ import moment from 'moment';
 import './EnhancedEmployeeWorkView.css';
 import { decodeHtmlEntities } from '../../utils/htmlDecoder';
 import {
-  getCreativeStatusBadgeVariant,
+  getCreativeListBadgeVariant,
+  getCreativeListDisplayStatus,
   getCreativeStatusProgress,
   isCreativeWorkflowItem,
 } from '../../utils/workItemStatusUtils';
@@ -309,9 +310,12 @@ const WorkAssignmentsTab = ({ recentWork, getStatusColor, getPriorityColor, onVi
                       <td>
                         <div>
                           <Badge bg={getStatusColor(work.status, work)}>
-                            {work.status}
+                            {isCreativeWorkflowItem(work)
+                              ? getCreativeListDisplayStatus(work.status)
+                              : work.status}
                           </Badge>
-                          {isCreativeWorkflowItem(work) && (
+                          {isCreativeWorkflowItem(work) &&
+                            getCreativeListDisplayStatus(work.status) !== 'Done' && (
                             <div className="small text-muted mt-1">
                               {getCreativeStatusProgress(work.status)}% workflow
                             </div>
@@ -621,9 +625,11 @@ const EnhancedEmployeeWorkView = () => {
     return { totalEstimatedHours, totalActualHours, averageEfficiency };
   };
 
-  const loadEmployeeWorkData = async () => {
+  const loadEmployeeWorkData = async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
 
       const [employeeResponse, workItemsResponse, projectsData] = await Promise.all([
         getUserById(currentEmployeeId),
@@ -646,13 +652,27 @@ const EnhancedEmployeeWorkView = () => {
     } catch (error) {
       console.error('Error loading employee work data:', error);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
+  };
+
+  const handleWorkItemSync = (updatedItem) => {
+    if (!updatedItem?._id) return;
+    setSelectedWorkItem((current) =>
+      current?._id === updatedItem._id ? { ...current, ...updatedItem } : current
+    );
+    setRecentWork((items) =>
+      items.map((item) =>
+        item._id === updatedItem._id ? { ...item, ...updatedItem } : item
+      )
+    );
   };
 
   const getStatusColor = (status, workItem) => {
     if (workItem && isCreativeWorkflowItem(workItem)) {
-      return getCreativeStatusBadgeVariant(status);
+      return getCreativeListBadgeVariant(status);
     }
     const colors = {
       'To Do': 'secondary',
@@ -1723,10 +1743,12 @@ const EnhancedEmployeeWorkView = () => {
           onHide={() => {
             setShowWorkDetailsModal(false);
             setSelectedWorkItem(null);
+            loadEmployeeWorkData({ silent: true });
           }}
           workItem={selectedWorkItem}
           onUpdate={handleUpdateWorkStatus}
-          onRefresh={loadEmployeeWorkData}
+          onRefresh={() => loadEmployeeWorkData({ silent: true })}
+          onWorkItemSync={handleWorkItemSync}
           currentUser={user}
         />
       )}

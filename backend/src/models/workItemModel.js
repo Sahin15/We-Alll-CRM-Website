@@ -393,8 +393,15 @@ const workItemSchema = new mongoose.Schema(
       index: true,
     },
     postUrls: [{
-      type: String,
-      trim: true,
+      platform: {
+        type: String,
+        trim: true,
+        default: "Other",
+      },
+      url: {
+        type: String,
+        trim: true,
+      },
     }],
     postingNotes: {
       type: String,

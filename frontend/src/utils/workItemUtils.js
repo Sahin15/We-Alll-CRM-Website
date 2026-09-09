@@ -1,4 +1,12 @@
+import { isCreativeWorkflowItem } from './creativeWorkflowAccess.js';
+
 const TERMINAL_STATUSES = new Set(['Done', 'Cancelled']);
+
+/** @param {object} workItem @param {string} status */
+function isTerminalWorkStatus(workItem, status) {
+  if (TERMINAL_STATUSES.has(status)) return true;
+  return isCreativeWorkflowItem(workItem) && status === 'Closed';
+}
 
 const normalizeId = (value) => {
   if (!value) return null;
@@ -38,14 +46,14 @@ export function getDaysUntilDue(dueDate, referenceDate = new Date()) {
 
 export function isWorkItemDueToday(workItem, userId, referenceDate = new Date()) {
   const status = getEffectiveStatusForUser(workItem, userId);
-  if (TERMINAL_STATUSES.has(status) || !workItem?.dueDate) return false;
+  if (isTerminalWorkStatus(workItem, status) || !workItem?.dueDate) return false;
 
   return getDaysUntilDue(workItem.dueDate, referenceDate) === 0;
 }
 
 export function isWorkItemOverdue(workItem, userId, referenceDate = new Date()) {
   const status = getEffectiveStatusForUser(workItem, userId);
-  if (TERMINAL_STATUSES.has(status) || !workItem?.dueDate) return false;
+  if (isTerminalWorkStatus(workItem, status) || !workItem?.dueDate) return false;
 
   return getDaysUntilDue(workItem.dueDate, referenceDate) < 0;
 }

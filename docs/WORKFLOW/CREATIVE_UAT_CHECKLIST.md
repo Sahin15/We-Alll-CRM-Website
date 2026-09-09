@@ -12,7 +12,7 @@ Run on **staging** with a Graphic or Video project that uses slots.
 
 1. [ ] Assign creative work from project team / slot header
 2. [ ] Assignee: Start / Revision 1 → In Progress
-3. [ ] Assignee: add attachment URL, Submit for Review
+3. [ ] Assignee: Submit for Review (attachment URL optional)
 4. [ ] Reviewer: Approve → QA Review (not Approved directly)
 5. [ ] Reviewer: QA Pass → Approved
 6. [ ] Reviewer: Mark Delivered → slot marked complete

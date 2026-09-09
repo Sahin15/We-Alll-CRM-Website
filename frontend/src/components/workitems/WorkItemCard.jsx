@@ -14,7 +14,8 @@ import {
   handleKeyboardNavigation,
 } from '../../utils/accessibility';
 import {
-  getCreativeStatusBadgeVariant,
+  getCreativeListBadgeVariant,
+  getCreativeListDisplayStatus,
   isCreativeWorkflowItem,
 } from '../../utils/workItemStatusUtils';
 import './WorkItemCard.css';
@@ -28,8 +29,10 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
   
   const itemStatus = getEffectiveStatusForUser(workItem, currentUser?._id);
   const isCreative = isCreativeWorkflowItem(workItem);
-  const displayStatus = isCreative ? workItem.status : itemStatus;
-  const isTerminal = ['Done', 'Cancelled', 'Closed'].includes(displayStatus);
+  const displayStatus = isCreative
+    ? getCreativeListDisplayStatus(workItem.status)
+    : itemStatus;
+  const isTerminal = ['Done', 'Cancelled'].includes(displayStatus);
   const isOverdue = !isTerminal && isWorkItemOverdue(workItem, currentUser?._id);
   const isDueToday = !isTerminal && isWorkItemDueToday(workItem, currentUser?._id);
 
@@ -218,7 +221,11 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
               </Dropdown>
             ) : (
               <Badge 
-                bg={isCreative ? getCreativeStatusBadgeVariant(displayStatus) : getStatusColor(displayStatus)}
+                bg={
+                  isCreative
+                    ? getCreativeListBadgeVariant(workItem.status)
+                    : getStatusColor(displayStatus)
+                }
                 aria-label={getStatusAriaLabel(displayStatus)}
                 className="text-capitalize"
                 style={{

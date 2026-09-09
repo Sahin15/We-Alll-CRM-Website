@@ -89,32 +89,76 @@ export function applyPostingHandoffFields(workItem, validated) {
 }
 
 /**
- * @param {string[]} postUrls
- * @returns {{ valid: boolean, error?: string, urls: string[] }}
+ * Normalize legacy string URLs or { platform, url } objects.
+ * @param {string|{ platform?: string, url?: string }} entry
+ * @returns {{ platform: string, url: string }|null}
+ */
+export function normalizePostUrlEntry(entry) {
+  if (typeof entry === "string") {
+    const url = entry.trim();
+    return url ? { platform: "Other", url } : null;
+  }
+  if (entry && typeof entry === "object") {
+    const url = String(entry.url || "").trim();
+    const platform = String(entry.platform || "Other").trim() || "Other";
+    return url ? { platform, url } : null;
+  }
+  return null;
+}
+
+/**
+ * @param {Array<string|{ platform?: string, url?: string }>} postUrls
+ * @returns {{ valid: boolean, error?: string, links: { platform: string, url: string }[], urls: string[] }}
  */
 export function validatePostUrls(postUrls) {
   if (!Array.isArray(postUrls) || postUrls.length === 0) {
-    return { valid: false, error: "At least one post URL is required", urls: [] };
+    return {
+      valid: false,
+      error: "At least one platform post link is required",
+      links: [],
+      urls: [],
+    };
   }
 
-  const urls = postUrls
-    .map((u) => (typeof u === "string" ? u.trim() : ""))
-    .filter(Boolean);
+  const links = [];
+  for (const entry of postUrls) {
+    const normalized = normalizePostUrlEntry(entry);
+    if (!normalized) continue;
 
-  if (urls.length === 0) {
-    return { valid: false, error: "At least one post URL is required", urls: [] };
-  }
+    if (!normalized.platform) {
+      return {
+        valid: false,
+        error: "Platform name is required for each post link",
+        links: [],
+        urls: [],
+      };
+    }
 
-  for (const url of urls) {
     try {
       // eslint-disable-next-line no-new
-      new URL(url);
+      new URL(normalized.url);
     } catch {
-      return { valid: false, error: `Invalid post URL: ${url}`, urls: [] };
+      return {
+        valid: false,
+        error: `Invalid post URL for ${normalized.platform}: ${normalized.url}`,
+        links: [],
+        urls: [],
+      };
     }
+
+    links.push(normalized);
   }
 
-  return { valid: true, urls };
+  if (links.length === 0) {
+    return {
+      valid: false,
+      error: "At least one platform post link is required",
+      links: [],
+      urls: [],
+    };
+  }
+
+  return { valid: true, links, urls: links.map((link) => link.url) };
 }
 
 /**
@@ -189,7 +233,7 @@ export async function setPostingHandoff(workItemId, payload, actorId) {
 /**
  * Submit post URLs and mark posting done. Does not mutate slots.
  * @param {string} workItemId
- * @param {{ postUrls: string[], postingNotes?: string }} payload
+ * @param {{ postUrls: Array<string|{ platform?: string, url?: string }>, postingNotes?: string }} payload
  * @param {string} actorId
  */
 export async function submitPostingDone(workItemId, payload, actorId) {
@@ -233,7 +277,7 @@ export async function submitPostingDone(workItemId, payload, actorId) {
     ? String(workItem.slotAssignment.assignedSlot)
     : null;
 
-  workItem.postUrls = urlCheck.urls;
+  workItem.postUrls = urlCheck.links;
   workItem.postingNotes = payload?.postingNotes || "";
   workItem.postingSubmittedAt = new Date();
   workItem.postingSubmittedBy = actorId;
@@ -241,9 +285,12 @@ export async function submitPostingDone(workItemId, payload, actorId) {
   workItem.status = "Posted";
   workItem.modifiedBy = actorId;
   workItem.comments = workItem.comments || [];
+  const linkSummary = urlCheck.links
+    .map((link) => `${link.platform}: ${link.url}`)
+    .join("; ");
   workItem.comments.push({
     user: actorId,
-    text: `Posting done with ${urlCheck.urls.length} URL(s)`,
+    text: `Posting done (${urlCheck.links.length} link(s)) — ${linkSummary}`,
     isSystemComment: true,
   });
 
@@ -275,6 +322,7 @@ export async function ensurePostingDepartmentExists() {
 export default {
   validatePostingHandoffInput,
   applyPostingHandoffFields,
+  normalizePostUrlEntry,
   validatePostUrls,
   assertUserInPostingDepartment,
   setPostingHandoff,

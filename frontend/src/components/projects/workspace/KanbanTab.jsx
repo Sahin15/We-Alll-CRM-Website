@@ -8,7 +8,8 @@ import projectApi from '../../../api/projectApi';
 import workItemApi from '../../../api/workItemApi';
 import WorkItemDetailsModal from '../../workitems/WorkItemDetailsModal';
 import {
-  getCreativeStatusBadgeVariant,
+  getCreativeListBadgeVariant,
+  getCreativeListDisplayStatus,
   isCreativeWorkflowItem,
 } from '../../../utils/workItemStatusUtils';
 
@@ -58,9 +59,11 @@ const KanbanTab = ({ project, onRefresh }) => {
     loadData();
   }, [project._id]);
 
-  const loadData = async () => {
+  const loadData = async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
 
       if (isSlotBased) {
         // Load slots and grouped work items
@@ -94,10 +97,26 @@ const KanbanTab = ({ project, onRefresh }) => {
         setWorkItems(items);
       }
     } catch (error) {
-      toast.error('Failed to load work items');
+      if (!silent) {
+        toast.error('Failed to load work items');
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
+  };
+
+  const handleWorkItemSync = (updatedItem) => {
+    if (!updatedItem?._id) return;
+    setSelectedWorkItem((current) =>
+      current?._id === updatedItem._id ? { ...current, ...updatedItem } : current
+    );
+    setWorkItems((items) =>
+      items.map((item) =>
+        item._id === updatedItem._id ? { ...item, ...updatedItem } : item
+      )
+    );
   };
 
   // Kanban board drag and drop handlers
@@ -439,11 +458,11 @@ const KanbanTab = ({ project, onRefresh }) => {
 
                           {isCreativeWorkflowItem(item) && (
                             <Badge
-                              bg={getCreativeStatusBadgeVariant(item.status)}
+                              bg={getCreativeListBadgeVariant(item.status)}
                               className="mb-2 d-block"
                               style={{ fontSize: '0.7rem' }}
                             >
-                              {item.status}
+                              {getCreativeListDisplayStatus(item.status)}
                             </Badge>
                           )}
 
@@ -511,10 +530,12 @@ const KanbanTab = ({ project, onRefresh }) => {
           onHide={() => {
             setShowDetailsModal(false);
             setSelectedWorkItem(null);
+            loadData({ silent: true });
           }}
           workItem={selectedWorkItem}
           onUpdate={handleUpdateStatus}
-          onRefresh={loadData}
+          onRefresh={() => loadData({ silent: true })}
+          onWorkItemSync={handleWorkItemSync}
           onAddComment={handleAddComment}
           currentUser={user}
           onEdit={() => {

@@ -39,17 +39,35 @@ const MyWorkPage = () => {
     loadWorkItems();
   }, [user]);
 
-  const loadWorkItems = async () => {
+  const loadWorkItems = async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       const response = await workItemApi.getMyWork();
       setWorkItems(response.data || response.workItems || []);
     } catch (error) {
       console.error('Error loading work items:', error);
-      toast.error('Failed to load your work items');
+      if (!silent) {
+        toast.error('Failed to load your work items');
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
+  };
+
+  const handleWorkItemSync = (updatedItem) => {
+    if (!updatedItem?._id) return;
+    setSelectedItem((current) =>
+      current?._id === updatedItem._id ? { ...current, ...updatedItem } : current
+    );
+    setWorkItems((items) =>
+      items.map((item) =>
+        item._id === updatedItem._id ? { ...item, ...updatedItem } : item
+      )
+    );
   };
 
   // Only items assigned to me — work I gave others belongs on Assigned Work
@@ -242,7 +260,7 @@ const MyWorkPage = () => {
   const handleUpdateStatus = async (itemId, newStatus, completedAt = null, cancellationReason = null) => {
     try {
       await workItemApi.updateStatus(itemId, newStatus, completedAt, cancellationReason);
-      await loadWorkItems();
+      await loadWorkItems({ silent: showModal });
 
       if (selectedItem && selectedItem._id === itemId) {
         setSelectedItem((current) => {
@@ -550,10 +568,12 @@ const MyWorkPage = () => {
           onHide={() => {
             setShowModal(false);
             setSelectedItem(null);
+            loadWorkItems({ silent: true });
           }}
           workItem={selectedItem}
           onUpdate={handleUpdateStatus}
-          onRefresh={loadWorkItems}
+          onRefresh={() => loadWorkItems({ silent: true })}
+          onWorkItemSync={handleWorkItemSync}
           onAddComment={handleAddComment}
           currentUser={user}
         />

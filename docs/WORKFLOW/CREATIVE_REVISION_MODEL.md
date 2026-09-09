@@ -35,6 +35,7 @@ Partial unique index ensures one tip per work item:
 
 ## Attachments
 
+- Optional at submit-for-review time — assignees may submit with zero file links.
 - Added via `POST /api/creative-workflow/:id/revisions/attachments`.
 - Soft-deprecated attachments excluded from UI counts (`softDeprecated: true`).
 - UI shows clickable links per revision in `CreativeWorkflowPanel`.

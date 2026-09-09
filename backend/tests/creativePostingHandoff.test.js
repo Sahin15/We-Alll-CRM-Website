@@ -76,4 +76,14 @@ describe("Posting handoff", () => {
       validatePostUrls(["https://instagram.com/p/abc", "https://example.com/x"]).valid
     ).toBe(true);
   });
+
+  it("accepts platform + URL objects for posting submit", () => {
+    const result = validatePostUrls([
+      { platform: "Instagram", url: "https://instagram.com/p/abc" },
+      { platform: "Facebook", url: "https://facebook.com/post/123" },
+    ]);
+    expect(result.valid).toBe(true);
+    expect(result.links).toHaveLength(2);
+    expect(result.links[0].platform).toBe("Instagram");
+  });
 });

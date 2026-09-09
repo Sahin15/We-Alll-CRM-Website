@@ -7,6 +7,7 @@ import {
   canSubmitPostingDone,
   loadProjectForCreativeAuth,
 } from "../utils/creativeWorkflowAuth.js";
+import { resolveQaPassFromBody } from "../utils/creativeWorkflowRules.js";
 
 const getActorId = (req) => req.user?._id || req.user?.id;
 
@@ -56,8 +57,7 @@ export const submitForReview = async (req, res) => {
 
     const result = await creativeWorkflowService.submitForReview(
       req.params.workItemId,
-      getActorId(req),
-      { requireAttachment: req.body?.requireAttachment === true }
+      getActorId(req)
     );
     return res.json({ success: true, data: result });
   } catch (error) {
@@ -121,17 +121,25 @@ export const startRework = async (req, res) => {
 
 /**
  * POST /api/creative-workflow/:workItemId/qa
- * body: { pass: boolean, notes }
+ * body: { decision: "pass"|"fail", pass?: boolean, notes?: string }
  */
 export const recordQa = async (req, res) => {
   try {
     const { workItem, project } = await loadWorkItemContext(req.params.workItemId);
     assertCanReviewCreativeWork(req.user, workItem, project);
 
+    const passResolved = resolveQaPassFromBody(req.body);
+    if (passResolved === null) {
+      return res.status(400).json({
+        success: false,
+        error: 'QA decision is required. Send decision: "pass" or "fail".',
+      });
+    }
+
     const result = await creativeWorkflowService.recordQaDecision(
       req.params.workItemId,
       getActorId(req),
-      { pass: Boolean(req.body?.pass), notes: req.body?.notes }
+      { pass: passResolved, notes: req.body?.notes }
     );
     return res.json({ success: true, data: result });
   } catch (error) {

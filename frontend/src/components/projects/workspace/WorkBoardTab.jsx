@@ -7,7 +7,8 @@ import workItemApi from '../../../api/workItemApi';
 import WorkItemDetailsModal from '../../workitems/WorkItemDetailsModal';
 import { useAuth } from '../../../context/AuthContext';
 import {
-  getCreativeStatusBadgeVariant,
+  getCreativeListBadgeVariant,
+  getCreativeListDisplayStatus,
   isCreativeWorkflowItem,
 } from '../../../utils/workItemStatusUtils';
 
@@ -57,9 +58,11 @@ const WorkBoardTab = ({ project, onRefresh }) => {
     loadWorkItems();
   }, [project._id]);
 
-  const loadWorkItems = async () => {
+  const loadWorkItems = async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       // Use the correct endpoint to get all work items for this project
       const response = await projectApi.getWorkBoard(project._id);
       
@@ -83,8 +86,22 @@ const WorkBoardTab = ({ project, onRefresh }) => {
       toast.error('Failed to load work items');
       setWorkItems([]); // Set empty array on error
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
+  };
+
+  const handleWorkItemSync = (updatedItem) => {
+    if (!updatedItem?._id) return;
+    setSelectedItem((current) =>
+      current?._id === updatedItem._id ? { ...current, ...updatedItem } : current
+    );
+    setWorkItems((items) =>
+      items.map((item) =>
+        item._id === updatedItem._id ? { ...item, ...updatedItem } : item
+      )
+    );
   };
 
   // Filter work items
@@ -356,11 +373,11 @@ const WorkBoardTab = ({ project, onRefresh }) => {
 
                         {isCreativeWorkflowItem(item) && (
                           <Badge
-                            bg={getCreativeStatusBadgeVariant(item.status)}
+                            bg={getCreativeListBadgeVariant(item.status)}
                             className="mb-2 d-block"
                             style={{ fontSize: '0.7rem' }}
                           >
-                            {item.status}
+                            {getCreativeListDisplayStatus(item.status)}
                           </Badge>
                         )}
 
@@ -423,10 +440,12 @@ const WorkBoardTab = ({ project, onRefresh }) => {
           onHide={() => {
             setShowModal(false);
             setSelectedItem(null);
+            loadWorkItems({ silent: true });
           }}
           workItem={selectedItem}
           onUpdate={handleUpdateStatus}
-          onRefresh={loadWorkItems}
+          onRefresh={() => loadWorkItems({ silent: true })}
+          onWorkItemSync={handleWorkItemSync}
           currentUser={user}
           onEdit={() => {
             // For now, just close the modal

@@ -16,7 +16,7 @@ Optional handoff from creative delivery to the Posting department for live URL s
 | `postingAssignedTo` | User in Posting department |
 | `postingDate` | Scheduled posting date |
 | `postingStatus` | `not_required`, `pending`, or `done` |
-| `postUrls` | Live URLs after posting submit |
+| `postUrls` | Live post links after submit — `{ platform, url }[]` (e.g. Instagram, Facebook) |
 | `postingNotes` | Optional notes from posting assignee |
 
 ## Flow
@@ -45,7 +45,10 @@ PUT /api/creative-workflow/:workItemId/posting
 
 POST /api/creative-workflow/:workItemId/posting/submit
 {
-  "postUrls": ["https://instagram.com/p/..."],
+  "postUrls": [
+    { "platform": "Instagram", "url": "https://instagram.com/p/..." },
+    { "platform": "Facebook", "url": "https://facebook.com/..." }
+  ],
   "postingNotes": "optional"
 }
 ```

@@ -14,6 +14,7 @@ import {
   REWORK_STATUSES,
   DELIVER_STATUSES,
   assertStatusIn,
+  resolveReviewDecision,
 } from "../utils/creativeWorkflowRules.js";
 
 const REVIEW_DECISIONS = {
@@ -111,7 +112,7 @@ export async function startWork(workItemId, actorId) {
 /**
  * Submit current tip revision for review.
  */
-export async function submitForReview(workItemId, actorId, { requireAttachment = false } = {}) {
+export async function submitForReview(workItemId, actorId) {
   const workItem = await loadCreativeWorkItem(workItemId);
   assertStatusIn(workItem.status, SUBMIT_REVIEW_STATUSES, "Submit for review");
 
@@ -123,13 +124,6 @@ export async function submitForReview(workItemId, actorId, { requireAttachment =
 
   if (!revision) {
     const err = new Error("No current revision to submit");
-    err.statusCode = 400;
-    throw err;
-  }
-
-  const activeFiles = (revision.attachments || []).filter((a) => !a.softDeprecated);
-  if (requireAttachment && activeFiles.length === 0) {
-    const err = new Error("Upload at least one file before submitting for review");
     err.statusCode = 400;
     throw err;
   }
@@ -166,21 +160,8 @@ export async function recordReviewDecision(
   actorId,
   { decision, notes = "", qaRequired = false } = {}
 ) {
-  const normalized = String(decision || "").toLowerCase().replace(/\s+/g, "_");
-  const map = {
-    approve: REVIEW_DECISIONS.approve,
-    approved: REVIEW_DECISIONS.approve,
-    reject: REVIEW_DECISIONS.reject,
-    rejected: REVIEW_DECISIONS.reject,
-    minor: REVIEW_DECISIONS.minor,
-    request_minor_changes: REVIEW_DECISIONS.minor,
-    major: REVIEW_DECISIONS.major,
-    request_major_rework: REVIEW_DECISIONS.major,
-    send_back: REVIEW_DECISIONS.send_back,
-    send_back_with_comments: REVIEW_DECISIONS.send_back,
-  };
-
-  const resolved = map[normalized];
+  const resolvedKey = resolveReviewDecision(decision);
+  const resolved = resolvedKey ? REVIEW_DECISIONS[resolvedKey] : null;
   if (!resolved) {
     const err = new Error("Invalid review decision");
     err.statusCode = 400;
@@ -426,6 +407,34 @@ export async function closeTask(workItemId, actorId) {
 }
 
 /**
+ * @param {string} value
+ */
+function isLikelyUrl(value) {
+  return /^https?:\/\//i.test(String(value || "").trim());
+}
+
+/**
+ * @param {{ name?: string, url?: string }} fileMeta
+ */
+function normalizeAttachmentMeta(fileMeta) {
+  let name = String(fileMeta?.name || "").trim();
+  let url = String(fileMeta?.url || "").trim();
+  if (isLikelyUrl(name) && !isLikelyUrl(url)) {
+    [name, url] = [url, name];
+  }
+  if (!isLikelyUrl(url)) {
+    const err = new Error("Attachment URL must start with http:// or https://");
+    err.statusCode = 400;
+    throw err;
+  }
+  return {
+    ...fileMeta,
+    name: name || url,
+    url,
+  };
+}
+
+/**
  * Add attachment metadata to current draft tip.
  */
 export async function addRevisionAttachment(workItemId, actorId, fileMeta) {
@@ -444,9 +453,11 @@ export async function addRevisionAttachment(workItemId, actorId, fileMeta) {
     throw err;
   }
 
+  const normalized = normalizeAttachmentMeta(fileMeta);
+
   revision.attachments.push({
-    name: fileMeta.name,
-    url: fileMeta.url,
+    name: normalized.name,
+    url: normalized.url,
     type: fileMeta.type || "other",
     size: fileMeta.size,
     storageKey: fileMeta.storageKey,

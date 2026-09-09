@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Badge, Alert, Tabs, Tab } from 'react-bootstrap';
-import { FaCalendar, FaTasks, FaUser, FaClock, FaComment, FaPaperPlane, FaTrash } from 'react-icons/fa';
+import {
+  FaCalendar,
+  FaTasks,
+  FaUser,
+  FaClock,
+  FaComment,
+  FaPaperPlane,
+  FaTrash,
+  FaSync,
+  FaCheckCircle,
+  FaPen,
+  FaPlusCircle,
+  FaEdit,
+} from 'react-icons/fa';
 import { formatDate } from '../../utils/helpers';
 import { toast } from '../../utils/toast';
 import workItemApi from '../../api/workItemApi';
@@ -16,7 +29,16 @@ import { isCreativeWorkflowItem } from '../../utils/creativeWorkflowAccess';
 import { getCreativeStatusBadgeVariant } from '../../utils/workItemStatusUtils';
 import './WorkItemDetailsModal.css';
 
-const WorkItemDetailsModal = ({ show, onHide, workItem: workItemProp, onUpdate, onRefresh, currentUser, onAddComment }) => {
+const WorkItemDetailsModal = ({
+  show,
+  onHide,
+  workItem: workItemProp,
+  onUpdate,
+  onRefresh,
+  onWorkItemSync,
+  currentUser,
+  onAddComment,
+}) => {
   const getUserStatus = (item) =>
     getEffectiveStatusForUser(item, currentUser?._id);
 
@@ -201,7 +223,43 @@ const WorkItemDetailsModal = ({ show, onHide, workItem: workItemProp, onUpdate, 
     return () => {
       cancelled = true;
     };
-  }, [show, workItemProp?._id, fullWorkItem?.status, fullWorkItem?.workflowMode, fullWorkItem?.workflowType]);
+  }, [show, workItemProp?._id, fullWorkItem?.workflowMode, fullWorkItem?.workflowType]);
+
+  /** Refresh timeline revisions without remounting the modal or reloading the page. */
+  const refreshCreativeTimeline = async (workItemId) => {
+    if (!workItemId) return;
+    try {
+      const res = await creativeWorkflowApi.listRevisions(workItemId);
+      setCreativeRevisions(res.data || []);
+    } catch {
+      setCreativeRevisions([]);
+    }
+  };
+
+  /**
+   * After creative workflow actions: update modal state only — never trigger parent page loading.
+   * @param {{ workItem?: object }} [payload]
+   */
+  const handleCreativeWorkflowUpdated = async (payload = {}) => {
+    const partial = payload.workItem;
+    if (partial?._id) {
+      setFullWorkItem((prev) => {
+        const base = prev || workItemProp;
+        return { ...base, ...partial };
+      });
+      if (partial.status) {
+        setStatus(getUserStatus({ ...(fullWorkItem || workItemProp), ...partial }) || partial.status);
+      }
+    }
+
+    const full = await loadFullWorkItem();
+    await refreshCreativeTimeline(workItemProp?._id);
+
+    const synced = full || (partial?._id ? { ...(fullWorkItem || workItemProp), ...partial } : null);
+    if (synced && typeof onWorkItemSync === 'function') {
+      onWorkItemSync(synced);
+    }
+  };
 
   // Fetch all team members for mentions (project members + HR/Manager/Admin/SuperAdmin)
   useEffect(() => {
@@ -315,6 +373,9 @@ const WorkItemDetailsModal = ({ show, onHide, workItem: workItemProp, onUpdate, 
   };
 
   const getStatusColor = (status) => {
+    if (isCreativeWorkflowItem(workItem)) {
+      return getCreativeStatusBadgeVariant(status);
+    }
     const colors = {
       'To Do': 'secondary',
       'Backlog': 'secondary',
@@ -543,10 +604,7 @@ const WorkItemDetailsModal = ({ show, onHide, workItem: workItemProp, onUpdate, 
               workItem={workItem}
               project={workItem.project}
               currentUser={currentUser}
-              onUpdated={async () => {
-                await loadFullWorkItem();
-                if (onRefresh) onRefresh();
-              }}
+              onUpdated={handleCreativeWorkflowUpdated}
             />
           </div>
         )}
@@ -563,7 +621,7 @@ const WorkItemDetailsModal = ({ show, onHide, workItem: workItemProp, onUpdate, 
               Activity Timeline
             </span>
           }>
-            <div style={{ padding: '1.5rem' }}>
+            <div style={{ padding: '1rem' }}>
               {/* Activity Timeline - Shows status changes and comments chronologically */}
               <div className="activity-timeline">
                 {(() => {
@@ -659,6 +717,7 @@ const WorkItemDetailsModal = ({ show, onHide, workItem: workItemProp, onUpdate, 
                     comments.forEach((comment) => {
                       const text = (comment.text || '').trim();
                       if (!text) return;
+                      if (/^Reminder:/i.test(text)) return;
 
                       const statusMatch = statusChangePattern.exec(text);
                       if (statusMatch) {
@@ -757,78 +816,154 @@ const WorkItemDetailsModal = ({ show, onHide, workItem: workItemProp, onUpdate, 
                     if (a.toStatus === 'Submitted for Review' && hasCreativeSubmitDay.has(day)) return false;
                     if (a.toStatus === 'Changes Requested' && hasCreativeChangeDay.has(day)) return false;
                     if (a.toStatus === 'Approved' && hasCreativeApproveDay.has(day)) return false;
+                    if (a.toStatus === 'Rework In Progress') {
+                      const hasRevCreatedComment = activities.some(
+                        (other) =>
+                          other.type === 'comment' &&
+                          dayKey(other.timestamp) === day &&
+                          /^Revision \d+ created/i.test((other.text || '').trim())
+                      );
+                      if (hasRevCreatedComment) return false;
+                    }
                     return true;
                   });
 
-                  // Sort by timestamp (newest first)
-                  dedupedActivities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                  const finalActivities = dedupedActivities.filter((a) => {
+                    if (a.type !== 'comment') return true;
+                    const text = (a.text || '').trim();
+                    const revCreatedMatch = /^Revision (\d+) created/i.exec(text);
+                    if (!revCreatedMatch) return true;
+                    const revNum = revCreatedMatch[1];
+                    const day = dayKey(a.timestamp);
+                    const hasSubmit = dedupedActivities.some(
+                      (other) =>
+                        other.type === 'creative_submit' &&
+                        String(other.revisionNumber) === revNum &&
+                        dayKey(other.timestamp) === day
+                    );
+                    const hasReworkStatus = dedupedActivities.some(
+                      (other) =>
+                        other.type === 'status' &&
+                        other.toStatus === 'Rework In Progress' &&
+                        dayKey(other.timestamp) === day
+                    );
+                    return !hasSubmit && !hasReworkStatus;
+                  });
 
-                  if (dedupedActivities.length === 0) {
+                  // Sort by timestamp (newest first)
+                  finalActivities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+                  if (finalActivities.length === 0) {
                     return (
-                      <div className="text-center py-5">
-                        <FaClock style={{ fontSize: '3rem', opacity: 0.3, color: '#6c757d' }} />
-                        <h6 className="text-muted mt-3">No activity yet</h6>
+                      <div className="activity-empty-state">
+                        <FaClock className="activity-empty-icon" />
+                        <h6 className="text-muted mt-3 mb-0">No activity yet</h6>
                       </div>
                     );
                   }
 
+                  const getActivityEventMeta = (activity) => {
+                    switch (activity.type) {
+                      case 'creative_submit':
+                        return { label: 'Submitted', Icon: FaPaperPlane, tone: 'submit' };
+                      case 'creative_review':
+                        return activity.isChangeRequest
+                          ? { label: 'Change request', Icon: FaPen, tone: 'review-change' }
+                          : { label: 'Approved', Icon: FaCheckCircle, tone: 'review-approve' };
+                      case 'status':
+                        return { label: 'Status', Icon: FaSync, tone: 'status' };
+                      case 'edit':
+                        return { label: 'Edited', Icon: FaEdit, tone: 'edit' };
+                      case 'comment':
+                        return { label: 'Comment', Icon: FaComment, tone: 'comment' };
+                      case 'created':
+                        return { label: 'Created', Icon: FaPlusCircle, tone: 'created' };
+                      default:
+                        return { label: 'Activity', Icon: FaClock, tone: 'default' };
+                    }
+                  };
+
+                  const formatTimelineDate = (ts) => {
+                    const d = new Date(ts);
+                    if (Number.isNaN(d.getTime())) return '';
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const day = new Date(d);
+                    day.setHours(0, 0, 0, 0);
+                    const diffDays = Math.round((today - day) / (1000 * 60 * 60 * 24));
+                    const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    if (diffDays === 0) return `Today · ${timeStr}`;
+                    if (diffDays === 1) return `Yesterday · ${timeStr}`;
+                    return `${formatDate(ts)} · ${timeStr}`;
+                  };
+
+                  const groupedByDate = finalActivities.reduce((acc, activity) => {
+                    const key = dayKey(activity.timestamp) || 'unknown';
+                    if (!acc[key]) acc[key] = [];
+                    acc[key].push(activity);
+                    return acc;
+                  }, {});
+
+                  const parseDayKey = (key) => {
+                    if (!key || key === 'unknown') return new Date(0);
+                    const [y, m, d] = key.split('-').map(Number);
+                    return new Date(y, m, d);
+                  };
+
+                  const dateGroupOrder = Object.keys(groupedByDate).sort(
+                    (a, b) => parseDayKey(b) - parseDayKey(a)
+                  );
+
+                  const formatDateGroupLabel = (key) => {
+                    if (!key || key === 'unknown') return 'Activity';
+                    const [y, m, d] = key.split('-').map(Number);
+                    const date = new Date(y, m, d);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const day = new Date(date);
+                    day.setHours(0, 0, 0, 0);
+                    const diffDays = Math.round((today - day) / (1000 * 60 * 60 * 24));
+                    if (diffDays === 0) return 'Today';
+                    if (diffDays === 1) return 'Yesterday';
+                    return date.toLocaleDateString(undefined, {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    });
+                  };
+
                   return (
                     <div className="timeline-container">
-                      {dedupedActivities.map((activity, index) => (
-                        <div key={`${activity.type}-${activity._id || activity.revisionNumber || activity.toStatus || ''}-${index}`} className="timeline-item">
-                          <div className="timeline-marker">
-                            {activity.type === 'status' ? (
-                              <div className="marker-icon status-change">🔄</div>
-                            ) : activity.type === 'edit' ? (
-                              <div className="marker-icon edit">✏️</div>
-                            ) : activity.type === 'comment' ? (
-                              <div className="marker-icon comment">💬</div>
-                            ) : activity.type === 'creative_review' ? (
-                              <div className="marker-icon edit">
-                                {activity.isChangeRequest ? '📝' : '✅'}
-                              </div>
-                            ) : activity.type === 'creative_submit' ? (
-                              <div className="marker-icon status-change">📤</div>
-                            ) : (
-                              <div className="marker-icon created">✨</div>
-                            )}
+                      {dateGroupOrder.map((dateKey) => (
+                        <div key={dateKey} className="timeline-date-group">
+                          <div className="timeline-date-label">{formatDateGroupLabel(dateKey)}</div>
+                          {groupedByDate[dateKey].map((activity, index) => {
+                            const { label, Icon, tone } = getActivityEventMeta(activity);
+                            const userName = activity.user?.name || activity.user?.email || 'System';
+                            return (
+                        <div
+                          key={`${activity.type}-${activity._id || activity.revisionNumber || activity.toStatus || ''}-${index}`}
+                          className={`timeline-item timeline-item--${tone}`}
+                        >
+                          <div className="timeline-rail">
+                            <span className="timeline-dot">
+                              <Icon aria-hidden="true" />
+                            </span>
                           </div>
                           <div className="timeline-content">
-                            <div className="timeline-header">
-                              <div className="d-flex align-items-center gap-2">
-                                <div 
-                                  className="user-avatar-small"
-                                  style={{
-                                    width: '28px',
-                                    height: '28px',
-                                    borderRadius: '50%',
-                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    color: 'white',
-                                    fontSize: '0.75rem',
-                                    fontWeight: '600'
-                                  }}
-                                >
-                                  {(activity.user?.name || activity.user?.email || 'U').charAt(0).toUpperCase()}
-                                </div>
-                                <div>
-                                  <strong style={{ fontSize: '0.9rem' }}>
-                                    {activity.user?.name || activity.user?.email || 'Unknown User'}
-                                  </strong>
-                                  <div style={{ fontSize: '0.75rem', color: '#6c757d' }}>
-                                    {formatDate(activity.timestamp)}
-                                  </div>
-                                </div>
-                              </div>
-                              {activity.type === 'comment' && 
-                               (activity.user?._id === currentUser?._id || 
+                            <div className="timeline-card-top">
+                              <span className={`timeline-event-badge timeline-event-badge--${tone}`}>
+                                {label}
+                              </span>
+                              <span className="timeline-time">{formatTimelineDate(activity.timestamp)}</span>
+                              {activity.type === 'comment' &&
+                               (activity.user?._id === currentUser?._id ||
                                 ['admin', 'superadmin', 'hr', 'manager'].includes(currentUser?.role)) && (
                                 <Button
                                   variant="link"
                                   size="sm"
-                                  className="text-muted p-1"
+                                  className="timeline-delete-btn p-0 ms-auto"
                                   onClick={() => handleDeleteComment(activity._id)}
                                   title="Delete comment"
                                 >
@@ -839,29 +974,21 @@ const WorkItemDetailsModal = ({ show, onHide, workItem: workItemProp, onUpdate, 
                             <div className="timeline-body">
                               {activity.type === 'status' && (
                                 <div className="status-change-info">
-                                  <div className="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                                  <div className="timeline-status-flow">
                                     {activity.fromStatus ? (
                                       <>
-                                        <span className="text-muted">Changed status from</span>
-                                        <Badge bg={getStatusColor(activity.fromStatus)}>
+                                        <Badge bg={getStatusColor(activity.fromStatus)} className="timeline-status-badge">
                                           {activity.fromStatus}
                                         </Badge>
-                                        <span className="text-muted">to</span>
+                                        <span className="timeline-status-arrow">→</span>
                                       </>
-                                    ) : (
-                                      <span className="text-muted">Status set to</span>
-                                    )}
-                                    <Badge bg={getStatusColor(activity.toStatus)}>
+                                    ) : null}
+                                    <Badge bg={getStatusColor(activity.toStatus)} className="timeline-status-badge">
                                       {activity.toStatus}
                                     </Badge>
                                   </div>
                                   {activity.comment && (
-                                    <div className="mt-2 p-2" style={{
-                                      background: '#f8f9fa',
-                                      borderRadius: '6px',
-                                      fontSize: '0.9rem',
-                                      borderLeft: '3px solid #667eea'
-                                    }}>
+                                    <div className="timeline-note-block timeline-note-block--info">
                                       {activity.comment}
                                     </div>
                                   )}
@@ -869,43 +996,34 @@ const WorkItemDetailsModal = ({ show, onHide, workItem: workItemProp, onUpdate, 
                               )}
                               {activity.type === 'creative_review' && (
                                 <div className="status-change-info">
-                                  <div className="mb-1">
+                                  <p className="timeline-summary mb-0">
                                     {activity.isChangeRequest ? (
                                       <>
-                                        Requested{' '}
-                                        <Badge bg="warning" text="dark">
+                                        <Badge bg="warning" text="dark" className="me-1">
                                           {activity.severity && activity.severity !== 'none'
                                             ? activity.severity
                                             : activity.decision}
-                                        </Badge>{' '}
-                                        changes on <strong>Revision {activity.revisionNumber}</strong>
-                                        {' '}for <strong>{activity.assigneeName}</strong>
+                                        </Badge>
+                                        changes requested on{' '}
+                                        <strong>Revision {activity.revisionNumber}</strong>
                                       </>
                                     ) : (
                                       <>
-                                        Approved <strong>Revision {activity.revisionNumber}</strong>
+                                        <strong>Revision {activity.revisionNumber}</strong> approved for QA
                                       </>
                                     )}
-                                  </div>
+                                  </p>
                                   {activity.notes && (
-                                    <div
-                                      className="mt-2 p-2"
-                                      style={{
-                                        background: '#fff8e6',
-                                        borderRadius: '6px',
-                                        fontSize: '0.9rem',
-                                        borderLeft: '3px solid #f0ad4e',
-                                      }}
-                                    >
+                                    <div className="timeline-note-block timeline-note-block--warning">
                                       {activity.notes}
                                     </div>
                                   )}
                                 </div>
                               )}
                               {activity.type === 'creative_submit' && (
-                                <div className="status-change-info">
-                                  Submitted <strong>Revision {activity.revisionNumber}</strong> for review
-                                </div>
+                                <p className="timeline-summary mb-0">
+                                  <strong>Revision {activity.revisionNumber}</strong> submitted for review
+                                </p>
                               )}
                               {activity.type === 'edit' && (
                                 <div className="edit-info">
@@ -996,21 +1114,19 @@ const WorkItemDetailsModal = ({ show, onHide, workItem: workItemProp, onUpdate, 
                                 </div>
                               )}
                               {activity.type === 'comment' && (
-                                <div className="comment-text" style={{
-                                  fontSize: '0.9rem',
-                                  lineHeight: '1.6',
-                                  whiteSpace: 'pre-wrap'
-                                }}>
+                                <div className="timeline-comment-text">
                                   {renderMentions(activity.text)}
                                 </div>
                               )}
                               {activity.type === 'created' && (
-                                <div className="text-muted" style={{ fontSize: '0.9rem' }}>
-                                  Created this work item
-                                </div>
+                                <p className="timeline-summary mb-0">Work item created</p>
                               )}
                             </div>
+                            <div className="timeline-card-meta">{userName}</div>
                           </div>
+                        </div>
+                            );
+                          })}
                         </div>
                       ))}
                     </div>

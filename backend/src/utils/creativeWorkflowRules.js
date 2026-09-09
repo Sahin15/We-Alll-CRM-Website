@@ -15,6 +15,81 @@ export const REWORK_STATUSES = ["Changes Requested"];
 
 export const DELIVER_STATUSES = ["Approved"];
 
+/** @typedef {"approve"|"reject"|"minor"|"major"|"send_back"} ReviewDecisionKey */
+
+/** @type {Record<string, ReviewDecisionKey>} */
+export const REVIEW_DECISION_ALIASES = {
+  approve: "approve",
+  approved: "approve",
+  approve_to_qa: "approve",
+  approve_qa: "approve",
+  reject: "reject",
+  rejected: "reject",
+  minor: "minor",
+  request_minor_changes: "minor",
+  major: "major",
+  request_major_rework: "major",
+  send_back: "send_back",
+  send_back_with_comments: "send_back",
+};
+
+/**
+ * Normalize API/UI review decision strings to a canonical key.
+ * @param {string} decision
+ * @returns {ReviewDecisionKey|null}
+ */
+export function resolveReviewDecision(decision) {
+  const normalized = String(decision || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+  return REVIEW_DECISION_ALIASES[normalized] || null;
+}
+
+/** @typedef {"pass"|"fail"} QaDecisionKey */
+
+/** @type {Record<string, QaDecisionKey>} */
+export const QA_DECISION_ALIASES = {
+  pass: "pass",
+  passed: "pass",
+  approve: "pass",
+  approved: "pass",
+  qa_pass: "pass",
+  fail: "fail",
+  failed: "fail",
+  reject: "fail",
+  rejected: "fail",
+  qa_fail: "fail",
+};
+
+/**
+ * Parse QA pass/fail from API body ({ decision, pass, passed }).
+ * @param {object} body
+ * @returns {boolean|null} true = pass, false = fail, null = unrecognized
+ */
+export function resolveQaPassFromBody(body = {}) {
+  const decisionKey = QA_DECISION_ALIASES[
+    String(body.decision || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "_")
+  ];
+  if (decisionKey === "pass") return true;
+  if (decisionKey === "fail") return false;
+
+  const passFlag = body.pass ?? body.passed ?? body.qaPass;
+  if (passFlag === true || passFlag === 1) return true;
+  if (passFlag === false || passFlag === 0) return false;
+
+  const normalized = String(passFlag ?? "")
+    .trim()
+    .toLowerCase();
+  if (normalized === "true" || normalized === "1" || normalized === "yes") return true;
+  if (normalized === "false" || normalized === "0" || normalized === "no") return false;
+
+  return null;
+}
+
 export const POSTING_SUBMIT_STATUSES = ["Delivered", "Awaiting Posting"];
 
 /**
