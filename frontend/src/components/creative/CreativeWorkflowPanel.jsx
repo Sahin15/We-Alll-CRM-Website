@@ -2,30 +2,60 @@ import React, { useMemo, useState } from "react";
 import { Alert, Button, Form, ListGroup, Spinner } from "react-bootstrap";
 import { toast } from "react-toastify";
 import creativeWorkflowApi from "../../api/creativeWorkflowApi";
+import userApi from "../../api/userApi";
+import CreativeWorkflowStepper from "./CreativeWorkflowStepper";
+import {
+  canReviewCreativeWork,
+  canSubmitPostingDone,
+  isCreativeAssignee,
+  isCreativeWorkflowItem,
+  resolveEntityId,
+} from "../../utils/creativeWorkflowAccess";
 
 /**
  * Creative revision + posting actions panel for a work item.
- * Assignees execute work (start / submit / rework); assigners review (changes / approve / deliver).
+ * Assignees execute work (start / submit / rework); reviewers approve, QA, deliver, close.
+ *
+ * @param {{ workItem: object, project?: object, onUpdated?: () => void, currentUser?: object }} props
  */
-const CreativeWorkflowPanel = ({ workItem, onUpdated, currentUser }) => {
+const CreativeWorkflowPanel = ({ workItem, project, onUpdated, currentUser }) => {
   const [revisions, setRevisions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [reviewNotes, setReviewNotes] = useState("");
+  const [qaNotes, setQaNotes] = useState("");
   const [postUrlsText, setPostUrlsText] = useState("");
   const [fileUrl, setFileUrl] = useState("");
   const [fileName, setFileName] = useState("");
-  /** Local status so review buttons disable immediately after a decision (parent workItem can be stale). */
+  const [postingUsers, setPostingUsers] = useState([]);
+  const [postingForm, setPostingForm] = useState({
+    requiresPosting: false,
+    postingAssignedTo: "",
+    postingDate: "",
+  });
   const [localStatus, setLocalStatus] = useState(workItem?.status || "");
 
   React.useEffect(() => {
     setLocalStatus(workItem?.status || "");
   }, [workItem?._id, workItem?.status]);
 
+  React.useEffect(() => {
+    setPostingForm({
+      requiresPosting: Boolean(workItem?.requiresPosting),
+      postingAssignedTo: resolveEntityId(workItem?.postingAssignedTo),
+      postingDate: workItem?.postingDate
+        ? new Date(workItem.postingDate).toISOString().slice(0, 10)
+        : "",
+    });
+  }, [
+    workItem?._id,
+    workItem?.requiresPosting,
+    workItem?.postingAssignedTo,
+    workItem?.postingDate,
+  ]);
+
   const workItemId = workItem?._id || workItem?.id;
-  const isCreative =
-    workItem?.workflowMode === "creative" ||
-    workItem?.workflowType === "design" ||
-    workItem?.workflowType === "video-production";
+  const isCreative = isCreativeWorkflowItem(workItem);
+  const projectContext = project || workItem?.project;
 
   const tip = useMemo(
     () => revisions.find((r) => r.isCurrentTip) || revisions[0],
@@ -33,17 +63,15 @@ const CreativeWorkflowPanel = ({ workItem, onUpdated, currentUser }) => {
   );
 
   const changeRequestSummary = useMemo(() => {
-    const changeRevs = revisions.filter((r) =>
-      ["changes_requested", "rejected"].includes(r.status) ||
-      ["minor", "major", "reject"].includes(r.decisionSeverity) ||
-      ["minor", "major", "reject", "send_back"].includes(r.lastDecision)
+    const changeRevs = revisions.filter(
+      (r) =>
+        ["changes_requested", "rejected"].includes(r.status) ||
+        ["minor", "major", "reject"].includes(r.decisionSeverity) ||
+        ["minor", "major", "reject", "send_back"].includes(r.lastDecision)
     );
     const byReviewer = {};
     changeRevs.forEach((r) => {
-      const name =
-        r.reviewedBy?.name ||
-        r.reviewedBy?.email ||
-        "Unknown reviewer";
+      const name = r.reviewedBy?.name || r.reviewedBy?.email || "Unknown reviewer";
       if (!byReviewer[name]) {
         byReviewer[name] = { name, count: 0, minor: 0, major: 0, reject: 0 };
       }
@@ -56,67 +84,46 @@ const CreativeWorkflowPanel = ({ workItem, onUpdated, currentUser }) => {
     return {
       total: changeRevs.length,
       byReviewer: Object.values(byReviewer),
-      changeRevs,
     };
   }, [revisions]);
 
-  const currentUserId = String(currentUser?._id || currentUser?.id || "");
-
-  const sameId = (value) => {
-    if (!value || !currentUserId) return false;
-    const id = typeof value === "object" ? value._id || value.id : value;
-    return id && String(id) === currentUserId;
-  };
-
-  const isAssignee =
-    sameId(workItem?.assignedTo) ||
-    (Array.isArray(workItem?.assignedToMultiple) &&
-      workItem.assignedToMultiple.some((a) => sameId(a?._id || a)));
-
-  const isAssigner = sameId(workItem?.createdBy);
-
-  const isElevatedReviewer = ["admin", "superadmin", "hr", "manager", "hod"].includes(
-    currentUser?.role
-  );
-
-  // Worker: the person doing the creative work
-  const canWork = isAssignee;
-  // Reviewer: who assigned the work, or managers/HR/admin (not for self-approve unless elevated)
-  const canReview = isAssigner || isElevatedReviewer;
+  const canWork = isCreativeAssignee(currentUser, workItem);
+  const canReview = canReviewCreativeWork(currentUser, workItem, projectContext);
+  const canPosting = canSubmitPostingDone(currentUser, workItem, projectContext);
 
   const status = localStatus || workItem?.status || "";
   const awaitingReview = status === "Submitted for Review";
-  const workerStartStatuses = ["To Do", "Assigned", "Backlog"];
-  const workerSubmitStatuses = [
-    "In Progress",
-    "Rework In Progress",
-    "Changes Requested",
-  ];
-  const workerReworkStatuses = ["Changes Requested"];
-  const deliverStatuses = ["Approved", "QA Review"];
-  const closeStatuses = ["Delivered", "Posted", "Approved"];
+  const inQaReview = status === "QA Review";
 
   const showWorkerStart =
     canWork &&
-    (workerStartStatuses.includes(status) ||
+    (["To Do", "Assigned", "Backlog"].includes(status) ||
       (status === "In Progress" && revisions.length === 0));
-  const showWorkerSubmit = canWork && workerSubmitStatuses.includes(status);
-  const showWorkerRework = canWork && workerReworkStatuses.includes(status);
+  const showWorkerSubmit = canWork && ["In Progress", "Rework In Progress"].includes(status);
+  const showWorkerRework = canWork && status === "Changes Requested";
   const showWorkerFiles =
     canWork &&
     ["In Progress", "Rework In Progress", "Changes Requested", "To Do", "Assigned"].includes(
       status
     );
-  // Review actions only while Submitted for Review — then they disappear / stay inactive
   const showReviewActions = canReview && awaitingReview;
-  const showDeliver = canReview && deliverStatuses.includes(status);
-  const showClose = canReview && closeStatuses.includes(status);
+  const showQaActions = canReview && inQaReview;
+  const showDeliver = canReview && status === "Approved";
+  const showCloseOnly =
+    canReview &&
+    (workItem?.requiresPosting ? status === "Posted" : status === "Delivered");
 
-  const isPostingAssignee = sameId(workItem?.postingAssignedTo) || isElevatedReviewer;
+  const showPostingHandoffEditor =
+    canReview &&
+    !["Delivered", "Awaiting Posting", "Posted", "Closed", "Cancelled"].includes(status);
+
   const showPostingSubmit =
     workItem?.requiresPosting &&
-    isPostingAssignee &&
+    canPosting &&
     (status === "Awaiting Posting" || status === "Delivered");
+
+  const missingRevisionBanner =
+    status === "In Progress" && revisions.length === 0 && canWork;
 
   const loadRevisions = async () => {
     if (!workItemId) return;
@@ -131,12 +138,34 @@ const CreativeWorkflowPanel = ({ workItem, onUpdated, currentUser }) => {
     }
   };
 
+  const loadPostingUsers = async () => {
+    try {
+      const usersRes = await userApi.getAllUsers({ status: "active", limit: 1000 });
+      const userList = usersRes?.data || usersRes?.users || usersRes || [];
+      setPostingUsers(
+        (Array.isArray(userList) ? userList : []).filter((u) =>
+          String(u.department?.name || "")
+            .toLowerCase()
+            .includes("posting")
+        )
+      );
+    } catch {
+      setPostingUsers([]);
+    }
+  };
+
   React.useEffect(() => {
     if (isCreative && workItemId) {
       loadRevisions();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workItemId, isCreative]);
+
+  React.useEffect(() => {
+    if (showPostingHandoffEditor) {
+      loadPostingUsers();
+    }
+  }, [showPostingHandoffEditor]);
 
   if (!isCreative) {
     return null;
@@ -172,7 +201,7 @@ const CreativeWorkflowPanel = ({ workItem, onUpdated, currentUser }) => {
     }
     const needsNotes = decision === "minor" || decision === "major" || decision === "reject";
     if (needsNotes && !String(reviewNotes || "").trim()) {
-      toast.error("Review / QA notes are required when requesting changes");
+      toast.error("Review notes are required when requesting changes");
       return;
     }
     await runAction(
@@ -183,10 +212,63 @@ const CreativeWorkflowPanel = ({ workItem, onUpdated, currentUser }) => {
         }),
       successMessage,
       {
-        nextStatus: decision === "approve" ? "Approved" : "Changes Requested",
+        nextStatus: decision === "approve" ? "QA Review" : "Changes Requested",
       }
     );
     setReviewNotes("");
+  };
+
+  const runQaDecision = async (passed) => {
+    if (!inQaReview) {
+      toast.error("QA actions are only available during QA Review");
+      return;
+    }
+    if (!passed && !String(qaNotes || "").trim()) {
+      toast.error("QA notes are required when QA fails");
+      return;
+    }
+    await runAction(
+      () =>
+        creativeWorkflowApi.recordQa(workItemId, {
+          passed,
+          notes: String(qaNotes || "").trim(),
+        }),
+      passed ? "QA passed — approved for delivery" : "QA failed — changes requested",
+      { nextStatus: passed ? "Approved" : "Changes Requested" }
+    );
+    setQaNotes("");
+  };
+
+  const savePostingHandoff = async () => {
+    if (postingForm.requiresPosting) {
+      if (!postingForm.postingAssignedTo || !postingForm.postingDate) {
+        toast.error("Select a posting assignee and posting date");
+        return;
+      }
+    }
+    await runAction(
+      () =>
+        creativeWorkflowApi.setPostingHandoff(workItemId, {
+          requiresPosting: postingForm.requiresPosting,
+          postingAssignedTo: postingForm.requiresPosting
+            ? postingForm.postingAssignedTo
+            : null,
+          postingDate: postingForm.requiresPosting ? postingForm.postingDate : null,
+        }),
+      "Posting handoff saved"
+    );
+  };
+
+  const stepHint = () => {
+    if (showWorkerStart) return "Step 1: Start work to open Revision 1.";
+    if (showWorkerSubmit) return "Step 2: Add files, then submit for review.";
+    if (showReviewActions) return "Step 3: Review the submission — request changes or approve (routes to QA).";
+    if (showQaActions) return "Step 4: QA must pass before delivery.";
+    if (showDeliver) return "Step 5: Mark delivered when the client receives the asset.";
+    if (showPostingSubmit) return "Step 6: Submit live post URL(s).";
+    if (showCloseOnly) return "Step 7: Close the task when complete.";
+    if (showWorkerRework) return "Apply reviewer feedback, then submit again.";
+    return "Use the Creative Workflow panel actions for this task.";
   };
 
   return (
@@ -198,28 +280,27 @@ const CreativeWorkflowPanel = ({ workItem, onUpdated, currentUser }) => {
         </Button>
       </div>
 
+      <CreativeWorkflowStepper
+        status={status}
+        requiresPosting={Boolean(workItem.requiresPosting)}
+      />
+
       <p className="small text-muted mb-2">
         Status: <strong>{status}</strong>
-        {workItem.requiresPosting ? (
-          <>
-            {" "}
-            · Posting date:{" "}
-            <strong>
-              {workItem.postingDate
-                ? new Date(workItem.postingDate).toLocaleDateString()
-                : "—"}
-            </strong>
-          </>
-        ) : (
-          " · Client posts (no Posting department)"
-        )}
+        {tip ? ` · Current revision: R${tip.revisionNumber}` : ""}
       </p>
+
+      <p className="small text-muted mb-2">{stepHint()}</p>
+
+      {missingRevisionBanner && (
+        <Alert variant="warning" className="py-2 small mb-3">
+          Revision not started — click <strong>Start / Revision 1</strong> before submitting work.
+        </Alert>
+      )}
 
       {changeRequestSummary.total > 0 && (
         <Alert variant="warning" className="py-2 small mb-3">
-          <strong>
-            Change requests on this task: {changeRequestSummary.total}
-          </strong>
+          <strong>Change requests on this task: {changeRequestSummary.total}</strong>
           <ul className="mb-0 mt-1 ps-3">
             {changeRequestSummary.byReviewer.map((row) => (
               <li key={row.name}>
@@ -230,33 +311,94 @@ const CreativeWorkflowPanel = ({ workItem, onUpdated, currentUser }) => {
               </li>
             ))}
           </ul>
-          <div className="text-muted mt-1">
-            Full history also appears in Activity Timeline (system comments + revision reviews).
-          </div>
         </Alert>
       )}
 
       {loading && <Spinner animation="border" size="sm" className="mb-2" />}
 
-      <p className="small text-muted mb-2">
-        {canWork && !canReview && "Your actions: work on the task, then submit for review."}
-        {canReview && !canWork && "Your actions: review the submission and request changes or approve."}
-        {canWork && canReview && "You can both work on and review this task."}
-        {!canWork && !canReview && "You can view this creative workflow but have no actions."}
-      </p>
+      {showPostingHandoffEditor && (
+        <div className="border rounded p-2 mb-3 bg-white">
+          <div className="small fw-bold mb-2">Posting handoff (reviewer)</div>
+          <Form.Check
+            type="switch"
+            id="requires-posting-switch"
+            label="Requires Posting department"
+            checked={postingForm.requiresPosting}
+            onChange={(e) =>
+              setPostingForm((prev) => ({
+                ...prev,
+                requiresPosting: e.target.checked,
+              }))
+            }
+            className="mb-2"
+          />
+          {postingForm.requiresPosting && (
+            <>
+              <Form.Group className="mb-2">
+                <Form.Label className="small mb-0">Posting assignee</Form.Label>
+                <Form.Select
+                  size="sm"
+                  value={postingForm.postingAssignedTo}
+                  onChange={(e) =>
+                    setPostingForm((prev) => ({
+                      ...prev,
+                      postingAssignedTo: e.target.value,
+                    }))
+                  }
+                >
+                  <option value="">Select posting team member</option>
+                  {postingUsers.map((u) => (
+                    <option key={u._id} value={u._id}>
+                      {u.name || u.email}
+                    </option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+              <Form.Group className="mb-2">
+                <Form.Label className="small mb-0">Posting date</Form.Label>
+                <Form.Control
+                  type="date"
+                  size="sm"
+                  value={postingForm.postingDate}
+                  onChange={(e) =>
+                    setPostingForm((prev) => ({
+                      ...prev,
+                      postingDate: e.target.value,
+                    }))
+                  }
+                />
+              </Form.Group>
+            </>
+          )}
+          <Button size="sm" variant="outline-primary" disabled={loading} onClick={savePostingHandoff}>
+            Save posting handoff
+          </Button>
+        </div>
+      )}
 
-      {showReviewActions && (
+      {(showReviewActions || showQaActions) && (
         <Form.Group className="mb-3">
           <Form.Label className="small fw-bold">
-            Review / QA notes <span className="text-danger">*</span>
-            <span className="text-muted fw-normal"> (required for change requests)</span>
+            {showQaActions ? "QA notes" : "Review notes"}
+            {(showReviewActions || !showQaActions) && (
+              <span className="text-muted fw-normal"> (required for change requests)</span>
+            )}
+            {showQaActions && (
+              <span className="text-muted fw-normal"> (required for QA fail)</span>
+            )}
           </Form.Label>
           <Form.Control
             as="textarea"
             rows={2}
-            value={reviewNotes}
-            onChange={(e) => setReviewNotes(e.target.value)}
-            placeholder="Describe what must change (required for minor/major change requests)"
+            value={showQaActions ? qaNotes : reviewNotes}
+            onChange={(e) =>
+              showQaActions ? setQaNotes(e.target.value) : setReviewNotes(e.target.value)
+            }
+            placeholder={
+              showQaActions
+                ? "Notes for QA pass or fail"
+                : "Describe what must change (required for minor/major change requests)"
+            }
             disabled={loading}
           />
         </Form.Group>
@@ -300,11 +442,6 @@ const CreativeWorkflowPanel = ({ workItem, onUpdated, currentUser }) => {
               size="sm"
               variant="warning"
               disabled={loading || !String(reviewNotes || "").trim()}
-              title={
-                !String(reviewNotes || "").trim()
-                  ? "Enter Review / QA notes first"
-                  : undefined
-              }
               onClick={() => runReviewDecision("minor", "Minor changes requested")}
             >
               Request Minor Changes
@@ -313,11 +450,6 @@ const CreativeWorkflowPanel = ({ workItem, onUpdated, currentUser }) => {
               size="sm"
               variant="outline-danger"
               disabled={loading || !String(reviewNotes || "").trim()}
-              title={
-                !String(reviewNotes || "").trim()
-                  ? "Enter Review / QA notes first"
-                  : undefined
-              }
               onClick={() => runReviewDecision("major", "Major changes requested")}
             >
               Request Major Changes
@@ -326,16 +458,31 @@ const CreativeWorkflowPanel = ({ workItem, onUpdated, currentUser }) => {
               size="sm"
               variant="success"
               disabled={loading}
-              onClick={() => runReviewDecision("approve", "Approved")}
+              onClick={() => runReviewDecision("approve", "Sent to QA Review")}
             >
-              Approve
+              Approve → QA
             </Button>
           </>
         )}
-        {canReview && !awaitingReview && (
-          <span className="small text-muted align-self-center">
-            Review buttons appear only after the assignee submits for review.
-          </span>
+        {showQaActions && (
+          <>
+            <Button
+              size="sm"
+              variant="success"
+              disabled={loading}
+              onClick={() => runQaDecision(true)}
+            >
+              QA Pass
+            </Button>
+            <Button
+              size="sm"
+              variant="outline-danger"
+              disabled={loading || !String(qaNotes || "").trim()}
+              onClick={() => runQaDecision(false)}
+            >
+              QA Fail
+            </Button>
+          </>
         )}
         {showWorkerRework && (
           <Button
@@ -362,14 +509,16 @@ const CreativeWorkflowPanel = ({ workItem, onUpdated, currentUser }) => {
               runAction(
                 () => creativeWorkflowApi.markDelivered(workItemId),
                 "Delivered",
-                { nextStatus: workItem.requiresPosting ? "Awaiting Posting" : "Delivered" }
+                {
+                  nextStatus: workItem.requiresPosting ? "Awaiting Posting" : "Delivered",
+                }
               )
             }
           >
             Mark Delivered
           </Button>
         )}
-        {showClose && (
+        {showCloseOnly && (
           <Button
             size="sm"
             variant="dark"
@@ -390,17 +539,19 @@ const CreativeWorkflowPanel = ({ workItem, onUpdated, currentUser }) => {
       {showWorkerFiles && (
         <Form.Group className="mb-3">
           <Form.Label className="small fw-bold">Add file URL to current draft revision</Form.Label>
-          <div className="d-flex gap-2 align-items-center w-100">
-            <div className="flex-grow-1" style={{ minWidth: 0 }}>
+          <div className="d-flex gap-2 align-items-center w-100 flex-wrap">
+            <div className="flex-grow-1" style={{ minWidth: 120 }}>
               <Form.Control
                 placeholder="File name"
+                size="sm"
                 value={fileName}
                 onChange={(e) => setFileName(e.target.value)}
               />
             </div>
-            <div className="flex-grow-1" style={{ minWidth: 0 }}>
+            <div className="flex-grow-1" style={{ minWidth: 160 }}>
               <Form.Control
                 placeholder="https://..."
+                size="sm"
                 value={fileUrl}
                 onChange={(e) => setFileUrl(e.target.value)}
               />
@@ -417,9 +568,12 @@ const CreativeWorkflowPanel = ({ workItem, onUpdated, currentUser }) => {
                       type: "other",
                     }),
                   "Attachment added"
-                )
+                ).then(() => {
+                  setFileUrl("");
+                  setFileName("");
+                })
               }
-              disabled={!fileUrl}
+              disabled={!fileUrl || loading}
             >
               Add
             </Button>
@@ -428,74 +582,81 @@ const CreativeWorkflowPanel = ({ workItem, onUpdated, currentUser }) => {
       )}
 
       {showPostingSubmit && (
-          <Alert variant="info" className="mb-3">
-            <Form.Group className="mb-2">
-              <Form.Label className="fw-bold">Post URL(s) — one per line</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                value={postUrlsText}
-                onChange={(e) => setPostUrlsText(e.target.value)}
-                placeholder="https://instagram.com/p/...&#10;https://facebook.com/..."
-              />
-            </Form.Group>
-            <Button
-              size="sm"
-              variant="success"
-              onClick={() =>
-                runAction(
-                  () =>
-                    creativeWorkflowApi.submitPostingDone(workItemId, {
-                      postUrls: postUrlsText
-                        .split("\n")
-                        .map((u) => u.trim())
-                        .filter(Boolean),
-                    }),
-                  "Posting marked done"
-                )
-              }
-            >
-              Submit Posting Done
-            </Button>
-          </Alert>
-        )}
+        <Alert variant="info" className="mb-3">
+          <Form.Group className="mb-2">
+            <Form.Label className="fw-bold small">Post URL(s) — one per line</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              value={postUrlsText}
+              onChange={(e) => setPostUrlsText(e.target.value)}
+              placeholder="https://instagram.com/p/...&#10;https://facebook.com/..."
+            />
+          </Form.Group>
+          <Button
+            size="sm"
+            variant="success"
+            disabled={loading}
+            onClick={() =>
+              runAction(
+                () =>
+                  creativeWorkflowApi.submitPostingDone(workItemId, {
+                    postUrls: postUrlsText
+                      .split("\n")
+                      .map((u) => u.trim())
+                      .filter(Boolean),
+                  }),
+                "Posting marked done",
+                { nextStatus: "Posted" }
+              )
+            }
+          >
+            Submit Posting Done
+          </Button>
+        </Alert>
+      )}
 
       <h6 className="mt-2">Revisions</h6>
       {revisions.length === 0 ? (
         <p className="small text-muted mb-0">No revisions yet. Click Start / Revision 1.</p>
       ) : (
         <ListGroup>
-          {revisions.map((rev) => (
-            <ListGroup.Item key={rev._id}>
-              <strong>Revision {rev.revisionNumber}</strong>
-              {rev.isCurrentTip ? " (current)" : ""} — {rev.status}
-              {rev.parentRevision?.revisionNumber
-                ? ` · based on R${rev.parentRevision.revisionNumber}`
-                : ""}
-              <div className="small text-muted">{rev.reason}</div>
-              <div className="small">
-                Files: {(rev.attachments || []).filter((a) => !a.softDeprecated).length}
-              </div>
-              {rev.reviewedAt && rev.lastDecision && rev.lastDecision !== "none" && (
-                <div className="small mt-1">
-                  Review by <strong>{rev.reviewedBy?.name || "Reviewer"}</strong>
-                  {": "}
-                  {rev.lastDecision}
-                  {rev.decisionSeverity && rev.decisionSeverity !== "none"
-                    ? ` (${rev.decisionSeverity})`
-                    : ""}
-                  {rev.reviewNotes ? ` — ${rev.reviewNotes}` : ""}
-                </div>
-              )}
-            </ListGroup.Item>
-          ))}
+          {revisions.map((rev) => {
+            const attachments = (rev.attachments || []).filter((a) => !a.softDeprecated);
+            return (
+              <ListGroup.Item key={rev._id}>
+                <strong>Revision {rev.revisionNumber}</strong>
+                {rev.isCurrentTip ? " (current)" : ""} — {rev.status}
+                {rev.parentRevision?.revisionNumber
+                  ? ` · based on R${rev.parentRevision.revisionNumber}`
+                  : ""}
+                <div className="small text-muted">{rev.reason}</div>
+                {attachments.length > 0 && (
+                  <ul className="small mb-0 ps-3 mt-1">
+                    {attachments.map((att, idx) => (
+                      <li key={att._id || `${rev._id}-att-${idx}`}>
+                        <a href={att.url} target="_blank" rel="noopener noreferrer">
+                          {att.name || att.url}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {rev.reviewedAt && rev.lastDecision && rev.lastDecision !== "none" && (
+                  <div className="small mt-1">
+                    Review by <strong>{rev.reviewedBy?.name || "Reviewer"}</strong>
+                    {": "}
+                    {rev.lastDecision}
+                    {rev.decisionSeverity && rev.decisionSeverity !== "none"
+                      ? ` (${rev.decisionSeverity})`
+                      : ""}
+                    {rev.reviewNotes ? ` — ${rev.reviewNotes}` : ""}
+                  </div>
+                )}
+              </ListGroup.Item>
+            );
+          })}
         </ListGroup>
-      )}
-
-      {tip && (
-        <p className="small text-muted mt-2 mb-0">
-          Tip revision: R{tip.revisionNumber} ({tip.status})
-        </p>
       )}
     </div>
   );

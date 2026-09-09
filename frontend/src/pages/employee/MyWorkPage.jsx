@@ -16,6 +16,7 @@ import {
   isWorkItemDueToday,
   isWorkItemOverdue,
 } from '../../utils/workItemUtils';
+import { isCreativeWorkflowItem } from '../../utils/workItemStatusUtils';
 
 /**
  * MyWorkPage Component
@@ -90,9 +91,17 @@ const MyWorkPage = () => {
         totalThisMonth++;
       }
 
-      // Count completed this month
       const itemStatus = getEffectiveStatusForUser(item, userId);
-      if (itemStatus === 'Done' && itemMonth === currentMonth && itemYear === currentYear) {
+      const creativeDone =
+        isCreativeWorkflowItem(item) &&
+        ['Closed', 'Delivered', 'Posted'].includes(item.status);
+
+      // Count completed this month
+      if (
+        (itemStatus === 'Done' || creativeDone) &&
+        itemMonth === currentMonth &&
+        itemYear === currentYear
+      ) {
         completedThisMonth++;
       }
 
@@ -107,8 +116,12 @@ const MyWorkPage = () => {
         dueTodayItems.push(item);
       }
 
+      const creativeInProgress =
+        isCreativeWorkflowItem(item) &&
+        !['Closed', 'Cancelled', 'Done', 'To Do', 'Assigned', 'Backlog'].includes(item.status);
+
       // Count in progress
-      if (itemStatus === 'In Progress') {
+      if (itemStatus === 'In Progress' || creativeInProgress) {
         inProgress++;
         inProgressItems.push(item);
       }

@@ -7,6 +7,14 @@
 import WorkItem from "../models/workItemModel.js";
 import CreativeRevision from "../models/creativeRevisionModel.js";
 import { isCreativeWorkflow } from "../utils/creativeStatusMap.js";
+import {
+  START_WORK_STATUSES,
+  SUBMIT_REVIEW_STATUSES,
+  QA_STATUSES,
+  REWORK_STATUSES,
+  DELIVER_STATUSES,
+  assertStatusIn,
+} from "../utils/creativeWorkflowRules.js";
 
 const REVIEW_DECISIONS = {
   approve: "approve",
@@ -27,8 +35,9 @@ async function loadCreativeWorkItem(workItemId) {
     throw err;
   }
   if (!isCreativeWorkflow(workItem) && workItem.workflowMode !== "creative") {
-    // Allow enabling creative mode on first action
-    workItem.workflowMode = "creative";
+    const err = new Error("This work item is not configured for creative workflow");
+    err.statusCode = 400;
+    throw err;
   }
   return workItem;
 }
@@ -56,6 +65,18 @@ export async function startWork(workItemId, actorId) {
     isCurrentTip: true,
     softArchived: { $ne: true },
   });
+
+  const canStartFromStatus =
+    START_WORK_STATUSES.includes(workItem.status) ||
+    (workItem.status === "In Progress" && !revision);
+
+  if (!canStartFromStatus) {
+    const err = new Error(
+      `Start work is not allowed when status is "${workItem.status}". Expected: ${START_WORK_STATUSES.join(", ")} or In Progress without a revision`
+    );
+    err.statusCode = 400;
+    throw err;
+  }
 
   const createdRevision = !revision;
   if (!revision) {
@@ -92,6 +113,8 @@ export async function startWork(workItemId, actorId) {
  */
 export async function submitForReview(workItemId, actorId, { requireAttachment = false } = {}) {
   const workItem = await loadCreativeWorkItem(workItemId);
+  assertStatusIn(workItem.status, SUBMIT_REVIEW_STATUSES, "Submit for review");
+
   const revision = await CreativeRevision.findOne({
     workItem: workItemId,
     isCurrentTip: true,
@@ -107,6 +130,12 @@ export async function submitForReview(workItemId, actorId, { requireAttachment =
   const activeFiles = (revision.attachments || []).filter((a) => !a.softDeprecated);
   if (requireAttachment && activeFiles.length === 0) {
     const err = new Error("Upload at least one file before submitting for review");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (revision.status !== "draft") {
+    const err = new Error("Only draft revisions can be submitted for review");
     err.statusCode = 400;
     throw err;
   }
@@ -199,7 +228,8 @@ export async function recordReviewDecision(
     revision.approvedAt = new Date();
     revision.approvedBy = actorId;
     revision.decisionSeverity = "none";
-    workItem.status = qaRequired ? "QA Review" : "Approved";
+    // Mandatory QA for all creative tasks — approve always routes to QA Review
+    workItem.status = "QA Review";
   } else if (resolved === REVIEW_DECISIONS.reject) {
     revision.status = "rejected";
     revision.decisionSeverity = "reject";
@@ -237,11 +267,7 @@ export async function recordReviewDecision(
  */
 export async function startRework(workItemId, actorId) {
   const workItem = await loadCreativeWorkItem(workItemId);
-  if (workItem.status !== "Changes Requested") {
-    const err = new Error("Rework can only start from Changes Requested");
-    err.statusCode = 400;
-    throw err;
-  }
+  assertStatusIn(workItem.status, REWORK_STATUSES, "Start rework");
 
   const current = await CreativeRevision.findOne({
     workItem: workItemId,
@@ -296,11 +322,7 @@ export async function startRework(workItemId, actorId) {
  */
 export async function recordQaDecision(workItemId, actorId, { pass, notes = "" } = {}) {
   const workItem = await loadCreativeWorkItem(workItemId);
-  if (workItem.status !== "QA Review") {
-    const err = new Error("Work item is not in QA Review");
-    err.statusCode = 400;
-    throw err;
-  }
+  assertStatusIn(workItem.status, QA_STATUSES, "QA decision");
 
   if (!pass && !String(notes || "").trim()) {
     const err = new Error("Notes are required when QA fails");
@@ -341,13 +363,14 @@ export async function recordQaDecision(workItemId, actorId, { pass, notes = "" }
  */
 export async function markDelivered(workItemId, actorId) {
   const workItem = await loadCreativeWorkItem(workItemId);
-  if (workItem.status !== "Approved" && workItem.status !== "QA Review") {
-    // Allow Approved primarily; QA Review should pass first
-    if (workItem.status !== "Approved") {
-      const err = new Error("Only Approved work can be marked Delivered");
-      err.statusCode = 400;
-      throw err;
-    }
+  assertStatusIn(workItem.status, DELIVER_STATUSES, "Mark delivered");
+
+  if (workItem.requiresPosting && (!workItem.postingAssignedTo || !workItem.postingDate)) {
+    const err = new Error(
+      "Posting handoff must include a posting assignee and posting date before delivery"
+    );
+    err.statusCode = 400;
+    throw err;
   }
 
   const tip = await CreativeRevision.findOne({

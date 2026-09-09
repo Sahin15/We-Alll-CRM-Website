@@ -12,6 +12,8 @@ import {
 } from '../../utils/workItemUtils';
 import CreativeWorkflowPanel from '../creative/CreativeWorkflowPanel';
 import creativeWorkflowApi from '../../api/creativeWorkflowApi';
+import { isCreativeWorkflowItem } from '../../utils/creativeWorkflowAccess';
+import { getCreativeStatusBadgeVariant } from '../../utils/workItemStatusUtils';
 import './WorkItemDetailsModal.css';
 
 const WorkItemDetailsModal = ({ show, onHide, workItem: workItemProp, onUpdate, onRefresh, currentUser, onAddComment }) => {
@@ -264,6 +266,9 @@ const WorkItemDetailsModal = ({ show, onHide, workItem: workItemProp, onUpdate, 
   }, [show, workItem?.project?._id, workItem?.assignedToMultiple, workItem?.assignedTo]);
 
   if (!workItem) return null;
+
+  const isCreativeItem = isCreativeWorkflowItem(workItem);
+  const defaultTabKey = isCreativeItem ? 'activity' : 'details';
 
   // Helper function to check if current user can edit (supports multiple assignees)
   const canEdit = () => {
@@ -532,15 +537,13 @@ const WorkItemDetailsModal = ({ show, onHide, workItem: workItemProp, onUpdate, 
           </Alert>
         )}
 
-        {(workItem.workflowMode === 'creative' ||
-          workItem.workflowType === 'design' ||
-          workItem.workflowType === 'video-production') && (
+        {isCreativeItem && (
           <div className="m-3">
             <CreativeWorkflowPanel
               workItem={workItem}
+              project={workItem.project}
               currentUser={currentUser}
               onUpdated={async () => {
-                // Refresh full details so Activity Timeline shows new statusHistory
                 await loadFullWorkItem();
                 if (onRefresh) onRefresh();
               }}
@@ -548,7 +551,12 @@ const WorkItemDetailsModal = ({ show, onHide, workItem: workItemProp, onUpdate, 
           </div>
         )}
 
-        <Tabs defaultActiveKey="details" className="mb-0" style={{ borderBottom: '2px solid #e9ecef' }}>
+        <Tabs
+          key={`${workItem._id}-${defaultTabKey}`}
+          defaultActiveKey={defaultTabKey}
+          className="mb-0"
+          style={{ borderBottom: '2px solid #e9ecef' }}
+        >
           <Tab eventKey="activity" title={
             <span>
               <FaClock className="me-2" />
@@ -1093,7 +1101,19 @@ const WorkItemDetailsModal = ({ show, onHide, workItem: workItemProp, onUpdate, 
                   </div>
                 )}
                 
-                {canEdit() && workItem.status !== 'Cancelled' && (
+                {isCreativeItem && workItem.status !== 'Cancelled' && (
+                  <div className="mb-3">
+                    <small className="text-muted d-block mb-2">Creative workflow status:</small>
+                    <Badge bg={getCreativeStatusBadgeVariant(workItem.status)} className="px-3 py-2">
+                      {workItem.status}
+                    </Badge>
+                    <small className="text-muted d-block mt-2">
+                      Use the Creative Workflow panel above for all status changes (except Cancel via admin paths).
+                    </small>
+                  </div>
+                )}
+
+                {!isCreativeItem && canEdit() && workItem.status !== 'Cancelled' && (
                   <>
                     <div className="mb-2">
                       <small className="text-muted">Change status to:</small>

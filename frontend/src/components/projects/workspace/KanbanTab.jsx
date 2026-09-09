@@ -7,6 +7,10 @@ import { checkPageAccess, PAGE_ACCESS } from '../../../constants/pageAccess';
 import projectApi from '../../../api/projectApi';
 import workItemApi from '../../../api/workItemApi';
 import WorkItemDetailsModal from '../../workitems/WorkItemDetailsModal';
+import {
+  getCreativeStatusBadgeVariant,
+  isCreativeWorkflowItem,
+} from '../../../utils/workItemStatusUtils';
 
 /**
  * KanbanTab - Dedicated Kanban board view for project work items
@@ -27,6 +31,28 @@ const KanbanTab = ({ project, onRefresh }) => {
 
   const statuses = ['To Do', 'In Progress', 'Done', 'Cancelled'];
   const isSlotBased = project.slotConfiguration?.enableSlotSystem;
+
+  const getKanbanColumnStatus = (item) => {
+    if (!isCreativeWorkflowItem(item)) return item.status;
+    const map = {
+      'To Do': 'To Do',
+      Assigned: 'To Do',
+      Backlog: 'To Do',
+      'In Progress': 'In Progress',
+      'Rework In Progress': 'In Progress',
+      'Changes Requested': 'In Progress',
+      'Submitted for Review': 'In Progress',
+      'QA Review': 'In Progress',
+      Approved: 'In Progress',
+      Delivered: 'In Progress',
+      'Awaiting Posting': 'In Progress',
+      Posted: 'In Progress',
+      Closed: 'Done',
+      Done: 'Done',
+      Cancelled: 'Cancelled',
+    };
+    return map[item.status] || 'In Progress';
+  };
 
   useEffect(() => {
     loadData();
@@ -76,6 +102,11 @@ const KanbanTab = ({ project, onRefresh }) => {
 
   // Kanban board drag and drop handlers
   const handleDragStart = (e, item) => {
+    if (isCreativeWorkflowItem(item)) {
+      e.preventDefault();
+      toast.info('Use Creative Workflow actions to change status for this task');
+      return;
+    }
     setDraggedItem(item);
     e.dataTransfer.effectAllowed = 'move';
   };
@@ -185,7 +216,9 @@ const KanbanTab = ({ project, onRefresh }) => {
   const filteredWorkItems = getFilteredWorkItems();
   
   const groupedByStatus = statuses.reduce((acc, status) => {
-    acc[status] = filteredWorkItems.filter((item) => item.status === status);
+    acc[status] = filteredWorkItems.filter(
+      (item) => getKanbanColumnStatus(item) === status
+    );
     return acc;
   }, {});
 
@@ -324,10 +357,10 @@ const KanbanTab = ({ project, onRefresh }) => {
                       <Card
                         key={item._id}
                         className="mb-2 shadow-sm"
-                        draggable={true}
+                        draggable={!isCreativeWorkflowItem(item)}
                         onDragStart={(e) => handleDragStart(e, item)}
                         style={{
-                          cursor: 'grab',
+                          cursor: isCreativeWorkflowItem(item) ? 'default' : 'grab',
                           opacity: draggedItem?._id === item._id ? 0.5 : 1,
                           transition: 'opacity 0.2s'
                         }}
@@ -403,6 +436,16 @@ const KanbanTab = ({ project, onRefresh }) => {
                           >
                             {item.priority?.charAt(0).toUpperCase() + item.priority?.slice(1) || 'Medium'}
                           </Badge>
+
+                          {isCreativeWorkflowItem(item) && (
+                            <Badge
+                              bg={getCreativeStatusBadgeVariant(item.status)}
+                              className="mb-2 d-block"
+                              style={{ fontSize: '0.7rem' }}
+                            >
+                              {item.status}
+                            </Badge>
+                          )}
 
                           {/* Title - Clickable */}
                           <div 

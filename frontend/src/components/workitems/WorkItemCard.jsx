@@ -13,6 +13,10 @@ import {
   getDueDateAriaLabel,
   handleKeyboardNavigation,
 } from '../../utils/accessibility';
+import {
+  getCreativeStatusBadgeVariant,
+  isCreativeWorkflowItem,
+} from '../../utils/workItemStatusUtils';
 import './WorkItemCard.css';
 
 const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
@@ -23,7 +27,9 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
   const [pendingStatus, setPendingStatus] = useState(null);
   
   const itemStatus = getEffectiveStatusForUser(workItem, currentUser?._id);
-  const isTerminal = ['Done', 'Cancelled'].includes(itemStatus);
+  const isCreative = isCreativeWorkflowItem(workItem);
+  const displayStatus = isCreative ? workItem.status : itemStatus;
+  const isTerminal = ['Done', 'Cancelled', 'Closed'].includes(displayStatus);
   const isOverdue = !isTerminal && isWorkItemOverdue(workItem, currentUser?._id);
   const isDueToday = !isTerminal && isWorkItemDueToday(workItem, currentUser?._id);
 
@@ -170,7 +176,7 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
           
           <div className="d-flex align-items-center gap-2">
             {/* Interactive Status Badge — hide dropdown for cancelled (terminal state) */}
-            {canEdit() && isHovered && !isUpdating && itemStatus !== 'Cancelled' ? (
+            {canEdit() && !isCreative && isHovered && !isUpdating && itemStatus !== 'Cancelled' ? (
               <Dropdown align="end" onClick={(e) => e.stopPropagation()}>
                 <Dropdown.Toggle
                   as={Badge}
@@ -212,8 +218,8 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
               </Dropdown>
             ) : (
               <Badge 
-                bg={getStatusColor(workItem.status)}
-                aria-label={getStatusAriaLabel(itemStatus)}
+                bg={isCreative ? getCreativeStatusBadgeVariant(displayStatus) : getStatusColor(displayStatus)}
+                aria-label={getStatusAriaLabel(displayStatus)}
                 className="text-capitalize"
                 style={{
                   position: 'relative',
@@ -227,7 +233,7 @@ const WorkItemCard = ({ workItem, onView, onStatusChange, currentUser }) => {
                     style={{ width: '0.8rem', height: '0.8rem' }}
                   />
                 )}
-                <span aria-hidden="true">{itemStatus}</span>
+                <span aria-hidden="true">{displayStatus}</span>
               </Badge>
             )}
           </div>

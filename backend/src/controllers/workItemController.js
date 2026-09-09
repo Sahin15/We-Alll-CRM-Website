@@ -20,6 +20,8 @@ import {
   assertUserInPostingDepartment,
   applyPostingHandoffFields,
 } from "../services/creativePostingService.js";
+import { isCreativeWorkflow } from "../utils/creativeStatusMap.js";
+import { assertNoBackwardFromDelivered } from "../utils/creativeWorkflowRules.js";
 
 // @desc    Get all work items for current user (My Work)
 // @route   GET /api/work-items/my-work
@@ -256,13 +258,29 @@ const getAllWorkItems = async (req, res) => {
 const getWorkItemById = async (req, res) => {
   try {
     const workItem = await WorkItem.findById(req.params.id)
-      .populate("project", "name client departments department") // Include both single and multiple departments
+      .populate("project", "name client departments department projectHead")
       .populate({
         path: "project",
-        populate: {
-          path: "client",
-          select: "name company email phone",
-        },
+        populate: [
+          {
+            path: "client",
+            select: "name company email phone",
+          },
+          {
+            path: "projectHead",
+            select: "name email",
+          },
+          {
+            path: "department",
+            select: "name head",
+            populate: { path: "head", select: "name email" },
+          },
+          {
+            path: "departments",
+            select: "name head",
+            populate: { path: "head", select: "name email" },
+          },
+        ],
       })
       .populate("assignedTo", "name email designation")
       .populate("assignedToMultiple", "name email designation")
@@ -506,7 +524,12 @@ const createWorkItem = async (req, res) => {
     }
 
     // Creative workflow + optional Posting handoff
-    if (workflowMode === "creative" || workflowType === "design" || workflowType === "video-production") {
+    if (
+      workflowMode === "creative" ||
+      workflowType === "design" ||
+      workflowType === "design-advanced" ||
+      workflowType === "video-production"
+    ) {
       workItemData.workflowMode = "creative";
     }
     if (workflowType) {
@@ -1018,6 +1041,32 @@ const updateWorkItemStatus = async (req, res) => {
         error: {
           code: "NOT_FOUND",
           message: "Work item not found",
+        },
+      });
+    }
+
+    if (isCreativeWorkflow(workItem) && status !== "Cancelled" && status !== workItem.status) {
+      console.warn(
+        `[creative-workflow] Blocked manual status change ${workItem.status} → ${status} for work item ${workItem._id}`
+      );
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: "CREATIVE_WORKFLOW_REQUIRED",
+          message: "Use Creative Workflow actions for this task. Only cancellation is allowed via status update.",
+        },
+      });
+    }
+
+    try {
+      assertNoBackwardFromDelivered(workItem, status);
+    } catch (backwardError) {
+      return res.status(backwardError.statusCode || 400).json({
+        success: false,
+        error: {
+          code: "VALIDATION_ERROR",
+          message: backwardError.message,
+          field: "status",
         },
       });
     }

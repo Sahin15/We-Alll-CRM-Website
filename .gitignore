@@ -3,6 +3,7 @@
 !README.md
 !GIT-WORKFLOW.md
 !docs/CORE/DEPLOYMENT.md
+!docs/WORKFLOW/*.md
 !.github/BRANCH_PROTECTION.md
 
 # Node / build / environment
@@ -20,10 +21,12 @@ pnpm-lock.yaml
 .env.local
 .env.*.local
 
-# Documentation folder (don't push to GitHub except CORE runbooks)
+# Documentation folder (don't push to GitHub except CORE runbooks + WORKFLOW specs)
 docs/*
 !docs/CORE/
 !docs/CORE/**
+!docs/WORKFLOW/
+!docs/WORKFLOW/**
 
 # Kiro IDE
 .kiro/

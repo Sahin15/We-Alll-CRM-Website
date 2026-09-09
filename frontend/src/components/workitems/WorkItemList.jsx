@@ -10,6 +10,11 @@ import {
   isWorkItemOverdue,
 } from '../../utils/workItemUtils';
 import AssigneeStatusDisplay from './AssigneeStatusDisplay';
+import {
+  getCreativeStatusBadgeVariant,
+  getCreativeStatusProgress,
+  isCreativeWorkflowItem,
+} from '../../utils/workItemStatusUtils';
 import './WorkItemList.css';
 
 const STATUS_MENU_GAP = 8;
@@ -420,6 +425,18 @@ const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, curren
                 <td className="status-cell" onClick={(e) => e.stopPropagation()}>
                   {showAssigneeStatus && item.assignedToMultiple && item.assignedToMultiple.length > 1 ? (
                     <AssigneeStatusDisplay workItem={item} />
+                  ) : isCreativeWorkflowItem(item) ? (
+                    <div>
+                      <Badge
+                        bg={getCreativeStatusBadgeVariant(item.status)}
+                        className="status-badge"
+                      >
+                        {item.status}
+                      </Badge>
+                      <div className="small text-muted mt-1">
+                        {getCreativeStatusProgress(item.status)}% workflow
+                      </div>
+                    </div>
                   ) : canEdit(item) && onStatusChange ? (
                     <StatusSelector
                       status={getUserStatus(item)}

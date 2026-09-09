@@ -127,6 +127,14 @@ creativeRevisionSchema.index(
   { unique: true }
 );
 
+creativeRevisionSchema.index(
+  { workItem: 1, isCurrentTip: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { isCurrentTip: true, softArchived: { $ne: true } },
+  }
+);
+
 creativeRevisionSchema.pre("validate", function (next) {
   // Guard: revisions must never carry slot assignment fields
   if (this.slotAssignment || this.assignedSlot) {

@@ -1,13 +1,37 @@
+import WorkItem from "../models/workItemModel.js";
 import * as creativeWorkflowService from "../services/creativeWorkflowService.js";
 import * as creativePostingService from "../services/creativePostingService.js";
+import {
+  assertCanReviewCreativeWork,
+  assertCanPerformAssigneeAction,
+  canSubmitPostingDone,
+  loadProjectForCreativeAuth,
+} from "../utils/creativeWorkflowAuth.js";
 
 const getActorId = (req) => req.user?._id || req.user?.id;
+
+/**
+ * @param {string} workItemId
+ */
+async function loadWorkItemContext(workItemId) {
+  const workItem = await WorkItem.findById(workItemId);
+  if (!workItem || workItem.isDeleted) {
+    const err = new Error("Work item not found");
+    err.statusCode = 404;
+    throw err;
+  }
+  const project = await loadProjectForCreativeAuth(workItem.project);
+  return { workItem, project };
+}
 
 /**
  * POST /api/creative-workflow/:workItemId/start
  */
 export const startWork = async (req, res) => {
   try {
+    const { workItem, project } = await loadWorkItemContext(req.params.workItemId);
+    assertCanPerformAssigneeAction(req.user, workItem);
+
     const result = await creativeWorkflowService.startWork(
       req.params.workItemId,
       getActorId(req)
@@ -27,6 +51,9 @@ export const startWork = async (req, res) => {
  */
 export const submitForReview = async (req, res) => {
   try {
+    const { workItem } = await loadWorkItemContext(req.params.workItemId);
+    assertCanPerformAssigneeAction(req.user, workItem);
+
     const result = await creativeWorkflowService.submitForReview(
       req.params.workItemId,
       getActorId(req),
@@ -48,13 +75,16 @@ export const submitForReview = async (req, res) => {
  */
 export const recordReview = async (req, res) => {
   try {
+    const { workItem, project } = await loadWorkItemContext(req.params.workItemId);
+    assertCanReviewCreativeWork(req.user, workItem, project);
+
     const result = await creativeWorkflowService.recordReviewDecision(
       req.params.workItemId,
       getActorId(req),
       {
         decision: req.body?.decision,
         notes: req.body?.notes,
-        qaRequired: Boolean(req.body?.qaRequired),
+        qaRequired: true,
       }
     );
     return res.json({ success: true, data: result });
@@ -72,6 +102,9 @@ export const recordReview = async (req, res) => {
  */
 export const startRework = async (req, res) => {
   try {
+    const { workItem } = await loadWorkItemContext(req.params.workItemId);
+    assertCanPerformAssigneeAction(req.user, workItem);
+
     const result = await creativeWorkflowService.startRework(
       req.params.workItemId,
       getActorId(req)
@@ -92,6 +125,9 @@ export const startRework = async (req, res) => {
  */
 export const recordQa = async (req, res) => {
   try {
+    const { workItem, project } = await loadWorkItemContext(req.params.workItemId);
+    assertCanReviewCreativeWork(req.user, workItem, project);
+
     const result = await creativeWorkflowService.recordQaDecision(
       req.params.workItemId,
       getActorId(req),
@@ -112,6 +148,9 @@ export const recordQa = async (req, res) => {
  */
 export const markDelivered = async (req, res) => {
   try {
+    const { workItem, project } = await loadWorkItemContext(req.params.workItemId);
+    assertCanReviewCreativeWork(req.user, workItem, project);
+
     const result = await creativeWorkflowService.markDelivered(
       req.params.workItemId,
       getActorId(req)
@@ -131,6 +170,9 @@ export const markDelivered = async (req, res) => {
  */
 export const closeTask = async (req, res) => {
   try {
+    const { workItem, project } = await loadWorkItemContext(req.params.workItemId);
+    assertCanReviewCreativeWork(req.user, workItem, project);
+
     const result = await creativeWorkflowService.closeTask(
       req.params.workItemId,
       getActorId(req)
@@ -165,8 +207,6 @@ export const listRevisions = async (req, res) => {
 
 /**
  * GET /api/creative-workflow/change-counts?workItemIds=id1,id2
- * Also accepts POST body { workItemIds: string[] } for compatibility.
- * Returns change-request counts per work item + total.
  */
 export const getChangeRequestCounts = async (req, res) => {
   try {
@@ -193,10 +233,12 @@ export const getChangeRequestCounts = async (req, res) => {
 
 /**
  * POST /api/creative-workflow/:workItemId/revisions/attachments
- * body: { name, url, type, size, storageKey, category, notes }
  */
 export const addRevisionAttachment = async (req, res) => {
   try {
+    const { workItem } = await loadWorkItemContext(req.params.workItemId);
+    assertCanPerformAssigneeAction(req.user, workItem);
+
     const result = await creativeWorkflowService.addRevisionAttachment(
       req.params.workItemId,
       getActorId(req),
@@ -214,11 +256,13 @@ export const addRevisionAttachment = async (req, res) => {
 
 /**
  * PUT /api/creative-workflow/:workItemId/posting
- * body: { requiresPosting, postingAssignedTo, postingDate }
  */
 export const setPostingHandoff = async (req, res) => {
   try {
-    const workItem = await creativePostingService.setPostingHandoff(
+    const { workItem, project } = await loadWorkItemContext(req.params.workItemId);
+    assertCanReviewCreativeWork(req.user, workItem, project);
+
+    const workItemResult = await creativePostingService.setPostingHandoff(
       req.params.workItemId,
       {
         requiresPosting: Boolean(req.body?.requiresPosting),
@@ -227,7 +271,7 @@ export const setPostingHandoff = async (req, res) => {
       },
       getActorId(req)
     );
-    return res.json({ success: true, data: workItem });
+    return res.json({ success: true, data: workItemResult });
   } catch (error) {
     console.error("creative setPostingHandoff failed:", error);
     return res.status(error.statusCode || 500).json({
@@ -239,10 +283,17 @@ export const setPostingHandoff = async (req, res) => {
 
 /**
  * POST /api/creative-workflow/:workItemId/posting/submit
- * body: { postUrls: string[], postingNotes }
  */
 export const submitPostingDone = async (req, res) => {
   try {
+    const { workItem, project } = await loadWorkItemContext(req.params.workItemId);
+    if (!canSubmitPostingDone(req.user, workItem, project)) {
+      return res.status(403).json({
+        success: false,
+        error: "Only the posting assignee or project reviewer can submit posting",
+      });
+    }
+
     const result = await creativePostingService.submitPostingDone(
       req.params.workItemId,
       {

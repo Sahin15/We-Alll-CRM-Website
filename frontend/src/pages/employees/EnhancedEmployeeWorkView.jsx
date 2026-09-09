@@ -40,6 +40,11 @@ import WorkItemDetailsModal from '../../components/workitems/WorkItemDetailsModa
 import moment from 'moment';
 import './EnhancedEmployeeWorkView.css';
 import { decodeHtmlEntities } from '../../utils/htmlDecoder';
+import {
+  getCreativeStatusBadgeVariant,
+  getCreativeStatusProgress,
+  isCreativeWorkflowItem,
+} from '../../utils/workItemStatusUtils';
 
 /**
  * Work Assignments Tab with date range filters
@@ -302,9 +307,16 @@ const WorkAssignmentsTab = ({ recentWork, getStatusColor, getPriorityColor, onVi
                       </td>
                       <td>{work.project?.name || 'No Project'}</td>
                       <td>
-                        <Badge bg={getStatusColor(work.status)}>
-                          {work.status}
-                        </Badge>
+                        <div>
+                          <Badge bg={getStatusColor(work.status, work)}>
+                            {work.status}
+                          </Badge>
+                          {isCreativeWorkflowItem(work) && (
+                            <div className="small text-muted mt-1">
+                              {getCreativeStatusProgress(work.status)}% workflow
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td>
                         <Badge bg={getPriorityColor(work.priority)}>
@@ -638,14 +650,26 @@ const EnhancedEmployeeWorkView = () => {
     }
   };
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status, workItem) => {
+    if (workItem && isCreativeWorkflowItem(workItem)) {
+      return getCreativeStatusBadgeVariant(status);
+    }
     const colors = {
       'To Do': 'secondary',
       'In Progress': 'primary',
       'Review': 'warning',
       'Done': 'success',
       'Cancelled': 'danger',
-      'Blocked': 'danger'
+      'Blocked': 'danger',
+      'QA Review': 'warning',
+      Approved: 'success',
+      Delivered: 'success',
+      Posted: 'success',
+      Closed: 'dark',
+      'Changes Requested': 'danger',
+      'Submitted for Review': 'warning',
+      'Rework In Progress': 'info',
+      'Awaiting Posting': 'info',
     };
     return colors[status] || 'secondary';
   };
@@ -915,7 +939,7 @@ const EnhancedEmployeeWorkView = () => {
                                       {decodedDescription.length > 100 ? '...' : ''}
                                     </p>
                                     <div className="d-flex gap-2">
-                                      <Badge bg={getStatusColor(work.status)}>
+                                      <Badge bg={getStatusColor(work.status, work)}>
                                         {work.status}
                                       </Badge>
                                       <Badge bg={getPriorityColor(work.priority)}>
@@ -1145,7 +1169,7 @@ const EnhancedEmployeeWorkView = () => {
                                 <div className="small fw-semibold">{work.title}</div>
                                 <small className="text-muted">{work.project?.name || 'No Project'}</small>
                               </div>
-                              <Badge bg={getStatusColor(work.status)} className="small">
+                              <Badge bg={getStatusColor(work.status, work)} className="small">
                                 {work.status}
                               </Badge>
                             </div>
@@ -1340,7 +1364,7 @@ const EnhancedEmployeeWorkView = () => {
                                                 )}
                                               </div>
                                               <div className="d-flex gap-1 mt-1">
-                                                <Badge bg={getStatusColor(work.status)} className="small" style={{ fontSize: '0.7rem' }}>
+                                                <Badge bg={getStatusColor(work.status, work)} className="small" style={{ fontSize: '0.7rem' }}>
                                                   {work.status}
                                                 </Badge>
                                               </div>
@@ -1528,7 +1552,7 @@ const EnhancedEmployeeWorkView = () => {
                                     </small>
                                   </div>
                                   <div className="text-end ms-2">
-                                    <Badge bg={getStatusColor(work.status)} className="small">
+                                    <Badge bg={getStatusColor(work.status, work)} className="small">
                                       {work.status}
                                     </Badge>
                                   </div>
