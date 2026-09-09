@@ -13,6 +13,105 @@ import TeamMemberWorkloadInfo from '../workload/TeamMemberWorkloadInfo';
  * @param {Object} slotInfo - Optional slot information for slot-based assignments
  * @param {string|Object} defaultProject - Project ID or full project object
  */
+/** @param {string|{ _id?: string }} value */
+const resolveEntityId = (value) => {
+  if (!value) return '';
+  return String(typeof value === 'object' ? value._id : value);
+};
+
+/**
+ * Collect team member user IDs from a project record.
+ * @param {Object} project
+ * @returns {string[]}
+ */
+const collectTeamMemberIds = (project) => {
+  if (!project) return [];
+
+  const ids = new Set();
+
+  (project.assignedUsers || []).forEach((user) => {
+    const userId = resolveEntityId(user);
+    if (userId) ids.add(userId);
+  });
+
+  (project.teamMembers || []).forEach((member) => {
+    if (member?.isActive === false) return;
+    const userId = resolveEntityId(member.user);
+    if (userId) ids.add(userId);
+  });
+
+  const headId = resolveEntityId(project.projectHead);
+  if (headId) ids.add(headId);
+
+  return [...ids];
+};
+
+/**
+ * Build assignable team member objects from populated project roster fields.
+ * @param {Object} project
+ * @returns {Array<{ _id: string, name?: string, email?: string }>}
+ */
+const buildTeamMembersFromProject = (project) => {
+  if (!project) return [];
+
+  const byId = new Map();
+
+  const addUser = (user) => {
+    if (!user) return;
+    const userId = resolveEntityId(user);
+    if (!userId) return;
+
+    const existing = byId.get(userId);
+    const userObj = typeof user === 'object' && user !== null ? user : { _id: userId };
+
+    byId.set(userId, {
+      _id: userId,
+      name: userObj.name || existing?.name,
+      email: userObj.email || existing?.email,
+      role: userObj.role || existing?.role,
+      status: userObj.status || existing?.status,
+    });
+  };
+
+  (project.assignedUsers || []).forEach(addUser);
+  (project.teamMembers || []).forEach((member) => {
+    if (member?.isActive === false) return;
+    addUser(member.user);
+  });
+  addUser(project.projectHead);
+
+  return [...byId.values()].filter((member) => member._id);
+};
+
+/**
+ * Ensure the pre-selected assignee appears in the dropdown options.
+ * @param {Array<{ _id: string, name?: string }>} teamMembers
+ * @param {string|Object|null} assignee
+ * @param {Object|null} project
+ * @returns {Array<{ _id: string, name?: string }>}
+ */
+const ensureAssigneeInTeamMembers = (teamMembers, assignee, project) => {
+  const assigneeId = resolveEntityId(assignee);
+  if (!assigneeId) return teamMembers;
+
+  if (teamMembers.some((member) => resolveEntityId(member._id) === assigneeId)) {
+    return teamMembers;
+  }
+
+  if (typeof assignee === 'object' && assignee !== null) {
+    return [...teamMembers, { _id: assigneeId, name: assignee.name || 'Team Member', email: assignee.email }];
+  }
+
+  const fromProject = buildTeamMembersFromProject(project).find(
+    (member) => resolveEntityId(member._id) === assigneeId
+  );
+  if (fromProject) {
+    return [...teamMembers, fromProject];
+  }
+
+  return [...teamMembers, { _id: assigneeId, name: 'Team Member' }];
+};
+
 const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defaultAssignee = null, slotInfo = null }) => {
   const [assigning, setAssigning] = useState(false);
   const [projects, setProjects] = useState([]);
@@ -43,25 +142,50 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
   useEffect(() => {
     if (show) {
       // Reset form when modal opens, but use defaults if provided
+      const defaultProjectId = resolveEntityId(defaultProject);
+      const defaultAssigneeId = resolveEntityId(defaultAssignee);
+      const defaultSlotId = slotInfo?.slotId ? resolveEntityId(slotInfo.slotId) : '';
+
       setFormData({
         title: '',
         description: '',
-        project: defaultProject || '',
-        assignedTo: defaultAssignee || '',
-        assignedToMultiple: defaultAssignee ? [defaultAssignee] : [],
-        assignmentMode: defaultAssignee ? 'single' : 'single',
+        project: defaultProjectId,
+        assignedTo: defaultAssigneeId,
+        assignedToMultiple: defaultAssigneeId ? [defaultAssigneeId] : [],
+        assignmentMode: 'single',
         dueDate: '',
         priority: '',
-        selectedSlot: '',
+        selectedSlot: defaultSlotId,
         visibility: 'active',
         scheduledActivationDate: ''
       });
-      setSelectedProject(null);
-      setUsers([]);
+      setSelectedUserForWorkload(defaultAssigneeId || null);
       setSlots([]);
+      if (slotInfo?.periodIdentifier) {
+        setSelectedMonth(slotInfo.periodIdentifier);
+      } else {
+        setSelectedMonth(null);
+      }
+
+      // Pre-fill team roster from the workspace project object while projects list loads
+      if (typeof defaultProject === 'object' && defaultProject?._id) {
+        const initialTeamMembers = ensureAssigneeInTeamMembers(
+          buildTeamMembersFromProject(defaultProject),
+          defaultAssignee,
+          defaultProject
+        );
+        setSelectedProject(defaultProject);
+        setUsers(initialTeamMembers);
+        setAllUsers(initialTeamMembers);
+      } else {
+        setSelectedProject(null);
+        setUsers([]);
+        setAllUsers([]);
+      }
+
       loadProjectsAndUsers();
     }
-  }, [show, defaultProject, defaultAssignee]);
+  }, [show, defaultProject, defaultAssignee, slotInfo]);
 
   // Auto-load project data when defaultProject is provided and projects are loaded
   useEffect(() => {
@@ -103,26 +227,38 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
     }
   };
 
-  // Filter users when project is selected
-  const initializeMonthsFromSlots = (loadedSlots) => {
+  /**
+   * Initialize month filter for slot dropdown.
+   * @param {Array<Object>} loadedSlots
+   * @param {{ slotId?: string, periodIdentifier?: string }|null} preferredSlot
+   */
+  const initializeMonthsFromSlots = (loadedSlots, preferredSlot = null) => {
     if (!loadedSlots || loadedSlots.length === 0) {
       setAvailableMonths([]);
       setSelectedMonth(null);
       return;
     }
 
-    // Get unique months from slots
-    const months = [...new Set(loadedSlots.map(s => s.period?.periodIdentifier))].filter(Boolean);
-    months.sort(); // Sort chronologically
+    const months = [...new Set(loadedSlots.map((slot) => slot.period?.periodIdentifier))].filter(Boolean);
+    months.sort();
     setAvailableMonths(months);
 
-    // Determine current month in YYYY-MM format
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
-    const currentPeriodIdentifier = `${currentYear}-${currentMonth}`;
+    const preferredSlotId = resolveEntityId(preferredSlot?.slotId);
+    const matchedSlot = preferredSlotId
+      ? loadedSlots.find((slot) => resolveEntityId(slot._id) === preferredSlotId)
+      : null;
+    const preferredMonth =
+      preferredSlot?.periodIdentifier ||
+      matchedSlot?.period?.periodIdentifier ||
+      null;
 
-    // Set current month as default if available, otherwise first available month
+    if (preferredMonth && months.includes(preferredMonth)) {
+      setSelectedMonth(preferredMonth);
+      return;
+    }
+
+    const now = new Date();
+    const currentPeriodIdentifier = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const defaultMonth = months.includes(currentPeriodIdentifier) ? currentPeriodIdentifier : months[0];
     setSelectedMonth(defaultMonth);
   };
@@ -139,104 +275,102 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
     return `${monthNames[monthIndex]} ${year}`;
   };
 
+  const resolveProjectRecord = (projectId) => {
+    const resolvedProjectId = resolveEntityId(projectId);
+    if (!resolvedProjectId) return null;
+
+    const fromList = projects.find(
+      (project) => resolveEntityId(project._id) === resolvedProjectId
+    );
+    const fromDefault =
+      typeof defaultProject === 'object' &&
+      defaultProject?._id &&
+      resolveEntityId(defaultProject) === resolvedProjectId
+        ? defaultProject
+        : null;
+
+    if (fromList && fromDefault) {
+      const listNamedCount = buildTeamMembersFromProject(fromList).filter((member) => member.name).length;
+      const defaultNamedCount = buildTeamMembersFromProject(fromDefault).filter((member) => member.name).length;
+      return defaultNamedCount >= listNamedCount ? fromDefault : fromList;
+    }
+
+    return fromList || fromDefault || null;
+  };
+
   const handleProjectChange = async (projectId) => {
-    setFormData({ 
-      ...formData, 
-      project: projectId, 
-      assignedTo: '', 
-      assignedToMultiple: [],
-      selectedSlot: '' 
-    }); // Reset assignees and slot when project changes
-    
+    const resolvedProjectId = resolveEntityId(projectId);
+    const defaultProjectId = resolveEntityId(defaultProject);
+    const keepDefaultAssignee =
+      defaultAssignee &&
+      resolvedProjectId &&
+      resolvedProjectId === defaultProjectId;
+    const assigneeId = keepDefaultAssignee ? resolveEntityId(defaultAssignee) : '';
+    const keepDefaultSlot =
+      slotInfo?.slotId &&
+      resolvedProjectId &&
+      resolvedProjectId === defaultProjectId;
+    const slotId = keepDefaultSlot ? resolveEntityId(slotInfo.slotId) : '';
+
+    setFormData((prev) => ({
+      ...prev,
+      project: resolvedProjectId,
+      assignedTo: assigneeId,
+      assignedToMultiple: assigneeId ? [assigneeId] : [],
+      selectedSlot: slotId
+    }));
+
+    setSelectedUserForWorkload(assigneeId || null);
+
     if (projectId) {
-      // Find the selected project
-      const project = projects.find(p => p._id === projectId);
+      const project = resolveProjectRecord(projectId);
       setSelectedProject(project);
       
       if (project) {
-        // Get team member IDs from the project
-        // Handle both populated objects and raw IDs
-        const teamMemberIds = [];
-        
-        // Add assigned users
-        if (project.assignedUsers && Array.isArray(project.assignedUsers)) {
-          project.assignedUsers.forEach(u => {
-            const userId = u._id || u;
-            if (userId) teamMemberIds.push(userId.toString());
-          });
-        }
-        
-        // Add team members (newer structure with roles)
-        if (project.teamMembers && Array.isArray(project.teamMembers)) {
-          project.teamMembers.forEach(tm => {
-            const userId = tm.user?._id || tm.user;
-            if (userId) teamMemberIds.push(userId.toString());
-          });
-        }
-        
-        // Add project head
-        if (project.projectHead) {
-          const headId = project.projectHead._id || project.projectHead;
-          if (headId) teamMemberIds.push(headId.toString());
-        }
-        
-        // Check if we already have populated user objects in the project
-        const hasPopulatedUsers = project.assignedUsers?.some(u => u.name) || 
-                                  project.teamMembers?.some(tm => tm.user?.name) ||
-                                  project.projectHead?.name;
-        
-        if (hasPopulatedUsers && teamMemberIds.length > 0) {
-          // Use already populated user data from the project
-          const teamMembers = [];
-          
-          // Add assigned users
-          if (project.assignedUsers && Array.isArray(project.assignedUsers)) {
-            project.assignedUsers.forEach(u => {
-              if (u.name) teamMembers.push(u);
-            });
-          }
-          
-          // Add team members
-          if (project.teamMembers && Array.isArray(project.teamMembers)) {
-            project.teamMembers.forEach(tm => {
-              if (tm.user?.name && !teamMembers.find(u => u._id === tm.user._id)) {
-                teamMembers.push(tm.user);
-              }
-            });
-          }
-          
-          // Add project head
-          if (project.projectHead?.name && !teamMembers.find(u => u._id === project.projectHead._id)) {
-            teamMembers.push(project.projectHead);
-          }
-          
+        const teamMemberIds = collectTeamMemberIds(project);
+        let teamMembers = buildTeamMembersFromProject(project).filter((member) => member.name);
+
+        if (teamMembers.length > 0) {
+          teamMembers = ensureAssigneeInTeamMembers(teamMembers, assigneeId || defaultAssignee, project);
           setUsers(teamMembers);
           setAllUsers(teamMembers);
         } else {
-          // Load team members for this project
+          // Load team members for this project when roster is not populated
           try {
             setLoadingData(true);
             const usersRes = await userApi.getAllUsers({ status: 'active', limit: 1000 });
-            const allFetchedUsers = Array.isArray(usersRes) ? usersRes : (usersRes.data || usersRes.users || []);
+            const allFetchedUsers = Array.isArray(usersRes)
+              ? usersRes
+              : (usersRes.data || usersRes.users || []);
             
-            let teamMembers = [];
             if (teamMemberIds.length > 0) {
-              // Filter to project team members
-              teamMembers = allFetchedUsers.filter(u => {
-                const userId = u._id ? u._id.toString() : u.toString();
-                return teamMemberIds.includes(userId);
-              });
+              teamMembers = allFetchedUsers.filter((user) =>
+                teamMemberIds.includes(resolveEntityId(user._id))
+              );
             }
+
             // If still empty, show all users as fallback so assignment is always possible
             if (teamMembers.length === 0) {
               teamMembers = allFetchedUsers;
             }
+
+            teamMembers = ensureAssigneeInTeamMembers(
+              teamMembers,
+              assigneeId || defaultAssignee,
+              project
+            );
             
             setUsers(teamMembers);
             setAllUsers(allFetchedUsers);
           } catch (error) {
             console.error('Error loading team members:', error);
-            setUsers([]);
+            const fallbackMembers = ensureAssigneeInTeamMembers(
+              buildTeamMembersFromProject(project),
+              assigneeId || defaultAssignee,
+              project
+            );
+            setUsers(fallbackMembers);
+            setAllUsers(fallbackMembers);
           } finally {
             setLoadingData(false);
           }
@@ -248,7 +382,10 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
             const slotsResponse = await projectApi.getProjectSlots(projectId);
             const loadedSlots = slotsResponse.data || [];
             setSlots(loadedSlots);
-            initializeMonthsFromSlots(loadedSlots);
+            initializeMonthsFromSlots(
+              loadedSlots,
+              slotInfo || (slotId ? { slotId, periodIdentifier: slotInfo?.periodIdentifier } : null)
+            );
           } catch (error) {
             console.error('Error loading slots:', error);
             setSlots([]);
@@ -349,11 +486,8 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
         workItemData.assignedTo = formData.assignedTo;
       }
 
-      // Add slot assignment if provided
-      if (slotInfo) {
-        workItemData.assignToSlot = true;
-        workItemData.selectedSlot = slotInfo.slotId;
-      } else if (formData.selectedSlot) {
+      // Add slot assignment if selected in the form
+      if (formData.selectedSlot) {
         workItemData.assignToSlot = true;
         workItemData.selectedSlot = formData.selectedSlot;
       }
@@ -477,7 +611,7 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                 >
                   <option value="">Select project...</option>
                   {projects.map((project) => (
-                    <option key={project._id} value={project._id}>
+                    <option key={resolveEntityId(project._id)} value={resolveEntityId(project._id)}>
                       {project.name}
                     </option>
                   ))}
@@ -543,15 +677,17 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                       disabled={assigning || loadingData || !formData.project}
                     >
                       <option value="">
-                        {!formData.project 
-                          ? 'Select project first...' 
-                          : users.length === 0 
-                            ? 'No team members in this project'
-                            : 'Select team member...'}
+                        {!formData.project
+                          ? 'Select project first...'
+                          : loadingData
+                            ? 'Loading team members...'
+                            : users.length === 0
+                              ? 'No team members in this project'
+                              : 'Select team member...'}
                       </option>
                       {users.map((user) => (
-                        <option key={user._id} value={user._id}>
-                          {user.name}
+                        <option key={resolveEntityId(user._id)} value={resolveEntityId(user._id)}>
+                          {user.name || 'Team Member'}
                         </option>
                       ))}
                     </Form.Select>
@@ -617,17 +753,19 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                       disabled={assigning || loadingData || !formData.project}
                     >
                       <option value="">
-                        {!formData.project 
-                          ? 'Select project first...' 
-                          : users.length === 0 
-                            ? 'No team members in this project'
-                            : 'Add team member...'}
+                        {!formData.project
+                          ? 'Select project first...'
+                          : loadingData
+                            ? 'Loading team members...'
+                            : users.length === 0
+                              ? 'No team members in this project'
+                              : 'Add team member...'}
                       </option>
                       {users
-                        .filter(user => !formData.assignedToMultiple.includes(user._id))
+                        .filter(user => !formData.assignedToMultiple.includes(resolveEntityId(user._id)))
                         .map((user) => (
-                          <option key={user._id} value={user._id}>
-                            {user.name}
+                          <option key={resolveEntityId(user._id)} value={resolveEntityId(user._id)}>
+                            {user.name || 'Team Member'}
                           </option>
                         ))}
                     </Form.Select>
@@ -643,11 +781,8 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
               </Form.Group>
             </Col>
 
-            {/* Slot Selector - Only show if project has slots enabled and no slotInfo prop */}
-            {(() => {
-              const shouldShow = selectedProject?.slotConfiguration?.enableSlotSystem && !slotInfo;
-              return shouldShow;
-            })() && (
+            {/* Slot Selector - show when project has slots enabled */}
+            {selectedProject?.slotConfiguration?.enableSlotSystem && (
               <Col md={12} className="mb-3">
                 {/* Month Selector - Only show if multiple months available */}
                 {availableMonths.length > 1 && (
@@ -684,7 +819,7 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                       .filter(slot => !selectedMonth || slot.period?.periodIdentifier === selectedMonth)
                       .sort((a, b) => a.slotNumber - b.slotNumber)
                       .map((slot) => (
-                        <option key={slot._id} value={slot._id}>
+                        <option key={resolveEntityId(slot._id)} value={resolveEntityId(slot._id)}>
                           {slot.title || `Slot ${slot.slotNumber}`}
                         </option>
                       ))}
@@ -695,16 +830,6 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                       : 'Select a slot to assign this work to a specific project slot'}
                   </Form.Text>
                 </Form.Group>
-              </Col>
-            )}
-
-            {/* Show slot info if provided via prop */}
-            {slotInfo && (
-              <Col md={12} className="mb-3">
-                <div className="alert alert-info mb-0">
-                  <strong>Slot Assignment:</strong> This work will be assigned to Slot {slotInfo.slotNumber}
-                  {slotInfo.slotTitle && ` - ${slotInfo.slotTitle}`}
-                </div>
               </Col>
             )}
 

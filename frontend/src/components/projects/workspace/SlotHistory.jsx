@@ -504,6 +504,8 @@ const SlotHistory = ({ project, onRefresh, refreshKey }) => {
                         workItems={slotWorkItems}
                         isExpanded={expandedSlots[slot._id]}
                         onToggle={() => toggleSlotExpansion(slot._id)}
+                        canAssignWork={canManageSlots}
+                        onAssignWork={handleOpenAssignModal}
                       />
                       <Collapse in={expandedSlots[slot._id]} timeout={300}>
                         <div>
@@ -1002,13 +1004,18 @@ const SlotHistory = ({ project, onRefresh, refreshKey }) => {
       {/* Assign Work Modal */}
       <AssignWorkModal
         show={showAssignModal}
-        onHide={() => setShowAssignModal(false)}
+        onHide={() => {
+          setShowAssignModal(false);
+          setSelectedSlot(null);
+        }}
         onSuccess={handleAssignWorkSuccess}
-        defaultProject={project._id}
+        defaultProject={project}
         slotInfo={selectedSlot ? {
           slotId: selectedSlot._id,
           slotNumber: selectedSlot.slotNumber,
-          slotIdentifier: selectedSlot.slotIdentifier
+          slotTitle: selectedSlot.title,
+          slotIdentifier: selectedSlot.slotIdentifier,
+          periodIdentifier: selectedSlot.period?.periodIdentifier
         } : null}
       />
 

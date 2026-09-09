@@ -1,10 +1,17 @@
-import { Card, Badge, ProgressBar } from 'react-bootstrap';
-import { FaChevronDown, FaChevronRight } from 'react-icons/fa';
+import { Card, Badge, ProgressBar, Button } from 'react-bootstrap';
+import { FaChevronDown, FaChevronRight, FaPlusCircle } from 'react-icons/fa';
 
 /**
  * SlotGroupHeader - Display slot information with progress
  */
-const SlotGroupHeader = ({ slot, workItems = [], isExpanded, onToggle }) => {
+const SlotGroupHeader = ({
+  slot,
+  workItems = [],
+  isExpanded,
+  onToggle,
+  onAssignWork,
+  canAssignWork = false,
+}) => {
   const totalCount = workItems.length;
   const completedCount = workItems.filter(item => item.status === 'Done').length;
   const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
@@ -73,6 +80,21 @@ const SlotGroupHeader = ({ slot, workItems = [], isExpanded, onToggle }) => {
         </Badge>
       </div>
       <div className="d-flex align-items-center gap-3" style={{ minWidth: '400px' }}>
+        {canAssignWork && onAssignWork && (
+          <Button
+            variant="light"
+            size="sm"
+            className="flex-shrink-0 fw-semibold"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAssignWork(slot);
+            }}
+            title="Assign work to this slot"
+          >
+            <FaPlusCircle className="me-1" />
+            Assign Work
+          </Button>
+        )}
         <div className="flex-grow-1">
           <ProgressBar 
             now={percentage} 
