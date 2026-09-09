@@ -28,9 +28,9 @@ npm install
 npm run build
 cd ..
 
-# 4. Restart backend
+# 4. Restart backend (We Alll CRM only — wealll-backend is inventory, not CRM)
 echo "🔄 Restarting backend..."
-pm2 restart all
+pm2 restart wealll-office-backend
 pm2 save
 
 # 5. Reload nginx
