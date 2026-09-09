@@ -11,7 +11,6 @@ const ProjectCredentials = ({ projectId, canEdit }) => {
   const [showModal, setShowModal] = useState(false);
   const [visiblePasswords, setVisiblePasswords] = useState({});
   const [editingId, setEditingId] = useState(null);
-  const [canViewPassword, setCanViewPassword] = useState(false);
   const [accessUsers, setAccessUsers] = useState([]);
   
   const [formData, setFormData] = useState({
@@ -32,7 +31,6 @@ const ProjectCredentials = ({ projectId, canEdit }) => {
       const res = await projectApi.getProjectCredentials(projectId);
       if (res.success) {
         setCredentials(res.data);
-        setCanViewPassword(!!res.canViewPassword);
         setAccessUsers(res.accessUsers || []);
       }
     } catch (error) {
@@ -53,14 +51,15 @@ const ProjectCredentials = ({ projectId, canEdit }) => {
       setFormData({
         platform: cred.platform,
         url: cred.url || '',
-        username: cred.username,
-        password: canViewPassword ? cred.password : '',
+        username: '',
+        password: '',
         notes: cred.notes || ''
       });
     } else {
       setEditingId(null);
       setFormData({ platform: '', url: '', username: '', password: '', notes: '' });
     }
+    setVisiblePasswords((prev) => ({ ...prev, modal: false }));
     setShowModal(true);
   };
 
@@ -76,11 +75,16 @@ const ProjectCredentials = ({ projectId, canEdit }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const payload = { ...formData };
       if (editingId) {
-        await projectApi.updateProjectCredential(projectId, editingId, formData);
+        const credBeingEdited = credentials.find((cred) => cred._id === editingId);
+        if (!payload.username?.trim()) delete payload.username;
+        if (!payload.password?.trim() || !credBeingEdited?.canViewPassword) delete payload.password;
+        if (!payload.url?.trim()) payload.url = '';
+        await projectApi.updateProjectCredential(projectId, editingId, payload);
         toast.success('Credential updated successfully');
       } else {
-        await projectApi.addProjectCredential(projectId, formData);
+        await projectApi.addProjectCredential(projectId, payload);
         toast.success('Credential added successfully');
       }
       handleCloseModal();
@@ -115,6 +119,11 @@ const ProjectCredentials = ({ projectId, canEdit }) => {
     navigator.clipboard.writeText(text);
     toast.success(`${type} copied to clipboard!`);
   };
+
+  const editingCredential = editingId
+    ? credentials.find((cred) => cred._id === editingId)
+    : null;
+  const canEditPassword = !editingId || !!editingCredential?.canViewPassword;
 
   if (loading) {
     return <div className="text-center py-4">Loading credentials...</div>;
@@ -175,7 +184,7 @@ const ProjectCredentials = ({ projectId, canEdit }) => {
                       </div>
                     </td>
                     <td>
-                      {canViewPassword ? (
+                      {cred.canViewPassword ? (
                         <div className="d-flex align-items-center gap-2">
                           <InputGroup size="sm" style={{ width: '180px' }}>
                             <Form.Control
@@ -202,7 +211,9 @@ const ProjectCredentials = ({ projectId, canEdit }) => {
                           </Button>
                         </div>
                       ) : (
-                        <span className="text-muted">••••••••</span>
+                        <span className="text-muted" title="Only the user who saved this credential can view the password">
+                          ••••••••
+                        </span>
                       )}
                     </td>
                     <td style={{ maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={cred.notes || ''}>
@@ -238,7 +249,7 @@ const ProjectCredentials = ({ projectId, canEdit }) => {
 
       {/* Add/Edit Modal */}
       <Modal show={showModal} onHide={handleCloseModal}>
-        <Form onSubmit={handleSubmit}>
+        <Form onSubmit={handleSubmit} autoComplete="off">
           <Modal.Header closeButton>
             <Modal.Title>{editingId ? 'Edit Credential' : 'Add Credential'}</Modal.Title>
           </Modal.Header>
@@ -250,6 +261,7 @@ const ProjectCredentials = ({ projectId, canEdit }) => {
                 name="platform"
                 value={formData.platform}
                 onChange={handleChange}
+                autoComplete="off"
                 required 
               />
             </Form.Group>
@@ -257,12 +269,16 @@ const ProjectCredentials = ({ projectId, canEdit }) => {
             <Form.Group className="mb-3">
               <Form.Label>Login URL (Optional)</Form.Label>
               <Form.Control 
-                type="url" 
+                type="text" 
                 name="url"
                 value={formData.url}
                 onChange={handleChange}
-                placeholder="https://..."
+                autoComplete="off"
+                placeholder="https://... or any reference link"
               />
+              <Form.Text className="text-muted">
+                Optional. Any text or link is accepted — not required to be a full URL.
+              </Form.Text>
             </Form.Group>
 
             <Form.Group className="mb-3">
@@ -272,34 +288,45 @@ const ProjectCredentials = ({ projectId, canEdit }) => {
                 name="username"
                 value={formData.username}
                 onChange={handleChange}
-                required 
+                autoComplete="off"
+                required={!editingId}
+                placeholder={editingId ? 'Leave blank to keep current username' : ''}
               />
             </Form.Group>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Password {editingId && !canViewPassword && "(Hidden)"}</Form.Label>
-              <InputGroup>
-                <Form.Control 
-                  type={visiblePasswords['modal'] ? "text" : "password"}
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required={!editingId} 
-                  placeholder={editingId && !canViewPassword ? "Enter new password to change" : ""}
-                />
-                <Button 
-                  variant="outline-secondary" 
-                  onClick={() => togglePasswordVisibility('modal')}
-                >
-                  {visiblePasswords['modal'] ? <FaEyeSlash /> : <FaEye />}
-                </Button>
-              </InputGroup>
-              <Form.Text className="text-muted">
-                {editingId && !canViewPassword 
-                  ? "Leave blank to keep the current password. If entered, it will be securely encrypted in the database." 
-                  : "Password will be securely encrypted in the database."}
-              </Form.Text>
-            </Form.Group>
+            {canEditPassword ? (
+              <Form.Group className="mb-3">
+                <Form.Label>Password</Form.Label>
+                <InputGroup>
+                  <Form.Control 
+                    type={visiblePasswords['modal'] ? "text" : "password"}
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required={!editingId}
+                    autoComplete="new-password"
+                    placeholder={editingId ? 'Leave blank to keep current password' : ''}
+                  />
+                  <Button 
+                    type="button"
+                    variant="outline-secondary" 
+                    onClick={() => togglePasswordVisibility('modal')}
+                  >
+                    {visiblePasswords['modal'] ? <FaEyeSlash /> : <FaEye />}
+                  </Button>
+                </InputGroup>
+                <Form.Text className="text-muted">
+                  {editingId
+                    ? 'Leave blank to keep the current password. Only you can view or change passwords you saved.'
+                    : 'Password is encrypted. Only you will be able to view it after saving.'}
+                </Form.Text>
+              </Form.Group>
+            ) : (
+              <Form.Group className="mb-3">
+                <Form.Label>Password</Form.Label>
+                <Form.Control plaintext readOnly defaultValue="Hidden — only the user who saved this credential can view or change it." className="text-muted" />
+              </Form.Group>
+            )}
 
             <Form.Group className="mb-3">
               <Form.Label>Notes (Optional)</Form.Label>

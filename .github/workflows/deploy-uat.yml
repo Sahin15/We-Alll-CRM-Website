@@ -1,32 +1,38 @@
-name: Deploy UAT
-
-on:
-  push:
-    branches:
-      - staging
-  workflow_dispatch:
-
-concurrency:
-  group: deploy-uat
-  cancel-in-progress: false
-
-jobs:
-  deploy:
-    name: Deploy to uat.wealll.cloud
-    runs-on: ubuntu-latest
-    environment: uat
-    steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: 22
-          debug: true
-          command_timeout: 30m
-          script_stop: true
-          script: |
-            set -e
-            cd /root/crm-website-uat
-            bash deploy-uat.sh
+name: Deploy UAT
+
+on:
+  push:
+    branches:
+      - staging
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-uat
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to uat.wealll.cloud
+    runs-on: ubuntu-latest
+    environment: uat
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
+          debug: true
+          command_timeout: 30m
+          script_stop: true
+          script: |
+            set -e
+            cd /root/crm-website-uat
+            git fetch origin staging
+            git checkout staging 2>/dev/null || git checkout -B staging origin/staging
+            git reset --hard origin/staging
+            cp deploy/nginx/uat.wealll.cloud.conf /etc/nginx/sites-enabled/crm-uat
+            nginx -t
+            SKIP_GIT_SYNC=1 bash deploy-uat.sh
+
