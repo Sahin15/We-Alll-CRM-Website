@@ -1,0 +1,158 @@
+# Deployment runbook — Production & UAT
+
+## Overview
+
+| Environment | URL | Git branch | Server path | PM2 process | Backend port | MongoDB db |
+|-------------|-----|------------|-------------|-------------|--------------|------------|
+| Production | https://wealll.cloud | `main` | `/var/www/crm-app` | `crm-api` | 5000 | `crm-database` |
+| UAT | https://uat.wealll.cloud | `staging` | `/root/crm-website-uat` (git/build) · `/var/www/crm-uat/frontend/dist` (nginx) | `crm-uat-api` | 5001 | `crm-uat` |
+
+UAT uses **seeded dummy data only** — never mirror production MongoDB into UAT.
+
+---
+
+## CI (every PR)
+
+GitHub Actions workflow `.github/workflows/ci.yml` runs on PRs to `develop` and `main`:
+
+1. Backend unit tests (`npm test`)
+2. Authz catalog validation (`npm run authz:validate`)
+3. Frontend production build (`npm run build`)
+
+Enable branch protection per [`.github/BRANCH_PROTECTION.md`](../.github/BRANCH_PROTECTION.md).
+
+---
+
+## CD — UAT (automatic)
+
+**Trigger:** push to `staging`  
+**Workflow:** `.github/workflows/deploy-uat.yml`  
+**Script on VPS:** `bash deploy-uat.sh`
+
+### First-time UAT VPS setup
+
+1. **DNS:** Add `A` record `uat.wealll.cloud` → same VPS IP as production.
+
+2. **Clone app** (Hostinger VPS layout):
+   ```bash
+   git clone https://github.com/Sahin15/We-Alll-CRM-Website.git /root/crm-website-uat
+   cd /root/crm-website-uat
+   git checkout staging
+   mkdir -p /var/www/crm-uat/frontend/dist
+   ```
+
+3. **Backend env:** Copy template and edit on server only:
+   ```bash
+   cp backend/.env.uat.example backend/.env
+   # Set MONGO_URI .../crm-uat, unique JWT_SECRET, AWS keys, etc.
+   ```
+
+4. **MongoDB Atlas:** Create database `crm-uat` on the same cluster (different db name in URI).
+
+5. **PM2:**
+   ```bash
+   cd /root/crm-website-uat/backend
+   pm2 start src/server.js --name crm-uat-api
+   pm2 save
+   ```
+
+6. **nginx:** Use [`deploy/nginx/uat.wealll.cloud.conf`](../deploy/nginx/uat.wealll.cloud.conf) (installed as `crm-uat` on the VPS):
+   ```bash
+   sudo cp deploy/nginx/uat.wealll.cloud.conf /etc/nginx/sites-enabled/crm-uat
+   sudo certbot --nginx -d uat.wealll.cloud
+   sudo nginx -t && sudo systemctl reload nginx
+   ```
+
+7. **Build, publish static files & seed:**
+   ```bash
+   cd /root/crm-website-uat
+   bash deploy-uat.sh
+   cd backend && npm run seed:uat
+   ```
+
+8. **GitHub secrets** (repo or `uat` environment): `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`.
+
+### UAT safety flags
+
+Set on server `backend/.env`:
+
+- `APP_ENV=uat`
+- `PAYROLL_V2_ENGINE=false`
+- `PAYROLL_PERIOD_GATES=false`
+
+The app also suppresses outbound email and FCM when `APP_ENV=uat`. Frontend shows an orange UAT banner when built with `npm run build:uat`.
+
+### Refresh UAT seed data
+
+```bash
+cd /root/crm-website-uat/backend
+npm run seed:uat
+```
+
+### Manual UAT deploy (VPS)
+
+```bash
+cd /root/crm-website-uat
+bash deploy-uat.sh
+```
+
+`deploy-uat.sh` builds in `/root/crm-website-uat`, rsyncs `frontend/dist` to `/var/www/crm-uat/frontend/dist`, restarts PM2, and reloads nginx.
+
+Demo users use `@demo.wealll.local` emails. Password documented in internal runbook only (see seed script output on server).
+
+---
+
+## CD — Production (manual approval)
+
+**Trigger:** push to `main` (after GitHub Environment approval)  
+**Workflow:** `.github/workflows/deploy-production.yml`  
+**Script on VPS:** `bash deploy.sh`
+
+### GitHub Environment `production`
+
+- Add required reviewers under **Settings → Environments → production**
+- Same SSH secrets as UAT
+
+### Manual deploy (fallback)
+
+```bash
+ssh user@YOUR_VPS_IP
+cd /var/www/crm-app
+bash deploy.sh
+```
+
+---
+
+## Branch sync after production hotfixes
+
+When fixing directly on `main`:
+
+```bash
+git checkout develop && git merge origin/main && git push origin develop
+git checkout staging && git merge origin/develop && git push origin staging
+```
+
+---
+
+## Rollback
+
+1. Identify last good commit/tag on the target branch.
+2. On VPS, in the app directory:
+   ```bash
+   git fetch origin
+   git checkout <commit-sha>
+   bash deploy.sh    # or deploy-uat.sh for UAT
+   ```
+3. Fix forward on the branch and redeploy through normal CI/CD.
+
+---
+
+## Checklist after pipeline rollout
+
+- [ ] CI green on a test PR to `develop`
+- [ ] Branch protection enabled on `main` and `develop`
+- [ ] GitHub Environments `uat` and `production` configured
+- [ ] UAT DNS + SSL live
+- [ ] `crm-uat-api` running on port 5001
+- [ ] UAT seed script run once
+- [ ] Production deploy tested with approval gate

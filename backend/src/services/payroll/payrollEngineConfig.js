@@ -3,10 +3,13 @@
  * When false (default), dual-run may still log diffs but persisted slips use V1 amounts.
  */
 
+import { isUat } from "../../config/appEnvironment.js";
+
 /**
  * @returns {boolean}
  */
 export function isPayrollV2EngineEnabled() {
+  if (isUat()) return false;
   return String(process.env.PAYROLL_V2_ENGINE || "").toLowerCase() === "true";
 }
 

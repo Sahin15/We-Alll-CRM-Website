@@ -5,7 +5,11 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import logger from '../utils/logger.js';
 import { buildTextSearch } from '../utils/queryOptimizer.js';
-import { mergeExcludePastMembersFilter, mergeActiveEmployeeFilter } from '../utils/employeeQueryUtils.js';
+import {
+  mergeExcludePastMembersFilter,
+  mergeActiveEmployeeFilter,
+  isSystemAccessBlocked,
+} from '../utils/employeeQueryUtils.js';
 import { generateNextEmployeeId, normalizeEmployeeId, isValidEmployeeIdFormat, isEmployeeIdTaken } from '../services/employeeIdService.js';
 
 //generate token
@@ -224,6 +228,13 @@ export const loginUser = async (req, res) => {
     if (!isMatch) {
       logger.warn("Password mismatch for user:", user.email);
       return res.status(400).json({ message: "Invalid email or password" });
+    }
+
+    if (isSystemAccessBlocked(user)) {
+      logger.warn("Login blocked for deactivated user:", user.email, user.status);
+      return res.status(403).json({
+        message: "Your account has been deactivated. Please contact HR.",
+      });
     }
 
     const token = generateToken(user._id);

@@ -2,6 +2,7 @@ import Notification from '../models/notificationModel.js';
 import FCMToken from '../models/fcmTokenModel.js';
 import User from '../models/userModel.js';
 import { mergeExcludePastMembersFilter } from '../utils/employeeQueryUtils.js';
+import { isUat } from '../config/appEnvironment.js';
 
 class NotificationService {
   /**
@@ -64,7 +65,7 @@ class NotificationService {
       console.log('[NotificationService] ✅ Notification saved to database:', notification._id);
 
       // Send via Firebase Cloud Messaging if tokens exist
-      if (tokenList.length > 0) {
+      if (tokenList.length > 0 && !isUat()) {
         if (!messaging) {
           console.error('[NotificationService] ❌ Firebase messaging is NULL - notifications will not be sent');
           console.error('[NotificationService] Firebase initialized:', firebaseInitialized);
@@ -183,6 +184,8 @@ class NotificationService {
           console.error('[NotificationService] Error details:', error);
           console.error('[NotificationService] ========== SEND NOTIFICATION END (ERROR) ==========');
         }
+      } else if (tokenList.length > 0 && isUat()) {
+        console.log('[NotificationService] [UAT] FCM push suppressed — in-app record saved only');
       }
 
       return notification;

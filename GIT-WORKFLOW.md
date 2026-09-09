@@ -1,35 +1,52 @@
 # Git workflow — We Alll CRM
 
-Production (`wealll.cloud`) deploys **only** from `main`. The server should match the latest commit you intentionally deployed.
+Production (`wealll.cloud`) deploys from **`main`** with GitHub Actions approval.  
+UAT (`uat.wealll.cloud`) auto-deploys from **`staging`**.
 
-## Branches (after cleanup)
+Full deploy runbook: [`docs/CORE/DEPLOYMENT.md`](docs/CORE/DEPLOYMENT.md)
+
+## Branches
 
 | Branch | Purpose |
 |--------|---------|
-| `main` | Production-ready code only (matches last VPS deploy) |
-| `feature/hiring-management` | Hiring system + offer letters (WIP, not on main) |
-| `feature/hr-document-generator` | HR document PDF generation on employee profiles (WIP) |
-| `feature/mobile-responsive-platform` | Full mobile-first responsive platform (WIP, separate from hiring) |
-| `fix/profile-api-refresh-on-load` | Refresh `/users/me` on app load for profile pictures (ready to merge when you deploy) |
-| `backup/main-before-cleanup` | Snapshot of `main` before cleanup (2025) |
+| `main` | Production-ready code only |
+| `develop` | Integration branch for features |
+| `staging` | Pre-production / client UAT (deploys to uat.wealll.cloud) |
+| `feature/*` | Feature work |
+| `fix/*` | Bug fixes |
 
-**Note:** Hiring and HR documents were developed in overlapping commits (`31dfc0d`, `11b6798`). Both feature branches currently point to `11b6798`. Finish hiring first, merge to `main`, deploy, then finish HR docs (or merge both in one PR when both are ready).
+## Flow
 
-## Daily workflow
+```
+feature/fix → PR → develop → staging → (client UAT) → PR → main → production
+```
 
-### New feature
+1. Open PRs into `develop`. **CI must pass** (backend tests, authz validate, frontend build).
+2. Merge tested work `develop` → `staging`. Push triggers **automatic UAT deploy**.
+3. After client sign-off, merge `staging` → `main`. Push triggers **production deploy** (requires GitHub Environment approval).
+
+## After a production hotfix on `main`
+
+Sync downstream so UAT and develop stay current:
 
 ```bash
-git checkout main
-git pull origin main
+git checkout develop && git pull && git merge origin/main && git push origin develop
+git checkout staging && git pull && git merge origin/develop && git push origin staging
+```
+
+## New feature
+
+```bash
+git checkout develop
+git pull origin develop
 git checkout -b feature/your-feature-name
 # ... work, commit ...
 git push -u origin feature/your-feature-name
 ```
 
-Open a Pull Request on GitHub → merge to `main` only when tested.
+Open a Pull Request on GitHub → target **`develop`**.
 
-### Production bugfix
+## Production bugfix
 
 ```bash
 git checkout main
@@ -37,40 +54,36 @@ git pull origin main
 git checkout -b fix/short-description
 # ... fix, commit ...
 git push -u origin fix/short-description
-# merge to main → deploy on server
 ```
 
-### Deploy to Hostinger VPS
+Merge to `main` → approve production deploy → back-merge to `develop` and `staging` as above.
+
+## Deploy (automated)
+
+| Target | Trigger |
+|--------|---------|
+| UAT | Push to `staging` |
+| Production | Push to `main` + approver in GitHub Environment `production` |
+
+Manual fallback on VPS:
 
 ```bash
-ssh root@YOUR_VPS_IP
-cd ~/crm-website   # or /var/www/crm-app
-bash deploy.sh
+# Production
+cd /var/www/crm-app && bash deploy.sh
+
+# UAT
+cd /var/www/crm-uat && bash deploy-uat.sh
 ```
 
-## What was removed from `main`
+## UAT data
 
-These commits are **not** on `main` anymore (they live on feature/fix branches):
-
-- `31dfc0d` — Hiring Management System + offer letters
-- `11b6798` — Hiring HoD access + HR document module
-- `680bb34` — Profile API refresh on load → branch `fix/profile-api-refresh-on-load`
-
-Production baseline: `bc3e74e` — Fix profile picture display using direct S3 URLs
-
-## Merging a feature when ready
-
-```bash
-git checkout main
-git pull origin main
-git merge feature/hiring-management   # example
-git push origin main
-# then on VPS: bash deploy.sh
-```
+UAT uses an isolated MongoDB database (`crm-uat`) and **`npm run seed:uat`** dummy data.  
+**Do not** copy production database into UAT.
 
 ## Rules
 
 1. Do **not** push half-done features to `main`.
-2. Do **not** edit code only on the server — always merge via GitHub first.
+2. Do **not** edit code only on the server — merge via GitHub first.
 3. Keep `backend/.env` only on the server (never commit secrets).
-4. After frontend changes, the server must run `npm run build` (`deploy.sh` does this).
+4. After frontend changes, the server must run `npm run build` (`deploy.sh` / `deploy-uat.sh` do this).
+5. Enable branch protection per [`.github/BRANCH_PROTECTION.md`](.github/BRANCH_PROTECTION.md).

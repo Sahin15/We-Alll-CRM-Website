@@ -2,17 +2,59 @@ import { useState, useEffect } from "react";
 import {
   Card,
   Button,
-  Badge,
   Modal,
   Form,
-  Table,
   Spinner,
   Row,
   Col,
 } from "react-bootstrap";
-import { FaPlus, FaCalendarAlt, FaEdit, FaCheckCircle, FaTrash } from "react-icons/fa";
+import { FaPlus, FaCalendarAlt, FaTrash } from "react-icons/fa";
 import { toast } from "react-toastify";
 import projectMonthApi from "../../../api/projectMonthApi";
+
+/**
+ * @param {string} monthKey - YYYY-MM
+ * @returns {string}
+ */
+const getNextMonthKey = (monthKey) => {
+  const [yearStr, monthStr] = monthKey.split("-");
+  const date = new Date(Number(yearStr), Number(monthStr) - 1, 1);
+  date.setMonth(date.getMonth() + 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+};
+
+/**
+ * @param {string} monthKey - YYYY-MM
+ * @returns {string}
+ */
+const formatMonthKey = (monthKey) => {
+  const [yearStr, monthStr] = monthKey.split("-");
+  const date = new Date(Number(yearStr), Number(monthStr) - 1, 1);
+  return date.toLocaleString("default", { month: "long", year: "numeric" });
+};
+
+const MODAL_COPY = {
+  current: {
+    title: (monthKey) => `Add Goal for ${formatMonthKey(monthKey)}`,
+    label: "Goal *",
+    placeholder: "e.g., Increase social media engagement rate by 25%",
+    submit: "Add Goal",
+    submitting: "Adding goal...",
+    success: "Goal added successfully",
+    requiredError: "Goal title is required",
+    failure: "Failed to add goal",
+  },
+  next: {
+    title: (monthKey) => `Add Objective for ${formatMonthKey(getNextMonthKey(monthKey))}`,
+    label: "Objective *",
+    placeholder: "e.g., Launch paid ads campaign for the new service line",
+    submit: "Add Objective",
+    submitting: "Adding objective...",
+    success: "Objective added successfully",
+    requiredError: "Objective title is required",
+    failure: "Failed to add objective",
+  },
+};
 
 const MonthlyGoalsSection = ({ project, canEdit }) => {
   const projectId = project?._id || project?.id;
@@ -25,9 +67,24 @@ const MonthlyGoalsSection = ({ project, canEdit }) => {
 
   // Modal State
   const [showGoalModal, setShowGoalModal] = useState(false);
-  const [goalType, setGoalType] = useState("current"); // "current" or "next"
+  const [goalType, setGoalType] = useState("current"); // "current" | "next"
   const [goalTitle, setGoalTitle] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const modalCopy = MODAL_COPY[goalType] || MODAL_COPY.current;
+  const nextMonthKey = getNextMonthKey(selectedMonthKey);
+
+  const openEntryModal = (type) => {
+    setGoalType(type);
+    setGoalTitle("");
+    setShowGoalModal(true);
+  };
+
+  const closeEntryModal = () => {
+    setShowGoalModal(false);
+    setGoalTitle("");
+    setGoalType("current");
+  };
 
   useEffect(() => {
     if (projectId) {
@@ -93,37 +150,40 @@ const MonthlyGoalsSection = ({ project, canEdit }) => {
   const handleAddGoal = async (e) => {
     e.preventDefault();
     if (!goalTitle.trim()) {
-      toast.error("Goal title is required");
+      toast.error(modalCopy.requiredError);
+      return;
+    }
+    if (!projectMonth?._id) {
+      toast.error("Monthly record not loaded. Refresh and try again.");
       return;
     }
 
     setSaving(true);
     try {
-      const newGoal = {
-        title: goalTitle.trim(),
-        status: "open",
-      };
+      const newEntry =
+        goalType === "current"
+          ? { title: goalTitle.trim(), status: "open" }
+          : { title: goalTitle.trim() };
 
-      let updatedData = {};
-      if (goalType === "current") {
-        updatedData.goals = [...(projectMonth.goals || []), newGoal];
-      } else {
-        updatedData.nextMonthGoals = [
-          ...(projectMonth.nextMonthGoals || []),
-          newGoal,
-        ];
-      }
+      const updatedData =
+        goalType === "current"
+          ? { goals: [...(projectMonth.goals || []), newEntry] }
+          : { nextMonthGoals: [...(projectMonth.nextMonthGoals || []), newEntry] };
 
       const res = await projectMonthApi.updateProjectMonthGoals(
         projectMonth._id,
         updatedData
       );
       setProjectMonth(res.data.data);
-      toast.success("Goal added successfully");
-      setShowGoalModal(false);
-      setGoalTitle("");
+      toast.success(modalCopy.success);
+      closeEntryModal();
     } catch (error) {
-      toast.error("Failed to add goal");
+      console.error("Failed to add monthly entry:", error);
+      toast.error(
+        error.response?.data?.message ||
+          error.response?.data?.error ||
+          modalCopy.failure
+      );
     } finally {
       setSaving(false);
     }
@@ -224,16 +284,6 @@ const MonthlyGoalsSection = ({ project, canEdit }) => {
                 Review Report
               </Button>
             )}
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => {
-                setGoalType("current");
-                setShowGoalModal(true);
-              }}
-            >
-              <FaPlus className="me-1" /> Add Goal
-            </Button>
           </div>
         )}
       </Card.Header>
@@ -244,8 +294,17 @@ const MonthlyGoalsSection = ({ project, canEdit }) => {
             <div className="border rounded-3 p-3 bg-light">
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <h6 className="fw-bold mb-0 text-dark">
-                  Goals for {selectedMonthKey} ({currentGoals.length})
+                  Goals for {formatMonthKey(selectedMonthKey)} ({currentGoals.length})
                 </h6>
+                {canEdit && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => openEntryModal("current")}
+                  >
+                    <FaPlus className="me-1" /> Add Goal
+                  </Button>
+                )}
               </div>
               {currentGoals.length > 0 ? (
                 <div className="d-flex flex-column gap-2">
@@ -286,7 +345,7 @@ const MonthlyGoalsSection = ({ project, canEdit }) => {
                 </div>
               ) : (
                 <small className="text-muted d-block py-3 text-center">
-                  No monthly goals set for {selectedMonthKey}.
+                  No monthly goals set for {formatMonthKey(selectedMonthKey)}.
                 </small>
               )}
             </div>
@@ -297,16 +356,13 @@ const MonthlyGoalsSection = ({ project, canEdit }) => {
             <div className="border rounded-3 p-3 bg-light">
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <h6 className="fw-bold mb-0 text-dark">
-                  Next Month Objectives ({nextGoals.length})
+                  Objectives for {formatMonthKey(nextMonthKey)} ({nextGoals.length})
                 </h6>
                 {canEdit && (
                   <Button
                     variant="outline-primary"
                     size="sm"
-                    onClick={() => {
-                      setGoalType("next");
-                      setShowGoalModal(true);
-                    }}
+                    onClick={() => openEntryModal("next")}
                   >
                     <FaPlus className="me-1" /> Add Objective
                   </Button>
@@ -334,7 +390,7 @@ const MonthlyGoalsSection = ({ project, canEdit }) => {
                 </div>
               ) : (
                 <small className="text-muted d-block py-3 text-center">
-                  No next month objectives planned yet.
+                  No objectives planned yet for {formatMonthKey(nextMonthKey)}.
                 </small>
               )}
             </div>
@@ -342,34 +398,41 @@ const MonthlyGoalsSection = ({ project, canEdit }) => {
         </Row>
       </Card.Body>
 
-      {/* Goal Modal */}
-      <Modal show={showGoalModal} onHide={() => setShowGoalModal(false)}>
+      {/* Goal / Objective Modal */}
+      <Modal
+        key={`monthly-entry-${goalType}`}
+        show={showGoalModal}
+        onHide={closeEntryModal}
+      >
         <Modal.Header closeButton>
-          <Modal.Title>
-            {goalType === "current"
-              ? `Add Goal for ${selectedMonthKey}`
-              : "Add Next Month Objective"}
-          </Modal.Title>
+          <Modal.Title>{modalCopy.title(selectedMonthKey)}</Modal.Title>
         </Modal.Header>
         <Form onSubmit={handleAddGoal}>
           <Modal.Body>
             <Form.Group className="mb-3">
-              <Form.Label>Goal / Objective *</Form.Label>
+              <Form.Label>{modalCopy.label}</Form.Label>
               <Form.Control
                 type="text"
                 required
-                placeholder="e.g., Increase social media engagement rate by 25%"
+                autoFocus
+                placeholder={modalCopy.placeholder}
                 value={goalTitle}
                 onChange={(e) => setGoalTitle(e.target.value)}
               />
+              {goalType === "next" && (
+                <Form.Text className="text-muted">
+                  This objective applies to {formatMonthKey(nextMonthKey)}, the month after{" "}
+                  {formatMonthKey(selectedMonthKey)}.
+                </Form.Text>
+              )}
             </Form.Group>
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowGoalModal(false)}>
+            <Button variant="secondary" onClick={closeEntryModal}>
               Cancel
             </Button>
             <Button variant="primary" type="submit" disabled={saving}>
-              {saving ? "Adding..." : "Add Goal"}
+              {saving ? modalCopy.submitting : modalCopy.submit}
             </Button>
           </Modal.Footer>
         </Form>
