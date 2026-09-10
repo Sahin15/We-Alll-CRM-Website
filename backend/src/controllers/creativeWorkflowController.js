@@ -4,6 +4,7 @@ import * as creativePostingService from "../services/creativePostingService.js";
 import {
   assertCanReviewCreativeWork,
   assertCanPerformAssigneeAction,
+  canMarkCreativeDone,
   canSubmitPostingDone,
   loadProjectForCreativeAuth,
 } from "../utils/creativeWorkflowAuth.js";
@@ -43,6 +44,7 @@ export const startWork = async (req, res) => {
     return res.status(error.statusCode || 500).json({
       success: false,
       error: error.message || "Failed to start creative work",
+      activeWorkItem: error.activeWorkItem || undefined,
     });
   }
 };
@@ -115,6 +117,68 @@ export const startRework = async (req, res) => {
     return res.status(error.statusCode || 500).json({
       success: false,
       error: error.message || "Failed to start rework",
+      activeWorkItem: error.activeWorkItem || undefined,
+    });
+  }
+};
+
+/**
+ * POST /api/creative-workflow/:workItemId/hold
+ */
+export const holdWork = async (req, res) => {
+  try {
+    const { workItem } = await loadWorkItemContext(req.params.workItemId);
+    assertCanPerformAssigneeAction(req.user, workItem);
+
+    const result = await creativeWorkflowService.holdWork(
+      req.params.workItemId,
+      getActorId(req)
+    );
+    return res.json({ success: true, data: result });
+  } catch (error) {
+    console.error("creative holdWork failed:", error);
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      error: error.message || "Failed to hold work",
+    });
+  }
+};
+
+/**
+ * POST /api/creative-workflow/:workItemId/resume
+ */
+export const resumeWork = async (req, res) => {
+  try {
+    const { workItem } = await loadWorkItemContext(req.params.workItemId);
+    assertCanPerformAssigneeAction(req.user, workItem);
+
+    const result = await creativeWorkflowService.resumeWork(
+      req.params.workItemId,
+      getActorId(req)
+    );
+    return res.json({ success: true, data: result });
+  } catch (error) {
+    console.error("creative resumeWork failed:", error);
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      error: error.message || "Failed to resume work",
+      activeWorkItem: error.activeWorkItem || undefined,
+    });
+  }
+};
+
+/**
+ * GET /api/creative-workflow/my-active
+ */
+export const getMyActiveCreativeWork = async (req, res) => {
+  try {
+    const active = await creativeWorkflowService.getMyActiveCreativeWork(getActorId(req));
+    return res.json({ success: true, data: active });
+  } catch (error) {
+    console.error("creative getMyActiveCreativeWork failed:", error);
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      error: error.message || "Failed to load active creative work",
     });
   }
 };
@@ -179,7 +243,13 @@ export const markDelivered = async (req, res) => {
 export const closeTask = async (req, res) => {
   try {
     const { workItem, project } = await loadWorkItemContext(req.params.workItemId);
-    assertCanReviewCreativeWork(req.user, workItem, project);
+    if (!canMarkCreativeDone(req.user, workItem, project)) {
+      return res.status(403).json({
+        success: false,
+        error:
+          "Only the creative assignee, assigner, project head, or department HoD can mark this task done",
+      });
+    }
 
     const result = await creativeWorkflowService.closeTask(
       req.params.workItemId,
@@ -295,10 +365,10 @@ export const setPostingHandoff = async (req, res) => {
 export const submitPostingDone = async (req, res) => {
   try {
     const { workItem, project } = await loadWorkItemContext(req.params.workItemId);
-    if (!canSubmitPostingDone(req.user, workItem, project)) {
+    if (!canSubmitPostingDone(req.user, workItem)) {
       return res.status(403).json({
         success: false,
-        error: "Only the posting assignee or project reviewer can submit posting",
+        error: "Only the selected posting team member can submit live post links",
       });
     }
 

@@ -2,6 +2,7 @@
  * Department-Specific Workflow Configurations
  * Each department can have its own workflow, statuses, and UI requirements
  */
+import { resolveCanonicalDepartmentName } from "../constants/departmentNames.js";
 
 // Standard 4-stage workflow (default for all departments)
 export const STANDARD_WORKFLOW = {
@@ -325,23 +326,18 @@ export const getWorkflowConfig = (workflowType) => {
  * @returns {Object} - Workflow configuration
  */
 export const getWorkflowByDepartment = (departmentName) => {
+  const canonical = resolveCanonicalDepartmentName(departmentName) || departmentName;
   const departmentMap = {
     "Social Media": "social-media",
-    "Marketing": "social-media",
+    "Digital Marketing": "social-media",
     "Development": "development",
-    "Engineering": "development",
-    "Design": "design",
     "Graphics": "design",
-    "Video": "video-production",
     "Video Production": "video-production",
-    "Content": "content-writing",
     "Content Writing": "content-writing",
     "Posting": "posting",
-    "Posting Department": "posting",
-    "Content Posting": "posting",
   };
-  
-  const workflowType = departmentMap[departmentName] || "standard";
+
+  const workflowType = departmentMap[canonical] || "standard";
   return getWorkflowConfig(workflowType);
 };
 

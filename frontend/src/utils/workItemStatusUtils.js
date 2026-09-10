@@ -7,6 +7,7 @@ export const CREATIVE_ACTIVE_STATUSES = [
   'Assigned',
   'Backlog',
   'In Progress',
+  'On Hold',
   'Rework In Progress',
   'Submitted for Review',
   'Changes Requested',
@@ -50,6 +51,7 @@ export const getCreativeStatusBadgeVariant = (status) => {
     Assigned: 'secondary',
     Backlog: 'secondary',
     'In Progress': 'primary',
+    'On Hold': 'warning',
     'Rework In Progress': 'info',
     'Submitted for Review': 'warning',
     'Changes Requested': 'danger',
@@ -69,4 +71,4 @@ export {
   getCreativeStatusProgress,
   isCreativeWorkflowItem,
 } from './creativeWorkflowAccess';
-
+

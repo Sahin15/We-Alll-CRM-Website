@@ -2,15 +2,15 @@ import { useState, useMemo } from "react";
 import { Table, Button, Badge, Form, InputGroup, Row, Col, Card } from "react-bootstrap";
 import { FaPlus, FaSearch, FaEye, FaEdit, FaTrash, FaFilter } from "react-icons/fa";
 import { statusColors } from "../../data/mockSlots";
+import { resolveCanonicalDepartmentName } from "../../constants/departmentNames";
 
 const SlotList = ({ slots = [], onCreateSlot, onViewSlot, onEditSlot, onDeleteSlot, isProjectHead = false, project = null }) => {
-  
-  // Determine department type
-  const departmentName = project?.department?.name?.toLowerCase() || '';
-  const isDigitalMarketing = departmentName.includes('marketing');
-  const isDevelopment = departmentName.includes('development');
-  const isDesign = departmentName.includes('design');
-  const isVideo = departmentName.includes('video');
+  const canonicalDepartment = resolveCanonicalDepartmentName(project?.department?.name);
+  const isDigitalMarketing =
+    canonicalDepartment === "Digital Marketing" || canonicalDepartment === "Social Media";
+  const isDevelopment = canonicalDepartment === "Development";
+  const isDesign = canonicalDepartment === "Graphics";
+  const isVideo = canonicalDepartment === "Video Production";
   
   // Styles to prevent flickering
   const tableRowStyle = {

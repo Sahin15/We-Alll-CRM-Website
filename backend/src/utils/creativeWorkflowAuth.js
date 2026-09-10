@@ -83,17 +83,43 @@ export function isCreativeAssignee(user, workItem) {
 }
 
 /**
- * Posting assignee or creative reviewer.
+ * User selected to publish live post links.
+ * @param {object} user
+ * @param {object} workItem
+ */
+export function isPostingAssignee(user, workItem) {
+  const userId = resolveId(user?._id || user?.id);
+  if (!userId || !workItem) return false;
+  return resolveId(workItem.postingAssignedTo) === userId;
+}
+
+/**
+ * Only the posting team member submits live URLs — not reviewers.
+ * @param {object} user
+ * @param {object} workItem
+ */
+export function canSubmitPostingDone(user, workItem) {
+  return isPostingAssignee(user, workItem);
+}
+
+/**
+ * Mark Done (Closed): creative assignee, assigner, project head, or department HoD.
  * @param {object} user
  * @param {object} workItem
  * @param {object|null|undefined} project
  */
-export function canSubmitPostingDone(user, workItem, project) {
-  const userId = resolveId(user?._id || user?.id);
-  if (!userId || !workItem) return false;
-
-  if (resolveId(workItem.postingAssignedTo) === userId) return true;
-  return canPerformCreativeReview(user, workItem, project);
+export function canMarkCreativeDone(user, workItem, project) {
+  if (!workItem) return false;
+  const status = workItem.status;
+  if (workItem.requiresPosting) {
+    if (status !== "Posted") return false;
+  } else if (status !== "Delivered" && status !== "Posted") {
+    return false;
+  }
+  return (
+    isCreativeAssignee(user, workItem) ||
+    canPerformCreativeReview(user, workItem, project)
+  );
 }
 
 /**

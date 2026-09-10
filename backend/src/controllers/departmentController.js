@@ -5,6 +5,10 @@ import {
   isPastMember,
   mergeActiveEmployeeFilter,
 } from '../utils/employeeQueryUtils.js';
+import {
+  CANONICAL_DEPARTMENT_NAMES,
+  resolveCanonicalDepartmentName,
+} from "../constants/departmentNames.js";
 
 // Simple in-memory cache for departments (they rarely change)
 let departmentCache = null;
@@ -25,13 +29,23 @@ export const createDepartment = async (req, res) => {
       return res.status(400).json({ message: "Department name is required" });
     }
 
-    const existingDepartment = await Department.findOne({ name });
+    const canonicalName = resolveCanonicalDepartmentName(name);
+    if (!canonicalName) {
+      return res.status(400).json({
+        message: "Department name must be selected from the predefined list",
+        allowedNames: CANONICAL_DEPARTMENT_NAMES,
+      });
+    }
+
+    const existingDepartment = await Department.findOne({
+      name: { $regex: new RegExp(`^${canonicalName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+    });
     if (existingDepartment) {
       return res.status(400).json({ message: "Department already exists" });
     }
 
     const department = await Department.create({
-      name,
+      name: canonicalName,
       description,
       head,
     });
@@ -166,6 +180,27 @@ export const updateDepartment = async (req, res) => {
     const oldHeadId = existingDepartment.head?.toString();
     const newHeadId = head?.toString();
 
+    let resolvedName = existingDepartment.name;
+    if (name !== undefined && name !== null && String(name).trim() !== "") {
+      const canonicalName = resolveCanonicalDepartmentName(name);
+      if (!canonicalName) {
+        return res.status(400).json({
+          message: "Department name must be selected from the predefined list",
+          allowedNames: CANONICAL_DEPARTMENT_NAMES,
+        });
+      }
+      if (canonicalName.toLowerCase() !== existingDepartment.name.toLowerCase()) {
+        const duplicate = await Department.findOne({
+          _id: { $ne: req.params.id },
+          name: { $regex: new RegExp(`^${canonicalName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+        });
+        if (duplicate) {
+          return res.status(400).json({ message: "Department already exists" });
+        }
+      }
+      resolvedName = canonicalName;
+    }
+
     // If head is changing, update user roles
     if (oldHeadId !== newHeadId) {
       // Demote old head back to employee (only if they don't head another dept)
@@ -194,7 +229,7 @@ export const updateDepartment = async (req, res) => {
 
     const department = await Department.findByIdAndUpdate(
       req.params.id,
-      { name, description, head, status },
+      { name: resolvedName, description, head, status },
       { new: true, runValidators: true }
     );
 

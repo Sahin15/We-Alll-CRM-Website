@@ -31,6 +31,11 @@ import { useAuth } from '../../context/AuthContext';
 import workItemApi from '../../api/workItemApi';
 import projectApi from '../../api/projectApi';
 import userApi from '../../api/userApi';
+import {
+  getCreativeWorkflowTypeForDepartment,
+  isCreativeDepartmentName,
+  isPostingDepartmentName,
+} from '../../constants/departmentNames';
 
 /**
  * Professional Work Creation Modal
@@ -135,12 +140,6 @@ const ProfessionalWorkCreationModal = ({
     }
   }, []);
 
-  // Graphic / Video assignees only — these workflows need optional Posting handoff
-  const isCreativeDepartmentName = (name) => {
-    const n = String(name || '').toLowerCase();
-    return n.includes('graphic') || n.includes('video');
-  };
-
   const assigneeSupportsCreative = useMemo(() => {
     if (!formData.assignedTo) return false;
     const user = users.find((u) => String(u._id) === String(formData.assignedTo));
@@ -150,10 +149,7 @@ const ProfessionalWorkCreationModal = ({
   const showPostingHandoff = assigneeSupportsCreative;
 
   const postingDepartmentUsers = useMemo(() => {
-    return users.filter((u) => {
-      const name = (u.department?.name || '').toLowerCase();
-      return name.includes('posting');
-    });
+    return users.filter((u) => isPostingDepartmentName(u.department?.name));
   }, [users]);
 
   const availableUsers = useMemo(() => {
@@ -499,20 +495,23 @@ const ProfessionalWorkCreationModal = ({
 
       if (showPostingHandoff) {
         workItemData.workflowMode = 'creative';
-        const deptNames = [];
+        const deptNameSources = [];
         if (Array.isArray(selectedProject?.departments)) {
           selectedProject.departments.forEach((d) => {
-            if (typeof d === 'object' && d?.name) deptNames.push(d.name.toLowerCase());
+            if (typeof d === 'object' && d?.name) deptNameSources.push(d.name);
           });
         }
         if (selectedProject?.department?.name) {
-          deptNames.push(String(selectedProject.department.name).toLowerCase());
+          deptNameSources.push(selectedProject.department.name);
         }
         const assignee = users.find((u) => String(u._id) === String(formData.assignedTo));
         if (assignee?.department?.name) {
-          deptNames.push(String(assignee.department.name).toLowerCase());
+          deptNameSources.push(assignee.department.name);
         }
-        workItemData.workflowType = deptNames.some((n) => n.includes('video'))
+        const workflowTypes = deptNameSources
+          .map((name) => getCreativeWorkflowTypeForDepartment(name))
+          .filter(Boolean);
+        workItemData.workflowType = workflowTypes.includes('video-production')
           ? 'video-production'
           : 'design';
         workItemData.requiresPosting = Boolean(formData.requiresPosting);

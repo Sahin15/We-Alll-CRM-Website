@@ -40,6 +40,11 @@ const getMyWorkItems = async (req, res) => {
       $or: [
         { assignedTo: userRef },
         { assignedToMultiple: userRef },
+        {
+          requiresPosting: true,
+          postingAssignedTo: userRef,
+          status: { $nin: ["Closed", "Cancelled"] },
+        },
       ],
     };
     
@@ -91,6 +96,7 @@ const getMyWorkItems = async (req, res) => {
       })
       .populate("assignedTo", "name email")
       .populate("assignedToMultiple", "name email")
+      .populate("postingAssignedTo", "name email designation")
       .populate("createdBy", "name email")
       .populate("assigneeStatuses.assigneeId", "name email")
       .select("-comments -statusHistory -attachments")
@@ -284,6 +290,7 @@ const getWorkItemById = async (req, res) => {
       })
       .populate("assignedTo", "name email designation")
       .populate("assignedToMultiple", "name email designation")
+      .populate("postingAssignedTo", "name email designation department")
       .populate("createdBy", "name email")
       .populate("comments.user", "name email")
       .populate("attachments.uploadedBy", "name email")
@@ -304,6 +311,11 @@ const getWorkItemById = async (req, res) => {
     // Handle null assignedTo for draft items
     const isAssigned = workItem.assignedTo?._id?.toString() === req.user._id.toString() ||
                        (workItem.assignedToMultiple && workItem.assignedToMultiple.some(a => a._id.toString() === req.user._id.toString()));
+    const isPostingAssignee =
+      workItem.requiresPosting &&
+      workItem.postingAssignedTo &&
+      (workItem.postingAssignedTo._id?.toString() || String(workItem.postingAssignedTo)) ===
+        req.user._id.toString();
     const isCreator = workItem.createdBy._id.toString() === req.user._id.toString();
     const isProjectMember = await Project.findOne({
       _id: workItem.project._id,
@@ -314,7 +326,7 @@ const getWorkItemById = async (req, res) => {
     });
     const isAdmin = ["admin", "superadmin", "hr", "manager", "hod"].includes(req.user.role);
     
-    if (!isAssigned && !isCreator && !isProjectMember && !isAdmin) {
+    if (!isAssigned && !isCreator && !isPostingAssignee && !isProjectMember && !isAdmin) {
       // Log security event
       logSecurityEvent("UNAUTHORIZED_ACCESS_ATTEMPT", {
         userId: req.user._id.toString(),
@@ -704,6 +716,22 @@ const createWorkItem = async (req, res) => {
             },
             actionUrl: `/work-items/${workItem._id}`,
             senderId: req.user._id,
+          }
+        );
+      }
+
+      if (workItem.requiresPosting && workItem.postingAssignedTo) {
+        const postingDateLabel = workItem.postingDate
+          ? new Date(workItem.postingDate).toISOString().slice(0, 10)
+          : "TBD";
+        await NotificationService.sendToUser(
+          workItem.postingAssignedTo,
+          "Assigned for posting",
+          `You were selected to post "${workItem.title}" (scheduled ${postingDateLabel}).`,
+          {
+            type: "work_assignment",
+            relatedEntity: "workItem",
+            relatedEntityId: workItem._id,
           }
         );
       }

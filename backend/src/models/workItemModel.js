@@ -418,6 +418,23 @@ const workItemSchema = new mongoose.Schema(
       ref: "User",
       default: null,
     },
+
+    // Creative workflow hold (assignee pause for priority work)
+    holdPreviousStatus: {
+      type: String,
+      default: null,
+    },
+    heldAt: {
+      type: Date,
+      default: null,
+    },
+    holdResumeLog: [
+      {
+        heldAt: { type: Date, required: true },
+        resumedAt: { type: Date, default: null },
+        heldBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      },
+    ],
     
     // Advanced Workflow Stage Management
     currentStage: {

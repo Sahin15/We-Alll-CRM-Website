@@ -6,6 +6,9 @@ import {
   submitForReview,
   recordReview,
   startRework,
+  holdWork,
+  resumeWork,
+  getMyActiveCreativeWork,
   recordQa,
   markDelivered,
   closeTask,
@@ -40,12 +43,15 @@ router.use(protect);
 // Static paths before /:workItemId routes
 router.get("/change-counts", creativeAccess, getChangeRequestCounts);
 router.post("/change-counts", creativeAccess, getChangeRequestCounts);
+router.get("/my-active", creativeAccess, getMyActiveCreativeWork);
 
 router.get("/:workItemId/revisions", creativeAccess, listRevisions);
 router.post("/:workItemId/start", creativeManage, startWork);
 router.post("/:workItemId/submit-review", creativeManage, submitForReview);
 router.post("/:workItemId/review", creativeManage, recordReview);
 router.post("/:workItemId/rework", creativeManage, startRework);
+router.post("/:workItemId/hold", creativeManage, holdWork);
+router.post("/:workItemId/resume", creativeManage, resumeWork);
 router.post("/:workItemId/qa", creativeManage, recordQa);
 router.post("/:workItemId/deliver", creativeManage, markDelivered);
 router.post("/:workItemId/close", creativeManage, closeTask);

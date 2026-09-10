@@ -3,54 +3,54 @@ import { Modal, Form, Button, Row, Col, Badge, Alert, Spinner } from "react-boot
 import { FaSave, FaTimes, FaPlus, FaTrash } from "react-icons/fa";
 import { WorkloadCard, WorkloadWarning } from "../workload";
 import { getBatchWorkload } from "../../api/workloadApi";
+import { resolveCanonicalDepartmentName } from "../../constants/departmentNames";
 
-// Work types by category - mapped to department names
+// Work types by canonical department name
 const defaultWorkTypesByCategory = {
   "Digital Marketing": ["Social Media Post", "Campaign", "Ad Creative", "Content Writing"],
+  "Social Media": ["Social Media Post", "Campaign", "Ad Creative", "Content Writing"],
   "Development": ["Feature Development", "Bug Fix", "Code Review", "Testing", "Deployment"],
-  "Design": ["Logo Design", "Banner Design", "Brochure Design", "UI/UX Design", "Illustration"],
-  "Video": ["Video Editing", "Animation", "Motion Graphics", "Filming", "Post Production"],
+  "Graphics": ["Logo Design", "Banner Design", "Brochure Design", "UI/UX Design", "Illustration"],
   "Video Production": ["Video Editing", "Animation", "Motion Graphics", "Filming", "Post Production"],
-  "General": ["Research", "Documentation", "Meeting", "Training", "Other"]
-};
-
-// Department name mapping (handles variations)
-const departmentMapping = {
-  "digital marketing": "Digital Marketing",
-  "development": "Development",
-  "design": "Design",
-  "video": "Video",
-  "video production": "Video Production",
-  "general": "General"
+  "Content Writing": ["Blog Post", "Article", "Copywriting", "Script", "Newsletter"],
+  "General": ["Research", "Documentation", "Meeting", "Training", "Other"],
 };
 
 // Department-specific fields configuration
 const departmentFieldsConfig = {
   "Digital Marketing": {
     showSocialMediaFields: true,
-    customFields: ["postType", "platforms", "contentBucket", "occasion", "caption", "hashtags", "postingDate"]
+    customFields: ["postType", "platforms", "contentBucket", "occasion", "caption", "hashtags", "postingDate"],
+  },
+  "Social Media": {
+    showSocialMediaFields: true,
+    customFields: ["postType", "platforms", "contentBucket", "occasion", "caption", "hashtags", "postingDate"],
   },
   "Development": {
     showSocialMediaFields: false,
-    customFields: ["repository", "branch", "pullRequestUrl", "estimatedHours", "techStack"]
+    customFields: ["repository", "branch", "pullRequestUrl", "estimatedHours", "techStack"],
   },
-  "Design": {
+  "Graphics": {
     showSocialMediaFields: false,
-    customFields: ["designType", "dimensions", "fileFormat", "colorScheme", "revisions"]
-  },
-  "Video": {
-    showSocialMediaFields: false,
-    customFields: ["videoType", "duration", "resolution", "aspectRatio", "deliveryFormat"]
+    customFields: ["designType", "dimensions", "fileFormat", "colorScheme", "revisions"],
   },
   "Video Production": {
     showSocialMediaFields: false,
-    customFields: ["videoType", "duration", "resolution", "aspectRatio", "deliveryFormat"]
+    customFields: ["videoType", "duration", "resolution", "aspectRatio", "deliveryFormat"],
+  },
+  "Content Writing": {
+    showSocialMediaFields: false,
+    customFields: [],
   },
   "General": {
     showSocialMediaFields: false,
-    customFields: []
-  }
+    customFields: [],
+  },
 };
+
+/** @param {object|null|undefined} project */
+const getProjectCanonicalDepartment = (project) =>
+  resolveCanonicalDepartmentName(project?.department?.name);
 
 // Flatten all work types
 const allWorkTypes = Object.values(defaultWorkTypesByCategory).flat();
@@ -84,9 +84,8 @@ const CreateWorkAssignmentForm = ({ show, onHide, onSubmit, project, employees =
       return { ...defaultWorkTypesByCategory, ...customWorkTypes }; // Show all if no department
     }
     
-    const deptName = project.department.name.toLowerCase();
-    const mappedDept = departmentMapping[deptName];
-    
+    const mappedDept = getProjectCanonicalDepartment(project);
+
     if (mappedDept && defaultWorkTypesByCategory[mappedDept]) {
       // Return only department-specific work types + General + custom types for this department
       const deptCustomTypes = customWorkTypes[mappedDept] || [];
@@ -111,9 +110,8 @@ const CreateWorkAssignmentForm = ({ show, onHide, onSubmit, project, employees =
       return departmentFieldsConfig["General"];
     }
     
-    const deptName = project.department.name.toLowerCase();
-    const mappedDept = departmentMapping[deptName];
-    
+    const mappedDept = getProjectCanonicalDepartment(project);
+
     return departmentFieldsConfig[mappedDept] || departmentFieldsConfig["General"];
   };
 
@@ -336,7 +334,7 @@ const CreateWorkAssignmentForm = ({ show, onHide, onSubmit, project, employees =
     }
     
     // Add development fields if applicable
-    if (project?.department?.name?.toLowerCase() === 'development') {
+    if (getProjectCanonicalDepartment(project) === "Development") {
       cleanedData.metadata.repository = formData.repository;
       cleanedData.metadata.branch = formData.branch;
       cleanedData.metadata.pullRequestUrl = formData.pullRequestUrl;
@@ -345,7 +343,7 @@ const CreateWorkAssignmentForm = ({ show, onHide, onSubmit, project, employees =
     }
     
     // Add design fields if applicable
-    if (project?.department?.name?.toLowerCase() === 'design') {
+    if (getProjectCanonicalDepartment(project) === "Graphics") {
       cleanedData.metadata.designType = formData.designType;
       cleanedData.metadata.dimensions = formData.dimensions;
       cleanedData.metadata.fileFormat = formData.fileFormat;
@@ -354,8 +352,7 @@ const CreateWorkAssignmentForm = ({ show, onHide, onSubmit, project, employees =
     }
     
     // Add video fields if applicable
-    if (project?.department?.name?.toLowerCase() === 'video' || 
-        project?.department?.name?.toLowerCase() === 'video production') {
+    if (getProjectCanonicalDepartment(project) === "Video Production") {
       cleanedData.metadata.videoType = formData.videoType;
       cleanedData.metadata.duration = formData.duration;
       cleanedData.metadata.resolution = formData.resolution;
@@ -670,7 +667,7 @@ const CreateWorkAssignmentForm = ({ show, onHide, onSubmit, project, employees =
             )}
 
             {/* Development Specific Fields */}
-            {project?.department?.name?.toLowerCase() === 'development' && (
+            {getProjectCanonicalDepartment(project) === "Development" && (
               <>
                 <Col md={12}>
                   <hr />
@@ -758,11 +755,11 @@ const CreateWorkAssignmentForm = ({ show, onHide, onSubmit, project, employees =
             )}
 
             {/* Design Specific Fields */}
-            {project?.department?.name?.toLowerCase() === 'design' && (
+            {getProjectCanonicalDepartment(project) === "Graphics" && (
               <>
                 <Col md={12}>
                   <hr />
-                  <h6 className="text-muted">Design Details</h6>
+                  <h6 className="text-muted">Graphics Details</h6>
                 </Col>
 
                 {/* Design Type */}
@@ -847,8 +844,7 @@ const CreateWorkAssignmentForm = ({ show, onHide, onSubmit, project, employees =
             )}
 
             {/* Video Specific Fields */}
-            {(project?.department?.name?.toLowerCase() === 'video' || 
-              project?.department?.name?.toLowerCase() === 'video production') && (
+            {getProjectCanonicalDepartment(project) === "Video Production" && (
               <>
                 <Col md={12}>
                   <hr />
@@ -1176,8 +1172,8 @@ const CreateWorkAssignmentForm = ({ show, onHide, onSubmit, project, employees =
             variant="primary" 
             onClick={() => {
               if (newWorkTypeName.trim()) {
-                const deptName = project?.department?.name;
-                const mappedDept = departmentMapping[deptName?.toLowerCase()] || deptName;
+                const mappedDept =
+                  getProjectCanonicalDepartment(project) || project?.department?.name;
                 
                 setCustomWorkTypes(prev => ({
                   ...prev,

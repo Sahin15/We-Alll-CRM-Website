@@ -111,6 +111,21 @@ export function isWorkItemAssignedToUser(workItem, userId) {
   return getWorkItemAssigneeIds(workItem).includes(uid);
 }
 
+const POSTING_ASSIGNEE_EXCLUDED_STATUSES = new Set(["Closed", "Cancelled"]);
+
+/**
+ * Whether the user is the posting handoff assignee (visible in My Work from handoff onward).
+ * @param {object|null|undefined} workItem
+ * @param {import('mongoose').Types.ObjectId | string|null|undefined} userId
+ * @returns {boolean}
+ */
+export function isPostingAssigneeForMyWork(workItem, userId) {
+  const uid = normalizeId(userId);
+  if (!workItem?.requiresPosting || !uid) return false;
+  if (normalizeId(workItem.postingAssignedTo) !== uid) return false;
+  return !POSTING_ASSIGNEE_EXCLUDED_STATUSES.has(workItem.status);
+}
+
 /**
  * My Work: assigned to me AND not work I created for other team members.
  * @param {object|null|undefined} workItem
@@ -120,6 +135,10 @@ export function isWorkItemAssignedToUser(workItem, userId) {
 export function isWorkItemForMyWork(workItem, userId) {
   const uid = normalizeId(userId);
   if (!workItem || !uid) return false;
+
+  if (isPostingAssigneeForMyWork(workItem, userId)) {
+    return true;
+  }
 
   const assigneeIds = getWorkItemAssigneeIds(workItem);
   if (!assigneeIds.includes(uid)) return false;

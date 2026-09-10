@@ -58,6 +58,7 @@ const WorkItemDetailsModal = ({
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancellationReason, setCancellationReason] = useState('');
   const [creativeRevisions, setCreativeRevisions] = useState([]);
+  const [creativeRevisionsLoading, setCreativeRevisionsLoading] = useState(false);
 
   const loadFullWorkItem = async () => {
     if (!workItemProp?._id) return null;
@@ -200,7 +201,7 @@ const WorkItemDetailsModal = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reload on open / id only
   }, [show, workItemProp?._id]);
 
-  // Load creative revisions for activity timeline (who requested changes, when)
+  // Single revisions fetch for panel + activity tab (panel does not fetch again when controlled)
   React.useEffect(() => {
     const source = fullWorkItem || workItemProp;
     const isCreative =
@@ -209,32 +210,25 @@ const WorkItemDetailsModal = ({
       source?.workflowType === 'video-production';
     if (!show || !source?._id || !isCreative) {
       setCreativeRevisions([]);
+      setCreativeRevisionsLoading(false);
       return;
     }
     let cancelled = false;
+    setCreativeRevisionsLoading(true);
     (async () => {
       try {
         const res = await creativeWorkflowApi.listRevisions(source._id);
         if (!cancelled) setCreativeRevisions(res.data || []);
       } catch (error) {
         if (!cancelled) setCreativeRevisions([]);
+      } finally {
+        if (!cancelled) setCreativeRevisionsLoading(false);
       }
     })();
     return () => {
       cancelled = true;
     };
   }, [show, workItemProp?._id, fullWorkItem?.workflowMode, fullWorkItem?.workflowType]);
-
-  /** Refresh timeline revisions without remounting the modal or reloading the page. */
-  const refreshCreativeTimeline = async (workItemId) => {
-    if (!workItemId) return;
-    try {
-      const res = await creativeWorkflowApi.listRevisions(workItemId);
-      setCreativeRevisions(res.data || []);
-    } catch {
-      setCreativeRevisions([]);
-    }
-  };
 
   /**
    * After creative workflow actions: update modal state only — never trigger parent page loading.
@@ -245,20 +239,34 @@ const WorkItemDetailsModal = ({
     if (partial?._id) {
       setFullWorkItem((prev) => {
         const base = prev || workItemProp;
-        return { ...base, ...partial };
+        const merged = { ...base, ...partial };
+        if (partial.status && partial.status !== base.status) {
+          const history = [...(base.statusHistory || [])];
+          const last = history[history.length - 1];
+          const nextStatus = partial.status;
+          if (!last || last.status !== nextStatus) {
+            history.push({
+              status: nextStatus,
+              toStatus: nextStatus,
+              changedAt: new Date().toISOString(),
+              changedBy: currentUser?._id ? currentUser : undefined,
+            });
+          }
+          merged.statusHistory = history;
+        }
+        return merged;
       });
       if (partial.status) {
         setStatus(getUserStatus({ ...(fullWorkItem || workItemProp), ...partial }) || partial.status);
       }
     }
 
-    const full = await loadFullWorkItem();
-    await refreshCreativeTimeline(workItemProp?._id);
-
-    const synced = full || (partial?._id ? { ...(fullWorkItem || workItemProp), ...partial } : null);
-    if (synced && typeof onWorkItemSync === 'function') {
-      onWorkItemSync(synced);
-    }
+    // Background sync for authoritative statusHistory; revisions stay in panel state
+    loadFullWorkItem().then((full) => {
+      if (full && typeof onWorkItemSync === 'function') {
+        onWorkItemSync(full);
+      }
+    });
   };
 
   // Fetch all team members for mentions (project members + HR/Manager/Admin/SuperAdmin)
@@ -381,6 +389,7 @@ const WorkItemDetailsModal = ({
       'Backlog': 'secondary',
       'Assigned': 'secondary',
       'In Progress': 'primary',
+      'On Hold': 'warning',
       'Rework In Progress': 'primary',
       'Review': 'warning',
       'Submitted for Review': 'warning',
@@ -605,6 +614,9 @@ const WorkItemDetailsModal = ({
               project={workItem.project}
               currentUser={currentUser}
               onUpdated={handleCreativeWorkflowUpdated}
+              revisions={creativeRevisions}
+              revisionsLoading={creativeRevisionsLoading}
+              onRevisionsChange={setCreativeRevisions}
             />
           </div>
         )}
@@ -1223,6 +1235,25 @@ const WorkItemDetailsModal = ({
                     <Badge bg={getCreativeStatusBadgeVariant(workItem.status)} className="px-3 py-2">
                       {workItem.status}
                     </Badge>
+                    {workItem.requiresPosting && (
+                      <div className="mt-3 p-2 rounded border bg-light">
+                        <small className="text-muted d-block fw-semibold">Posting handoff</small>
+                        <small className="d-block">
+                          Posting team member:{' '}
+                          <strong>
+                            {workItem.postingAssignedTo?.name ||
+                              workItem.postingAssignedTo?.email ||
+                              'Not assigned'}
+                          </strong>
+                        </small>
+                        {workItem.postingDate && (
+                          <small className="d-block text-muted">
+                            Scheduled posting date:{' '}
+                            {formatDate(workItem.postingDate)}
+                          </small>
+                        )}
+                      </div>
+                    )}
                     <small className="text-muted d-block mt-2">
                       Use the Creative Workflow panel above for all status changes (except Cancel via admin paths).
                     </small>

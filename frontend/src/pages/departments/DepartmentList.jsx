@@ -50,6 +50,11 @@ import { userApi } from "../../api/userApi";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { PAGE_ACCESS, checkPageAccess } from "../../constants/pageAccess";
+import {
+  getAvailableDepartmentNames,
+  getDepartmentNameOptions,
+  resolveCanonicalDepartmentName,
+} from "../../constants/departmentNames";
 import "./DepartmentList.css";
 
 const DepartmentList = () => {
@@ -88,6 +93,10 @@ const DepartmentList = () => {
   const [memberToAdd, setMemberToAdd] = useState("");
   const [memberActionLoading, setMemberActionLoading] = useState(false);
   const navigate = useNavigate();
+
+  const existingDepartmentNames = departments.map((dept) => dept.name);
+  const availableDepartmentNames = getAvailableDepartmentNames(existingDepartmentNames);
+  const departmentNameOptions = getDepartmentNameOptions(existingDepartmentNames);
 
   useEffect(() => {
     fetchDepartments();
@@ -226,7 +235,8 @@ const DepartmentList = () => {
       setEditMode(true);
       setCurrentDepartment(department);
       setFormData({
-        name: department.name,
+        name:
+          resolveCanonicalDepartmentName(department.name) || department.name,
         description: department.description || "",
         head: department.head?._id || "",
         status: department.status,
@@ -960,14 +970,62 @@ const DepartmentList = () => {
           <Modal.Body>
             <Form.Group className="mb-3">
               <Form.Label>Department Name *</Form.Label>
-              <Form.Control
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                required
-                placeholder="Enter department name"
-              />
+              {editMode ? (
+                <>
+                  <Form.Select
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    required
+                  >
+                    {!formData.name && (
+                      <option value="">Select department</option>
+                    )}
+                    {departmentNameOptions.map((deptName) => (
+                      <option key={deptName} value={deptName}>
+                        {deptName}
+                      </option>
+                    ))}
+                  </Form.Select>
+                  <Form.Text className="text-muted">
+                    Choose from predefined department names only — required for
+                    workflow and access filters.
+                  </Form.Text>
+                </>
+              ) : availableDepartmentNames.length > 0 ? (
+                <>
+                  <Form.Select
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    required
+                  >
+                    <option value="">Select department</option>
+                    {availableDepartmentNames.map((deptName) => (
+                      <option key={deptName} value={deptName}>
+                        {deptName}
+                      </option>
+                    ))}
+                  </Form.Select>
+                  <Form.Text className="text-muted">
+                    {availableDepartmentNames.length} predefined department
+                    {availableDepartmentNames.length === 1 ? "" : "s"} available
+                    to create.
+                  </Form.Text>
+                </>
+              ) : (
+                <>
+                  <Form.Control
+                    type="text"
+                    value="All predefined departments already exist"
+                    disabled
+                  />
+                  <Form.Text className="text-muted">
+                    Every standard department is already in the system. Edit an
+                    existing department or contact support if a new type is needed.
+                  </Form.Text>
+                </>
+              )}
             </Form.Group>
 
             <Form.Group className="mb-3">
@@ -1022,7 +1080,11 @@ const DepartmentList = () => {
             <Button variant="secondary" onClick={handleCloseModal}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
+            <Button
+              variant="primary"
+              type="submit"
+              disabled={!editMode && availableDepartmentNames.length === 0}
+            >
               {editMode ? "Update Department" : "Create Department"}
             </Button>
           </Modal.Footer>

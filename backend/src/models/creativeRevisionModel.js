@@ -73,6 +73,23 @@ const creativeRevisionSchema = new mongoose.Schema(
     attachments: [creativeRevisionAttachmentSchema],
     estimatedHours: { type: Number, min: 0, default: 0 },
     actualHours: { type: Number, min: 0, default: 0 },
+    timeTracking: {
+      workStartedAt: { type: Date, default: null },
+      activeTimerStartedAt: { type: Date, default: null },
+      accumulatedActiveSeconds: { type: Number, min: 0, default: 0 },
+      lastStoppedAt: { type: Date, default: null },
+      stopReason: {
+        type: String,
+        default: null,
+      },
+      holdSegments: [
+        {
+          heldAt: { type: Date, required: true },
+          resumedAt: { type: Date, default: null },
+          pausedSeconds: { type: Number, min: 0, default: 0 },
+        },
+      ],
+    },
     status: {
       type: String,
       enum: [

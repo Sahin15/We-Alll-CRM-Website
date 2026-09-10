@@ -11,6 +11,7 @@ import {
   isSystemAccessBlocked,
 } from '../utils/employeeQueryUtils.js';
 import { generateNextEmployeeId, normalizeEmployeeId, isValidEmployeeIdFormat, isEmployeeIdTaken } from '../services/employeeIdService.js';
+import { resolveCanonicalDepartmentName } from '../constants/departmentNames.js';
 
 //generate token
 const generateToken = (id) => {
@@ -161,7 +162,16 @@ export const getUsers = async (req, res) => {
       } else {
         // If it's a string name, look up the department ID
         try {
-          const dept = await Department.findOne({ name: department });
+          const canonicalName =
+            resolveCanonicalDepartmentName(department) || department;
+          const dept = await Department.findOne({
+            name: {
+              $regex: new RegExp(
+                `^${canonicalName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
+                "i"
+              ),
+            },
+          });
           if (dept) {
             query.department = dept._id;
           } else {

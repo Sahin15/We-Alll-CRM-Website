@@ -3,6 +3,7 @@ import User from "../models/userModel.js";
 import Attendance from "../models/attendanceModel.js";
 import { buildDateRangeQuery } from "../utils/queryOptimizer.js";
 import NotificationService from "../services/notificationService.js";
+import { isHrDepartmentName } from "../constants/departmentNames.js";
 
 // @desc    Apply for Work From Home
 // @route   POST /api/wfh/apply
@@ -228,7 +229,7 @@ export const approveWFHRequest = async (req, res) => {
       const employeeDept = await Department.findById(wfhRequest.employee.department);
       
       // If employee is from HR department, only admin/superadmin can approve
-      if (employeeDept && employeeDept.name === 'HR') {
+      if (employeeDept && isHrDepartmentName(employeeDept.name)) {
         if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
           return res.status(403).json({
             success: false,
@@ -327,7 +328,7 @@ export const rejectWFHRequest = async (req, res) => {
       const employeeDept = await Department.findById(wfhRequest.employee.department);
       
       // If employee is from HR department, only admin/superadmin can reject
-      if (employeeDept && employeeDept.name === 'HR') {
+      if (employeeDept && isHrDepartmentName(employeeDept.name)) {
         if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
           return res.status(403).json({
             success: false,

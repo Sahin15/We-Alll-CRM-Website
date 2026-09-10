@@ -13,9 +13,22 @@ import {
   QA_STATUSES,
   REWORK_STATUSES,
   DELIVER_STATUSES,
+  HOLD_STATUSES,
+  RESUME_STATUSES,
   assertStatusIn,
   resolveReviewDecision,
 } from "../utils/creativeWorkflowRules.js";
+import { assertNoOtherActiveCreativeWork } from "../utils/creativeActiveWorkGuard.js";
+import {
+  startRevisionTimer,
+  pauseRevisionTimer,
+  openHoldSegment,
+  closeHoldSegment,
+  buildTimeSummary,
+  buildRevisionTimePayload,
+  formatClockTime,
+  formatDuration,
+} from "../utils/creativeTimeTracking.js";
 
 const REVIEW_DECISIONS = {
   approve: "approve",
@@ -53,6 +66,25 @@ function pushSystemComment(workItem, actorId, text) {
 }
 
 /**
+ * @param {string} workItemId
+ */
+async function loadAllRevisions(workItemId) {
+  return CreativeRevision.find({
+    workItem: workItemId,
+    softArchived: { $ne: true },
+  }).sort({ revisionNumber: 1 });
+}
+
+/**
+ * @param {object} workItem
+ * @param {object|null} revision
+ */
+async function attachTimeSummary(workItem, revision) {
+  const allRevisions = await loadAllRevisions(workItem._id);
+  return buildTimeSummary(workItem, revision, allRevisions);
+}
+
+/**
  * Start work: Assigned/To Do → In Progress; create Revision 1 if none.
  * Idempotent: does not re-post "Work started" when Revision 1 already exists.
  */
@@ -60,6 +92,8 @@ export async function startWork(workItemId, actorId) {
   const workItem = await loadCreativeWorkItem(workItemId);
   workItem.workflowMode = "creative";
   workItem.modifiedBy = actorId;
+
+  await assertNoOtherActiveCreativeWork(workItem.assignedTo || actorId, workItemId);
 
   let revision = await CreativeRevision.findOne({
     workItem: workItemId,
@@ -96,17 +130,27 @@ export async function startWork(workItemId, actorId) {
   const previousStatus = workItem.status;
   workItem.status = "In Progress";
 
+  const now = new Date();
+  startRevisionTimer(revision, now);
+
   // Only log once — when Revision 1 is actually created (avoids duplicate timeline rows)
   if (createdRevision) {
-    pushSystemComment(workItem, actorId, "Work started — Revision 1 ready");
+    pushSystemComment(
+      workItem,
+      actorId,
+      `Work started — Revision 1 ready at ${formatClockTime(now)}`
+    );
   } else if (previousStatus === "In Progress") {
-    // Already started; nothing to persist beyond ensuring creative mode
+    await revision.save();
     await workItem.save();
-    return { workItem, revision };
+    const timeSummary = await attachTimeSummary(workItem, revision);
+    return { workItem, revision, timeSummary };
   }
 
+  await revision.save();
   await workItem.save();
-  return { workItem, revision };
+  const timeSummary = await attachTimeSummary(workItem, revision);
+  return { workItem, revision, timeSummary };
 }
 
 /**
@@ -134,22 +178,26 @@ export async function submitForReview(workItemId, actorId) {
     throw err;
   }
 
+  const now = new Date();
+  pauseRevisionTimer(revision, "submit", now);
   revision.status = "submitted";
-  revision.submittedAt = new Date();
+  revision.submittedAt = now;
   revision.submittedBy = actorId;
   await revision.save();
 
   workItem.workflowMode = "creative";
   workItem.status = "Submitted for Review";
   workItem.modifiedBy = actorId;
+  const elapsed = formatDuration(revision.timeTracking?.accumulatedActiveSeconds || 0);
   pushSystemComment(
     workItem,
     actorId,
-    `Revision ${revision.revisionNumber} submitted for review`
+    `Revision ${revision.revisionNumber} submitted for review at ${formatClockTime(now)} (${elapsed})`
   );
   await workItem.save();
 
-  return { workItem, revision };
+  const timeSummary = await attachTimeSummary(workItem, revision);
+  return { workItem, revision, timeSummary };
 }
 
 /**
@@ -250,6 +298,8 @@ export async function startRework(workItemId, actorId) {
   const workItem = await loadCreativeWorkItem(workItemId);
   assertStatusIn(workItem.status, REWORK_STATUSES, "Start rework");
 
+  await assertNoOtherActiveCreativeWork(workItem.assignedTo || actorId, workItemId);
+
   const current = await CreativeRevision.findOne({
     workItem: workItemId,
     isCurrentTip: true,
@@ -272,6 +322,7 @@ export async function startRework(workItemId, actorId) {
       ? `Reject response — ${current.reviewNotes || "see review notes"}`
       : `Changes requested (${current.decisionSeverity}) — ${current.reviewNotes || ""}`;
 
+  const now = new Date();
   const revision = await CreativeRevision.create({
     workItem: workItemId,
     revisionNumber: nextNumber,
@@ -283,6 +334,12 @@ export async function startRework(workItemId, actorId) {
     status: "draft",
     isCurrentTip: true,
     attachments: [],
+    timeTracking: {
+      workStartedAt: now,
+      activeTimerStartedAt: now,
+      accumulatedActiveSeconds: 0,
+      holdSegments: [],
+    },
   });
 
   workItem.status = "Rework In Progress";
@@ -291,11 +348,109 @@ export async function startRework(workItemId, actorId) {
   pushSystemComment(
     workItem,
     actorId,
-    `Revision ${nextNumber} created (based on Revision ${current.revisionNumber})`
+    `Revision ${nextNumber} rework started at ${formatClockTime(now)} (based on Revision ${current.revisionNumber})`
   );
   await workItem.save();
 
-  return { workItem, revision };
+  const timeSummary = await attachTimeSummary(workItem, revision);
+  return { workItem, revision, timeSummary };
+}
+
+/**
+ * Hold active work — pauses timer and frees assignee for another task.
+ */
+export async function holdWork(workItemId, actorId) {
+  const workItem = await loadCreativeWorkItem(workItemId);
+  assertStatusIn(workItem.status, HOLD_STATUSES, "Hold work");
+
+  const revision = await CreativeRevision.findOne({
+    workItem: workItemId,
+    isCurrentTip: true,
+    softArchived: { $ne: true },
+  });
+  if (!revision) {
+    const err = new Error("No current revision found");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const now = new Date();
+  pauseRevisionTimer(revision, "hold", now);
+  openHoldSegment(revision, now);
+  await revision.save();
+
+  workItem.holdPreviousStatus = workItem.status;
+  workItem.status = "On Hold";
+  workItem.heldAt = now;
+  workItem.holdResumeLog = workItem.holdResumeLog || [];
+  workItem.holdResumeLog.push({
+    heldAt: now,
+    resumedAt: null,
+    heldBy: actorId,
+  });
+  workItem.workflowMode = "creative";
+  workItem.modifiedBy = actorId;
+  pushSystemComment(workItem, actorId, `Work held at ${formatClockTime(now)}`);
+  await workItem.save();
+
+  const timeSummary = await attachTimeSummary(workItem, revision);
+  return { workItem, revision, timeSummary };
+}
+
+/**
+ * Resume held work — blocked if another task is actively running.
+ */
+export async function resumeWork(workItemId, actorId) {
+  const workItem = await loadCreativeWorkItem(workItemId);
+  assertStatusIn(workItem.status, RESUME_STATUSES, "Resume work");
+
+  await assertNoOtherActiveCreativeWork(workItem.assignedTo || actorId, workItemId);
+
+  const revision = await CreativeRevision.findOne({
+    workItem: workItemId,
+    isCurrentTip: true,
+    softArchived: { $ne: true },
+  });
+  if (!revision) {
+    const err = new Error("No current revision found");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const restoreStatus = workItem.holdPreviousStatus || "In Progress";
+  const now = new Date();
+  closeHoldSegment(revision, now);
+  startRevisionTimer(revision, now);
+  await revision.save();
+
+  if (Array.isArray(workItem.holdResumeLog) && workItem.holdResumeLog.length > 0) {
+    const last = workItem.holdResumeLog[workItem.holdResumeLog.length - 1];
+    if (last && !last.resumedAt) {
+      last.resumedAt = now;
+    }
+  }
+
+  workItem.status = restoreStatus;
+  workItem.holdPreviousStatus = null;
+  workItem.heldAt = null;
+  workItem.workflowMode = "creative";
+  workItem.modifiedBy = actorId;
+  pushSystemComment(workItem, actorId, `Work resumed at ${formatClockTime(now)}`);
+  await workItem.save();
+
+  const timeSummary = await attachTimeSummary(workItem, revision);
+  return { workItem, revision, timeSummary };
+}
+
+/**
+ * Current actively running creative task for assignee (for My Work guard).
+ * @param {string} assigneeId
+ */
+export async function getMyActiveCreativeWork(assigneeId) {
+  const { findActiveCreativeWorkForAssignee } = await import(
+    "../utils/creativeActiveWorkGuard.js"
+  );
+  return findActiveCreativeWorkForAssignee(assigneeId);
 }
 
 /**
@@ -376,6 +531,22 @@ export async function markDelivered(workItemId, actorId) {
       workItem.postingStatus === "not_required" ? "pending" : workItem.postingStatus;
     pushSystemComment(workItem, actorId, "Awaiting Posting department");
     await workItem.save();
+
+    try {
+      const NotificationService = (await import("./notificationService.js")).default;
+      await NotificationService.sendToUser(
+        workItem.postingAssignedTo,
+        "Creative work ready for posting",
+        `Task "${workItem.title}" is awaiting your live post links.`,
+        {
+          type: "work_assignment",
+          relatedEntity: "workItem",
+          relatedEntityId: workItem._id,
+        }
+      );
+    } catch (notifyErr) {
+      console.error("Failed to notify posting assignee:", notifyErr.message);
+    }
   }
 
   return { workItem, revision: tip };
@@ -401,7 +572,7 @@ export async function closeTask(workItemId, actorId) {
 
   workItem.status = "Closed";
   workItem.modifiedBy = actorId;
-  pushSystemComment(workItem, actorId, "Task closed");
+  pushSystemComment(workItem, actorId, "Task marked done");
   await workItem.save();
   return { workItem };
 }
@@ -474,7 +645,7 @@ export async function addRevisionAttachment(workItemId, actorId, fileMeta) {
  * List revisions for a work item (newest first).
  */
 export async function listRevisions(workItemId) {
-  return CreativeRevision.find({
+  const revisions = await CreativeRevision.find({
     workItem: workItemId,
     softArchived: { $ne: true },
   })
@@ -484,7 +655,14 @@ export async function listRevisions(workItemId) {
     .populate("reviewedBy", "name email")
     .populate("submittedBy", "name email")
     .populate("approvedBy", "name email")
-    .populate("parentRevision", "revisionNumber");
+    .populate("parentRevision", "revisionNumber")
+    .lean();
+
+  const now = new Date();
+  return revisions.map((rev) => ({
+    ...rev,
+    timeSummary: buildRevisionTimePayload(rev, now),
+  }));
 }
 
 const CHANGE_REQUEST_STATUSES = ["changes_requested", "rejected"];
@@ -532,6 +710,9 @@ export default {
   submitForReview,
   recordReviewDecision,
   startRework,
+  holdWork,
+  resumeWork,
+  getMyActiveCreativeWork,
   recordQaDecision,
   markDelivered,
   closeTask,

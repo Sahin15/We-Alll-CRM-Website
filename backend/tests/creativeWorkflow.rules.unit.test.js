@@ -6,17 +6,27 @@ import {
   SUBMIT_REVIEW_STATUSES,
   resolveReviewDecision,
   resolveQaPassFromBody,
+  HOLD_STATUSES,
+  RESUME_STATUSES,
+  ACTIVE_ASSIGNMENT_STATUSES,
 } from "../src/utils/creativeWorkflowRules.js";
 import {
   canPerformCreativeReview,
   isCreativeAssignee,
   canSubmitPostingDone,
+  canMarkCreativeDone,
   assertCanReviewCreativeWork,
   getProjectDepartmentHeadIds,
 } from "../src/utils/creativeWorkflowAuth.js";
 import { isCreativeWorkflow } from "../src/utils/creativeStatusMap.js";
 
 describe("creativeWorkflowRules", () => {
+  it("defines hold and resume status guards", () => {
+    expect(() => assertStatusIn("In Progress", HOLD_STATUSES, "Hold work")).not.toThrow();
+    expect(() => assertStatusIn("On Hold", RESUME_STATUSES, "Resume work")).not.toThrow();
+    expect(ACTIVE_ASSIGNMENT_STATUSES).not.toContain("On Hold");
+  });
+
   it("allows start from To Do and blocks from Closed", () => {
     expect(() => assertStatusIn("To Do", START_WORK_STATUSES, "Start work")).not.toThrow();
     expect(() => assertStatusIn("Closed", START_WORK_STATUSES, "Start work")).toThrow(
@@ -101,8 +111,17 @@ describe("creativeWorkflowAuth", () => {
 
   it("detects assignee and posting permissions", () => {
     expect(isCreativeAssignee({ _id: assigneeId }, workItem)).toBe(true);
-    expect(canSubmitPostingDone({ _id: "user-posting" }, workItem, project)).toBe(true);
-    expect(canSubmitPostingDone({ _id: outsiderId }, workItem, project)).toBe(false);
+    expect(canSubmitPostingDone({ _id: "user-posting" }, workItem)).toBe(true);
+    expect(canSubmitPostingDone({ _id: headId }, workItem)).toBe(false);
+    expect(canSubmitPostingDone({ _id: outsiderId }, workItem)).toBe(false);
+  });
+
+  it("allows mark done for assignee and leads after posting", () => {
+    const posted = { ...workItem, requiresPosting: true, status: "Posted" };
+    expect(canMarkCreativeDone({ _id: assigneeId }, posted, project)).toBe(true);
+    expect(canMarkCreativeDone({ _id: headId }, posted, project)).toBe(true);
+    expect(canMarkCreativeDone({ _id: hodId }, posted, project)).toBe(true);
+    expect(canMarkCreativeDone({ _id: outsiderId }, posted, project)).toBe(false);
   });
 
   it("collects department head ids from project", () => {

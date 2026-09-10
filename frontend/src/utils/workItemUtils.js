@@ -83,6 +83,21 @@ export function isWorkItemAssignedToUser(workItem, userId) {
   return getWorkItemAssigneeIds(workItem).includes(uid);
 }
 
+const POSTING_ASSIGNEE_EXCLUDED_STATUSES = new Set(['Closed', 'Cancelled']);
+
+/**
+ * Posting handoff assignee — show in My Work from selection until closed/cancelled.
+ * @param {object|null|undefined} workItem
+ * @param {string|object|null|undefined} userId
+ * @returns {boolean}
+ */
+export function isPostingAssigneeForMyWork(workItem, userId) {
+  const uid = normalizeId(userId);
+  if (!workItem?.requiresPosting || !uid) return false;
+  if (normalizeId(workItem.postingAssignedTo) !== uid) return false;
+  return !POSTING_ASSIGNEE_EXCLUDED_STATUSES.has(workItem.status);
+}
+
 /**
  * My Work page: work assigned to me, excluding items I created for others.
  *
@@ -93,6 +108,10 @@ export function isWorkItemAssignedToUser(workItem, userId) {
 export function isWorkItemForMyWork(workItem, userId) {
   const uid = normalizeId(userId);
   if (!workItem || !uid) return false;
+
+  if (isPostingAssigneeForMyWork(workItem, userId)) {
+    return true;
+  }
 
   const assigneeIds = getWorkItemAssigneeIds(workItem);
   if (!assigneeIds.includes(uid)) return false;

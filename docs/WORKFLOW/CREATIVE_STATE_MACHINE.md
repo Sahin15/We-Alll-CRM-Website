@@ -7,7 +7,8 @@ Authoritative workflow for Graphic Design, Video Production, and related creativ
 | Status | Description |
 |--------|-------------|
 | To Do / Assigned / Backlog | Task assigned, not started |
-| In Progress | Assignee working on current revision |
+| In Progress | Assignee working on current revision (timer running) |
+| On Hold | Assignee paused work — timer stopped; may start another task |
 | Submitted for Review | Awaiting reviewer decision |
 | Changes Requested | Reviewer or QA requested rework |
 | Rework In Progress | Assignee applying feedback |
@@ -22,8 +23,12 @@ Authoritative workflow for Graphic Design, Video Production, and related creativ
 ## Transitions
 
 ```
-To Do → In Progress          (assignee: startWork)
-In Progress → Submitted      (assignee: submitForReview)
+To Do → In Progress          (assignee: startWork — timer starts)
+In Progress → On Hold        (assignee: holdWork — timer pauses)
+On Hold → In Progress        (assignee: resumeWork — timer resumes)
+In Progress → Submitted      (assignee: submitForReview — timer stops)
+Rework In Progress → On Hold (assignee: holdWork)
+On Hold → Rework In Progress (assignee: resumeWork)
 Submitted → Changes Requested (reviewer: minor/major/reject)
 Submitted → QA Review        (reviewer: approve — always routes to QA)
 QA Review → Approved         (reviewer: qa pass)
@@ -41,7 +46,7 @@ Posted → Closed              (reviewer: close)
 
 | Action | Assignee | Assigner | Project Head | Dept HOD | Posting Assignee |
 |--------|----------|----------|--------------|----------|------------------|
-| Start / Submit / Rework | Yes | No | No | No | No |
+| Start / Submit / Rework / Hold / Resume | Yes | No | No | No | No |
 | Request changes / Approve | No | Yes | Yes | Yes* | No |
 | QA Pass / Fail | No | Yes | Yes | Yes* | No |
 | Mark Delivered / Close | No | Yes | Yes | Yes* | No |
@@ -59,6 +64,9 @@ Assignees cannot review their own work unless they are also project head or dept
 | POST | `/api/creative-workflow/:id/submit-review` | Submit for review |
 | POST | `/api/creative-workflow/:id/review` | Review decision (minor/major/reject/approve) |
 | POST | `/api/creative-workflow/:id/rework` | Start rework |
+| POST | `/api/creative-workflow/:id/hold` | Hold work (pause timer) |
+| POST | `/api/creative-workflow/:id/resume` | Resume held work |
+| GET | `/api/creative-workflow/my-active` | Current user's active creative task |
 | POST | `/api/creative-workflow/:id/qa` | QA pass/fail |
 | POST | `/api/creative-workflow/:id/deliver` | Mark delivered |
 | POST | `/api/creative-workflow/:id/close` | Close task |
@@ -72,6 +80,7 @@ Assignees cannot review their own work unless they are also project head or dept
 - Transition guards live in `backend/src/utils/creativeWorkflowRules.js`.
 - Reviewer auth lives in `backend/src/utils/creativeWorkflowAuth.js`.
 - Slot assignment completes on **Delivered** only.
+- **Single active task:** assignee may have only one item in `In Progress` or `Rework In Progress`; use **Hold** before starting another. See [CREATIVE_TIME_TRACKING.md](./CREATIVE_TIME_TRACKING.md).
 
 ## Frontend
 

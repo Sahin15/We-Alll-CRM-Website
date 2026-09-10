@@ -86,7 +86,10 @@ The app also suppresses outbound email and FCM when `APP_ENV=uat`. Frontend show
 
 ```bash
 cd /root/crm-website-uat/backend
-npm run seed:uat
+npm run seed:departments      # 13 canonical departments (idempotent)
+npm run seed:uat:employees    # demo employee per department (idempotent)
+npm run seed:uat:clients      # demo clients + projects (idempotent)
+npm run seed:uat              # legacy demo admin/project seed
 ```
 
 ### Manual UAT deploy (VPS)

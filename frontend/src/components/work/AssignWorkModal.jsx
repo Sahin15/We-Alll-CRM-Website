@@ -7,6 +7,11 @@ import projectApi from '../../api/projectApi';
 import userApi from '../../api/userApi';
 import departmentApi from '../../api/departmentApi';
 import TeamMemberWorkloadInfo from '../workload/TeamMemberWorkloadInfo';
+import {
+  getCreativeWorkflowTypeForDepartment,
+  isCreativeDepartmentName,
+  isPostingDepartmentName,
+} from '../../constants/departmentNames';
 
 /**
  * AssignWorkModal - Reusable modal for assigning work to team members
@@ -143,12 +148,6 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
     postingAssignedTo: '',
     postingDate: '',
   });
-
-  /** Graphic / Video only — these workflows need optional Posting handoff. */
-  const isCreativeDepartmentName = (name) => {
-    const n = String(name || '').toLowerCase();
-    return n.includes('graphic') || n.includes('video');
-  };
 
   /** Collect department names linked on the project (populated or ID). */
   const getProjectDepartmentNames = (project) => {
@@ -304,11 +303,7 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
       setDepartments(Array.isArray(deptList) ? deptList : []);
       setAllUsers(userList);
       setPostingUsers(
-        userList.filter((u) =>
-          String(u.department?.name || '')
-            .toLowerCase()
-            .includes('posting')
-        )
+        userList.filter((u) => isPostingDepartmentName(u.department?.name))
       );
     } catch (error) {
       console.error('[AssignWorkModal] Failed to load posting support data:', error);
@@ -459,9 +454,7 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
           setAllUsers(allFetchedUsers);
           setPostingUsers(
             allFetchedUsers.filter((u) =>
-              String(u.department?.name || '')
-                .toLowerCase()
-                .includes('posting')
+              isPostingDepartmentName(u.department?.name)
             )
           );
 
@@ -637,14 +630,17 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
       if (showPostingHandoff) {
         if (isCreativeAssignment || formData.requiresPosting) {
           workItemData.workflowMode = 'creative';
-          const deptNames = [
-            ...getProjectDepartmentNames(selectedProject),
-            ...selectedAssigneeIds.map((id) => {
-              const user = findUserById(id);
-              return String(user?.department?.name || '').toLowerCase();
-            }),
+          const deptNameSources = [
+            selectedProject?.department?.name,
+            ...(selectedProject?.departments || []).map((dept) =>
+              typeof dept === 'object' ? dept?.name : null
+            ),
+            ...selectedAssigneeIds.map((id) => findUserById(id)?.department?.name),
           ].filter(Boolean);
-          workItemData.workflowType = deptNames.some((n) => n.includes('video'))
+          const workflowTypes = deptNameSources
+            .map((name) => getCreativeWorkflowTypeForDepartment(name))
+            .filter(Boolean);
+          workItemData.workflowType = workflowTypes.includes('video-production')
             ? 'video-production'
             : 'design';
         }

@@ -15,6 +15,7 @@ import {
 } from "../../utils/leaveEligibility";
 import { getLeaveRequestDays } from "../../utils/leaveDays";
 import ApplyWFHModal from "../../components/wfh/ApplyWFHModal";
+import { isHrDepartmentName } from "../../constants/departmentNames";
 import "../../styles/table-mobile.css";
 import "../../styles/modal-mobile.css";
 
@@ -267,7 +268,7 @@ const MyLeaves = () => {
       {activeTab === 'leaves' ? (
         <>
       {/* Info alert for HR employees */}
-      {user?.department?.name === 'HR' && (
+      {isHrDepartmentName(user?.department?.name) && (
         <Alert variant="info" className="mb-4">
           <FaInfoCircle className="me-2" />
           <strong>HR Department:</strong> Your leave and WFH requests require Admin approval. You can apply for WFH using the "Apply here" link at the bottom of the Leave History table below.
@@ -543,7 +544,7 @@ const MyLeaves = () => {
                   >
                     Apply here
                   </a>
-                  {user?.department?.name === 'HR' && (
+                  {isHrDepartmentName(user?.department?.name) && (
                     <span className="text-warning ms-2">(Requires Admin approval)</span>
                   )}
                 </small>

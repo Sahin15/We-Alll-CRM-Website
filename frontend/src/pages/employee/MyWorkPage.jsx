@@ -13,10 +13,12 @@ import {
   getEffectiveStatusForUser,
   isPendingWorkItem,
   isWorkItemForMyWork,
+  isPostingAssigneeForMyWork,
   isWorkItemDueToday,
   isWorkItemOverdue,
 } from '../../utils/workItemUtils';
 import { isCreativeWorkflowItem } from '../../utils/workItemStatusUtils';
+import creativeWorkflowApi from '../../api/creativeWorkflowApi';
 
 /**
  * MyWorkPage Component
@@ -34,9 +36,14 @@ const MyWorkPage = () => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [bulkMode, setBulkMode] = useState(false);
   const [showAssignWorkModal, setShowAssignWorkModal] = useState(false);
+  const [activeCreativeWork, setActiveCreativeWork] = useState(null);
 
   useEffect(() => {
     loadWorkItems();
+    creativeWorkflowApi
+      .getMyActiveCreativeWork()
+      .then((res) => setActiveCreativeWork(res?.data || null))
+      .catch(() => setActiveCreativeWork(null));
   }, [user]);
 
   const loadWorkItems = async ({ silent = false } = {}) => {
@@ -193,7 +200,27 @@ const MyWorkPage = () => {
     // Custom date: exact due-date match only.
     if (showTodayOnly || selectedDate) {
       filtered = filtered.filter((item) => {
-        if (item.isDeleted || !item.dueDate) return false;
+        if (item.isDeleted) return false;
+
+        // Posting handoff queue: visible as soon as assignee is selected (not gated on creative due date).
+        if (isCreativeWorkflowItem(item) && item.status === 'On Hold') {
+          return showTodayOnly && !selectedDate;
+        }
+
+        if (isPostingAssigneeForMyWork(item, userId)) {
+          if (item.status === 'Awaiting Posting') return true;
+          if (item.postingDate) {
+            const postingDue = new Date(item.postingDate);
+            postingDue.setHours(0, 0, 0, 0);
+            if (postingDue.getTime() === filterDate.getTime()) return true;
+            if (showTodayOnly && !selectedDate && postingDue.getTime() <= today.getTime()) {
+              return true;
+            }
+          }
+          return showTodayOnly && !selectedDate;
+        }
+
+        if (!item.dueDate) return false;
         const dueDate = new Date(item.dueDate);
         dueDate.setHours(0, 0, 0, 0);
         if (dueDate.getTime() === filterDate.getTime()) return true;
@@ -346,6 +373,19 @@ const MyWorkPage = () => {
 
   return (
     <Container fluid>
+      {activeCreativeWork && (
+        <Row className="mb-3">
+          <Col>
+            <Card className="border-warning bg-warning bg-opacity-10">
+              <Card.Body className="py-2 small">
+                Currently working on <strong>{activeCreativeWork.title}</strong>.
+                Hold it before starting another creative task.
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
+      )}
+
       <Row className="mb-4">
         <Col>
           <h2 className="fw-bold text-dark mb-1" style={{ color: '#1f2937' }}>
@@ -353,6 +393,7 @@ const MyWorkPage = () => {
           </h2>
           <p className="text-muted mb-0">
             View and manage all your assigned work items
+            {activeCreativeWork ? ' · one active creative task at a time' : ''}
           </p>
         </Col>
         <Col xs="auto" className="d-flex gap-2 align-items-center">

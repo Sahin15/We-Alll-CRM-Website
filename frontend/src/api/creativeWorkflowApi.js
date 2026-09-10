@@ -44,6 +44,21 @@ const creativeWorkflowApi = {
     return response.data;
   },
 
+  holdWork: async (workItemId) => {
+    const response = await api.post(`/creative-workflow/${workItemId}/hold`);
+    return response.data;
+  },
+
+  resumeWork: async (workItemId) => {
+    const response = await api.post(`/creative-workflow/${workItemId}/resume`);
+    return response.data;
+  },
+
+  getMyActiveCreativeWork: async () => {
+    const response = await api.get('/creative-workflow/my-active');
+    return response.data;
+  },
+
   recordQa: async (workItemId, body) => {
     const response = await api.post(`/creative-workflow/${workItemId}/qa`, body);
     return response.data;

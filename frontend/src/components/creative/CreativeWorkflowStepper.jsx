@@ -2,7 +2,7 @@ import React from 'react';
 
 const BASE_STEPS = [
   { key: 'start', label: 'Start', statuses: ['To Do', 'Assigned', 'Backlog'] },
-  { key: 'work', label: 'Work', statuses: ['In Progress', 'Rework In Progress', 'Changes Requested'] },
+  { key: 'work', label: 'Work', statuses: ['In Progress', 'On Hold', 'Rework In Progress', 'Changes Requested'] },
   { key: 'review', label: 'Review', statuses: ['Submitted for Review'] },
   { key: 'qa', label: 'QA', statuses: ['QA Review'] },
   { key: 'approved', label: 'Approved', statuses: ['Approved'] },
@@ -10,7 +10,7 @@ const BASE_STEPS = [
 ];
 
 const POSTING_STEP = { key: 'posting', label: 'Posting', statuses: ['Awaiting Posting', 'Posted'] };
-const CLOSE_STEP = { key: 'close', label: 'Closed', statuses: ['Closed'] };
+const CLOSE_STEP = { key: 'close', label: 'Done', statuses: ['Closed'] };
 
 /**
  * Horizontal workflow stepper for creative tasks.

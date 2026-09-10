@@ -9,6 +9,7 @@ import { ANNUAL_EARNED_LEAVE_LIMIT } from "../constants/leaveCategoryLimits.js";
 import { getCurrentLeaveYear } from "../utils/leaveAccrual.js";
 import { getISTDateKey, getISTMidnightForYmd } from "../utils/timezone.js";
 import { getISTDayBounds } from "../utils/attendanceISTDay.js";
+import { isHrDepartmentName } from "../constants/departmentNames.js";
 
 // Create leave request
 export const createLeaveRequest = async (req, res) => {
@@ -393,7 +394,7 @@ export const approveLeaveRequest = async (req, res) => {
       const employeeDept = await Department.findById(leaveRequest.employee.department);
       
       // If employee is from HR department, only admin/superadmin can approve
-      if (employeeDept && employeeDept.name === 'HR') {
+      if (employeeDept && isHrDepartmentName(employeeDept.name)) {
         if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
           return res.status(403).json({
             message: "Only Admin can approve leave requests for HR department employees",
@@ -547,7 +548,7 @@ export const rejectLeaveRequest = async (req, res) => {
       const employeeDept = await Department.findById(leaveRequest.employee.department);
       
       // If employee is from HR department, only admin/superadmin can reject
-      if (employeeDept && employeeDept.name === 'HR') {
+      if (employeeDept && isHrDepartmentName(employeeDept.name)) {
         if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
           return res.status(403).json({
             message: "Only Admin can reject leave requests for HR department employees",

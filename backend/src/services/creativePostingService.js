@@ -6,12 +6,7 @@
 import User from "../models/userModel.js";
 import Department from "../models/departmentModel.js";
 import WorkItem from "../models/workItemModel.js";
-
-const POSTING_DEPT_NAMES = new Set([
-  "posting",
-  "posting department",
-  "content posting",
-]);
+import { isPostingDepartmentName } from "../constants/departmentNames.js";
 
 /**
  * @param {{ requiresPosting: boolean, postingAssignedTo?: string|null, postingDate?: Date|string|null }} input
@@ -171,8 +166,7 @@ export async function assertUserInPostingDepartment(userId) {
     return { ok: false, error: "Posting assignee not found" };
   }
 
-  const deptName = (user.department?.name || "").trim().toLowerCase();
-  if (!POSTING_DEPT_NAMES.has(deptName)) {
+  if (!isPostingDepartmentName(user.department?.name)) {
     return {
       ok: false,
       error: "Selected user must belong to the Posting department",
@@ -227,6 +221,25 @@ export async function setPostingHandoff(workItemId, payload, actorId) {
   }
 
   await workItem.save();
+
+  if (validated.postingAssignedTo) {
+    try {
+      const NotificationService = (await import("./notificationService.js")).default;
+      await NotificationService.sendToUser(
+        validated.postingAssignedTo,
+        "Assigned for posting",
+        `You were selected to post "${workItem.title}" (scheduled ${validated.postingDate.toISOString().slice(0, 10)}).`,
+        {
+          type: "work_assignment",
+          relatedEntity: "workItem",
+          relatedEntityId: workItem._id,
+        }
+      );
+    } catch (notifyErr) {
+      console.error("Failed to notify posting assignee on handoff:", notifyErr.message);
+    }
+  }
+
   return workItem;
 }
 

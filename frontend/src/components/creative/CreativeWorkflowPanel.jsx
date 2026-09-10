@@ -3,12 +3,18 @@ import { Alert, Button, Form, ListGroup, Spinner } from "react-bootstrap";
 import { toast } from "react-toastify";
 import creativeWorkflowApi from "../../api/creativeWorkflowApi";
 import userApi from "../../api/userApi";
+import { isPostingDepartmentName } from "../../constants/departmentNames";
 import CreativeWorkflowStepper from "./CreativeWorkflowStepper";
+import CreativeStepTimeline from "./CreativeStepTimeline";
 import {
+  canHoldCreativeWork,
+  canMarkCreativeDone,
+  canResumeCreativeWork,
   canReviewCreativeWork,
   canSubmitPostingDone,
   isCreativeAssignee,
   isCreativeWorkflowItem,
+  isPostingAssignee,
   resolveEntityId,
 } from "../../utils/creativeWorkflowAccess";
 
@@ -115,11 +121,52 @@ const parseRevisionReason = (reason) => {
  * Creative revision + posting actions panel for a work item.
  * Assignees execute work (start / submit / rework); reviewers approve, QA, deliver, close.
  *
- * @param {{ workItem: object, project?: object, onUpdated?: () => void, currentUser?: object }} props
+ * @param {{
+ *   workItem: object,
+ *   project?: object,
+ *   onUpdated?: () => void,
+ *   currentUser?: object,
+ *   revisions?: object[],
+ *   revisionsLoading?: boolean,
+ *   onRevisionsChange?: (revisions: object[]) => void,
+ * }} props
  */
-const CreativeWorkflowPanel = ({ workItem, project, onUpdated, currentUser }) => {
-  const [revisions, setRevisions] = useState([]);
+const CreativeWorkflowPanel = ({
+  workItem,
+  project,
+  onUpdated,
+  currentUser,
+  revisions: revisionsProp,
+  revisionsLoading: revisionsLoadingProp = false,
+  onRevisionsChange,
+}) => {
+  const [revisionsLocal, setRevisionsLocal] = useState([]);
+  const [revisionsLoadingLocal, setRevisionsLoadingLocal] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const revisionsControlled = revisionsProp !== undefined;
+  const revisions = revisionsControlled ? revisionsProp : revisionsLocal;
+  const revisionsLoading = revisionsControlled
+    ? revisionsLoadingProp
+    : revisionsLoadingLocal;
+
+  const setRevisions = (next) => {
+    if (typeof next === 'function') {
+      const updated = next(revisions);
+      if (revisionsControlled) {
+        onRevisionsChange?.(updated);
+      } else {
+        setRevisionsLocal(updated);
+      }
+      return updated;
+    }
+    if (revisionsControlled) {
+      onRevisionsChange?.(next);
+    } else {
+      setRevisionsLocal(next);
+    }
+    return next;
+  };
   const [reviewNotes, setReviewNotes] = useState("");
   const [qaNotes, setQaNotes] = useState("");
   const [postLinks, setPostLinks] = useState([createEmptyPostLink()]);
@@ -134,6 +181,7 @@ const CreativeWorkflowPanel = ({ workItem, project, onUpdated, currentUser }) =>
   });
   const [postingEditorOpen, setPostingEditorOpen] = useState(false);
   const [localStatus, setLocalStatus] = useState(workItem?.status || "");
+  const [activeCreativeWork, setActiveCreativeWork] = useState(null);
 
   React.useEffect(() => {
     setLocalStatus(workItem?.status || "");
@@ -190,18 +238,28 @@ const CreativeWorkflowPanel = ({ workItem, project, onUpdated, currentUser }) =>
 
   const canWork = isCreativeAssignee(currentUser, workItem);
   const canReview = canReviewCreativeWork(currentUser, workItem, projectContext);
-  const canPosting = canSubmitPostingDone(currentUser, workItem, projectContext);
+  const isPostingUser = isPostingAssignee(currentUser, workItem);
+  const canPostingSubmit = canSubmitPostingDone(currentUser, workItem);
+  const canMarkDone = canMarkCreativeDone(currentUser, workItem, projectContext);
 
   const status = localStatus || workItem?.status || "";
   const awaitingReview = status === "Submitted for Review";
   const inQaReview = status === "QA Review";
 
+  const otherActiveWork =
+    activeCreativeWork &&
+    String(activeCreativeWork._id) !== String(workItemId);
+
   const showWorkerStart =
     canWork &&
+    !otherActiveWork &&
     (["To Do", "Assigned", "Backlog"].includes(status) ||
       (status === "In Progress" && revisions.length === 0));
   const showWorkerSubmit = canWork && ["In Progress", "Rework In Progress"].includes(status);
-  const showWorkerRework = canWork && status === "Changes Requested";
+  const showWorkerHold = canHoldCreativeWork(currentUser, { ...workItem, status });
+  const showWorkerResume = canResumeCreativeWork(currentUser, { ...workItem, status }) && !otherActiveWork;
+  const showWorkerRework =
+    canWork && !otherActiveWork && status === "Changes Requested";
   const showWorkerFiles =
     canWork &&
     ["In Progress", "Rework In Progress", "Changes Requested", "To Do", "Assigned"].includes(
@@ -210,8 +268,8 @@ const CreativeWorkflowPanel = ({ workItem, project, onUpdated, currentUser }) =>
   const showReviewActions = canReview && awaitingReview;
   const showQaActions = canReview && inQaReview;
   const showDeliver = canReview && status === "Approved";
-  const showCloseOnly =
-    canReview &&
+  const showMarkDone =
+    canMarkDone &&
     (workItem?.requiresPosting ? status === "Posted" : status === "Delivered");
 
   const postingHandoffLockedStatuses = [
@@ -238,6 +296,7 @@ const CreativeWorkflowPanel = ({ workItem, project, onUpdated, currentUser }) =>
 
   const showPostingHandoffEditor =
     canReview &&
+    !isPostingUser &&
     !postingHandoffLockedStatuses.includes(status) &&
     (!isPostingHandoffComplete || postingEditorOpen);
 
@@ -248,23 +307,31 @@ const CreativeWorkflowPanel = ({ workItem, project, onUpdated, currentUser }) =>
     !postingEditorOpen;
 
   const showPostingSubmit =
+    workItem?.requiresPosting && canPostingSubmit && status === "Awaiting Posting";
+
+  const showPostingAssignmentInfo =
     workItem?.requiresPosting &&
-    canPosting &&
-    (status === "Awaiting Posting" || status === "Delivered");
+    Boolean(resolveEntityId(workItem?.postingAssignedTo) || postingForm.postingAssignedTo);
 
   const missingRevisionBanner =
     status === "In Progress" && revisions.length === 0 && canWork;
 
-  const loadRevisions = async () => {
+  const loadRevisions = async ({ silent = false } = {}) => {
     if (!workItemId) return;
-    setLoading(true);
+    if (!silent && !revisionsControlled) {
+      setRevisionsLoadingLocal(true);
+    }
     try {
       const res = await creativeWorkflowApi.listRevisions(workItemId);
       setRevisions(res.data || []);
     } catch (error) {
-      toast.error(error.response?.data?.error || "Failed to load revisions");
+      if (!silent) {
+        toast.error(error.response?.data?.error || "Failed to load revisions");
+      }
     } finally {
-      setLoading(false);
+      if (!revisionsControlled) {
+        setRevisionsLoadingLocal(false);
+      }
     }
   };
 
@@ -274,9 +341,7 @@ const CreativeWorkflowPanel = ({ workItem, project, onUpdated, currentUser }) =>
       const userList = usersRes?.data || usersRes?.users || usersRes || [];
       setPostingUsers(
         (Array.isArray(userList) ? userList : []).filter((u) =>
-          String(u.department?.name || "")
-            .toLowerCase()
-            .includes("posting")
+          isPostingDepartmentName(u.department?.name)
         )
       );
     } catch {
@@ -285,11 +350,22 @@ const CreativeWorkflowPanel = ({ workItem, project, onUpdated, currentUser }) =>
   };
 
   React.useEffect(() => {
-    if (isCreative && workItemId) {
+    if (isCreative && workItemId && !revisionsControlled) {
       loadRevisions();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workItemId, isCreative]);
+  }, [workItemId, isCreative, revisionsControlled]);
+
+  React.useEffect(() => {
+    if (!canWork) {
+      setActiveCreativeWork(null);
+      return;
+    }
+    creativeWorkflowApi
+      .getMyActiveCreativeWork()
+      .then((res) => setActiveCreativeWork(res?.data || null))
+      .catch(() => setActiveCreativeWork(null));
+  }, [canWork, workItemId, status]);
 
   React.useEffect(() => {
     setPostingEditorOpen(false);
@@ -344,23 +420,68 @@ const CreativeWorkflowPanel = ({ workItem, project, onUpdated, currentUser }) =>
           `Expected status "${expectedStatus}" but received "${resolvedStatus}". Please refresh and try again.`
         );
       }
-      toast.success(successMessage);
+      const payload = response?.data ?? response ?? {};
+      const inner = payload?.data ?? payload;
+      const timeSummary = inner?.timeSummary;
+      if (timeSummary?.elapsedFormatted && /submitted|rework|held|resumed/i.test(successMessage)) {
+        toast.success(`${successMessage} (${timeSummary.elapsedFormatted})`);
+      } else {
+        toast.success(successMessage);
+      }
       if (updatedWorkItem?.status) {
         setLocalStatus(updatedWorkItem.status);
       } else if (nextStatus) {
         setLocalStatus(nextStatus);
       }
-      await loadRevisions();
+      const innerPayload = response?.data ?? response ?? {};
+      const innerData = innerPayload?.data ?? innerPayload;
+      if (innerData?.revision) {
+        setRevisions((prev) => {
+          const list = Array.isArray(prev) ? [...prev] : [];
+          const idx = list.findIndex(
+            (r) =>
+              String(r._id) === String(innerData.revision._id) ||
+              r.revisionNumber === innerData.revision.revisionNumber
+          );
+          const merged = {
+            ...(idx >= 0 ? list[idx] : {}),
+            ...innerData.revision,
+            timeSummary: innerData.timeSummary || list[idx]?.timeSummary,
+          };
+          if (idx >= 0) {
+            list[idx] = merged;
+          } else {
+            list.unshift(merged);
+          }
+          return list;
+        });
+      }
+
+      if (!revisionsControlled) {
+        await loadRevisions({ silent: true });
+      }
+      if (canWork) {
+        creativeWorkflowApi
+          .getMyActiveCreativeWork()
+          .then((res) => setActiveCreativeWork(res?.data || null))
+          .catch(() => setActiveCreativeWork(null));
+      }
       if (typeof onUpdated === "function") {
-        try {
-          await onUpdated({ workItem: updatedWorkItem });
-        } catch (refreshError) {
+        Promise.resolve(onUpdated({ workItem: updatedWorkItem })).catch((refreshError) => {
           console.error("Creative workflow refresh after action failed:", refreshError);
-        }
+        });
       }
       return updatedWorkItem;
     } catch (error) {
-      toast.error(error.response?.data?.error || error.message || "Action failed");
+      const apiError = error.response?.data?.error;
+      const activeBlock = error.response?.data?.activeWorkItem;
+      if (error.response?.status === 409 && activeBlock?.title) {
+        toast.error(
+          `You are working on "${activeBlock.title}". Hold it first to start this task.`
+        );
+      } else {
+        toast.error(apiError || error.message || "Action failed");
+      }
       return null;
     } finally {
       setLoading(false);
@@ -459,11 +580,58 @@ const CreativeWorkflowPanel = ({ workItem, project, onUpdated, currentUser }) =>
     if (showReviewActions) return "Step 3: Review the submission — request changes or approve (routes to QA).";
     if (showQaActions) return "Step 4: QA must pass before delivery.";
     if (showDeliver) return "Step 5: Mark delivered when the client receives the asset.";
-    if (showPostingSubmit) return "Step 6: Submit live post URL(s).";
-    if (showCloseOnly) return "Step 7: Close the task when complete.";
+    if (showPostingSubmit) {
+      return "Submit live post links by platform.";
+    }
+    if (showMarkDone) return "Mark done when posting is complete and the task can be closed.";
     if (showWorkerRework) return "Apply reviewer feedback, then submit again.";
-    return "Use the Creative Workflow panel actions for this task.";
+    if (showWorkerHold) return "Hold this task to switch to higher-priority work.";
+    if (showWorkerResume) return "Resume this held task when ready.";
+    if (otherActiveWork) {
+      return `Hold "${activeCreativeWork.title}" first to start this task.`;
+    }
+
+    const waitingHints = {
+      "On Hold": canWork
+        ? "This task is on hold. Click Resume when you are ready to continue."
+        : "Assignee has paused this task.",
+      "Submitted for Review": canReview
+        ? "Review the submission using the actions below."
+        : "Waiting for reviewer (assigner, project head, or HoD).",
+      "QA Review": canReview
+        ? "Complete QA using the actions below."
+        : "Waiting for QA (assigner, project head, or HoD).",
+      Approved: canReview
+        ? "QA passed — mark delivered when the asset is ready."
+        : "Approved — waiting for delivery.",
+      Delivered: workItem?.requiresPosting
+        ? "Delivered — posting handoff is in progress or pending."
+        : "Delivered — assigner or leads can mark done when complete.",
+      "Awaiting Posting": isPostingUser
+        ? "You are the posting assignee — submit live post links below."
+        : `Waiting for ${getPostingAssigneeLabel()} to submit live post links.`,
+      Posted: canMarkDone
+        ? "Posting complete — mark done to close this task."
+        : "Posted — waiting for assignee or leads to mark done.",
+      Closed: "This task is done.",
+      Cancelled: "This task was cancelled.",
+    };
+
+    if (waitingHints[status]) {
+      return waitingHints[status];
+    }
+
+    if (status === "Changes Requested" && canWork) {
+      return "Reviewer requested changes — start rework when ready.";
+    }
+    if (status === "Changes Requested") {
+      return "Waiting for assignee to start rework.";
+    }
+
+    return null;
   };
+
+  const hintText = stepHint();
 
   return (
     <div className="border rounded p-3 bg-light">
@@ -479,12 +647,25 @@ const CreativeWorkflowPanel = ({ workItem, project, onUpdated, currentUser }) =>
         requiresPosting={Boolean(workItem.requiresPosting)}
       />
 
+      {otherActiveWork && canWork && (
+        <Alert variant="warning" className="py-2 small mb-2">
+          You are actively working on <strong>{activeCreativeWork.title}</strong>.
+          Hold it first before starting or resuming another task.
+        </Alert>
+      )}
+
+      <CreativeStepTimeline
+        revisions={revisions}
+        workItem={workItem}
+        loading={revisionsLoading}
+      />
+
       <p className="small text-muted mb-2">
         Status: <strong>{status}</strong>
         {tip ? ` · Current revision: R${tip.revisionNumber}` : ""}
       </p>
 
-      <p className="small text-muted mb-2">{stepHint()}</p>
+      {hintText && <p className="small text-muted mb-2">{hintText}</p>}
 
       {missingRevisionBanner && (
         <Alert variant="warning" className="py-2 small mb-3">
@@ -509,6 +690,34 @@ const CreativeWorkflowPanel = ({ workItem, project, onUpdated, currentUser }) =>
       )}
 
       {loading && <Spinner animation="border" size="sm" className="mb-2" />}
+
+      {showPostingAssignmentInfo && (
+        <div className="border rounded p-2 mb-3 bg-white">
+          <div className="small fw-bold mb-1">Posting assignment</div>
+          <div className="small text-muted">
+            <span className="badge bg-info me-1">Posting required</span>
+            Assigned to: <strong>{getPostingAssigneeLabel()}</strong>
+            {(workItem.postingDate || postingForm.postingDate) && (
+              <>
+                {" · Scheduled: "}
+                {workItem.postingDate
+                  ? new Date(workItem.postingDate).toLocaleDateString()
+                  : postingForm.postingDate}
+              </>
+            )}
+            {status === "Awaiting Posting" && isPostingUser && (
+              <span className="d-block mt-1 text-primary">
+                You are the posting assignee — submit live links below.
+              </span>
+            )}
+            {status === "Awaiting Posting" && !isPostingUser && canReview && (
+              <span className="d-block mt-1">
+                Waiting for {getPostingAssigneeLabel()} to submit live post links.
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {showPostingHandoffSummary && (
         <div className="border rounded p-2 mb-3 bg-white">
@@ -653,7 +862,13 @@ const CreativeWorkflowPanel = ({ workItem, project, onUpdated, currentUser }) =>
         {showWorkerStart && (
           <Button
             size="sm"
-            disabled={loading}
+            variant="success"
+            disabled={loading || otherActiveWork}
+            title={
+              otherActiveWork
+                ? `Hold "${activeCreativeWork?.title}" first`
+                : undefined
+            }
             onClick={() =>
               runAction(
                 () => creativeWorkflowApi.startWork(workItemId),
@@ -679,6 +894,38 @@ const CreativeWorkflowPanel = ({ workItem, project, onUpdated, currentUser }) =>
             }
           >
             Submit for Review
+          </Button>
+        )}
+        {showWorkerHold && (
+          <Button
+            size="sm"
+            variant="outline-warning"
+            disabled={loading}
+            onClick={() =>
+              runAction(
+                () => creativeWorkflowApi.holdWork(workItemId),
+                "Work held",
+                { nextStatus: "On Hold" }
+              )
+            }
+          >
+            Hold
+          </Button>
+        )}
+        {showWorkerResume && (
+          <Button
+            size="sm"
+            variant="warning"
+            disabled={loading}
+            onClick={() =>
+              runAction(
+                () => creativeWorkflowApi.resumeWork(workItemId),
+                "Work resumed",
+                { nextStatus: workItem?.holdPreviousStatus || "In Progress" }
+              )
+            }
+          >
+            Resume
           </Button>
         )}
         {showReviewActions && (
@@ -766,20 +1013,20 @@ const CreativeWorkflowPanel = ({ workItem, project, onUpdated, currentUser }) =>
             Mark Delivered
           </Button>
         )}
-        {showCloseOnly && (
+        {showMarkDone && (
           <Button
             size="sm"
-            variant="dark"
+            variant="success"
             disabled={loading}
             onClick={() =>
               runAction(
                 () => creativeWorkflowApi.closeTask(workItemId),
-                "Closed",
+                "Marked done",
                 { nextStatus: "Closed" }
               )
             }
           >
-            Close
+            Mark Done
           </Button>
         )}
       </div>
@@ -970,7 +1217,7 @@ const CreativeWorkflowPanel = ({ workItem, project, onUpdated, currentUser }) =>
               );
             }}
           >
-            Submit Posting Done
+            Submit Posting
           </Button>
         </Alert>
       )}
@@ -1050,21 +1297,6 @@ const CreativeWorkflowPanel = ({ workItem, project, onUpdated, currentUser }) =>
                       );
                     })}
                   </ul>
-                )}
-                {rev.reviewedAt && rev.lastDecision && rev.lastDecision !== "none" && (
-                  <div className="small mt-2 creative-revision-review-meta">
-                    Review by <strong>{rev.reviewedBy?.name || "Reviewer"}</strong>
-                    {": "}
-                    {rev.lastDecision === "approve" ? "approved → QA Review" : rev.lastDecision}
-                    {rev.decisionSeverity && rev.decisionSeverity !== "none"
-                      ? ` (${rev.decisionSeverity})`
-                      : ""}
-                    {rev.reviewNotes &&
-                    !reasonParts.body?.includes(rev.reviewNotes) &&
-                    feedbackText !== rev.reviewNotes ? (
-                      <div className="creative-revision-feedback-body mt-1">{rev.reviewNotes}</div>
-                    ) : null}
-                  </div>
                 )}
               </ListGroup.Item>
             );

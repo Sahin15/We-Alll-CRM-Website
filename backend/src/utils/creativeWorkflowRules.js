@@ -15,6 +15,13 @@ export const REWORK_STATUSES = ["Changes Requested"];
 
 export const DELIVER_STATUSES = ["Approved"];
 
+export const HOLD_STATUSES = ["In Progress", "Rework In Progress"];
+
+export const RESUME_STATUSES = ["On Hold"];
+
+/** Statuses that count as actively working (single-active guard). */
+export const ACTIVE_ASSIGNMENT_STATUSES = ["In Progress", "Rework In Progress"];
+
 /** @typedef {"approve"|"reject"|"minor"|"major"|"send_back"} ReviewDecisionKey */
 
 /** @type {Record<string, ReviewDecisionKey>} */
@@ -116,6 +123,7 @@ export const CREATIVE_PATCH_BLOCKED_STATUSES = [
   "Assigned",
   "Backlog",
   "In Progress",
+  "On Hold",
   "Submitted for Review",
   "Changes Requested",
   "Rework In Progress",

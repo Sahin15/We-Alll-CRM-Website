@@ -7,6 +7,7 @@ export const CREATIVE_STATUSES = [
   "Backlog",
   "Assigned",
   "In Progress",
+  "On Hold",
   "Submitted for Review",
   "Changes Requested",
   "Rework In Progress",
