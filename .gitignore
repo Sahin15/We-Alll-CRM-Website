@@ -27,6 +27,8 @@ docs/*
 !docs/CORE/**
 !docs/WORKFLOW/
 !docs/WORKFLOW/**
+!docs/PERFORMANCE/
+!docs/PERFORMANCE/**
 
 # Kiro IDE
 .kiro/

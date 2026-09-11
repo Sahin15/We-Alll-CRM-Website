@@ -1,11 +1,27 @@
 import api from "./axios";
 import { createCrudApi } from "./apiFactory";
+import apiOptimizer from "../utils/apiOptimizer";
 
 // Create base CRUD API for users
 const baseCrudApi = createCrudApi("/users");
 
-// Get all users
-export const getAllUsers = baseCrudApi.getAll;
+/**
+ * Stable dedupe key for concurrent identical user list requests.
+ * @param {Record<string, unknown>} params
+ */
+const buildGetAllUsersKey = (params = {}) => {
+  const normalized = Object.keys(params)
+    .sort()
+    .map((key) => `${key}=${String(params[key])}`)
+    .join("&");
+  return `users:getAll:${normalized || "default"}`;
+};
+
+// Get all users (in-flight dedupe only — no TTL cache)
+export const getAllUsers = (params = {}) =>
+  apiOptimizer.deduplicate(buildGetAllUsersKey(params), () =>
+    baseCrudApi.getAll(params)
+  );
 
 // Get user by ID
 export const getUserById = baseCrudApi.getById;
