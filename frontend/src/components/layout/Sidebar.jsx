@@ -811,7 +811,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           </div>
         </div>
 
-        <div className="sidebar-nav flex-column">
+        <nav className="sidebar-nav flex-column" aria-label="Main navigation">
           {filteredMenu.map((item) => {
             if (item.isGroup) {
               const isExpanded = expandedGroups[item.id];
@@ -819,18 +819,23 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
               
               return (
                 <div key={item.id} className="sidebar-group">
-                  <div
+                  <button
+                    type="button"
                     className={`sidebar-link sidebar-group-header ${hasActiveChild ? 'active' : ''}`}
                     onClick={() => !collapsed && handleGroupClick(item.id, item.defaultPath, navigate)}
-                    style={{ cursor: collapsed ? 'default' : 'pointer' }}
+                    aria-expanded={collapsed ? undefined : isExpanded}
+                    aria-controls={collapsed ? undefined : `sidebar-group-${item.id}`}
+                    aria-label={item.label}
+                    disabled={collapsed}
+                    style={{ cursor: collapsed ? 'default' : 'pointer', border: 'none', background: 'transparent', width: '100%', textAlign: 'left' }}
                   >
-                    <span className="sidebar-icon">{item.icon}</span>
+                    <span className="sidebar-icon" aria-hidden="true">{item.icon}</span>
                     {!collapsed && (
                       <span className="sidebar-label">{item.label}</span>
                     )}
-                  </div>
+                  </button>
                   {!collapsed && isExpanded && (
-                    <div className="sidebar-submenu">
+                    <div className="sidebar-submenu" id={`sidebar-group-${item.id}`}>
                       {item.children.map((child) => (
                         <Link
                           key={child.path}
@@ -850,6 +855,10 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
               );
             }
             
+            const linkLabel = item.roleLabels
+              ? (item.roleLabels[user?.role] || item.roleLabels.default || item.label)
+              : item.label;
+
             return (
               <Link
                 key={item.path}
@@ -859,25 +868,30 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
                 }`}
                 data-sidebar-item={item.dataAttr}
                 onClick={handleLinkClick}
+                aria-label={collapsed ? linkLabel : undefined}
+                title={collapsed ? linkLabel : undefined}
               >
-                <span className="sidebar-icon">{item.icon}</span>
+                <span className="sidebar-icon" aria-hidden={collapsed ? "true" : undefined}>{item.icon}</span>
                 {!collapsed && (
                   <span className="sidebar-label">
-                    {item.roleLabels ? (item.roleLabels[user?.role] || item.roleLabels.default || item.label) : item.label}
+                    {linkLabel}
                   </span>
                 )}
               </Link>
             );
           })}
-        </div>
+        </nav>
       </div>
 
       {/* Mobile overlay */}
       {!collapsed && (
-        <div
+        <button
+          type="button"
           className="sidebar-overlay d-md-none"
           onClick={toggleSidebar}
-        ></div>
+          aria-label="Close navigation menu"
+          style={{ border: 'none', padding: 0 }}
+        />
       )}
     </>
   );

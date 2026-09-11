@@ -65,12 +65,21 @@ const DataTable = ({
 
   const getSortIcon = (key) => {
     if (!sortable) return null;
-    if (sortConfig.key !== key) return <FaSort className="ms-1 text-muted" />;
+    if (sortConfig.key !== key) {
+      return <FaSort className="ms-1 text-muted" aria-hidden="true" />;
+    }
     return sortConfig.direction === "asc" ? (
-      <FaSortUp className="ms-1 text-primary" />
+      <FaSortUp className="ms-1 text-primary" aria-hidden="true" />
     ) : (
-      <FaSortDown className="ms-1 text-primary" />
+      <FaSortDown className="ms-1 text-primary" aria-hidden="true" />
     );
+  };
+
+  const getHeaderSortValue = (key) => {
+    if (!sortable || sortConfig.key !== key || !sortConfig.direction) {
+      return "none";
+    }
+    return sortConfig.direction === "asc" ? "ascending" : "descending";
   };
 
   if (loading) {
@@ -85,7 +94,24 @@ const DataTable = ({
             {columns.map((column) => (
               <th
                 key={column.key}
+                scope="col"
+                aria-sort={
+                  column.sortable !== false && sortable
+                    ? getHeaderSortValue(column.key)
+                    : undefined
+                }
                 onClick={() => column.sortable !== false && handleSort(column.key)}
+                onKeyDown={(event) => {
+                  if (
+                    column.sortable !== false &&
+                    sortable &&
+                    (event.key === "Enter" || event.key === " ")
+                  ) {
+                    event.preventDefault();
+                    handleSort(column.key);
+                  }
+                }}
+                tabIndex={column.sortable !== false && sortable ? 0 : undefined}
                 style={{
                   cursor: column.sortable !== false && sortable ? "pointer" : "default",
                   userSelect: "none",

@@ -37,9 +37,7 @@ function App() {
               <NotificationInitializer />
               <SkipToMain />
               <div className="app-container">
-                <main id="main-content" role="main" tabIndex="-1">
-                  <AppRoutes />
-                </main>
+                <AppRoutes />
                 <ToastContainer
                   position="top-center"
                   autoClose={3000}

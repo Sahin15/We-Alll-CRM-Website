@@ -325,12 +325,14 @@ const Navbar = ({ toggleSidebar }) => {
                 }}
               >
                 <Form.Control
-                  type="text"
+                  type="search"
                   placeholder="🔍 Search anything... users, tasks, policies"
+                  aria-label="Search users, tasks, and policies"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => searchQuery.length >= 2 && setShowSearchResults(true)}
                   className="border-0"
+                  autoComplete="off"
                   style={{
                     backgroundColor: 'transparent',
                     color: 'white',
@@ -347,6 +349,7 @@ const Navbar = ({ toggleSidebar }) => {
                       setSearchQuery('');
                       setShowSearchResults(false);
                     }}
+                    aria-label="Clear search"
                     style={{
                       backgroundColor: 'transparent',
                       border: 'none',
@@ -355,13 +358,14 @@ const Navbar = ({ toggleSidebar }) => {
                       fontSize: '18px',
                     }}
                   >
-                    ✕
+                    <span aria-hidden="true">✕</span>
                   </Button>
                 )}
                 <Button 
                   variant="link" 
                   type="submit"
                   disabled={isSearching}
+                  aria-label="Search"
                   style={{
                     backgroundColor: 'transparent',
                     border: 'none',
@@ -370,7 +374,11 @@ const Navbar = ({ toggleSidebar }) => {
                     fontSize: '16px',
                   }}
                 >
-                  {isSearching ? <Spinner animation="border" size="sm" style={{ color: 'white' }} /> : <FaSearch />}
+                  {isSearching ? (
+                    <Spinner animation="border" size="sm" style={{ color: 'white' }} aria-hidden="true" />
+                  ) : (
+                    <FaSearch aria-hidden="true" />
+                  )}
                 </Button>
               </InputGroup>
             </Form>
@@ -581,6 +589,7 @@ const Navbar = ({ toggleSidebar }) => {
             align="end"
             className="user-dropdown"
             popperConfig={{ strategy: "fixed" }}
+            aria-label={`Account menu for ${user?.name || "user"}`}
           >
             <div
               className="user-dropdown-header"

@@ -54,7 +54,7 @@ const MainLayout = () => {
           }}
         >
           <Navbar toggleSidebar={toggleSidebar} />
-          <main className="p-2 p-sm-3 p-md-4 flex-grow-1">
+          <main id="main-content" className="p-2 p-sm-3 p-md-4 flex-grow-1" tabIndex="-1">
             <LazyRouteWrapper>
               <Outlet />
             </LazyRouteWrapper>

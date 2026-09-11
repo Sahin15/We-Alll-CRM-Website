@@ -494,7 +494,7 @@ const Login = () => {
         {/* Login Form */}
         <div className="login-form-container">
           <div className="form-header">
-            <h2>Welcome Back</h2>
+            <h1>Welcome Back</h1>
             <p>Sign in to access your account</p>
           </div>
 
@@ -505,11 +505,12 @@ const Login = () => {
           )}
 
           <Form onSubmit={handleSubmit} className="login-form">
-            <Form.Group className="form-group">
+            <Form.Group className="form-group" controlId="login-email">
               <Form.Label>Email</Form.Label>
               <Form.Control
                 type="email"
                 placeholder="Enter your email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -517,7 +518,7 @@ const Login = () => {
               />
             </Form.Group>
 
-            <Form.Group className="form-group">
+            <Form.Group className="form-group" controlId="login-password">
               <Form.Label>Password</Form.Label>
               <div className="password-input-container">
                 <Form.Control
@@ -527,20 +528,24 @@ const Login = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   className="form-input"
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"
                   className="password-toggle"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
                 >
-                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                  {showPassword ? <FaEyeSlash aria-hidden="true" /> : <FaEye aria-hidden="true" />}
                 </button>
               </div>
             </Form.Group>
 
             <div className="form-options">
               <Form.Check 
-                type="checkbox" 
+                type="checkbox"
+                id="login-remember-me"
                 label="Remember me"
                 className="remember-checkbox"
               />
@@ -549,75 +554,22 @@ const Login = () => {
               </Link>
             </div>
 
-            <div
+            <button
+              type="submit"
               className="custom-login-button-wrapper"
+              disabled={loading}
               data-loading={loading}
-              style={{
-                width: '100%',
-                height: '44px',
-                background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%)',
-                border: 'none',
-                borderRadius: '10px',
-                color: 'white',
-                fontSize: '1rem',
-                fontWeight: '600',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? '0.8' : '1',
-                transition: 'all 0.3s ease',
-                position: 'relative',
-                overflow: 'hidden',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-              onClick={!loading ? (e) => {
-                e.preventDefault();
-                const form = e.target.closest('form');
-                if (form) {
-                  const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-                  form.dispatchEvent(submitEvent);
-                }
-              } : undefined}
+              aria-busy={loading}
             >
-              <button
-                type="submit"
-                className="invisible-submit-button"
-                disabled={loading}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'inherit',
-                  opacity: 0,
-                  zIndex: 1
-                }}
-              />
               {loading ? (
-                <div className="loading-content" style={{ 
-                  color: 'white', 
-                  zIndex: 2, 
-                  position: 'relative',
-                  background: 'transparent'
-                }}>
-                  <div className="spinner"></div>
-                  <span style={{ 
-                    color: 'white',
-                    background: 'transparent'
-                  }}>Signing in...</span>
+                <div className="loading-content">
+                  <div className="spinner" aria-hidden="true"></div>
+                  <span>Signing in...</span>
                 </div>
               ) : (
-                <span style={{ 
-                  color: 'white', 
-                  zIndex: 2, 
-                  position: 'relative',
-                  background: 'transparent'
-                }}>Sign In</span>
+                <span>Sign In</span>
               )}
-            </div>
+            </button>
           </Form>
         </div>
       </div>
@@ -753,7 +705,7 @@ const Login = () => {
           margin-bottom: 1.5rem;
         }
         
-        .form-header h2 {
+        .form-header h1 {
           font-size: 1.4rem !important;
           font-weight: 600;
           color: #1a1a1a;
@@ -1095,7 +1047,7 @@ const Login = () => {
             padding: 1.5rem 1.2rem;
           }
           
-          .form-header h2 {
+          .form-header h1 {
             font-size: 1.2rem !important;
           }
           

@@ -328,11 +328,11 @@ const VirtualizedDataTable = ({
             }}
             autoFocus
           />
-          <Button variant="success" size="sm" onClick={saveEdit}>
-            <FaCheck />
+          <Button variant="success" size="sm" onClick={saveEdit} aria-label="Save edit">
+            <FaCheck aria-hidden="true" />
           </Button>
-          <Button variant="secondary" size="sm" onClick={cancelEdit}>
-            ×
+          <Button variant="secondary" size="sm" onClick={cancelEdit} aria-label="Cancel edit">
+            <span aria-hidden="true">×</span>
           </Button>
         </InputGroup>
       );
@@ -374,6 +374,7 @@ const VirtualizedDataTable = ({
                 type="checkbox"
                 checked={isSelected}
                 onChange={(e) => handleRowSelect(row[rowKey], e.target.checked)}
+                aria-label={`Select row ${index + 1}`}
               />
             </div>
           )}
@@ -397,8 +398,9 @@ const VirtualizedDataTable = ({
                     variant="outline-danger"
                     size="sm"
                     onClick={() => onRowDelete(row[rowKey])}
+                    aria-label="Delete row"
                   >
-                    <FaTrash />
+                    <FaTrash aria-hidden="true" />
                   </Button>
                 )}
               </ButtonGroup>
@@ -439,8 +441,9 @@ const VirtualizedDataTable = ({
                   <FaSearch />
                 </InputGroup.Text>
                 <Form.Control
-                  type="text"
+                  type="search"
                   placeholder="Search all columns..."
+                  aria-label="Search all columns"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -448,8 +451,9 @@ const VirtualizedDataTable = ({
                   <Button 
                     variant="outline-secondary" 
                     onClick={() => setSearchTerm('')}
+                    aria-label="Clear search"
                   >
-                    <FaTimes />
+                    <FaTimes aria-hidden="true" />
                   </Button>
                 )}
               </InputGroup>
@@ -553,6 +557,7 @@ const VirtualizedDataTable = ({
                   type="checkbox"
                   checked={selectedRows.size === processedData.length && processedData.length > 0}
                   onChange={(e) => handleSelectAll(e.target.checked)}
+                  aria-label="Select all rows"
                 />
               </div>
             )}
