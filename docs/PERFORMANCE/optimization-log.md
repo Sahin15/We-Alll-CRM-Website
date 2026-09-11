@@ -14,7 +14,9 @@ Each change requires a completed OPT packet (baseline → hypothesis → impleme
 | OPT-C1 | Login form labels + submit button + landmarks | Implemented — local a11y 100 | — |
 | OPT-C2 | Navbar search + Sidebar nav semantics | Implemented — pending re-measure | — |
 | OPT-C3 | DataTable / VirtualizedDataTable a11y | Implemented — pending re-measure | afd76f0 |
-| OPT-D1 | Route document meta + login SEO | Implemented — SEO capped by robots.txt | — |
+| OPT-D1 | Route document meta + login SEO | Implemented — SEO capped by robots.txt | c1265e7 |
+| OPT-E1 | Table virtualization | **Skipped** — profiling gate not passed | — |
+| OPT-F1 | Tier F login Lighthouse re-measure | Complete (local preview) | — |
 
 ---
 
@@ -93,6 +95,64 @@ Self-hosting Inter 300–800 via `@fontsource/inter` removes third-party font la
 
 **Rollback consideration**
 Restore Google Fonts links in `index.html`; remove `@fontsource/inter` imports from `main.jsx`.
+
+---
+
+### OPT-D1: Route document meta + login SEO
+
+**Baseline measurement**
+- Date: 2026-09-11
+- Environment: UAT + local preview
+- Page: `/login`
+- Metrics: SEO 66 (UAT desktop); `is-crawlable` blocked by meta + `robots.txt`
+
+**Hypothesis**
+Per-route `document.title`, meta description, and login-only `index,follow` robots meta improve Lighthouse SEO audits without changing `robots.txt` or authenticated noindex policy.
+
+**Implementation**
+- [`documentMeta.js`](../../frontend/src/utils/documentMeta.js) — meta helpers + route title map.
+- [`RouteDocumentMeta.jsx`](../../frontend/src/components/common/RouteDocumentMeta.jsx) — updates on navigation.
+- [`App.jsx`](../../frontend/src/App.jsx) — mount `RouteDocumentMeta`.
+- Removed duplicate `document.title` effect from `EnhancedAdminWorkOverview.jsx`.
+
+**After measurement**
+- Local desktop `/login` SEO: **69** (`login-local-post-seo.report.json`).
+- Only remaining failure: `is-crawlable` — blocked by **`robots.txt` `Disallow: /`** (line 4), not meta tags.
+- Authenticated routes still receive `noindex, nofollow, noarchive, nosnippet` at runtime.
+
+**Regression verification**
+- Pending: login title in browser tab; dashboard title updates on navigation; view-source on dashboard shows noindex after load.
+
+**Rollback consideration**
+Remove `RouteDocumentMeta` from `App.jsx`; delete `documentMeta.js` / `RouteDocumentMeta.jsx`.
+
+**Policy note:** Login SEO ≥ 90 target requires product approval to add `Allow: /login` (and optional public paths) in `robots.txt`. Plan §0.4 forbids weakening robots policy without explicit approval.
+
+---
+
+### OPT-E1: Table virtualization (gate not passed)
+
+**Baseline measurement**
+- Date: 2026-09-11
+- Environment: Not profiled
+- Page: Admin Work Overview / `VirtualizedDataTable`
+- Metrics: No Chrome Performance trace captured in Phase 0
+
+**Decision:** **Do not implement.** Plan requires profiling proof of DOM/long-task bottleneck before virtualization.
+
+---
+
+### OPT-F1: Tier F verification — login re-measure
+
+**After measurement (local prod preview, 2026-09-11)**
+
+| Device | Perf | A11y | Best | SEO |
+|--------|------|------|------|-----|
+| Desktop | 68 | 100 | 100 | 69 |
+| Mobile | 39 | 100 | 100 | 69 |
+
+**Gaps vs target:** Performance (desktop 68, mobile 39); SEO blocked by `robots.txt`.  
+**Artifacts:** [`verification-matrix.md`](verification-matrix.md), `login-final-*.report.json`
 
 ---
 

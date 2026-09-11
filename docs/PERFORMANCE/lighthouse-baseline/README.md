@@ -13,6 +13,10 @@
 | Lab — UAT desktop (pre-a11y) | `/login` | 37 | 86 | 100 | 66 | `uat-login-desktop.report.json`, Lighthouse 12.8.2 headless |
 | Lab — local desktop (post OPT-C1) | `/login` | — | **100** | — | — | `login-local-post-a11y.report.json` |
 | Lab — local desktop (post OPT-D1) | `/login` | — | — | — | **69** | `login-local-post-seo.report.json` — blocked by `robots.txt` Disallow:/ |
+| **Final — local desktop** | `/login` | **68** | **100** | **100** | **69** | `login-final-desktop.report.json` (2026-09-11) |
+| **Final — local mobile** | `/login` | **39** | **100** | **100** | **69** | `login-final-mobile.report.json` (2026-09-11) |
+
+See [`../verification-matrix.md`](../verification-matrix.md) for target vs measured summary.
 | Lab — UAT mobile | `/login` | — | 86 | 100 | 66 | Performance null (NO_LCP in headless); see `uat-login.report.json` |
 | Lab — local preview | `/login` | — | — | — | — | NO_FCP in headless (SPA + preview); not used as score baseline |
 
