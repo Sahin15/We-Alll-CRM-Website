@@ -14,8 +14,13 @@ import "./styles/accessibility.css";
 
 function App() {
   useEffect(() => {
-    // Initialize IndexedDB cleanup on app load
-    initializeIndexedDBCleanup();
+    const runCleanup = () => initializeIndexedDBCleanup();
+    if (typeof window.requestIdleCallback === "function") {
+      const idleId = window.requestIdleCallback(runCleanup, { timeout: 5000 });
+      return () => window.cancelIdleCallback(idleId);
+    }
+    const timerId = setTimeout(runCleanup, 2000);
+    return () => clearTimeout(timerId);
   }, []);
 
   return (

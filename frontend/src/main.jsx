@@ -9,7 +9,6 @@ import "@fontsource/inter/700.css";
 import "@fontsource/inter/800.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "react-toastify/dist/ReactToastify.css";
-import "react-datepicker/dist/react-datepicker.css";
 import "./index.css";
 import "./styles/card-header-fix.css";
 import { initMobileDebug } from "./utils/mobileDebug";
@@ -18,20 +17,29 @@ import { registerPwaUpdateHandler } from "./utils/pwaUpdate";
 initMobileDebug();
 registerPwaUpdateHandler();
 
-// Register service worker early for push notifications
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' })
+// Defer service worker registration until idle (after first paint)
+if ("serviceWorker" in navigator) {
+  const registerMessagingSw = () => {
+    navigator.serviceWorker
+      .register("/firebase-messaging-sw.js", { scope: "/" })
       .then(() => {
-        if ('caches' in window) {
+        if ("caches" in window) {
           caches.keys().then((keys) => {
-            keys.filter((key) => key.includes('api-cache')).forEach((key) => caches.delete(key));
+            keys
+              .filter((key) => key.includes("api-cache"))
+              .forEach((key) => caches.delete(key));
           });
         }
       })
-      .catch(() => {
-        // Registration failed silently
-      });
+      .catch(() => {});
+  };
+
+  window.addEventListener("load", () => {
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(registerMessagingSw, { timeout: 5000 });
+    } else {
+      setTimeout(registerMessagingSw, 2000);
+    }
   });
 }
 

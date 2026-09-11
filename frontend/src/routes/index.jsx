@@ -6,8 +6,8 @@ const MobileAppShell = lazy(() => import("../pages/mobileapp/MobileAppShell"));
 import { useAuth } from "../context/AuthContext";
 import { RouteLoadingFallback } from "../components/RouteWrapper";
 
-// Layouts
-import MainLayout from "../components/layout/MainLayout";
+// Layouts — MainLayout lazy so /login does not load Sidebar/Navbar on first paint
+const MainLayout = lazy(() => import("../components/layout/MainLayout"));
 import AuthLayout from "../components/layout/AuthLayout";
 
 // Protected Routes
@@ -249,7 +249,9 @@ const AppRoutes = () => {
       <Route
         element={
           <ProtectedRoute>
-            <MainLayout />
+            <Suspense fallback={<RouteLoadingFallback />}>
+              <MainLayout />
+            </Suspense>
           </ProtectedRoute>
         }
       >

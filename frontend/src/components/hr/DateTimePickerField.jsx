@@ -1,4 +1,5 @@
 import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import { Form } from "react-bootstrap";
 import "../../styles/datepicker-modal.css";
 

@@ -7,7 +7,10 @@ Each change requires a completed OPT packet (baseline → hypothesis → impleme
 | — | Phase 0 baseline capture | In progress (UAT login measured; auth pages pending) | — |
 | OPT-A1 | In-flight dedupe on `getAllUsers` | Implemented — pending re-measure | 12625be |
 | OPT-A2 | Dashboard fetch consolidation | Implemented — pending re-measure | — |
-| OPT-A3 | Self-host Inter fonts (300–800) | Implemented — pending re-measure | — |
+| OPT-A3 | Self-host Inter fonts (300–800) | Implemented — pending re-measure | 771f619 |
+| OPT-B1 | Lazy MainLayout + defer datepicker CSS | Implemented — pending re-measure | — |
+| OPT-B2 | Defer SW registration + IndexedDB cleanup | Implemented — pending re-measure | — |
+| OPT-B3 | nginx gzip for JS/CSS (UAT config) | Config added — pending VPS deploy verify | — |
 
 ---
 
