@@ -1,11 +1,5 @@
-/* Import common dashboard styles */
-@import './styles/dashboard-common.css';
-/* Import responsive utilities */
+/* Dashboard-specific styles loaded via MainLayout (lazy) — not on login critical path */
 @import './styles/responsive.css';
-/* Import modal mobile styles */
-@import './styles/modal-mobile.css';
-/* Import mobile polish and optimizations */
-@import './styles/polish-mobile.css';
 
 :root {
   --primary-color: #667eea;
@@ -33,9 +27,14 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e8eaf6 100%);
   min-height: 100vh;
   letter-spacing: -0.011em;
+}
+
+/* Authenticated app shell background — not applied on login (login-page owns its gradient) */
+.app-shell {
+  background: linear-gradient(135deg, #f5f7fa 0%, #e8eaf6 100%);
+  min-height: 100vh;
 }
 
 code {

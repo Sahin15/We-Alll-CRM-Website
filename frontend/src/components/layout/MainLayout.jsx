@@ -4,11 +4,19 @@ import Sidebar from "./Sidebar";
 import Footer from "./Footer";
 import { LazyRouteWrapper } from "../RouteWrapper";
 import { useState, useEffect } from "react";
+import "../../styles/dashboard-common.css";
+import "../../styles/modal-mobile.css";
+import "../../styles/polish-mobile.css";
+import { loadExtendedInterFonts } from "../../utils/loadExtendedFonts";
 
 const MainLayout = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 991);
   const [showFloatingToggle, setShowFloatingToggle] = useState(false);
+
+  useEffect(() => {
+    loadExtendedInterFonts();
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {
@@ -41,7 +49,7 @@ const MainLayout = () => {
   };
 
   return (
-    <div className="d-flex flex-column" style={{ minHeight: "100vh", overflowX: "hidden" }}>
+    <div className="d-flex flex-column app-shell" style={{ minHeight: "100vh", overflowX: "hidden" }}>
       <div className="d-flex flex-grow-1">
         <Sidebar collapsed={sidebarCollapsed} toggleSidebar={toggleSidebar} />
         <div

@@ -74,6 +74,8 @@
         // Clear timeout when React mounts (main.jsx sets __WEALLL_APP_MOUNTED__)
         window.addEventListener('wealll-app-mounted', function() {
           clearTimeout(loadTimeout);
+          var bootShell = document.getElementById('boot-shell');
+          if (bootShell) bootShell.classList.add('boot-shell-hidden');
         });
 
         // If the main module is still downloading, extend patience (production ~8MB chunk)
@@ -96,47 +98,114 @@
     </script>
     
     <title>We Alll Office</title>
+    <link rel="preload" as="image" href="/We Alll Office Logo.png" fetchpriority="high" />
+    <style>
+      /* Critical login shell — matches Login.jsx layout to prevent CLS on React mount */
+      html, body, #root { min-height: 100vh; margin: 0; }
+      body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        -webkit-user-select: none;
+        -webkit-overflow-scrolling: touch;
+      }
+      * { -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; box-sizing: border-box; }
+      .boot-login-page {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+      }
+      .boot-login-container {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 16px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1), 0 0 30px rgba(79, 70, 229, 0.3);
+        width: 100%;
+        max-width: 380px;
+        min-height: 549px;
+        overflow: hidden;
+      }
+      .boot-logo-section {
+        background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%);
+        padding: 1.5rem 1.5rem 1.2rem;
+        text-align: center;
+      }
+      .boot-logo-box {
+        width: 160px;
+        height: 50px;
+        margin: 0 auto 1rem;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+      }
+      .boot-tagline {
+        color: white;
+        font-size: 0.85rem;
+        opacity: 0.9;
+        margin: 0;
+        font-weight: 300;
+      }
+      .boot-form-section {
+        padding: 1.8rem 1.5rem;
+      }
+      .boot-form-header h1 {
+        font-size: 1.4rem;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin: 0 0 0.3rem;
+        text-align: center;
+        line-height: 1.3;
+      }
+      .boot-form-header p {
+        color: #666;
+        margin: 0 0 1.5rem;
+        font-size: 0.85rem;
+        text-align: center;
+      }
+      .boot-field {
+        height: 44px;
+        background: #f8f9fa;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+      }
+      .boot-button {
+        height: 48px;
+        background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%);
+        border-radius: 8px;
+        margin-top: 0.5rem;
+      }
+      #boot-shell {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+      }
+      #boot-shell.boot-shell-hidden {
+        visibility: hidden;
+        pointer-events: none;
+      }
+    </style>
   </head>
   <body>
-    <div id="root">
-      <!-- Loading screen for initial load -->
-      <div style="
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-      ">
-        <div style="text-align: center; color: white;">
-          <div style="
-            width: 60px;
-            height: 60px;
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-          "></div>
-          <h2 style="margin: 0; font-size: 24px; font-weight: 600;">We Alll Office</h2>
-          <p style="margin: 10px 0 0; font-size: 14px; opacity: 0.9;">Loading...</p>
+    <!-- Boot shell outside #root — hidden when React mounts (avoids root innerHTML swap CLS) -->
+    <div id="boot-shell" class="boot-login-page" aria-hidden="true">
+      <div class="boot-login-container">
+        <div class="boot-logo-section">
+          <div class="boot-logo-box"></div>
+          <p class="boot-tagline">Your Digital Workspace</p>
+        </div>
+        <div class="boot-form-section">
+          <div class="boot-form-header">
+            <h1>Welcome Back</h1>
+            <p>Sign in to access your account</p>
+          </div>
+          <div class="boot-field"></div>
+          <div class="boot-field"></div>
+          <div class="boot-button"></div>
         </div>
       </div>
-      <style>
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        /* iOS Safari fixes */
-        * {
-          -webkit-tap-highlight-color: transparent;
-          -webkit-touch-callout: none;
-        }
-        body {
-          -webkit-user-select: none;
-          -webkit-overflow-scrolling: touch;
-        }
-      </style>
     </div>
+    <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

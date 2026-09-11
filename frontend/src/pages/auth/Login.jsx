@@ -13,7 +13,6 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [userName, setUserName] = useState("");
-
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -479,13 +478,17 @@ const Login = () => {
       <div className="sparkle sparkle-login-1"></div>
       <div className="sparkle sparkle-login-2"></div>
       <div className="sparkle sparkle-login-3"></div>
-      <div className="login-container">
+      <div className="login-container login-container--glow">
         {/* Logo Section */}
         <div className="logo-section">
           <div className="logo-full-container" style={{ width: '160px', height: '50px', margin: '0 auto 1rem' }}>
-            <img loading="lazy" src={BRAND_LOGO_FULL}
+            <img
+              src={BRAND_LOGO_FULL}
               alt={BRAND_NAME}
               className="logo-img-full"
+              width={160}
+              height={50}
+              fetchPriority="high"
             />
           </div>
           <p className="brand-tagline">Your Digital Workspace</p>
@@ -677,9 +680,13 @@ const Login = () => {
           width: 100%;
           max-width: 380px;
           max-height: 90vh;
-          animation: slideUp 0.6s ease-out, containerGlow 4s ease-in-out infinite;
+          min-height: 549px;
           position: relative;
           z-index: 10;
+        }
+
+        .login-container--glow {
+          animation: containerGlow 4s ease-in-out infinite;
         }
         
         .logo-section {
@@ -993,6 +1000,8 @@ const Login = () => {
           border-radius: 50%;
           box-shadow: 0 0 15px rgba(255,255,255,1), 0 0 25px rgba(255,255,255,0.5);
           animation: sparkle 2s ease-in-out infinite;
+          animation-delay: 2s;
+          opacity: 0;
           z-index: 5;
         }
         

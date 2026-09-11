@@ -62,6 +62,12 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes("node_modules")) {
+            // Boot-critical shared modules — must not land in feature page chunks
+            if (id.includes("/context/")) return "app-core";
+            if (id.includes("/services/notificationService")) return "app-core";
+            if (id.includes("/utils/authzAccess") || id.includes("/utils/authzFlags"))
+              return "app-core";
+            if (id.includes("/api/authApi") || id.includes("/api/authzApi")) return "app-core";
             if (id.includes("/pages/procurement/")) return "procurement";
             if (id.includes("/pages/projects/ProjectWorkspace")) return "project-workspace";
             if (id.includes("/pages/projects/")) return "projects";

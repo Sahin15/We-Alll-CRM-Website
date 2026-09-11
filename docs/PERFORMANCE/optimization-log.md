@@ -17,6 +17,26 @@ Each change requires a completed OPT packet (baseline → hypothesis → impleme
 | OPT-D1 | Route document meta + login SEO | Implemented — SEO capped by robots.txt | c1265e7 |
 | OPT-E1 | Table virtualization | **Skipped** — profiling gate not passed | — |
 | OPT-F1 | Tier F login Lighthouse re-measure | Complete (local preview) | — |
+| OPT-G1 | `app-core` manualChunk for auth/notification | Complete — entry no longer imports feature chunks | — |
+| OPT-G2 | Split `authenticatedRoutes.jsx` from login entry | Complete — JS 507→214 KB on /login | — |
+| OPT-G3 | Login boot shell + critical CSS (CLS) | Partial — CLS 1.82→1.27 desktop; target <0.1 not met | — |
+| OPT-G4 | Defer dashboard CSS + Inter 300/500/700/800 | Complete — CSS 51→39 KB blocking | — |
+
+---
+
+### OPT-G1/G2: Login JS dependency boundary
+
+**Baseline:** Desktop login 507 KB JS, 14 modulepreloads including charts/dashboard/attendance.  
+**After:** 214 KB JS, 6 modulepreloads (react-vendor, react-router, axios, app-core, ui, icons).  
+**See:** `docs/PERFORMANCE/login-phase2-results.md`
+
+---
+
+### OPT-G3/G4: CLS + login CSS critical path
+
+**Baseline:** CLS 1.82 desktop, 5 render-blocking CSS files.  
+**After:** CLS 1.27 desktop (0.79 mobile), 2 render-blocking CSS files.  
+**Remaining:** Font FOUT + Bootstrap form cascade — next iteration.
 
 ---
 

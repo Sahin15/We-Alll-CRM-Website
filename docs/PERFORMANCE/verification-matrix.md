@@ -5,21 +5,24 @@
 **Lighthouse:** 12.8.2 headless  
 **Note:** UAT not redeployed during this branch — local prod preview only for final login pass. Authenticated pages require UAT credentials (pending manual capture).
 
-## Login `/login` — final local lab scores
+## Login `/login` — Phase 2 local lab scores (2026-09-11)
 
-| Device | Perf | A11y | Best | SEO | FCP | LCP | TBT | CLS | SI |
-|--------|------|------|------|-----|-----|-----|-----|-----|-----|
-| Desktop (pre-work UAT) | 37 | 86 | 100 | 66 | 3.6s | 3.8s | 0ms | 1.226 | 3.6s |
-| Desktop (final local) | **68** | **100** | **100** | **69** | 1.2s | 1.3s | 0ms | 2.194 | 1.2s |
-| Mobile (final local) | **39** | **100** | **100** | **69** | 5.7s | 6.4s | 0ms | 0.787 | 5.7s |
+| Device | Perf | JS | CSS | FCP | LCP | TBT | CLS |
+|--------|------|----|----|-----|-----|-----|-----|
+| Desktop (phase2 before) | 69 | 507 KB | 51 KB | 1.12s | 1.32s | 0ms | 1.82 |
+| Desktop (phase2 after) | **74** | **214 KB** | **39 KB** | **0.72s** | **0.86s** | 0ms | **1.27** |
+| Mobile (phase2 before) | 38 | 507 KB | 51 KB | 5.73s | 6.40s | 0ms | 1.30 |
+| Mobile (phase2 after) | **57** | **214 KB** | **39 KB** | **3.17s** | **3.94s** | 77ms | **0.79** |
+| Mobile Slow 4G (after) | **57** | **214 KB** | **39 KB** | **3.18s** | **3.94s** | 44ms | **0.93** |
 
-**Artifacts:** `lighthouse-baseline/login-final-desktop`, `lighthouse-baseline/login-final-mobile`
+**Artifacts:** `lighthouse-baseline/login-phase2-before-*`, `login-phase2-after-*`  
+**Full report:** `docs/PERFORMANCE/login-phase2-results.md`
 
 ### Target vs measured (login)
 
 | Category | Target | Desktop final | Mobile final | Status |
 |----------|--------|---------------|--------------|--------|
-| Performance | ≥ 90 | 68 | 39 | **Gap** — CLS + mobile LCP; see remaining audits |
+| Performance | ≥ 90 | 74 | 57 | **Gap** — CLS still high; JS preload fixed |
 | Accessibility | ≥ 90 | 100 | 100 | **Met** |
 | Best Practices | ≥ 90 | 100 | 100 | **Met** |
 | SEO | ≥ 90 | 69 | 69 | **Blocked** — `robots.txt` `Disallow:/` (`is-crawlable`); policy §0.4 |
