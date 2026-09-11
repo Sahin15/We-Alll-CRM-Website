@@ -10,11 +10,15 @@ import {
   FaPhone
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import api from "../../services/api";
+import { userApi } from "../../api/userApi";
 import { formatDate } from "../../utils/helpers";
 import "./QuickStatsWidgets.css";
 
-const QuickStatsWidgets = () => {
+/**
+ * @param {{ users?: Array<Record<string, unknown>> | null }} props
+ * When `users` is provided (including `null` while parent loads), skips self-fetch.
+ */
+const QuickStatsWidgets = ({ users: externalUsers }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -28,16 +32,32 @@ const QuickStatsWidgets = () => {
   });
 
   useEffect(() => {
-    fetchQuickStats();
-  }, []);
+    if (externalUsers === undefined) {
+      fetchQuickStats();
+      return;
+    }
+    if (externalUsers === null) {
+      setLoading(true);
+      return;
+    }
+    computeQuickStatsFromUsers(externalUsers);
+    setLoading(false);
+  }, [externalUsers]);
 
   const fetchQuickStats = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/users", { params: { excludePast: true, limit: 1000 } });
-      // Include ALL users regardless of role
-      const allUsers = response.data || [];
-      
+      const response = await userApi.getAllUsers({ excludePast: true, limit: 1000 });
+      computeQuickStatsFromUsers(response.data || []);
+    } catch (error) {
+      console.error("Error fetching quick stats:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const computeQuickStatsFromUsers = (allUsers) => {
+    try {
       const today = new Date();
       const todayMonth = today.getMonth();
       const todayDate = today.getDate();
@@ -208,9 +228,7 @@ const QuickStatsWidgets = () => {
         documentExpiry
       });
     } catch (error) {
-      console.error("Error fetching quick stats:", error);
-    } finally {
-      setLoading(false);
+      console.error("Error computing quick stats:", error);
     }
   };
 

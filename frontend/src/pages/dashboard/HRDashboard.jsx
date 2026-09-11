@@ -88,6 +88,8 @@ const HRDashboard = () => {
   const [employeesList, setEmployeesList] = useState([]);
   const [leadsList, setLeadsList] = useState([]);
   const [attendanceToday, setAttendanceToday] = useState([]);
+  const [activeUsersCache, setActiveUsersCache] = useState([]);
+  const [excludePastUsers, setExcludePastUsers] = useState(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -103,6 +105,7 @@ const HRDashboard = () => {
       // Parallel fetches — sequential awaits were stacking multiple RTTs on every HR load
       const [
         usersRes,
+        excludePastUsersRes,
         leaveRes,
         attendanceRes,
         departmentRes,
@@ -112,6 +115,7 @@ const HRDashboard = () => {
         hiringSettled,
       ] = await Promise.all([
         userApi.getAllUsers({ status: 'active', limit: 1000 }),
+        userApi.getAllUsers({ excludePast: true, limit: 1000 }),
         leaveApi.getAllLeaves({ status: "pending" }),
         attendanceApi.getAllAttendance({ date: today }),
         departmentApi.getAllDepartments(),
@@ -124,6 +128,8 @@ const HRDashboard = () => {
       ]);
 
       const leadsRes = leadsSettled;
+      setActiveUsersCache(usersRes.data || []);
+      setExcludePastUsers(excludePastUsersRes.data || []);
 
       // Count all who clocked in today (present, late, half-day) as "present today"
       const todayPresentCount = attendanceRes.data?.filter((a) => 
@@ -221,9 +227,7 @@ const HRDashboard = () => {
   // Card click handlers
   const handleEmployeesCardClick = async () => {
     try {
-      // Pass status=active directly to backend so only truly active employees are returned
-      const response = await userApi.getAllUsers({ status: 'active', limit: 1000 });
-      const employees = (response.data || []).filter(u => 
+      const employees = activeUsersCache.filter(u => 
         (u.role === 'employee' || u.role === 'hod' || u.role === 'hr' || u.role === 'manager') &&
         u.isActive !== false
       );
@@ -558,7 +562,7 @@ const HRDashboard = () => {
       {/* Quick Stats Widgets - Important Alerts */}
       <Row className="mb-4">
         <Col>
-          <QuickStatsWidgets />
+          <QuickStatsWidgets users={excludePastUsers} />
         </Col>
       </Row>
 

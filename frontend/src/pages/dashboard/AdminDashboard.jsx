@@ -133,6 +133,8 @@ const AdminDashboard = () => {
   const [documents, setDocuments] = useState([]);
   const [policies, setPolicies] = useState([]);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [activeUsersCache, setActiveUsersCache] = useState([]);
+  const [excludePastUsers, setExcludePastUsers] = useState(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -164,8 +166,9 @@ const AdminDashboard = () => {
       const today = new Date().toISOString().split('T')[0];
       const apiStartTime = Date.now();
       
-      const [usersRes, projectRes, clientRes, departmentRes, leadsRes, announcementsRes, documentsRes, policiesRes, meetingsRes, attendanceRes, approvedLeavesRes, pendingLeavesRes] = await Promise.all([
+      const [usersRes, excludePastUsersRes, projectRes, clientRes, departmentRes, leadsRes, announcementsRes, documentsRes, policiesRes, meetingsRes, attendanceRes, approvedLeavesRes, pendingLeavesRes] = await Promise.all([
         userApi.getAllUsers({ status: 'active', limit: 1000 }),
+        userApi.getAllUsers({ excludePast: true, limit: 1000 }),
         projectApi.getAllProjects(),
         clientApi.getAllClients(),
         departmentApi.getAllDepartments().catch(() => ({ data: [] })),
@@ -181,6 +184,8 @@ const AdminDashboard = () => {
       const apiResponseTime = Date.now() - apiStartTime;
       
       const users = usersRes.data || [];
+      setActiveUsersCache(users);
+      setExcludePastUsers(excludePastUsersRes.data || []);
       const projects = projectRes.data || [];
       const departments = departmentRes.data || [];
       
@@ -364,8 +369,7 @@ const AdminDashboard = () => {
 
   const handleUsersCardClick = async () => {
     try {
-      const response = await userApi.getAllUsers({ status: 'active', limit: 1000 });
-      setUsersList(response.data || []);
+      setUsersList(activeUsersCache);
       setShowUsersModal(true);
     } catch (error) {
       toast.error('Failed to load users');
@@ -426,9 +430,8 @@ const AdminDashboard = () => {
       
       // Fetch user data if needed
       if (todayAttendance.length > 0 && !todayAttendance[0].employee?.name) {
-        const usersRes = await userApi.getAllUsers({ status: 'active', limit: 1000 });
         const usersMap = {};
-        usersRes.data?.forEach(u => usersMap[u._id] = u);
+        activeUsersCache.forEach(u => usersMap[u._id] = u);
         
         todayAttendance = todayAttendance.map(att => {
           const employeeId = typeof att.employee === 'string' ? att.employee : att.employee?._id;
@@ -454,9 +457,8 @@ const AdminDashboard = () => {
       
       // Fetch user data if needed
       if (pendingLeaves.length > 0 && !pendingLeaves[0].user?.name) {
-        const usersRes = await userApi.getAllUsers({ status: 'active', limit: 1000 });
         const usersMap = {};
-        usersRes.data?.forEach(u => usersMap[u._id] = u);
+        activeUsersCache.forEach(u => usersMap[u._id] = u);
         
         pendingLeaves = pendingLeaves.map(leave => {
           const userId = typeof leave.user === 'string' ? leave.user : leave.user?._id;
@@ -500,8 +502,7 @@ const AdminDashboard = () => {
       }
     } else if (chartType === 'users') {
       try {
-        const response = await userApi.getAllUsers({ status: 'active', limit: 1000 });
-        let filteredUsers = response.data || [];
+        let filteredUsers = [...activeUsersCache];
         
         // Filter based on clicked segment
         if (segment) {
@@ -577,9 +578,8 @@ const AdminDashboard = () => {
       // The backend returns 'employee' field, not 'user'
       // If employee data is not populated, fetch it
       if (lateEmployees.length > 0 && !lateEmployees[0].employee?.name) {
-        const usersRes = await userApi.getAllUsers({ status: 'active', limit: 1000 });
         const usersMap = {};
-        usersRes.data?.forEach(u => usersMap[u._id] = u);
+        activeUsersCache.forEach(u => usersMap[u._id] = u);
         
         lateEmployees = lateEmployees.map(att => {
           // Handle both cases: employee as object or employee as ID string
@@ -1244,7 +1244,7 @@ const AdminDashboard = () => {
       {/* Quick Stats Widgets - Important Alerts */}
       <Row className="mb-4">
         <Col>
-          <QuickStatsWidgets />
+          <QuickStatsWidgets users={excludePastUsers} />
         </Col>
       </Row>
 

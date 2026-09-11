@@ -5,7 +5,9 @@ Each change requires a completed OPT packet (baseline → hypothesis → impleme
 | OPT ID | Title | Status | Branch commit |
 |--------|-------|--------|---------------|
 | — | Phase 0 baseline capture | In progress (UAT login measured; auth pages pending) | — |
-| OPT-A1 | In-flight dedupe on `getAllUsers` | Implemented — pending re-measure | — |
+| OPT-A1 | In-flight dedupe on `getAllUsers` | Implemented — pending re-measure | 12625be |
+| OPT-A2 | Dashboard fetch consolidation | Implemented — pending re-measure | — |
+| OPT-A3 | Self-host Inter fonts (300–800) | Implemented — pending re-measure | — |
 
 ---
 
@@ -31,6 +33,59 @@ Centralizing in-flight dedupe at `userApi.getAllUsers` collapses concurrent iden
 
 **Rollback consideration**
 Revert `getAllUsers` export to `baseCrudApi.getAll` direct assignment.
+
+---
+
+### OPT-A2: Dashboard fetch consolidation
+
+**Baseline measurement**
+- Date: 2026-09-11
+- Environment: Code review
+- Page: Admin + HR dashboards
+- Metrics: Duplicate `/api/users` on mount (active + excludePast + QuickStatsWidgets self-fetch)
+
+**Hypothesis**
+Batch `excludePast` user fetch in dashboard `Promise.all`, pass to `QuickStatsWidgets`, and reuse `activeUsersCache` for modal/chart handlers to eliminate redundant user list requests.
+
+**Implementation**
+- [`QuickStatsWidgets.jsx`](../../frontend/src/components/hr/QuickStatsWidgets.jsx) — optional `users` prop; uses `userApi` instead of raw `api.get`.
+- [`AdminDashboard.jsx`](../../frontend/src/pages/dashboard/AdminDashboard.jsx) — shared caches + batched excludePast fetch.
+- [`HRDashboard.jsx`](../../frontend/src/pages/dashboard/HRDashboard.jsx) — same pattern.
+
+**After measurement**
+- Pending: DevTools network count on dashboard mount.
+
+**Regression verification**
+- Pending: Quick stats cards, employee modals, chart segment clicks.
+
+**Rollback consideration**
+Remove cache state/props; restore QuickStatsWidgets self-fetch and handler re-fetches.
+
+---
+
+### OPT-A3: Self-host Inter fonts
+
+**Baseline measurement**
+- Date: 2026-09-11
+- Environment: UAT login Lighthouse desktop
+- Page: `/login`
+- Metrics: Render-blocking Google Fonts CSS from `fonts.googleapis.com`; CLS 1.226
+
+**Hypothesis**
+Self-hosting Inter 300–800 via `@fontsource/inter` removes third-party font latency and render-blocking external CSS while preserving the same weight range.
+
+**Implementation**
+- [`frontend/src/main.jsx`](../../frontend/src/main.jsx) — import Inter weights 300–800.
+- [`frontend/index.html`](../../frontend/index.html) — remove Google Fonts preconnect/stylesheet links.
+
+**After measurement**
+- Pending: Lighthouse login re-run + visual comparison screenshot.
+
+**Regression verification**
+- Pending: Login + dashboard typography check (weights 300–800).
+
+**Rollback consideration**
+Restore Google Fonts links in `index.html`; remove `@fontsource/inter` imports from `main.jsx`.
 
 ---
 
