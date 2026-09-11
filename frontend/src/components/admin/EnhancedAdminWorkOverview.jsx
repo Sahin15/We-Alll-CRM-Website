@@ -197,14 +197,6 @@ const EnhancedAdminWorkOverview = () => {
   // Check admin access
   const hasAdminAccess = checkPageAccess(canAccess, PAGE_ACCESS.workManage);
   
-  // Set document title
-  useEffect(() => {
-    document.title = 'Work Management Dashboard - Admin Panel';
-    return () => {
-      document.title = 'Admin Dashboard';
-    };
-  }, []);
-
   // Priority icons mapping
   const priorityIcons = {
     urgent: <FaExclamationTriangle className="text-danger" title="Urgent" />,

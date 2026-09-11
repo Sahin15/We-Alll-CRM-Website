@@ -6,6 +6,7 @@ import { CompanyProvider } from "./context/CompanyContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import AppRoutes from "./routes";
 import SkipToMain from "./components/common/SkipToMain";
+import RouteDocumentMeta from "./components/common/RouteDocumentMeta";
 import NotificationInitializer from "./components/common/NotificationInitializer";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 import { initializeIndexedDBCleanup } from "./utils/indexedDBCleanup";
@@ -36,6 +37,7 @@ function App() {
             <NotificationProvider>
               <NotificationInitializer />
               <SkipToMain />
+              <RouteDocumentMeta />
               <div className="app-container">
                 <AppRoutes />
                 <ToastContainer

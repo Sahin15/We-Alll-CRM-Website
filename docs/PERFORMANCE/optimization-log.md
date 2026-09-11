@@ -10,7 +10,11 @@ Each change requires a completed OPT packet (baseline → hypothesis → impleme
 | OPT-A3 | Self-host Inter fonts (300–800) | Implemented — pending re-measure | 771f619 |
 | OPT-B1 | Lazy MainLayout + defer datepicker CSS | Implemented — pending re-measure | — |
 | OPT-B2 | Defer SW registration + IndexedDB cleanup | Implemented — pending re-measure | — |
-| OPT-B3 | nginx gzip for JS/CSS (UAT config) | Config added — pending VPS deploy verify | — |
+| OPT-B3 | nginx gzip for JS/CSS (UAT config) | Config added — pending VPS deploy verify | 473b4d2 |
+| OPT-C1 | Login form labels + submit button + landmarks | Implemented — local a11y 100 | — |
+| OPT-C2 | Navbar search + Sidebar nav semantics | Implemented — pending re-measure | — |
+| OPT-C3 | DataTable / VirtualizedDataTable a11y | Implemented — pending re-measure | afd76f0 |
+| OPT-D1 | Route document meta + login SEO | Implemented — SEO capped by robots.txt | — |
 
 ---
 
