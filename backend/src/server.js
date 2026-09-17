@@ -99,10 +99,17 @@ import { initializeCronJobs } from "./config/cronJobs.js";
 import { apiLimiter, sanitizeInput } from "./middleware/securityMiddleware.js";
 import { s3ProxyMiddleware } from "./middleware/s3ProxyMiddleware.js";
 import { auditMiddleware } from "./utils/auditLogger.js";
+import { validateWebsiteLeadProductionConfig } from "./middleware/websiteLeadMiddleware.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createServer } from "http";
 import realTimeUpdateService from "./services/realTimeUpdateService.js";
+
+const websiteLeadConfig = validateWebsiteLeadProductionConfig();
+if (!websiteLeadConfig.ok) {
+  console.error(`❌ ERROR: ${websiteLeadConfig.error}`);
+  process.exit(1);
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -131,7 +138,10 @@ const corsOptions = {
     if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
       callback(null, true);
     } else {
-      // Log rejected origin for debugging
+      // Log rejected origin for debugging.
+      // Intentionally still allows the request for mobile / non-browser clients.
+      // Endpoint-level auth (JWT) and WEBSITE_LEAD_ALLOWED_ORIGINS remain the security boundary.
+      // Follow-up: tighten CORS without breaking mobile clients (tracked separately).
       console.warn(`CORS rejected origin: ${origin}`);
       callback(null, true); // Allow anyway for mobile compatibility
     }
