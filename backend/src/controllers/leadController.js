@@ -1,6 +1,27 @@
 import Lead from "../models/leadModel.js";
 import User from "../models/userModel.js";
 import { mergeExcludePastMembersFilter } from "../utils/employeeQueryUtils.js";
+import { normalizeLeadPhone } from "../utils/normalizeLeadPhone.js";
+
+/**
+ * @param {object} payload
+ * @returns {string}
+ */
+function buildWebsiteResubmissionNote(payload) {
+  const { source, reference, notes, service, budget } = payload;
+  const lines = [`Website form resubmission (${new Date().toISOString()})`];
+
+  if (source) lines.push(`Source: ${source}`);
+  if (reference) lines.push(`Reference: ${reference}`);
+  if (notes) lines.push(`Message: ${notes}`);
+  if (service) {
+    const serviceText = Array.isArray(service) ? service.join(", ") : service;
+    lines.push(`Service: ${serviceText}`);
+  }
+  if (budget) lines.push(`Budget: ${budget}`);
+
+  return lines.join("\n");
+}
 
 // Create new lead
 export const createLead = async (req, res) => {
@@ -156,6 +177,174 @@ export const createLead = async (req, res) => {
         name: error.name,
         code: error.code
       } : undefined
+    });
+  }
+};
+
+/** Public wealll.com marketing forms — optional campaign source; duplicates append notes. */
+export const createWebsiteLead = async (req, res) => {
+  try {
+    const {
+      fullName,
+      phone,
+      email,
+      companyName,
+      service,
+      budget,
+      notes,
+      source: sourceBody,
+      reference: referenceBody,
+      landingPage,
+      _hp,
+    } = req.body;
+
+    if (_hp !== undefined && _hp !== null && String(_hp).trim() !== "") {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid submission",
+      });
+    }
+
+    if (!fullName || !String(fullName).trim()) {
+      return res.status(400).json({
+        success: false,
+        error: "Full name and phone number are required",
+        details: {
+          fullName: "Full name is required",
+          phone: phone ? "OK" : "Phone number is required",
+        },
+      });
+    }
+
+    const phoneResult = normalizeLeadPhone(phone);
+    if (!phoneResult.ok) {
+      return res.status(400).json({
+        success: false,
+        error: phoneResult.error,
+        details: { phone: phoneResult.error },
+      });
+    }
+
+    const phoneNumber = phoneResult.phoneNumber;
+    const source =
+      (sourceBody && String(sourceBody).trim()) || "Website";
+    const reference =
+      (referenceBody && String(referenceBody).trim()) ||
+      (landingPage && String(landingPage).trim()) ||
+      "";
+
+    const trimmedEmail = email && String(email).trim() ? String(email).trim() : "";
+
+    let existingLeadQuery;
+    if (trimmedEmail) {
+      existingLeadQuery = {
+        $or: [{ email: trimmedEmail.toLowerCase() }, { phone: phoneNumber }],
+      };
+    } else {
+      existingLeadQuery = { phone: phoneNumber };
+    }
+
+    const existingLead = await Lead.findOne(existingLeadQuery);
+
+    if (existingLead) {
+      const resubmissionNote = buildWebsiteResubmissionNote({
+        source,
+        reference,
+        notes,
+        service,
+        budget,
+      });
+
+      existingLead.notesHistory.push({
+        note: resubmissionNote,
+        addedAt: new Date(),
+      });
+
+      if (companyName && !existingLead.companyName) {
+        existingLead.companyName = companyName;
+      }
+      if (trimmedEmail && !existingLead.email) {
+        existingLead.email = trimmedEmail.toLowerCase();
+      }
+      if (reference) {
+        existingLead.reference = reference;
+      }
+      if (notes && !existingLead.notes) {
+        existingLead.notes = notes;
+      }
+
+      await existingLead.save();
+
+      const populatedLead = await Lead.findById(existingLead._id)
+        .populate("assignedTo", "name email")
+        .populate("createdBy", "name email")
+        .populate("notesHistory.addedBy", "name email");
+
+      return res.status(200).json({
+        success: true,
+        duplicate: true,
+        message: "Existing lead updated with website resubmission",
+        lead: populatedLead,
+      });
+    }
+
+    const leadData = {
+      fullName: String(fullName).trim(),
+      phone: phoneNumber,
+      companyName,
+      service: Array.isArray(service) ? service : service ? [service] : [],
+      budget,
+      source,
+      status: "New",
+      notes: notes || reference || undefined,
+      reference: reference || undefined,
+    };
+
+    if (trimmedEmail) {
+      leadData.email = trimmedEmail.toLowerCase();
+    }
+
+    const lead = new Lead(leadData);
+    await lead.save();
+
+    const populatedLead = await Lead.findById(lead._id)
+      .populate("assignedTo", "name email")
+      .populate("createdBy", "name email")
+      .populate("notesHistory.addedBy", "name email");
+
+    return res.status(201).json({
+      success: true,
+      duplicate: false,
+      message: "Lead created successfully",
+      lead: populatedLead,
+    });
+  } catch (error) {
+    console.error("createWebsiteLead error:", error);
+
+    if (error.name === "ValidationError") {
+      const validationErrors = Object.keys(error.errors).map((key) => ({
+        field: key,
+        message: error.errors[key].message,
+      }));
+
+      return res.status(400).json({
+        success: false,
+        error: "Validation failed",
+        errors: validationErrors,
+      });
+    }
+
+    if (error.code === 11000) {
+      const duplicateField = Object.keys(error.keyPattern)[0];
+      return res.status(400).json({
+        success: false,
+        error: `A lead with this ${duplicateField} already exists`,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: "Server error",
     });
   }
 };
