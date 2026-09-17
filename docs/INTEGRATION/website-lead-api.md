@@ -111,3 +111,31 @@ On UAT, include `https://uat.wealll.cloud` instead of or in addition to producti
 
 - `POST /api/leads/public` — other public forms (e.g. Growth Summit); duplicate policy remains **reject with 400**.
 - Authenticated `POST /api/leads` — internal CRM create.
+
+## Implementation note — public route vs 401 (mount order)
+
+### Symptom
+`POST /api/leads/website` (and `/public`) without a JWT returned:
+
+`401 { "message": "No token, authorization denied" }`
+
+from `protect()` in `authMiddleware.js`, even though `leadRoutes.js` registers `/website` **before** `router.use(protect)`.
+
+### Root cause
+In `server.js`, several project routers are mounted at **`/api`** with `router.use(protect)`:
+
+- `projectExpectationRoutes`
+- `projectCommitmentRoutes`
+- `projectMonthRoutes`
+- `businessDocumentRoutes`
+- `projectActivityRoutes`
+
+Those mounts were registered **before** `app.use("/api/leads", leadRoutes)`. Express enters the first `/api` router for every `/api/*` request; blanket `protect` runs and returns 401 before `/api/leads` is reached. The lead router stack was correct; it never saw the request.
+
+`auditMiddleware` only logs when `req.user` is set and does not authenticate.
+
+### Fix
+Mount `/api/leads` **before** the `/api` catch-all project routers in `server.js`. Do not remove `protect` from CRM lead routes. Public website protections (origin allowlist, rate limit, honeypot, validation) stay on `POST /website`.
+
+### Regression
+`backend/tests/websiteLeadPublicAccess.unit.test.js` covers wrong vs correct mount order, origin 403, validation, duplicates, and that protected lead routes still require JWT.

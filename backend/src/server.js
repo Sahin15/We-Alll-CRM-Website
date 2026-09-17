@@ -295,6 +295,9 @@ app.use("/api/admin", apiLimiter, adminRoutes);
 app.use("/api/clients", apiLimiter, clientRoutes);
 app.use("/api/clients", apiLimiter, clientWorkRoutes);
 app.use("/api/projects", apiLimiter, projectRoutes);
+// Mount /api/leads BEFORE any app.use("/api", ...) routers that call router.use(protect).
+// Those catch-alls otherwise intercept /api/leads/website and /api/leads/public and return 401.
+app.use("/api/leads", apiLimiter, leadRoutes);
 app.use("/api", apiLimiter, projectExpectationRoutes);
 app.use("/api", apiLimiter, projectCommitmentRoutes);
 app.use("/api", apiLimiter, projectMonthRoutes);
@@ -306,7 +309,6 @@ app.use("/api/attendance", apiLimiter, attendanceRoutes);
 app.use("/api/payments", apiLimiter, paymentRoutes);
 app.use("/api/bills", apiLimiter, billRoutes);
 app.use("/api/notifications", apiLimiter, notificationRoutes);
-app.use("/api/leads", apiLimiter, leadRoutes);
 app.use("/api/plans", apiLimiter, planRoutes);
 app.use("/api/addons", apiLimiter, addOnRoutes);
 app.use("/api/subscriptions", apiLimiter, subscriptionRoutes);
