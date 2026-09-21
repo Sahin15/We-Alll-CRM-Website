@@ -119,4 +119,40 @@ describe('HoD work log and team roster department scope', () => {
 
     expect(nextCalled).toBe(true);
   });
+
+  test('department work log stats middleware allows HoD', () => {
+    process.env = {
+      ...originalEnv,
+      AUTHZ_V2_ENFORCE: 'true',
+      AUTHZ_V2_WORKLOG: 'true',
+    };
+
+    const user = makeAuthzTestUser('hod', { authzDepartmentName: 'sales' });
+    const handler = requireModulePermission('worklog', 'worklog.entry.review', {
+      legacyRoles: ['admin', 'superadmin', 'hr', 'manager', 'hod'],
+    });
+
+    const req = {
+      user,
+      originalUrl: '/api/worklogs/department/stats',
+      method: 'GET',
+    };
+    const res = {
+      statusCode: 200,
+      status(code) {
+        this.statusCode = code;
+        return this;
+      },
+      json() {
+        return this;
+      },
+    };
+
+    let nextCalled = false;
+    handler(req, res, () => {
+      nextCalled = true;
+    });
+
+    expect(nextCalled).toBe(true);
+  });
 });

@@ -30,7 +30,7 @@ import {
 
 const router = express.Router();
 
-const DEPT_VIEW_ROLES = ["manager", "hr", "admin", "superadmin"];
+const DEPT_VIEW_ROLES = ["manager", "hr", "admin", "superadmin", "hod"];
 
 const CLIENT_DEPT_ASSIGN_ROLES = ["manager", "hr", "admin", "superadmin"];
 

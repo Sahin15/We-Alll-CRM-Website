@@ -870,6 +870,28 @@ export const getWorkLogStats = async (req, res) => {
   }
 };
 
+/**
+ * Department-scoped work log stats for HoD review (not company-wide /stats).
+ */
+export const getDepartmentWorkLogStats = async (req, res) => {
+  try {
+    const department = req.hodDepartment;
+    if (!department?._id) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. You are not a Head of Department.",
+      });
+    }
+    req.query = { ...req.query, department: String(department._id) };
+    return getWorkLogStats(req, res);
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
 // Export work logs to Excel
 export const exportWorkLogs = async (req, res) => {
   try {

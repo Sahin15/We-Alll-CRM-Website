@@ -104,6 +104,11 @@ export const getDepartmentWorkLogs = async (params) => {
   return response.data;
 };
 
+export const getDepartmentWorkLogStats = async (params) => {
+  const response = await api.get("/worklogs/department/stats", { params });
+  return response.data;
+};
+
 // Review department work log (HOD)
 export const reviewDepartmentWorkLog = async (id, reviewNotes, status) => {
   const response = await api.put(`/worklogs/department/${id}/review`, {
@@ -141,6 +146,7 @@ export const workLogApi = {
   exportWorkLogs,
   exportMyWorkLogs,
   getDepartmentWorkLogs,
+  getDepartmentWorkLogStats,
   reviewDepartmentWorkLog,
   raiseConcern,
   raiseDepartmentConcern,

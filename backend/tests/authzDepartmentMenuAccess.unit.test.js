@@ -82,7 +82,45 @@ describe('Authorization V2 — department admin vs directory access', () => {
     return { nextCalled, status: res.statusCode };
   }
 
-  test('HoD cannot access admin department list API without direct grant', () => {
+  test('HoD can access department list API when hod is in GET / legacy roles', () => {
+    process.env = {
+      ...originalEnv,
+      AUTHZ_V2_ENFORCE: 'true',
+      AUTHZ_V2_TEAM: 'true',
+    };
+
+    const user = makeAuthzTestUser('hod', { authzDepartmentName: 'sales' });
+    const handler = requireModulePermission('team', 'team.department.view', {
+      legacyRoles: ['manager', 'hr', 'admin', 'superadmin', 'hod'],
+    });
+
+    const req = {
+      user,
+      authzDepartmentName: user.authzDepartmentName,
+      originalUrl: '/api/departments',
+      method: 'GET',
+    };
+    const res = {
+      statusCode: 200,
+      status(code) {
+        this.statusCode = code;
+        return this;
+      },
+      json() {
+        return this;
+      },
+    };
+
+    let nextCalled = false;
+    handler(req, res, () => {
+      nextCalled = true;
+    });
+
+    expect(hasPermission(user, 'team.department.view')).toBe(false);
+    expect(nextCalled).toBe(true);
+  });
+
+  test('HoD cannot access admin department list API without hod in legacy roles', () => {
     const user = makeAuthzTestUser('hod', { authzDepartmentName: 'sales' });
     expect(hasPermission(user, 'team.department.view')).toBe(false);
 

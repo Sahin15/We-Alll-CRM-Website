@@ -142,9 +142,7 @@ export const getActiveSalaryStructure = async (req, res) => {
     const structure = await SalaryStructure.getActiveStructure(employeeId);
 
     if (!structure) {
-      return res.status(404).json({ 
-        message: "No active salary structure found for this employee" 
-      });
+      return res.status(200).json(null);
     }
 
     res.status(200).json(structure);
