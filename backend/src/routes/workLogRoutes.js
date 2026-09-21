@@ -17,6 +17,7 @@ import {
   reviewDepartmentWorkLog,
   raiseConcern,
   raiseDepartmentConcern,
+  getDepartmentWorkLogStats,
 } from "../controllers/workLogController.js";
 import { protect } from '../middleware/authMiddleware.js';
 
@@ -62,6 +63,7 @@ router.get("/my-logs", protect, worklogViewSelf, getMyWorkLogs);
 router.post("/late-submission", protect, worklogCreate, lateSubmission);
 
 router.get("/department/logs", protect, isHoD, worklogReview, getDepartmentWorkLogs);
+router.get("/department/stats", protect, isHoD, worklogReview, getDepartmentWorkLogStats);
 router.put("/department/:id/review", protect, isHoD, worklogReview, reviewDepartmentWorkLog);
 router.put("/department/:id/raise-concern", protect, isHoD, worklogReview, raiseDepartmentConcern);
 

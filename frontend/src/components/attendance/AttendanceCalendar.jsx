@@ -32,9 +32,6 @@ const AttendanceCalendar = ({ attendances, selectedMonth, selectedYear, employee
   const fetchHolidays = async () => {
     try {
       const response = await holidayApi.getHolidays();
-      console.log('🎉 Holiday API Response:', response);
-      
-      // The API returns { success: true, data: holidays }
       let holidaysData = [];
       if (response && response.data && Array.isArray(response.data)) {
         holidaysData = response.data;
@@ -42,12 +39,9 @@ const AttendanceCalendar = ({ attendances, selectedMonth, selectedYear, employee
         holidaysData = response;
       }
       
-      console.log('🎉 Processed holidays:', holidaysData);
-      console.log('🎉 Holidays count:', holidaysData.length);
       setInternalHolidays(holidaysData);
       setHolidaysReady(true);
     } catch (error) {
-      console.error('❌ Error fetching holidays:', error);
       setInternalHolidays([]);
       setHolidaysReady(true);
     }
@@ -56,11 +50,6 @@ const AttendanceCalendar = ({ attendances, selectedMonth, selectedYear, employee
   const generateCalendar = () => {
     const year = selectedYear || new Date().getFullYear();
     const month = selectedMonth || new Date().getMonth();
-
-    console.log(`📅 Generating calendar for ${year}-${month + 1}, Holidays count: ${holidays.length}`);
-    if (holidays.length > 0) {
-      console.log('🎉 Available holidays:', holidays.map(h => ({ name: h.name, date: h.date })));
-    }
 
     // Get first day of month and number of days
     const firstDay = new Date(year, month, 1);
