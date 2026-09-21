@@ -25,7 +25,7 @@ export const PERMISSION_CATALOG = [
   { key: 'support.manage', module: 'support', description: 'Manage support categories' },
 
   // Team / Users — sidebar: Users=update, Employees=view, Departments=department.*
-  { key: 'team.user.view', module: 'team', description: 'Team menu — Employees list (/employees)' },
+  { key: 'team.user.view', module: 'team', description: 'Team menu — Employees list (/employees). HoD is OWN_DEPARTMENT only.' },
   { key: 'team.user.create', module: 'team', description: 'Create users / add employees' },
   { key: 'team.user.update', module: 'team', description: 'Team menu — Users admin list (/users). Superadmin only by default; assign via Permission Assignment if needed.' },
   { key: 'team.department.view', module: 'team', description: 'Team menu — Departments admin tab (/departments). Not granted to all employees by default; assign via Permission Assignment.' },
@@ -46,7 +46,7 @@ export const PERMISSION_CATALOG = [
   // Work log
   { key: 'worklog.entry.create', module: 'worklog', description: 'Create work log entries' },
   { key: 'worklog.entry.view_self', module: 'worklog', description: 'View own work logs' },
-  { key: 'worklog.entry.review', module: 'worklog', description: 'Team menu — Work Log Management (/admin/worklog-management)' },
+  { key: 'worklog.entry.review', module: 'worklog', description: 'Review work logs. COMPANY scope = Team Work Log Management; OWN_DEPARTMENT = Daily Work Log → Department Review.' },
 
   // Projects
   { key: 'projects.project.view', module: 'projects', description: 'View projects' },

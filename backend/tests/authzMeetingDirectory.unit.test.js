@@ -48,13 +48,13 @@ describe('Authorization V2 — meeting directory', () => {
     return { nextCalled, status: res.statusCode };
   }
 
-  test('HoD with employee meeting view can load meeting directory without team.user.view', () => {
+  test('HoD with employee meeting view can load meeting directory', () => {
     const user = makeAuthzTestUser('hod', {
       authzDepartmentName: 'sales',
     });
 
     expect(hasPermission(user, 'company.meeting.view')).toBe(true);
-    expect(hasPermission(user, 'team.user.view')).toBe(false);
+    expect(hasPermission(user, 'team.user.view')).toBe(true);
 
     const result = runMiddleware(user);
     expect(result.nextCalled).toBe(true);

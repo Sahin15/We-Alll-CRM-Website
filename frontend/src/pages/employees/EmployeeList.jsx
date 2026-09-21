@@ -42,11 +42,22 @@ import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
 import ProfilePictureDisplay from "../../components/profile/ProfilePictureDisplay";
 import StatusBadge from "../../components/hr/StatusBadge";
+import { isDepartmentHead, hasCompanyWidePermissionGrant } from "../../utils/authzAccess";
 
 
 const EmployeeList = () => {
   const navigate = useNavigate();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, canPermission, authzEffective } = useAuth();
+  const departmentScopedRoster = isDepartmentHead(currentUser);
+  const canCreateEmployees = canPermission("team.user.create");
+  const canManageEmployees =
+    canCreateEmployees ||
+    canPermission("team.user.update") ||
+    hasCompanyWidePermissionGrant({
+      canPermission,
+      authzEffective,
+      permission: "team.user.view",
+    });
   const [employees, setEmployees] = useState([]);
   const [filteredEmployees, setFilteredEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,8 +69,10 @@ const EmployeeList = () => {
 
   useEffect(() => {
     fetchEmployees();
-    fetchDepartments();
-  }, []);
+    if (!departmentScopedRoster) {
+      fetchDepartments();
+    }
+  }, [departmentScopedRoster]);
 
   useEffect(() => {
     applyFilters();
@@ -192,14 +205,19 @@ const EmployeeList = () => {
                   <FaUsers size={24} className="text-primary" />
                 </div>
                 <div>
-                  <h2 className="mb-1 fw-bold text-dark">Employee Management Hub</h2>
+                  <h2 className="mb-1 fw-bold text-dark">
+                    {canManageEmployees ? "Employee Management Hub" : "Department Team"}
+                  </h2>
                   <p className="mb-0 text-muted">
-                    Comprehensive employee management with advanced analytics and insights
+                    {canManageEmployees
+                      ? "Comprehensive employee management with advanced analytics and insights"
+                      : "View members in your department. HR manages employee records."}
                   </p>
                 </div>
               </div>
             </Col>
             <Col md={4} className="text-end">
+              {canCreateEmployees && (
               <Button
                 variant="primary"
                 size="lg"
@@ -210,6 +228,7 @@ const EmployeeList = () => {
                 <FaPlus className="me-2" />
                 Add New Employee
               </Button>
+              )}
             </Col>
           </Row>
         </Card.Body>
@@ -234,8 +253,9 @@ const EmployeeList = () => {
               <div>
                 <strong className="text-primary">Professional Employee Management:</strong>
                 <p className="mb-0 mt-1 text-muted">
-                  Access comprehensive employee profiles with personal details, documents, salary records, 
-                  and complete HR management through the "Manage Profile" action.
+                  {canManageEmployees
+                    ? 'Access comprehensive employee profiles with personal details, documents, salary records, and complete HR management through the "Manage Profile" action.'
+                    : "This list is view-only for department heads. You cannot add, edit, or manage employee records."}
                 </p>
               </div>
             </div>
@@ -356,6 +376,7 @@ const EmployeeList = () => {
                 <option value="offboarded">Offboarded</option>
               </Form.Select>
             </Col>
+            {!departmentScopedRoster && (
             <Col lg={3} md={3}>
               <Form.Label className="fw-semibold text-muted small">DEPARTMENT</Form.Label>
               <Form.Select
@@ -372,6 +393,7 @@ const EmployeeList = () => {
                 ))}
               </Form.Select>
             </Col>
+            )}
             <Col lg={3} md={12}>
               <Form.Label className="fw-semibold text-muted small">ACTIONS</Form.Label>
               <div className="d-flex gap-2">
@@ -660,6 +682,7 @@ const EmployeeList = () => {
                           </div>
 
                           {/* Action Buttons */}
+                          {canManageEmployees && (
                           <div className="d-flex gap-2">
                             <Button
                               variant="primary"
@@ -680,6 +703,7 @@ const EmployeeList = () => {
                               Work Details
                             </Button>
                           </div>
+                          )}
                         </Card.Body>
                       </Card>
                     </Col>
@@ -696,7 +720,9 @@ const EmployeeList = () => {
                         <th className="border-0">Contact</th>
                         <th className="border-0">Status</th>
                         <th className="border-0">Joined</th>
+                        {canManageEmployees && (
                         <th className="border-0 text-center">Actions</th>
+                        )}
                       </tr>
                     </thead>
                     <tbody>
@@ -758,6 +784,7 @@ const EmployeeList = () => {
                               {formatDate(employee.joiningDate || employee.hireDate)}
                             </small>
                           </td>
+                          {canManageEmployees && (
                           <td className="py-3 text-center">
                             <div className="d-flex gap-1 justify-content-center">
                               <Button
@@ -780,6 +807,7 @@ const EmployeeList = () => {
                               </Button>
                             </div>
                           </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -799,7 +827,7 @@ const EmployeeList = () => {
                   : "Start by adding your first employee to the system"
                 }
               </p>
-              {!searchTerm && !statusFilter && !departmentFilter && (
+              {!searchTerm && !statusFilter && !departmentFilter && canCreateEmployees && (
                 <Button
                   variant="primary"
                   onClick={() => navigate("/employees/add")}
@@ -873,6 +901,7 @@ const EmployeeList = () => {
                               <span>{employee.department?.name || "No department"}</span>
                             </div>
                           </div>
+                          {canManageEmployees && (
                           <div className="d-flex gap-2">
                             <Button
                               variant="primary"
@@ -884,6 +913,7 @@ const EmployeeList = () => {
                               Manage Profile
                             </Button>
                           </div>
+                          )}
                         </Card.Body>
                       </Card>
                     </Col>
@@ -899,7 +929,9 @@ const EmployeeList = () => {
                       <th className="border-0">Department</th>
                       <th className="border-0">Status</th>
                       <th className="border-0">Reactivation Date</th>
+                      {canManageEmployees && (
                       <th className="border-0 text-center">Actions</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -944,6 +976,7 @@ const EmployeeList = () => {
                             <small className="text-muted">—</small>
                           )}
                         </td>
+                        {canManageEmployees && (
                         <td className="py-3 text-center">
                           <Button
                             variant="primary"
@@ -955,6 +988,7 @@ const EmployeeList = () => {
                             <FaUserShield size={12} />
                           </Button>
                         </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -988,7 +1022,9 @@ const EmployeeList = () => {
                     <th className="border-0">Department</th>
                     <th className="border-0">Status</th>
                     <th className="border-0">Status Changed</th>
+                    {canManageEmployees && (
                     <th className="border-0 text-center">Actions</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -1015,6 +1051,7 @@ const EmployeeList = () => {
                           {employee.statusChangedAt ? formatDate(employee.statusChangedAt) : "N/A"}
                         </small>
                       </td>
+                      {canManageEmployees && (
                       <td className="py-3 text-center">
                         <Button
                           variant="outline-secondary"
@@ -1026,6 +1063,7 @@ const EmployeeList = () => {
                           <FaEye size={12} />
                         </Button>
                       </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

@@ -4,7 +4,8 @@
  */
 
 import { can } from './policyEngine.js';
-import { legacyRoleAllows, legacyRolesOrDepartmentsAllows } from './legacyAdapter.js';
+import { buildEffectivePermissions, legacyRolesOrDepartmentsAllows } from './legacyAdapter.js';
+import { SCOPES } from './scopes.js';
 import { logAuthzShadowComparison } from './shadowLogger.js';
 import {
   isAuthzModuleEnabled,
@@ -82,6 +83,37 @@ function resolveModuleRouteAccess({
   return { allowed: true };
 }
 
+const SCOPE_BREADTH = {
+  [SCOPES.SELF]: 1,
+  [SCOPES.TEAM]: 2,
+  [SCOPES.PROJECT]: 3,
+  [SCOPES.CLIENT_PORTFOLIO]: 3,
+  [SCOPES.ASSIGNED_DEPARTMENTS]: 4,
+  [SCOPES.OWN_DEPARTMENT]: 5,
+  [SCOPES.BRANCH]: 6,
+  [SCOPES.COMPANY]: 7,
+  [SCOPES.PLATFORM]: 8,
+};
+
+/**
+ * Whether the user's grant for a permission is at least as broad as minScope.
+ *
+ * @param {object} user
+ * @param {string} permission
+ * @param {string} [minScope]
+ * @returns {boolean}
+ */
+export function meetsMinScope(user, permission, minScope) {
+  if (!minScope) return true;
+  if (!user || !permission) return false;
+
+  const effective = buildEffectivePermissions(user);
+  if (effective.permissions?.includes('platform.admin')) return true;
+
+  const scope = effective.scopes?.[permission];
+  return (SCOPE_BREADTH[scope] || 0) >= (SCOPE_BREADTH[minScope] || 0);
+}
+
 /**
  * Require a permission key via policy engine.
  * Set AUTHZ_V2_ENFORCE=true to block; otherwise shadow-only when AUTHZ_SHADOW_MODE=true.
@@ -153,7 +185,7 @@ export const withAuthzShadow = (permission, legacyMiddleware) => {
  * @returns {import('express').RequestHandler}
  */
 export const requireModulePermission = (moduleName, permission, options = {}) => {
-  const { legacyAllowed, legacyRoles, legacyDepartments } = options;
+  const { legacyAllowed, legacyRoles, legacyDepartments, minScope } = options;
 
   return (req, res, next) => {
     if (!req.user) {
@@ -191,6 +223,13 @@ export const requireModulePermission = (moduleName, permission, options = {}) =>
 
     const shouldEnforce =
       isAuthzModuleEnabled(moduleName) && isAuthzEnforceEnabled();
+
+    if (minScope && !meetsMinScope(req.user, permission, minScope)) {
+      return res.status(403).json({
+        success: false,
+        error: `Permission denied: ${permission}`,
+      });
+    }
 
     const access = resolveModuleRouteAccess({
       user: req.user,
