@@ -12,6 +12,10 @@ import {
 } from '../utils/employeeQueryUtils.js';
 import { generateNextEmployeeId, normalizeEmployeeId, isValidEmployeeIdFormat, isEmployeeIdTaken } from '../services/employeeIdService.js';
 import { resolveCanonicalDepartmentName } from '../constants/departmentNames.js';
+import {
+  isOwnDepartmentTeamViewer,
+  getOwnedDepartmentIdForRoster,
+} from '../utils/teamRosterScope.js';
 
 //generate token
 const generateToken = (id) => {
@@ -193,6 +197,17 @@ export const getUsers = async (req, res) => {
     } else if (excludePast === 'true') {
       Object.assign(query, mergeExcludePastMembersFilter(query));
     }
+
+    if (isOwnDepartmentTeamViewer(req.user)) {
+      const ownedDepartmentId = await getOwnedDepartmentIdForRoster(req.user);
+      if (!ownedDepartmentId) {
+        return res.status(200).json([]);
+      }
+      if (query.department && String(query.department) !== String(ownedDepartmentId)) {
+        return res.status(200).json([]);
+      }
+      query.department = ownedDepartmentId;
+    }
     
     logger.info('getUsers query:', JSON.stringify(query));
     
@@ -276,14 +291,41 @@ export const loginUser = async (req, res) => {
 // Get user profile by ID
 export const getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id)
-      .select("-password +governmentIds.aadhaarNumber +governmentIds.panNumber +governmentIds.uanNumber +governmentIds.esicNumber +bankDetails.accountNumber +salary")
-      .populate("department", "name")
+    const requestedId = req.params.id;
+    const isSelf = String(req.user?._id || req.user?.id) === String(requestedId);
+    const departmentScoped = isOwnDepartmentTeamViewer(req.user) && !isSelf;
+
+    let userQuery = User.findById(requestedId).populate("department", "name")
       .populate("manager", "name email")
       .populate("reportingManager", "name email");
 
+    if (departmentScoped) {
+      userQuery = userQuery.select("-password");
+    } else {
+      userQuery = userQuery.select(
+        "-password +governmentIds.aadhaarNumber +governmentIds.panNumber +governmentIds.uanNumber +governmentIds.esicNumber +bankDetails.accountNumber +salary"
+      );
+    }
+
+    const user = await userQuery;
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
+    }
+
+    if (departmentScoped) {
+      const ownedDepartmentId = await getOwnedDepartmentIdForRoster(req.user);
+      const targetDept = user.department?._id || user.department;
+      if (
+        !ownedDepartmentId ||
+        !targetDept ||
+        String(targetDept) !== String(ownedDepartmentId)
+      ) {
+        return res.status(403).json({
+          success: false,
+          error: "You can only view team members in your department",
+        });
+      }
     }
 
     logger.info("Fetched user with internship details:", user.internshipDetails);

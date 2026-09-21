@@ -57,9 +57,14 @@ function permissionKeysAllowed({
   canPermission,
   authzEffective,
 }) {
-  if (permission && canPermission(permission)) return true;
-
   const companyWideSet = new Set(companyWideAlternates);
+
+  if (permission && canPermission(permission)) {
+    if (companyWideSet.has(permission)) {
+      return hasCompanyWidePermissionGrant({ canPermission, authzEffective, permission });
+    }
+    return true;
+  }
   for (const key of alternatePermissions) {
     if (!key || !canPermission(key)) continue;
     if (companyWideSet.has(key)) {

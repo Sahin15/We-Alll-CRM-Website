@@ -41,6 +41,7 @@ const DEPARTMENT_HEAD_GRANTS = [
   { permission: 'leave.request.view', scope: SCOPES.OWN_DEPARTMENT },
   { permission: 'leave.request.approve', scope: SCOPES.OWN_DEPARTMENT },
   { permission: 'worklog.entry.review', scope: SCOPES.OWN_DEPARTMENT },
+  { permission: 'team.user.view', scope: SCOPES.OWN_DEPARTMENT },
   { permission: 'hiring.request.create', scope: SCOPES.OWN_DEPARTMENT },
   { permission: 'hiring.request.view', scope: SCOPES.OWN_DEPARTMENT },
   { permission: 'procurement.pr.approve_hod', scope: SCOPES.OWN_DEPARTMENT },

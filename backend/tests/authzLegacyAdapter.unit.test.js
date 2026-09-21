@@ -30,6 +30,7 @@ describe('Authorization V2 — Legacy Adapter', () => {
     const keys = grants.map((g) => g.permission);
     expect(keys).toContain('procurement.pr.approve_hod');
     expect(keys).toContain('worklog.entry.review');
+    expect(keys).toContain('team.user.view');
     expect(keys).toContain('attendance.clock');
   });
 
