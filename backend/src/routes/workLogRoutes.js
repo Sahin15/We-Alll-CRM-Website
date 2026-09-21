@@ -17,6 +17,7 @@ import {
   reviewDepartmentWorkLog,
   raiseConcern,
   raiseDepartmentConcern,
+  getDepartmentWorkLogStats,
 } from "../controllers/workLogController.js";
 import { protect } from '../middleware/authMiddleware.js';
 
@@ -26,7 +27,8 @@ import { requireModulePermission } from "../authz/authzMiddleware.js";
 
 const router = express.Router();
 
-const WORKLOG_REVIEW_ROLES = ["admin", "superadmin", "hr", "manager", "hod"];
+const WORKLOG_COMPANY_REVIEW_ROLES = ["admin", "superadmin", "hr", "manager"];
+const WORKLOG_REVIEW_ROLES = [...WORKLOG_COMPANY_REVIEW_ROLES, "hod"];
 const WORKLOG_SELF_ROLES = [
   "employee",
   "hod",
@@ -46,6 +48,10 @@ const worklogViewSelf = requireModulePermission("worklog", "worklog.entry.view_s
 const worklogReview = requireModulePermission("worklog", "worklog.entry.review", {
   legacyRoles: WORKLOG_REVIEW_ROLES,
 });
+const worklogCompanyReview = requireModulePermission("worklog", "worklog.entry.review", {
+  legacyRoles: WORKLOG_COMPANY_REVIEW_ROLES,
+  minScope: "COMPANY",
+});
 
 router.post("/submit", protect, worklogCreate, submitWorkLog);
 router.post("/save-draft", protect, worklogCreate, saveDraft);
@@ -57,57 +63,23 @@ router.get("/my-logs", protect, worklogViewSelf, getMyWorkLogs);
 router.post("/late-submission", protect, worklogCreate, lateSubmission);
 
 router.get("/department/logs", protect, isHoD, worklogReview, getDepartmentWorkLogs);
+router.get("/department/stats", protect, isHoD, worklogReview, getDepartmentWorkLogStats);
 router.put("/department/:id/review", protect, isHoD, worklogReview, reviewDepartmentWorkLog);
 router.put("/department/:id/raise-concern", protect, isHoD, worklogReview, raiseDepartmentConcern);
 
-// Admin/HR/Manager routes
-router.get(
-  "/all",
-  protect,
-  requireModulePermission("worklog", "worklog.entry.review", { legacyRoles: WORKLOG_REVIEW_ROLES }),
-  getAllWorkLogs
-);
+// Admin/HR/Manager routes — company-wide (HoD uses /department/*)
+router.get("/all", protect, worklogCompanyReview, getAllWorkLogs);
 
-router.get(
-  "/employee/:employeeId",
-  protect,
-  requireModulePermission("worklog", "worklog.entry.review", { legacyRoles: WORKLOG_REVIEW_ROLES }),
-  getEmployeeWorkLogs
-);
+router.get("/employee/:employeeId", protect, worklogCompanyReview, getEmployeeWorkLogs);
 
-router.put(
-  "/:id/review",
-  protect,
-  requireModulePermission("worklog", "worklog.entry.review", { legacyRoles: WORKLOG_REVIEW_ROLES }),
-  reviewWorkLog
-);
+router.put("/:id/review", protect, worklogCompanyReview, reviewWorkLog);
 
-router.put(
-  "/:id/raise-concern",
-  protect,
-  requireModulePermission("worklog", "worklog.entry.review", { legacyRoles: WORKLOG_REVIEW_ROLES }),
-  raiseConcern
-);
+router.put("/:id/raise-concern", protect, worklogCompanyReview, raiseConcern);
 
-router.put(
-  "/:id/update",
-  protect,
-  requireModulePermission("worklog", "worklog.entry.review", { legacyRoles: WORKLOG_REVIEW_ROLES }),
-  updateWorkLog
-);
+router.put("/:id/update", protect, worklogCompanyReview, updateWorkLog);
 
-router.get(
-  "/stats",
-  protect,
-  requireModulePermission("worklog", "worklog.entry.review", { legacyRoles: WORKLOG_REVIEW_ROLES }),
-  getWorkLogStats
-);
+router.get("/stats", protect, worklogCompanyReview, getWorkLogStats);
 
-router.get(
-  "/export",
-  protect,
-  requireModulePermission("worklog", "worklog.entry.review", { legacyRoles: WORKLOG_REVIEW_ROLES }),
-  exportWorkLogs
-);
+router.get("/export", protect, worklogCompanyReview, exportWorkLogs);
 
 export default router;

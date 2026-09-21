@@ -9,6 +9,10 @@ import {
   CANONICAL_DEPARTMENT_NAMES,
   resolveCanonicalDepartmentName,
 } from "../constants/departmentNames.js";
+import {
+  isOwnDepartmentTeamViewer,
+  getOwnedDepartmentIdForRoster,
+} from "../utils/teamRosterScope.js";
 
 // Simple in-memory cache for departments (they rarely change)
 let departmentCache = null;
@@ -65,6 +69,30 @@ export const createDepartment = async (req, res) => {
 // Get all departments (with caching - optimized)
 export const getDepartments = async (req, res) => {
   try {
+    if (isOwnDepartmentTeamViewer(req.user)) {
+      const ownedDepartmentId = await getOwnedDepartmentIdForRoster(req.user);
+      if (!ownedDepartmentId) {
+        return res.status(200).json([]);
+      }
+      const dept = await Department.findById(ownedDepartmentId)
+        .select("name description head status type")
+        .populate("head", "name email")
+        .lean();
+      if (!dept) {
+        return res.status(200).json([]);
+      }
+      const employeeCount = await User.countDocuments(
+        mergeActiveEmployeeFilter({ department: dept._id })
+      );
+      return res.status(200).json([
+        {
+          ...dept,
+          employees: [],
+          employeeCount,
+        },
+      ]);
+    }
+
     // Check cache
     if (departmentCache && cacheTime && Date.now() - cacheTime < CACHE_TTL) {
       logger.info('Returning cached departments');

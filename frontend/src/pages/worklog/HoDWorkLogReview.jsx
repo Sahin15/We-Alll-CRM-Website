@@ -137,7 +137,6 @@ const HoDWorkLogReview = () => {
       } else {
         toast.error("Failed to fetch department work logs");
       }
-      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -149,10 +148,12 @@ const HoDWorkLogReview = () => {
         startDate: filters.startDate,
         endDate: filters.endDate,
       };
-      const data = await workLogApi.getWorkLogStats(params);
+      const data = await workLogApi.getDepartmentWorkLogStats(params);
       setStats(data);
     } catch (error) {
-      console.error("Failed to fetch stats:", error);
+      if (error.response?.status !== 403) {
+        console.error("Failed to fetch stats:", error);
+      }
     }
   };
 

@@ -79,10 +79,21 @@ router.get(
     const { mergeExcludePastMembersFilter } = await import(
       "../utils/employeeQueryUtils.js"
     );
-    // Employable roster: exclude terminated/offboarded past members
-    const employees = await User.find(
-      mergeExcludePastMembersFilter({ role: { $ne: "superadmin" } })
-    )
+    const {
+      isOwnDepartmentTeamViewer,
+      getOwnedDepartmentIdForRoster,
+    } = await import("../utils/teamRosterScope.js");
+
+    const query = mergeExcludePastMembersFilter({ role: { $ne: "superadmin" } });
+    if (isOwnDepartmentTeamViewer(req.user)) {
+      const ownedDepartmentId = await getOwnedDepartmentIdForRoster(req.user);
+      if (!ownedDepartmentId) {
+        return res.json([]);
+      }
+      query.department = ownedDepartmentId;
+    }
+
+    const employees = await User.find(query)
       .select("-password")
       .populate("department", "name")
       .populate("reportingManager", "name")
@@ -179,7 +190,7 @@ router.post("/:id/official-documents", protect, userStaffUpdate, documentUpload.
 router.delete("/documents/:documentId", protect, deleteUserDocument);
 
 // Pending documents endpoint (placeholder for now)
-router.get("/documents/pending", protect, requireModulePermission("team", "team.user.view", { legacyRoles: USER_MANAGE_ROLES }), (req, res) => {
+router.get("/documents/pending", protect, requireModulePermission("team", "team.user.view", { legacyRoles: USER_MANAGE_ROLES, minScope: "COMPANY" }), (req, res) => {
   // TODO: Implement pending document approvals functionality
   res.status(200).json([]);
 });
@@ -214,7 +225,7 @@ router.patch("/clear-broken-profile-picture", protect, requireModulePermission("
 router.get(
   "/:id/documents",
   protect,
-  requireModulePermission("team", "team.user.view", { legacyRoles: USER_MANAGE_ROLES }),
+  requireModulePermission("team", "team.user.view", { legacyRoles: USER_MANAGE_ROLES, minScope: "COMPANY" }),
   async (req, res) => {
   try {
     const { id: userId } = req.params;

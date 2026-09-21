@@ -50,10 +50,17 @@ describe('Authorization V2 — Team pilot parity', () => {
     }
   );
 
-  test.each(['employee', 'hod', 'sales'])('role %s lacks user management permissions', (role) => {
+  test.each(['employee', 'sales'])('role %s lacks user management permissions', (role) => {
     const user = { _id: `user-${role}`, role };
     expect(hasPermission(user, 'team.user.view')).toBe(false);
     expect(hasPermission(user, 'team.user.create')).toBe(false);
+  });
+
+  test('hod can view department roster but cannot create users', () => {
+    const user = { _id: 'user-hod', role: 'hod' };
+    expect(hasPermission(user, 'team.user.view')).toBe(true);
+    expect(hasPermission(user, 'team.user.create')).toBe(false);
+    expect(hasPermission(user, 'team.user.update')).toBe(false);
   });
 
   test.each(['accounts', 'client'])('role %s lacks team permissions', (role) => {

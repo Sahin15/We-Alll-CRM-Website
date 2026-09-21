@@ -310,7 +310,7 @@ const AppRoutes = () => {
               permission="team.user.view"
               alternatePermissions={["team.user.create", "team.user.update"]}
               module="team"
-              fallbackRoles={["admin", "superadmin", "hr", "manager"]}
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod"]}
             >
               <EmployeeList />
             </PermissionRoute>
@@ -335,6 +335,8 @@ const AppRoutes = () => {
           element={
             <PermissionRoute
               permission="team.user.view"
+              companyWideAlternates={["team.user.view"]}
+              alternatePermissions={["team.user.create", "team.user.update"]}
               module="team"
               fallbackRoles={["admin", "superadmin", "hr", "manager"]}
             >
@@ -347,6 +349,8 @@ const AppRoutes = () => {
           element={
             <PermissionRoute
               permission="team.user.view"
+              companyWideAlternates={["team.user.view"]}
+              alternatePermissions={["team.user.create", "team.user.update"]}
               module="team"
               fallbackRoles={["admin", "superadmin", "hr", "manager"]}
             >
@@ -359,6 +363,8 @@ const AppRoutes = () => {
           element={
             <PermissionRoute
               permission="team.user.view"
+              companyWideAlternates={["team.user.view"]}
+              alternatePermissions={["team.user.create", "team.user.update"]}
               module="team"
               fallbackRoles={["admin", "superadmin", "hr", "manager"]}
             >
@@ -528,6 +534,7 @@ const AppRoutes = () => {
             <PermissionRoute
               permission="worklog.entry.review"
               module="worklog"
+              companyWideAlternates={["worklog.entry.review"]}
               fallbackRoles={["admin", "superadmin", "hr", "manager"]}
             >
               <WorkLogManagement />

@@ -2,37 +2,49 @@ import Department from "../models/departmentModel.js";
 import Project from "../models/projectModel.js";
 
 /**
+ * Resolve the active department this user heads (Department.head first).
+ *
+ * @param {object|null|undefined} user
+ * @returns {Promise<object|null>}
+ */
+export async function resolveOwnedDepartment(user) {
+  if (!user) return null;
+
+  const userId = user._id || user.id;
+  if (!userId) return null;
+  const userIdStr = String(userId);
+
+  let department = await Department.findOne({
+    status: "active",
+    $or: [{ head: userId }, { head: userIdStr }],
+  });
+
+  if (!department && user.isHeadOfDepartment && user.headOfDepartment) {
+    const deptId = user.headOfDepartment._id || user.headOfDepartment;
+    department = await Department.findOne({
+      _id: deptId,
+      status: "active",
+    });
+  }
+
+  if (!department && user.role === "hod" && user.department) {
+    const deptId = user.department._id || user.department;
+    department = await Department.findOne({
+      _id: deptId,
+      status: "active",
+      $or: [{ head: userId }, { head: userIdStr }],
+    });
+  }
+
+  return department || null;
+}
+
+/**
  * Check if user is Head of Department
  */
 export const isHoD = async (req, res, next) => {
   try {
-    const userId = req.user._id || req.user.id;
-    const userIdStr = String(userId);
-
-    // Prefer Department.head (source of truth), with ObjectId/string-safe match
-    let department = await Department.findOne({
-      status: "active",
-      $or: [{ head: userId }, { head: userIdStr }],
-    });
-
-    // Fallback: user flagged as HoD with headOfDepartment set
-    if (!department && req.user.isHeadOfDepartment && req.user.headOfDepartment) {
-      const deptId = req.user.headOfDepartment._id || req.user.headOfDepartment;
-      department = await Department.findOne({
-        _id: deptId,
-        status: "active",
-      });
-    }
-
-    // Fallback: role hod + primary department
-    if (!department && req.user.role === "hod" && req.user.department) {
-      const deptId = req.user.department._id || req.user.department;
-      department = await Department.findOne({
-        _id: deptId,
-        status: "active",
-        $or: [{ head: userId }, { head: userIdStr }],
-      });
-    }
+    const department = await resolveOwnedDepartment(req.user);
 
     if (!department) {
       return res.status(403).json({
@@ -202,4 +214,5 @@ export default {
   isHoDOfDepartment,
   canAssignHoP,
   allowDeptViewOrHoDOfDepartment,
+  resolveOwnedDepartment,
 };

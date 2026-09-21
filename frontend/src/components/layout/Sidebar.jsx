@@ -83,6 +83,7 @@ const COMPANY_VIEW_ROLES = ["employee", "hod", "admin", "superadmin", "hr", "man
 const COMPANY_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
 const HIRING_PIPELINE_ROLES = ["admin", "superadmin", "hr", "manager"];
 const TEAM_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
+const TEAM_VIEW_ROLES = ["admin", "superadmin", "hr", "manager", "hod"];
 const TEAM_USER_ADMIN_ROLES = ["superadmin"];
 const COMPENSATION_SELF_ROLES = ["employee", "hod", "manager", "hr"];
 const LEAVE_APPROVE_ROLES = ["admin", "superadmin", "hr", "manager"];
@@ -553,9 +554,8 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
         "team.user.update",
         "team.user.create",
         "team.department.manage",
-        "worklog.entry.review",
       ],
-      fallbackRoles: TEAM_MANAGE_ROLES,
+      fallbackRoles: TEAM_VIEW_ROLES,
       isGroup: true,
       children: [
         {
@@ -571,7 +571,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           label: "Employees",
           permission: "team.user.view",
           alternatePermissions: ["team.user.create"],
-          fallbackRoles: TEAM_MANAGE_ROLES,
+          fallbackRoles: TEAM_VIEW_ROLES,
         },
         {
           path: "/departments",
@@ -587,6 +587,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           icon: <FaClipboardList />,
           label: "Work Log Management",
           permission: "worklog.entry.review",
+          companyWideAlternates: ["worklog.entry.review"],
           fallbackRoles: TEAM_MANAGE_ROLES,
         },
       ],

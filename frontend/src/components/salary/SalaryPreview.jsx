@@ -43,6 +43,11 @@ const SalaryPreview = ({ month, year, onPreviewUpdate }) => {
       setSimpleViewDto(null);
       const response = await salaryPreviewApi.getMyPreview(month, year);
       const stored = response.data;
+      if (stored?.notFound) {
+        setPreview(null);
+        setSimpleViewDto(null);
+        return;
+      }
       setPreview(stored);
 
       // Prefer live simple DTO from my-preview (or simple-preview API)

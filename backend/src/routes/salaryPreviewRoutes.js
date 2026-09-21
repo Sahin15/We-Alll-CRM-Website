@@ -200,10 +200,15 @@ router.get("/my-preview/:month/:year",
         simplePreview,
       });
     } catch (error) {
-      
-      res.status(404).json({
-        message: "Salary preview not found",
-        error: error.message
+      if (error.message === "Salary preview not found") {
+        return res.status(200).json({
+          notFound: true,
+          simplePreview: null,
+        });
+      }
+      res.status(500).json({
+        message: "Server error",
+        error: error.message,
       });
     }
   }
