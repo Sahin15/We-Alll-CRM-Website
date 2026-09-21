@@ -3,6 +3,8 @@ import { Container, Row, Col, Card, Alert, Button, ProgressBar, Table, Badge, Sp
 import { FaClock, FaCheckCircle, FaExclamationTriangle, FaUserCircle, FaBullhorn, FaTasks, FaCalendarAlt } from "react-icons/fa";
 import growthTrackApi from "../../api/growthTrackApi";
 import toast from "../../utils/toast";
+import { getCategoryLabel, getNoticeProblemCategories } from "../../utils/growthTrackCategories.js";
+import { GROWTH_TRACK_THEME_REFRESH_EVENT } from "../../utils/growthTrackTheme.js";
 
 const GrowthTrackDetails = () => {
   const [loading, setLoading] = useState(true);
@@ -18,6 +20,7 @@ const GrowthTrackDetails = () => {
       setLoading(true);
       const res = await growthTrackApi.getMyActiveTrack();
       setTrack(res.data);
+      window.dispatchEvent(new CustomEvent(GROWTH_TRACK_THEME_REFRESH_EVENT));
     } catch (err) {
       console.error("Error fetching active Growth Track:", err);
       toast.error("Failed to load Growth Track data");
@@ -32,6 +35,7 @@ const GrowthTrackDetails = () => {
       await growthTrackApi.acknowledgeNotice(track._id, noticeId);
       toast.success("Notice acknowledged successfully");
       await fetchActiveTrack();
+      window.dispatchEvent(new CustomEvent(GROWTH_TRACK_THEME_REFRESH_EVENT));
     } catch (err) {
       console.error("Error acknowledging notice:", err);
       toast.error(err.response?.data?.message || "Failed to acknowledge notice");
@@ -107,10 +111,6 @@ const GrowthTrackDetails = () => {
       default:
         return <Badge bg="secondary">Unknown</Badge>;
     }
-  };
-
-  const getCategoryLabel = (category) => {
-    return category ? category.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") : "";
   };
 
   return (
@@ -235,9 +235,13 @@ const GrowthTrackDetails = () => {
                           <Badge bg={notice.stage === "critical" ? "danger" : "warning"} className="me-2 text-capitalize">
                             {notice.stage} Notice
                           </Badge>
-                          <Badge bg="secondary" className="text-capitalize">
-                            {getCategoryLabel(notice.problemCategory)}
-                          </Badge>
+                          <div className="d-inline-flex flex-wrap gap-1">
+                            {getNoticeProblemCategories(notice).map((cat) => (
+                              <Badge key={cat} bg="secondary">
+                                {getCategoryLabel(cat)}
+                              </Badge>
+                            ))}
+                          </div>
                         </div>
                         <small className="text-muted">
                           Issued: {new Date(notice.issuedAt).toLocaleDateString()}

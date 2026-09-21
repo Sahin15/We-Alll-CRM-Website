@@ -3,6 +3,7 @@ import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
 import Footer from "./Footer";
 import { LazyRouteWrapper } from "../RouteWrapper";
+import GrowthTrackThemeSync from "../growth-track/GrowthTrackThemeSync";
 import { useState, useEffect } from "react";
 
 const MainLayout = () => {
@@ -42,6 +43,7 @@ const MainLayout = () => {
 
   return (
     <div className="d-flex flex-column" style={{ minHeight: "100vh", overflowX: "hidden" }}>
+      <GrowthTrackThemeSync />
       <div className="d-flex flex-grow-1">
         <Sidebar collapsed={sidebarCollapsed} toggleSidebar={toggleSidebar} />
         <div

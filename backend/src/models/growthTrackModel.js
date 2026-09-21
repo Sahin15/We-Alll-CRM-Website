@@ -29,6 +29,19 @@ const noticeSchema = new mongoose.Schema({
     enum: ["concern", "improvement", "critical"],
     required: true,
   },
+  problemCategories: {
+    type: [String],
+    enum: [
+      "attendance",
+      "productivity",
+      "quality",
+      "communication",
+      "deadline management",
+      "task ownership",
+    ],
+    default: undefined,
+  },
+  /** @deprecated Legacy single category — kept for older documents; synced from problemCategories */
   problemCategory: {
     type: String,
     enum: [
@@ -39,7 +52,6 @@ const noticeSchema = new mongoose.Schema({
       "deadline management",
       "task ownership",
     ],
-    required: true,
   },
   description: {
     type: String,
@@ -66,6 +78,19 @@ const noticeSchema = new mongoose.Schema({
     type: Date,
   },
 });
+
+noticeSchema.pre("validate", function syncProblemCategories() {
+  if ((!this.problemCategories || this.problemCategories.length === 0) && this.problemCategory) {
+    this.problemCategories = [this.problemCategory];
+  }
+  if (this.problemCategories?.length) {
+    this.problemCategory = this.problemCategories[0];
+  }
+});
+
+noticeSchema.path("problemCategories").validate(function validateCategories(arr) {
+  return Array.isArray(arr) && arr.length > 0;
+}, "At least one problem category is required");
 
 const reviewMeetingSchema = new mongoose.Schema({
   reviewDate: {

@@ -1,10 +1,26 @@
 import React, { useState, useEffect } from "react";
 import { Container, Row, Col, Card, Button, Form, Modal, Table, Badge, Tabs, Tab, ProgressBar, Alert, Spinner } from "react-bootstrap";
-import { FaUserPlus, FaChevronRight, FaPlus, FaSave, FaHandshake, FaCalendarCheck, FaChartLine, FaExclamationTriangle, FaUserCheck } from "react-icons/fa";
+import {
+  FaUserPlus,
+  FaChevronRight,
+  FaPlus,
+  FaSave,
+  FaCalendarCheck,
+  FaChartLine,
+  FaUserCheck,
+  FaArrowLeft,
+  FaExclamationTriangle,
+} from "react-icons/fa";
 import growthTrackApi from "../../api/growthTrackApi";
 import api from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import toast from "../../utils/toast";
+import {
+  GROWTH_TRACK_PROBLEM_CATEGORIES,
+  getCategoryLabel,
+  getNoticeProblemCategories,
+} from "../../utils/growthTrackCategories.js";
+import "./GrowthTrackManagement.css";
 
 const GrowthTrackManagement = () => {
   const { user } = useAuth();
@@ -26,7 +42,7 @@ const GrowthTrackManagement = () => {
   const [initiateData, setInitiateData] = useState({
     employeeId: "",
     stage: "concern",
-    problemCategory: "productivity",
+    problemCategories: [],
     description: "",
     deadline: "",
   });
@@ -97,8 +113,13 @@ const GrowthTrackManagement = () => {
 
   const handleInitiateSubmit = async (e) => {
     e.preventDefault();
-    if (!initiateData.employeeId || !initiateData.description || !initiateData.deadline) {
-      toast.error("Please fill in all fields");
+    if (
+      !initiateData.employeeId ||
+      !initiateData.description ||
+      !initiateData.deadline ||
+      !initiateData.problemCategories?.length
+    ) {
+      toast.error("Please fill in all fields and select at least one problem category");
       return;
     }
 
@@ -110,7 +131,7 @@ const GrowthTrackManagement = () => {
       setInitiateData({
         employeeId: "",
         stage: "concern",
-        problemCategory: "productivity",
+        problemCategories: [],
         description: "",
         deadline: "",
       });
@@ -242,10 +263,73 @@ const GrowthTrackManagement = () => {
   const activeTracks = tracks.filter(t => t.status === "active" || t.status === "extended");
   const closedTracks = tracks.filter(t => t.status === "completed" || t.status === "hr_action");
 
+  const renderTrackTable = (rows, { reviewsColumn = false } = {}) => (
+    <div className="growth-track-table-wrap">
+      <Table borderless align="middle" className="growth-track-table mb-0">
+        <thead>
+          <tr className="text-muted">
+            <th className="col-employee">Employee</th>
+            <th className="col-stage">Stage</th>
+            <th className="col-status">Status</th>
+            <th className="text-center col-meta">{reviewsColumn ? "Reviews" : "Notices"}</th>
+            <th className="col-action" aria-hidden="true" />
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((t) => (
+            <tr
+              key={t._id}
+              onClick={() => setSelectedTrack(t)}
+              className={`growth-track-table-row ${selectedTrack?._id === t._id ? "growth-track-table-row-selected" : ""}`}
+            >
+              <td className="fw-600 col-employee">
+                <div className="growth-track-employee-name">{t.employee?.name}</div>
+                <small className="text-muted">{t.employee?.designation || "Employee"}</small>
+              </td>
+              <td className="col-stage">{getStageBadge(t.stage)}</td>
+              <td className="col-status">{getStatusBadge(t.status)}</td>
+              <td className="text-center col-meta">
+                <Badge bg="secondary" pill>
+                  {reviewsColumn ? (t.reviewMeetings?.length || 0) : (t.notices?.length || 0)}
+                </Badge>
+              </td>
+              <td className="col-action text-end">
+                <FaChevronRight className="text-muted" />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    </div>
+  );
+
   return (
-    <Container className="py-4">
+    <Container fluid className="py-4 growth-track-management px-3 px-lg-4">
+      <div className="growth-track-mgmt-intro mb-4">
+        <div className="d-flex flex-wrap justify-content-between align-items-start gap-3">
+          <div>
+            <h2 className="growth-track-mgmt-title mb-1">Growth Track Management</h2>
+            <p className="text-muted mb-0">
+              {isHR
+                ? "Company-wide performance improvement cycles and audit trail"
+                : "Manage performance tracks for your team"}
+            </p>
+          </div>
+          {!selectedTrack && (
+            <Button
+              variant="primary"
+              onClick={() => setShowInitiateModal(true)}
+              className="d-flex align-items-center gap-2 px-4 py-2 shadow-sm"
+              style={{ fontWeight: "600" }}
+            >
+              <FaUserPlus /> Initiate Stage
+            </Button>
+          )}
+        </div>
+      </div>
+
       {/* Upper stats banner */}
-      <Row className="mb-4">
+      <Row className="mb-4 g-3 growth-track-stats-row">
         <Col md={3}>
           <Card className="border-0 shadow-sm text-center p-3 h-100" style={{ borderLeft: "4px solid #6366f1" }}>
             <Card.Body>
@@ -284,260 +368,274 @@ const GrowthTrackManagement = () => {
         </Col>
       </Row>
 
-      <Row>
-        {/* Left Side: Employees List */}
-        <Col lg={selectedTrack ? 5 : 12}>
-          <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: "15px" }}>
-            <Card.Header className="bg-transparent border-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
-              <div>
-                <h4 style={{ fontWeight: "800", color: "#1f2937" }}>Performance Growth Track List</h4>
-                <p className="text-muted mb-0" style={{ fontSize: "0.85rem" }}>
-                  {isHR ? "Organizational Audit Records" : "Your reporting employees list"}
-                </p>
+      {!selectedTrack ? (
+        <Card className="border-0 shadow-sm mb-4 growth-track-list-card">
+          <Card.Header className="bg-transparent border-0 pt-4 px-4 pb-2">
+            <h4 className="mb-1" style={{ fontWeight: "800", color: "#1f2937" }}>
+              Track registry
+            </h4>
+            <p className="text-muted mb-0 small">
+              {isHR ? "Organizational audit records" : "Employees reporting to you"} — select a row to manage
+            </p>
+          </Card.Header>
+          <Card.Body className="px-4 pb-4 pt-2">
+            {loading && tracks.length === 0 ? (
+              <div className="text-center py-5"><Spinner animation="border" /></div>
+            ) : tracks.length === 0 ? (
+              <div className="text-center text-muted py-5">
+                <FaChartLine className="mb-3 text-secondary" style={{ fontSize: "2.5rem", opacity: 0.35 }} />
+                <p className="mb-3">No Growth Track entries yet.</p>
+                <Button variant="outline-primary" onClick={() => setShowInitiateModal(true)}>
+                  Initiate concern stage
+                </Button>
               </div>
-              <Button
-                variant="primary"
-                onClick={() => setShowInitiateModal(true)}
-                className="d-flex align-items-center gap-2 py-2"
-                style={{ fontWeight: "600" }}
-              >
-                <FaUserPlus /> Initiate Stage
-              </Button>
-            </Card.Header>
+            ) : (
+              <Tabs defaultActiveKey="active" className="growth-track-list-tabs mb-0">
+                <Tab eventKey="active" title={`Active (${activeTracks.length})`} className="pt-3">
+                  {activeTracks.length === 0 ? (
+                    <p className="text-muted text-center py-4 mb-0">No active cycles.</p>
+                  ) : (
+                    renderTrackTable(activeTracks)
+                  )}
+                </Tab>
+                <Tab eventKey="closed" title={`History (${closedTracks.length})`} className="pt-3">
+                  {closedTracks.length === 0 ? (
+                    <p className="text-muted text-center py-4 mb-0">No closed tracks yet.</p>
+                  ) : (
+                    renderTrackTable(closedTracks, { reviewsColumn: true })
+                  )}
+                </Tab>
+              </Tabs>
+            )}
+          </Card.Body>
+        </Card>
+      ) : (
+        <div className="growth-track-detail-view">
+          <Button
+            variant="link"
+            className="growth-track-back-btn ps-0 mb-3 text-decoration-none"
+            onClick={() => setSelectedTrack(null)}
+          >
+            <FaArrowLeft className="me-2" />
+            Back to track registry
+          </Button>
+
+          <Card className="border-0 shadow-sm mb-4 growth-track-detail-hero">
             <Card.Body className="p-4">
-              {loading && tracks.length === 0 ? (
-                <div className="text-center py-4"><Spinner animation="border" /></div>
-              ) : tracks.length === 0 ? (
-                <div className="text-center text-muted py-5">
-                  <p>No Growth Track entries found.</p>
-                  <Button variant="outline-primary" onClick={() => setShowInitiateModal(true)}>Initiate Concern Stage</Button>
-                </div>
-              ) : (
-                <Tabs defaultActiveKey="active" className="mb-3 border-0 bg-light p-1 rounded">
-                  <Tab eventKey="active" title={`Active (${activeTracks.length})`} className="pt-2">
-                    <Table hover responsive borderless align="middle">
-                      <thead>
-                        <tr className="text-muted border-bottom" style={{ fontSize: "0.85rem" }}>
-                          <th>Employee</th>
-                          <th>Stage</th>
-                          <th>Status</th>
-                          <th className="text-center">Notices</th>
-                          <th></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {activeTracks.map((t) => (
-                          <tr 
-                            key={t._id} 
-                            onClick={() => setSelectedTrack(t)}
-                            className={`cursor-pointer ${selectedTrack?._id === t._id ? "bg-light border-start border-4 border-primary" : ""}`}
-                            style={{ cursor: "pointer" }}
-                          >
-                            <td className="fw-600">
-                              <div>{t.employee?.name}</div>
-                              <small className="text-muted">{t.employee?.designation || "Employee"}</small>
-                            </td>
-                            <td>{getStageBadge(t.stage)}</td>
-                            <td>{getStatusBadge(t.status)}</td>
-                            <td className="text-center">
-                              <Badge bg="secondary" pill>{t.notices?.length || 0}</Badge>
-                            </td>
-                            <td><FaChevronRight className="text-muted" /></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </Table>
-                  </Tab>
-                  <Tab eventKey="closed" title={`History (${closedTracks.length})`} className="pt-2">
-                    <Table hover responsive borderless align="middle">
-                      <thead>
-                        <tr className="text-muted border-bottom" style={{ fontSize: "0.85rem" }}>
-                          <th>Employee</th>
-                          <th>Stage</th>
-                          <th>Outcome</th>
-                          <th className="text-center">Reviews</th>
-                          <th></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {closedTracks.map((t) => (
-                          <tr 
-                            key={t._id} 
-                            onClick={() => setSelectedTrack(t)}
-                            className={`cursor-pointer ${selectedTrack?._id === t._id ? "bg-light border-start border-4 border-primary" : ""}`}
-                            style={{ cursor: "pointer" }}
-                          >
-                            <td className="fw-600">
-                              <div>{t.employee?.name}</div>
-                              <small className="text-muted">{t.employee?.designation || "Employee"}</small>
-                            </td>
-                            <td>{getStageBadge(t.stage)}</td>
-                            <td>{getStatusBadge(t.status)}</td>
-                            <td className="text-center">
-                              <Badge bg="secondary" pill>{t.reviewMeetings?.length || 0}</Badge>
-                            </td>
-                            <td><FaChevronRight className="text-muted" /></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </Table>
-                  </Tab>
-                </Tabs>
-              )}
+              <Row className="align-items-center g-3">
+                <Col md={7} lg={8}>
+                  <p className="text-muted small mb-1 text-uppercase fw-semibold letter-spacing-wide">
+                    Managing employee
+                  </p>
+                  <h3 className="mb-2 fw-bold text-dark">{selectedTrack.employee?.name}</h3>
+                  <div className="d-flex flex-wrap align-items-center gap-2">
+                    {getStageBadge(selectedTrack.stage)}
+                    {getStatusBadge(selectedTrack.status)}
+                    <span className="text-muted small">
+                      {selectedTrack.employee?.designation || "Employee"}
+                      {selectedTrack.employee?.email ? ` · ${selectedTrack.employee.email}` : ""}
+                    </span>
+                  </div>
+                </Col>
+                <Col md={5} lg={4}>
+                  {selectedTrack.status !== "completed" && selectedTrack.status !== "hr_action" && (
+                    <div className="growth-track-action-stack d-grid gap-2">
+                      <Button variant="outline-primary" onClick={() => setShowTargetModal(true)}>
+                        <FaPlus className="me-2" />
+                        Add weekly target
+                      </Button>
+                      <Button variant="outline-success" onClick={() => setShowReviewModal(true)}>
+                        <FaCalendarCheck className="me-2" />
+                        Log review meeting
+                      </Button>
+                      <Button variant="danger" onClick={() => setShowFinalizeModal(true)}>
+                        <FaUserCheck className="me-2" />
+                        Finalize & close track
+                      </Button>
+                    </div>
+                  )}
+                </Col>
+              </Row>
             </Card.Body>
           </Card>
-        </Col>
 
-        {/* Right Side: Detailed track inspection & actions */}
-        {selectedTrack && (
-          <Col lg={7}>
-            <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: "15px" }}>
-              <Card.Header className="bg-transparent border-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center">
-                <div>
-                  <h4 style={{ fontWeight: "800", color: "#1f2937" }}>Manage: {selectedTrack.employee?.name}</h4>
-                  <p className="text-muted mb-0" style={{ fontSize: "0.85rem" }}>
-                    Stage: {getStageBadge(selectedTrack.stage)} • Status: {getStatusBadge(selectedTrack.status)}
-                  </p>
-                </div>
-                <Button variant="close" onClick={() => setSelectedTrack(null)} aria-label="Close" />
-              </Card.Header>
-              <Card.Body className="p-4">
-                {selectedTrack.status !== "completed" && selectedTrack.status !== "hr_action" && (
-                  <div className="d-flex flex-wrap gap-2 mb-4 bg-light p-3 rounded justify-content-between border">
-                    <Button variant="outline-primary" size="sm" onClick={() => setShowTargetModal(true)} className="d-flex align-items-center gap-1">
-                      <FaPlus /> Add Target
-                    </Button>
-                    <Button variant="outline-success" size="sm" onClick={() => setShowReviewModal(true)} className="d-flex align-items-center gap-1">
-                      <FaCalendarCheck /> Log Review Meeting
-                    </Button>
-                    <Button variant="danger" size="sm" onClick={() => setShowFinalizeModal(true)} className="d-flex align-items-center gap-1">
-                      <FaUserCheck /> Finalize & Close PIP
-                    </Button>
-                  </div>
-                )}
-
-                {/* Notices Section */}
-                <div className="mb-4">
-                  <h6 className="fw-700 text-dark border-bottom pb-2 mb-3">Issued Notices</h6>
-                  {selectedTrack.notices.map((n, i) => (
-                    <div key={n._id || i} className="p-3 border rounded mb-2 bg-light border-start-4" style={{ borderLeft: `4px solid ${n.stage === "critical" ? "#ef4444" : "#f59e0b"}` }}>
-                      <div className="d-flex justify-content-between align-items-start mb-1 flex-wrap gap-1">
-                        <div>
-                          <Badge bg={n.stage === "critical" ? "danger" : "warning"} className="me-2 text-capitalize">{n.stage}</Badge>
-                          <Badge bg="secondary" className="text-capitalize">{n.problemCategory}</Badge>
+          <Row className="g-4">
+            <Col lg={6}>
+              <Card className="border-0 shadow-sm h-100 growth-track-detail-panel">
+                <Card.Header className="bg-white border-0 pt-4 px-4 pb-0">
+                  <h5 className="fw-bold mb-0">Issued notices</h5>
+                  <p className="text-muted small mb-0 mt-1">Formal warnings and employee acknowledgment</p>
+                </Card.Header>
+                <Card.Body className="p-4">
+                  {selectedTrack.notices?.length ? (
+                    selectedTrack.notices.map((n, i) => (
+                      <div
+                        key={n._id || i}
+                        className="growth-track-notice-card p-3 rounded mb-3"
+                        style={{ borderLeft: `4px solid ${n.stage === "critical" ? "#ef4444" : "#f59e0b"}` }}
+                      >
+                        <div className="d-flex justify-content-between align-items-start mb-2 flex-wrap gap-2">
+                          <div className="d-flex flex-wrap align-items-center gap-2">
+                            <Badge bg={n.stage === "critical" ? "danger" : "warning"} className="text-capitalize">
+                              {n.stage}
+                            </Badge>
+                            {getNoticeProblemCategories(n).map((cat) => (
+                              <Badge key={cat} bg="secondary">
+                                {getCategoryLabel(cat)}
+                              </Badge>
+                            ))}
+                          </div>
+                          <small className="text-muted">Issued {new Date(n.issuedAt).toLocaleDateString()}</small>
                         </div>
-                        <small className="text-muted">Issued: {new Date(n.issuedAt).toLocaleDateString()}</small>
+                        <p className="text-dark small mb-0" style={{ whiteSpace: "pre-line", lineHeight: 1.55 }}>
+                          {n.description}
+                        </p>
+                        <div className="d-flex justify-content-between align-items-center pt-2 border-top flex-wrap gap-2 small">
+                          <span>
+                            <strong>Deadline:</strong> {new Date(n.deadline).toLocaleDateString()}
+                          </span>
+                          {n.acknowledged ? (
+                            <span className="text-success fw-semibold">
+                              <FaUserCheck className="me-1" />
+                              Acknowledged
+                            </span>
+                          ) : (
+                            <span className="text-warning fw-semibold">Awaiting acknowledgment</span>
+                          )}
+                        </div>
                       </div>
-                      <p className="mb-2 text-muted" style={{ fontSize: "0.9rem", whiteSpace: "pre-line" }}>{n.description}</p>
-                      <div className="d-flex justify-content-between align-items-center border-top pt-2 flex-wrap gap-1" style={{ fontSize: "0.82rem" }}>
-                        <span><strong>Deadline:</strong> {new Date(n.deadline).toLocaleDateString()}</span>
-                        {n.acknowledged ? (
-                          <span className="text-success"><FaUserCheck /> Acknowledged</span>
-                        ) : (
-                          <span className="text-warning">⚠️ Awaiting Acknowledge</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Weekly Targets Section */}
-                <div className="mb-4">
-                  <h6 className="fw-700 text-dark border-bottom pb-2 mb-3">PIP Measurable Weekly Targets</h6>
-                  {(!selectedTrack.weeklyTargets || selectedTrack.weeklyTargets.length === 0) ? (
-                    <p className="text-muted text-center py-2" style={{ fontSize: "0.9rem" }}>No targets assigned yet.</p>
+                    ))
                   ) : (
-                    <Table hover responsive borderless align="middle" style={{ fontSize: "0.9rem" }}>
-                      <thead>
-                        <tr className="text-muted border-bottom">
-                          <th>Target Title (Week)</th>
-                          <th className="text-center">Expected</th>
-                          <th className="text-center">Achieved</th>
-                          <th className="text-center">Pending</th>
-                          <th></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedTrack.weeklyTargets.map((target) => (
-                          <tr key={target._id} className="border-bottom">
-                            <td>
-                              <div className="fw-600">{target.title}</div>
-                              <small className="text-muted">Week {target.weekNumber}</small>
-                            </td>
-                            <td className="text-center text-primary">{target.expectedValue}</td>
-                            <td className="text-center">
-                              {updatingTargetId === target._id ? (
-                                <Form.Control
-                                  size="sm"
-                                  type="text"
-                                  style={{ width: "65px", margin: "0 auto" }}
-                                  value={targetUpdateValues.achievedValue}
-                                  onChange={(e) => setTargetUpdateValues(p => ({ ...p, achievedValue: e.target.value }))}
-                                />
-                              ) : (
-                                <span className="text-success fw-600">{target.achievedValue}</span>
-                              )}
-                            </td>
-                            <td className="text-center">
-                              {updatingTargetId === target._id ? (
-                                <Form.Control
-                                  size="sm"
-                                  type="text"
-                                  style={{ width: "65px", margin: "0 auto" }}
-                                  value={targetUpdateValues.pendingValue}
-                                  onChange={(e) => setTargetUpdateValues(p => ({ ...p, pendingValue: e.target.value }))}
-                                />
-                              ) : (
-                                <span className="text-danger fw-600">{target.pendingValue}</span>
-                              )}
-                            </td>
-                            <td>
-                              {selectedTrack.status !== "completed" && selectedTrack.status !== "hr_action" && (
-                                updatingTargetId === target._id ? (
-                                  <Button variant="success" size="sm" onClick={() => handleSaveTargetUpdate(target._id)} disabled={submitting}>
-                                    <FaSave />
-                                  </Button>
-                                ) : (
-                                  <Button variant="outline-secondary" size="sm" onClick={() => handleStartTargetUpdate(target)}>
-                                    Edit
-                                  </Button>
-                                )
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </Table>
+                    <p className="text-muted text-center py-4 mb-0">No notices issued.</p>
                   )}
-                </div>
+                </Card.Body>
+              </Card>
+            </Col>
 
-                {/* Review logs */}
-                <div>
-                  <h6 className="fw-700 text-dark border-bottom pb-2 mb-3">Logged Progress Reviews</h6>
-                  {(!selectedTrack.reviewMeetings || selectedTrack.reviewMeetings.length === 0) ? (
-                    <p className="text-muted text-center py-2" style={{ fontSize: "0.9rem" }}>No reviews logged yet.</p>
+            <Col lg={6}>
+              <Card className="border-0 shadow-sm mb-4 growth-track-detail-panel">
+                <Card.Header className="bg-white border-0 pt-4 px-4 pb-0">
+                  <h5 className="fw-bold mb-0">Weekly targets</h5>
+                  <p className="text-muted small mb-0 mt-1">Measurable PIP goals and progress</p>
+                </Card.Header>
+                <Card.Body className="p-4">
+                  {(!selectedTrack.weeklyTargets || selectedTrack.weeklyTargets.length === 0) ? (
+                    <p className="text-muted text-center py-4 mb-0">No targets assigned yet.</p>
                   ) : (
-                    <div className="d-flex flex-column gap-2">
+                    <div className="growth-track-targets-wrap">
+                      <Table borderless align="middle" className="growth-track-targets-table mb-0">
+                        <thead>
+                          <tr className="text-muted border-bottom small">
+                            <th>Target</th>
+                            <th className="text-center">Expected</th>
+                            <th className="text-center">Achieved</th>
+                            <th className="text-center">Pending</th>
+                            <th />
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedTrack.weeklyTargets.map((target) => (
+                            <tr key={target._id} className="border-bottom">
+                              <td>
+                                <div className="fw-semibold">{target.title}</div>
+                                <small className="text-muted">Week {target.weekNumber}</small>
+                              </td>
+                              <td className="text-center text-primary">{target.expectedValue}</td>
+                              <td className="text-center">
+                                {updatingTargetId === target._id ? (
+                                  <Form.Control
+                                    size="sm"
+                                    type="text"
+                                    className="growth-track-target-input"
+                                    value={targetUpdateValues.achievedValue}
+                                    onChange={(e) =>
+                                      setTargetUpdateValues((p) => ({ ...p, achievedValue: e.target.value }))
+                                    }
+                                  />
+                                ) : (
+                                  <span className="text-success fw-semibold">{target.achievedValue}</span>
+                                )}
+                              </td>
+                              <td className="text-center">
+                                {updatingTargetId === target._id ? (
+                                  <Form.Control
+                                    size="sm"
+                                    type="text"
+                                    className="growth-track-target-input"
+                                    value={targetUpdateValues.pendingValue}
+                                    onChange={(e) =>
+                                      setTargetUpdateValues((p) => ({ ...p, pendingValue: e.target.value }))
+                                    }
+                                  />
+                                ) : (
+                                  <span className="text-danger fw-semibold">{target.pendingValue}</span>
+                                )}
+                              </td>
+                              <td className="text-end">
+                                {selectedTrack.status !== "completed" && selectedTrack.status !== "hr_action" && (
+                                  updatingTargetId === target._id ? (
+                                    <Button
+                                      variant="success"
+                                      size="sm"
+                                      onClick={() => handleSaveTargetUpdate(target._id)}
+                                      disabled={submitting}
+                                    >
+                                      <FaSave />
+                                    </Button>
+                                  ) : (
+                                    <Button variant="outline-secondary" size="sm" onClick={() => handleStartTargetUpdate(target)}>
+                                      Edit
+                                    </Button>
+                                  )
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </Table>
+                    </div>
+                  )}
+                </Card.Body>
+              </Card>
+
+              <Card className="border-0 shadow-sm growth-track-detail-panel">
+                <Card.Header className="bg-white border-0 pt-4 px-4 pb-0">
+                  <h5 className="fw-bold mb-0">Review log</h5>
+                  <p className="text-muted small mb-0 mt-1">Documented check-ins and progress status</p>
+                </Card.Header>
+                <Card.Body className="p-4">
+                  {(!selectedTrack.reviewMeetings || selectedTrack.reviewMeetings.length === 0) ? (
+                    <p className="text-muted text-center py-4 mb-0">No reviews logged yet.</p>
+                  ) : (
+                    <div className="d-flex flex-column gap-3">
                       {selectedTrack.reviewMeetings.map((review, i) => {
-                        const colors = { improved: "success", "partially improved": "warning", "no improvement": "danger" };
+                        const colors = {
+                          improved: "success",
+                          "partially improved": "warning",
+                          "no improvement": "danger",
+                        };
                         return (
-                          <div key={review._id || i} className="p-3 border rounded" style={{ fontSize: "0.9rem", background: "#fdfdfd" }}>
-                            <div className="d-flex justify-content-between mb-2">
-                              <strong>📅 {new Date(review.reviewDate).toLocaleDateString()}</strong>
-                              <Badge bg={colors[review.progressStatus]} className="text-capitalize">{review.progressStatus}</Badge>
+                          <div key={review._id || i} className="growth-track-review-card p-3 rounded">
+                            <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                              <strong className="small">{new Date(review.reviewDate).toLocaleDateString()}</strong>
+                              <Badge bg={colors[review.progressStatus]} className="text-capitalize">
+                                {review.progressStatus}
+                              </Badge>
                             </div>
-                            <p className="mb-0 text-muted" style={{ whiteSpace: "pre-line" }}>{review.notes}</p>
+                            <p className="mb-0 text-muted small" style={{ whiteSpace: "pre-line", lineHeight: 1.55 }}>
+                              {review.notes}
+                            </p>
                           </div>
                         );
                       })}
                     </div>
                   )}
-                </div>
-              </Card.Body>
-            </Card>
-          </Col>
-        )}
-      </Row>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+        </div>
+      )}
 
       {/* MODAL 1: Initiate / Escalate Stage */}
       <Modal show={showInitiateModal} onHide={() => setShowInitiateModal(false)} centered>
@@ -575,18 +673,37 @@ const GrowthTrackManagement = () => {
             </Form.Group>
 
             <Form.Group className="mb-3">
-              <Form.Label>Problem Category</Form.Label>
-              <Form.Select
-                value={initiateData.problemCategory}
-                onChange={(e) => setInitiateData(p => ({ ...p, problemCategory: e.target.value }))}
+              <Form.Label>Problem Categories</Form.Label>
+              <div
+                className="border rounded p-3 growth-track-category-picker"
+                role="group"
+                aria-label="Problem categories"
               >
-                <option value="productivity">Productivity & Efficiency</option>
-                <option value="attendance">Attendance & Punctuality</option>
-                <option value="quality">Work Quality & Accuracy</option>
-                <option value="communication">Team Communication</option>
-                <option value="deadline management">Deadline & Speed</option>
-                <option value="task ownership">Ownership & Responsibility</option>
-              </Form.Select>
+                {GROWTH_TRACK_PROBLEM_CATEGORIES.map((cat) => {
+                  const checked = initiateData.problemCategories.includes(cat.value);
+                  return (
+                    <Form.Check
+                      key={cat.value}
+                      type="checkbox"
+                      id={`problem-cat-${cat.value.replace(/\s+/g, "-")}`}
+                      label={cat.label}
+                      checked={checked}
+                      onChange={() => {
+                        setInitiateData((prev) => {
+                          const next = new Set(prev.problemCategories);
+                          if (next.has(cat.value)) next.delete(cat.value);
+                          else next.add(cat.value);
+                          return { ...prev, problemCategories: [...next] };
+                        });
+                      }}
+                      className="mb-2"
+                    />
+                  );
+                })}
+              </div>
+              <Form.Text className="text-muted">
+                Select all areas that apply to this notice.
+              </Form.Text>
             </Form.Group>
 
             <Form.Group className="mb-3">

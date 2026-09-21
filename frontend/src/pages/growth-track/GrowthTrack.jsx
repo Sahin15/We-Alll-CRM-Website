@@ -3,15 +3,18 @@ import { useAuth } from "../../context/AuthContext";
 import GrowthTrackDetails from "./GrowthTrackDetails";
 import GrowthTrackManagement from "./GrowthTrackManagement";
 
-const GrowthTrack = () => {
-  const { user } = useAuth();
+const MANAGE_FALLBACK_ROLES = ["admin", "superadmin", "hr", "manager", "hod"];
 
-  // Route to the appropriate view based on role
-  if (user?.role === "employee") {
+const GrowthTrack = () => {
+  const { user, canAccess } = useAuth();
+
+  const canManage =
+    canAccess?.("growth_track.manage", MANAGE_FALLBACK_ROLES) ?? false;
+
+  if (!canManage) {
     return <GrowthTrackDetails />;
   }
 
-  // Admin, superadmin, hr, manager, and hod can manage tracks
   return <GrowthTrackManagement />;
 };
 

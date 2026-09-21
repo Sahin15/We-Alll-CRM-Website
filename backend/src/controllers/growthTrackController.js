@@ -1,6 +1,15 @@
 import GrowthTrack from "../models/growthTrackModel.js";
 import User from "../models/userModel.js";
 import NotificationService from "../services/notificationService.js";
+import {
+  canManageGrowthTrackForEmployee,
+  canManageGrowthTrackRecord,
+} from "../utils/growthTrackScope.js";
+import { parseProblemCategoriesFromBody } from "../utils/growthTrackCategories.js";
+import {
+  getOwnedDepartmentIdForRoster,
+  isOwnDepartmentTeamViewer,
+} from "../utils/teamRosterScope.js";
 
 // Fetch current user's active Growth Track
 export const getMyActiveTrack = async (req, res) => {
@@ -29,17 +38,30 @@ export const getMyActiveTrack = async (req, res) => {
 // Initiate or escalate Growth Track for an employee (Manager / HR only)
 export const initiateGrowthTrack = async (req, res) => {
   try {
-    const { employeeId, stage, problemCategory, description, deadline } = req.body;
+    const { employeeId, stage, description, deadline } = req.body;
 
-    if (!employeeId || !stage || !problemCategory || !description || !deadline) {
+    if (!employeeId || !stage || !description || !deadline) {
       return res.status(400).json({
-        message: "Employee ID, stage, problem category, description, and deadline are required",
+        message: "Employee ID, stage, description, and deadline are required",
       });
     }
+
+    const categoryParse = parseProblemCategoriesFromBody(req.body);
+    if (categoryParse.error) {
+      return res.status(400).json({ message: categoryParse.error });
+    }
+    const { categories: problemCategories } = categoryParse;
 
     const employee = await User.findById(employeeId);
     if (!employee) {
       return res.status(404).json({ message: "Employee not found" });
+    }
+
+    const allowed = await canManageGrowthTrackForEmployee(req.user, employee);
+    if (!allowed) {
+      return res.status(403).json({
+        message: "Unauthorized to initiate or update Growth Track for this employee",
+      });
     }
 
     // Determine reporting manager
@@ -53,7 +75,8 @@ export const initiateGrowthTrack = async (req, res) => {
 
     const noticeData = {
       stage,
-      problemCategory,
+      problemCategories,
+      problemCategory: problemCategories[0],
       description,
       deadline: new Date(deadline),
       issuedBy: req.user._id,
@@ -145,15 +168,16 @@ export const addWeeklyTarget = async (req, res) => {
       });
     }
 
-    const track = await GrowthTrack.findById(trackId);
+    const track = await GrowthTrack.findById(trackId).populate(
+      "employee",
+      "department reportingManager"
+    );
     if (!track) {
       return res.status(404).json({ message: "Growth Track not found" });
     }
 
-    // Verify user is manager of the track or HR
-    const isManager = track.manager.toString() === req.user._id.toString();
-    const isHR = ["hr", "admin", "superadmin"].includes(req.user.role);
-    if (!isManager && !isHR) {
+    const canManage = await canManageGrowthTrackRecord(req.user, track);
+    if (!canManage) {
       return res.status(403).json({ message: "Unauthorized to add targets" });
     }
 
@@ -201,15 +225,16 @@ export const updateTargetProgress = async (req, res) => {
     const { trackId, targetId } = req.params;
     const { achievedValue, pendingValue } = req.body;
 
-    const track = await GrowthTrack.findById(trackId);
+    const track = await GrowthTrack.findById(trackId).populate(
+      "employee",
+      "department reportingManager"
+    );
     if (!track) {
       return res.status(404).json({ message: "Growth Track not found" });
     }
 
-    // Verify authorization
-    const isManager = track.manager.toString() === req.user._id.toString();
-    const isHR = ["hr", "admin", "superadmin"].includes(req.user.role);
-    if (!isManager && !isHR) {
+    const canManage = await canManageGrowthTrackRecord(req.user, track);
+    if (!canManage) {
       return res.status(403).json({ message: "Unauthorized to update targets" });
     }
 
@@ -311,15 +336,16 @@ export const logReviewMeeting = async (req, res) => {
       });
     }
 
-    const track = await GrowthTrack.findById(trackId);
+    const track = await GrowthTrack.findById(trackId).populate(
+      "employee",
+      "department reportingManager"
+    );
     if (!track) {
       return res.status(404).json({ message: "Growth Track not found" });
     }
 
-    // Verify authorization
-    const isManager = track.manager.toString() === req.user._id.toString();
-    const isHR = ["hr", "admin", "superadmin"].includes(req.user.role);
-    if (!isManager && !isHR) {
+    const canManage = await canManageGrowthTrackRecord(req.user, track);
+    if (!canManage) {
       return res.status(403).json({ message: "Unauthorized to log review meetings" });
     }
 
@@ -370,15 +396,16 @@ export const finalizeGrowthTrack = async (req, res) => {
       return res.status(400).json({ message: "Final outcome is required" });
     }
 
-    const track = await GrowthTrack.findById(trackId);
+    const track = await GrowthTrack.findById(trackId).populate(
+      "employee",
+      "department reportingManager"
+    );
     if (!track) {
       return res.status(404).json({ message: "Growth Track not found" });
     }
 
-    // Verify authorization
-    const isManager = track.manager.toString() === req.user._id.toString();
-    const isHR = ["hr", "admin", "superadmin"].includes(req.user.role);
-    if (!isManager && !isHR) {
+    const canManage = await canManageGrowthTrackRecord(req.user, track);
+    if (!canManage) {
       return res.status(403).json({ message: "Unauthorized to finalize track" });
     }
 
@@ -479,12 +506,25 @@ export const getManagerGrowthTracks = async (req, res) => {
     const reportingEmployees = await User.find({ reportingManager: managerId }).select("_id");
     const employeeIds = reportingEmployees.map((e) => e._id);
 
-    // Get tracks where manager is listed as manager OR employee reports to them
+    const visibilityClauses = [
+      { manager: managerId },
+      { employee: { $in: employeeIds } },
+    ];
+
+    if (isOwnDepartmentTeamViewer(req.user)) {
+      const ownedDept = await getOwnedDepartmentIdForRoster(req.user);
+      if (ownedDept) {
+        const deptEmployees = await User.find({ department: ownedDept }).select("_id");
+        const deptIds = deptEmployees.map((e) => e._id);
+        if (deptIds.length) {
+          visibilityClauses.push({ employee: { $in: deptIds } });
+        }
+      }
+    }
+
+    // Get tracks where manager is listed as manager OR employee reports to them / same dept (HoD)
     const tracks = await GrowthTrack.find({
-      $or: [
-        { manager: managerId },
-        { employee: { $in: employeeIds } },
-      ],
+      $or: visibilityClauses,
     })
       .populate("employee", "name email designation department profilePicture employeeId")
       .populate("manager", "name email designation profilePicture")

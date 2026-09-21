@@ -35,6 +35,7 @@ import {
   isWorkItemOverdue,
 } from "../../utils/workItemUtils";
 import growthTrackApi from "../../api/growthTrackApi";
+import { GROWTH_TRACK_THEME_REFRESH_EVENT } from "../../utils/growthTrackTheme.js";
 import TodoWidget from "../../components/common/TodoWidget";
 import ConfirmModal from "../../components/common/ConfirmModal";
 import GreetingBanner from "../../components/common/GreetingBanner";
@@ -224,17 +225,6 @@ const EmployeeDashboard = () => {
   });
 
   const [activeGrowthTrack, setActiveGrowthTrack] = useState(null);
-
-  useEffect(() => {
-    if (activeGrowthTrack && activeGrowthTrack.stage === "critical") {
-      document.body.classList.add("pip-active");
-    } else {
-      document.body.classList.remove("pip-active");
-    }
-    return () => {
-      document.body.classList.remove("pip-active");
-    };
-  }, [activeGrowthTrack]);
 
   useEffect(() => {
     let isMounted = true;
@@ -492,6 +482,7 @@ const EmployeeDashboard = () => {
       } else {
         setActiveGrowthTrack(null);
       }
+      window.dispatchEvent(new CustomEvent(GROWTH_TRACK_THEME_REFRESH_EVENT));
 
       // Update stats
       setStats({

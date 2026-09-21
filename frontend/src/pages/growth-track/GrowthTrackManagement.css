@@ -1,0 +1,175 @@
+/* Growth Track Management — layout & tables */
+
+.growth-track-management {
+  max-width: 1400px;
+}
+
+.growth-track-mgmt-title {
+  font-weight: 800;
+  color: #1f2937;
+  letter-spacing: -0.02em;
+}
+
+.growth-track-stats-row .card {
+  border-radius: 12px;
+}
+
+.growth-track-list-card {
+  border-radius: 16px;
+}
+
+.growth-track-list-tabs .nav-link {
+  font-weight: 600;
+  border-radius: 8px;
+}
+
+.growth-track-list-card .card-body,
+.growth-track-list-card .tab-content,
+.growth-track-list-card .tab-pane {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.growth-track-list-card .growth-track-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background-color: #fff;
+  isolation: isolate;
+}
+
+.growth-track-list-card .growth-track-table {
+  width: 100%;
+  table-layout: auto;
+  margin-bottom: 0 !important;
+}
+
+.growth-track-list-card .growth-track-table thead th {
+  position: static !important;
+  background-color: #f8f9fa !important;
+  border-bottom: 1px solid #dee2e6;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #6c757d;
+  padding: 0.75rem 1rem !important;
+}
+
+.growth-track-list-card .growth-track-table tbody td {
+  padding: 0.85rem 1rem !important;
+  vertical-align: middle;
+  border: none;
+  background-color: transparent;
+  transition: background-color 0.15s ease;
+}
+
+.growth-track-list-card .growth-track-table .col-employee {
+  width: 32%;
+  min-width: 180px;
+}
+
+.growth-track-list-card .growth-track-employee-name {
+  white-space: normal;
+  word-break: normal;
+  line-height: 1.35;
+}
+
+.growth-track-list-card .growth-track-table .col-stage,
+.growth-track-list-card .growth-track-table .col-status {
+  white-space: nowrap;
+}
+
+.growth-track-list-card .growth-track-table .col-stage .badge,
+.growth-track-list-card .growth-track-table .col-status .badge {
+  white-space: nowrap;
+}
+
+.growth-track-list-card .growth-track-table .col-meta {
+  width: 90px;
+}
+
+.growth-track-list-card .growth-track-table .col-action {
+  width: 40px;
+}
+
+.growth-track-list-card .growth-track-table tbody tr.growth-track-table-row {
+  cursor: pointer;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.growth-track-list-card .growth-track-table tbody tr.growth-track-table-row:hover td {
+  background-color: rgba(102, 126, 234, 0.07);
+}
+
+.growth-track-list-card .growth-track-table tbody tr.growth-track-table-row-selected td {
+  background-color: rgba(102, 126, 234, 0.1) !important;
+}
+
+.growth-track-list-card .growth-track-table tbody tr.growth-track-table-row-selected td:first-child {
+  box-shadow: inset 4px 0 0 var(--bs-primary);
+}
+
+.growth-track-list-card .table-hover tbody tr:hover,
+.growth-track-list-card .growth-track-table tbody tr:hover {
+  transform: none !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
+}
+
+body.growth-track-theme-active .growth-track-list-card.card:hover {
+  transform: none !important;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+}
+
+/* Detail view */
+.growth-track-back-btn {
+  font-weight: 600;
+  color: #4f46e5;
+}
+
+.growth-track-detail-hero {
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.04) 0%, rgba(255, 255, 255, 1) 45%);
+}
+
+.growth-track-detail-panel {
+  border-radius: 14px;
+}
+
+.growth-track-notice-card {
+  background: #fafafa;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.growth-track-review-card {
+  background: #fdfdfd;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.growth-track-targets-wrap {
+  overflow-x: auto;
+}
+
+.growth-track-targets-table {
+  font-size: 0.9rem;
+  min-width: 420px;
+}
+
+.growth-track-target-input {
+  max-width: 72px;
+  margin: 0 auto;
+}
+
+.growth-track-category-picker {
+  max-height: 220px;
+  overflow-y: auto;
+  background-color: #fafafa;
+}
+
+@media (max-width: 767.98px) {
+  .growth-track-action-stack .btn {
+    width: 100%;
+  }
+}
