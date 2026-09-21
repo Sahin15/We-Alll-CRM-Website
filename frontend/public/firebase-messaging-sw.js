@@ -29,11 +29,8 @@ self.addEventListener('message', (event) => {
 
 // Background message handler — fires when app is closed or tab is not focused
 messaging.onBackgroundMessage((payload) => {
-  try {
-    // Validate we have a registration
-    if (!self.registration) {
-      return Promise.reject(new Error('No service worker registration'));
-    }
+  const show = async () => {
+    if (!self.registration) return;
 
     const title = payload.notification?.title || payload.data?.title || 'New Notification';
     const body = payload.notification?.body || payload.data?.body || '';
@@ -42,7 +39,6 @@ messaging.onBackgroundMessage((payload) => {
     const actionUrl = payload.data?.actionUrl || '/';
     const tag = payload.data?.type || 'crm-notification';
 
-    // Windows-specific notification options
     const notificationOptions = {
       body,
       icon,
@@ -56,31 +52,26 @@ messaging.onBackgroundMessage((payload) => {
         { action: 'dismiss', title: 'Dismiss' },
       ],
       silent: false,
-      sound: '/notification-sound.mp3', // Add sound to notification
       timestamp: Date.now(),
       dir: 'auto',
     };
 
-    // Must call showNotification — if we don't, Chrome shows a default notification
-    return self.registration.showNotification(title, notificationOptions)
-      .then(() => {
-        // Notification displayed successfully
-      })
-      .catch((error) => {
-        // Fallback: try without some options for Windows compatibility
-        const fallbackOptions = {
-          body,
-          icon,
-          badge,
-          tag,
-          data: { ...payload.data, actionUrl },
-          requireInteraction: true,
-        };
-        return self.registration.showNotification(title, fallbackOptions);
+    try {
+      await self.registration.showNotification(title, notificationOptions);
+    } catch {
+      await self.registration.showNotification(title, {
+        body,
+        icon,
+        badge,
+        tag,
+        data: { ...payload.data, actionUrl },
+        requireInteraction: true,
       });
-  } catch (error) {
-    return Promise.reject(error);
-  }
+    }
+  };
+
+  // Never reject — Chrome treats a rejected SW message as an uncaught promise
+  return Promise.resolve(show()).catch(() => undefined);
 });
 
 // Notification click — open or focus the app

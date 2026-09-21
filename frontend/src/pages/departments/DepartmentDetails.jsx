@@ -283,7 +283,6 @@ const DepartmentDetails = () => {
                 ) : (
                   <div className="mt-2">
                     <span className="text-muted d-block mb-2">Not Assigned</span>
-                    {console.log('🔍 HoD Button Check:', { isAdmin, employeeCount: analytics?.employees?.length })}
                     {isAdmin && analytics?.employees?.length > 0 && (
                       <Button
                         size="sm"
@@ -316,7 +315,6 @@ const DepartmentDetails = () => {
               <strong>Role Distribution</strong>
             </Card.Header>
             <Card.Body>
-              {console.log('🔍 Role Distribution:', analytics?.roleDistribution)}
               {analytics?.roleDistribution && Object.keys(analytics.roleDistribution).length > 0 ? (
                 <ListGroup variant="flush">
                   {Object.entries(analytics.roleDistribution).map(
@@ -343,7 +341,6 @@ const DepartmentDetails = () => {
               <strong>Position Distribution</strong>
             </Card.Header>
             <Card.Body>
-              {console.log('🔍 Position Distribution:', analytics?.positionDistribution)}
               {analytics?.positionDistribution && Object.keys(analytics.positionDistribution).length > 0 ? (
                 <ListGroup variant="flush">
                   {Object.entries(analytics.positionDistribution).map(
