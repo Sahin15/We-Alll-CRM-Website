@@ -32,7 +32,7 @@ const SoftwareLicenseManagement = () => {
           <Tabs
             activeKey={activeTab}
             onSelect={(k) => setActiveTab(k)}
-            className="nav-tabs-custom"
+            className="nav-tabs-custom profile-tabs-fill"
             style={{ borderBottom: '2px solid #e9ecef' }}
           >
             {/* Dashboard Tab - HR/Admin/Manager/HoD only */}

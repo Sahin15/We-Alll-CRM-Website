@@ -52,6 +52,8 @@ const deptView = requireModulePermission("team", "team.department.view", {
 });
 
 const DEPT_MANAGE_ROLES = ["admin", "superadmin"];
+/** HR can add/remove members; create/update/delete dept stays admin-only */
+const DEPT_EMPLOYEE_MANAGE_ROLES = ["admin", "superadmin", "hr"];
 const DEPT_HOD_OPS_ROLES = ["admin", "superadmin", "hr", "manager"];
 const DEPT_ANALYTICS_ROLES = ["admin", "superadmin", "hr", "manager"];
 const DEPT_ANALYTICS_DETAIL_ROLES = [
@@ -167,12 +169,12 @@ router.delete(
   deleteDepartment
 );
 
-// Employee management within department
+// Employee management within department (HR + admin)
 router.put(
   "/:departmentId/employees/bulk",
   protect,
   requireModulePermission("team", "team.department.manage", {
-    legacyRoles: DEPT_MANAGE_ROLES,
+    legacyRoles: DEPT_EMPLOYEE_MANAGE_ROLES,
   }),
   bulkAssignEmployees
 );
@@ -180,7 +182,7 @@ router.put(
   "/:departmentId/add/:userId",
   protect,
   requireModulePermission("team", "team.department.manage", {
-    legacyRoles: DEPT_MANAGE_ROLES,
+    legacyRoles: DEPT_EMPLOYEE_MANAGE_ROLES,
   }),
   addEmployeeToDepartment
 );
@@ -188,7 +190,7 @@ router.put(
   "/:departmentId/remove/:userId",
   protect,
   requireModulePermission("team", "team.department.manage", {
-    legacyRoles: DEPT_MANAGE_ROLES,
+    legacyRoles: DEPT_EMPLOYEE_MANAGE_ROLES,
   }),
   removeEmployeeFromDepartment
 );

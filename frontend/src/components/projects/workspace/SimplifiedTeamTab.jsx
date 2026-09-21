@@ -468,7 +468,7 @@ const SimplifiedTeamTab = ({ project, onRefresh }) => {
         }}
         onSuccess={handleWorkAssignSuccess}
         defaultProject={currentProject}
-        defaultAssignee={selectedMemberForWork?._id}
+        defaultAssignee={selectedMemberForWork}
       />
 
       {/* Remove Team Member Confirmation Modal */}

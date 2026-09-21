@@ -1,5 +1,3 @@
-import { initializeApp, getApps } from 'firebase/app';
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import api from './api';
 import toast from '../utils/toast';
 
@@ -17,6 +15,47 @@ const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY || '';
 let _app = null;
 let _messaging = null;
 let _initPromise = null;
+/** @type {((messaging: unknown, next: (payload: unknown) => void) => void)|null} */
+let _onMessage = null;
+/** @type {((messaging: unknown, options: object) => Promise<string>)|null} */
+let _getToken = null;
+
+const initializeFirebase = () => {
+  if (_initPromise) return _initPromise;
+
+  _initPromise = new Promise((resolve) => {
+    const run = async () => {
+      try {
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        const isStandalone = window.navigator.standalone === true;
+        if (isIOS && isSafari && !isStandalone) { resolve(false); return; }
+        if (typeof window === 'undefined' || !('indexedDB' in window)) { resolve(false); return; }
+
+        // Dynamic import keeps ~135KB Firebase off the critical boot path
+        const [{ initializeApp, getApps }, messagingMod] = await Promise.all([
+          import('firebase/app'),
+          import('firebase/messaging'),
+        ]);
+        _getToken = messagingMod.getToken;
+        _onMessage = messagingMod.onMessage;
+        _app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+        _messaging = messagingMod.getMessaging(_app);
+        resolve(true);
+      } catch (err) {
+        resolve(false);
+      }
+    };
+
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(() => { run(); }, { timeout: 2000 });
+    } else {
+      setTimeout(() => { run(); }, 500);
+    }
+  });
+
+  return _initPromise;
+};
 
 // Shared AudioContext — created only after a user gesture (browser autoplay policy)
 let _audioCtx = null;
@@ -137,36 +176,6 @@ if (typeof document !== 'undefined') {
   document.addEventListener('touchstart', unlockAudio, { once: true });
 }
 
-const initializeFirebase = () => {
-  if (_initPromise) return _initPromise;
-
-  _initPromise = new Promise((resolve) => {
-    const run = () => {
-      try {
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-        const isStandalone = window.navigator.standalone === true;
-        if (isIOS && isSafari && !isStandalone) { resolve(false); return; }
-        if (typeof window === 'undefined' || !('indexedDB' in window)) { resolve(false); return; }
-
-        _app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-        _messaging = getMessaging(_app);
-        resolve(true);
-      } catch (err) {
-        resolve(false);
-      }
-    };
-
-    if ('requestIdleCallback' in window) {
-      requestIdleCallback(run, { timeout: 2000 });
-    } else {
-      setTimeout(run, 500);
-    }
-  });
-
-  return _initPromise;
-};
-
 class NotificationService {
   constructor() {
     this.permission = typeof Notification !== 'undefined' ? Notification.permission : 'denied';
@@ -255,7 +264,7 @@ class NotificationService {
 
       while (!token && retries < maxRetries) {
         try {
-          token = await getToken(_messaging, { vapidKey: VAPID_KEY });
+          token = await _getToken(_messaging, { vapidKey: VAPID_KEY });
           if (token) {
             break;
           }
@@ -295,9 +304,9 @@ class NotificationService {
   }
 
   setupForegroundListener() {
-    if (!_messaging) return;
+    if (!_messaging || !_onMessage) return;
 
-    onMessage(_messaging, (payload) => {
+    _onMessage(_messaging, (payload) => {
       // FCM can send notification-only, data-only, or both
       // Always fall back to data fields if notification object is missing
       const title = payload.notification?.title || payload.data?.title || 'New Notification';

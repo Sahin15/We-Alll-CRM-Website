@@ -1,11 +1,17 @@
-import { useState, useEffect } from 'react';
-import { Modal, Form, Button, Row, Col, Badge } from 'react-bootstrap';
+import { useState, useEffect, useMemo } from 'react';
+import { Modal, Form, Button, Row, Col, Badge, Alert } from 'react-bootstrap';
 import { FaTasks, FaPlusCircle } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import workItemApi from '../../api/workItemApi';
 import projectApi from '../../api/projectApi';
 import userApi from '../../api/userApi';
+import departmentApi from '../../api/departmentApi';
 import TeamMemberWorkloadInfo from '../workload/TeamMemberWorkloadInfo';
+import {
+  getCreativeWorkflowTypeForDepartment,
+  isCreativeDepartmentName,
+  isPostingDepartmentName,
+} from '../../constants/departmentNames';
 
 /**
  * AssignWorkModal - Reusable modal for assigning work to team members
@@ -13,6 +19,105 @@ import TeamMemberWorkloadInfo from '../workload/TeamMemberWorkloadInfo';
  * @param {Object} slotInfo - Optional slot information for slot-based assignments
  * @param {string|Object} defaultProject - Project ID or full project object
  */
+/** @param {string|{ _id?: string }} value */
+const resolveEntityId = (value) => {
+  if (!value) return '';
+  return String(typeof value === 'object' ? value._id : value);
+};
+
+/**
+ * Collect team member user IDs from a project record.
+ * @param {Object} project
+ * @returns {string[]}
+ */
+const collectTeamMemberIds = (project) => {
+  if (!project) return [];
+
+  const ids = new Set();
+
+  (project.assignedUsers || []).forEach((user) => {
+    const userId = resolveEntityId(user);
+    if (userId) ids.add(userId);
+  });
+
+  (project.teamMembers || []).forEach((member) => {
+    if (member?.isActive === false) return;
+    const userId = resolveEntityId(member.user);
+    if (userId) ids.add(userId);
+  });
+
+  const headId = resolveEntityId(project.projectHead);
+  if (headId) ids.add(headId);
+
+  return [...ids];
+};
+
+/**
+ * Build assignable team member objects from populated project roster fields.
+ * @param {Object} project
+ * @returns {Array<{ _id: string, name?: string, email?: string }>}
+ */
+const buildTeamMembersFromProject = (project) => {
+  if (!project) return [];
+
+  const byId = new Map();
+
+  const addUser = (user) => {
+    if (!user) return;
+    const userId = resolveEntityId(user);
+    if (!userId) return;
+
+    const existing = byId.get(userId);
+    const userObj = typeof user === 'object' && user !== null ? user : { _id: userId };
+
+    byId.set(userId, {
+      _id: userId,
+      name: userObj.name || existing?.name,
+      email: userObj.email || existing?.email,
+      role: userObj.role || existing?.role,
+      status: userObj.status || existing?.status,
+    });
+  };
+
+  (project.assignedUsers || []).forEach(addUser);
+  (project.teamMembers || []).forEach((member) => {
+    if (member?.isActive === false) return;
+    addUser(member.user);
+  });
+  addUser(project.projectHead);
+
+  return [...byId.values()].filter((member) => member._id);
+};
+
+/**
+ * Ensure the pre-selected assignee appears in the dropdown options.
+ * @param {Array<{ _id: string, name?: string }>} teamMembers
+ * @param {string|Object|null} assignee
+ * @param {Object|null} project
+ * @returns {Array<{ _id: string, name?: string }>}
+ */
+const ensureAssigneeInTeamMembers = (teamMembers, assignee, project) => {
+  const assigneeId = resolveEntityId(assignee);
+  if (!assigneeId) return teamMembers;
+
+  if (teamMembers.some((member) => resolveEntityId(member._id) === assigneeId)) {
+    return teamMembers;
+  }
+
+  if (typeof assignee === 'object' && assignee !== null) {
+    return [...teamMembers, { _id: assigneeId, name: assignee.name || 'Team Member', email: assignee.email }];
+  }
+
+  const fromProject = buildTeamMembersFromProject(project).find(
+    (member) => resolveEntityId(member._id) === assigneeId
+  );
+  if (fromProject) {
+    return [...teamMembers, fromProject];
+  }
+
+  return [...teamMembers, { _id: assigneeId, name: 'Team Member' }];
+};
+
 const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defaultAssignee = null, slotInfo = null }) => {
   const [assigning, setAssigning] = useState(false);
   const [projects, setProjects] = useState([]);
@@ -25,6 +130,8 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedUserForWorkload, setSelectedUserForWorkload] = useState(null); // Track selected user for workload display
   const [pendingWorkCount, setPendingWorkCount] = useState(0); // Track pending work for selected due date
+  const [departments, setDepartments] = useState([]);
+  const [postingUsers, setPostingUsers] = useState([]);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -36,45 +143,174 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
     priority: '',
     selectedSlot: '', // Add slot selection
     visibility: 'active', // 'draft', 'scheduled', or 'active'
-    scheduledActivationDate: '' // When to activate if scheduled
+    scheduledActivationDate: '', // When to activate if scheduled
+    requiresPosting: false,
+    postingAssignedTo: '',
+    postingDate: '',
   });
+
+  /** Collect department names linked on the project (populated or ID). */
+  const getProjectDepartmentNames = (project) => {
+    const names = [];
+    const pushName = (value) => {
+      if (value) names.push(String(value).toLowerCase());
+    };
+    if (!project) return names;
+    if (Array.isArray(project.departments)) {
+      project.departments.forEach((dept) => {
+        if (typeof dept === 'object' && dept?.name) pushName(dept.name);
+        else if (dept) {
+          const match = departments.find((d) => String(d._id) === String(dept));
+          pushName(match?.name);
+        }
+      });
+    }
+    if (project.department) {
+      if (typeof project.department === 'object') {
+        pushName(project.department.name);
+      } else {
+        const match = departments.find(
+          (d) => String(d._id) === String(project.department)
+        );
+        pushName(match?.name);
+      }
+    }
+    return names;
+  };
+
+  const findUserById = (userId) => {
+    if (!userId) return null;
+    const id = String(userId);
+    return (
+      users.find((u) => String(u._id) === id) ||
+      allUsers.find((u) => String(u._id) === id) ||
+      null
+    );
+  };
+
+  const selectedAssigneeIds = useMemo(() => {
+    if (formData.assignmentMode === 'multiple') {
+      return formData.assignedToMultiple || [];
+    }
+    return formData.assignedTo ? [formData.assignedTo] : [];
+  }, [formData.assignmentMode, formData.assignedTo, formData.assignedToMultiple]);
+
+  // Posting handoff only when assignee is Graphic or Video department
+  const assigneeSupportsCreative = useMemo(() => {
+    return selectedAssigneeIds.some((id) => {
+      const user = findUserById(id);
+      return isCreativeDepartmentName(user?.department?.name);
+    });
+  }, [selectedAssigneeIds, users, allUsers]);
+
+  const isCreativeAssignment = assigneeSupportsCreative;
+
+  // Only show for Graphic / Video assignees — other departments do not need posting
+  const showPostingHandoff = assigneeSupportsCreative;
+
+  // Clear posting fields when assignee is no longer Graphic/Video
+  useEffect(() => {
+    if (!assigneeSupportsCreative && formData.requiresPosting) {
+      setFormData((prev) => ({
+        ...prev,
+        requiresPosting: false,
+        postingAssignedTo: '',
+        postingDate: '',
+      }));
+    }
+  }, [assigneeSupportsCreative]);
 
   // Load projects and users when modal opens
   useEffect(() => {
     if (show) {
-      // Reset form when modal opens, but use defaults if provided
+      const defaultProjectId = resolveEntityId(defaultProject);
+      const defaultAssigneeId = resolveEntityId(defaultAssignee);
+      const defaultSlotId = slotInfo?.slotId ? resolveEntityId(slotInfo.slotId) : '';
+
       setFormData({
         title: '',
         description: '',
-        project: defaultProject || '',
-        assignedTo: defaultAssignee || '',
-        assignedToMultiple: defaultAssignee ? [defaultAssignee] : [],
-        assignmentMode: defaultAssignee ? 'single' : 'single',
+        project: defaultProjectId,
+        assignedTo: defaultAssigneeId,
+        assignedToMultiple: defaultAssigneeId ? [defaultAssigneeId] : [],
+        assignmentMode: 'single',
         dueDate: '',
         priority: '',
-        selectedSlot: '',
+        selectedSlot: defaultSlotId,
         visibility: 'active',
-        scheduledActivationDate: ''
+        scheduledActivationDate: '',
+        requiresPosting: false,
+        postingAssignedTo: '',
+        postingDate: '',
       });
-      setSelectedProject(null);
-      setUsers([]);
+      setSelectedUserForWorkload(defaultAssigneeId || null);
       setSlots([]);
+      if (slotInfo?.periodIdentifier) {
+        setSelectedMonth(slotInfo.periodIdentifier);
+      } else {
+        setSelectedMonth(null);
+      }
+
+      // Pre-fill team roster from the workspace project object while projects list loads
+      if (typeof defaultProject === 'object' && defaultProject?._id) {
+        const initialTeamMembers = ensureAssigneeInTeamMembers(
+          buildTeamMembersFromProject(defaultProject),
+          defaultAssignee,
+          defaultProject
+        );
+        setSelectedProject(defaultProject);
+        setUsers(initialTeamMembers);
+        setAllUsers(initialTeamMembers);
+      } else {
+        setSelectedProject(null);
+        setUsers([]);
+        setAllUsers([]);
+      }
+
       loadProjectsAndUsers();
+      loadPostingSupportData();
     }
-  }, [show, defaultProject, defaultAssignee]);
+  }, [show, defaultProject, defaultAssignee, slotInfo]);
 
   // Auto-load project data when defaultProject is provided and projects are loaded
   useEffect(() => {
     if (show && defaultProject && projects.length > 0) {
-      // If defaultProject is an object (full project data), use it directly
       if (typeof defaultProject === 'object' && defaultProject._id) {
         handleProjectChange(defaultProject._id);
       } else if (typeof defaultProject === 'string') {
-        // If it's just an ID, find it in the projects array
         handleProjectChange(defaultProject);
       }
     }
   }, [show, defaultProject, projects.length]);
+
+  const normalizeUserList = (usersRes) => {
+    if (Array.isArray(usersRes)) return usersRes;
+    if (Array.isArray(usersRes?.data)) return usersRes.data;
+    if (Array.isArray(usersRes?.users)) return usersRes.users;
+    return [];
+  };
+
+  const loadPostingSupportData = async () => {
+    try {
+      const [deptRes, usersRes] = await Promise.all([
+        departmentApi.getAllDepartments(),
+        userApi.getAllUsers({ status: 'active', limit: 1000 }),
+      ]);
+      const deptList = Array.isArray(deptRes)
+        ? deptRes
+        : deptRes?.data || deptRes?.departments || [];
+      const userList = normalizeUserList(usersRes);
+      setDepartments(Array.isArray(deptList) ? deptList : []);
+      setAllUsers(userList);
+      setPostingUsers(
+        userList.filter((u) => isPostingDepartmentName(u.department?.name))
+      );
+    } catch (error) {
+      console.error('[AssignWorkModal] Failed to load posting support data:', error);
+      setDepartments([]);
+      setPostingUsers([]);
+    }
+  };
 
   const loadProjectsAndUsers = async () => {
     try {
@@ -103,26 +339,38 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
     }
   };
 
-  // Filter users when project is selected
-  const initializeMonthsFromSlots = (loadedSlots) => {
+  /**
+   * Initialize month filter for slot dropdown.
+   * @param {Array<Object>} loadedSlots
+   * @param {{ slotId?: string, periodIdentifier?: string }|null} preferredSlot
+   */
+  const initializeMonthsFromSlots = (loadedSlots, preferredSlot = null) => {
     if (!loadedSlots || loadedSlots.length === 0) {
       setAvailableMonths([]);
       setSelectedMonth(null);
       return;
     }
 
-    // Get unique months from slots
-    const months = [...new Set(loadedSlots.map(s => s.period?.periodIdentifier))].filter(Boolean);
-    months.sort(); // Sort chronologically
+    const months = [...new Set(loadedSlots.map((slot) => slot.period?.periodIdentifier))].filter(Boolean);
+    months.sort();
     setAvailableMonths(months);
 
-    // Determine current month in YYYY-MM format
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
-    const currentPeriodIdentifier = `${currentYear}-${currentMonth}`;
+    const preferredSlotId = resolveEntityId(preferredSlot?.slotId);
+    const matchedSlot = preferredSlotId
+      ? loadedSlots.find((slot) => resolveEntityId(slot._id) === preferredSlotId)
+      : null;
+    const preferredMonth =
+      preferredSlot?.periodIdentifier ||
+      matchedSlot?.period?.periodIdentifier ||
+      null;
 
-    // Set current month as default if available, otherwise first available month
+    if (preferredMonth && months.includes(preferredMonth)) {
+      setSelectedMonth(preferredMonth);
+      return;
+    }
+
+    const now = new Date();
+    const currentPeriodIdentifier = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const defaultMonth = months.includes(currentPeriodIdentifier) ? currentPeriodIdentifier : months[0];
     setSelectedMonth(defaultMonth);
   };
@@ -139,116 +387,130 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
     return `${monthNames[monthIndex]} ${year}`;
   };
 
+  const resolveProjectRecord = (projectId) => {
+    const resolvedProjectId = resolveEntityId(projectId);
+    if (!resolvedProjectId) return null;
+
+    const fromList = projects.find(
+      (project) => resolveEntityId(project._id) === resolvedProjectId
+    );
+    const fromDefault =
+      typeof defaultProject === 'object' &&
+      defaultProject?._id &&
+      resolveEntityId(defaultProject) === resolvedProjectId
+        ? defaultProject
+        : null;
+
+    if (fromList && fromDefault) {
+      const listNamedCount = buildTeamMembersFromProject(fromList).filter((member) => member.name).length;
+      const defaultNamedCount = buildTeamMembersFromProject(fromDefault).filter((member) => member.name).length;
+      return defaultNamedCount >= listNamedCount ? fromDefault : fromList;
+    }
+
+    return fromList || fromDefault || null;
+  };
+
   const handleProjectChange = async (projectId) => {
-    setFormData({ 
-      ...formData, 
-      project: projectId, 
-      assignedTo: '', 
-      assignedToMultiple: [],
-      selectedSlot: '' 
-    }); // Reset assignees and slot when project changes
-    
+    const resolvedProjectId = resolveEntityId(projectId);
+    const defaultProjectId = resolveEntityId(defaultProject);
+    const keepDefaultAssignee =
+      defaultAssignee &&
+      resolvedProjectId &&
+      resolvedProjectId === defaultProjectId;
+    const assigneeId = keepDefaultAssignee ? resolveEntityId(defaultAssignee) : '';
+    const keepDefaultSlot =
+      slotInfo?.slotId &&
+      resolvedProjectId &&
+      resolvedProjectId === defaultProjectId;
+    const slotId = keepDefaultSlot ? resolveEntityId(slotInfo.slotId) : '';
+
+    setFormData((prev) => ({
+      ...prev,
+      project: resolvedProjectId,
+      assignedTo: assigneeId,
+      assignedToMultiple: assigneeId ? [assigneeId] : [],
+      selectedSlot: slotId,
+      requiresPosting: false,
+      postingAssignedTo: '',
+      postingDate: '',
+    }));
+
+    setSelectedUserForWorkload(assigneeId || null);
+    if (!keepDefaultAssignee) {
+      setPendingWorkCount(0);
+    }
+
     if (projectId) {
-      // Find the selected project
-      const project = projects.find(p => p._id === projectId);
+      const project = resolveProjectRecord(projectId);
       setSelectedProject(project);
-      
+
       if (project) {
-        // Get team member IDs from the project
-        // Handle both populated objects and raw IDs
-        const teamMemberIds = [];
-        
-        // Add assigned users
-        if (project.assignedUsers && Array.isArray(project.assignedUsers)) {
-          project.assignedUsers.forEach(u => {
-            const userId = u._id || u;
-            if (userId) teamMemberIds.push(userId.toString());
-          });
-        }
-        
-        // Add team members (newer structure with roles)
-        if (project.teamMembers && Array.isArray(project.teamMembers)) {
-          project.teamMembers.forEach(tm => {
-            const userId = tm.user?._id || tm.user;
-            if (userId) teamMemberIds.push(userId.toString());
-          });
-        }
-        
-        // Add project head
-        if (project.projectHead) {
-          const headId = project.projectHead._id || project.projectHead;
-          if (headId) teamMemberIds.push(headId.toString());
-        }
-        
-        // Check if we already have populated user objects in the project
-        const hasPopulatedUsers = project.assignedUsers?.some(u => u.name) || 
-                                  project.teamMembers?.some(tm => tm.user?.name) ||
-                                  project.projectHead?.name;
-        
-        if (hasPopulatedUsers && teamMemberIds.length > 0) {
-          // Use already populated user data from the project
-          const teamMembers = [];
-          
-          // Add assigned users
-          if (project.assignedUsers && Array.isArray(project.assignedUsers)) {
-            project.assignedUsers.forEach(u => {
-              if (u.name) teamMembers.push(u);
+        const teamMemberIds = collectTeamMemberIds(project);
+
+        try {
+          setLoadingData(true);
+          const usersRes = await userApi.getAllUsers({ status: 'active', limit: 1000 });
+          const allFetchedUsers = normalizeUserList(usersRes);
+          setAllUsers(allFetchedUsers);
+          setPostingUsers(
+            allFetchedUsers.filter((u) =>
+              isPostingDepartmentName(u.department?.name)
+            )
+          );
+
+          let teamMembers = buildTeamMembersFromProject(project).filter((member) => member.name);
+
+          if (teamMembers.length > 0) {
+            teamMembers = ensureAssigneeInTeamMembers(
+              teamMembers,
+              assigneeId || defaultAssignee,
+              project
+            );
+            teamMembers = teamMembers.map((member) => {
+              const full = allFetchedUsers.find(
+                (user) => resolveEntityId(user._id) === resolveEntityId(member._id)
+              );
+              return full || member;
             });
+          } else if (teamMemberIds.length > 0) {
+            teamMembers = allFetchedUsers.filter((user) =>
+              teamMemberIds.includes(resolveEntityId(user._id))
+            );
           }
-          
-          // Add team members
-          if (project.teamMembers && Array.isArray(project.teamMembers)) {
-            project.teamMembers.forEach(tm => {
-              if (tm.user?.name && !teamMembers.find(u => u._id === tm.user._id)) {
-                teamMembers.push(tm.user);
-              }
-            });
+
+          if (teamMembers.length === 0) {
+            teamMembers = allFetchedUsers;
           }
-          
-          // Add project head
-          if (project.projectHead?.name && !teamMembers.find(u => u._id === project.projectHead._id)) {
-            teamMembers.push(project.projectHead);
-          }
-          
+
+          teamMembers = ensureAssigneeInTeamMembers(
+            teamMembers,
+            assigneeId || defaultAssignee,
+            project
+          );
+
           setUsers(teamMembers);
-          setAllUsers(teamMembers);
-        } else {
-          // Load team members for this project
-          try {
-            setLoadingData(true);
-            const usersRes = await userApi.getAllUsers({ status: 'active', limit: 1000 });
-            const allFetchedUsers = Array.isArray(usersRes) ? usersRes : (usersRes.data || usersRes.users || []);
-            
-            let teamMembers = [];
-            if (teamMemberIds.length > 0) {
-              // Filter to project team members
-              teamMembers = allFetchedUsers.filter(u => {
-                const userId = u._id ? u._id.toString() : u.toString();
-                return teamMemberIds.includes(userId);
-              });
-            }
-            // If still empty, show all users as fallback so assignment is always possible
-            if (teamMembers.length === 0) {
-              teamMembers = allFetchedUsers;
-            }
-            
-            setUsers(teamMembers);
-            setAllUsers(allFetchedUsers);
-          } catch (error) {
-            console.error('Error loading team members:', error);
-            setUsers([]);
-          } finally {
-            setLoadingData(false);
-          }
+        } catch (error) {
+          console.error('Error loading team members:', error);
+          const fallbackMembers = ensureAssigneeInTeamMembers(
+            buildTeamMembersFromProject(project),
+            assigneeId || defaultAssignee,
+            project
+          );
+          setUsers(fallbackMembers);
+          setAllUsers(fallbackMembers);
+        } finally {
+          setLoadingData(false);
         }
 
-        // Load slots if project has slot system enabled
         if (project.slotConfiguration?.enableSlotSystem) {
           try {
-            const slotsResponse = await projectApi.getProjectSlots(projectId);
+            const slotsResponse = await projectApi.getProjectSlots(resolvedProjectId);
             const loadedSlots = slotsResponse.data || [];
             setSlots(loadedSlots);
-            initializeMonthsFromSlots(loadedSlots);
+            initializeMonthsFromSlots(
+              loadedSlots,
+              slotInfo || (slotId ? { slotId, periodIdentifier: slotInfo?.periodIdentifier } : null)
+            );
           } catch (error) {
             console.error('Error loading slots:', error);
             setSlots([]);
@@ -262,7 +524,6 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
         }
       }
     } else {
-      // No project selected, show no users
       setUsers([]);
       setSelectedProject(null);
       setSlots([]);
@@ -322,6 +583,17 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
       }
     }
 
+    if (showPostingHandoff && formData.requiresPosting) {
+      if (!formData.postingAssignedTo) {
+        toast.error('Please select a Posting department team member');
+        return;
+      }
+      if (!formData.postingDate) {
+        toast.error('Please select a posting date');
+        return;
+      }
+    }
+
     try {
       setAssigning(true);
 
@@ -349,13 +621,34 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
         workItemData.assignedTo = formData.assignedTo;
       }
 
-      // Add slot assignment if provided
-      if (slotInfo) {
-        workItemData.assignToSlot = true;
-        workItemData.selectedSlot = slotInfo.slotId;
-      } else if (formData.selectedSlot) {
+      // Add slot assignment if selected in the form
+      if (formData.selectedSlot) {
         workItemData.assignToSlot = true;
         workItemData.selectedSlot = formData.selectedSlot;
+      }
+
+      if (showPostingHandoff) {
+        if (isCreativeAssignment || formData.requiresPosting) {
+          workItemData.workflowMode = 'creative';
+          const deptNameSources = [
+            selectedProject?.department?.name,
+            ...(selectedProject?.departments || []).map((dept) =>
+              typeof dept === 'object' ? dept?.name : null
+            ),
+            ...selectedAssigneeIds.map((id) => findUserById(id)?.department?.name),
+          ].filter(Boolean);
+          const workflowTypes = deptNameSources
+            .map((name) => getCreativeWorkflowTypeForDepartment(name))
+            .filter(Boolean);
+          workItemData.workflowType = workflowTypes.includes('video-production')
+            ? 'video-production'
+            : 'design';
+        }
+        workItemData.requiresPosting = Boolean(formData.requiresPosting);
+        if (formData.requiresPosting) {
+          workItemData.postingAssignedTo = formData.postingAssignedTo;
+          workItemData.postingDate = formData.postingDate;
+        }
       }
 
       await workItemApi.createWorkItem(workItemData);
@@ -397,7 +690,10 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
         priority: '',
         selectedSlot: '',
         visibility: 'active',
-        scheduledActivationDate: ''
+        scheduledActivationDate: '',
+        requiresPosting: false,
+        postingAssignedTo: '',
+        postingDate: '',
       });
       setPendingWorkCount(0);
       
@@ -477,7 +773,7 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                 >
                   <option value="">Select project...</option>
                   {projects.map((project) => (
-                    <option key={project._id} value={project._id}>
+                    <option key={resolveEntityId(project._id)} value={resolveEntityId(project._id)}>
                       {project.name}
                     </option>
                   ))}
@@ -543,15 +839,18 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                       disabled={assigning || loadingData || !formData.project}
                     >
                       <option value="">
-                        {!formData.project 
-                          ? 'Select project first...' 
-                          : users.length === 0 
-                            ? 'No team members in this project'
-                            : 'Select team member...'}
+                        {!formData.project
+                          ? 'Select project first...'
+                          : loadingData
+                            ? 'Loading team members...'
+                            : users.length === 0
+                              ? 'No team members in this project'
+                              : 'Select team member...'}
                       </option>
                       {users.map((user) => (
-                        <option key={user._id} value={user._id}>
-                          {user.name}
+                        <option key={resolveEntityId(user._id)} value={resolveEntityId(user._id)}>
+                          {user.name || 'Team Member'}
+                          {user.department?.name ? ` · ${user.department.name}` : ''}
                         </option>
                       ))}
                     </Form.Select>
@@ -617,17 +916,20 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                       disabled={assigning || loadingData || !formData.project}
                     >
                       <option value="">
-                        {!formData.project 
-                          ? 'Select project first...' 
-                          : users.length === 0 
-                            ? 'No team members in this project'
-                            : 'Add team member...'}
+                        {!formData.project
+                          ? 'Select project first...'
+                          : loadingData
+                            ? 'Loading team members...'
+                            : users.length === 0
+                              ? 'No team members in this project'
+                              : 'Add team member...'}
                       </option>
                       {users
-                        .filter(user => !formData.assignedToMultiple.includes(user._id))
+                        .filter(user => !formData.assignedToMultiple.includes(resolveEntityId(user._id)))
                         .map((user) => (
-                          <option key={user._id} value={user._id}>
-                            {user.name}
+                          <option key={resolveEntityId(user._id)} value={resolveEntityId(user._id)}>
+                            {user.name || 'Team Member'}
+                            {user.department?.name ? ` · ${user.department.name}` : ''}
                           </option>
                         ))}
                     </Form.Select>
@@ -643,11 +945,87 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
               </Form.Group>
             </Col>
 
-            {/* Slot Selector - Only show if project has slots enabled and no slotInfo prop */}
-            {(() => {
-              const shouldShow = selectedProject?.slotConfiguration?.enableSlotSystem && !slotInfo;
-              return shouldShow;
-            })() && (
+            {showPostingHandoff && (
+              <Col md={12} className="mb-3">
+                <div className="border rounded p-3 bg-light">
+                  <div className="fw-semibold mb-2">Posting Department (optional)</div>
+                  <Form.Check
+                    type="checkbox"
+                    id="assign-requires-posting"
+                    className="mb-2"
+                    label="Assign to Posting department (We Alll will post this content)"
+                    checked={formData.requiresPosting}
+                    disabled={assigning}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setFormData({
+                        ...formData,
+                        requiresPosting: checked,
+                        postingAssignedTo: checked ? formData.postingAssignedTo : '',
+                        postingDate: checked ? formData.postingDate : '',
+                      });
+                    }}
+                  />
+                  {!formData.requiresPosting ? (
+                    <Alert variant="secondary" className="py-2 small mb-0">
+                      Not selected — client will post the content. No Posting member or posting date needed.
+                    </Alert>
+                  ) : (
+                    <Row>
+                      <Col md={6} className="mb-2">
+                        <Form.Group>
+                          <Form.Label className="fw-semibold">
+                            Posting team member <span className="text-danger">*</span>
+                          </Form.Label>
+                          <Form.Select
+                            value={formData.postingAssignedTo}
+                            onChange={(e) =>
+                              setFormData({ ...formData, postingAssignedTo: e.target.value })
+                            }
+                            disabled={assigning}
+                            required
+                          >
+                            <option value="">Select Posting member...</option>
+                            {postingUsers.map((u) => (
+                              <option key={resolveEntityId(u._id || u.id)} value={resolveEntityId(u._id || u.id)}>
+                                {u.name}
+                              </option>
+                            ))}
+                          </Form.Select>
+                          {postingUsers.length === 0 && (
+                            <Form.Text className="text-warning">
+                              No Posting department users found. Assign employees to the Posting department first (HR → Departments).
+                            </Form.Text>
+                          )}
+                        </Form.Group>
+                      </Col>
+                      <Col md={6} className="mb-2">
+                        <Form.Group>
+                          <Form.Label className="fw-semibold">
+                            Posting date <span className="text-danger">*</span>
+                          </Form.Label>
+                          <Form.Control
+                            type="date"
+                            value={formData.postingDate}
+                            onChange={(e) =>
+                              setFormData({ ...formData, postingDate: e.target.value })
+                            }
+                            disabled={assigning}
+                            required
+                          />
+                          <Form.Text className="text-muted">
+                            Separate from creative due date — when content should go live.
+                          </Form.Text>
+                        </Form.Group>
+                      </Col>
+                    </Row>
+                  )}
+                </div>
+              </Col>
+            )}
+
+            {/* Slot Selector - show when project has slots enabled */}
+            {selectedProject?.slotConfiguration?.enableSlotSystem && (
               <Col md={12} className="mb-3">
                 {/* Month Selector - Only show if multiple months available */}
                 {availableMonths.length > 1 && (
@@ -684,7 +1062,7 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                       .filter(slot => !selectedMonth || slot.period?.periodIdentifier === selectedMonth)
                       .sort((a, b) => a.slotNumber - b.slotNumber)
                       .map((slot) => (
-                        <option key={slot._id} value={slot._id}>
+                        <option key={resolveEntityId(slot._id)} value={resolveEntityId(slot._id)}>
                           {slot.title || `Slot ${slot.slotNumber}`}
                         </option>
                       ))}
@@ -695,16 +1073,6 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                       : 'Select a slot to assign this work to a specific project slot'}
                   </Form.Text>
                 </Form.Group>
-              </Col>
-            )}
-
-            {/* Show slot info if provided via prop */}
-            {slotInfo && (
-              <Col md={12} className="mb-3">
-                <div className="alert alert-info mb-0">
-                  <strong>Slot Assignment:</strong> This work will be assigned to Slot {slotInfo.slotNumber}
-                  {slotInfo.slotTitle && ` - ${slotInfo.slotTitle}`}
-                </div>
               </Col>
             )}
 

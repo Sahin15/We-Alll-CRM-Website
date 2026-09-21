@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import dotenv from 'dotenv';
-dotenv.config();
+dotenv.config({ quiet: true });
 
 // Ensure ENCRYPTION_KEY is a 32 byte hex string
 const keyStr = process.env.ENCRYPTION_KEY || '1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b';

@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import Handlebars from "handlebars";
 import sharp from "sharp";
 import { getOfferLetterImages } from "../utils/imageToBase64.js";
+import { ensurePuppeteerChrome } from "../utils/ensurePuppeteerChrome.js";
 import { buildOfferLetterViewModel } from "./offerLetterViewModel.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -19,23 +20,6 @@ const PDF_MARGINS = {
 
 let compiledTemplate = null;
 let puppeteerModule = null;
-
-async function resolveChromeExecutable() {
-  try {
-    const puppeteer = await import("puppeteer");
-    const p = puppeteer.default || puppeteer;
-    if (typeof p.executablePath === "function") {
-      const exe = p.executablePath();
-      if (exe && fs.existsSync(exe)) return exe;
-    }
-  } catch {
-    /* ignore */
-  }
-  if (process.env.CHROME_PATH && fs.existsSync(process.env.CHROME_PATH)) {
-    return process.env.CHROME_PATH;
-  }
-  return null;
-}
 
 async function getPuppeteer() {
   if (puppeteerModule) return puppeteerModule;
@@ -97,12 +81,7 @@ export async function generateOfferLetterPdfFromTemplate(offer, overrides = {}) 
 
   const puppeteerPkg = await getPuppeteer();
   const puppeteer = puppeteerPkg.default || puppeteerPkg;
-  const chromePath = await resolveChromeExecutable();
-  if (!chromePath) {
-    throw new Error(
-      "Chrome is not installed for PDF generation. From the backend folder run: npm run puppeteer:install — then restart the server."
-    );
-  }
+  const chromePath = await ensurePuppeteerChrome({ silent: true });
 
   const browser = await puppeteer.launch({
     headless: true,

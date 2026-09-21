@@ -2,6 +2,7 @@
  * Advanced Department Workflow Configuration
  * Defines automated task progression and role-based workflows
  */
+import { resolveCanonicalDepartmentName } from "../constants/departmentNames.js";
 
 // Social Media Marketing Workflow with Automated Progression
 export const SOCIAL_MEDIA_ADVANCED_WORKFLOW = {
@@ -294,16 +295,18 @@ export const ADVANCED_WORKFLOWS = {
  * Get advanced workflow by department
  */
 export const getAdvancedWorkflowByDepartment = (departmentName) => {
+  const canonical = resolveCanonicalDepartmentName(departmentName) || departmentName;
   const departmentMap = {
     "Social Media": "social-media-advanced",
-    "Marketing": "social-media-advanced",
+    "Digital Marketing": "social-media-advanced",
+    "Content Writing": "social-media-advanced",
     "Development": "development-advanced",
-    "Engineering": "development-advanced",
-    "Design": "design-advanced",
     "Graphics": "design-advanced",
+    "Video Production": "design-advanced",
+    "Posting": "social-media-advanced",
   };
-  
-  const workflowType = departmentMap[departmentName] || "social-media-advanced";
+
+  const workflowType = departmentMap[canonical] || "social-media-advanced";
   return ADVANCED_WORKFLOWS[workflowType];
 };
 

@@ -160,6 +160,95 @@ export function getTodayRangeIST() {
 }
 
 /**
+ * Calendar date key in IST (YYYY-MM-DD). Safe on UTC or IST servers.
+ * @param {Date|string|number} date
+ * @returns {string}
+ */
+export function getISTDateKey(date) {
+  return new Date(date).toLocaleDateString("en-CA", {
+    timeZone: "Asia/Kolkata",
+  });
+}
+
+/**
+ * Today's calendar date key in IST (YYYY-MM-DD).
+ * @returns {string}
+ */
+export function getTodayISTDateKey() {
+  return getISTDateKey(new Date());
+}
+
+/**
+ * IST midnight (as UTC Date) for a civil Y-M-D in India.
+ * @param {number} year
+ * @param {number} month - 1-12
+ * @param {number} day - 1-31
+ * @returns {Date}
+ */
+export function getISTMidnightForYmd(year, month, day) {
+  const utcDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  return new Date(utcDate.getTime() - istOffset);
+}
+
+/**
+ * Inclusive Mongo query bounds for a calendar month in IST.
+ * @param {number} year
+ * @param {number} month - 1-12
+ * @returns {{ start: Date, end: Date, endExclusive: Date, lastDay: number, startKey: string, endKey: string }}
+ */
+export function getMonthBoundsIST(year, month) {
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const start = getISTMidnightForYmd(year, month, 1);
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const nextYear = month === 12 ? year + 1 : year;
+  const endExclusive = getISTMidnightForYmd(nextYear, nextMonth, 1);
+  const end = new Date(endExclusive.getTime() - 1);
+  const pad = (n) => String(n).padStart(2, "0");
+  return {
+    start,
+    end,
+    endExclusive,
+    lastDay,
+    startKey: `${year}-${pad(month)}-01`,
+    endKey: `${year}-${pad(month)}-${pad(lastDay)}`,
+  };
+}
+
+/**
+ * Gregorian weekday for an IST civil date key (0=Sun … 6=Sat).
+ * @param {string} ymd - YYYY-MM-DD
+ * @returns {number}
+ */
+export function getCivilDayOfWeek(ymd) {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+/**
+ * Inclusive list of YYYY-MM-DD keys from startKey through endKey.
+ * @param {string} startKey
+ * @param {string} endKey
+ * @returns {string[]}
+ */
+export function listDateKeysInclusive(startKey, endKey) {
+  if (!startKey || !endKey || startKey > endKey) return [];
+  const keys = [];
+  let [y, m, d] = startKey.split("-").map(Number);
+  const end = endKey;
+  while (true) {
+    const key = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    if (key > end) break;
+    keys.push(key);
+    const next = new Date(Date.UTC(y, m - 1, d + 1));
+    y = next.getUTCFullYear();
+    m = next.getUTCMonth() + 1;
+    d = next.getUTCDate();
+  }
+  return keys;
+}
+
+/**
  * Log timezone info for debugging
  */
 export function logTimezoneInfo() {
@@ -180,5 +269,11 @@ export default {
   calculateAttendanceStatus,
   isTodayIST,
   getTodayRangeIST,
+  getISTDateKey,
+  getTodayISTDateKey,
+  getISTMidnightForYmd,
+  getMonthBoundsIST,
+  getCivilDayOfWeek,
+  listDateKeysInclusive,
   logTimezoneInfo
 };

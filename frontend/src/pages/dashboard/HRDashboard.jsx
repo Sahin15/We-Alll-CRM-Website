@@ -100,23 +100,30 @@ const HRDashboard = () => {
       // Get today's date in YYYY-MM-DD format
       const today = new Date().toISOString().split('T')[0];
       
-      // Fetch users data — only active employees for accurate count
-      const usersRes = await userApi.getAllUsers({ status: 'active', limit: 1000 });
-      // Fetch leave data
-      const leaveRes = await leaveApi.getAllLeaves({ status: "pending" });
-      // Fetch today's attendance data only
-      const attendanceRes = await attendanceApi.getAllAttendance({ date: today });
-      // Fetch department data
-      const departmentRes = await departmentApi.getAllDepartments();
-      // Fetch leads only when user has explicit CRM lead access
-      let leadsRes = { data: [] };
-      if (hasLeadsAccess) {
-        try {
-          leadsRes = await leadApi.getAllLeads();
-        } catch (error) {
-          console.log('Could not fetch leads data');
-        }
-      }
+      // Parallel fetches — sequential awaits were stacking multiple RTTs on every HR load
+      const [
+        usersRes,
+        leaveRes,
+        attendanceRes,
+        departmentRes,
+        leadsSettled,
+        overtimeSettled,
+        wfhSettled,
+        hiringSettled,
+      ] = await Promise.all([
+        userApi.getAllUsers({ status: 'active', limit: 1000 }),
+        leaveApi.getAllLeaves({ status: "pending" }),
+        attendanceApi.getAllAttendance({ date: today }),
+        departmentApi.getAllDepartments(),
+        hasLeadsAccess
+          ? leadApi.getAllLeads().catch(() => ({ data: [] }))
+          : Promise.resolve({ data: [] }),
+        getPendingOvertimeEntries().catch(() => ({ total: 0 })),
+        getPendingWFHRequests().catch(() => ({ data: [] })),
+        hiringRequestApi.pendingCount().catch(() => ({ data: { count: 0 } })),
+      ]);
+
+      const leadsRes = leadsSettled;
 
       // Count all who clocked in today (present, late, half-day) as "present today"
       const todayPresentCount = attendanceRes.data?.filter((a) => 
@@ -134,31 +141,9 @@ const HRDashboard = () => {
       ) || [];
       setLateEntries(lateEntriesData);
 
-      // Fetch pending overtime count
-      let pendingOvertimeCount = 0;
-      try {
-        const overtimeRes = await getPendingOvertimeEntries();
-        pendingOvertimeCount = overtimeRes.total || 0;
-      } catch (error) {
-        console.log('Could not fetch pending overtime:', error);
-      }
-
-      // Fetch pending WFH count
-      let pendingWFHCount = 0;
-      try {
-        const wfhRes = await getPendingWFHRequests();
-        pendingWFHCount = wfhRes.data?.length || 0;
-      } catch (error) {
-        console.log('Could not fetch pending WFH requests:', error);
-      }
-
-      let pendingHiringCount = 0;
-      try {
-        const hiringRes = await hiringRequestApi.pendingCount();
-        pendingHiringCount = hiringRes.data?.count || 0;
-      } catch (error) {
-        console.log('Could not fetch pending hiring requests:', error);
-      }
+      const pendingOvertimeCount = overtimeSettled?.total || 0;
+      const pendingWFHCount = wfhSettled?.data?.length || 0;
+      const pendingHiringCount = hiringSettled?.data?.count || 0;
 
       setStats({
         // usersRes already filtered to active employees only by the API

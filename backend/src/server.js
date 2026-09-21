@@ -1,3 +1,5 @@
+import "./config/env.js";
+
 // Suppress Node.js deprecation warnings
 process.removeAllListeners('warning');
 process.on('warning', (warning) => {
@@ -9,7 +11,6 @@ process.on('warning', (warning) => {
 
 import express from "express";
 import mongoose from "mongoose";
-import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
 import { protect } from "./middleware/authMiddleware.js";
@@ -49,6 +50,7 @@ import policyRoutes from "./routes/policyRoutes.js";
 import documentRoutes from "./routes/documentRoutes.js";
 import workloadRoutes from "./routes/workloadRoutes.js";
 import workItemRoutes from "./routes/workItemRoutes.js";
+import creativeWorkflowRoutes from "./routes/creativeWorkflowRoutes.js";
 import calendarRoutes from "./routes/calendarRoutes.js";
 import reportsRoutes from "./routes/reportsRoutes.js";
 import workCalendarRoutes from "./routes/workCalendarRoutes.js";
@@ -98,18 +100,24 @@ import { initializeCronJobs } from "./config/cronJobs.js";
 import { apiLimiter, sanitizeInput } from "./middleware/securityMiddleware.js";
 import { s3ProxyMiddleware } from "./middleware/s3ProxyMiddleware.js";
 import { auditMiddleware } from "./utils/auditLogger.js";
+import { validateWebsiteLeadProductionConfig } from "./middleware/websiteLeadMiddleware.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createServer } from "http";
 import realTimeUpdateService from "./services/realTimeUpdateService.js";
 
+const websiteLeadConfig = validateWebsiteLeadProductionConfig();
+if (!websiteLeadConfig.ok) {
+  console.error(`❌ ERROR: ${websiteLeadConfig.error}`);
+  process.exit(1);
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config();
 connectDB();
 
-runStartupAuthzValidation({ verbose: process.env.AUTHZ_VALIDATE_VERBOSE === 'true' });
+runStartupAuthzValidation({ verbose: process.env.AUTHZ_VALIDATE_VERBOSE === "true" });
 
 const app = express();
 app.set("trust proxy", 1);
@@ -131,7 +139,10 @@ const corsOptions = {
     if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
       callback(null, true);
     } else {
-      // Log rejected origin for debugging
+      // Log rejected origin for debugging.
+      // Intentionally still allows the request for mobile / non-browser clients.
+      // Endpoint-level auth (JWT) and WEBSITE_LEAD_ALLOWED_ORIGINS remain the security boundary.
+      // Follow-up: tighten CORS without breaking mobile clients (tracked separately).
       console.warn(`CORS rejected origin: ${origin}`);
       callback(null, true); // Allow anyway for mobile compatibility
     }
@@ -295,6 +306,9 @@ app.use("/api/admin", apiLimiter, adminRoutes);
 app.use("/api/clients", apiLimiter, clientRoutes);
 app.use("/api/clients", apiLimiter, clientWorkRoutes);
 app.use("/api/projects", apiLimiter, projectRoutes);
+// Mount /api/leads BEFORE any app.use("/api", ...) routers that call router.use(protect).
+// Those catch-alls otherwise intercept /api/leads/website and /api/leads/public and return 401.
+app.use("/api/leads", apiLimiter, leadRoutes);
 app.use("/api", apiLimiter, projectExpectationRoutes);
 app.use("/api", apiLimiter, projectCommitmentRoutes);
 app.use("/api", apiLimiter, projectMonthRoutes);
@@ -306,7 +320,6 @@ app.use("/api/attendance", apiLimiter, attendanceRoutes);
 app.use("/api/payments", apiLimiter, paymentRoutes);
 app.use("/api/bills", apiLimiter, billRoutes);
 app.use("/api/notifications", apiLimiter, notificationRoutes);
-app.use("/api/leads", apiLimiter, leadRoutes);
 app.use("/api/plans", apiLimiter, planRoutes);
 app.use("/api/addons", apiLimiter, addOnRoutes);
 app.use("/api/subscriptions", apiLimiter, subscriptionRoutes);
@@ -327,6 +340,7 @@ app.use("/api/applicants", apiLimiter, applicantRoutes);
 app.use("/api/hiring-applications", apiLimiter, hiringApplicationRoutes);
 app.use("/api/workload", apiLimiter, workloadRoutes);
 app.use("/api/work-items", apiLimiter, workItemRoutes);
+app.use("/api/creative-workflow", apiLimiter, creativeWorkflowRoutes);
 app.use("/api/calendar", apiLimiter, calendarRoutes);
 app.use("/api/reports", apiLimiter, reportsRoutes);
 app.use("/api/work-calendar", apiLimiter, workCalendarRoutes);

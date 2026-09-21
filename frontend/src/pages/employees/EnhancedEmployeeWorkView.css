@@ -23,6 +23,15 @@
   padding: 12px 20px;
 }
 
+/* `card-header-fix.css` applies `margin-left: auto` to the last child in card headers.
+   This page's Card.Header contains only the tabs nav, so that rule effectively pushes
+   the entire tab bar towards the right (appearing "starting from the middle").
+   Force left alignment for this specific tabs container. */
+.card-header .nav.card-header-tabs.nav-tabs {
+  margin-left: 0 !important;
+  margin-right: auto !important;
+}
+
 .nav-tabs .nav-link.active {
   background-color: #f8f9fa;
   color: #495057;

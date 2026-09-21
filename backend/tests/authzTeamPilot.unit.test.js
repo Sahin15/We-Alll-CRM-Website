@@ -2,10 +2,12 @@ import { jest } from '@jest/globals';
 import { hasPermission } from '../src/authz/policyEngine.js';
 
 const USER_MANAGE_ROLES = ['admin', 'superadmin', 'hr', 'manager'];
-const DEPT_MANAGE_ROLES = ['admin', 'superadmin'];
+const DEPT_MANAGE_ROLES = ['admin', 'superadmin', 'hr'];
 
 /**
  * Team pilot parity: user/department view and manage gates match legacy role middleware.
+ * HR has team.department.manage so Authz V2 allows add/remove members; create/update/delete
+ * department still uses legacyRoles admin/superadmin only on those routes.
  */
 describe('Authorization V2 — Team pilot parity', () => {
   test.each(USER_MANAGE_ROLES)('role %s can view users for HR/employee workflows', (role) => {
@@ -33,10 +35,10 @@ describe('Authorization V2 — Team pilot parity', () => {
     expect(hasPermission(user, 'team.department.manage')).toBe(false);
   });
 
-  test('hr can view departments but not manage departments', () => {
+  test('hr can view and manage departments for member operations', () => {
     const user = { _id: 'hr1', role: 'hr' };
     expect(hasPermission(user, 'team.department.view')).toBe(true);
-    expect(hasPermission(user, 'team.department.manage')).toBe(false);
+    expect(hasPermission(user, 'team.department.manage')).toBe(true);
     expect(hasPermission(user, 'team.user.update')).toBe(false);
   });
 

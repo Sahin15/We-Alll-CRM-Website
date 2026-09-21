@@ -130,13 +130,12 @@ const EmployeeList = () => {
     setFilteredEmployees(filtered);
   };
 
-  // Three sections: active-only, inactive-only, and past members (terminated/offboarded)
-  // Also check isActive flag — some users may have isActive:false but status still 'active'
+  // Three sections: active, temporarily inactive, and past members (terminated/offboarded)
   const activeEmployees = filteredEmployees.filter(
     (emp) => emp.status === "active" && emp.isActive !== false
   );
   const inactiveEmployees = filteredEmployees.filter(
-    (emp) => emp.status === "inactive" || emp.isActive === false
+    (emp) => emp.status === "inactive"
   );
   const pastMembersSection = filteredEmployees.filter(
     (emp) => emp.status === "terminated" || emp.status === "offboarded"

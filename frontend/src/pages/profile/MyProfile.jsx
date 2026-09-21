@@ -1105,7 +1105,7 @@ const MyProfile = () => {
               <Tabs
                 activeKey={activeTab}
                 onSelect={(k) => setActiveTab(k)}
-                className="pt-3"
+                className="pt-3 profile-tabs-fill"
               >
             {/* Admin Profile Layout - Matches the image exactly */}
             {isAdmin ? (

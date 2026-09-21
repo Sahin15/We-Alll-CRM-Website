@@ -6,6 +6,11 @@ import projectApi from '../../../api/projectApi';
 import workItemApi from '../../../api/workItemApi';
 import WorkItemDetailsModal from '../../workitems/WorkItemDetailsModal';
 import { useAuth } from '../../../context/AuthContext';
+import {
+  getCreativeListBadgeVariant,
+  getCreativeListDisplayStatus,
+  isCreativeWorkflowItem,
+} from '../../../utils/workItemStatusUtils';
 
 /**
  * WorkBoardTab Component
@@ -27,13 +32,37 @@ const WorkBoardTab = ({ project, onRefresh }) => {
 
   const statuses = ['To Do', 'In Progress', 'Done', 'Cancelled'];
 
+  const getKanbanColumnStatus = (item) => {
+    if (!isCreativeWorkflowItem(item)) return item.status;
+    const map = {
+      'To Do': 'To Do',
+      Assigned: 'To Do',
+      Backlog: 'To Do',
+      'In Progress': 'In Progress',
+      'Rework In Progress': 'In Progress',
+      'Changes Requested': 'In Progress',
+      'Submitted for Review': 'In Progress',
+      'QA Review': 'In Progress',
+      Approved: 'In Progress',
+      Delivered: 'In Progress',
+      'Awaiting Posting': 'In Progress',
+      Posted: 'In Progress',
+      Closed: 'Done',
+      Done: 'Done',
+      Cancelled: 'Cancelled',
+    };
+    return map[item.status] || 'In Progress';
+  };
+
   useEffect(() => {
     loadWorkItems();
   }, [project._id]);
 
-  const loadWorkItems = async () => {
+  const loadWorkItems = async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       // Use the correct endpoint to get all work items for this project
       const response = await projectApi.getWorkBoard(project._id);
       
@@ -57,8 +86,22 @@ const WorkBoardTab = ({ project, onRefresh }) => {
       toast.error('Failed to load work items');
       setWorkItems([]); // Set empty array on error
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
+  };
+
+  const handleWorkItemSync = (updatedItem) => {
+    if (!updatedItem?._id) return;
+    setSelectedItem((current) =>
+      current?._id === updatedItem._id ? { ...current, ...updatedItem } : current
+    );
+    setWorkItems((items) =>
+      items.map((item) =>
+        item._id === updatedItem._id ? { ...item, ...updatedItem } : item
+      )
+    );
   };
 
   // Filter work items
@@ -77,11 +120,18 @@ const WorkBoardTab = ({ project, onRefresh }) => {
 
   // Group by status
   const groupedItems = statuses.reduce((acc, status) => {
-    acc[status] = filteredItems.filter((item) => item.status === status);
+    acc[status] = filteredItems.filter(
+      (item) => getKanbanColumnStatus(item) === status
+    );
     return acc;
   }, {});
 
   const handleDragStart = (e, item) => {
+    if (isCreativeWorkflowItem(item)) {
+      e.preventDefault();
+      toast.info('Use Creative Workflow actions to change status for this task');
+      return;
+    }
     setDraggedItem(item);
     e.dataTransfer.effectAllowed = 'move';
   };
@@ -303,10 +353,10 @@ const WorkBoardTab = ({ project, onRefresh }) => {
                     <Card
                       key={item._id}
                       className="mb-2 shadow-sm"
-                      draggable
+                      draggable={!isCreativeWorkflowItem(item)}
                       onDragStart={(e) => handleDragStart(e, item)}
                       style={{
-                        cursor: 'grab',
+                        cursor: isCreativeWorkflowItem(item) ? 'default' : 'grab',
                         opacity: draggedItem?._id === item._id ? 0.5 : 1
                       }}
                       onClick={() => handleViewItem(item)}
@@ -320,6 +370,16 @@ const WorkBoardTab = ({ project, onRefresh }) => {
                         >
                           {item.type === 'content' ? 'Content' : 'Task'}
                         </Badge>
+
+                        {isCreativeWorkflowItem(item) && (
+                          <Badge
+                            bg={getCreativeListBadgeVariant(item.status)}
+                            className="mb-2 d-block"
+                            style={{ fontSize: '0.7rem' }}
+                          >
+                            {getCreativeListDisplayStatus(item.status)}
+                          </Badge>
+                        )}
 
                         {/* Title */}
                         <div className="fw-bold mb-1" style={{ fontSize: '0.9rem' }}>
@@ -380,10 +440,12 @@ const WorkBoardTab = ({ project, onRefresh }) => {
           onHide={() => {
             setShowModal(false);
             setSelectedItem(null);
+            loadWorkItems({ silent: true });
           }}
           workItem={selectedItem}
           onUpdate={handleUpdateStatus}
-          onRefresh={loadWorkItems}
+          onRefresh={() => loadWorkItems({ silent: true })}
+          onWorkItemSync={handleWorkItemSync}
           currentUser={user}
           onEdit={() => {
             // For now, just close the modal

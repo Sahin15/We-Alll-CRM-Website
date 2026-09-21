@@ -37,6 +37,21 @@ export function isPaidLeaveType(leaveType) {
   return ACTIVE_PAID_LEAVE_TYPES.includes(type);
 }
 
+/**
+ * Payroll "cover absence from earned leave" records must reduce earned.used
+ * even when the covered calendar day is before intern → full-time conversion.
+ * @param {{ source?: string, reason?: string }} leave
+ * @returns {boolean}
+ */
+export function isPayrollEarnedLeaveDeduction(leave) {
+  if (leave?.source === "payroll") return true;
+  const reason = String(leave?.reason || "");
+  return (
+    /\[Payroll\s+\d+\/\d+\]/i.test(reason) ||
+    /Earned leave (balance )?deducted/i.test(reason)
+  );
+}
+
 export function getLeaveDayCount(leaveType, startDate, endDate) {
   if (leaveType === "half_day") {
     return 0.5;

@@ -199,7 +199,9 @@ const MyLeaves = () => {
                       </div>
                       <div>
                         <ProgressBar 
-                          now={(leaveBalance.earned.used / leaveBalance.earned.earned) * 100} 
+                          now={leaveBalance.earned.earned > 0
+                            ? (leaveBalance.earned.used / leaveBalance.earned.earned) * 100
+                            : 0}
                           variant="primary"
                           style={{ width: '100px', height: '8px' }}
                         />

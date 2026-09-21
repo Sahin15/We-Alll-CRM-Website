@@ -20,6 +20,7 @@ import {
 import { toast } from "react-toastify";
 import { salarySlipApi } from "../../api/salaryApi";
 import { useAuth } from "../../context/AuthContext";
+import { getCompanyYearOptions } from "../../constants/branding";
 
 const MySalarySlips = () => {
   const [slips, setSlips] = useState([]);
@@ -101,11 +102,7 @@ const MySalarySlips = () => {
     return <Badge bg={config.bg}>{config.text}</Badge>;
   };
 
-  const years = [];
-  const currentYear = new Date().getFullYear();
-  for (let i = currentYear; i >= currentYear - 5; i--) {
-    years.push(i);
-  }
+  const years = getCompanyYearOptions();
 
   if (loading) {
     return (

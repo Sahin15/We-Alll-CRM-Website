@@ -5,6 +5,10 @@ import {
   isPastMember,
   mergeActiveEmployeeFilter,
 } from '../utils/employeeQueryUtils.js';
+import {
+  CANONICAL_DEPARTMENT_NAMES,
+  resolveCanonicalDepartmentName,
+} from "../constants/departmentNames.js";
 
 // Simple in-memory cache for departments (they rarely change)
 let departmentCache = null;
@@ -25,13 +29,23 @@ export const createDepartment = async (req, res) => {
       return res.status(400).json({ message: "Department name is required" });
     }
 
-    const existingDepartment = await Department.findOne({ name });
+    const canonicalName = resolveCanonicalDepartmentName(name);
+    if (!canonicalName) {
+      return res.status(400).json({
+        message: "Department name must be selected from the predefined list",
+        allowedNames: CANONICAL_DEPARTMENT_NAMES,
+      });
+    }
+
+    const existingDepartment = await Department.findOne({
+      name: { $regex: new RegExp(`^${canonicalName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+    });
     if (existingDepartment) {
       return res.status(400).json({ message: "Department already exists" });
     }
 
     const department = await Department.create({
-      name,
+      name: canonicalName,
       description,
       head,
     });
@@ -166,6 +180,27 @@ export const updateDepartment = async (req, res) => {
     const oldHeadId = existingDepartment.head?.toString();
     const newHeadId = head?.toString();
 
+    let resolvedName = existingDepartment.name;
+    if (name !== undefined && name !== null && String(name).trim() !== "") {
+      const canonicalName = resolveCanonicalDepartmentName(name);
+      if (!canonicalName) {
+        return res.status(400).json({
+          message: "Department name must be selected from the predefined list",
+          allowedNames: CANONICAL_DEPARTMENT_NAMES,
+        });
+      }
+      if (canonicalName.toLowerCase() !== existingDepartment.name.toLowerCase()) {
+        const duplicate = await Department.findOne({
+          _id: { $ne: req.params.id },
+          name: { $regex: new RegExp(`^${canonicalName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+        });
+        if (duplicate) {
+          return res.status(400).json({ message: "Department already exists" });
+        }
+      }
+      resolvedName = canonicalName;
+    }
+
     // If head is changing, update user roles
     if (oldHeadId !== newHeadId) {
       // Demote old head back to employee (only if they don't head another dept)
@@ -194,7 +229,7 @@ export const updateDepartment = async (req, res) => {
 
     const department = await Department.findByIdAndUpdate(
       req.params.id,
-      { name, description, head, status },
+      { name: resolvedName, description, head, status },
       { new: true, runValidators: true }
     );
 
@@ -238,21 +273,45 @@ export const addEmployeeToDepartment = async (req, res) => {
       return res.status(404).json({ message: "Department or User not found" });
     }
 
-    if (!department.employees.includes(userId)) {
+    const alreadyInDept = department.employees.some(
+      (id) => id.toString() === userId
+    );
+
+    if (!alreadyInDept) {
       department.employees.push(userId);
       await department.save();
-
-      // Update user's department
-      user.department = departmentId;
-      await user.save();
     }
+
+    // Move off previous department (users belong to one department)
+    const previousDeptId = user.department ? user.department.toString() : null;
+    if (previousDeptId && previousDeptId !== departmentId) {
+      await Department.findByIdAndUpdate(previousDeptId, {
+        $pull: { employees: user._id },
+      });
+      const previousDept = await Department.findById(previousDeptId);
+      if (
+        previousDept?.head &&
+        previousDept.head.toString() === userId
+      ) {
+        previousDept.head = null;
+        await previousDept.save();
+      }
+    }
+
+    user.department = departmentId;
+    await user.save();
+    clearDepartmentCache();
+
+    const updatedDepartment = await Department.findById(departmentId)
+      .populate("head", "name email")
+      .populate("employees", "name email position role");
 
     res.status(200).json({
       message: "Employee added to department successfully",
-      department,
+      department: updatedDepartment,
     });
   } catch (error) {
-    
+    console.error("addEmployeeToDepartment error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -272,23 +331,33 @@ export const removeEmployeeFromDepartment = async (req, res) => {
     department.employees = department.employees.filter(
       (id) => id.toString() !== userId
     );
+
+    // Clear head if the removed employee was department head
+    if (department.head && department.head.toString() === userId) {
+      department.head = null;
+    }
+
     await department.save();
 
-    // Remove department from user
-    user.department = null;
-    await user.save();
+    // Clear department on user only if they still belong to this department
+    if (user.department && user.department.toString() === departmentId) {
+      user.department = null;
+      await user.save();
+    }
+
+    clearDepartmentCache();
 
     res.status(200).json({
       message: "Employee removed from department successfully",
       department,
     });
   } catch (error) {
-    
+    console.error("removeEmployeeFromDepartment error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
 
-// Bulk assign employees to department
+// Bulk assign employees to department (full sync: add selected, remove unchecked)
 export const bulkAssignEmployees = async (req, res) => {
   try {
     const { departmentId } = req.params;
@@ -305,29 +374,47 @@ export const bulkAssignEmployees = async (req, res) => {
       return res.status(404).json({ message: "Department not found" });
     }
 
-    // Add employees to department
-    const uniqueEmployeeIds = [
-      ...new Set([
-        ...department.employees.map((e) => e.toString()),
-        ...employeeIds,
-      ]),
-    ];
-    department.employees = uniqueEmployeeIds;
+    const previousIds = department.employees.map((e) => e.toString());
+    const nextIds = [...new Set(employeeIds.map((id) => id.toString()))];
+    const toRemove = previousIds.filter((id) => !nextIds.includes(id));
+    const toAdd = nextIds.filter((id) => !previousIds.includes(id));
+
+    department.employees = nextIds;
+
+    if (
+      department.head &&
+      toRemove.includes(department.head.toString())
+    ) {
+      department.head = null;
+    }
+
     await department.save();
 
-    // Update all users' department field
-    await User.updateMany(
-      { _id: { $in: employeeIds } },
-      { department: departmentId }
-    );
+    if (toAdd.length > 0) {
+      await User.updateMany(
+        { _id: { $in: toAdd } },
+        { department: departmentId }
+      );
+    }
+
+    if (toRemove.length > 0) {
+      await User.updateMany(
+        { _id: { $in: toRemove }, department: departmentId },
+        { department: null }
+      );
+    }
 
     const updatedDepartment = await Department.findById(departmentId)
       .populate("head", "name email")
       .populate("employees", "name email position");
 
+    clearDepartmentCache();
+
     res.status(200).json({
-      message: "Employees assigned successfully",
+      message: "Employees updated successfully",
       department: updatedDepartment,
+      added: toAdd.length,
+      removed: toRemove.length,
     });
   } catch (error) {
     

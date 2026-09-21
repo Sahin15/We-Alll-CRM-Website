@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, Badge, Row, Col } from 'react-bootstrap';
 import { getStatusColor, formatHours } from '../../utils/helpers';
+import { toISTDateString } from '../../utils/attendanceHelpers';
 import holidayApi from '../../api/holidayApi';
 import './AttendanceCalendar.css';
 
@@ -9,17 +10,24 @@ import './AttendanceCalendar.css';
  * Displays: Present, Late, Half Day, Absent, On Leave, No Data, Company Holiday
  * Note: Holidays are flexible - employees can work on any day and take holiday on another day
  */
-const AttendanceCalendar = ({ attendances, selectedMonth, selectedYear, employeeName }) => {
+const AttendanceCalendar = ({ attendances, selectedMonth, selectedYear, employeeName, holidays: holidaysFromParent }) => {
   const [calendarDays, setCalendarDays] = useState([]);
-  const [holidays, setHolidays] = useState([]);
+  const [internalHolidays, setInternalHolidays] = useState([]);
+  const [holidaysReady, setHolidaysReady] = useState(holidaysFromParent !== undefined);
+  const holidays = holidaysFromParent !== undefined ? holidaysFromParent : internalHolidays;
 
   useEffect(() => {
+    if (holidaysFromParent !== undefined) {
+      setHolidaysReady(true);
+      return;
+    }
     fetchHolidays();
-  }, [selectedMonth, selectedYear]);
+  }, [selectedMonth, selectedYear, holidaysFromParent]);
 
   useEffect(() => {
+    if (!holidaysReady) return;
     generateCalendar();
-  }, [selectedMonth, selectedYear, attendances, holidays]);
+  }, [selectedMonth, selectedYear, attendances, holidays, holidaysReady]);
 
   const fetchHolidays = async () => {
     try {
@@ -36,10 +44,12 @@ const AttendanceCalendar = ({ attendances, selectedMonth, selectedYear, employee
       
       console.log('🎉 Processed holidays:', holidaysData);
       console.log('🎉 Holidays count:', holidaysData.length);
-      setHolidays(holidaysData);
+      setInternalHolidays(holidaysData);
+      setHolidaysReady(true);
     } catch (error) {
       console.error('❌ Error fetching holidays:', error);
-      setHolidays([]);
+      setInternalHolidays([]);
+      setHolidaysReady(true);
     }
   };
 
@@ -58,11 +68,7 @@ const AttendanceCalendar = ({ attendances, selectedMonth, selectedYear, employee
     const daysInMonth = lastDay.getDate();
     const startingDayOfWeek = firstDay.getDay(); // 0 = Sunday, 6 = Saturday
 
-    // Get today's date for comparison
-    const today = new Date();
-    const todayString = today.getFullYear() + '-' + 
-                       String(today.getMonth() + 1).padStart(2, '0') + '-' + 
-                       String(today.getDate()).padStart(2, '0');
+    const todayIST = toISTDateString(new Date());
 
     const days = [];
 
@@ -73,98 +79,52 @@ const AttendanceCalendar = ({ attendances, selectedMonth, selectedYear, employee
 
     // Add all days of the month
     for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, month, day);
-      // Create date string in local timezone (YYYY-MM-DD)
-      const dateString = date.getFullYear() + '-' + 
-                        String(date.getMonth() + 1).padStart(2, '0') + '-' + 
-                        String(date.getDate()).padStart(2, '0');
+      const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-      // Check if this date is in the future
-      const isFutureDate = dateString > todayString;
+      // Check if this date is in the future (IST)
+      const isFutureDate = dateString > todayIST;
 
       // Check if this date is a company holiday
-      const isHoliday = holidays.some(holiday => {
-        if (!holiday || !holiday.date) return false;
-        
-        // Parse holiday date - handle both string and Date formats
-        let holidayDate;
-        if (typeof holiday.date === 'string') {
-          holidayDate = new Date(holiday.date);
-        } else {
-          holidayDate = new Date(holiday.date);
-        }
-        
-        // Get the date part only (ignore time and timezone)
-        const holidayDateString = holidayDate.getFullYear() + '-' + 
-                                 String(holidayDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                                 String(holidayDate.getDate()).padStart(2, '0');
-        
-        const match = holidayDateString === dateString;
-        if (match) {
-          console.log(`✅ Holiday found on ${dateString}: ${holiday.name}`);
-        }
-        return match;
+      const isHoliday = holidays.some((holiday) => {
+        if (!holiday?.date) return false;
+        return toISTDateString(holiday.date) === dateString;
       });
 
-      const holidayData = holidays.find(holiday => {
-        if (!holiday || !holiday.date) return false;
-        
-        // Parse holiday date - handle both string and Date formats
-        let holidayDate;
-        if (typeof holiday.date === 'string') {
-          holidayDate = new Date(holiday.date);
-        } else {
-          holidayDate = new Date(holiday.date);
-        }
-        
-        // Get the date part only (ignore time and timezone)
-        const holidayDateString = holidayDate.getFullYear() + '-' + 
-                                 String(holidayDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                                 String(holidayDate.getDate()).padStart(2, '0');
-        
-        return holidayDateString === dateString;
+      const holidayData = holidays.find((holiday) => {
+        if (!holiday?.date) return false;
+        return toISTDateString(holiday.date) === dateString;
       });
 
-      // Find attendance record for this date
-      const attendance = attendances.find(a => {
-        if (!a.date) return false;
-        // Parse the attendance date - handle both string and Date formats
-        let aDate;
-        if (typeof a.date === 'string') {
-          // If it's a string, parse it directly
-          aDate = new Date(a.date);
-        } else {
-          // If it's a Date object, use it directly
-          aDate = new Date(a.date);
-        }
-        
-        // Get the date part only (ignore time and timezone)
-        const aDateString = aDate.getFullYear() + '-' + 
-                           String(aDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                           String(aDate.getDate()).padStart(2, '0');
-        
-        const match = aDateString === dateString;
-        return match;
+      // Find attendance record for this date (IST calendar day)
+      const attendance = attendances.find((a) => {
+        if (!a?.date) return false;
+        return toISTDateString(a.date) === dateString;
       });
 
-      // Determine status - holiday takes precedence, then weekend
+      const dayOfWeek = new Date(Date.UTC(year, month, day)).getUTCDay();
+
+      // Determine status - holiday takes precedence, then weekend, then record status
       let status;
       if (isHoliday) {
         status = 'holiday';
-      } else if (date.getDay() === 0) {
-        status = 'weekend'; // Sunday — always a day off
+      } else if (dayOfWeek === 0) {
+        status = 'weekend';
       } else if (attendance) {
         status = attendance.status;
+        // Backend/placeholder may still carry no-data for Sundays — show as weekend
+        if (status === 'no-data' && dayOfWeek === 0) {
+          status = 'weekend';
+        }
       } else if (isFutureDate) {
-        status = 'no-data'; // Future date with no record
+        status = 'no-data';
       } else {
-        status = 'no-data'; // Past date with no record (same as table view)
+        status = 'absent';
       }
 
       days.push({
         day,
         date: dateString,
-        dayOfWeek: date.getDay(),
+        dayOfWeek,
         isFutureDate,
         attendance,
         status,

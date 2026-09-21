@@ -14,7 +14,7 @@ import {
   getStatusVariant,
   formatHours,
 } from "../../utils/helpers";
-import { formatWorkHours } from "../../utils/attendanceHelpers";
+import { formatWorkHours, dedupeAttendanceByISTDay } from "../../utils/attendanceHelpers";
 import EmployeeAttendanceDetails from "../../components/attendance/EmployeeAttendanceDetails";
 import AttendanceCalendar from "../../components/attendance/AttendanceCalendar";
 import "../../styles/pages-mobile.css";
@@ -131,6 +131,28 @@ const AttendanceTracking = () => {
     
     .wfh-record:hover {
       background-color: #cfe2ff !important;
+    }
+    
+    /* On-leave row — pinned to top with a warm amber highlight */
+    .on-leave-record {
+      background-color: #fff8e1 !important;
+      border-left: 4px solid #f59e0b !important;
+    }
+    
+    .on-leave-record:hover {
+      background-color: #fef3c7 !important;
+    }
+    
+    .on-leave-pin-badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 2px 7px;
+      border-radius: 10px;
+      background-color: #f59e0b;
+      color: #fff;
+      vertical-align: middle;
+      margin-left: 6px;
     }
     
     .wfh-indicator {
@@ -294,7 +316,7 @@ const AttendanceTracking = () => {
       if (filters.endDate) params.endDate = filters.endDate;
 
       const response = await attendanceApi.getAllAttendance(params);
-      setAttendances(response.data || []);
+      setAttendances(dedupeAttendanceByISTDay(response.data || []));
     } catch (error) {
       console.error('Error fetching attendance:', error);
       toast.error("Failed to fetch attendance records");
@@ -349,7 +371,7 @@ const AttendanceTracking = () => {
         if (newFilters.status) params.status = newFilters.status;
 
         const response = await attendanceApi.getAllAttendance(params);
-        setAttendances(response.data);
+        setAttendances(dedupeAttendanceByISTDay(response.data || []));
         setFilters(newFilters);
       } catch (error) {
         console.error('Error in handleFilterChange:', error);
@@ -373,7 +395,7 @@ const AttendanceTracking = () => {
       if (filters.endDate) params.endDate = filters.endDate;
 
       const response = await attendanceApi.getAllAttendance(params);
-      setAttendances(response.data);
+      setAttendances(dedupeAttendanceByISTDay(response.data || []));
     } catch (error) {
       toast.error("Failed to fetch attendance records");
     } finally {
@@ -428,7 +450,7 @@ const AttendanceTracking = () => {
         if (newFilters.endDate) params.endDate = newFilters.endDate;
 
         const response = await attendanceApi.getAllAttendance(params);
-        setAttendances(response.data);
+        setAttendances(dedupeAttendanceByISTDay(response.data || []));
       } catch (error) {
         toast.error("Failed to fetch attendance records");
       } finally {
@@ -954,7 +976,7 @@ const AttendanceTracking = () => {
                     }
                     
                     const clockIn = a.status === 'on-leave' ? 'On Leave' : (a.clockIn ? formatTime(a.clockIn) : '-');
-                    const clockOut = a.status === 'on-leave' ? 'On Leave' : (a.clockOut ? formatTime(a.clockOut) : '-');
+                    const clockOut = a.status === 'on-leave' ? '-' : (a.clockOut ? formatTime(a.clockOut) : '-');
                     const workHours = a.status === 'on-leave' ? '-' : formatHours(a.workHours || 0);
                     
                     const dateDisplay = formatDateDDMMYYYY(a.date);
@@ -1182,7 +1204,7 @@ const AttendanceTracking = () => {
                         if (clearedFilters.endDate) params.endDate = clearedFilters.endDate;
                         
                         const response = await attendanceApi.getAllAttendance(params);
-                        setAttendances(response.data);
+                        setAttendances(dedupeAttendanceByISTDay(response.data || []));
                       } catch (error) {
                         toast.error("Failed to fetch attendance records");
                       } finally {
@@ -1457,6 +1479,13 @@ const AttendanceTracking = () => {
                     {attendances.length > 0 ? (
                       attendances
                         .filter(attendance => !statusFilter || attendance.status === statusFilter)
+                        .slice()
+                        .sort((a, b) => {
+                          // Pin on-leave rows to the top
+                          const aLeave = a.status === 'on-leave' ? 0 : 1;
+                          const bLeave = b.status === 'on-leave' ? 0 : 1;
+                          return aLeave - bLeave;
+                        })
                         .map((attendance) => {
                           // Calculate break information
                           const breaks = attendance.breaks || [];
@@ -1464,23 +1493,44 @@ const AttendanceTracking = () => {
                           const totalBreakMinutes = attendance.totalBreakTime || 0;
                           const isOnBreak = breaks.length > 0 && breaks[breaks.length - 1].startTime && !breaks[breaks.length - 1].endTime;
                           
-                          // Check if record was manually edited
-                          const isEdited = attendance.isManuallyModified;
-                          const latestEdit = attendance.modificationHistory && attendance.modificationHistory.length > 0 
-                            ? attendance.modificationHistory[attendance.modificationHistory.length - 1] 
+                          // Only treat as "edited" when HR actually changed the record (history present).
+                          // Leave-approval sets isManuallyModified without a real edit history — that was
+                          // adding a yellow bar + pencil and making leave rows look taller/different.
+                          const isEdited =
+                            Array.isArray(attendance.modificationHistory) &&
+                            attendance.modificationHistory.length > 0;
+                          const latestEdit = isEdited
+                            ? attendance.modificationHistory[attendance.modificationHistory.length - 1]
                             : null;
                           
                           // Check if WFH
                           const isWFH = attendance.isWFH;
                           const wfhReason = attendance.wfhReason;
+                          const isOnLeave = attendance.status === "on-leave";
+                          const rowKey =
+                            attendance._id ||
+                            `${attendance.employee?._id || attendance.employee || "emp"}-${attendance.date}`;
                           
+                          const rowClass = isOnLeave
+                            ? 'on-leave-record'
+                            : isEdited
+                            ? 'edited-record'
+                            : isWFH
+                            ? 'wfh-record'
+                            : '';
+
                           return (
-                            <tr key={attendance._id} className={isEdited ? 'edited-record' : (isWFH ? 'wfh-record' : '')}>
+                            <tr key={rowKey} className={rowClass}>
                               {!filters.employee && (
                                 <td>
-                                  <div className="d-flex align-items-center gap-2">
-                                    <span>{attendance.employee?.name || "N/A"}</span>
-                                    {isWFH && (
+                                  <div className="d-flex align-items-center gap-2 flex-wrap">
+                                    <span className="fw-semibold">{attendance.employee?.name || "N/A"}</span>
+                                    {isOnLeave && (
+                                      <span className="on-leave-pin-badge" title="On leave today">
+                                        🌴 On Leave
+                                      </span>
+                                    )}
+                                    {isWFH && !isOnLeave && (
                                       <span 
                                         className="wfh-indicator"
                                         title={`Work From Home${wfhReason ? ': ' + wfhReason : ''}`}
@@ -1493,8 +1543,8 @@ const AttendanceTracking = () => {
                                 </td>
                               )}
                               <td>
-                                <div className="d-flex align-items-center gap-2 flex-wrap">
-                                  <span>{formatDate(attendance.date)}</span>
+                                <div className="d-flex align-items-center gap-2 flex-nowrap">
+                                  <span className="text-nowrap">{formatDate(attendance.date)}</span>
                                   {isWFH && !!filters.employee && (
                                     <span
                                       className="wfh-indicator"
@@ -1526,15 +1576,15 @@ const AttendanceTracking = () => {
                                 </div>
                               </td>
                               <td>
-                                {attendance.status === 'on-leave' ? (
+                                {isOnLeave ? (
                                   <Badge bg="primary">On Leave</Badge>
                                 ) : (
                                   formatTime(attendance.clockIn)
                                 )}
                               </td>
                               <td>
-                                {attendance.status === 'on-leave' ? (
-                                  <Badge bg="primary">On Leave</Badge>
+                                {isOnLeave ? (
+                                  <span className="text-muted">-</span>
                                 ) : attendance.clockOut
                                   ? formatTime(attendance.clockOut)
                                   : isOnBreak 

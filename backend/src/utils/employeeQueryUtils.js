@@ -11,6 +11,15 @@ export function isPastMember(status) {
 }
 
 /**
+ * Block login and API access for terminated/offboarded employees.
+ * @param {{ status?: string } | null | undefined} user
+ * @returns {boolean}
+ */
+export function isSystemAccessBlocked(user) {
+  return isPastMember(user?.status);
+}
+
+/**
  * Active employees eligible for assignments, attendance, and operational lists.
  * @param {Record<string, unknown>} [baseQuery]
  * @returns {Record<string, unknown>}

@@ -10,6 +10,7 @@ import {
 } from "react-bootstrap";
 import { FaEye, FaCalendarAlt } from "react-icons/fa";
 import SalaryPreview from "../../components/salary/SalaryPreview";
+import { getCompanyYearOptions } from "../../constants/branding";
 
 const MySalaryPreview = () => {
   const [selectedMonth, setSelectedMonth] = useState("");
@@ -45,21 +46,12 @@ const MySalaryPreview = () => {
     ));
   };
 
-  const generateYearOptions = () => {
-    const currentYear = new Date().getFullYear();
-    const years = [];
-    
-    // Show current year and previous 2 years
-    for (let year = currentYear; year >= currentYear - 2; year--) {
-      years.push(year);
-    }
-    
-    return years.map(year => (
+  const generateYearOptions = () =>
+    getCompanyYearOptions().map((year) => (
       <option key={year} value={year}>
         {year}
       </option>
     ));
-  };
 
   return (
     <Container fluid className="mt-4">

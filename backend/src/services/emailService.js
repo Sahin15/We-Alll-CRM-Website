@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import logger from '../utils/logger.js';
+import { isUat } from '../config/appEnvironment.js';
 
 class EmailService {
   constructor() {
@@ -76,6 +77,13 @@ class EmailService {
   // Send single email
   async sendEmail(emailOptions) {
     try {
+      if (isUat()) {
+        logger.info(
+          `[UAT] Email suppressed — would send to ${emailOptions.to}: ${emailOptions.subject}`
+        );
+        return { success: true, messageId: 'uat-suppressed', suppressed: true };
+      }
+
       // Initialize transporter if not already done
       this.initializeTransporter();
       

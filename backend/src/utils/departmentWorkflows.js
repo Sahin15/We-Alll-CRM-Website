@@ -2,6 +2,7 @@
  * Department-Specific Workflow Configurations
  * Each department can have its own workflow, statuses, and UI requirements
  */
+import { resolveCanonicalDepartmentName } from "../constants/departmentNames.js";
 
 // Standard 4-stage workflow (default for all departments)
 export const STANDARD_WORKFLOW = {
@@ -263,6 +264,42 @@ export const CONTENT_WRITING_WORKFLOW = {
   ],
 };
 
+// Posting Department Workflow (publishes approved creative assets)
+export const POSTING_WORKFLOW = {
+  type: "posting",
+  name: "Posting",
+  statuses: ["To Do", "In Progress", "Review", "Done"],
+  statusColors: {
+    "To Do": "#6B7280",
+    "In Progress": "#3B82F6",
+    "Review": "#F59E0B",
+    "Done": "#10B981",
+  },
+  requiredFields: ["title", "assignedTo", "dueDate"],
+  optionalFields: ["description", "priority", "tags", "estimatedHours"],
+  customFields: [
+    {
+      name: "postUrls",
+      label: "Post URL(s)",
+      type: "textarea",
+      default: "",
+    },
+    {
+      name: "postingDate",
+      label: "Posting Date",
+      type: "date",
+      default: "",
+    },
+    {
+      name: "platforms",
+      label: "Platforms",
+      type: "multiselect",
+      options: ["Facebook", "Instagram", "LinkedIn", "Twitter", "YouTube", "TikTok", "Website", "Other"],
+      default: [],
+    },
+  ],
+};
+
 // Map of all workflows
 export const DEPARTMENT_WORKFLOWS = {
   standard: STANDARD_WORKFLOW,
@@ -271,6 +308,7 @@ export const DEPARTMENT_WORKFLOWS = {
   design: DESIGN_WORKFLOW,
   "video-production": VIDEO_WORKFLOW,
   "content-writing": CONTENT_WRITING_WORKFLOW,
+  posting: POSTING_WORKFLOW,
 };
 
 /**
@@ -288,20 +326,18 @@ export const getWorkflowConfig = (workflowType) => {
  * @returns {Object} - Workflow configuration
  */
 export const getWorkflowByDepartment = (departmentName) => {
+  const canonical = resolveCanonicalDepartmentName(departmentName) || departmentName;
   const departmentMap = {
     "Social Media": "social-media",
-    "Marketing": "social-media",
+    "Digital Marketing": "social-media",
     "Development": "development",
-    "Engineering": "development",
-    "Design": "design",
     "Graphics": "design",
-    "Video": "video-production",
     "Video Production": "video-production",
-    "Content": "content-writing",
     "Content Writing": "content-writing",
+    "Posting": "posting",
   };
-  
-  const workflowType = departmentMap[departmentName] || "standard";
+
+  const workflowType = departmentMap[canonical] || "standard";
   return getWorkflowConfig(workflowType);
 };
 
@@ -358,6 +394,7 @@ export default {
   DESIGN_WORKFLOW,
   VIDEO_WORKFLOW,
   CONTENT_WRITING_WORKFLOW,
+  POSTING_WORKFLOW,
   getWorkflowConfig,
   getWorkflowByDepartment,
   validateDepartmentFields,

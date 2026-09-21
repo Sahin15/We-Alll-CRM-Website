@@ -142,7 +142,7 @@ const AddAsset = () => {
         <Tabs
           activeKey={activeTab}
           onSelect={(k) => setActiveTab(k)}
-          className="mb-4"
+          className="mb-4 profile-tabs-fill"
         >
           {/* Tab 1: Asset Information */}
           <Tab eventKey="asset-info" title={<><FaBox className="me-2" />Asset Information</>}>

@@ -23,6 +23,7 @@ import {
 import { toast } from "react-toastify";
 import { salarySlipApi } from "../../api/salaryApi";
 import { payrollPeriodApi } from "../../api/payrollPeriodApi";
+import { getCompanyYearOptions } from "../../constants/branding";
 
 const SalarySlipList = () => {
   const [slips, setSlips] = useState([]);
@@ -184,11 +185,7 @@ const SalarySlipList = () => {
     { value: 12, label: "December" },
   ];
 
-  const years = [];
-  const currentYear = new Date().getFullYear();
-  for (let i = currentYear; i >= currentYear - 5; i--) {
-    years.push(i);
-  }
+  const years = getCompanyYearOptions();
 
   return (
     <>

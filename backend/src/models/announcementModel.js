@@ -19,7 +19,7 @@ const announcementSchema = new mongoose.Schema(
     },
     priority: {
       type: String,
-      enum: ["normal", "high"],
+      enum: ["low", "normal", "high"],
       default: "normal",
     },
     isPinned: {

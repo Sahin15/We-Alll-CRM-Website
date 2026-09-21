@@ -12,8 +12,16 @@ import {
   computeDueDateFlags,
   getEffectiveStatusForUser,
   isPendingForUser,
+  isWorkItemForMyWork,
   syncGlobalStatusFromAssignees,
 } from "../utils/workItemStatusUtils.js";
+import {
+  validatePostingHandoffInput,
+  assertUserInPostingDepartment,
+  applyPostingHandoffFields,
+} from "../services/creativePostingService.js";
+import { isCreativeWorkflow } from "../utils/creativeStatusMap.js";
+import { assertNoBackwardFromDelivered } from "../utils/creativeWorkflowRules.js";
 
 // @desc    Get all work items for current user (My Work)
 // @route   GET /api/work-items/my-work
@@ -22,8 +30,9 @@ const getMyWorkItems = async (req, res) => {
   try {
     const { status, type, project, priority, dueDate, search, visibility } = req.query;
     
-    // My Work: items assigned to me OR that I created/assigned to others.
-    // Match ObjectId or string refs for assignee/creator fields.
+    // My Work: only items assigned to me (single or multi).
+    // Work I created for others belongs on Assigned Work (/created-by/me).
+    // Match ObjectId or string refs for assignee fields.
     const userId = req.user._id;
     const userRef = { $in: [userId, String(userId)] };
     const query = {
@@ -31,7 +40,11 @@ const getMyWorkItems = async (req, res) => {
       $or: [
         { assignedTo: userRef },
         { assignedToMultiple: userRef },
-        { createdBy: userRef },
+        {
+          requiresPosting: true,
+          postingAssignedTo: userRef,
+          status: { $nin: ["Closed", "Cancelled"] },
+        },
       ],
     };
     
@@ -73,9 +86,9 @@ const getMyWorkItems = async (req, res) => {
     
     // Optimized query with lean() for better performance
     const workItems = await WorkItem.find(query)
-      .populate("project", "name client")
       .populate({
         path: "project",
+        select: "name client",
         populate: {
           path: "client",
           select: "name company",
@@ -83,15 +96,17 @@ const getMyWorkItems = async (req, res) => {
       })
       .populate("assignedTo", "name email")
       .populate("assignedToMultiple", "name email")
+      .populate("postingAssignedTo", "name email designation")
       .populate("createdBy", "name email")
       .populate("assigneeStatuses.assigneeId", "name email")
       .select("-comments -statusHistory -attachments")
       .sort({ dueDate: 1, createdAt: -1 })
-      .limit(500)
       .lean();
     
     // Compute per-user effective status and due flags (lean() strips virtuals)
-    const workItemsWithVirtuals = workItems.map((item) => {
+    const workItemsWithVirtuals = workItems
+      .filter((item) => isWorkItemForMyWork(item, userId))
+      .map((item) => {
       const dueFlags = computeDueDateFlags(item, req.user._id);
       return {
         ...item,
@@ -216,12 +231,13 @@ const getAllWorkItems = async (req, res) => {
       .populate("assignedTo", "name email")
       .populate("assignedToMultiple", "name email")
       .populate("createdBy", "name email")
-      .populate("comments.user", "name email")
       .populate({
         path: "slotAssignment.assignedSlot",
         select: "slotNumber slotIdentifier slotType"
       })
-      .sort({ dueDate: 1, createdAt: -1 });
+      .select("-comments -statusHistory -attachments")
+      .sort({ dueDate: 1, createdAt: -1 })
+      .lean();
 
     // Debug: Log slot assignment data
     res.status(200).json({
@@ -248,16 +264,33 @@ const getAllWorkItems = async (req, res) => {
 const getWorkItemById = async (req, res) => {
   try {
     const workItem = await WorkItem.findById(req.params.id)
-      .populate("project", "name client departments department") // Include both single and multiple departments
+      .populate("project", "name client departments department projectHead")
       .populate({
         path: "project",
-        populate: {
-          path: "client",
-          select: "name company email phone",
-        },
+        populate: [
+          {
+            path: "client",
+            select: "name company email phone",
+          },
+          {
+            path: "projectHead",
+            select: "name email",
+          },
+          {
+            path: "department",
+            select: "name head",
+            populate: { path: "head", select: "name email" },
+          },
+          {
+            path: "departments",
+            select: "name head",
+            populate: { path: "head", select: "name email" },
+          },
+        ],
       })
       .populate("assignedTo", "name email designation")
       .populate("assignedToMultiple", "name email designation")
+      .populate("postingAssignedTo", "name email designation department")
       .populate("createdBy", "name email")
       .populate("comments.user", "name email")
       .populate("attachments.uploadedBy", "name email")
@@ -278,6 +311,11 @@ const getWorkItemById = async (req, res) => {
     // Handle null assignedTo for draft items
     const isAssigned = workItem.assignedTo?._id?.toString() === req.user._id.toString() ||
                        (workItem.assignedToMultiple && workItem.assignedToMultiple.some(a => a._id.toString() === req.user._id.toString()));
+    const isPostingAssignee =
+      workItem.requiresPosting &&
+      workItem.postingAssignedTo &&
+      (workItem.postingAssignedTo._id?.toString() || String(workItem.postingAssignedTo)) ===
+        req.user._id.toString();
     const isCreator = workItem.createdBy._id.toString() === req.user._id.toString();
     const isProjectMember = await Project.findOne({
       _id: workItem.project._id,
@@ -288,7 +326,7 @@ const getWorkItemById = async (req, res) => {
     });
     const isAdmin = ["admin", "superadmin", "hr", "manager", "hod"].includes(req.user.role);
     
-    if (!isAssigned && !isCreator && !isProjectMember && !isAdmin) {
+    if (!isAssigned && !isCreator && !isPostingAssignee && !isProjectMember && !isAdmin) {
       // Log security event
       logSecurityEvent("UNAUTHORIZED_ACCESS_ATTEMPT", {
         userId: req.user._id.toString(),
@@ -351,6 +389,12 @@ const createWorkItem = async (req, res) => {
       // Draft/Scheduled fields
       visibility,
       scheduledActivationDate,
+      // Creative / posting handoff
+      workflowMode,
+      workflowType,
+      requiresPosting,
+      postingAssignedTo,
+      postingDate,
       // V2 planning fields
       deliverableId,
       expectationId,
@@ -491,6 +535,49 @@ const createWorkItem = async (req, res) => {
       }
     }
 
+    // Creative workflow + optional Posting handoff
+    if (
+      workflowMode === "creative" ||
+      workflowType === "design" ||
+      workflowType === "design-advanced" ||
+      workflowType === "video-production"
+    ) {
+      workItemData.workflowMode = "creative";
+    }
+    if (workflowType) {
+      workItemData.workflowType = workflowType;
+    }
+
+    const postingValidated = validatePostingHandoffInput({
+      requiresPosting: Boolean(requiresPosting),
+      postingAssignedTo,
+      postingDate,
+    });
+    if (!postingValidated.valid) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: "VALIDATION_ERROR",
+          message: postingValidated.error,
+        },
+      });
+    }
+    if (postingValidated.postingAssignedTo) {
+      const postingUserCheck = await assertUserInPostingDepartment(
+        postingValidated.postingAssignedTo
+      );
+      if (!postingUserCheck.ok) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: "VALIDATION_ERROR",
+            message: postingUserCheck.error,
+          },
+        });
+      }
+    }
+    applyPostingHandoffFields(workItemData, postingValidated);
+
     const workItem = await WorkItem.create(workItemData);
     
     // SLOT ASSIGNMENT - Handle slot assignment if requested or auto-assign for multiple assignees
@@ -629,6 +716,22 @@ const createWorkItem = async (req, res) => {
             },
             actionUrl: `/work-items/${workItem._id}`,
             senderId: req.user._id,
+          }
+        );
+      }
+
+      if (workItem.requiresPosting && workItem.postingAssignedTo) {
+        const postingDateLabel = workItem.postingDate
+          ? new Date(workItem.postingDate).toISOString().slice(0, 10)
+          : "TBD";
+        await NotificationService.sendToUser(
+          workItem.postingAssignedTo,
+          "Assigned for posting",
+          `You were selected to post "${workItem.title}" (scheduled ${postingDateLabel}).`,
+          {
+            type: "work_assignment",
+            relatedEntity: "workItem",
+            relatedEntityId: workItem._id,
           }
         );
       }
@@ -969,6 +1072,32 @@ const updateWorkItemStatus = async (req, res) => {
         },
       });
     }
+
+    if (isCreativeWorkflow(workItem) && status !== "Cancelled" && status !== workItem.status) {
+      console.warn(
+        `[creative-workflow] Blocked manual status change ${workItem.status} → ${status} for work item ${workItem._id}`
+      );
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: "CREATIVE_WORKFLOW_REQUIRED",
+          message: "Use Creative Workflow actions for this task. Only cancellation is allowed via status update.",
+        },
+      });
+    }
+
+    try {
+      assertNoBackwardFromDelivered(workItem, status);
+    } catch (backwardError) {
+      return res.status(backwardError.statusCode || 400).json({
+        success: false,
+        error: {
+          code: "VALIDATION_ERROR",
+          message: backwardError.message,
+          field: "status",
+        },
+      });
+    }
     
     // Validate status transition
     // For multiple assignees, validate against individual status; for single assignee, validate against global status
@@ -1044,8 +1173,9 @@ const updateWorkItemStatus = async (req, res) => {
       });
     }
     
-    // Store old status for notification
-    const oldStatus = workItem.status;
+    // Store previous personal status for notification / history
+    const oldStatus = currentUserStatus;
+    const oldPersonalStatus = currentUserStatus;
     
     // For multiple assignees, only update individual status, not global status
     if (workItem.assignedToMultiple && workItem.assignedToMultiple.length > 0) {
@@ -1092,6 +1222,21 @@ const updateWorkItemStatus = async (req, res) => {
     }
     
     workItem.modifiedBy = req.user._id;
+
+    // Pre-save only appends statusHistory when global `status` is modified.
+    // For multi-assignee personal Done/etc., global status may not change — record it explicitly.
+    const globalStatusChanged = workItem.isModified("status");
+    if (!globalStatusChanged) {
+      workItem.statusHistory = workItem.statusHistory || [];
+      workItem.statusHistory.push({
+        status,
+        fromStatus: oldPersonalStatus !== status ? oldPersonalStatus : undefined,
+        changedBy: req.user._id,
+        changedAt: new Date(),
+        note: `Personal status changed from "${oldPersonalStatus}" to "${status}"`,
+      });
+      workItem.markModified("statusHistory");
+    }
     
     // The pre-save middleware will handle completedAt automatically
     
@@ -1101,7 +1246,7 @@ const updateWorkItemStatus = async (req, res) => {
     }
     workItem.comments.push({
       user: req.user._id,
-      text: `Status changed from "${oldStatus}" to "${status}"`,
+      text: `Status changed from "${oldPersonalStatus}" to "${status}"`,
       createdAt: new Date(),
       isSystemComment: true
     });
@@ -3298,17 +3443,39 @@ export const activateWorkItem = async (req, res) => {
 };
 
 
-// @desc    Get all work items created by current user
+/**
+ * True when the work item is assigned to at least one person other than `userId`
+ * (or is still unassigned / draft-like so the assigner can manage it).
+ * @param {object} item - Lean work item (populated or raw ids)
+ * @param {string} userIdStr - Current user id as string
+ */
+const isAssignedWorkForCreator = (item, userIdStr) => {
+  const multi = (item.assignedToMultiple || [])
+    .map((a) => (a && (a._id || a)).toString())
+    .filter(Boolean);
+  if (multi.length > 0) {
+    return multi.some((id) => id !== userIdStr);
+  }
+  const assignee = item.assignedTo && (item.assignedTo._id || item.assignedTo);
+  if (!assignee) return true;
+  return assignee.toString() !== userIdStr;
+};
+
+// @desc    Get work items the current user assigned to other team members
 // @route   GET /api/work-items/created-by/me
 // @access  Private
 export const getCreatedByMe = async (req, res) => {
   try {
     const { status, type, project, priority, dueDate, search } = req.query;
-    
-    // Build query - only items created by current user
+    const userId = req.user._id;
+    const userIdStr = String(userId);
+    const userRef = { $in: [userId, userIdStr] };
+
+    // Assigned Work: items I created (assigned by me). Self-only assignments
+    // belong on My Work, not here — filtered after fetch for ObjectId safety.
     const query = {
-      createdBy: req.user._id,
-      isDeleted: { $ne: true }
+      createdBy: userRef,
+      isDeleted: { $ne: true },
     };
     
     // Apply filters
@@ -3358,13 +3525,16 @@ export const getCreatedByMe = async (req, res) => {
       .populate("assigneeStatuses.assigneeId", "name email")
       .select("-comments -statusHistory -attachments")
       .sort({ dueDate: 1, createdAt: -1 })
-      .limit(500)
       .lean();
+
+    const assignedToOthers = workItems.filter((item) =>
+      isAssignedWorkForCreator(item, userIdStr)
+    );
     
     res.status(200).json({
       success: true,
-      count: workItems.length,
-      data: workItems,
+      count: assignedToOthers.length,
+      data: assignedToOthers,
     });
   } catch (error) {
     res.status(500).json({

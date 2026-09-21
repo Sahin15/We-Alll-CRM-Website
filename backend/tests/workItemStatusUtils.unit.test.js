@@ -3,6 +3,7 @@ import {
   computeDueDateFlags,
   getEffectiveStatusForUser,
   isPendingForUser,
+  isWorkItemForMyWork,
   syncGlobalStatusFromAssignees,
 } from "../src/utils/workItemStatusUtils.js";
 
@@ -33,6 +34,19 @@ describe("workItemStatusUtils", () => {
     expect(flags.isOverdue).toBe(false);
     expect(flags.isDueToday).toBe(true);
     expect(flags.daysUntilDue).toBe(0);
+  });
+
+  it("includes posting assignee tasks from handoff through posting phase", () => {
+    const base = {
+      requiresPosting: true,
+      postingAssignedTo: "user-posting",
+      assignedTo: "user-creative",
+      createdBy: "user-hod",
+    };
+    expect(isWorkItemForMyWork({ ...base, status: "In Progress" }, "user-posting")).toBe(true);
+    expect(isWorkItemForMyWork({ ...base, status: "Awaiting Posting" }, "user-posting")).toBe(true);
+    expect(isWorkItemForMyWork({ ...base, status: "Closed" }, "user-posting")).toBe(false);
+    expect(isWorkItemForMyWork({ ...base, status: "In Progress" }, "user-outsider")).toBe(false);
   });
 
   it("promotes global status to Done when all assignees are Done", () => {

@@ -5,8 +5,13 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import logger from '../utils/logger.js';
 import { buildTextSearch } from '../utils/queryOptimizer.js';
-import { mergeExcludePastMembersFilter } from '../utils/employeeQueryUtils.js';
+import {
+  mergeExcludePastMembersFilter,
+  mergeActiveEmployeeFilter,
+  isSystemAccessBlocked,
+} from '../utils/employeeQueryUtils.js';
 import { generateNextEmployeeId, normalizeEmployeeId, isValidEmployeeIdFormat, isEmployeeIdTaken } from '../services/employeeIdService.js';
+import { resolveCanonicalDepartmentName } from '../constants/departmentNames.js';
 
 //generate token
 const generateToken = (id) => {
@@ -157,7 +162,16 @@ export const getUsers = async (req, res) => {
       } else {
         // If it's a string name, look up the department ID
         try {
-          const dept = await Department.findOne({ name: department });
+          const canonicalName =
+            resolveCanonicalDepartmentName(department) || department;
+          const dept = await Department.findOne({
+            name: {
+              $regex: new RegExp(
+                `^${canonicalName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
+                "i"
+              ),
+            },
+          });
           if (dept) {
             query.department = dept._id;
           } else {
@@ -171,17 +185,16 @@ export const getUsers = async (req, res) => {
       }
     }
     
-    // Status filter — also exclude isActive:false users when filtering for active
-    if (status) {
+    // Status filter — use shared roster helpers (single source of truth for spellings/values)
+    if (status === 'active') {
+      Object.assign(query, mergeActiveEmployeeFilter(query));
+    } else if (status) {
       query.status = status;
-      if (status === 'active') {
-        query.isActive = { $ne: false };
-      }
     } else if (excludePast === 'true') {
-      Object.assign(query, mergeExcludePastMembersFilter());
+      Object.assign(query, mergeExcludePastMembersFilter(query));
     }
     
-    logger.info('getUsers query:', query);
+    logger.info('getUsers query:', JSON.stringify(query));
     
     // Optimized query with pagination and all necessary fields for display
     const users = await User.find(query)
@@ -225,6 +238,13 @@ export const loginUser = async (req, res) => {
     if (!isMatch) {
       logger.warn("Password mismatch for user:", user.email);
       return res.status(400).json({ message: "Invalid email or password" });
+    }
+
+    if (isSystemAccessBlocked(user)) {
+      logger.warn("Login blocked for deactivated user:", user.email, user.status);
+      return res.status(403).json({
+        message: "Your account has been deactivated. Please contact HR.",
+      });
     }
 
     const token = generateToken(user._id);

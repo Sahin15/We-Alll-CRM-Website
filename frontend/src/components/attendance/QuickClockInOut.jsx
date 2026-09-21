@@ -15,29 +15,45 @@ const QuickClockInOut = ({ variant = "light", size = "sm", showLabel = true }) =
   const [showWorkLogModal, setShowWorkLogModal] = useState(false);
 
   useEffect(() => {
+    try {
+      const cached = sessionStorage.getItem("attendance_today_cache");
+      if (cached) {
+        const { data, ts } = JSON.parse(cached);
+        if (data && Date.now() - ts < 5 * 60 * 1000) {
+          setTodayAttendance(data);
+          if (data.breaks?.length > 0) {
+            const lastBreak = data.breaks[data.breaks.length - 1];
+            setIsOnBreak(lastBreak.startTime && !lastBreak.endTime);
+          }
+        }
+      }
+    } catch {
+      /* ignore cache parse errors */
+    }
+
     fetchTodayAttendance();
-    
-    // Poll for attendance updates every 30 seconds for better responsiveness
+
+    // Poll only while tab is visible; 2 min interval reduces background API load
     const pollInterval = setInterval(() => {
-      fetchTodayAttendance();
-    }, 30000); // 30 seconds
-    
-    // Listen for attendance updates from other components
+      if (!document.hidden) {
+        fetchTodayAttendance();
+      }
+    }, 120000);
+
     const handleAttendanceUpdate = (event) => {
       const { data } = event.detail;
       setTodayAttendance(data);
     };
-    
-    // Refresh when tab becomes visible (user switches back to the tab)
+
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         fetchTodayAttendance();
       }
     };
-    
+
     window.addEventListener('attendanceUpdate', handleAttendanceUpdate);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     return () => {
       clearInterval(pollInterval);
       window.removeEventListener('attendanceUpdate', handleAttendanceUpdate);
@@ -49,6 +65,15 @@ const QuickClockInOut = ({ variant = "light", size = "sm", showLabel = true }) =
     try {
       const response = await api.get("/attendance/today");
       setTodayAttendance(response.data);
+      
+      try {
+        sessionStorage.setItem(
+          "attendance_today_cache",
+          JSON.stringify({ data: response.data, ts: Date.now() })
+        );
+      } catch {
+        /* ignore */
+      }
       
       // Check if on break
       if (response.data && response.data.breaks && response.data.breaks.length > 0) {

@@ -49,10 +49,6 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    if ((config.method || "get").toLowerCase() === "get") {
-      // Cache-bust via query param only — custom Cache-Control header triggers CORS preflight
-      config.params = { ...config.params, _t: Date.now() };
-    }
     return config;
   },
   (error) => {

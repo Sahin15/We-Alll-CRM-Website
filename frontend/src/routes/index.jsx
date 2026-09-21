@@ -174,6 +174,17 @@ const {
   GrowthTrack,
 } = Pages;
 
+/** Matches backend WORK_ITEM_SELF_ROLES for work.item.* self-service routes. */
+const WORK_ITEM_SELF_ROLES = [
+  "employee",
+  "hod",
+  "sales",
+  "manager",
+  "hr",
+  "admin",
+  "superadmin",
+];
+
 const RoleDashboard = () => {
   const { user } = useAuth();
 
@@ -542,7 +553,11 @@ const AppRoutes = () => {
         <Route
           path="/employee/my-work"
           element={
-            <PermissionRoute permission="work.item.view" module="work">
+            <PermissionRoute
+              permission="work.item.view"
+              module="work"
+              fallbackRoles={WORK_ITEM_SELF_ROLES}
+            >
               <MyWorkPage />
             </PermissionRoute>
           }
@@ -550,7 +565,11 @@ const AppRoutes = () => {
         <Route
           path="/employee/assigned-work"
           element={
-            <PermissionRoute permission="work.item.view" module="work">
+            <PermissionRoute
+              permission="work.item.view"
+              module="work"
+              fallbackRoles={WORK_ITEM_SELF_ROLES}
+            >
               <AssignedWorkPage />
             </PermissionRoute>
           }
@@ -961,7 +980,11 @@ const AppRoutes = () => {
         <Route
           path="/work-items/:id"
           element={
-            <PermissionRoute permission="work.item.view" module="work">
+            <PermissionRoute
+              permission="work.item.view"
+              module="work"
+              fallbackRoles={WORK_ITEM_SELF_ROLES}
+            >
               <MyWorkPage />
             </PermissionRoute>
           }
@@ -971,7 +994,11 @@ const AppRoutes = () => {
         <Route
           path="/employee/slots"
           element={
-            <PermissionRoute permission="work.item.view" module="work">
+            <PermissionRoute
+              permission="work.item.view"
+              module="work"
+              fallbackRoles={WORK_ITEM_SELF_ROLES}
+            >
               <MyWorkPage />
             </PermissionRoute>
           }
@@ -979,7 +1006,11 @@ const AppRoutes = () => {
         <Route
           path="/employee/slots/:id"
           element={
-            <PermissionRoute permission="work.item.view" module="work">
+            <PermissionRoute
+              permission="work.item.view"
+              module="work"
+              fallbackRoles={WORK_ITEM_SELF_ROLES}
+            >
               <MyWorkPage />
             </PermissionRoute>
           }
@@ -995,7 +1026,7 @@ const AppRoutes = () => {
             <PermissionRoute
               permission="work.item.view"
               module="work"
-              fallbackRoles={["employee", "admin", "superadmin", "hr", "hod", "manager"]}
+              fallbackRoles={WORK_ITEM_SELF_ROLES}
             >
               <MyWorkCalendar />
             </PermissionRoute>

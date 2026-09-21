@@ -1,6 +1,7 @@
 import express from "express";
 import {
   createLead,
+  createWebsiteLead,
   getAllLeads,
   getLeadById,
   updateLead,
@@ -31,6 +32,10 @@ import {
   setPrimaryContact,
   getLeadHistory,
 } from "../controllers/leadController.js";
+import {
+  websiteLeadOriginCheck,
+  websiteLeadRateLimit,
+} from "../middleware/websiteLeadMiddleware.js";
 import { protect } from '../middleware/authMiddleware.js';
 import { requireModulePermission } from "../authz/authzMiddleware.js";
 import { attachDepartmentForAuthz } from "../authz/attachDepartmentContext.js";
@@ -48,6 +53,12 @@ const crmLeadManage = requireModulePermission("crm", "crm.lead.manage", leadLega
 const crmLeadView = requireModulePermission("crm", "crm.lead.view", leadLegacyGate);
 
 router.post("/public", createLead);
+router.post(
+  "/website",
+  websiteLeadOriginCheck,
+  websiteLeadRateLimit,
+  createWebsiteLead
+);
 
 router.use(protect, attachDepartmentForAuthz);
 

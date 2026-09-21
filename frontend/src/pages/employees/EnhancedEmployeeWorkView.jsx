@@ -29,15 +29,23 @@ import {
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import workCalendarApi from '../../api/workCalendarApi';
 import workItemApi from '../../api/workItemApi';
 import projectApi from '../../api/projectApi';
 import clientApi from '../../api/clientApi';
+import creativeWorkflowApi from '../../api/creativeWorkflowApi';
+import { getUserById } from '../../api/userApi';
 import EmployeeWorkCalendar from '../../components/calendar/EmployeeWorkCalendar';
 import EmployeeWorkLogsTab from '../../components/worklog/EmployeeWorkLogsTab';
 import WorkItemDetailsModal from '../../components/workitems/WorkItemDetailsModal';
 import moment from 'moment';
 import './EnhancedEmployeeWorkView.css';
+import { decodeHtmlEntities } from '../../utils/htmlDecoder';
+import {
+  getCreativeListBadgeVariant,
+  getCreativeListDisplayStatus,
+  getCreativeStatusProgress,
+  isCreativeWorkflowItem,
+} from '../../utils/workItemStatusUtils';
 
 /**
  * Work Assignments Tab with date range filters
@@ -46,6 +54,7 @@ const WorkAssignmentsTab = ({ recentWork, getStatusColor, getPriorityColor, onVi
   const [dateFilter, setDateFilter] = useState('this_month');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+  const [changeCountsByWorkItem, setChangeCountsByWorkItem] = useState({});
 
   // Compute date range from the selected filter
   const getDateRange = () => {
@@ -81,6 +90,86 @@ const WorkAssignmentsTab = ({ recentWork, getStatusColor, getPriorityColor, onVi
     if (end) return due.isSameOrBefore(end, 'day');
     return true;
   });
+
+  // Load creative change-request counts for assignments
+  useEffect(() => {
+    const ids = (recentWork || []).map((w) => w._id).filter(Boolean).map(String);
+    if (ids.length === 0) {
+      setChangeCountsByWorkItem({});
+      return;
+    }
+    let cancelled = false;
+
+    const isChangeRequestRevision = (r) =>
+      ["changes_requested", "rejected"].includes(r.status) ||
+      ["minor", "major", "reject"].includes(r.decisionSeverity) ||
+      ["minor", "major", "reject", "send_back"].includes(r.lastDecision);
+
+    (async () => {
+      try {
+        const res = await creativeWorkflowApi.getChangeRequestCounts(ids);
+        const payload = res?.data || res || {};
+        const byWorkItem = payload.byWorkItem || {};
+        const total = Object.values(byWorkItem).reduce((s, n) => s + Number(n || 0), 0);
+
+        // If batch endpoint returned empty but we have creative tasks, fall back per item
+        if (!cancelled && total === 0) {
+          const fallback = {};
+          await Promise.all(
+            ids.map(async (id) => {
+              try {
+                const revRes = await creativeWorkflowApi.listRevisions(id);
+                const revisions = revRes?.data || revRes || [];
+                fallback[id] = Array.isArray(revisions)
+                  ? revisions.filter(isChangeRequestRevision).length
+                  : 0;
+              } catch {
+                fallback[id] = 0;
+              }
+            })
+          );
+          if (!cancelled) setChangeCountsByWorkItem(fallback);
+          return;
+        }
+
+        if (!cancelled) setChangeCountsByWorkItem(byWorkItem);
+      } catch (error) {
+        console.error("Failed to load change request counts:", error);
+        // Fallback: list revisions per work item (same source as creative panel)
+        try {
+          const fallback = {};
+          await Promise.all(
+            ids.map(async (id) => {
+              try {
+                const revRes = await creativeWorkflowApi.listRevisions(id);
+                const revisions = revRes?.data || revRes || [];
+                fallback[id] = Array.isArray(revisions)
+                  ? revisions.filter(isChangeRequestRevision).length
+                  : 0;
+              } catch {
+                fallback[id] = 0;
+              }
+            })
+          );
+          if (!cancelled) setChangeCountsByWorkItem(fallback);
+        } catch {
+          if (!cancelled) setChangeCountsByWorkItem({});
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [recentWork]);
+
+  const getChangeCount = (workId) =>
+    changeCountsByWorkItem[String(workId)] || 0;
+
+  const filteredChangeTotal = filteredWork.reduce(
+    (sum, work) => sum + getChangeCount(work._id),
+    0
+  );
 
   const FILTERS = [
     { key: 'this_week', label: 'This Week' },
@@ -157,6 +246,11 @@ const WorkAssignmentsTab = ({ recentWork, getStatusColor, getPriorityColor, onVi
             {start && end && (
               <span> — {start.format('MMM D')} to {end.format('MMM D, YYYY')}</span>
             )}
+            {filteredChangeTotal > 0 && (
+              <span>
+                {' '}· <strong>{filteredChangeTotal}</strong> change request{filteredChangeTotal === 1 ? '' : 's'}
+              </span>
+            )}
           </small>
         </div>
 
@@ -169,6 +263,7 @@ const WorkAssignmentsTab = ({ recentWork, getStatusColor, getPriorityColor, onVi
                   <th>Project</th>
                   <th>Status</th>
                   <th>Priority</th>
+                  <th>Changes</th>
                   <th>Due Date</th>
                   <th>Progress</th>
                   <th>Action</th>
@@ -177,6 +272,7 @@ const WorkAssignmentsTab = ({ recentWork, getStatusColor, getPriorityColor, onVi
               <tbody>
                 {filteredWork.map(work => {
                   const isCancelled = work.status === 'Cancelled';
+                  const changeCount = getChangeCount(work._id);
                   return (
                     <tr 
                       key={work._id}
@@ -212,14 +308,37 @@ const WorkAssignmentsTab = ({ recentWork, getStatusColor, getPriorityColor, onVi
                       </td>
                       <td>{work.project?.name || 'No Project'}</td>
                       <td>
-                        <Badge bg={getStatusColor(work.status)}>
-                          {work.status}
-                        </Badge>
+                        <div>
+                          <Badge bg={getStatusColor(work.status, work)}>
+                            {isCreativeWorkflowItem(work)
+                              ? getCreativeListDisplayStatus(work.status)
+                              : work.status}
+                          </Badge>
+                          {isCreativeWorkflowItem(work) &&
+                            getCreativeListDisplayStatus(work.status) !== 'Done' && (
+                            <div className="small text-muted mt-1">
+                              {getCreativeStatusProgress(work.status)}% workflow
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td>
                         <Badge bg={getPriorityColor(work.priority)}>
                           {work.priority}
                         </Badge>
+                      </td>
+                      <td>
+                        {changeCount > 0 ? (
+                          <Badge
+                            bg="warning"
+                            text="dark"
+                            title="Creative change requests (minor/major/reject)"
+                          >
+                            {changeCount}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted small">0</span>
+                        )}
                       </td>
                       <td>
                         <div style={isCancelled ? { opacity: 0.6 } : {}}>
@@ -291,19 +410,25 @@ const WorkAssignmentsTab = ({ recentWork, getStatusColor, getPriorityColor, onVi
             <div className="d-flex justify-content-between mb-2">
               <span>Completed:</span>
               <strong className="text-success">
-                {filteredWork.filter(w => w.status === 'Done').length}
+                {filteredWork.filter(w => w.status === 'Done' || w.status === 'Delivered' || w.status === 'Closed').length}
               </strong>
             </div>
             <div className="d-flex justify-content-between mb-2">
               <span>In Progress:</span>
               <strong className="text-primary">
-                {filteredWork.filter(w => w.status === 'In Progress').length}
+                {filteredWork.filter(w => w.status === 'In Progress' || w.status === 'Rework In Progress').length}
+              </strong>
+            </div>
+            <div className="d-flex justify-content-between mb-2">
+              <span>Pending:</span>
+              <strong className="text-warning">
+                {filteredWork.filter(w => w.status === 'To Do' || w.status === 'Assigned' || w.status === 'Backlog').length}
               </strong>
             </div>
             <div className="d-flex justify-content-between">
-              <span>Pending:</span>
-              <strong className="text-warning">
-                {filteredWork.filter(w => w.status === 'To Do').length}
+              <span title="Creative change requests (minor / major / reject)">Change Requests:</span>
+              <strong className={filteredChangeTotal > 0 ? 'text-warning' : ''}>
+                {filteredChangeTotal}
               </strong>
             </div>
           </Card.Body>
@@ -419,11 +544,42 @@ const EnhancedEmployeeWorkView = () => {
   const [recentWork, setRecentWork] = useState([]);
   const [employeeProjects, setEmployeeProjects] = useState([]);
   const [employeeClients, setEmployeeClients] = useState([]);
+  const [clientsLoading, setClientsLoading] = useState(false);
   const [selectedWorkItem, setSelectedWorkItem] = useState(null);
   const [showWorkDetailsModal, setShowWorkDetailsModal] = useState(false);
 
   const currentEmployeeId = userId || user?.id || user?._id;
   const isOwnProfile = currentEmployeeId === (user?.id || user?._id);
+
+  /**
+   * Derive task-level stats from the actual work items array.
+   * workSummary (from the calendar API) counts WorkCalendar entries, not tasks,
+   * so it produces inflated totals and near-100% overdue rates. These stats are
+   * computed on the frontend from the already-loaded recentWork list.
+   *
+   * @returns {{ totalWork, completedWork, inProgressWork, overdueWork, workloadByPriority }}
+   */
+  const workItemStats = (() => {
+    const now = new Date();
+    const total = recentWork.length;
+    const completed = recentWork.filter(w => w.status === 'Done').length;
+    const inProgress = recentWork.filter(w => w.status === 'In Progress').length;
+    const overdue = recentWork.filter(w =>
+      !['Done', 'Cancelled'].includes(w.status) && w.dueDate && new Date(w.dueDate) < now
+    ).length;
+    return {
+      totalWork: total,
+      completedWork: completed,
+      inProgressWork: inProgress,
+      overdueWork: overdue,
+      workloadByPriority: {
+        urgent: recentWork.filter(w => w.priority === 'urgent').length,
+        high:   recentWork.filter(w => w.priority === 'high').length,
+        medium: recentWork.filter(w => w.priority === 'medium').length,
+        low:    recentWork.filter(w => w.priority === 'low').length,
+      },
+    };
+  })();
 
   useEffect(() => {
     if (currentEmployeeId) {
@@ -431,66 +587,109 @@ const EnhancedEmployeeWorkView = () => {
     }
   }, [currentEmployeeId]);
 
-  const loadEmployeeWorkData = async () => {
+  /** Load client list only when the Projects tab is opened (avoids heavy call on every page load). */
+  const loadEmployeeClients = async () => {
+    if (!currentEmployeeId || employeeClients.length > 0) return;
     try {
-      setLoading(true);
-      
-      // Load employee work calendar data for overview
-      const calendarResponse = await workCalendarApi.getEmployeeWorkCalendar(currentEmployeeId, {
-        startDate: moment().subtract(30, 'days').toISOString(),
-        endDate: moment().add(30, 'days').toISOString()
+      setClientsLoading(true);
+      const clientsResponse = await clientApi.getMyClients({
+        employeeId: currentEmployeeId,
       });
-
-      // Load ALL work items (no limit) to ensure we capture all projects
-      const workItemsResponse = isOwnProfile 
-        ? await workItemApi.getMyWork()
-        : await workItemApi.getAllWorkItems({ assignedTo: currentEmployeeId });
-
-      // Load projects where this employee is on the team
-      let projectsData;
-      if (isOwnProfile) {
-        const projectsResponse = await projectApi.getMyProjects();
-        projectsData = projectsResponse.data || projectsResponse;
-      } else {
-        projectsData = await projectApi.getProjectsForEmployee(currentEmployeeId);
-      }
-
-      // Load clients assigned to the profile being viewed (not the logged-in viewer)
-      let clientsData = [];
-      try {
-        const clientsResponse = await clientApi.getMyClients({
-          employeeId: currentEmployeeId,
-        });
-        clientsData = clientsResponse.data || clientsResponse;
-      } catch (error) {
-        console.error('Error loading clients:', error);
-        clientsData = [];
-      }
-
-      const calendarData = calendarResponse.data?.data || calendarResponse.data;
-      const workItemsData = workItemsResponse.data?.data || workItemsResponse.data;
-
-      setEmployeeData(calendarData.employee);
-      setWorkSummary(calendarData.analytics);
-      setRecentWork(Array.isArray(workItemsData) ? workItemsData : []);
-      setEmployeeProjects(Array.isArray(projectsData) ? projectsData : []);
+      const clientsData = clientsResponse.data || clientsResponse;
       setEmployeeClients(Array.isArray(clientsData) ? clientsData : []);
-
     } catch (error) {
-      console.error('Error loading employee work data:', error);
+      console.error('Error loading clients:', error);
+      setEmployeeClients([]);
     } finally {
-      setLoading(false);
+      setClientsLoading(false);
     }
   };
 
-  const getStatusColor = (status) => {
+  useEffect(() => {
+    if (activeTab === 'projects') {
+      loadEmployeeClients();
+    }
+  }, [activeTab, currentEmployeeId]);
+
+  /**
+   * Build time-tracking summary from work items (avoids heavy calendar API on page load).
+   * @param {Array} items
+   * @returns {{ totalEstimatedHours: number, totalActualHours: number, averageEfficiency: number|null }}
+   */
+  const buildTimeSummary = (items) => {
+    const totalEstimatedHours = items.reduce((sum, w) => sum + (Number(w.estimatedHours) || 0), 0);
+    const totalActualHours = items.reduce((sum, w) => sum + (Number(w.actualHours) || 0), 0);
+    const averageEfficiency = totalEstimatedHours > 0
+      ? Math.round((totalActualHours / totalEstimatedHours) * 100)
+      : null;
+    return { totalEstimatedHours, totalActualHours, averageEfficiency };
+  };
+
+  const loadEmployeeWorkData = async ({ silent = false } = {}) => {
+    try {
+      if (!silent) {
+        setLoading(true);
+      }
+
+      const [employeeResponse, workItemsResponse, projectsData] = await Promise.all([
+        getUserById(currentEmployeeId),
+        isOwnProfile
+          ? workItemApi.getMyWork()
+          : workItemApi.getAllWorkItems({ assignedTo: currentEmployeeId }),
+        isOwnProfile
+          ? projectApi.getMyProjects().then((r) => r.data || r)
+          : projectApi.getProjectsForEmployee(currentEmployeeId),
+      ]);
+
+      const employee = employeeResponse?.data || employeeResponse;
+      const workItemsData = workItemsResponse.data?.data || workItemsResponse.data;
+      const workItems = Array.isArray(workItemsData) ? workItemsData : [];
+
+      setEmployeeData(employee);
+      setWorkSummary(buildTimeSummary(workItems));
+      setRecentWork(workItems);
+      setEmployeeProjects(Array.isArray(projectsData) ? projectsData : []);
+    } catch (error) {
+      console.error('Error loading employee work data:', error);
+    } finally {
+      if (!silent) {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleWorkItemSync = (updatedItem) => {
+    if (!updatedItem?._id) return;
+    setSelectedWorkItem((current) =>
+      current?._id === updatedItem._id ? { ...current, ...updatedItem } : current
+    );
+    setRecentWork((items) =>
+      items.map((item) =>
+        item._id === updatedItem._id ? { ...item, ...updatedItem } : item
+      )
+    );
+  };
+
+  const getStatusColor = (status, workItem) => {
+    if (workItem && isCreativeWorkflowItem(workItem)) {
+      return getCreativeListBadgeVariant(status);
+    }
     const colors = {
       'To Do': 'secondary',
       'In Progress': 'primary',
       'Review': 'warning',
       'Done': 'success',
       'Cancelled': 'danger',
-      'Blocked': 'danger'
+      'Blocked': 'danger',
+      'QA Review': 'warning',
+      Approved: 'success',
+      Delivered: 'success',
+      Posted: 'success',
+      Closed: 'dark',
+      'Changes Requested': 'danger',
+      'Submitted for Review': 'warning',
+      'Rework In Progress': 'info',
+      'Awaiting Posting': 'info',
     };
     return colors[status] || 'secondary';
   };
@@ -588,10 +787,10 @@ const EnhancedEmployeeWorkView = () => {
       </Card>
 
       {/* Navigation Tabs */}
-      <Tab.Container activeKey={activeTab} onSelect={setActiveTab}>
+      <Tab.Container activeKey={activeTab} onSelect={setActiveTab} mountOnEnter unmountOnExit>
         <Card className="border-0 shadow-sm">
           <Card.Header className="bg-white border-0 pt-3 pb-0">
-            <Nav variant="tabs" className="border-0">
+            <Nav variant="tabs" className="border-0 w-100 justify-content-start">
               <Nav.Item>
                 <Nav.Link eventKey="overview" className="d-flex align-items-center">
                   <FaChartLine className="me-2" />
@@ -637,7 +836,7 @@ const EnhancedEmployeeWorkView = () => {
                         <Card className="border-0 bg-primary text-white h-100">
                           <Card.Body className="text-center">
                             <FaTasks size={24} className="mb-2" />
-                            <h3 className="mb-1">{workSummary?.totalWork || 0}</h3>
+                            <h3 className="mb-1">{workItemStats.totalWork}</h3>
                             <small>Total Work</small>
                           </Card.Body>
                         </Card>
@@ -646,7 +845,7 @@ const EnhancedEmployeeWorkView = () => {
                         <Card className="border-0 bg-success text-white h-100">
                           <Card.Body className="text-center">
                             <FaCheckCircle size={24} className="mb-2" />
-                            <h3 className="mb-1">{workSummary?.completedWork || 0}</h3>
+                            <h3 className="mb-1">{workItemStats.completedWork}</h3>
                             <small>Completed</small>
                           </Card.Body>
                         </Card>
@@ -655,7 +854,7 @@ const EnhancedEmployeeWorkView = () => {
                         <Card className="border-0 bg-info text-white h-100">
                           <Card.Body className="text-center">
                             <FaClock size={24} className="mb-2" />
-                            <h3 className="mb-1">{workSummary?.inProgressWork || 0}</h3>
+                            <h3 className="mb-1">{workItemStats.inProgressWork}</h3>
                             <small>In Progress</small>
                           </Card.Body>
                         </Card>
@@ -664,7 +863,7 @@ const EnhancedEmployeeWorkView = () => {
                         <Card className="border-0 bg-danger text-white h-100">
                           <Card.Body className="text-center">
                             <FaExclamationTriangle size={24} className="mb-2" />
-                            <h3 className="mb-1">{workSummary?.overdueWork || 0}</h3>
+                            <h3 className="mb-1">{workItemStats.overdueWork}</h3>
                             <small>Overdue</small>
                           </Card.Body>
                         </Card>
@@ -681,15 +880,15 @@ const EnhancedEmployeeWorkView = () => {
                           <div className="d-flex justify-content-between mb-1">
                             <span>Overall Completion</span>
                             <span>
-                              {workSummary?.totalWork > 0 
-                                ? Math.round((workSummary.completedWork / workSummary.totalWork) * 100)
+                              {workItemStats.totalWork > 0
+                                ? Math.round((workItemStats.completedWork / workItemStats.totalWork) * 100)
                                 : 0
                               }%
                             </span>
                           </div>
                           <ProgressBar 
-                            now={workSummary?.totalWork > 0 
-                              ? (workSummary.completedWork / workSummary.totalWork) * 100
+                            now={workItemStats.totalWork > 0
+                              ? (workItemStats.completedWork / workItemStats.totalWork) * 100
                               : 0
                             }
                             variant="success"
@@ -701,25 +900,25 @@ const EnhancedEmployeeWorkView = () => {
                           <div className="col-6">
                             <div className="d-flex justify-content-between">
                               <small className="text-danger">Urgent:</small>
-                              <Badge bg="danger">{workSummary?.workloadByPriority?.urgent || 0}</Badge>
+                              <Badge bg="danger">{workItemStats.workloadByPriority.urgent}</Badge>
                             </div>
                           </div>
                           <div className="col-6">
                             <div className="d-flex justify-content-between">
                               <small className="text-warning">High:</small>
-                              <Badge bg="warning">{workSummary?.workloadByPriority?.high || 0}</Badge>
+                              <Badge bg="warning">{workItemStats.workloadByPriority.high}</Badge>
                             </div>
                           </div>
                           <div className="col-6">
                             <div className="d-flex justify-content-between">
                               <small className="text-info">Medium:</small>
-                              <Badge bg="info">{workSummary?.workloadByPriority?.medium || 0}</Badge>
+                              <Badge bg="info">{workItemStats.workloadByPriority.medium}</Badge>
                             </div>
                           </div>
                           <div className="col-6">
                             <div className="d-flex justify-content-between">
                               <small className="text-muted">Low:</small>
-                              <Badge bg="light" text="dark">{workSummary?.workloadByPriority?.low || 0}</Badge>
+                              <Badge bg="light" text="dark">{workItemStats.workloadByPriority.low}</Badge>
                             </div>
                           </div>
                         </div>
@@ -741,7 +940,9 @@ const EnhancedEmployeeWorkView = () => {
                       <Card.Body className="p-0">
                         {recentWork.length > 0 ? (
                           <div className="list-group list-group-flush">
-                            {recentWork.slice(0, 5).map(work => (
+                            {recentWork.slice(0, 5).map(work => {
+                              const decodedDescription = decodeHtmlEntities(work.description || '');
+                              return (
                               <div key={work._id} className="list-group-item border-0 py-3">
                                 <div className="d-flex justify-content-between align-items-start">
                                   <div className="flex-grow-1">
@@ -754,11 +955,11 @@ const EnhancedEmployeeWorkView = () => {
                                       )}
                                     </div>
                                     <p className="mb-1 text-muted small">
-                                      {work.description?.substring(0, 100)}
-                                      {work.description?.length > 100 ? '...' : ''}
+                                      {decodedDescription.substring(0, 100)}
+                                      {decodedDescription.length > 100 ? '...' : ''}
                                     </p>
                                     <div className="d-flex gap-2">
-                                      <Badge bg={getStatusColor(work.status)}>
+                                      <Badge bg={getStatusColor(work.status, work)}>
                                         {work.status}
                                       </Badge>
                                       <Badge bg={getPriorityColor(work.priority)}>
@@ -778,7 +979,8 @@ const EnhancedEmployeeWorkView = () => {
                                   </div>
                                 </div>
                               </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         ) : (
                           <div className="text-center py-4">
@@ -987,7 +1189,7 @@ const EnhancedEmployeeWorkView = () => {
                                 <div className="small fw-semibold">{work.title}</div>
                                 <small className="text-muted">{work.project?.name || 'No Project'}</small>
                               </div>
-                              <Badge bg={getStatusColor(work.status)} className="small">
+                              <Badge bg={getStatusColor(work.status, work)} className="small">
                                 {work.status}
                               </Badge>
                             </div>
@@ -1182,7 +1384,7 @@ const EnhancedEmployeeWorkView = () => {
                                                 )}
                                               </div>
                                               <div className="d-flex gap-1 mt-1">
-                                                <Badge bg={getStatusColor(work.status)} className="small" style={{ fontSize: '0.7rem' }}>
+                                                <Badge bg={getStatusColor(work.status, work)} className="small" style={{ fontSize: '0.7rem' }}>
                                                   {work.status}
                                                 </Badge>
                                               </div>
@@ -1370,7 +1572,7 @@ const EnhancedEmployeeWorkView = () => {
                                     </small>
                                   </div>
                                   <div className="text-end ms-2">
-                                    <Badge bg={getStatusColor(work.status)} className="small">
+                                    <Badge bg={getStatusColor(work.status, work)} className="small">
                                       {work.status}
                                     </Badge>
                                   </div>
@@ -1413,7 +1615,11 @@ const EnhancedEmployeeWorkView = () => {
                           <small className="text-muted">Total Clients</small>
                         </div>
                         
-                        {employeeClients.length > 0 ? (
+                        {clientsLoading ? (
+                          <div className="text-center py-3">
+                            <Spinner animation="border" size="sm" />
+                          </div>
+                        ) : employeeClients.length > 0 ? (
                           <div>
                             {employeeClients.slice(0, 5).map(client => {
                               // Count projects for this client
@@ -1537,10 +1743,12 @@ const EnhancedEmployeeWorkView = () => {
           onHide={() => {
             setShowWorkDetailsModal(false);
             setSelectedWorkItem(null);
+            loadEmployeeWorkData({ silent: true });
           }}
           workItem={selectedWorkItem}
           onUpdate={handleUpdateWorkStatus}
-          onRefresh={loadEmployeeWorkData}
+          onRefresh={() => loadEmployeeWorkData({ silent: true })}
+          onWorkItemSync={handleWorkItemSync}
           currentUser={user}
         />
       )}

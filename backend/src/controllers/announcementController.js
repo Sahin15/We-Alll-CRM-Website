@@ -4,39 +4,63 @@ import User from "../models/userModel.js";
 import NotificationService from "../services/notificationService.js";
 import { mergeExcludePastMembersFilter } from "../utils/employeeQueryUtils.js";
 
+const ANNOUNCEMENT_TYPES = [
+  "general",
+  "urgent",
+  "event",
+  "policy",
+  "holiday",
+  "important",
+];
+const ANNOUNCEMENT_PRIORITIES = ["low", "normal", "high"];
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function sanitizePriority(value) {
+  const priority = String(value || "normal").trim().toLowerCase();
+  return ANNOUNCEMENT_PRIORITIES.includes(priority) ? priority : "normal";
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function sanitizeType(value) {
+  const type = String(value || "general").trim().toLowerCase();
+  return ANNOUNCEMENT_TYPES.includes(type) ? type : "general";
+}
+
+/**
+ * Build announcement visibility query for the current user.
+ * @param {{ role?: string }} user
+ */
+function buildAnnouncementVisibilityQuery(user) {
+  const userRole = user?.role;
+
+  return {
+    $and: [
+      {
+        $or: [{ targetRoles: { $size: 0 } }, { targetRoles: userRole }],
+      },
+      {
+        $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
+      },
+    ],
+  };
+}
+
 // @desc    Get all announcements
 // @route   GET /api/announcements
 // @access  Private
 export const getAllAnnouncements = async (req, res) => {
   try {
     const userId = req.user.id;
-    const userRole = req.user.role;
-    const userDepartment = req.user.department;
-
-    // Build query based on user role and department
-    let query = {
-      $or: [
-        { department: null }, // Announcements for all departments
-        { department: userDepartment }, // Department-specific announcements
-      ],
-    };
-
-    // Filter by target roles if specified
-    query.$and = [
-      {
-        $or: [
-          { targetRoles: { $size: 0 } }, // No specific roles (for everyone)
-          { targetRoles: userRole }, // Includes user's role
-        ],
-      },
-    ];
-
-    // Exclude expired announcements
-    query.$or.push({ expiresAt: null }, { expiresAt: { $gt: new Date() } });
+    const query = buildAnnouncementVisibilityQuery(req.user);
 
     const announcements = await Announcement.find(query)
       .populate("createdBy", "name email")
-      .populate("department", "name")
       .sort({ isPinned: -1, createdAt: -1 })
       .lean();
 
@@ -44,8 +68,8 @@ export const getAllAnnouncements = async (req, res) => {
     const announcementsWithReadStatus = announcements.map((announcement) => ({
       ...announcement,
       isRead: announcement.readBy?.some(
-        (read) => read.user.toString() === userId
-      ),
+        (read) => read.user && read.user.toString() === userId
+      ) ?? false,
     }));
 
     res.status(200).json(announcementsWithReadStatus);
@@ -64,8 +88,7 @@ export const getAnnouncementById = async (req, res) => {
     const userId = req.user.id;
 
     const announcement = await Announcement.findById(id)
-      .populate("createdBy", "name email")
-      .populate("department", "name");
+      .populate("createdBy", "name email");
 
     if (!announcement) {
       return res.status(404).json({ message: "Announcement not found" });
@@ -92,7 +115,6 @@ export const createAnnouncement = async (req, res) => {
       type,
       priority,
       isPinned,
-      department,
       targetRoles,
       expiresAt,
       attachments,
@@ -101,28 +123,27 @@ export const createAnnouncement = async (req, res) => {
     const announcement = await Announcement.create({
       title,
       content,
-      type: type || "general",
-      priority: priority || "normal",
-      isPinned: isPinned || false,
-      department: department || null,
-      targetRoles: targetRoles || [],
+      type: sanitizeType(type),
+      priority: sanitizePriority(priority),
+      isPinned: Boolean(isPinned),
+      department: null,
+      targetRoles: Array.isArray(targetRoles) ? targetRoles : [],
       expiresAt: expiresAt || null,
       attachments: attachments || [],
       createdBy: req.user.id,
     });
 
-    // Populate creator info
     await announcement.populate("createdBy", "name email");
-    if (department) {
-      await announcement.populate("department", "name");
-    }
 
     // Create notifications for all relevant users
     await createAnnouncementNotifications(announcement, req.user);
 
     res.status(201).json(announcement);
   } catch (error) {
-    
+    console.error("[announcements] createAnnouncement failed:", error);
+    if (error.name === "ValidationError") {
+      return res.status(400).json({ message: error.message, error: error.message });
+    }
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -139,7 +160,6 @@ export const updateAnnouncement = async (req, res) => {
       type,
       priority,
       isPinned,
-      department,
       targetRoles,
       expiresAt,
       attachments,
@@ -154,19 +174,15 @@ export const updateAnnouncement = async (req, res) => {
     // Update fields
     if (title) announcement.title = title;
     if (content) announcement.content = content;
-    if (type) announcement.type = type;
-    if (priority) announcement.priority = priority;
-    if (isPinned !== undefined) announcement.isPinned = isPinned;
-    if (department !== undefined) announcement.department = department;
+    if (type) announcement.type = sanitizeType(type);
+    if (priority) announcement.priority = sanitizePriority(priority);
+    if (isPinned !== undefined) announcement.isPinned = Boolean(isPinned);
     if (targetRoles) announcement.targetRoles = targetRoles;
     if (expiresAt !== undefined) announcement.expiresAt = expiresAt;
     if (attachments) announcement.attachments = attachments;
 
     await announcement.save();
     await announcement.populate("createdBy", "name email");
-    if (announcement.department) {
-      await announcement.populate("department", "name");
-    }
 
     res.status(200).json(announcement);
   } catch (error) {
@@ -237,30 +253,9 @@ export const markAnnouncementAsRead = async (req, res) => {
 export const getUnreadCount = async (req, res) => {
   try {
     const userId = req.user.id;
-    const userRole = req.user.role;
-    const userDepartment = req.user.department;
-
-    // Build query
-    let query = {
-      $or: [
-        { department: null },
-        { department: userDepartment },
-      ],
-      $and: [
-        {
-          $or: [
-            { targetRoles: { $size: 0 } },
-            { targetRoles: userRole },
-          ],
-        },
-        {
-          $or: [
-            { expiresAt: null },
-            { expiresAt: { $gt: new Date() } },
-          ],
-        },
-      ],
-      "readBy.user": { $ne: userId }, // Not read by this user
+    const query = {
+      ...buildAnnouncementVisibilityQuery(req.user),
+      "readBy.user": { $ne: userId },
     };
 
     const count = await Announcement.countDocuments(query);
@@ -277,11 +272,6 @@ async function createAnnouncementNotifications(announcement, creator) {
   try {
     // Determine target users
     let userQuery = {};
-
-    // Filter by department if specified
-    if (announcement.department) {
-      userQuery.department = announcement.department;
-    }
 
     // Filter by roles if specified
     if (announcement.targetRoles && announcement.targetRoles.length > 0) {
@@ -304,32 +294,15 @@ async function createAnnouncementNotifications(announcement, creator) {
         `📢 ${announcement.title}`,
         announcement.content.substring(0, 100) + (announcement.content.length > 100 ? "..." : ""),
         {
-          type: 'announcement',
+          type: "announcement",
           data: { announcementId: announcement._id.toString() },
-          actionUrl: '/announcements',
+          actionUrl: "/employee/announcements",
           senderId: creator._id,
         }
       );
-
-      // Also create database notifications for backward compatibility
-      const notifications = targetUsers.map((user) => ({
-        recipient: user._id,
-        recipientType: "employee",
-        type: "general",
-        title: `New Announcement: ${announcement.title}`,
-        message: announcement.content.substring(0, 200) + (announcement.content.length > 200 ? "..." : ""),
-        link: `/employee/announcements`,
-        data: {
-          announcementId: announcement._id,
-          announcementType: announcement.type,
-        },
-      }));
-
-      await Notification.insertMany(notifications);
-      
     }
   } catch (error) {
-    
+    console.error("[announcements] createAnnouncementNotifications failed:", error.message);
     // Don't throw error - notification creation failure shouldn't block announcement creation
   }
 }

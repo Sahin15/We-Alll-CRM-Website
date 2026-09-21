@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import User from "../models/userModel.js";
 import { attachDirectPermissionGrants } from "../authz/attachDirectGrants.js";
+import { isSystemAccessBlocked } from "../utils/employeeQueryUtils.js";
 
 export const protect = async (req, res, next) => {
   try {
@@ -10,21 +11,16 @@ export const protect = async (req, res, next) => {
     }
     
     const decode = jwt.verify(token, process.env.JWT_SECRET);
-    // Include sensitive fields that users should see in their own profile
-    const user = await User.findById(decode.id)
-      .select("-password")
-      .select("+bankDetails.accountNumber")
-      .select("+governmentIds.panNumber")
-      .select("+governmentIds.aadhaarNumber")
-      .select("+governmentIds.uanNumber")
-      .select("+governmentIds.esicNumber");
+    // Lean auth user — sensitive profile fields are loaded only on GET /users/me
+    const user = await User.findById(decode.id).select(
+      "_id name email role status isActive department isHeadOfDepartment headOfDepartment headOfProjects"
+    );
     
     if (!user) {
       return res.status(401).json({ message: "User not found" });
     }
 
-    // Block terminated and offboarded employees from accessing the system
-    if (user.status === "terminated" || user.status === "offboarded") {
+    if (isSystemAccessBlocked(user)) {
       return res.status(403).json({
         message: "Your account has been deactivated. Please contact HR.",
       });

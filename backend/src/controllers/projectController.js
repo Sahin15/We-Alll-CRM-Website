@@ -21,6 +21,7 @@ import {
   isPastMember,
   stripPastMembersFromProject,
 } from "../utils/employeeQueryUtils.js";
+import { ensureProjectDepartmentsFromUsers } from "../utils/projectDepartmentSync.js";
 // Temporarily removed imports for debugging
 // import WorkItem from "../models/workItemModel.js";
 // import Slot from "../models/slotModel.js";
@@ -94,6 +95,15 @@ export const createProject = async (req, res) => {
       });
     }
 
+    // Auto-include departments from project head + initial team members
+    let finalDepartments = Array.isArray(departments) ? [...departments] : [];
+    const usersForDeptSync = await User.find({
+      _id: { $in: finalAssignedUsers },
+    }).select("department");
+    const deptProjectStub = { departments: finalDepartments, department: null };
+    ensureProjectDepartmentsFromUsers(deptProjectStub, usersForDeptSync);
+    finalDepartments = deptProjectStub.departments;
+
     // Initialize slot configuration - ALWAYS 20 slots per month
     const DEFAULT_SLOT_COUNT = 20;
     const slotConfig = {
@@ -128,7 +138,7 @@ export const createProject = async (req, res) => {
       client: client || null,
       description: description || '',
       startDate: startDate || null,
-      departments: departments || [], // Add departments support
+      departments: finalDepartments || [], // departments from form + auto from team members
       budget: budget || 0,
       status: status || "Pending",
       priority: priority || "medium",
@@ -408,6 +418,7 @@ export const assignUserToProject = async (req, res) => {
     );
     if (!isAlreadyAssigned) {
       project.assignedUsers.push(userId);
+      ensureProjectDepartmentsFromUsers(project, [user]);
       await project.save();
     }
 
@@ -1288,6 +1299,9 @@ export const addTeamMember = async (req, res) => {
       project.assignedUsers.push(userId);
     }
 
+    // Auto-add the member's department/service to the project (e.g. Posting)
+    ensureProjectDepartmentsFromUsers(project, [user]);
+
     // Validate before saving
     const validationError = project.validateSync();
     if (validationError) {
@@ -1319,9 +1333,10 @@ export const addTeamMember = async (req, res) => {
     });
 
     const updatedProject = await Project.findById(projectId)
-      .populate("teamMembers.user", "name email designation")
+      .populate("teamMembers.user", "name email designation department")
       .populate("teamMembers.assignedBy", "name email")
-      .populate("projectHead", "name email");
+      .populate("projectHead", "name email")
+      .populate("departments", "name");
 
     res.status(200).json({
       success: true,
@@ -1573,6 +1588,13 @@ export const getMyDepartmentProjects = async (req, res) => {
 // Project Credentials Management
 // ==========================================
 
+/** @param {string|import('mongoose').Types.ObjectId} userId */
+const isCredentialOwner = (userId, credential) => {
+  if (!credential?.addedBy) return false;
+  const ownerId = (credential.addedBy._id || credential.addedBy).toString();
+  return ownerId === userId.toString();
+};
+
 export const getProjectCredentials = async (req, res) => {
   try {
     const { id } = req.params;
@@ -1580,7 +1602,8 @@ export const getProjectCredentials = async (req, res) => {
       .select('+credentials.password')
       .populate('projectHead', 'name email role')
       .populate('assignedUsers', 'name email role')
-      .populate('teamMembers.user', 'name email role');
+      .populate('teamMembers.user', 'name email role')
+      .populate('credentials.addedBy', 'name email');
       
     if (!project) return res.status(404).json({ message: "Project not found" });
 
@@ -1590,28 +1613,13 @@ export const getProjectCredentials = async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    // Determine if user can view password
-    let canViewPassword = false;
-    const user = await User.findById(req.user.id).populate("department");
-    
-    // Allow viewing password if:
-    // 1. User is superadmin or admin
-    // 2. User is project head
-    // 3. User is assigned to the project
-    // 4. User is a team member of the project
-    if (['superadmin', 'admin'].includes(user.role)) {
-      canViewPassword = true;
-    } else if (project.projectHead && project.projectHead._id.toString() === req.user.id) {
-      canViewPassword = true;
-    } else if (project.assignedUsers && project.assignedUsers.some(u => u._id.toString() === req.user.id)) {
-      canViewPassword = true;
-    } else if (project.teamMembers && project.teamMembers.some(tm => tm.user && tm.user._id.toString() === req.user.id)) {
-      canViewPassword = true;
-    }
+    const userId = req.user.id.toString();
 
-    // Decrypt passwords
+    // Only the user who saved a credential can view its password
     const decryptedCredentials = project.credentials.map(cred => {
       const credObj = cred.toObject();
+      const canViewPassword = isCredentialOwner(userId, cred);
+      credObj.canViewPassword = canViewPassword;
       credObj.password = canViewPassword ? decrypt(credObj.password) : "********";
       return credObj;
     });
@@ -1634,7 +1642,6 @@ export const getProjectCredentials = async (req, res) => {
     res.status(200).json({ 
       success: true, 
       data: decryptedCredentials, 
-      canViewPassword,
       accessUsers
     });
   } catch (error) {
@@ -1702,6 +1709,11 @@ export const updateProjectCredential = async (req, res) => {
     if (url !== undefined) credential.url = url;
     if (username) credential.username = username;
     if (password) {
+      if (!isCredentialOwner(req.user.id, credential)) {
+        return res.status(403).json({
+          message: "Only the user who saved this credential can update the password",
+        });
+      }
       const encryptedPassword = encrypt(password);
       if (!encryptedPassword) return res.status(500).json({ message: "Encryption failed" });
       credential.password = encryptedPassword;

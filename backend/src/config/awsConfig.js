@@ -1,7 +1,7 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import dotenv from "dotenv";
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const DEFAULT_MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
 

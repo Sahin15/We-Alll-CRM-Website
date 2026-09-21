@@ -1,4 +1,12 @@
+import { isCreativeWorkflowItem } from './creativeWorkflowAccess.js';
+
 const TERMINAL_STATUSES = new Set(['Done', 'Cancelled']);
+
+/** @param {object} workItem @param {string} status */
+function isTerminalWorkStatus(workItem, status) {
+  if (TERMINAL_STATUSES.has(status)) return true;
+  return isCreativeWorkflowItem(workItem) && status === 'Closed';
+}
 
 const normalizeId = (value) => {
   if (!value) return null;
@@ -38,19 +46,97 @@ export function getDaysUntilDue(dueDate, referenceDate = new Date()) {
 
 export function isWorkItemDueToday(workItem, userId, referenceDate = new Date()) {
   const status = getEffectiveStatusForUser(workItem, userId);
-  if (TERMINAL_STATUSES.has(status) || !workItem?.dueDate) return false;
+  if (isTerminalWorkStatus(workItem, status) || !workItem?.dueDate) return false;
 
   return getDaysUntilDue(workItem.dueDate, referenceDate) === 0;
 }
 
 export function isWorkItemOverdue(workItem, userId, referenceDate = new Date()) {
   const status = getEffectiveStatusForUser(workItem, userId);
-  if (TERMINAL_STATUSES.has(status) || !workItem?.dueDate) return false;
+  if (isTerminalWorkStatus(workItem, status) || !workItem?.dueDate) return false;
 
   return getDaysUntilDue(workItem.dueDate, referenceDate) < 0;
 }
 
+/**
+ * All assignee ids for a work item (multi list, or single assignedTo).
+ * @param {object|null|undefined} workItem
+ * @returns {string[]}
+ */
+export function getWorkItemAssigneeIds(workItem) {
+  const multi = (workItem?.assignedToMultiple || []).map(normalizeId).filter(Boolean);
+  if (multi.length > 0) return [...new Set(multi)];
+  const primary = normalizeId(workItem?.assignedTo);
+  return primary ? [primary] : [];
+}
+
+/**
+ * Whether the user is an assignee (single or multi).
+ *
+ * @param {object|null|undefined} workItem
+ * @param {string|object|null|undefined} userId
+ * @returns {boolean}
+ */
+export function isWorkItemAssignedToUser(workItem, userId) {
+  const uid = normalizeId(userId);
+  if (!workItem || !uid) return false;
+  return getWorkItemAssigneeIds(workItem).includes(uid);
+}
+
+const POSTING_ASSIGNEE_EXCLUDED_STATUSES = new Set(['Closed', 'Cancelled']);
+
+/**
+ * Posting handoff assignee — show in My Work from selection until closed/cancelled.
+ * @param {object|null|undefined} workItem
+ * @param {string|object|null|undefined} userId
+ * @returns {boolean}
+ */
+export function isPostingAssigneeForMyWork(workItem, userId) {
+  const uid = normalizeId(userId);
+  if (!workItem?.requiresPosting || !uid) return false;
+  if (normalizeId(workItem.postingAssignedTo) !== uid) return false;
+  return !POSTING_ASSIGNEE_EXCLUDED_STATUSES.has(workItem.status);
+}
+
+/**
+ * My Work page: work assigned to me, excluding items I created for others.
+ *
+ * @param {object|null|undefined} workItem
+ * @param {string|object|null|undefined} userId
+ * @returns {boolean}
+ */
+export function isWorkItemForMyWork(workItem, userId) {
+  const uid = normalizeId(userId);
+  if (!workItem || !uid) return false;
+
+  if (isPostingAssigneeForMyWork(workItem, userId)) {
+    return true;
+  }
+
+  const assigneeIds = getWorkItemAssigneeIds(workItem);
+  if (!assigneeIds.includes(uid)) return false;
+
+  const creatorId = normalizeId(workItem.createdBy);
+  if (creatorId === uid && assigneeIds.some((id) => id !== uid)) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Pending work the user is responsible for (assigned to them, not Done/Cancelled).
+ * Excludes drafts and items they only created for someone else.
+ *
+ * @param {object|null|undefined} workItem
+ * @param {string|object|null|undefined} userId
+ * @returns {boolean}
+ */
 export function isPendingWorkItem(workItem, userId) {
+  if (!workItem || workItem.isDeleted) return false;
+  if (workItem.visibility === 'draft') return false;
+  if (!isWorkItemForMyWork(workItem, userId)) return false;
+
   const status = getEffectiveStatusForUser(workItem, userId);
   return !TERMINAL_STATUSES.has(status);
 }

@@ -6,6 +6,7 @@
  */
 
 import PayrollPeriod from "../../models/payrollPeriodModel.js";
+import { isUat } from "../../config/appEnvironment.js";
 
 /** @typedef {"generate"|"export"|"markPaid"|"mutate"} PeriodGateOperation */
 
@@ -22,6 +23,7 @@ export const PERIOD_GATE_OPS = Object.freeze({
  * @returns {boolean}
  */
 export function isPayrollPeriodGatesEnabled() {
+  if (isUat()) return false;
   const raw = process.env.PAYROLL_PERIOD_GATES;
   if (raw !== undefined && String(raw).trim() !== "") {
     return String(raw).toLowerCase() === "true";

@@ -65,5 +65,30 @@ describe("leaveAccrual", () => {
         calculateEarnedLeaves(2026, accrualDate, july2026)
       ).toBe(14);
     });
+
+    it("uses IST month on UTC servers for mid-month joiners", () => {
+      const previousTz = process.env.TZ;
+      process.env.TZ = "UTC";
+      try {
+        // July 1 2026 IST == June 30 18:30 UTC
+        const join = new Date("2026-06-30T18:30:00.000Z");
+        const ref = new Date("2026-08-19T12:00:00.000Z");
+        expect(calculateEarnedLeaves(2026, join, ref)).toBe(4);
+      } finally {
+        process.env.TZ = previousTz;
+      }
+    });
+
+    it("accrues January on IST new year even when UTC is still December", () => {
+      const previousTz = process.env.TZ;
+      process.env.TZ = "UTC";
+      try {
+        const join = new Date("2025-12-31T18:30:00.000Z"); // Jan 1 2026 IST
+        const ref = new Date("2025-12-31T20:30:00.000Z"); // Jan 1 2026 02:00 IST
+        expect(calculateEarnedLeaves(2026, join, ref)).toBe(2);
+      } finally {
+        process.env.TZ = previousTz;
+      }
+    });
   });
 });

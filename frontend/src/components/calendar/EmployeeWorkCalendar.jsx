@@ -10,6 +10,7 @@ import AssignWorkModal from '../work/AssignWorkModal';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './EmployeeWorkCalendar.css';
 import './MultiEventCalendar.css';
+import { decodeHtmlEntities } from '../../utils/htmlDecoder';
 
 const localizer = momentLocalizer(moment);
 
@@ -547,7 +548,7 @@ const EmployeeWorkCalendar = ({ employeeId }) => {
                       <div className="d-flex justify-content-between align-items-start">
                         <div className="flex-grow-1">
                           <h6 className="mb-1">{work.title}</h6>
-                          <p className="text-muted small mb-2">{work.description}</p>
+                          <p className="text-muted small mb-2">{decodeHtmlEntities(work.description)}</p>
                           <div className="d-flex gap-2 mb-2">
                             <Badge bg={work.status === 'completed' ? 'success' : 
                                       work.status === 'in-progress' ? 'primary' : 

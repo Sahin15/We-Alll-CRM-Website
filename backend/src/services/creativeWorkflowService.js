@@ -1,0 +1,722 @@
+/**
+ * Creative workflow transitions for Graphic Design / Video Main Tasks.
+ * Slot side effects stay in WorkItem pre-save (Delivered → complete, Cancelled → release).
+ * @see docs/WORKFLOW/CREATIVE_STATE_MACHINE.md
+ */
+
+import WorkItem from "../models/workItemModel.js";
+import CreativeRevision from "../models/creativeRevisionModel.js";
+import { isCreativeWorkflow } from "../utils/creativeStatusMap.js";
+import {
+  START_WORK_STATUSES,
+  SUBMIT_REVIEW_STATUSES,
+  QA_STATUSES,
+  REWORK_STATUSES,
+  DELIVER_STATUSES,
+  HOLD_STATUSES,
+  RESUME_STATUSES,
+  assertStatusIn,
+  resolveReviewDecision,
+} from "../utils/creativeWorkflowRules.js";
+import { assertNoOtherActiveCreativeWork } from "../utils/creativeActiveWorkGuard.js";
+import {
+  startRevisionTimer,
+  pauseRevisionTimer,
+  openHoldSegment,
+  closeHoldSegment,
+  buildTimeSummary,
+  buildRevisionTimePayload,
+  formatClockTime,
+  formatDuration,
+} from "../utils/creativeTimeTracking.js";
+
+const REVIEW_DECISIONS = {
+  approve: "approve",
+  reject: "reject",
+  minor: "minor",
+  major: "major",
+  send_back: "send_back",
+};
+
+/**
+ * @param {string} workItemId
+ */
+async function loadCreativeWorkItem(workItemId) {
+  const workItem = await WorkItem.findById(workItemId);
+  if (!workItem || workItem.isDeleted) {
+    const err = new Error("Work item not found");
+    err.statusCode = 404;
+    throw err;
+  }
+  if (!isCreativeWorkflow(workItem) && workItem.workflowMode !== "creative") {
+    const err = new Error("This work item is not configured for creative workflow");
+    err.statusCode = 400;
+    throw err;
+  }
+  return workItem;
+}
+
+function pushSystemComment(workItem, actorId, text) {
+  workItem.comments = workItem.comments || [];
+  workItem.comments.push({
+    user: actorId,
+    text,
+    isSystemComment: true,
+  });
+}
+
+/**
+ * @param {string} workItemId
+ */
+async function loadAllRevisions(workItemId) {
+  return CreativeRevision.find({
+    workItem: workItemId,
+    softArchived: { $ne: true },
+  }).sort({ revisionNumber: 1 });
+}
+
+/**
+ * @param {object} workItem
+ * @param {object|null} revision
+ */
+async function attachTimeSummary(workItem, revision) {
+  const allRevisions = await loadAllRevisions(workItem._id);
+  return buildTimeSummary(workItem, revision, allRevisions);
+}
+
+/**
+ * Start work: Assigned/To Do → In Progress; create Revision 1 if none.
+ * Idempotent: does not re-post "Work started" when Revision 1 already exists.
+ */
+export async function startWork(workItemId, actorId) {
+  const workItem = await loadCreativeWorkItem(workItemId);
+  workItem.workflowMode = "creative";
+  workItem.modifiedBy = actorId;
+
+  await assertNoOtherActiveCreativeWork(workItem.assignedTo || actorId, workItemId);
+
+  let revision = await CreativeRevision.findOne({
+    workItem: workItemId,
+    isCurrentTip: true,
+    softArchived: { $ne: true },
+  });
+
+  const canStartFromStatus =
+    START_WORK_STATUSES.includes(workItem.status) ||
+    (workItem.status === "In Progress" && !revision);
+
+  if (!canStartFromStatus) {
+    const err = new Error(
+      `Start work is not allowed when status is "${workItem.status}". Expected: ${START_WORK_STATUSES.join(", ")} or In Progress without a revision`
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const createdRevision = !revision;
+  if (!revision) {
+    revision = await CreativeRevision.create({
+      workItem: workItemId,
+      revisionNumber: 1,
+      parentRevision: null,
+      createdBy: actorId,
+      assignedTo: workItem.assignedTo || actorId,
+      reason: "Initial draft",
+      status: "draft",
+      isCurrentTip: true,
+    });
+  }
+
+  const previousStatus = workItem.status;
+  workItem.status = "In Progress";
+
+  const now = new Date();
+  startRevisionTimer(revision, now);
+
+  // Only log once — when Revision 1 is actually created (avoids duplicate timeline rows)
+  if (createdRevision) {
+    pushSystemComment(
+      workItem,
+      actorId,
+      `Work started — Revision 1 ready at ${formatClockTime(now)}`
+    );
+  } else if (previousStatus === "In Progress") {
+    await revision.save();
+    await workItem.save();
+    const timeSummary = await attachTimeSummary(workItem, revision);
+    return { workItem, revision, timeSummary };
+  }
+
+  await revision.save();
+  await workItem.save();
+  const timeSummary = await attachTimeSummary(workItem, revision);
+  return { workItem, revision, timeSummary };
+}
+
+/**
+ * Submit current tip revision for review.
+ */
+export async function submitForReview(workItemId, actorId) {
+  const workItem = await loadCreativeWorkItem(workItemId);
+  assertStatusIn(workItem.status, SUBMIT_REVIEW_STATUSES, "Submit for review");
+
+  const revision = await CreativeRevision.findOne({
+    workItem: workItemId,
+    isCurrentTip: true,
+    softArchived: { $ne: true },
+  });
+
+  if (!revision) {
+    const err = new Error("No current revision to submit");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (revision.status !== "draft") {
+    const err = new Error("Only draft revisions can be submitted for review");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const now = new Date();
+  pauseRevisionTimer(revision, "submit", now);
+  revision.status = "submitted";
+  revision.submittedAt = now;
+  revision.submittedBy = actorId;
+  await revision.save();
+
+  workItem.workflowMode = "creative";
+  workItem.status = "Submitted for Review";
+  workItem.modifiedBy = actorId;
+  const elapsed = formatDuration(revision.timeTracking?.accumulatedActiveSeconds || 0);
+  pushSystemComment(
+    workItem,
+    actorId,
+    `Revision ${revision.revisionNumber} submitted for review at ${formatClockTime(now)} (${elapsed})`
+  );
+  await workItem.save();
+
+  const timeSummary = await attachTimeSummary(workItem, revision);
+  return { workItem, revision, timeSummary };
+}
+
+/**
+ * Record a review decision on the current tip.
+ */
+export async function recordReviewDecision(
+  workItemId,
+  actorId,
+  { decision, notes = "", qaRequired = false } = {}
+) {
+  const resolvedKey = resolveReviewDecision(decision);
+  const resolved = resolvedKey ? REVIEW_DECISIONS[resolvedKey] : null;
+  if (!resolved) {
+    const err = new Error("Invalid review decision");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (
+    (resolved === REVIEW_DECISIONS.reject ||
+      resolved === REVIEW_DECISIONS.major ||
+      resolved === REVIEW_DECISIONS.minor ||
+      resolved === REVIEW_DECISIONS.send_back) &&
+    !String(notes || "").trim()
+  ) {
+    const err = new Error("Review / QA notes are required when requesting changes");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const workItem = await loadCreativeWorkItem(workItemId);
+  if (workItem.status !== "Submitted for Review") {
+    const err = new Error("Work item is not submitted for review");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const revision = await CreativeRevision.findOne({
+    workItem: workItemId,
+    isCurrentTip: true,
+  });
+  if (!revision) {
+    const err = new Error("No current revision found");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  revision.reviewedAt = new Date();
+  revision.reviewedBy = actorId;
+  revision.reviewNotes = notes || "";
+  revision.feedback = notes || revision.feedback;
+  revision.lastDecision = resolved;
+
+  if (resolved === REVIEW_DECISIONS.approve) {
+    revision.status = "approved";
+    revision.approvalNotes = notes || "";
+    revision.approvedAt = new Date();
+    revision.approvedBy = actorId;
+    revision.decisionSeverity = "none";
+    // Mandatory QA for all creative tasks — approve always routes to QA Review
+    workItem.status = "QA Review";
+  } else if (resolved === REVIEW_DECISIONS.reject) {
+    revision.status = "rejected";
+    revision.decisionSeverity = "reject";
+    workItem.status = "Changes Requested";
+  } else {
+    revision.status = "changes_requested";
+    revision.decisionSeverity =
+      resolved === REVIEW_DECISIONS.minor ? "minor" : "major";
+    workItem.status = "Changes Requested";
+  }
+
+  await revision.save();
+  workItem.workflowMode = "creative";
+  workItem.modifiedBy = actorId;
+
+  const severityLabel =
+    revision.decisionSeverity && revision.decisionSeverity !== "none"
+      ? ` (${revision.decisionSeverity})`
+      : "";
+  const notesSuffix = notes?.trim() ? ` — ${String(notes).trim().slice(0, 240)}` : "";
+  pushSystemComment(
+    workItem,
+    actorId,
+    resolved === REVIEW_DECISIONS.approve
+      ? `Approved Revision ${revision.revisionNumber}${notesSuffix}`
+      : `Requested changes${severityLabel} on Revision ${revision.revisionNumber}${notesSuffix}`
+  );
+  await workItem.save();
+
+  return { workItem, revision };
+}
+
+/**
+ * Start rework: create next revision with parent link. Does not touch slots.
+ */
+export async function startRework(workItemId, actorId) {
+  const workItem = await loadCreativeWorkItem(workItemId);
+  assertStatusIn(workItem.status, REWORK_STATUSES, "Start rework");
+
+  await assertNoOtherActiveCreativeWork(workItem.assignedTo || actorId, workItemId);
+
+  const current = await CreativeRevision.findOne({
+    workItem: workItemId,
+    isCurrentTip: true,
+  });
+  if (!current) {
+    const err = new Error("No current revision found");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  current.isCurrentTip = false;
+  if (current.status !== "rejected") {
+    current.status = "superseded";
+  }
+  await current.save();
+
+  const nextNumber = current.revisionNumber + 1;
+  const reason =
+    current.lastDecision === "reject"
+      ? `Reject response — ${current.reviewNotes || "see review notes"}`
+      : `Changes requested (${current.decisionSeverity}) — ${current.reviewNotes || ""}`;
+
+  const now = new Date();
+  const revision = await CreativeRevision.create({
+    workItem: workItemId,
+    revisionNumber: nextNumber,
+    parentRevision: current._id,
+    createdBy: actorId,
+    assignedTo: workItem.assignedTo || actorId,
+    reason: reason.slice(0, 1000),
+    feedback: current.reviewNotes || "",
+    status: "draft",
+    isCurrentTip: true,
+    attachments: [],
+    timeTracking: {
+      workStartedAt: now,
+      activeTimerStartedAt: now,
+      accumulatedActiveSeconds: 0,
+      holdSegments: [],
+    },
+  });
+
+  workItem.status = "Rework In Progress";
+  workItem.workflowMode = "creative";
+  workItem.modifiedBy = actorId;
+  pushSystemComment(
+    workItem,
+    actorId,
+    `Revision ${nextNumber} rework started at ${formatClockTime(now)} (based on Revision ${current.revisionNumber})`
+  );
+  await workItem.save();
+
+  const timeSummary = await attachTimeSummary(workItem, revision);
+  return { workItem, revision, timeSummary };
+}
+
+/**
+ * Hold active work — pauses timer and frees assignee for another task.
+ */
+export async function holdWork(workItemId, actorId) {
+  const workItem = await loadCreativeWorkItem(workItemId);
+  assertStatusIn(workItem.status, HOLD_STATUSES, "Hold work");
+
+  const revision = await CreativeRevision.findOne({
+    workItem: workItemId,
+    isCurrentTip: true,
+    softArchived: { $ne: true },
+  });
+  if (!revision) {
+    const err = new Error("No current revision found");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const now = new Date();
+  pauseRevisionTimer(revision, "hold", now);
+  openHoldSegment(revision, now);
+  await revision.save();
+
+  workItem.holdPreviousStatus = workItem.status;
+  workItem.status = "On Hold";
+  workItem.heldAt = now;
+  workItem.holdResumeLog = workItem.holdResumeLog || [];
+  workItem.holdResumeLog.push({
+    heldAt: now,
+    resumedAt: null,
+    heldBy: actorId,
+  });
+  workItem.workflowMode = "creative";
+  workItem.modifiedBy = actorId;
+  pushSystemComment(workItem, actorId, `Work held at ${formatClockTime(now)}`);
+  await workItem.save();
+
+  const timeSummary = await attachTimeSummary(workItem, revision);
+  return { workItem, revision, timeSummary };
+}
+
+/**
+ * Resume held work — blocked if another task is actively running.
+ */
+export async function resumeWork(workItemId, actorId) {
+  const workItem = await loadCreativeWorkItem(workItemId);
+  assertStatusIn(workItem.status, RESUME_STATUSES, "Resume work");
+
+  await assertNoOtherActiveCreativeWork(workItem.assignedTo || actorId, workItemId);
+
+  const revision = await CreativeRevision.findOne({
+    workItem: workItemId,
+    isCurrentTip: true,
+    softArchived: { $ne: true },
+  });
+  if (!revision) {
+    const err = new Error("No current revision found");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const restoreStatus = workItem.holdPreviousStatus || "In Progress";
+  const now = new Date();
+  closeHoldSegment(revision, now);
+  startRevisionTimer(revision, now);
+  await revision.save();
+
+  if (Array.isArray(workItem.holdResumeLog) && workItem.holdResumeLog.length > 0) {
+    const last = workItem.holdResumeLog[workItem.holdResumeLog.length - 1];
+    if (last && !last.resumedAt) {
+      last.resumedAt = now;
+    }
+  }
+
+  workItem.status = restoreStatus;
+  workItem.holdPreviousStatus = null;
+  workItem.heldAt = null;
+  workItem.workflowMode = "creative";
+  workItem.modifiedBy = actorId;
+  pushSystemComment(workItem, actorId, `Work resumed at ${formatClockTime(now)}`);
+  await workItem.save();
+
+  const timeSummary = await attachTimeSummary(workItem, revision);
+  return { workItem, revision, timeSummary };
+}
+
+/**
+ * Current actively running creative task for assignee (for My Work guard).
+ * @param {string} assigneeId
+ */
+export async function getMyActiveCreativeWork(assigneeId) {
+  const { findActiveCreativeWorkForAssignee } = await import(
+    "../utils/creativeActiveWorkGuard.js"
+  );
+  return findActiveCreativeWorkForAssignee(assigneeId);
+}
+
+/**
+ * QA pass/fail from QA Review.
+ */
+export async function recordQaDecision(workItemId, actorId, { pass, notes = "" } = {}) {
+  const workItem = await loadCreativeWorkItem(workItemId);
+  assertStatusIn(workItem.status, QA_STATUSES, "QA decision");
+
+  if (!pass && !String(notes || "").trim()) {
+    const err = new Error("Notes are required when QA fails");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  workItem.modifiedBy = actorId;
+  if (pass) {
+    workItem.status = "Approved";
+    pushSystemComment(workItem, actorId, "QA passed");
+  } else {
+    workItem.status = "Changes Requested";
+    const tip = await CreativeRevision.findOne({
+      workItem: workItemId,
+      isCurrentTip: true,
+    });
+    if (tip) {
+      tip.status = "changes_requested";
+      tip.reviewNotes = notes;
+      tip.feedback = notes;
+      tip.lastDecision = "major";
+      tip.decisionSeverity = "major";
+      tip.reviewedAt = new Date();
+      tip.reviewedBy = actorId;
+      await tip.save();
+    }
+    pushSystemComment(workItem, actorId, `QA failed: ${notes}`);
+  }
+
+  await workItem.save();
+  return { workItem };
+}
+
+/**
+ * Mark delivered — triggers slot complete via WorkItem pre-save.
+ * If requiresPosting, move to Awaiting Posting after Delivered save.
+ */
+export async function markDelivered(workItemId, actorId) {
+  const workItem = await loadCreativeWorkItem(workItemId);
+  assertStatusIn(workItem.status, DELIVER_STATUSES, "Mark delivered");
+
+  if (workItem.requiresPosting && (!workItem.postingAssignedTo || !workItem.postingDate)) {
+    const err = new Error(
+      "Posting handoff must include a posting assignee and posting date before delivery"
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const tip = await CreativeRevision.findOne({
+    workItem: workItemId,
+    isCurrentTip: true,
+  });
+  if (tip && tip.status === "approved") {
+    tip.isDeliveredRevision = true;
+    tip.status = "delivered";
+    await tip.save();
+  }
+
+  workItem.status = "Delivered";
+  workItem.workflowMode = "creative";
+  workItem.modifiedBy = actorId;
+  pushSystemComment(workItem, actorId, "Marked Delivered");
+  await workItem.save();
+
+  if (workItem.requiresPosting && workItem.postingAssignedTo && workItem.postingDate) {
+    workItem.status = "Awaiting Posting";
+    workItem.postingStatus =
+      workItem.postingStatus === "not_required" ? "pending" : workItem.postingStatus;
+    pushSystemComment(workItem, actorId, "Awaiting Posting department");
+    await workItem.save();
+
+    try {
+      const NotificationService = (await import("./notificationService.js")).default;
+      await NotificationService.sendToUser(
+        workItem.postingAssignedTo,
+        "Creative work ready for posting",
+        `Task "${workItem.title}" is awaiting your live post links.`,
+        {
+          type: "work_assignment",
+          relatedEntity: "workItem",
+          relatedEntityId: workItem._id,
+        }
+      );
+    } catch (notifyErr) {
+      console.error("Failed to notify posting assignee:", notifyErr.message);
+    }
+  }
+
+  return { workItem, revision: tip };
+}
+
+/**
+ * Close task — from Delivered (no posting) or Posted (posting required).
+ */
+export async function closeTask(workItemId, actorId) {
+  const workItem = await loadCreativeWorkItem(workItemId);
+
+  if (workItem.requiresPosting) {
+    if (workItem.status !== "Posted") {
+      const err = new Error("Close requires Posted status when posting is required");
+      err.statusCode = 400;
+      throw err;
+    }
+  } else if (workItem.status !== "Delivered" && workItem.status !== "Posted") {
+    const err = new Error("Close requires Delivered status when posting is not required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  workItem.status = "Closed";
+  workItem.modifiedBy = actorId;
+  pushSystemComment(workItem, actorId, "Task marked done");
+  await workItem.save();
+  return { workItem };
+}
+
+/**
+ * @param {string} value
+ */
+function isLikelyUrl(value) {
+  return /^https?:\/\//i.test(String(value || "").trim());
+}
+
+/**
+ * @param {{ name?: string, url?: string }} fileMeta
+ */
+function normalizeAttachmentMeta(fileMeta) {
+  let name = String(fileMeta?.name || "").trim();
+  let url = String(fileMeta?.url || "").trim();
+  if (isLikelyUrl(name) && !isLikelyUrl(url)) {
+    [name, url] = [url, name];
+  }
+  if (!isLikelyUrl(url)) {
+    const err = new Error("Attachment URL must start with http:// or https://");
+    err.statusCode = 400;
+    throw err;
+  }
+  return {
+    ...fileMeta,
+    name: name || url,
+    url,
+  };
+}
+
+/**
+ * Add attachment metadata to current draft tip.
+ */
+export async function addRevisionAttachment(workItemId, actorId, fileMeta) {
+  const revision = await CreativeRevision.findOne({
+    workItem: workItemId,
+    isCurrentTip: true,
+  });
+  if (!revision) {
+    const err = new Error("No current revision found");
+    err.statusCode = 400;
+    throw err;
+  }
+  if (revision.status !== "draft") {
+    const err = new Error("Files can only be added to a draft revision");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const normalized = normalizeAttachmentMeta(fileMeta);
+
+  revision.attachments.push({
+    name: normalized.name,
+    url: normalized.url,
+    type: fileMeta.type || "other",
+    size: fileMeta.size,
+    storageKey: fileMeta.storageKey,
+    category: fileMeta.category || "other",
+    notes: fileMeta.notes || "",
+    uploadedBy: actorId,
+    uploadedAt: new Date(),
+  });
+  await revision.save();
+  return { revision };
+}
+
+/**
+ * List revisions for a work item (newest first).
+ */
+export async function listRevisions(workItemId) {
+  const revisions = await CreativeRevision.find({
+    workItem: workItemId,
+    softArchived: { $ne: true },
+  })
+    .sort({ revisionNumber: -1 })
+    .populate("createdBy", "name email")
+    .populate("assignedTo", "name email")
+    .populate("reviewedBy", "name email")
+    .populate("submittedBy", "name email")
+    .populate("approvedBy", "name email")
+    .populate("parentRevision", "revisionNumber")
+    .lean();
+
+  const now = new Date();
+  return revisions.map((rev) => ({
+    ...rev,
+    timeSummary: buildRevisionTimePayload(rev, now),
+  }));
+}
+
+const CHANGE_REQUEST_STATUSES = ["changes_requested", "rejected"];
+const CHANGE_REQUEST_SEVERITIES = ["minor", "major", "reject"];
+const CHANGE_REQUEST_DECISIONS = ["minor", "major", "reject", "send_back"];
+
+/**
+ * Count creative change requests per work item (minor/major/reject reviews).
+ * @param {string[]} workItemIds
+ * @returns {Promise<{ byWorkItem: Record<string, number>, total: number }>}
+ */
+export async function getChangeRequestCountsByWorkItems(workItemIds = []) {
+  const ids = [...new Set((workItemIds || []).map((id) => String(id)).filter(Boolean))];
+  const byWorkItem = {};
+  ids.forEach((id) => {
+    byWorkItem[id] = 0;
+  });
+
+  if (ids.length === 0) {
+    return { byWorkItem, total: 0 };
+  }
+
+  const revisions = await CreativeRevision.find({
+    workItem: { $in: ids },
+    softArchived: { $ne: true },
+    $or: [
+      { status: { $in: CHANGE_REQUEST_STATUSES } },
+      { decisionSeverity: { $in: CHANGE_REQUEST_SEVERITIES } },
+      { lastDecision: { $in: CHANGE_REQUEST_DECISIONS } },
+    ],
+  }).select("workItem");
+
+  revisions.forEach((rev) => {
+    const key = rev.workItem?.toString();
+    if (!key) return;
+    byWorkItem[key] = (byWorkItem[key] || 0) + 1;
+  });
+
+  const total = Object.values(byWorkItem).reduce((sum, n) => sum + n, 0);
+  return { byWorkItem, total };
+}
+
+export default {
+  startWork,
+  submitForReview,
+  recordReviewDecision,
+  startRework,
+  holdWork,
+  resumeWork,
+  getMyActiveCreativeWork,
+  recordQaDecision,
+  markDelivered,
+  closeTask,
+  addRevisionAttachment,
+  listRevisions,
+  getChangeRequestCountsByWorkItems,
+};

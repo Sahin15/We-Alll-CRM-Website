@@ -91,13 +91,12 @@ const HoDSection = ({ user }) => {
   return (
     <>
       {/* HoD Section Header */}
-      <Card className="mb-4 border-0 shadow-sm" style={{ borderLeft: '4px solid #667eea' }}>
+      <Card className="dashboard-section-card mb-4 border-0 shadow-sm" style={{ borderLeft: '4px solid #667eea' }}>
         <Card.Header 
-          className="bg-gradient d-flex justify-content-between align-items-center cursor-pointer"
+          className="dashboard-section-header bg-gradient d-flex justify-content-between align-items-center"
           onClick={() => setExpanded(!expanded)}
           style={{ 
             background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
-            cursor: 'pointer'
           }}
         >
           <div>
