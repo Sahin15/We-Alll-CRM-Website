@@ -221,7 +221,6 @@ const DepartmentList = () => {
       setShowAnalyticsModal(true); // Show modal immediately with loading state
       const response = await departmentApi.getDepartmentAnalytics(id);
       // The API returns response.data from axios, which should contain the analytics
-      console.log('Analytics response:', response);
       setSelectedDeptAnalytics(response.data || response);
     } catch (error) {
       console.error("Failed to fetch department analytics:", error);

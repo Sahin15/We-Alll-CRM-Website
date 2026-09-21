@@ -580,7 +580,6 @@ const Navbar = ({ toggleSidebar }) => {
             id="user-dropdown"
             align="end"
             className="user-dropdown"
-            popperConfig={{ strategy: "fixed" }}
           >
             <div
               className="user-dropdown-header"
