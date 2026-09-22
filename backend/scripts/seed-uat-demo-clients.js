@@ -33,7 +33,7 @@ const DEMO_CLIENTS = [
     status: "Active",
     isVip: false,
     onboardingStatus: "completed",
-    departments: ["Social Media", "Graphics"],
+    departments: ["Social Media", "Graphic"],
     projectStatus: "Active",
     projectProgress: 40,
   },
@@ -54,7 +54,7 @@ const DEMO_CLIENTS = [
     isVip: true,
     vipLevel: "gold",
     onboardingStatus: "completed",
-    departments: ["Digital Marketing", "Graphics", "Video Production", "Posting"],
+    departments: ["Digital Marketing", "Graphic", "Video Production", "Posting"],
     projectStatus: "Active",
     projectProgress: 55,
   },
@@ -113,7 +113,7 @@ const DEMO_CLIENTS = [
     billingCycle: "monthly",
     status: "Active",
     onboardingStatus: "completed",
-    departments: ["Digital Marketing", "Graphics"],
+    departments: ["Digital Marketing", "Graphic"],
     projectStatus: "Active",
     projectProgress: 25,
   },
@@ -134,7 +134,7 @@ const DEMO_CLIENTS = [
     isVip: true,
     vipLevel: "diamond",
     onboardingStatus: "completed",
-    departments: ["Video Production", "Graphics", "Content Writing", "Posting"],
+    departments: ["Video Production", "Graphic", "Content Writing", "Posting"],
     projectStatus: "Active",
     projectProgress: 65,
   },
@@ -324,7 +324,7 @@ async function seedUatDemoClients() {
     const primaryDepartmentId =
       departmentIds.find((id) => {
         const dept = departments.find((d) => String(d._id) === String(id));
-        return dept && ["Graphics", "Video Production", "Social Media", "Development"].includes(dept.name);
+        return dept && ["Graphic", "Video Production", "Social Media", "Development"].includes(dept.name);
       }) || departmentIds[0] || null;
 
     const client = await upsertClient(

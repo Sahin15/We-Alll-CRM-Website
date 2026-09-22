@@ -8,9 +8,10 @@ import userApi from '../../api/userApi';
 import departmentApi from '../../api/departmentApi';
 import TeamMemberWorkloadInfo from '../workload/TeamMemberWorkloadInfo';
 import {
+  assigneeQualifiesForCreativePosting,
   getCreativeWorkflowTypeForDepartment,
-  isCreativeDepartmentName,
   isPostingDepartmentName,
+  resolvePrimaryProjectCreativeDepartment,
 } from '../../constants/departmentNames';
 
 /**
@@ -76,6 +77,8 @@ const buildTeamMembersFromProject = (project) => {
       email: userObj.email || existing?.email,
       role: userObj.role || existing?.role,
       status: userObj.status || existing?.status,
+      department: userObj.department || existing?.department,
+      designation: userObj.designation || existing?.designation,
     });
   };
 
@@ -181,11 +184,14 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
   const findUserById = (userId) => {
     if (!userId) return null;
     const id = String(userId);
-    return (
-      users.find((u) => String(u._id) === id) ||
-      allUsers.find((u) => String(u._id) === id) ||
-      null
-    );
+    const fromTeam = users.find((u) => String(u._id) === id);
+    const fromDirectory = allUsers.find((u) => String(u._id) === id);
+    const user = fromTeam || fromDirectory || null;
+    if (!user) return null;
+    if (!user.department?.name && fromDirectory?.department) {
+      return { ...user, department: fromDirectory.department };
+    }
+    return user;
   };
 
   const selectedAssigneeIds = useMemo(() => {
@@ -195,13 +201,15 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
     return formData.assignedTo ? [formData.assignedTo] : [];
   }, [formData.assignmentMode, formData.assignedTo, formData.assignedToMultiple]);
 
-  // Posting handoff only when assignee is Graphic or Video department
+  // Posting handoff when assignee is Graphics/Video (HR dept or project role e.g. graphic-designer)
   const assigneeSupportsCreative = useMemo(() => {
-    return selectedAssigneeIds.some((id) => {
-      const user = findUserById(id);
-      return isCreativeDepartmentName(user?.department?.name);
-    });
-  }, [selectedAssigneeIds, users, allUsers]);
+    return selectedAssigneeIds.some((id) =>
+      assigneeQualifiesForCreativePosting({
+        user: findUserById(id),
+        project: selectedProject,
+      })
+    );
+  }, [selectedAssigneeIds, users, allUsers, selectedProject]);
 
   const isCreativeAssignment = assigneeSupportsCreative;
 
@@ -631,10 +639,7 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
         if (isCreativeAssignment || formData.requiresPosting) {
           workItemData.workflowMode = 'creative';
           const deptNameSources = [
-            selectedProject?.department?.name,
-            ...(selectedProject?.departments || []).map((dept) =>
-              typeof dept === 'object' ? dept?.name : null
-            ),
+            resolvePrimaryProjectCreativeDepartment(selectedProject),
             ...selectedAssigneeIds.map((id) => findUserById(id)?.department?.name),
           ].filter(Boolean);
           const workflowTypes = deptNameSources

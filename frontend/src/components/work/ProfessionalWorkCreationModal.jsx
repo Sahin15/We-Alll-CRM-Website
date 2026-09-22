@@ -33,7 +33,7 @@ import projectApi from '../../api/projectApi';
 import userApi from '../../api/userApi';
 import {
   getCreativeWorkflowTypeForDepartment,
-  isCreativeDepartmentName,
+  assigneeQualifiesForCreativePosting,
   isPostingDepartmentName,
 } from '../../constants/departmentNames';
 
@@ -143,8 +143,11 @@ const ProfessionalWorkCreationModal = ({
   const assigneeSupportsCreative = useMemo(() => {
     if (!formData.assignedTo) return false;
     const user = users.find((u) => String(u._id) === String(formData.assignedTo));
-    return isCreativeDepartmentName(user?.department?.name);
-  }, [formData.assignedTo, users]);
+    return assigneeQualifiesForCreativePosting({
+      user,
+      project: selectedProject,
+    });
+  }, [formData.assignedTo, users, selectedProject]);
 
   const showPostingHandoff = assigneeSupportsCreative;
 

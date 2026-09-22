@@ -331,7 +331,7 @@ export const getWorkflowByDepartment = (departmentName) => {
     "Social Media": "social-media",
     "Digital Marketing": "social-media",
     "Development": "development",
-    "Graphics": "design",
+    "Graphic": "design",
     "Video Production": "video-production",
     "Content Writing": "content-writing",
     "Posting": "posting",
