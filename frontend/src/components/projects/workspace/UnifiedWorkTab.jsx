@@ -10,6 +10,7 @@ import workCalendarApi from '../../../api/workCalendarApi';
 import { formatDate } from '../../../utils/helpers';
 import ViewToggle from './ViewToggle';
 import SlotGroupHeader from './SlotGroupHeader';
+import AssignWorkModal from '../../work/AssignWorkModal';
 import WorkItemDetailsModal from '../../workitems/WorkItemDetailsModal';
 import EditWorkItemModal from '../../workitems/EditWorkItemModal';
 
@@ -33,6 +34,8 @@ const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
   const [showAddSlotModal, setShowAddSlotModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [workItemToEdit, setWorkItemToEdit] = useState(null);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState(null);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -296,6 +299,22 @@ const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
     user?._id === project.projectHead?._id ||
     project.assignedUsers?.some(u => (u._id || u) === user?._id);
 
+  const canManageSlots =
+    checkPageAccess(canAccess, PAGE_ACCESS.projectManage) ||
+    user?._id === project.projectHead?._id;
+
+  const handleOpenAssignModal = (slot) => {
+    setSelectedSlot(slot);
+    setShowAssignModal(true);
+  };
+
+  const handleAssignWorkSuccess = async () => {
+    toast.success('Work assigned to slot successfully!');
+    await loadData();
+    if (onRefresh) onRefresh();
+    setShowAssignModal(false);
+  };
+
   const canDeleteWork = checkPageAccess(canAccess, PAGE_ACCESS.workManage);
 
   // Helper function to check if user can edit a work item
@@ -392,6 +411,8 @@ const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
                         workItems={slotWorkItems}
                         isExpanded={expandedSlots[slot._id]}
                         onToggle={() => toggleSlotExpansion(slot._id)}
+                        canAssignWork={canManageSlots}
+                        onAssignWork={handleOpenAssignModal}
                       />
                       <Collapse in={expandedSlots[slot._id]} timeout={300}>
                         <div>
@@ -1203,6 +1224,24 @@ const UnifiedWorkTab = ({ project, onRefresh, refreshKey }) => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Assign Work Modal */}
+      <AssignWorkModal
+        show={showAssignModal}
+        onHide={() => {
+          setShowAssignModal(false);
+          setSelectedSlot(null);
+        }}
+        onSuccess={handleAssignWorkSuccess}
+        defaultProject={project}
+        slotInfo={selectedSlot ? {
+          slotId: selectedSlot._id,
+          slotNumber: selectedSlot.slotNumber,
+          slotTitle: selectedSlot.title,
+          slotIdentifier: selectedSlot.slotIdentifier,
+          periodIdentifier: selectedSlot.period?.periodIdentifier
+        } : null}
+      />
 
       {/* Work Item Details Modal */}
       {selectedWorkItem && (
