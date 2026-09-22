@@ -4,7 +4,7 @@
  * Usage (from backend/):
  *   npm run seed:departments
  *
- * Requires MONGO_URI (local .env → crm-uat; UAT server → crm-uat).
+ * Requires MONGO_URI (.env → UAT; npm run seed:departments:production → .env.production).
  */
 import mongoose from "mongoose";
 import dotenv from "dotenv";
@@ -15,11 +15,16 @@ import {
   resolveCanonicalDepartmentName,
 } from "../src/constants/departmentNames.js";
 
-dotenv.config();
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const envFile = process.env.SEED_DOTENV_PATH || ".env";
+dotenv.config({ path: path.resolve(__dirname, "..", envFile) });
 
 const DEPARTMENT_DESCRIPTIONS = {
   "Content Writing": "Copy, blogs, and written content production",
-  Graphics: "Graphic design and visual creative assets",
+  Graphic: "Graphic design and visual creative assets",
   Development: "Software development and engineering",
   "Digital Marketing": "Digital campaigns, ads, and online growth",
   Finance: "Finance, accounts, and payroll administration",

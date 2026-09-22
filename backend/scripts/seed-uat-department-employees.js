@@ -26,7 +26,7 @@ const DEMO_DOMAIN = "@demo.wealll.local";
 /** @type {Record<string, { description: string }>} */
 const DEPARTMENT_DESCRIPTIONS = {
   "Content Writing": { description: "Copy, blogs, and written content production" },
-  Graphics: { description: "Graphic design and visual creative assets" },
+  Graphic: { description: "Graphic design and visual creative assets" },
   Development: { description: "Software development and engineering" },
   "Digital Marketing": { description: "Digital campaigns, ads, and online growth" },
   Finance: { description: "Finance, accounts, and payroll administration" },
@@ -67,7 +67,7 @@ const DEPARTMENT_USER_SPECS = [
     ],
   },
   {
-    department: "Graphics",
+    department: "Graphic",
     users: [
       {
         email: `uat-graphics-hod${DEMO_DOMAIN}`,

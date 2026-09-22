@@ -9,7 +9,7 @@ const SlotList = ({ slots = [], onCreateSlot, onViewSlot, onEditSlot, onDeleteSl
   const isDigitalMarketing =
     canonicalDepartment === "Digital Marketing" || canonicalDepartment === "Social Media";
   const isDevelopment = canonicalDepartment === "Development";
-  const isDesign = canonicalDepartment === "Graphics";
+  const isDesign = canonicalDepartment === "Graphic";
   const isVideo = canonicalDepartment === "Video Production";
   
   // Styles to prevent flickering

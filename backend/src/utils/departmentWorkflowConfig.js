@@ -301,7 +301,7 @@ export const getAdvancedWorkflowByDepartment = (departmentName) => {
     "Digital Marketing": "social-media-advanced",
     "Content Writing": "social-media-advanced",
     "Development": "development-advanced",
-    "Graphics": "design-advanced",
+    "Graphic": "design-advanced",
     "Video Production": "design-advanced",
     "Posting": "social-media-advanced",
   };

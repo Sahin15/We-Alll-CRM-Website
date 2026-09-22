@@ -18,6 +18,7 @@
     "seed": "node src/seed/seedRoles.js",
     "seed:uat": "node scripts/seed-uat.js",
     "seed:departments": "node scripts/seed-canonical-departments.js",
+    "seed:departments:production": "cross-env SEED_DOTENV_PATH=.env.production node scripts/seed-canonical-departments.js",
     "seed:uat:employees": "node scripts/seed-uat-department-employees.js",
     "seed:uat:clients": "node scripts/seed-uat-demo-clients.js",
     "seed:policies": "node src/seeders/policySeed.js",

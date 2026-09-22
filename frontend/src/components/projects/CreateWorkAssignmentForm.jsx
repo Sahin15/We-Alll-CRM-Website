@@ -3,14 +3,14 @@ import { Modal, Form, Button, Row, Col, Badge, Alert, Spinner } from "react-boot
 import { FaSave, FaTimes, FaPlus, FaTrash } from "react-icons/fa";
 import { WorkloadCard, WorkloadWarning } from "../workload";
 import { getBatchWorkload } from "../../api/workloadApi";
-import { resolveCanonicalDepartmentName } from "../../constants/departmentNames";
+import { resolvePrimaryProjectCreativeDepartment } from "../../constants/departmentNames";
 
 // Work types by canonical department name
 const defaultWorkTypesByCategory = {
   "Digital Marketing": ["Social Media Post", "Campaign", "Ad Creative", "Content Writing"],
   "Social Media": ["Social Media Post", "Campaign", "Ad Creative", "Content Writing"],
   "Development": ["Feature Development", "Bug Fix", "Code Review", "Testing", "Deployment"],
-  "Graphics": ["Logo Design", "Banner Design", "Brochure Design", "UI/UX Design", "Illustration"],
+  "Graphic": ["Logo Design", "Banner Design", "Brochure Design", "UI/UX Design", "Illustration"],
   "Video Production": ["Video Editing", "Animation", "Motion Graphics", "Filming", "Post Production"],
   "Content Writing": ["Blog Post", "Article", "Copywriting", "Script", "Newsletter"],
   "General": ["Research", "Documentation", "Meeting", "Training", "Other"],
@@ -30,7 +30,7 @@ const departmentFieldsConfig = {
     showSocialMediaFields: false,
     customFields: ["repository", "branch", "pullRequestUrl", "estimatedHours", "techStack"],
   },
-  "Graphics": {
+  "Graphic": {
     showSocialMediaFields: false,
     customFields: ["designType", "dimensions", "fileFormat", "colorScheme", "revisions"],
   },
@@ -50,7 +50,7 @@ const departmentFieldsConfig = {
 
 /** @param {object|null|undefined} project */
 const getProjectCanonicalDepartment = (project) =>
-  resolveCanonicalDepartmentName(project?.department?.name);
+  resolvePrimaryProjectCreativeDepartment(project);
 
 // Flatten all work types
 const allWorkTypes = Object.values(defaultWorkTypesByCategory).flat();
@@ -343,7 +343,7 @@ const CreateWorkAssignmentForm = ({ show, onHide, onSubmit, project, employees =
     }
     
     // Add design fields if applicable
-    if (getProjectCanonicalDepartment(project) === "Graphics") {
+    if (getProjectCanonicalDepartment(project) === "Graphic") {
       cleanedData.metadata.designType = formData.designType;
       cleanedData.metadata.dimensions = formData.dimensions;
       cleanedData.metadata.fileFormat = formData.fileFormat;
@@ -755,7 +755,7 @@ const CreateWorkAssignmentForm = ({ show, onHide, onSubmit, project, employees =
             )}
 
             {/* Design Specific Fields */}
-            {getProjectCanonicalDepartment(project) === "Graphics" && (
+            {getProjectCanonicalDepartment(project) === "Graphic" && (
               <>
                 <Col md={12}>
                   <hr />
