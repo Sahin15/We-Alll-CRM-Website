@@ -61,6 +61,7 @@ const NOTIFICATION_ICONS = {
   // Other
   work_log_reminder: '📝',
   announcement: '📢',
+  growth_track: '📈',
   general: '📬',
 };
 
@@ -110,6 +111,7 @@ const NOTIFICATION_COLORS = {
   attendance_auto_clockout: 'warning',
   work_log_reminder: 'info',
   announcement: 'warning',
+  growth_track: 'warning',
   general: 'secondary',
 };
 

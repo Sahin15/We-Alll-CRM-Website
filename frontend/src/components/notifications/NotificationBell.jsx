@@ -96,6 +96,7 @@ const NotificationBell = () => {
       // Other
       'work_log_reminder': '📝',
       'announcement': '📢',
+      'growth_track': '📈',
       'general': '📬',
       'feedback_submitted': '💬',
     };

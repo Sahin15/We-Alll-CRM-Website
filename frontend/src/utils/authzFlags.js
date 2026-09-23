@@ -14,6 +14,7 @@ const AUTHZ_V2_MODULES = [
   'wfh',
   'team',
   'hiring',
+  'growth_track',
   'projects',
   'work',
   'crm',

@@ -171,6 +171,7 @@ const {
   EmployeeDashboard,
   ClientDashboard,
   HoDDashboard,
+  GrowthTrack,
 } = Pages;
 
 /** Matches backend WORK_ITEM_SELF_ROLES for work.item.* self-service routes. */
@@ -1074,6 +1075,22 @@ const AppRoutes = () => {
             <MyProfile />
           </PermissionRoute>
         } />
+        
+        {/* Growth Track */}
+        <Route
+          path="/growth-track"
+          element={
+            <PermissionRoute
+              permission="growth_track.view"
+              module="growth_track"
+              fallbackRoles={["admin", "superadmin", "hr", "manager", "hod", "employee"]}
+            >
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <GrowthTrack />
+              </Suspense>
+            </PermissionRoute>
+          }
+        />
         {/* Removed old routes: /content-calendar, MyProfileEnhanced */}
 
         {/* Admin Billing Routes (Authorization V2 pilot) */}

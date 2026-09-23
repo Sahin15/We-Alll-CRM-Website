@@ -100,6 +100,8 @@ const notificationSchema = new mongoose.Schema(
         'salary_slip',
         'salary_slip_generated',
         'salary_slip_sent',
+        // Growth Track
+        'growth_track',
       ],
       default: 'general',
     },

@@ -207,3 +207,4 @@ export const AccountsDashboard = lp(() => import("../pages/dashboard/AccountsDas
 export const EmployeeDashboard = lp(() => import("../pages/employee/EmployeeDashboard"));
 export const ClientDashboard = lp(() => import("../pages/dashboard/ClientDashboard"));
 export const HoDDashboard = lp(() => import("../pages/hod/HoDDashboard"));
+export const GrowthTrack = lp(() => import("../pages/growth-track/GrowthTrack"));

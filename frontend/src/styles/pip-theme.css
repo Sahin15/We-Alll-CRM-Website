@@ -1,0 +1,182 @@
+/* ==========================================================================
+   GROWTH TRACK — Global layout themes by stage (concern → improvement → critical)
+   Applied via GrowthTrackThemeSync on document.body
+   ========================================================================== */
+
+/* ----- Stage 1: Concern (lightest depth) ----- */
+body.growth-track-theme-concern {
+  --primary-color: #ca8a04;
+  --primary-dark: #a16207;
+  --primary-light: #fef9c3;
+  --gt-accent: #eab308;
+  --gt-accent-deep: #ca8a04;
+  --gt-page-bg: linear-gradient(135deg, #fffbeb 0%, #fef9c3 100%);
+  --gt-card-border: rgba(234, 179, 8, 0.18);
+  --gt-card-header-bg: linear-gradient(135deg, rgba(254, 243, 199, 0.5) 0%, rgba(255, 251, 235, 0.8) 100%);
+  --gt-sidebar-bg: linear-gradient(180deg, #57534e 0%, #a16207 42%, #ca8a04 100%);
+  --gt-btn-primary: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
+  --gt-btn-primary-hover: linear-gradient(135deg, #ca8a04 0%, #a16207 100%);
+  --gt-scrollbar: linear-gradient(180deg, #eab308 0%, #ca8a04 100%);
+  --bg-gradient: var(--gt-btn-primary);
+}
+
+/* ----- Stage 2: Improvement (medium depth) ----- */
+body.growth-track-theme-improvement {
+  --primary-color: #ea580c;
+  --primary-dark: #c2410c;
+  --primary-light: #ffedd5;
+  --gt-accent: #f97316;
+  --gt-accent-deep: #ea580c;
+  --gt-page-bg: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+  --gt-card-border: rgba(249, 115, 22, 0.22);
+  --gt-card-header-bg: linear-gradient(135deg, rgba(255, 237, 213, 0.65) 0%, rgba(255, 247, 237, 0.9) 100%);
+  --gt-sidebar-bg: linear-gradient(180deg, #7c2d12 0%, #c2410c 40%, #f97316 100%);
+  --gt-btn-primary: linear-gradient(135deg, #fb923c 0%, #ea580c 100%);
+  --gt-btn-primary-hover: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+  --gt-scrollbar: linear-gradient(180deg, #fb923c 0%, #ea580c 100%);
+  --bg-gradient: var(--gt-btn-primary);
+}
+
+/* ----- Stage 3: Critical / active PIP (deepest) ----- */
+body.growth-track-theme-critical,
+body.pip-active {
+  --primary-color: #f59e0b;
+  --primary-dark: #d97706;
+  --primary-light: #fef3c7;
+  --gt-accent: #ef4444;
+  --gt-accent-deep: #dc2626;
+  --gt-page-bg: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%);
+  --gt-card-border: rgba(239, 68, 68, 0.22);
+  --gt-card-header-bg: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(239, 68, 68, 0.08) 100%);
+  --gt-sidebar-bg: linear-gradient(180deg, #7f1d1d 0%, #b91c1c 38%, #ef4444 100%);
+  --gt-btn-primary: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+  --gt-btn-primary-hover: linear-gradient(135deg, #d97706 0%, #dc2626 100%);
+  --gt-scrollbar: linear-gradient(180deg, #f59e0b 0%, #ef4444 100%);
+  --bg-gradient: var(--gt-btn-primary);
+}
+
+/* ----- Shared layout surfaces (all active stages) ----- */
+body.growth-track-theme-active,
+body.growth-track-theme-active .app-container {
+  background: var(--gt-page-bg) !important;
+  transition: background 0.35s ease;
+}
+
+body.growth-track-theme-active .sidebar {
+  background: var(--gt-sidebar-bg) !important;
+}
+
+body.growth-track-theme-active ::-webkit-scrollbar-thumb {
+  background: var(--gt-scrollbar) !important;
+}
+
+body.growth-track-theme-active ::-webkit-scrollbar-thumb:hover {
+  background: var(--gt-btn-primary-hover) !important;
+}
+
+body.growth-track-theme-active .card:not(.greeting-banner) {
+  border-color: var(--gt-card-border) !important;
+}
+
+body.growth-track-theme-active .card:not(.greeting-banner):hover {
+  border-color: var(--gt-accent) !important;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--gt-accent) 12%, transparent),
+    0 4px 8px color-mix(in srgb, var(--gt-accent) 6%, transparent) !important;
+}
+
+body.growth-track-theme-active .card:not(.greeting-banner) .card-header {
+  background: var(--gt-card-header-bg) !important;
+  border-bottom: 1px solid var(--gt-card-border) !important;
+}
+
+body.growth-track-theme-concern .card:not(.greeting-banner) .card-header {
+  color: #713f12 !important;
+}
+
+body.growth-track-theme-improvement .card:not(.greeting-banner) .card-header {
+  color: #7c2d12 !important;
+}
+
+body.growth-track-theme-critical .card:not(.greeting-banner) .card-header {
+  color: #7f1d1d !important;
+}
+
+body.growth-track-theme-active .stat-card::before {
+  background: var(--gt-scrollbar) !important;
+}
+
+body.growth-track-theme-active .stat-card:hover {
+  box-shadow: 0 8px 16px color-mix(in srgb, var(--gt-accent) 14%, transparent) !important;
+}
+
+body.growth-track-theme-active .btn-primary {
+  background: var(--gt-btn-primary) !important;
+  border: none !important;
+}
+
+body.growth-track-theme-active .btn-primary:hover {
+  background: var(--gt-btn-primary-hover) !important;
+  box-shadow: 0 4px 8px color-mix(in srgb, var(--gt-accent) 25%, transparent) !important;
+}
+
+body.growth-track-theme-active .sidebar-link.active {
+  background: rgba(255, 255, 255, 0.18) !important;
+  border-left: 4px solid rgba(255, 255, 255, 0.85) !important;
+  color: #fff !important;
+}
+
+body.growth-track-theme-active .sidebar-link.active .sidebar-icon svg {
+  color: #fff !important;
+}
+
+body.growth-track-theme-active .card-header-icon svg,
+body.growth-track-theme-active .card-header-icon i {
+  color: var(--gt-accent-deep) !important;
+}
+
+/* Stage intensity: critical gets pulse on primary banners only */
+body.growth-track-theme-critical .pip-banner,
+body.pip-active .pip-banner {
+  animation: pulse-border 2.5s infinite;
+}
+
+@keyframes pulse-border {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--gt-accent) 35%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 8px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.pip-banner {
+  border-radius: 12px;
+}
+
+body.growth-track-theme-concern .pip-banner {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef9c3 100%);
+  border: 1px solid rgba(234, 179, 8, 0.25);
+  border-left: 5px solid #ca8a04;
+}
+
+body.growth-track-theme-improvement .pip-banner {
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-left: 5px solid #ea580c;
+}
+
+body.growth-track-theme-critical .pip-banner,
+body.pip-active .pip-banner {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef2f2 100%);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-left: 5px solid #ef4444;
+}
+
+/* Prevent themed card hover lift from overflowing (Growth Track management list) */
+body.growth-track-theme-active .growth-track-list-card.card:hover {
+  transform: none !important;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+}

@@ -126,6 +126,10 @@ export const PERMISSION_CATALOG = [
   // Auth admin (future)
   { key: 'auth.role.manage', module: 'auth', description: 'Manage access roles' },
   { key: 'auth.permission.assign', module: 'auth', description: 'Assign permissions to users' },
+
+  // Growth Track (PIP)
+  { key: 'growth_track.view', module: 'growth_track', description: 'View performance improvement tracks' },
+  { key: 'growth_track.manage', module: 'growth_track', description: 'Manage performance improvement tracks' },
 ];
 
 /** @type {Set<string>} */

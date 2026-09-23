@@ -15,6 +15,7 @@ export const AUTHZ_MODULE_NAMES = Object.freeze([
   'wfh',
   'team',
   'hiring',
+  'growth_track',
   'projects',
   'work',
   'crm',
@@ -51,7 +52,7 @@ export const AUTHZ_ROLLOUT_WAVES = Object.freeze([
   {
     id: 4,
     name: 'People & hiring',
-    modules: ['team', 'hiring'],
+    modules: ['team', 'hiring', 'growth_track'],
   },
   {
     id: 5,
