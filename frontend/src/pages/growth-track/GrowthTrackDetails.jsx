@@ -4,7 +4,10 @@ import { FaClock, FaCheckCircle, FaExclamationTriangle, FaUserCircle, FaBullhorn
 import growthTrackApi from "../../api/growthTrackApi";
 import toast from "../../utils/toast";
 import { getCategoryLabel, getNoticeProblemCategories } from "../../utils/growthTrackCategories.js";
-import { GROWTH_TRACK_THEME_REFRESH_EVENT } from "../../utils/growthTrackTheme.js";
+import {
+  applyGrowthTrackThemeToBody,
+  GROWTH_TRACK_THEME_REFRESH_EVENT,
+} from "../../utils/growthTrackTheme.js";
 
 const GrowthTrackDetails = () => {
   const [loading, setLoading] = useState(true);
@@ -15,15 +18,33 @@ const GrowthTrackDetails = () => {
     fetchActiveTrack();
   }, []);
 
+  useEffect(() => {
+    const isActive =
+      track &&
+      (track.status === "active" || track.status === "extended") &&
+      track.stage === "critical";
+
+    if (isActive) {
+      applyGrowthTrackThemeToBody("critical");
+    }
+
+    return () => {
+      window.dispatchEvent(new CustomEvent(GROWTH_TRACK_THEME_REFRESH_EVENT));
+    };
+  }, [track?.stage, track?.status, track?._id]);
+
   const fetchActiveTrack = async () => {
     try {
       setLoading(true);
       const res = await growthTrackApi.getMyActiveTrack();
-      setTrack(res.data);
+      setTrack(res.data ?? null);
       window.dispatchEvent(new CustomEvent(GROWTH_TRACK_THEME_REFRESH_EVENT));
     } catch (err) {
       console.error("Error fetching active Growth Track:", err);
-      toast.error("Failed to load Growth Track data");
+      const status = err.response?.status;
+      if (!status || status >= 500) {
+        toast.error("Failed to load Growth Track data");
+      }
     } finally {
       setLoading(false);
     }

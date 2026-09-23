@@ -26,7 +26,7 @@ export const getMyActiveTrack = async (req, res) => {
       .populate("reviewMeetings.reviewedBy", "name email")
       .populate("history.changedBy", "name email");
 
-    res.status(200).json(activeTrack);
+    res.status(200).json(activeTrack ?? null);
   } catch (error) {
     res.status(500).json({
       message: "Server error retrieving active Growth Track",

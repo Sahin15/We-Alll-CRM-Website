@@ -20,10 +20,16 @@ import {
   getCategoryLabel,
   getNoticeProblemCategories,
 } from "../../utils/growthTrackCategories.js";
+import {
+  canInitiateGrowthTrackForEmployee,
+  isCompanyGrowthTrackManager,
+} from "../../utils/growthTrackAccess.js";
 import "./GrowthTrackManagement.css";
 
+const COMPANY_LIST_FALLBACK_ROLES = ["admin", "superadmin", "hr"];
+
 const GrowthTrackManagement = () => {
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
   const [tracks, setTracks] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -68,17 +74,19 @@ const GrowthTrackManagement = () => {
   const [updatingTargetId, setUpdatingTargetId] = useState(null);
   const [targetUpdateValues, setTargetUpdateValues] = useState({ achievedValue: "", pendingValue: "" });
 
-  const isHR = ["hr", "admin", "superadmin"].includes(user?.role);
+  const useCompanyTrackList =
+    canAccess?.("growth_track.manage", COMPANY_LIST_FALLBACK_ROLES) ??
+    isCompanyGrowthTrackManager(user);
 
   useEffect(() => {
     fetchTracks();
     fetchEmployees();
-  }, []);
+  }, [useCompanyTrackList]);
 
   const fetchTracks = async () => {
     try {
       setLoading(true);
-      const res = isHR 
+      const res = useCompanyTrackList
         ? await growthTrackApi.getAllGrowthTracks()
         : await growthTrackApi.getManagerGrowthTracks();
       setTracks(res.data);
@@ -100,10 +108,12 @@ const GrowthTrackManagement = () => {
     try {
       const res = await api.get("/users");
       // Filter out clients and admins, show active users
-      const filtered = res.data.filter(emp => 
-        emp.status === "active" && 
-        emp.role === "employee" && 
-        emp._id !== user?._id
+      const filtered = res.data.filter(
+        (emp) =>
+          emp.status === "active" &&
+          emp.role === "employee" &&
+          emp._id !== user?._id &&
+          canInitiateGrowthTrackForEmployee(user, emp)
       );
       setEmployees(filtered);
     } catch (err) {
@@ -310,7 +320,7 @@ const GrowthTrackManagement = () => {
           <div>
             <h2 className="growth-track-mgmt-title mb-1">Growth Track Management</h2>
             <p className="text-muted mb-0">
-              {isHR
+              {useCompanyTrackList
                 ? "Company-wide performance improvement cycles and audit trail"
                 : "Manage performance tracks for your team"}
             </p>
@@ -375,7 +385,9 @@ const GrowthTrackManagement = () => {
               Track registry
             </h4>
             <p className="text-muted mb-0 small">
-              {isHR ? "Organizational audit records" : "Employees reporting to you"} — select a row to manage
+              {useCompanyTrackList
+                ? "Organizational audit records"
+                : "Employees reporting to you"} — select a row to manage
             </p>
           </Card.Header>
           <Card.Body className="px-4 pb-4 pt-2">
