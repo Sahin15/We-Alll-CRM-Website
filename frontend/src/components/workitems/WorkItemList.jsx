@@ -21,6 +21,7 @@ import './WorkItemList.css';
 const STATUS_MENU_GAP = 8;
 const STATUS_MENU_ITEM_HEIGHT = 52;
 const STATUS_MENU_ITEM_COUNT = 4;
+const STATUS_MENU_MAX_WIDTH = 280;
 
 const StatusSelector = ({ status, onStatusChange, getStatusColor }) => {
   const [showMenu, setShowMenu] = useState(false);
@@ -42,15 +43,30 @@ const StatusSelector = ({ status, onStatusChange, getStatusColor }) => {
       ? rect.top - menuHeight - STATUS_MENU_GAP
       : rect.bottom + STATUS_MENU_GAP;
 
+    const viewportW = window.innerWidth;
+    const viewportH = window.innerHeight;
+
     top = Math.max(
       STATUS_MENU_GAP,
-      Math.min(top, window.innerHeight - menuHeight - STATUS_MENU_GAP)
+      Math.min(top, viewportH - menuHeight - STATUS_MENU_GAP)
     );
+
+    const maxMenuWidth = Math.min(
+      STATUS_MENU_MAX_WIDTH,
+      viewportW - STATUS_MENU_GAP * 2
+    );
+    const width = Math.min(maxMenuWidth, Math.max(rect.width, Math.min(140, maxMenuWidth)));
+
+    let left = rect.left;
+    if (left + width > viewportW - STATUS_MENU_GAP) {
+      left = viewportW - width - STATUS_MENU_GAP;
+    }
+    left = Math.max(STATUS_MENU_GAP, left);
 
     return {
       top,
-      left: rect.left,
-      width: Math.max(rect.width, 140),
+      left,
+      width,
       openUp,
     };
   }, []);
@@ -319,12 +335,12 @@ const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, curren
       <Table hover className="modern-work-table">
         <thead>
           <tr>
-            <th style={{ width: '35%' }}>WORK ITEM</th>
-            <th style={{ width: '8%' }}>SLOT</th>
-            <th style={{ width: '15%' }}>DUE DATE</th>
-            <th style={{ width: '20%' }}>STATUS</th>
-            <th style={{ width: '12%' }}>PRIORITY</th>
-            <th style={{ width: '10%' }}>ACTION</th>
+            <th className="col-work-item">WORK ITEM</th>
+            <th className="col-slot">SLOT</th>
+            <th className="col-due-date">DUE DATE</th>
+            <th className="col-status">STATUS</th>
+            <th className="col-priority">PRIORITY</th>
+            <th className="col-action">ACTION</th>
           </tr>
         </thead>
         <tbody>

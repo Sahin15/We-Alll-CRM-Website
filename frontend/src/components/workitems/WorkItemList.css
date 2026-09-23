@@ -22,6 +22,33 @@
   border-spacing: 0;
   table-layout: fixed;
   width: 100%;
+  min-width: 720px;
+}
+
+/* Column widths (responsive — avoids inline % that cannot adapt in production builds) */
+.modern-work-table .col-work-item {
+  width: 35%;
+}
+
+.modern-work-table .col-slot {
+  width: 8%;
+}
+
+.modern-work-table .col-due-date {
+  width: 15%;
+}
+
+.modern-work-table .col-status {
+  width: 20%;
+  min-width: 108px;
+}
+
+.modern-work-table .col-priority {
+  width: 12%;
+}
+
+.modern-work-table .col-action {
+  width: 10%;
 }
 
 .modern-work-table thead {
@@ -95,6 +122,7 @@
 /* Status dropdown renders via portal; cell must not clip the trigger */
 .modern-work-table tbody td.status-cell {
   overflow: visible;
+  max-width: 0;
 }
 
 /* Row States */
@@ -275,26 +303,31 @@
 /* Status Selector Wrapper - Center content */
 .status-selector-wrapper {
   position: relative;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .status-selector-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
+  gap: 6px;
+  padding: 8px 10px;
   border-radius: 8px;
   border: 2px solid #667eea;
   background: white !important;
   color: #667eea;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-width: 140px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   justify-content: space-between;
 }
 
@@ -310,7 +343,11 @@
 
 .status-selector-btn .status-text {
   flex: 1;
+  min-width: 0;
   text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .status-selector-btn .status-arrow {
@@ -335,7 +372,11 @@
 .status-selector-menu-portal {
   margin-top: 0;
   max-height: calc(100vh - 16px);
+  max-height: calc(100dvh - 16px);
+  max-width: min(280px, calc(100vw - 16px));
+  overflow-x: hidden;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .status-selector-menu.opens-up {
@@ -585,6 +626,16 @@
 @media (max-width: 992px) {
   .modern-work-table {
     font-size: 13px;
+    min-width: 680px;
+  }
+
+  .modern-work-table .col-work-item {
+    width: 32%;
+  }
+
+  .modern-work-table .col-status {
+    width: 22%;
+    min-width: 100px;
   }
 
   .modern-work-table thead th {
@@ -603,9 +654,28 @@
   .work-meta {
     font-size: 11px;
   }
+
+  .status-selector-btn {
+    padding: 7px 8px;
+    font-size: 11px;
+  }
+
+  .status-menu-item {
+    padding: 12px 14px;
+    font-size: 12px;
+  }
 }
 
 @media (max-width: 768px) {
+  .modern-work-table {
+    min-width: 640px;
+  }
+
+  .modern-work-table .col-status {
+    width: 24%;
+    min-width: 92px;
+  }
+
   .modern-work-table thead th,
   .modern-work-table tbody td {
     padding: 12px 14px;
@@ -623,6 +693,10 @@
   .action-btn {
     padding: 6px 14px;
     font-size: 11px;
+  }
+
+  .status-selector-btn .status-emoji {
+    font-size: 14px;
   }
 
   .status-badge-dropdown {
