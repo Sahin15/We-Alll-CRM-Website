@@ -6,7 +6,10 @@
 import User from "../models/userModel.js";
 import Department from "../models/departmentModel.js";
 import WorkItem from "../models/workItemModel.js";
-import { isPostingDepartmentName } from "../constants/departmentNames.js";
+import {
+  getCreativeWorkflowTypeForDepartment,
+  isPostingDepartmentName,
+} from "../constants/departmentNames.js";
 
 /**
  * @param {{ requiresPosting: boolean, postingAssignedTo?: string|null, postingDate?: Date|string|null }} input
@@ -210,6 +213,20 @@ export async function setPostingHandoff(workItemId, payload, actorId) {
   applyPostingHandoffFields(workItem, validated);
   workItem.dueDate = previousDueDate;
   workItem.modifiedBy = actorId;
+
+  if (workItem.requiresPosting) {
+    workItem.workflowMode = "creative";
+    if (!workItem.workflowType) {
+      const assignee = await User.findById(workItem.assignedTo)
+        .populate("department", "name")
+        .select("department")
+        .lean();
+      const workflowType = getCreativeWorkflowTypeForDepartment(
+        assignee?.department?.name
+      );
+      workItem.workflowType = workflowType || "design";
+    }
+  }
 
   if (validated.postingAssignedTo) {
     workItem.comments = workItem.comments || [];

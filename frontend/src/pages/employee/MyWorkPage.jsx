@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Container, Row, Col, Card, Button, ButtonGroup } from 'react-bootstrap';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Container, Row, Col, Card, Button, ButtonGroup, Pagination } from 'react-bootstrap';
 import { FaClock, FaCheckSquare } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
@@ -19,6 +19,66 @@ import {
 } from '../../utils/workItemUtils';
 import { isCreativeWorkflowItem } from '../../utils/workItemStatusUtils';
 import creativeWorkflowApi from '../../api/creativeWorkflowApi';
+import './MyWorkPage.css';
+
+const PAGE_SIZE = 12;
+
+/** @typedef {'all'|'dueToday'|'inProgress'|'overdue'|'completed'|'cancelled'} MyWorkStatFilter */
+
+/**
+ * @param {object} item
+ * @param {string|undefined} userId
+ * @returns {boolean}
+ */
+const isCreativeInProgressForUser = (item, userId) => {
+  if (!isCreativeWorkflowItem(item)) return false;
+  const status = item.status;
+  if (['Closed', 'Cancelled', 'Done', 'To Do', 'Assigned', 'Backlog'].includes(status)) {
+    return false;
+  }
+  return getEffectiveStatusForUser(item, userId) !== 'Done';
+};
+
+/**
+ * @param {object} item
+ * @param {string|undefined} userId
+ * @returns {boolean}
+ */
+const isCompletedWorkItemForUser = (item, userId) => {
+  const itemStatus = getEffectiveStatusForUser(item, userId);
+  const creativeDone =
+    isCreativeWorkflowItem(item) &&
+    ['Closed', 'Delivered', 'Posted'].includes(item.status);
+  return itemStatus === 'Done' || creativeDone;
+};
+
+/**
+ * @param {object} item
+ * @param {MyWorkStatFilter|null} filter
+ * @param {string|undefined} userId
+ * @returns {boolean}
+ */
+const matchesMyWorkStatFilter = (item, filter, userId) => {
+  if (!filter || filter === 'all') return true;
+  if (item.isDeleted) return false;
+
+  switch (filter) {
+    case 'dueToday':
+      return isWorkItemDueToday(item, userId);
+    case 'inProgress': {
+      const itemStatus = getEffectiveStatusForUser(item, userId);
+      return itemStatus === 'In Progress' || isCreativeInProgressForUser(item, userId);
+    }
+    case 'overdue':
+      return isPendingWorkItem(item, userId) && isWorkItemOverdue(item, userId);
+    case 'completed':
+      return isCompletedWorkItemForUser(item, userId);
+    case 'cancelled':
+      return getEffectiveStatusForUser(item, userId) === 'Cancelled';
+    default:
+      return true;
+  }
+};
 
 /**
  * MyWorkPage Component
@@ -37,6 +97,9 @@ const MyWorkPage = () => {
   const [bulkMode, setBulkMode] = useState(false);
   const [showAssignWorkModal, setShowAssignWorkModal] = useState(false);
   const [activeCreativeWork, setActiveCreativeWork] = useState(null);
+  /** @type {[MyWorkStatFilter|null, function]} */
+  const [statFilter, setStatFilter] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     loadWorkItems();
@@ -83,93 +146,39 @@ const MyWorkPage = () => {
     [workItems, user?._id]
   );
 
-  // Calculate statistics
   const statistics = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const userId = user?._id;
-    
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    
-    let totalThisMonth = 0;
+    let total = 0;
     let dueToday = 0;
     let inProgress = 0;
     let overdue = 0;
-    let completedThisMonth = 0;
-    let cancelledThisMonth = 0;
-    let overdueItems = [];
-    let dueTodayItems = [];
-    let inProgressItems = [];
+    let completed = 0;
+    let cancelled = 0;
 
     myAssignedItems.forEach((item) => {
-      // Skip soft-deleted items (safety net)
       if (item.isDeleted) return;
-
-      const dueDate = item.dueDate ? new Date(item.dueDate) : null;
-      if (dueDate) dueDate.setHours(0, 0, 0, 0);
-      const itemMonth = dueDate ? dueDate.getMonth() : -1;
-      const itemYear = dueDate ? dueDate.getFullYear() : -1;
-
-      // Count items this month
-      if (itemMonth === currentMonth && itemYear === currentYear) {
-        totalThisMonth++;
-      }
-
+      total += 1;
+      if (isWorkItemDueToday(item, userId)) dueToday += 1;
+      if (isCompletedWorkItemForUser(item, userId)) completed += 1;
+      if (getEffectiveStatusForUser(item, userId) === 'Cancelled') cancelled += 1;
       const itemStatus = getEffectiveStatusForUser(item, userId);
-      const creativeDone =
-        isCreativeWorkflowItem(item) &&
-        ['Closed', 'Delivered', 'Posted'].includes(item.status);
-
-      // Count completed this month
-      if (
-        (itemStatus === 'Done' || creativeDone) &&
-        itemMonth === currentMonth &&
-        itemYear === currentYear
-      ) {
-        completedThisMonth++;
+      if (itemStatus === 'In Progress' || isCreativeInProgressForUser(item, userId)) {
+        inProgress += 1;
       }
-
-      // Count cancelled this month
-      if (itemStatus === 'Cancelled' && itemMonth === currentMonth && itemYear === currentYear) {
-        cancelledThisMonth++;
-      }
-
-      // Count due today — only pending items assigned to me
-      if (isWorkItemDueToday(item, userId)) {
-        dueToday++;
-        dueTodayItems.push(item);
-      }
-
-      const creativeInProgress =
-        isCreativeWorkflowItem(item) &&
-        !['Closed', 'Cancelled', 'Done', 'To Do', 'Assigned', 'Backlog'].includes(item.status);
-
-      // Count in progress
-      if (itemStatus === 'In Progress' || creativeInProgress) {
-        inProgress++;
-        inProgressItems.push(item);
-      }
-
-      // Count overdue — only pending items assigned to me
       if (isPendingWorkItem(item, userId) && isWorkItemOverdue(item, userId)) {
-        overdue++;
-        overdueItems.push(item);
+        overdue += 1;
       }
     });
 
-    return {
-      totalThisMonth,
-      dueToday,
-      inProgress,
-      overdue,
-      completedThisMonth,
-      cancelledThisMonth,
-      overdueItems: overdueItems.slice(0, 3),
-      dueTodayItems: dueTodayItems.slice(0, 3),
-      inProgressItems: inProgressItems.slice(0, 3),
-    };
+    return { total, dueToday, inProgress, overdue, completed, cancelled };
   }, [myAssignedItems, user?._id]);
+
+  const handleStatFilterClick = useCallback((filter) => {
+    setStatFilter((current) => (current === filter ? null : filter));
+    setShowTodayOnly(false);
+    setSelectedDate(null);
+    setCurrentPage(1);
+  }, []);
 
   // Filter and sort work items
   const filteredItems = useMemo(() => {
@@ -196,9 +205,13 @@ const MyWorkPage = () => {
       filterDate = today;
     }
 
-    // Today: due today + overdue pending (still need attention).
-    // Custom date: exact due-date match only.
-    if (showTodayOnly || selectedDate) {
+    if (statFilter) {
+      filtered = filtered.filter((item) =>
+        matchesMyWorkStatFilter(item, statFilter, userId)
+      );
+    } else if (showTodayOnly || selectedDate) {
+      // Today: due today + overdue pending (still need attention).
+      // Custom date: exact due-date match only.
       filtered = filtered.filter((item) => {
         if (item.isDeleted) return false;
 
@@ -277,7 +290,37 @@ const MyWorkPage = () => {
     });
 
     return filtered;
-  }, [myAssignedItems, searchTerm, showTodayOnly, selectedDate, user?._id]);
+  }, [myAssignedItems, searchTerm, showTodayOnly, selectedDate, statFilter, user?._id]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
+
+  const paginatedItems = useMemo(() => {
+    const safePage = Math.min(currentPage, totalPages);
+    const start = (safePage - 1) * PAGE_SIZE;
+    return filteredItems.slice(start, start + PAGE_SIZE);
+  }, [filteredItems, currentPage, totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, showTodayOnly, selectedDate, statFilter]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const pageStart = filteredItems.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const pageEnd = Math.min(currentPage * PAGE_SIZE, filteredItems.length);
+
+  const statFilterLabel = {
+    all: 'All items',
+    dueToday: 'Due today',
+    inProgress: 'In progress',
+    overdue: 'Overdue',
+    completed: 'Completed',
+    cancelled: 'Cancelled',
+  };
 
   const handleViewItem = (item) => {
     setSelectedItem(item);
@@ -416,60 +459,58 @@ const MyWorkPage = () => {
         </Col>
       </Row>
 
-      {/* Statistics Cards */}
+      {/* Statistics Cards — click to filter list */}
       <Row className="mb-3 g-2 stats-row">
-        <Col className="stat-col">
-          <Card className="stat-card" style={{ background: 'white', border: '1px solid #e9ecef' }}>
-            <Card.Body className="p-3 text-center">
-              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📋</div>
-              <h3 className="stat-value mb-1">{statistics.totalThisMonth}</h3>
-              <p className="stat-label mb-0">Total Items</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col className="stat-col">
-          <Card className="stat-card" style={{ background: 'white', border: '1px solid #e9ecef' }}>
-            <Card.Body className="p-3 text-center">
-              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⏰</div>
-              <h3 className="stat-value mb-1">{statistics.dueToday}</h3>
-              <p className="stat-label mb-0">Due Today</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col className="stat-col">
-          <Card className="stat-card" style={{ background: 'white', border: '1px solid #e9ecef' }}>
-            <Card.Body className="p-3 text-center">
-              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⚙️</div>
-              <h3 className="stat-value mb-1">{statistics.inProgress}</h3>
-              <p className="stat-label mb-0">In Progress</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col className="stat-col">
-          <Card className="stat-card" style={{ background: 'white', border: '1px solid #e9ecef' }}>
-            <Card.Body className="p-3 text-center">
-              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⚠️</div>
-              <h3 className="stat-value mb-1">{statistics.overdue}</h3>
-              <p className="stat-label mb-0">Overdue</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col className="stat-col">
-          <Card className="stat-card" style={{ background: 'white', border: '1px solid #e9ecef' }}>
-            <Card.Body className="p-3 text-center">
-              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>✅</div>
-              <h3 className="stat-value mb-1">{statistics.completedThisMonth}</h3>
-              <p className="stat-label mb-0">Completed</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        {statistics.cancelledThisMonth > 0 && (
+        {[
+          { key: 'all', icon: '📋', value: statistics.total, label: 'Total Items' },
+          { key: 'dueToday', icon: '⏰', value: statistics.dueToday, label: 'Due Today' },
+          { key: 'inProgress', icon: '⚙️', value: statistics.inProgress, label: 'In Progress' },
+          { key: 'overdue', icon: '⚠️', value: statistics.overdue, label: 'Overdue' },
+          { key: 'completed', icon: '✅', value: statistics.completed, label: 'Completed' },
+        ].map((stat) => (
+          <Col className="stat-col" key={stat.key}>
+            <Card
+              role="button"
+              tabIndex={0}
+              className={`stat-card ${statFilter === stat.key ? 'stat-card-active' : ''}`}
+              style={{ background: 'white', border: '1px solid #e9ecef', cursor: 'pointer' }}
+              onClick={() => handleStatFilterClick(stat.key)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleStatFilterClick(stat.key);
+                }
+              }}
+            >
+              <Card.Body className="p-3 text-center">
+                <div style={{ fontSize: '2rem', marginBottom: '8px' }}>{stat.icon}</div>
+                <h3 className="stat-value mb-1">{stat.value}</h3>
+                <p className="stat-label mb-0">{stat.label}</p>
+              </Card.Body>
+            </Card>
+          </Col>
+        ))}
+        {statistics.cancelled > 0 && (
           <Col className="stat-col">
-            <Card className="stat-card" style={{ background: '#fff5f5', border: '2px solid #dc3545' }}>
+            <Card
+              role="button"
+              tabIndex={0}
+              className={`stat-card ${statFilter === 'cancelled' ? 'stat-card-active' : ''}`}
+              style={{ background: '#fff5f5', border: '2px solid #dc3545', cursor: 'pointer' }}
+              onClick={() => handleStatFilterClick('cancelled')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleStatFilterClick('cancelled');
+                }
+              }}
+            >
               <Card.Body className="p-3 text-center">
                 <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🚫</div>
-                <h3 className="stat-value mb-1" style={{ color: '#dc3545' }}>{statistics.cancelledThisMonth}</h3>
-                <p className="stat-label mb-0" style={{ color: '#dc3545', fontWeight: '600' }}>Cancelled</p>
+                <h3 className="stat-value mb-1" style={{ color: '#dc3545' }}>{statistics.cancelled}</h3>
+                <p className="stat-label mb-0" style={{ color: '#dc3545', fontWeight: '600' }}>
+                  Cancelled
+                </p>
               </Card.Body>
             </Card>
           </Col>
@@ -522,6 +563,8 @@ const MyWorkPage = () => {
                   onChange={(e) => {
                     setSelectedDate(e.target.value);
                     setShowTodayOnly(false);
+                    setStatFilter(null);
+                    setCurrentPage(1);
                   }}
                   style={{ maxWidth: '150px' }}
                 />
@@ -543,19 +586,23 @@ const MyWorkPage = () => {
             <Col md={3} className="text-end">
               <ButtonGroup size="sm">
                 <Button
-                  variant={showTodayOnly && !selectedDate ? 'primary' : 'outline-secondary'}
+                  variant={showTodayOnly && !selectedDate && !statFilter ? 'primary' : 'outline-secondary'}
                   onClick={() => {
                     setShowTodayOnly(true);
                     setSelectedDate(null);
+                    setStatFilter(null);
+                    setCurrentPage(1);
                   }}
                 >
                   Today
                 </Button>
                 <Button
-                  variant={!showTodayOnly && !selectedDate ? 'primary' : 'outline-secondary'}
+                  variant={!showTodayOnly && !selectedDate && !statFilter ? 'primary' : 'outline-secondary'}
                   onClick={() => {
                     setShowTodayOnly(false);
                     setSelectedDate(null);
+                    setStatFilter(null);
+                    setCurrentPage(1);
                   }}
                 >
                   All
@@ -569,14 +616,31 @@ const MyWorkPage = () => {
       {/* Work Items List */}
       <Card style={{ overflow: 'visible', maxWidth: '100%' }}>
         <Card.Body className="p-0" style={{ overflow: 'visible', maxWidth: '100%' }}>
-          <div className="p-3 border-bottom">
+          <div className="p-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
             <small className="text-muted">
-              Showing {filteredItems.length} of {myAssignedItems.length} items
+              {filteredItems.length === 0
+                ? `Showing 0 of ${myAssignedItems.length} items`
+                : `Showing ${pageStart}–${pageEnd} of ${filteredItems.length} items`}
+              {statFilter ? ` · Filter: ${statFilterLabel[statFilter]}` : ''}
+              {totalPages > 1 ? ` · Page ${currentPage} of ${totalPages}` : ''}
             </small>
+            {statFilter && (
+              <Button
+                variant="link"
+                size="sm"
+                className="p-0 text-decoration-none"
+                onClick={() => {
+                  setStatFilter(null);
+                  setCurrentPage(1);
+                }}
+              >
+                Clear filter
+              </Button>
+            )}
           </div>
           {bulkMode ? (
             <WorkItemListWithBulk
-              workItems={filteredItems}
+              workItems={paginatedItems}
               onViewItem={handleViewItem}
               onBulkAction={handleBulkAction}
               currentUser={user}
@@ -588,16 +652,55 @@ const MyWorkPage = () => {
             />
           ) : (
             <WorkItemList
-              workItems={filteredItems}
+              workItems={paginatedItems}
               onViewItem={handleViewItem}
               onStatusChange={handleUpdateStatus}
               currentUser={user}
               emptyMessage={
                 myAssignedItems.length === 0
                   ? 'No work items assigned to you yet.'
-                  : 'No items match your search criteria.'
+                  : 'No items match your search or filter.'
               }
             />
+          )}
+          {filteredItems.length > PAGE_SIZE && (
+            <div className="d-flex justify-content-center py-3 border-top">
+              <Pagination size="sm" className="mb-0">
+                <Pagination.Prev
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                />
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((page) => {
+                    if (totalPages <= 7) return true;
+                    if (page === 1 || page === totalPages) return true;
+                    return Math.abs(page - currentPage) <= 1;
+                  })
+                  .flatMap((page, idx, arr) => {
+                    const prev = arr[idx - 1];
+                    const items = [];
+                    if (prev && page - prev > 1) {
+                      items.push(
+                        <Pagination.Ellipsis key={`ellipsis-${page}`} disabled />
+                      );
+                    }
+                    items.push(
+                      <Pagination.Item
+                        key={page}
+                        active={page === currentPage}
+                        onClick={() => setCurrentPage(page)}
+                      >
+                        {page}
+                      </Pagination.Item>
+                    );
+                    return items;
+                  })}
+                <Pagination.Next
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                />
+              </Pagination>
+            </div>
           )}
         </Card.Body>
       </Card>

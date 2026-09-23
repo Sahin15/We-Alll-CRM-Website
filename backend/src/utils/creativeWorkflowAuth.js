@@ -128,6 +128,19 @@ export function canMarkCreativeDone(user, workItem, project) {
  * @param {object} workItem
  * @param {object|null|undefined} project
  */
+/**
+ * Who may set or change posting handoff (edit modal, creative panel, assign flow).
+ * @param {object} user
+ * @param {object} workItem
+ * @param {object|null|undefined} project
+ * @returns {boolean}
+ */
+export function canSetPostingHandoff(user, workItem, project) {
+  if (canPerformCreativeReview(user, workItem, project)) return true;
+  const role = user?.role;
+  return ["admin", "superadmin", "hod", "manager"].includes(role);
+}
+
 export function assertCanReviewCreativeWork(user, workItem, project) {
   if (!canPerformCreativeReview(user, workItem, project)) {
     const err = new Error(

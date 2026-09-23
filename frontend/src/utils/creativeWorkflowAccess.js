@@ -93,6 +93,13 @@ export const canPerformCreativeReview = (user, workItem, project) => {
  * @param {object|null|undefined} project
  * @returns {boolean}
  */
+/** Same roles as backend canSetPostingHandoff for edit modal / handoff UI. */
+export const canSetPostingHandoff = (user, workItem, project) => {
+  if (canPerformCreativeReview(user, workItem, project)) return true;
+  const role = user?.role;
+  return ['admin', 'superadmin', 'hod', 'manager'].includes(role);
+};
+
 export const canReviewCreativeWork = (user, workItem, project) => {
   if (!canPerformCreativeReview(user, workItem, project)) return false;
 
