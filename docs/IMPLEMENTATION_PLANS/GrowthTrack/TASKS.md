@@ -29,7 +29,7 @@
 
 ## Phase 5 — Local QA
 
-- [x] Checklist in `LOCAL_QA_CHECKLIST.md` (execute manually on local stack)
+- [x] Checklist in `LOCAL_QA_CHECKLIST.md` (14/14 passed 2026-09-23, `run-growth-track-local-qa.js`)
 
 ## Phase 6 — Docs
 
