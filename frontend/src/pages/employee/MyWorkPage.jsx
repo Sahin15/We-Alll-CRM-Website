@@ -173,11 +173,25 @@ const MyWorkPage = () => {
     return { total, dueToday, inProgress, overdue, completed, cancelled };
   }, [myAssignedItems, user?._id]);
 
-  /** Bootstrap row-cols — avoids custom flex on .row that breaks production builds */
-  const statsGridColsClass =
-    statistics.cancelled > 0
-      ? 'row-cols-2 row-cols-md-3 row-cols-xl-6'
-      : 'row-cols-2 row-cols-md-3 row-cols-xl-5';
+  const statCards = useMemo(() => {
+    const cards = [
+      { key: 'all', icon: '📋', value: statistics.total, label: 'Total Items' },
+      { key: 'dueToday', icon: '⏰', value: statistics.dueToday, label: 'Due Today' },
+      { key: 'inProgress', icon: '⚙️', value: statistics.inProgress, label: 'In Progress' },
+      { key: 'overdue', icon: '⚠️', value: statistics.overdue, label: 'Overdue' },
+      { key: 'completed', icon: '✅', value: statistics.completed, label: 'Completed' },
+    ];
+    if (statistics.cancelled > 0) {
+      cards.push({
+        key: 'cancelled',
+        icon: '🚫',
+        value: statistics.cancelled,
+        label: 'Cancelled',
+        variant: 'cancelled',
+      });
+    }
+    return cards;
+  }, [statistics]);
 
   const handleStatFilterClick = useCallback((filter) => {
     setStatFilter((current) => (current === filter ? null : filter));
@@ -465,21 +479,24 @@ const MyWorkPage = () => {
         </Col>
       </Row>
 
-      {/* Statistics Cards — click to filter list */}
-      <Row className={`mb-3 g-2 ${statsGridColsClass}`}>
-        {[
-          { key: 'all', icon: '📋', value: statistics.total, label: 'Total Items' },
-          { key: 'dueToday', icon: '⏰', value: statistics.dueToday, label: 'Due Today' },
-          { key: 'inProgress', icon: '⚙️', value: statistics.inProgress, label: 'In Progress' },
-          { key: 'overdue', icon: '⚠️', value: statistics.overdue, label: 'Overdue' },
-          { key: 'completed', icon: '✅', value: statistics.completed, label: 'Completed' },
-        ].map((stat) => (
-          <Col key={stat.key}>
+      {/* Statistics Cards — CSS grid in MyWorkPage.css (reliable in prod; Bootstrap row-cols + .col is flaky) */}
+      <div
+        className="my-work-stats-grid mb-3"
+        style={{ '--my-work-stat-cols': statCards.length }}
+      >
+        {statCards.map((stat) => {
+          const isCancelled = stat.variant === 'cancelled';
+          return (
             <Card
+              key={stat.key}
               role="button"
               tabIndex={0}
               className={`stat-card ${statFilter === stat.key ? 'stat-card-active' : ''}`}
-              style={{ background: 'white', border: '1px solid #e9ecef', cursor: 'pointer' }}
+              style={{
+                background: isCancelled ? '#fff5f5' : 'white',
+                border: isCancelled ? '2px solid #dc3545' : '1px solid #e9ecef',
+                cursor: 'pointer',
+              }}
               onClick={() => handleStatFilterClick(stat.key)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
@@ -490,38 +507,25 @@ const MyWorkPage = () => {
             >
               <Card.Body className="p-3 text-center">
                 <div style={{ fontSize: '2rem', marginBottom: '8px' }}>{stat.icon}</div>
-                <h3 className="stat-value mb-1">{stat.value}</h3>
-                <p className="stat-label mb-0">{stat.label}</p>
-              </Card.Body>
-            </Card>
-          </Col>
-        ))}
-        {statistics.cancelled > 0 && (
-          <Col>
-            <Card
-              role="button"
-              tabIndex={0}
-              className={`stat-card ${statFilter === 'cancelled' ? 'stat-card-active' : ''}`}
-              style={{ background: '#fff5f5', border: '2px solid #dc3545', cursor: 'pointer' }}
-              onClick={() => handleStatFilterClick('cancelled')}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  handleStatFilterClick('cancelled');
-                }
-              }}
-            >
-              <Card.Body className="p-3 text-center">
-                <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🚫</div>
-                <h3 className="stat-value mb-1" style={{ color: '#dc3545' }}>{statistics.cancelled}</h3>
-                <p className="stat-label mb-0" style={{ color: '#dc3545', fontWeight: '600' }}>
-                  Cancelled
+                <h3
+                  className="stat-value mb-1"
+                  style={isCancelled ? { color: '#dc3545' } : undefined}
+                >
+                  {stat.value}
+                </h3>
+                <p
+                  className="stat-label mb-0"
+                  style={
+                    isCancelled ? { color: '#dc3545', fontWeight: '600' } : undefined
+                  }
+                >
+                  {stat.label}
                 </p>
               </Card.Body>
             </Card>
-          </Col>
-        )}
-      </Row>
+          );
+        })}
+      </div>
 
       {/* Alert Banners */}
       <Row className="mb-3 g-2">

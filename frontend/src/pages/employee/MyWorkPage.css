@@ -1,4 +1,22 @@
-/* My Work stat cards — layout uses Bootstrap row-cols on the Row (see MyWorkPage.jsx) */
+/* My Work stat cards — grid ships in this lazy-loaded chunk (same in dev + production) */
+.my-work-stats-grid {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .my-work-stats-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) {
+  .my-work-stats-grid {
+    grid-template-columns: repeat(var(--my-work-stat-cols, 5), minmax(0, 1fr));
+  }
+}
 
 .stat-card {
   border-radius: 8px;
