@@ -309,7 +309,7 @@ router.put(
     }
 
     const User = (await import("../models/userModel.js")).default;
-    const bcrypt = (await import("bcrypt")).default;
+    const bcrypt = (await import("bcryptjs")).default;
 
     const user = await User.findById(id);
     if (!user) {
