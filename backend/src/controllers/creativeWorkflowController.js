@@ -5,6 +5,7 @@ import {
   assertCanReviewCreativeWork,
   assertCanPerformAssigneeAction,
   canMarkCreativeDone,
+  canSetPostingHandoff,
   canSubmitPostingDone,
   loadProjectForCreativeAuth,
 } from "../utils/creativeWorkflowAuth.js";
@@ -338,7 +339,13 @@ export const addRevisionAttachment = async (req, res) => {
 export const setPostingHandoff = async (req, res) => {
   try {
     const { workItem, project } = await loadWorkItemContext(req.params.workItemId);
-    assertCanReviewCreativeWork(req.user, workItem, project);
+    if (!canSetPostingHandoff(req.user, workItem, project)) {
+      return res.status(403).json({
+        success: false,
+        error:
+          "Only the assigner, project head, department HOD, or admin can set posting handoff",
+      });
+    }
 
     const workItemResult = await creativePostingService.setPostingHandoff(
       req.params.workItemId,
@@ -380,7 +387,14 @@ export const submitPostingDone = async (req, res) => {
       },
       getActorId(req)
     );
-    return res.json({ success: true, data: result });
+    const workItemPayload =
+      typeof result.workItem?.toObject === "function"
+        ? result.workItem.toObject()
+        : result.workItem;
+    return res.json({
+      success: true,
+      data: { ...result, workItem: workItemPayload },
+    });
   } catch (error) {
     console.error("creative submitPostingDone failed:", error);
     return res.status(error.statusCode || 500).json({

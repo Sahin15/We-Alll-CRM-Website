@@ -1087,9 +1087,16 @@ const CreativeWorkflowPanel = ({
         </Form.Group>
       )}
 
-      {submittedPostLinks.length > 0 && ["Posted", "Closed"].includes(status) && (
+      {submittedPostLinks.length > 0 && (
         <div className="border rounded p-2 mb-3 bg-white">
-          <div className="small fw-bold mb-2">Live post links</div>
+          <div className="small fw-bold mb-2">
+            Live post links
+            {workItem?.postingSubmittedAt ? (
+              <span className="text-muted fw-normal ms-2">
+                (posted {new Date(workItem.postingSubmittedAt).toLocaleString()})
+              </span>
+            ) : null}
+          </div>
           <ul className="small mb-0 ps-3">
             {submittedPostLinks.map((link, idx) => (
               <li key={`${link.platform}-${link.url}-${idx}`}>

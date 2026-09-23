@@ -1,14 +1,21 @@
-/* Statistics Cards */
-.stats-row {
-  display: flex;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  padding-bottom: 8px;
+/* My Work stat cards — grid ships in this lazy-loaded chunk (same in dev + production) */
+.my-work-stats-grid {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
 }
 
-.stat-col {
-  flex: 0 0 20%;
-  min-width: 160px;
+@media (min-width: 768px) {
+  .my-work-stats-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) {
+  .my-work-stats-grid {
+    grid-template-columns: repeat(var(--my-work-stat-cols, 5), minmax(0, 1fr));
+  }
 }
 
 .stat-card {
@@ -19,6 +26,16 @@
 
 .stat-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card-active {
+  border-color: #667eea !important;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.35);
+}
+
+.stat-card:focus-visible {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
 }
 
 .stat-label {
@@ -72,24 +89,13 @@
   font-weight: 600;
 }
 
-/* Responsive */
-@media (max-width: 1400px) {
-  .stat-col {
-    flex: 0 0 25%;
-    min-width: 140px;
-  }
-
+@media (max-width: 1399.98px) {
   .stat-value {
     font-size: 1.5rem;
   }
 }
 
-@media (max-width: 1200px) {
-  .stat-col {
-    flex: 0 0 33.33%;
-    min-width: 130px;
-  }
-
+@media (max-width: 1199.98px) {
   .stat-value {
     font-size: 1.25rem;
   }
@@ -99,16 +105,7 @@
   }
 }
 
-@media (max-width: 768px) {
-  .stats-row {
-    flex-wrap: wrap;
-  }
-
-  .stat-col {
-    flex: 0 0 50%;
-    min-width: auto;
-  }
-
+@media (max-width: 767.98px) {
   .stat-value {
     font-size: 1.5rem;
   }

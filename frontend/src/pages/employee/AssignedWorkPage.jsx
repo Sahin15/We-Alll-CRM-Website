@@ -293,6 +293,11 @@ const AssignedWorkPage = () => {
           setWorkItemToEdit(null);
         }}
         workItem={workItemToEdit}
+        project={
+          workItemToEdit?.project && typeof workItemToEdit.project === 'object'
+            ? workItemToEdit.project
+            : null
+        }
         onSuccess={async () => {
           await loadWorkItems();
           setShowEditModal(false);

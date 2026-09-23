@@ -6,7 +6,10 @@
 import User from "../models/userModel.js";
 import Department from "../models/departmentModel.js";
 import WorkItem from "../models/workItemModel.js";
-import { isPostingDepartmentName } from "../constants/departmentNames.js";
+import {
+  getCreativeWorkflowTypeForDepartment,
+  isPostingDepartmentName,
+} from "../constants/departmentNames.js";
 
 /**
  * @param {{ requiresPosting: boolean, postingAssignedTo?: string|null, postingDate?: Date|string|null }} input
@@ -211,6 +214,20 @@ export async function setPostingHandoff(workItemId, payload, actorId) {
   workItem.dueDate = previousDueDate;
   workItem.modifiedBy = actorId;
 
+  if (workItem.requiresPosting) {
+    workItem.workflowMode = "creative";
+    if (!workItem.workflowType) {
+      const assignee = await User.findById(workItem.assignedTo)
+        .populate("department", "name")
+        .select("department")
+        .lean();
+      const workflowType = getCreativeWorkflowTypeForDepartment(
+        assignee?.department?.name
+      );
+      workItem.workflowType = workflowType || "design";
+    }
+  }
+
   if (validated.postingAssignedTo) {
     workItem.comments = workItem.comments || [];
     workItem.comments.push({
@@ -296,6 +313,10 @@ export async function submitPostingDone(workItemId, payload, actorId) {
   workItem.postingSubmittedBy = actorId;
   workItem.postingStatus = "done";
   workItem.status = "Posted";
+  workItem.workflowMode = "creative";
+  if (!workItem.workflowType) {
+    workItem.workflowType = "design";
+  }
   workItem.modifiedBy = actorId;
   workItem.comments = workItem.comments || [];
   const linkSummary = urlCheck.links

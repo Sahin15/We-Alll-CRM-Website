@@ -42,6 +42,9 @@ export const getProjectDepartmentHeadIds = (project) => {
  */
 export const isCreativeWorkflowItem = (workItem) => {
   if (!workItem) return false;
+  if (workItem.requiresPosting) return true;
+  if (Array.isArray(workItem.postUrls) && workItem.postUrls.length > 0) return true;
+  if (workItem.postingStatus === 'done' || workItem.postingSubmittedAt) return true;
   if (workItem.workflowMode === 'creative') return true;
   const type = workItem.workflowType || workItem.departmentWorkflowType;
   return type === 'design' || type === 'design-advanced' || type === 'video-production';
@@ -90,6 +93,13 @@ export const canPerformCreativeReview = (user, workItem, project) => {
  * @param {object|null|undefined} project
  * @returns {boolean}
  */
+/** Same roles as backend canSetPostingHandoff for edit modal / handoff UI. */
+export const canSetPostingHandoff = (user, workItem, project) => {
+  if (canPerformCreativeReview(user, workItem, project)) return true;
+  const role = user?.role;
+  return ['admin', 'superadmin', 'hod', 'manager'].includes(role);
+};
+
 export const canReviewCreativeWork = (user, workItem, project) => {
   if (!canPerformCreativeReview(user, workItem, project)) return false;
 
