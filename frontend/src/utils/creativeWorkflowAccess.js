@@ -42,6 +42,9 @@ export const getProjectDepartmentHeadIds = (project) => {
  */
 export const isCreativeWorkflowItem = (workItem) => {
   if (!workItem) return false;
+  if (workItem.requiresPosting) return true;
+  if (Array.isArray(workItem.postUrls) && workItem.postUrls.length > 0) return true;
+  if (workItem.postingStatus === 'done' || workItem.postingSubmittedAt) return true;
   if (workItem.workflowMode === 'creative') return true;
   const type = workItem.workflowType || workItem.departmentWorkflowType;
   return type === 'design' || type === 'design-advanced' || type === 'video-production';

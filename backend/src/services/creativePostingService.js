@@ -296,6 +296,10 @@ export async function submitPostingDone(workItemId, payload, actorId) {
   workItem.postingSubmittedBy = actorId;
   workItem.postingStatus = "done";
   workItem.status = "Posted";
+  workItem.workflowMode = "creative";
+  if (!workItem.workflowType) {
+    workItem.workflowType = "design";
+  }
   workItem.modifiedBy = actorId;
   workItem.comments = workItem.comments || [];
   const linkSummary = urlCheck.links

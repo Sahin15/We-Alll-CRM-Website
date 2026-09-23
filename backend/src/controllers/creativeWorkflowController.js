@@ -380,7 +380,14 @@ export const submitPostingDone = async (req, res) => {
       },
       getActorId(req)
     );
-    return res.json({ success: true, data: result });
+    const workItemPayload =
+      typeof result.workItem?.toObject === "function"
+        ? result.workItem.toObject()
+        : result.workItem;
+    return res.json({
+      success: true,
+      data: { ...result, workItem: workItemPayload },
+    });
   } catch (error) {
     console.error("creative submitPostingDone failed:", error);
     return res.status(error.statusCode || 500).json({

@@ -239,7 +239,15 @@ const WorkItemDetailsModal = ({
     if (partial?._id) {
       setFullWorkItem((prev) => {
         const base = prev || workItemProp;
-        const merged = { ...base, ...partial };
+        const merged = {
+          ...base,
+          ...partial,
+          postUrls: partial.postUrls ?? base.postUrls,
+          postingNotes: partial.postingNotes ?? base.postingNotes,
+          postingStatus: partial.postingStatus ?? base.postingStatus,
+          postingSubmittedAt: partial.postingSubmittedAt ?? base.postingSubmittedAt,
+          postingSubmittedBy: partial.postingSubmittedBy ?? base.postingSubmittedBy,
+        };
         if (partial.status && partial.status !== base.status) {
           const history = [...(base.statusHistory || [])];
           const last = history[history.length - 1];
@@ -665,6 +673,16 @@ const WorkItemDetailsModal = ({
                     });
                   }
 
+                  if (workItem.postingSubmittedAt) {
+                    activities.push({
+                      type: 'posting_done',
+                      timestamp: workItem.postingSubmittedAt,
+                      user: workItem.postingSubmittedBy,
+                      postUrls: workItem.postUrls || [],
+                      notes: workItem.postingNotes || '',
+                    });
+                  }
+
                   // 2) Creative revision reviews / submits (structured — preferred over system comments)
                   if (creativeRevisions.length > 0) {
                     creativeRevisions.forEach((rev) => {
@@ -882,6 +900,8 @@ const WorkItemDetailsModal = ({
                         return activity.isChangeRequest
                           ? { label: 'Change request', Icon: FaPen, tone: 'review-change' }
                           : { label: 'Approved', Icon: FaCheckCircle, tone: 'review-approve' };
+                      case 'posting_done':
+                        return { label: 'Posted live', Icon: FaCheckCircle, tone: 'review-approve' };
                       case 'status':
                         return { label: 'Status', Icon: FaSync, tone: 'status' };
                       case 'edit':
@@ -1036,6 +1056,32 @@ const WorkItemDetailsModal = ({
                                 <p className="timeline-summary mb-0">
                                   <strong>Revision {activity.revisionNumber}</strong> submitted for review
                                 </p>
+                              )}
+                              {activity.type === 'posting_done' && (
+                                <div>
+                                  <p className="timeline-summary mb-1">
+                                    Live post links submitted
+                                  </p>
+                                  <ul className="small mb-0 ps-3">
+                                    {(activity.postUrls || [])
+                                      .filter((link) => link?.url)
+                                      .map((link, linkIdx) => (
+                                        <li key={`tl-post-${linkIdx}`}>
+                                          <strong>{link.platform || 'Link'}:</strong>{' '}
+                                          <a
+                                            href={link.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                          >
+                                            {link.url}
+                                          </a>
+                                        </li>
+                                      ))}
+                                  </ul>
+                                  {activity.notes ? (
+                                    <div className="small text-muted mt-1">{activity.notes}</div>
+                                  ) : null}
+                                </div>
                               )}
                               {activity.type === 'edit' && (
                                 <div className="edit-info">
@@ -1252,6 +1298,35 @@ const WorkItemDetailsModal = ({
                             {formatDate(workItem.postingDate)}
                           </small>
                         )}
+                        {(workItem.postingStatus === 'done' ||
+                          workItem.status === 'Posted' ||
+                          workItem.postingSubmittedAt) && (
+                          <small className="d-block mt-2 text-success fw-semibold">
+                            Posted
+                            {workItem.postingSubmittedAt
+                              ? ` · ${formatDate(workItem.postingSubmittedAt)}`
+                              : ''}
+                          </small>
+                        )}
+                        {(workItem.postUrls || [])
+                          .filter((entry) => entry?.url)
+                          .map((entry, idx) => (
+                            <small className="d-block" key={`post-url-${idx}`}>
+                              <strong>{entry.platform || 'Link'}:</strong>{' '}
+                              <a
+                                href={entry.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                {entry.url}
+                              </a>
+                            </small>
+                          ))}
+                        {workItem.postingNotes ? (
+                          <small className="d-block text-muted mt-1">
+                            Notes: {workItem.postingNotes}
+                          </small>
+                        ) : null}
                       </div>
                     )}
                     <small className="text-muted d-block mt-2">
