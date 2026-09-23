@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
   assigneeQualifiesForCreativePosting,
   isPostingDepartmentName,
+  resolvePrimaryProjectCreativeDepartment,
 } from '../../constants/departmentNames';
 import {
   canSetPostingHandoff,
@@ -24,9 +25,25 @@ const entityId = (value) => resolveEntityId(value);
  * @param {object|null|undefined} project
  * @returns {boolean}
  */
-const workItemSupportsPostingHandoff = (item, project) => {
+/**
+ * @param {object|null|undefined} item
+ * @param {object|null|undefined} projectProp
+ * @returns {object|null}
+ */
+const resolveWorkItemProject = (item, projectProp) => {
+  if (projectProp && typeof projectProp === 'object') return projectProp;
+  if (item?.project && typeof item.project === 'object') return item.project;
+  return null;
+};
+
+const workItemSupportsPostingHandoff = (item, projectProp) => {
   if (!item) return false;
   if (isCreativeWorkflowItem(item) || item.requiresPosting) return true;
+
+  const project = resolveWorkItemProject(item, projectProp);
+  if (resolvePrimaryProjectCreativeDepartment(project)) {
+    return true;
+  }
 
   const candidates = [];
   if (item.assignedTo) candidates.push(item.assignedTo);
@@ -73,14 +90,19 @@ const EditWorkItemModal = ({ show, onHide, workItem, project, onSuccess }) => {
 
   const activeItem = detailItem || workItem;
 
-  const showPostingSection = useMemo(
-    () => workItemSupportsPostingHandoff(activeItem, project),
+  const resolvedProject = useMemo(
+    () => resolveWorkItemProject(activeItem, project),
     [activeItem, project]
   );
 
+  const showPostingSection = useMemo(
+    () => workItemSupportsPostingHandoff(activeItem, resolvedProject),
+    [activeItem, resolvedProject]
+  );
+
   const canManagePosting = useMemo(
-    () => canSetPostingHandoff(currentUser, activeItem, project),
-    [currentUser, activeItem, project]
+    () => canSetPostingHandoff(currentUser, activeItem, resolvedProject),
+    [currentUser, activeItem, resolvedProject]
   );
 
   const postingLocked = useMemo(() => {
@@ -350,9 +372,11 @@ const EditWorkItemModal = ({ show, onHide, workItem, project, onSuccess }) => {
                   required
                   disabled={loading || loadingDetail}
                 />
-                <Form.Text className="text-muted">
-                  Creative due date — separate from posting go-live date below.
-                </Form.Text>
+                {showPostingSection && (
+                  <Form.Text className="text-muted">
+                    Creative due date — separate from posting go-live date below.
+                  </Form.Text>
+                )}
               </Form.Group>
             </Col>
           </Row>
@@ -371,9 +395,15 @@ const EditWorkItemModal = ({ show, onHide, workItem, project, onSuccess }) => {
             />
           </Form.Group>
 
-          {showPostingSection && canManagePosting && (
+          {showPostingSection && (
             <div className="border rounded p-3 mb-3 bg-light">
               <div className="fw-semibold mb-2">Posting Department (optional)</div>
+              {!canManagePosting && (
+                <Alert variant="warning" className="py-2 small mb-2">
+                  You can view posting handoff here; only the assigner, project head, or
+                  department HoD can change it.
+                </Alert>
+              )}
               {postingLocked ? (
                 <Alert variant="secondary" className="py-2 small mb-0">
                   Posting is complete for this task. Live links are on the work item
@@ -387,7 +417,7 @@ const EditWorkItemModal = ({ show, onHide, workItem, project, onSuccess }) => {
                     className="mb-2"
                     label="Assign to Posting department (We Alll will post this content)"
                     checked={formData.requiresPosting}
-                    disabled={loading || loadingDetail}
+                    disabled={loading || loadingDetail || !canManagePosting || postingLocked}
                     onChange={(e) => {
                       const checked = e.target.checked;
                       setFormData({
@@ -416,7 +446,9 @@ const EditWorkItemModal = ({ show, onHide, workItem, project, onSuccess }) => {
                               postingAssignedTo: e.target.value,
                             })
                           }
-                          disabled={loading || loadingDetail}
+                          disabled={
+                            loading || loadingDetail || !canManagePosting || postingLocked
+                          }
                         >
                           <option value="">Select Posting member…</option>
                           {postingUsers.map((u) => (
@@ -441,15 +473,19 @@ const EditWorkItemModal = ({ show, onHide, workItem, project, onSuccess }) => {
                           onChange={(e) =>
                             setFormData({ ...formData, postingDate: e.target.value })
                           }
-                          disabled={loading || loadingDetail}
+                          disabled={
+                            loading || loadingDetail || !canManagePosting || postingLocked
+                          }
                         />
                       </Col>
                     </Row>
                   )}
-                  <Form.Text className="text-muted d-block mt-2">
-                    When you save, the selected posting member will see this task in My
-                    Work.
-                  </Form.Text>
+                  {canManagePosting && !postingLocked && (
+                    <Form.Text className="text-muted d-block mt-2">
+                      When you save, the selected posting member will see this task in My
+                      Work.
+                    </Form.Text>
+                  )}
                 </>
               )}
             </div>

@@ -288,8 +288,16 @@ const getWorkItemById = async (req, res) => {
           },
         ],
       })
-      .populate("assignedTo", "name email designation")
-      .populate("assignedToMultiple", "name email designation")
+      .populate({
+        path: "assignedTo",
+        select: "name email designation department",
+        populate: { path: "department", select: "name" },
+      })
+      .populate({
+        path: "assignedToMultiple",
+        select: "name email designation department",
+        populate: { path: "department", select: "name" },
+      })
       .populate("postingAssignedTo", "name email designation department")
       .populate("createdBy", "name email")
       .populate("comments.user", "name email")
@@ -3511,16 +3519,25 @@ export const getCreatedByMe = async (req, res) => {
     
     // Optimized query with lean() for better performance
     const workItems = await WorkItem.find(query)
-      .populate("project", "name client")
       .populate({
         path: "project",
-        populate: {
-          path: "client",
-          select: "name company",
-        },
+        select: "name client departments department projectHead",
+        populate: [
+          { path: "client", select: "name company" },
+          { path: "department", select: "name" },
+          { path: "departments", select: "name" },
+        ],
       })
-      .populate("assignedTo", "name email")
-      .populate("assignedToMultiple", "name email")
+      .populate({
+        path: "assignedTo",
+        select: "name email department",
+        populate: { path: "department", select: "name" },
+      })
+      .populate({
+        path: "assignedToMultiple",
+        select: "name email department",
+        populate: { path: "department", select: "name" },
+      })
       .populate("createdBy", "name email")
       .populate("assigneeStatuses.assigneeId", "name email")
       .select("-comments -statusHistory -attachments")
