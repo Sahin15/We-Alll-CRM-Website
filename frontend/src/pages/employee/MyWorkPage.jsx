@@ -173,6 +173,12 @@ const MyWorkPage = () => {
     return { total, dueToday, inProgress, overdue, completed, cancelled };
   }, [myAssignedItems, user?._id]);
 
+  /** Bootstrap row-cols — avoids custom flex on .row that breaks production builds */
+  const statsGridColsClass =
+    statistics.cancelled > 0
+      ? 'row-cols-2 row-cols-md-3 row-cols-xl-6'
+      : 'row-cols-2 row-cols-md-3 row-cols-xl-5';
+
   const handleStatFilterClick = useCallback((filter) => {
     setStatFilter((current) => (current === filter ? null : filter));
     setShowTodayOnly(false);
@@ -460,7 +466,7 @@ const MyWorkPage = () => {
       </Row>
 
       {/* Statistics Cards — click to filter list */}
-      <Row className="mb-3 g-2 stats-row">
+      <Row className={`mb-3 g-2 ${statsGridColsClass}`}>
         {[
           { key: 'all', icon: '📋', value: statistics.total, label: 'Total Items' },
           { key: 'dueToday', icon: '⏰', value: statistics.dueToday, label: 'Due Today' },
@@ -468,7 +474,7 @@ const MyWorkPage = () => {
           { key: 'overdue', icon: '⚠️', value: statistics.overdue, label: 'Overdue' },
           { key: 'completed', icon: '✅', value: statistics.completed, label: 'Completed' },
         ].map((stat) => (
-          <Col className="stat-col" key={stat.key}>
+          <Col key={stat.key}>
             <Card
               role="button"
               tabIndex={0}
@@ -491,7 +497,7 @@ const MyWorkPage = () => {
           </Col>
         ))}
         {statistics.cancelled > 0 && (
-          <Col className="stat-col">
+          <Col>
             <Card
               role="button"
               tabIndex={0}
