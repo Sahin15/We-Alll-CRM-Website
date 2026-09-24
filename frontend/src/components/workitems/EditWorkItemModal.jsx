@@ -2,12 +2,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { Modal, Form, Button, Row, Col, Alert, Badge } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import workItemApi from '../../api/workItemApi';
-import userApi from '../../api/userApi';
 import creativeWorkflowApi from '../../api/creativeWorkflowApi';
 import { useAuth } from '../../context/AuthContext';
 import {
   assigneeQualifiesForCreativePosting,
-  isPostingDepartmentName,
   resolvePrimaryProjectCreativeDepartment,
 } from '../../constants/departmentNames';
 import {
@@ -15,6 +13,7 @@ import {
   isCreativeWorkflowItem,
   resolveEntityId,
 } from '../../utils/creativeWorkflowAccess';
+import { fetchPostingDepartmentUsers } from '../../utils/postingDepartmentUsers';
 import { getCreativeStatusBadgeVariant } from '../../utils/workItemStatusUtils';
 
 /** @param {string|{ _id?: string }} value */
@@ -126,21 +125,15 @@ const EditWorkItemModal = ({ show, onHide, workItem, project, onSuccess }) => {
 
     (async () => {
       try {
-        const [itemRes, usersRes] = await Promise.all([
+        const [itemRes, postingList] = await Promise.all([
           workItemApi.getWorkItemById(workItem._id),
-          userApi.getAllUsers({ status: 'active', limit: 1000 }),
+          fetchPostingDepartmentUsers(),
         ]);
         if (cancelled) return;
 
         const full = itemRes.data || itemRes;
         setDetailItem(full);
-
-        const userList = usersRes?.data || usersRes?.users || usersRes || [];
-        setPostingUsers(
-          (Array.isArray(userList) ? userList : []).filter((u) =>
-            isPostingDepartmentName(u.department?.name)
-          )
-        );
+        setPostingUsers(postingList);
 
         const posting = postingSnapshot(full);
         setInitialPosting(posting);

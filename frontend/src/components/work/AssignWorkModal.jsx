@@ -10,9 +10,9 @@ import TeamMemberWorkloadInfo from '../workload/TeamMemberWorkloadInfo';
 import {
   assigneeQualifiesForCreativePosting,
   getCreativeWorkflowTypeForDepartment,
-  isPostingDepartmentName,
   resolvePrimaryProjectCreativeDepartment,
 } from '../../constants/departmentNames';
+import { fetchPostingDepartmentUsers } from '../../utils/postingDepartmentUsers';
 
 /**
  * AssignWorkModal - Reusable modal for assigning work to team members
@@ -351,22 +351,15 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
 
   const loadPostingSupportData = async () => {
     try {
-      const [deptRes, usersRes] = await Promise.all([
+      const [deptRes, postingList] = await Promise.all([
         departmentApi.getAllDepartments(),
-        userApi.getAllUsers({
-          status: 'active',
-          department: 'Posting',
-          limit: 500,
-        }),
+        fetchPostingDepartmentUsers(),
       ]);
       const deptList = Array.isArray(deptRes)
         ? deptRes
         : deptRes?.data || deptRes?.departments || [];
-      const userList = normalizeUserList(usersRes);
       setDepartments(Array.isArray(deptList) ? deptList : []);
-      setPostingUsers(
-        userList.filter((u) => isPostingDepartmentName(u.department?.name))
-      );
+      setPostingUsers(postingList);
     } catch (error) {
       console.error('[AssignWorkModal] Failed to load posting support data:', error);
       setDepartments([]);
@@ -517,18 +510,11 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
             setSelectedProject(project);
           }
 
-          const [usersRes, postingRes] = await Promise.all([
+          const [usersRes, postingList] = await Promise.all([
             userApi.getAllUsers({ status: 'active', limit: 1000 }),
-            userApi.getAllUsers({
-              status: 'active',
-              department: 'Posting',
-              limit: 500,
-            }),
+            fetchPostingDepartmentUsers(),
           ]);
           const allFetchedUsers = normalizeUserList(usersRes);
-          const postingList = normalizeUserList(postingRes).filter((u) =>
-            isPostingDepartmentName(u.department?.name)
-          );
           setAllUsers(allFetchedUsers);
           setPostingUsers(postingList);
 

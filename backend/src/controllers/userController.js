@@ -17,6 +17,19 @@ import {
   getOwnedDepartmentIdForRoster,
 } from '../utils/teamRosterScope.js';
 import { hasPermission } from '../authz/policyEngine.js';
+import { resolveDepartmentIdForFilter } from '../utils/departmentLookup.js';
+
+/**
+ * Users picking Posting assignees during creative work create/edit.
+ * @param {object} user
+ * @returns {boolean}
+ */
+function canLoadPostingHandoffRoster(user) {
+  return (
+    hasPermission(user, 'work.item.create') ||
+    hasPermission(user, 'work.item.update')
+  );
+}
 
 //generate token
 const generateToken = (id) => {
@@ -159,34 +172,17 @@ export const getUsers = async (req, res) => {
     // Role filter
     if (role) query.role = role;
     
-    // Department filter - handle both department name and ID
+    // Department filter - handle both department name and ID (incl. legacy DB names)
     if (department) {
-      // Check if department is a valid MongoDB ObjectId
-      if (department.match(/^[0-9a-fA-F]{24}$/)) {
-        query.department = department;
-      } else {
-        // If it's a string name, look up the department ID
-        try {
-          const canonicalName =
-            resolveCanonicalDepartmentName(department) || department;
-          const dept = await Department.findOne({
-            name: {
-              $regex: new RegExp(
-                `^${canonicalName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
-                "i"
-              ),
-            },
-          });
-          if (dept) {
-            query.department = dept._id;
-          } else {
-            // Department not found, return empty array
-            return res.status(200).json([]);
-          }
-        } catch (deptError) {
-          logger.error("Error looking up department:", deptError);
+      try {
+        const departmentId = await resolveDepartmentIdForFilter(department);
+        if (!departmentId) {
           return res.status(200).json([]);
         }
+        query.department = departmentId;
+      } catch (deptError) {
+        logger.error("Error looking up department:", deptError);
+        return res.status(200).json([]);
       }
     }
     
@@ -205,7 +201,7 @@ export const getUsers = async (req, res) => {
       if (
         deptDoc?.name &&
         resolveCanonicalDepartmentName(deptDoc.name) === 'Posting' &&
-        hasPermission(req.user, 'work.item.create')
+        canLoadPostingHandoffRoster(req.user)
       ) {
         allowPostingHandoffRoster = true;
       }

@@ -34,8 +34,8 @@ import userApi from '../../api/userApi';
 import {
   getCreativeWorkflowTypeForDepartment,
   assigneeQualifiesForCreativePosting,
-  isPostingDepartmentName,
 } from '../../constants/departmentNames';
+import { fetchPostingDepartmentUsers } from '../../utils/postingDepartmentUsers';
 
 /**
  * Professional Work Creation Modal
@@ -54,6 +54,7 @@ const ProfessionalWorkCreationModal = ({
   const [loading, setLoading] = useState(false);
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
+  const [postingDepartmentUsers, setPostingDepartmentUsers] = useState([]);
   const [errors, setErrors] = useState({});
 
   // Form data
@@ -150,10 +151,6 @@ const ProfessionalWorkCreationModal = ({
   }, [formData.assignedTo, users, selectedProject]);
 
   const showPostingHandoff = assigneeSupportsCreative;
-
-  const postingDepartmentUsers = useMemo(() => {
-    return users.filter((u) => isPostingDepartmentName(u.department?.name));
-  }, [users]);
 
   const availableUsers = useMemo(() => {
     if (!formData.project || !selectedProject) {
@@ -256,9 +253,10 @@ const ProfessionalWorkCreationModal = ({
   const loadData = async () => {
     try {
       // Load projects and users in parallel for faster loading
-      const [projectsRes, usersRes] = await Promise.all([
+      const [projectsRes, usersRes, postingList] = await Promise.all([
         projectApi.getAllProjects(),
-        userApi.getAllUsers({ status: 'active', limit: 1000 })
+        userApi.getAllUsers({ status: 'active', limit: 1000 }),
+        fetchPostingDepartmentUsers(),
       ]);
 
       const projectsData = projectsRes.data || [];
@@ -268,6 +266,7 @@ const ProfessionalWorkCreationModal = ({
       
       setProjects(projectsData);
       setUsers(usersRes.data || []);
+      setPostingDepartmentUsers(postingList);
     } catch (error) {
       console.error('Error loading data:', error);
       toast.error('Failed to load projects and users');

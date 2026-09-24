@@ -3,7 +3,7 @@ import { Alert, Button, Form, ListGroup, Spinner } from "react-bootstrap";
 import { toast } from "react-toastify";
 import creativeWorkflowApi from "../../api/creativeWorkflowApi";
 import userApi from "../../api/userApi";
-import { isPostingDepartmentName } from "../../constants/departmentNames";
+import { fetchPostingDepartmentUsers } from "../../utils/postingDepartmentUsers";
 import CreativeWorkflowStepper from "./CreativeWorkflowStepper";
 import CreativeStepTimeline from "./CreativeStepTimeline";
 import {
@@ -337,13 +337,7 @@ const CreativeWorkflowPanel = ({
 
   const loadPostingUsers = async () => {
     try {
-      const usersRes = await userApi.getAllUsers({ status: "active", limit: 1000 });
-      const userList = usersRes?.data || usersRes?.users || usersRes || [];
-      setPostingUsers(
-        (Array.isArray(userList) ? userList : []).filter((u) =>
-          isPostingDepartmentName(u.department?.name)
-        )
-      );
+      setPostingUsers(await fetchPostingDepartmentUsers());
     } catch {
       setPostingUsers([]);
     }
