@@ -16,6 +16,7 @@ import {
   isOwnDepartmentTeamViewer,
   getOwnedDepartmentIdForRoster,
 } from '../utils/teamRosterScope.js';
+import { hasPermission } from '../authz/policyEngine.js';
 
 //generate token
 const generateToken = (id) => {
@@ -198,15 +199,33 @@ export const getUsers = async (req, res) => {
       Object.assign(query, mergeExcludePastMembersFilter(query));
     }
 
+    let allowPostingHandoffRoster = false;
+    if (query.department) {
+      const deptDoc = await Department.findById(query.department).select('name').lean();
+      if (
+        deptDoc?.name &&
+        resolveCanonicalDepartmentName(deptDoc.name) === 'Posting' &&
+        hasPermission(req.user, 'work.item.create')
+      ) {
+        allowPostingHandoffRoster = true;
+      }
+    }
+
     if (isOwnDepartmentTeamViewer(req.user)) {
       const ownedDepartmentId = await getOwnedDepartmentIdForRoster(req.user);
       if (!ownedDepartmentId) {
         return res.status(200).json([]);
       }
-      if (query.department && String(query.department) !== String(ownedDepartmentId)) {
+      if (
+        query.department &&
+        String(query.department) !== String(ownedDepartmentId) &&
+        !allowPostingHandoffRoster
+      ) {
         return res.status(200).json([]);
       }
-      query.department = ownedDepartmentId;
+      if (!query.department) {
+        query.department = ownedDepartmentId;
+      }
     }
     
     logger.info('getUsers query:', JSON.stringify(query));

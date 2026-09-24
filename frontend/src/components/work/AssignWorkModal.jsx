@@ -99,6 +99,57 @@ const buildTeamMembersFromProject = (project) => {
  * @param {Object|null} project
  * @returns {Array<{ _id: string, name?: string }>}
  */
+/**
+ * Load a project record with healed roster (assignedUsers + teamMembers populated).
+ * @param {string} projectId
+ * @param {Object|null} fallbackProject
+ * @returns {Promise<Object|null>}
+ */
+const fetchProjectForTeamRoster = async (projectId, fallbackProject) => {
+  const resolvedProjectId = resolveEntityId(projectId);
+  if (!resolvedProjectId) return fallbackProject;
+
+  try {
+    const detail = await projectApi.getProjectById(resolvedProjectId);
+    const record = detail?.data ?? detail;
+    if (record?._id) {
+      return { ...(fallbackProject || {}), ...record };
+    }
+  } catch (error) {
+    console.warn('[AssignWorkModal] Could not load project detail for roster:', error);
+  }
+
+  return fallbackProject;
+};
+
+/**
+ * Merge project roster with directory users (for department labels).
+ * @param {Object|null} project
+ * @param {Array<Object>} directoryUsers
+ * @returns {Array<Object>}
+ */
+const buildAssignableTeamMembers = (project, directoryUsers) => {
+  const teamMemberIds = collectTeamMemberIds(project);
+  let teamMembers = buildTeamMembersFromProject(project);
+
+  if (directoryUsers.length > 0) {
+    teamMembers = teamMembers.map((member) => {
+      const full = directoryUsers.find(
+        (user) => resolveEntityId(user._id) === resolveEntityId(member._id)
+      );
+      return full ? { ...member, ...full } : member;
+    });
+
+    if (teamMembers.length === 0 && teamMemberIds.length > 0) {
+      teamMembers = directoryUsers.filter((user) =>
+        teamMemberIds.includes(resolveEntityId(user._id))
+      );
+    }
+  }
+
+  return teamMembers;
+};
+
 const ensureAssigneeInTeamMembers = (teamMembers, assignee, project) => {
   const assigneeId = resolveEntityId(assignee);
   if (!assigneeId) return teamMembers;
@@ -302,14 +353,17 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
     try {
       const [deptRes, usersRes] = await Promise.all([
         departmentApi.getAllDepartments(),
-        userApi.getAllUsers({ status: 'active', limit: 1000 }),
+        userApi.getAllUsers({
+          status: 'active',
+          department: 'Posting',
+          limit: 500,
+        }),
       ]);
       const deptList = Array.isArray(deptRes)
         ? deptRes
         : deptRes?.data || deptRes?.departments || [];
       const userList = normalizeUserList(usersRes);
       setDepartments(Array.isArray(deptList) ? deptList : []);
-      setAllUsers(userList);
       setPostingUsers(
         userList.filter((u) => isPostingDepartmentName(u.department?.name))
       );
@@ -337,8 +391,7 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
       }
       
       setProjects(loadedProjects);
-      setAllUsers([]); // Don't load all users upfront
-      setUsers([]); // Users will be loaded when project is selected
+      // Do not clear users here — races with handleProjectChange and wipes the roster.
     } catch (error) {
       console.error('[AssignWorkModal] Error loading projects:', error);
       toast.error('Failed to load projects');
@@ -449,47 +502,37 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
     }
 
     if (projectId) {
-      const project = resolveProjectRecord(projectId);
+      let project = resolveProjectRecord(projectId);
       setSelectedProject(project);
 
       if (project) {
-        const teamMemberIds = collectTeamMemberIds(project);
-
         try {
           setLoadingData(true);
-          const usersRes = await userApi.getAllUsers({ status: 'active', limit: 1000 });
-          const allFetchedUsers = normalizeUserList(usersRes);
-          setAllUsers(allFetchedUsers);
-          setPostingUsers(
-            allFetchedUsers.filter((u) =>
-              isPostingDepartmentName(u.department?.name)
-            )
+          const hydratedProject = await fetchProjectForTeamRoster(
+            resolvedProjectId,
+            project
           );
-
-          let teamMembers = buildTeamMembersFromProject(project).filter((member) => member.name);
-
-          if (teamMembers.length > 0) {
-            teamMembers = ensureAssigneeInTeamMembers(
-              teamMembers,
-              assigneeId || defaultAssignee,
-              project
-            );
-            teamMembers = teamMembers.map((member) => {
-              const full = allFetchedUsers.find(
-                (user) => resolveEntityId(user._id) === resolveEntityId(member._id)
-              );
-              return full || member;
-            });
-          } else if (teamMemberIds.length > 0) {
-            teamMembers = allFetchedUsers.filter((user) =>
-              teamMemberIds.includes(resolveEntityId(user._id))
-            );
+          if (hydratedProject) {
+            project = hydratedProject;
+            setSelectedProject(project);
           }
 
-          if (teamMembers.length === 0) {
-            teamMembers = allFetchedUsers;
-          }
+          const [usersRes, postingRes] = await Promise.all([
+            userApi.getAllUsers({ status: 'active', limit: 1000 }),
+            userApi.getAllUsers({
+              status: 'active',
+              department: 'Posting',
+              limit: 500,
+            }),
+          ]);
+          const allFetchedUsers = normalizeUserList(usersRes);
+          const postingList = normalizeUserList(postingRes).filter((u) =>
+            isPostingDepartmentName(u.department?.name)
+          );
+          setAllUsers(allFetchedUsers);
+          setPostingUsers(postingList);
 
+          let teamMembers = buildAssignableTeamMembers(project, allFetchedUsers);
           teamMembers = ensureAssigneeInTeamMembers(
             teamMembers,
             assigneeId || defaultAssignee,
