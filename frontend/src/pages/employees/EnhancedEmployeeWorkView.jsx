@@ -425,6 +425,12 @@ const WorkAssignmentsTab = ({ recentWork, getStatusColor, getPriorityColor, onVi
                 {filteredWork.filter(w => w.status === 'To Do' || w.status === 'Assigned' || w.status === 'Backlog').length}
               </strong>
             </div>
+            <div className="d-flex justify-content-between mb-2">
+              <span>Cancelled:</span>
+              <strong className="text-danger">
+                {filteredWork.filter((w) => w.status === 'Cancelled').length}
+              </strong>
+            </div>
             <div className="d-flex justify-content-between">
               <span title="Creative change requests (minor / major / reject)">Change Requests:</span>
               <strong className={filteredChangeTotal > 0 ? 'text-warning' : ''}>
