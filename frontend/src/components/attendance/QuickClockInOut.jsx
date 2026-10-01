@@ -251,30 +251,6 @@ const QuickClockInOut = ({ variant = "light", size = "sm", showLabel = true }) =
     }
   };
 
-  const handleWorkLogSkip = async () => {
-    // Manager skip - proceed with clock-out without work log
-    try {
-      setLoading(true);
-      const response = await api.post("/attendance/clock-out");
-      toast.clockOut();
-      const attendanceData = response.data.attendance || response.data;
-      setTodayAttendance(attendanceData);
-      setIsOnBreak(false);
-      
-      // Trigger event for other components to update
-      window.dispatchEvent(new CustomEvent('attendanceUpdate', { 
-        detail: { type: 'clockOut', data: attendanceData } 
-      }));
-      
-      setShowWorkLogModal(false);
-    } catch (error) {
-      console.error("Error clocking out (skip):", error);
-      toast.error("Failed to clock out. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const openConfirmDialog = (actionType) => {
     console.log('[CLOCK-BTN] Opening confirm dialog for action:', actionType);
     setAction(actionType);
@@ -671,7 +647,6 @@ const QuickClockInOut = ({ variant = "light", size = "sm", showLabel = true }) =
         show={showWorkLogModal}
         onHide={() => setShowWorkLogModal(false)}
         onSubmit={handleWorkLogSubmit}
-        onSkip={handleWorkLogSkip}
       />
     </>
   );

@@ -209,22 +209,6 @@ const MyAttendance = () => {
     }
   };
 
-  const handleWorkLogSkip = async () => {
-    // Manager skip - proceed with clock-out without work log
-    try {
-      setClockingIn(true);
-      await attendanceApi.clockOut("End of day");
-      toast.success("Clocked out successfully!");
-      await fetchTodayAttendance();
-      await fetchAttendance();
-      setShowWorkLogModal(false);
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to clock out");
-    } finally {
-      setClockingIn(false);
-    }
-  };
-
   const handleExport = async () => {
     try {
       const exportData = attendances.map((a) => ({
@@ -1098,7 +1082,6 @@ const MyAttendance = () => {
         show={showWorkLogModal}
         onHide={() => setShowWorkLogModal(false)}
         onSubmit={handleWorkLogSubmit}
-        onSkip={handleWorkLogSkip}
       />
     </Container>
   );

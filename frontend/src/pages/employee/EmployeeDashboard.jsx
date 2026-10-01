@@ -734,33 +734,6 @@ const EmployeeDashboard = () => {
     }
   };
 
-  const handleWorkLogSkip = async () => {
-    // Manager skip - proceed with clock-out without work log
-    try {
-      setClockActionLoading(true);
-      const response = await api.post("/attendance/clock-out");
-      const attendance = response.data.attendance || response.data;
-      
-      updateClockedIn(false);
-      updateClockInTime(null);
-      toast.clockOut();
-      
-      // Trigger event for other components
-      window.dispatchEvent(new CustomEvent('attendanceUpdate', { 
-        detail: { type: 'clockOut', data: attendance } 
-      }));
-      
-      // Refresh dashboard data
-      fetchDashboardData();
-      setShowWorkLogModal(false);
-    } catch (error) {
-      console.error("Error clocking out (skip):", error);
-      toast.error("Failed to clock out. Please try again.");
-    } finally {
-      setClockActionLoading(false);
-    }
-  };
-
   const formatTime = (date) => {
     try {
       // Extract time components manually to ensure no date is included
@@ -2437,7 +2410,6 @@ const EmployeeDashboard = () => {
         show={showWorkLogModal}
         onHide={() => setShowWorkLogModal(false)}
         onSubmit={handleWorkLogSubmit}
-        onSkip={handleWorkLogSkip}
       />
 
       {/* Create/Edit Meeting Modal */}

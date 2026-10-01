@@ -1,0 +1,19 @@
+/* Keep all project workspace tabs on one row; scroll horizontally on narrow viewports */
+.project-workspace-tabs .nav-tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.project-workspace-tabs .nav-item {
+  flex-shrink: 0;
+}
+
+.project-workspace-tabs .nav-link {
+  white-space: nowrap;
+  font-size: 0.875rem;
+  padding: 0.5rem 0.75rem;
+}

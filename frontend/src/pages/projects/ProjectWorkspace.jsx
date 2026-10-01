@@ -15,6 +15,7 @@ import BusinessDocumentsTab from '../../components/documents/BusinessDocumentsTa
 import ReportsTab from '../../components/projects/workspace/ReportsTab';
 import { useAuth } from '../../context/AuthContext';
 import { PAGE_ACCESS, checkPageAccess } from '../../constants/pageAccess';
+import './ProjectWorkspace.css';
 
 /**
  * ProjectWorkspace Component
@@ -172,10 +173,7 @@ const ProjectWorkspace = () => {
       <Tabs
         activeKey={activeTab}
         onSelect={(k) => setActiveTab(k)}
-        className="mb-4 border-0"
-        style={{
-          borderBottom: '2px solid #e9ecef'
-        }}
+        className="mb-4 border-0 project-workspace-tabs"
       >
         <Tab 
           eventKey="overview" 

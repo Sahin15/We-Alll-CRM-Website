@@ -7,10 +7,7 @@ import {
   getCharCountColor,
   getCharCountMessage,
 } from "../../utils/workLogHelpers";
-import { useAuth } from "../../context/AuthContext";
-
-const WorkLogSubmissionModal = ({ show, onHide, onSubmit, onSkip }) => {
-  const { user } = useAuth();
+const WorkLogSubmissionModal = ({ show, onHide, onSubmit }) => {
   const [workLog, setWorkLog] = useState("");
   const [loading, setLoading] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -18,8 +15,6 @@ const WorkLogSubmissionModal = ({ show, onHide, onSubmit, onSkip }) => {
   const [charCount, setCharCount] = useState(0);
   const [lastSaved, setLastSaved] = useState(null);
   const textareaRef = useRef(null);
-
-  const isManager = user?.role === "manager";
 
   useEffect(() => {
     if (show) {
@@ -96,13 +91,6 @@ const WorkLogSubmissionModal = ({ show, onHide, onSubmit, onSkip }) => {
     }
   };
 
-  const handleSkipClick = () => {
-    if (onSkip) {
-      onSkip();
-    }
-    handleClose();
-  };
-
   const handleClose = () => {
     setWorkLog("");
     setError("");
@@ -130,16 +118,8 @@ const WorkLogSubmissionModal = ({ show, onHide, onSubmit, onSkip }) => {
         <Alert variant="info">
           <strong>Before you clock out...</strong>
           <br />
-          Please describe what you worked on today. This helps track progress
-          and productivity.
-          {isManager && (
-            <>
-              <br />
-              <small className="text-muted">
-                As a manager, you can skip this step if needed.
-              </small>
-            </>
-          )}
+          Please describe what you worked on today. You must submit your work
+          log before you can clock out.
         </Alert>
 
         <Form onSubmit={handleSubmit}>
@@ -190,16 +170,6 @@ const WorkLogSubmissionModal = ({ show, onHide, onSubmit, onSkip }) => {
             >
               {savingDraft ? "Saving..." : "Save Draft"}
             </Button>
-            
-            {isManager && (
-              <Button
-                variant="warning"
-                onClick={handleSkipClick}
-                disabled={loading || savingDraft}
-              >
-                Skip & Clock Out
-              </Button>
-            )}
             
             <Button
               variant="primary"

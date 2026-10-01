@@ -80,7 +80,7 @@ function ConfirmModal({ action, attendance, onConfirm, onCancel, loading }) {
 }
 
 // ─── Work Log Modal ───────────────────────────────────────────────────────────
-function WorkLogModal({ show, onSubmitAndClockOut, onSkip, onCancel, isManager }) {
+function WorkLogModal({ show, onSubmitAndClockOut, onCancel }) {
   const [workLog, setWorkLog] = useState('');
   const [loading, setLoading] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -118,8 +118,8 @@ function WorkLogModal({ show, onSubmitAndClockOut, onSkip, onCancel, isManager }
           <button onClick={onCancel} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: '1.2rem' }}>×</button>
         </div>
         <div style={{ padding: '12px 14px', background: '#EFF6FF', borderRadius: '8px', marginBottom: '16px', fontSize: '0.85rem', color: '#1D4ED8' }}>
-          <strong>Before you clock out...</strong><br />Please describe what you worked on today.
-          {isManager && <div style={{ marginTop: '4px', color: '#6B7280', fontSize: '0.8rem' }}>As a manager, you can skip this step if needed.</div>}
+          <strong>Before you clock out...</strong><br />
+          Please describe what you worked on today. You must submit your work log to clock out.
         </div>
         {error && <div style={{ padding: '10px 14px', background: '#FEE2E2', borderRadius: '8px', marginBottom: '12px', fontSize: '0.85rem', color: '#991B1B' }}>{error}</div>}
         <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>What did you work on today? <span style={{ color: '#EF4444' }}>*</span></label>
@@ -135,7 +135,6 @@ function WorkLogModal({ show, onSubmitAndClockOut, onSkip, onCancel, isManager }
             <button onClick={handleSaveDraft} disabled={savingDraft || charCount === 0} style={{ flex: 1, padding: '11px', borderRadius: '8px', border: '1px solid #E5E7EB', background: '#fff', color: '#374151', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem' }}>
               {savingDraft ? 'Saving...' : 'Save Draft'}
             </button>
-            {isManager && <button onClick={onSkip} style={{ flex: 1, padding: '11px', borderRadius: '8px', border: 'none', background: '#FEF3C7', color: '#92400E', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem' }}>Skip & Clock Out</button>}
             <button onClick={onCancel} style={{ flex: 1, padding: '11px', borderRadius: '8px', border: '1px solid #E5E7EB', background: '#fff', color: '#6B7280', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem' }}>Cancel</button>
           </div>
         </div>
@@ -146,9 +145,7 @@ function WorkLogModal({ show, onSubmitAndClockOut, onSkip, onCancel, isManager }
 
 // ─── Main HomeTab ─────────────────────────────────────────────────────────────
 export default function HomeTab() {
-  const { user, canAccess } = useAuth();
-  const isManager = canAccess('worklog.entry.review', ['manager', 'admin', 'superadmin', 'hr', 'hod']);
-
+  const { user } = useAuth();
   const [attendance, setAttendance] = useState(null);
   const [leaveBalance, setLeaveBalance] = useState(null);
   const [announcements, setAnnouncements] = useState([]);
@@ -397,7 +394,7 @@ export default function HomeTab() {
       </div>
 
       <ConfirmModal action={confirmAction} attendance={attendance} onConfirm={handleConfirm} onCancel={() => setConfirmAction(null)} loading={actionLoading} />
-      <WorkLogModal show={showWorkLog} isManager={isManager} onSubmitAndClockOut={handleClockOut} onSkip={handleClockOut} onCancel={() => setShowWorkLog(false)} />
+      <WorkLogModal show={showWorkLog} onSubmitAndClockOut={handleClockOut} onCancel={() => setShowWorkLog(false)} />
     </>
   );
 }
