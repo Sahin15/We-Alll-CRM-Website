@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Modal, Form, Button, Row, Col, Badge, Alert } from 'react-bootstrap';
 import { FaTasks, FaPlusCircle } from 'react-icons/fa';
 import { toast } from 'react-toastify';
@@ -7,12 +7,13 @@ import projectApi from '../../api/projectApi';
 import userApi from '../../api/userApi';
 import departmentApi from '../../api/departmentApi';
 import TeamMemberWorkloadInfo from '../workload/TeamMemberWorkloadInfo';
-import {
-  assigneeQualifiesForCreativePosting,
-  getCreativeWorkflowTypeForDepartment,
-  resolvePrimaryProjectCreativeDepartment,
-} from '../../constants/departmentNames';
+import { assigneeQualifiesForCreativePosting } from '../../constants/departmentNames';
 import { fetchPostingDepartmentUsers } from '../../utils/postingDepartmentUsers';
+import {
+  buildCreativeWorkflowPayload,
+  getDefaultUseCreativeWorkflow,
+} from '../../utils/creativeWorkflowForm';
+import CreativeWorkflowToggle from './CreativeWorkflowToggle';
 
 /**
  * AssignWorkModal - Reusable modal for assigning work to team members
@@ -186,6 +187,7 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
   const [pendingWorkCount, setPendingWorkCount] = useState(0); // Track pending work for selected due date
   const [departments, setDepartments] = useState([]);
   const [postingUsers, setPostingUsers] = useState([]);
+  const creativeWorkflowTouchedRef = useRef(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -198,6 +200,7 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
     selectedSlot: '', // Add slot selection
     visibility: 'active', // 'draft', 'scheduled', or 'active'
     scheduledActivationDate: '', // When to activate if scheduled
+    useCreativeWorkflow: false,
     requiresPosting: false,
     postingAssignedTo: '',
     postingDate: '',
@@ -262,14 +265,42 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
     );
   }, [selectedAssigneeIds, users, allUsers, selectedProject]);
 
-  const isCreativeAssignment = assigneeSupportsCreative;
+  const hasAssigneeSelected = selectedAssigneeIds.length > 0;
+  const creativeWorkflowEligible = assigneeSupportsCreative;
+  const showPostingHandoff = formData.useCreativeWorkflow;
 
-  // Only show for Graphic / Video assignees — other departments do not need posting
-  const showPostingHandoff = assigneeSupportsCreative;
-
-  // Clear posting fields when assignee is no longer Graphic/Video
   useEffect(() => {
-    if (!assigneeSupportsCreative && formData.requiresPosting) {
+    if (!show) {
+      creativeWorkflowTouchedRef.current = false;
+    }
+  }, [show]);
+
+  useEffect(() => {
+    if (!hasAssigneeSelected || creativeWorkflowTouchedRef.current) {
+      return;
+    }
+    const assigneeUsers = selectedAssigneeIds
+      .map((id) => findUserById(id))
+      .filter(Boolean);
+    const defaultCreative = getDefaultUseCreativeWorkflow(
+      selectedProject,
+      assigneeUsers
+    );
+    setFormData((prev) => ({
+      ...prev,
+      useCreativeWorkflow: creativeWorkflowEligible ? defaultCreative : false,
+    }));
+  }, [
+    hasAssigneeSelected,
+    creativeWorkflowEligible,
+    selectedAssigneeIds,
+    selectedProject,
+    users,
+    allUsers,
+  ]);
+
+  useEffect(() => {
+    if (!formData.useCreativeWorkflow && formData.requiresPosting) {
       setFormData((prev) => ({
         ...prev,
         requiresPosting: false,
@@ -277,7 +308,7 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
         postingDate: '',
       }));
     }
-  }, [assigneeSupportsCreative]);
+  }, [formData.useCreativeWorkflow]);
 
   // Load projects and users when modal opens
   useEffect(() => {
@@ -298,10 +329,12 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
         selectedSlot: defaultSlotId,
         visibility: 'active',
         scheduledActivationDate: '',
+        useCreativeWorkflow: false,
         requiresPosting: false,
         postingAssignedTo: '',
         postingDate: '',
       });
+      creativeWorkflowTouchedRef.current = false;
       setSelectedUserForWorkload(defaultAssigneeId || null);
       setSlots([]);
       if (slotInfo?.periodIdentifier) {
@@ -664,20 +697,19 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
         workItemData.selectedSlot = formData.selectedSlot;
       }
 
-      if (showPostingHandoff) {
-        if (isCreativeAssignment || formData.requiresPosting) {
-          workItemData.workflowMode = 'creative';
-          const deptNameSources = [
-            resolvePrimaryProjectCreativeDepartment(selectedProject),
-            ...selectedAssigneeIds.map((id) => findUserById(id)?.department?.name),
-          ].filter(Boolean);
-          const workflowTypes = deptNameSources
-            .map((name) => getCreativeWorkflowTypeForDepartment(name))
-            .filter(Boolean);
-          workItemData.workflowType = workflowTypes.includes('video-production')
-            ? 'video-production'
-            : 'design';
-        }
+      const assigneeUsers = selectedAssigneeIds
+        .map((id) => findUserById(id))
+        .filter(Boolean);
+      Object.assign(
+        workItemData,
+        buildCreativeWorkflowPayload(
+          formData.useCreativeWorkflow,
+          selectedProject,
+          assigneeUsers
+        )
+      );
+
+      if (formData.useCreativeWorkflow) {
         workItemData.requiresPosting = Boolean(formData.requiresPosting);
         if (formData.requiresPosting) {
           workItemData.postingAssignedTo = formData.postingAssignedTo;
@@ -725,10 +757,12 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
         selectedSlot: '',
         visibility: 'active',
         scheduledActivationDate: '',
+        useCreativeWorkflow: false,
         requiresPosting: false,
         postingAssignedTo: '',
         postingDate: '',
       });
+      creativeWorkflowTouchedRef.current = false;
       setPendingWorkCount(0);
       
       if (onSuccess) onSuccess();
@@ -978,6 +1012,23 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
                 )}
               </Form.Group>
             </Col>
+
+            {hasAssigneeSelected && (
+              <Col md={12}>
+                <CreativeWorkflowToggle
+                  checked={formData.useCreativeWorkflow}
+                  eligible={creativeWorkflowEligible}
+                  disabled={assigning || loadingData || !creativeWorkflowEligible}
+                  onChange={(checked) => {
+                    creativeWorkflowTouchedRef.current = true;
+                    setFormData((prev) => ({
+                      ...prev,
+                      useCreativeWorkflow: checked,
+                    }));
+                  }}
+                />
+              </Col>
+            )}
 
             {showPostingHandoff && (
               <Col md={12} className="mb-3">

@@ -543,17 +543,44 @@ const createWorkItem = async (req, res) => {
       }
     }
 
-    // Creative workflow + optional Posting handoff
-    if (
-      workflowMode === "creative" ||
-      workflowType === "design" ||
-      workflowType === "design-advanced" ||
-      workflowType === "video-production"
-    ) {
-      workItemData.workflowMode = "creative";
+    const { applyCreativeWorkflowFromRequest, collectProjectDepartmentNameList } =
+      await import("../utils/creativeWorkflowRequest.js");
+
+    const assigneeIdList = [];
+    if (assignedToMultiple?.length) {
+      assigneeIdList.push(...assignedToMultiple);
+    } else if (assignedTo) {
+      assigneeIdList.push(assignedTo);
     }
-    if (workflowType) {
-      workItemData.workflowType = workflowType;
+
+    let assigneeDepartmentNames = [];
+    if (assigneeIdList.length > 0) {
+      const assigneeDocs = await User.find({ _id: { $in: assigneeIdList } })
+        .populate("department", "name")
+        .select("department")
+        .lean();
+      assigneeDepartmentNames = assigneeDocs
+        .map((row) => row.department?.name)
+        .filter(Boolean);
+    }
+
+    applyCreativeWorkflowFromRequest(workItemData, req.body, {
+      assigneeDepartmentNames,
+      projectDepartmentNames: collectProjectDepartmentNameList(projectExists),
+    });
+
+    if (
+      Boolean(requiresPosting) &&
+      workItemData.workflowMode !== "creative"
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: "VALIDATION_ERROR",
+          message:
+            "Posting handoff requires creative workflow. Enable “Use creative workflow” on the work form.",
+        },
+      });
     }
 
     const postingValidated = validatePostingHandoffInput({

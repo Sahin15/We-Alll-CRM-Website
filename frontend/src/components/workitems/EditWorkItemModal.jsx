@@ -15,6 +15,8 @@ import {
 } from '../../utils/creativeWorkflowAccess';
 import { fetchPostingDepartmentUsers } from '../../utils/postingDepartmentUsers';
 import { getCreativeStatusBadgeVariant } from '../../utils/workItemStatusUtils';
+import { buildCreativeWorkflowPayload } from '../../utils/creativeWorkflowForm';
+import CreativeWorkflowToggle from '../work/CreativeWorkflowToggle';
 
 /** @param {string|{ _id?: string }} value */
 const entityId = (value) => resolveEntityId(value);
@@ -74,6 +76,7 @@ const EditWorkItemModal = ({ show, onHide, workItem, project, onSuccess }) => {
   const [detailItem, setDetailItem] = useState(null);
   const [postingUsers, setPostingUsers] = useState([]);
   const [initialPosting, setInitialPosting] = useState(null);
+  const [initialCreativeWorkflow, setInitialCreativeWorkflow] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -81,6 +84,7 @@ const EditWorkItemModal = ({ show, onHide, workItem, project, onSuccess }) => {
     dueDate: '',
     estimatedHours: '',
     editReason: '',
+    useCreativeWorkflow: false,
     requiresPosting: false,
     postingAssignedTo: '',
     postingDate: '',
@@ -98,6 +102,16 @@ const EditWorkItemModal = ({ show, onHide, workItem, project, onSuccess }) => {
     () => workItemSupportsPostingHandoff(activeItem, resolvedProject),
     [activeItem, resolvedProject]
   );
+
+  const creativeWorkflowEligible = useMemo(() => {
+    const assignee = activeItem?.assignedTo;
+    if (!assignee) return false;
+    const user = typeof assignee === 'object' ? assignee : { _id: assignee };
+    return assigneeQualifiesForCreativePosting({
+      user,
+      project: resolvedProject,
+    });
+  }, [activeItem, resolvedProject]);
 
   const canManagePosting = useMemo(
     () => canSetPostingHandoff(currentUser, activeItem, resolvedProject),
@@ -136,7 +150,9 @@ const EditWorkItemModal = ({ show, onHide, workItem, project, onSuccess }) => {
         setPostingUsers(postingList);
 
         const posting = postingSnapshot(full);
+        const useCreativeWorkflow = isCreativeWorkflowItem(full);
         setInitialPosting(posting);
+        setInitialCreativeWorkflow({ useCreativeWorkflow });
         setFormData({
           title: full.title || '',
           description: full.description || '',
@@ -146,6 +162,7 @@ const EditWorkItemModal = ({ show, onHide, workItem, project, onSuccess }) => {
             : '',
           estimatedHours: full.estimatedHours || '',
           editReason: '',
+          useCreativeWorkflow,
           requiresPosting: posting.requiresPosting,
           postingAssignedTo: posting.postingAssignedTo,
           postingDate: posting.postingDate,
@@ -165,6 +182,13 @@ const EditWorkItemModal = ({ show, onHide, workItem, project, onSuccess }) => {
       cancelled = true;
     };
   }, [show, workItem?._id]);
+
+  const creativeWorkflowChanged = () => {
+    if (!initialCreativeWorkflow) return false;
+    return (
+      formData.useCreativeWorkflow !== initialCreativeWorkflow.useCreativeWorkflow
+    );
+  };
 
   const postingHandoffChanged = () => {
     if (!initialPosting) return false;
@@ -201,6 +225,8 @@ const EditWorkItemModal = ({ show, onHide, workItem, project, onSuccess }) => {
     }
 
     const handoffChanged = showPostingSection && canManagePosting && postingHandoffChanged();
+    const creativeChanged =
+      showPostingSection && canManagePosting && !postingLocked && creativeWorkflowChanged();
 
     try {
       setLoading(true);
@@ -216,7 +242,19 @@ const EditWorkItemModal = ({ show, onHide, workItem, project, onSuccess }) => {
         editReason: formData.editReason || undefined,
       });
 
-      if (handoffChanged) {
+      if (creativeChanged) {
+        const assignee = activeItem?.assignedTo;
+        const assigneeUser =
+          typeof assignee === 'object' ? assignee : { _id: assignee };
+        const payload = buildCreativeWorkflowPayload(
+          formData.useCreativeWorkflow,
+          resolvedProject,
+          assigneeUser?._id ? [assigneeUser] : []
+        );
+        await creativeWorkflowApi.setCreativeWorkflowMode(workItem._id, payload);
+      }
+
+      if (handoffChanged && formData.useCreativeWorkflow) {
         await creativeWorkflowApi.setPostingHandoff(workItem._id, {
           requiresPosting: formData.requiresPosting,
           postingAssignedTo: formData.requiresPosting
@@ -229,7 +267,7 @@ const EditWorkItemModal = ({ show, onHide, workItem, project, onSuccess }) => {
       const fieldChangeCount = response?.editSummary?.changeCount || 0;
       const hadFieldChanges = fieldChangeCount > 0;
 
-      if (!hadFieldChanges && !handoffChanged) {
+      if (!hadFieldChanges && !handoffChanged && !creativeChanged) {
         toast.info('No changes to save');
         setLoading(false);
         return;
@@ -239,7 +277,11 @@ const EditWorkItemModal = ({ show, onHide, workItem, project, onSuccess }) => {
         setEditSummary(response.editSummary);
       }
 
-      if (hadFieldChanges && handoffChanged) {
+      if (creativeChanged && (hadFieldChanges || handoffChanged)) {
+        toast.success('Work item updated, including creative workflow settings.');
+      } else if (creativeChanged) {
+        toast.success('Creative workflow setting saved.');
+      } else if (hadFieldChanges && handoffChanged) {
         toast.success(
           `Updated ${fieldChangeCount} field(s). Posting assignee will see this in My Work.`
         );
@@ -390,6 +432,28 @@ const EditWorkItemModal = ({ show, onHide, workItem, project, onSuccess }) => {
 
           {showPostingSection && (
             <div className="border rounded p-3 mb-3 bg-light">
+              <CreativeWorkflowToggle
+                checked={formData.useCreativeWorkflow}
+                eligible={creativeWorkflowEligible}
+                disabled={
+                  loading || loadingDetail || !canManagePosting || postingLocked
+                }
+                onChange={(checked) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    useCreativeWorkflow: checked,
+                    ...(checked
+                      ? {}
+                      : {
+                          requiresPosting: false,
+                          postingAssignedTo: '',
+                          postingDate: '',
+                        }),
+                  }))
+                }
+              />
+              {formData.useCreativeWorkflow && (
+                <>
               <div className="fw-semibold mb-2">Posting Department (optional)</div>
               {!canManagePosting && (
                 <Alert variant="warning" className="py-2 small mb-2">
@@ -479,6 +543,8 @@ const EditWorkItemModal = ({ show, onHide, workItem, project, onSuccess }) => {
                       Work.
                     </Form.Text>
                   )}
+                </>
+              )}
                 </>
               )}
             </div>

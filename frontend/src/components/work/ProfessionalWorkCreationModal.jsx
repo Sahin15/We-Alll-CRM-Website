@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { 
   Modal, 
   Form, 
@@ -31,11 +31,13 @@ import { useAuth } from '../../context/AuthContext';
 import workItemApi from '../../api/workItemApi';
 import projectApi from '../../api/projectApi';
 import userApi from '../../api/userApi';
-import {
-  getCreativeWorkflowTypeForDepartment,
-  assigneeQualifiesForCreativePosting,
-} from '../../constants/departmentNames';
+import { assigneeQualifiesForCreativePosting } from '../../constants/departmentNames';
 import { fetchPostingDepartmentUsers } from '../../utils/postingDepartmentUsers';
+import {
+  buildCreativeWorkflowPayload,
+  getDefaultUseCreativeWorkflow,
+} from '../../utils/creativeWorkflowForm';
+import CreativeWorkflowToggle from './CreativeWorkflowToggle';
 
 /**
  * Professional Work Creation Modal
@@ -56,6 +58,7 @@ const ProfessionalWorkCreationModal = ({
   const [users, setUsers] = useState([]);
   const [postingDepartmentUsers, setPostingDepartmentUsers] = useState([]);
   const [errors, setErrors] = useState({});
+  const creativeWorkflowTouchedRef = useRef(false);
 
   // Form data
   const [formData, setFormData] = useState({
@@ -81,7 +84,7 @@ const ProfessionalWorkCreationModal = ({
     estimatedHours: '',
     tags: '',
 
-    // Creative / Posting handoff (Graphic Design & Video)
+    useCreativeWorkflow: false,
     requiresPosting: false,
     postingAssignedTo: '',
     postingDate: '',
@@ -150,7 +153,46 @@ const ProfessionalWorkCreationModal = ({
     });
   }, [formData.assignedTo, users, selectedProject]);
 
-  const showPostingHandoff = assigneeSupportsCreative;
+  const showPostingHandoff = formData.useCreativeWorkflow;
+  const hasAssigneeSelected = Boolean(formData.assignedTo);
+
+  useEffect(() => {
+    if (!show) {
+      creativeWorkflowTouchedRef.current = false;
+    }
+  }, [show]);
+
+  useEffect(() => {
+    if (!hasAssigneeSelected || creativeWorkflowTouchedRef.current) {
+      return;
+    }
+    const assignee = users.find((u) => String(u._id) === String(formData.assignedTo));
+    const defaultCreative = getDefaultUseCreativeWorkflow(
+      selectedProject,
+      assignee ? [assignee] : []
+    );
+    setFormData((prev) => ({
+      ...prev,
+      useCreativeWorkflow: assigneeSupportsCreative ? defaultCreative : false,
+    }));
+  }, [
+    hasAssigneeSelected,
+    assigneeSupportsCreative,
+    formData.assignedTo,
+    selectedProject,
+    users,
+  ]);
+
+  useEffect(() => {
+    if (!formData.useCreativeWorkflow && formData.requiresPosting) {
+      setFormData((prev) => ({
+        ...prev,
+        requiresPosting: false,
+        postingAssignedTo: '',
+        postingDate: '',
+      }));
+    }
+  }, [formData.useCreativeWorkflow]);
 
   const availableUsers = useMemo(() => {
     if (!formData.project || !selectedProject) {
@@ -436,7 +478,7 @@ const ProfessionalWorkCreationModal = ({
       newErrors.selectedSlot = 'Please select a slot';
     }
 
-    if (showPostingHandoff && formData.requiresPosting) {
+    if (formData.useCreativeWorkflow && formData.requiresPosting) {
       if (!formData.postingAssignedTo) {
         newErrors.postingAssignedTo = 'Select a Posting department team member';
       }
@@ -495,27 +537,17 @@ const ProfessionalWorkCreationModal = ({
         selectedSlot: formData.selectedSlot
       };
 
-      if (showPostingHandoff) {
-        workItemData.workflowMode = 'creative';
-        const deptNameSources = [];
-        if (Array.isArray(selectedProject?.departments)) {
-          selectedProject.departments.forEach((d) => {
-            if (typeof d === 'object' && d?.name) deptNameSources.push(d.name);
-          });
-        }
-        if (selectedProject?.department?.name) {
-          deptNameSources.push(selectedProject.department.name);
-        }
-        const assignee = users.find((u) => String(u._id) === String(formData.assignedTo));
-        if (assignee?.department?.name) {
-          deptNameSources.push(assignee.department.name);
-        }
-        const workflowTypes = deptNameSources
-          .map((name) => getCreativeWorkflowTypeForDepartment(name))
-          .filter(Boolean);
-        workItemData.workflowType = workflowTypes.includes('video-production')
-          ? 'video-production'
-          : 'design';
+      const assignee = users.find((u) => String(u._id) === String(formData.assignedTo));
+      Object.assign(
+        workItemData,
+        buildCreativeWorkflowPayload(
+          formData.useCreativeWorkflow,
+          selectedProject,
+          assignee ? [assignee] : []
+        )
+      );
+
+      if (formData.useCreativeWorkflow) {
         workItemData.requiresPosting = Boolean(formData.requiresPosting);
         if (formData.requiresPosting) {
           workItemData.postingAssignedTo = formData.postingAssignedTo;
@@ -583,10 +615,12 @@ const ProfessionalWorkCreationModal = ({
       contentBucket: '',
       estimatedHours: '',
       tags: '',
+      useCreativeWorkflow: false,
       requiresPosting: false,
       postingAssignedTo: '',
       postingDate: '',
     });
+    creativeWorkflowTouchedRef.current = false;
     setErrors({});
     setAvailableSlots([]);
     setSelectedProject(null);
@@ -980,6 +1014,18 @@ const ProfessionalWorkCreationModal = ({
               </Row>
             </Card.Body>
           </Card>
+
+          {hasAssigneeSelected && (
+            <CreativeWorkflowToggle
+              checked={formData.useCreativeWorkflow}
+              eligible={assigneeSupportsCreative}
+              disabled={loading || !assigneeSupportsCreative}
+              onChange={(checked) => {
+                creativeWorkflowTouchedRef.current = true;
+                setFormData((prev) => ({ ...prev, useCreativeWorkflow: checked }));
+              }}
+            />
+          )}
 
           {showPostingHandoff && (
             <Card className="mb-4 border-0 shadow-sm">

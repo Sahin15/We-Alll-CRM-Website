@@ -336,6 +336,38 @@ export const addRevisionAttachment = async (req, res) => {
 /**
  * PUT /api/creative-workflow/:workItemId/posting
  */
+/**
+ * PUT /api/creative-workflow/:workItemId/workflow-mode
+ */
+export const setCreativeWorkflowMode = async (req, res) => {
+  try {
+    const { workItem, project } = await loadWorkItemContext(req.params.workItemId);
+    if (!canSetPostingHandoff(req.user, workItem, project)) {
+      return res.status(403).json({
+        success: false,
+        error:
+          "Only the assigner, project head, department HOD, or admin can change creative workflow",
+      });
+    }
+
+    const workItemResult = await creativePostingService.setCreativeWorkflowMode(
+      req.params.workItemId,
+      {
+        useCreativeWorkflow: Boolean(req.body?.useCreativeWorkflow),
+        workflowType: req.body?.workflowType,
+      },
+      getActorId(req)
+    );
+    return res.json({ success: true, data: workItemResult });
+  } catch (error) {
+    console.error("creative setCreativeWorkflowMode failed:", error);
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      error: error.message || "Failed to update creative workflow",
+    });
+  }
+};
+
 export const setPostingHandoff = async (req, res) => {
   try {
     const { workItem, project } = await loadWorkItemContext(req.params.workItemId);

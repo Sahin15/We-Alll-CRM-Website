@@ -16,6 +16,7 @@ import {
   getChangeRequestCounts,
   addRevisionAttachment,
   setPostingHandoff,
+  setCreativeWorkflowMode,
   submitPostingDone,
 } from "../controllers/creativeWorkflowController.js";
 
@@ -56,6 +57,7 @@ router.post("/:workItemId/qa", creativeManage, recordQa);
 router.post("/:workItemId/deliver", creativeManage, markDelivered);
 router.post("/:workItemId/close", creativeManage, closeTask);
 router.post("/:workItemId/revisions/attachments", creativeManage, addRevisionAttachment);
+router.put("/:workItemId/workflow-mode", creativeManage, setCreativeWorkflowMode);
 router.put("/:workItemId/posting", creativeManage, setPostingHandoff);
 router.post("/:workItemId/posting/submit", creativeManage, submitPostingDone);
 

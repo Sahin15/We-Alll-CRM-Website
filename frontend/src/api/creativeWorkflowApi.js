@@ -87,6 +87,14 @@ const creativeWorkflowApi = {
     return response.data;
   },
 
+  setCreativeWorkflowMode: async (workItemId, body) => {
+    const response = await api.put(
+      `/creative-workflow/${workItemId}/workflow-mode`,
+      body
+    );
+    return response.data;
+  },
+
   submitPostingDone: async (workItemId, body) => {
     const response = await api.post(
       `/creative-workflow/${workItemId}/posting/submit`,

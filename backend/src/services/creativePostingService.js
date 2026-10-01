@@ -336,6 +336,69 @@ export async function submitPostingDone(workItemId, payload, actorId) {
   };
 }
 
+const BLOCKED_CREATIVE_MODE_STATUSES = new Set([
+  "Submitted for Review",
+  "Changes Requested",
+  "Rework In Progress",
+  "QA Review",
+  "Approved",
+  "Delivered",
+  "Awaiting Posting",
+  "Posted",
+  "Closed",
+  "Done",
+]);
+
+/**
+ * Enable or disable creative workflow on an existing work item (form toggle on edit).
+ * @param {string} workItemId
+ * @param {{ useCreativeWorkflow: boolean, workflowType?: string }} payload
+ * @param {string} actorId
+ */
+export async function setCreativeWorkflowMode(workItemId, payload, actorId) {
+  const useCreativeWorkflow = Boolean(payload?.useCreativeWorkflow);
+  const workItem = await WorkItem.findById(workItemId);
+  if (!workItem || workItem.isDeleted) {
+    const err = new Error("Work item not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (BLOCKED_CREATIVE_MODE_STATUSES.has(workItem.status)) {
+    const err = new Error(
+      "Creative workflow cannot be changed after the task has entered review or delivery."
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!useCreativeWorkflow) {
+    workItem.workflowMode = "standard";
+    workItem.workflowType = "standard";
+    workItem.requiresPosting = false;
+    workItem.postingAssignedTo = null;
+    workItem.postingDate = null;
+    workItem.postingStatus = "not_required";
+  } else {
+    workItem.workflowMode = "creative";
+    const allowedTypes = new Set(["design", "design-advanced", "video-production"]);
+    if (payload.workflowType && allowedTypes.has(payload.workflowType)) {
+      workItem.workflowType = payload.workflowType;
+    } else if (!allowedTypes.has(workItem.workflowType)) {
+      const assignee = await User.findById(workItem.assignedTo)
+        .populate("department", "name")
+        .select("department")
+        .lean();
+      workItem.workflowType =
+        getCreativeWorkflowTypeForDepartment(assignee?.department?.name) || "design";
+    }
+  }
+
+  workItem.modifiedBy = actorId;
+  await workItem.save();
+  return workItem;
+}
+
 /**
  * Ensure Posting department document exists (helper for scripts/tests).
  */
@@ -360,6 +423,7 @@ export default {
   validatePostUrls,
   assertUserInPostingDepartment,
   setPostingHandoff,
+  setCreativeWorkflowMode,
   submitPostingDone,
   ensurePostingDepartmentExists,
 };
