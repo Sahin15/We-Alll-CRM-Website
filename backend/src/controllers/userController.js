@@ -223,7 +223,21 @@ export const getUsers = async (req, res) => {
         query.department = ownedDepartmentId;
       }
     }
-    
+
+    const canBrowseCompanyRoster =
+      hasPermission(req.user, 'team.user.view') ||
+      hasPermission(req.user, 'projects.project.manage');
+
+    if (!canBrowseCompanyRoster && canLoadPostingHandoffRoster(req.user)) {
+      if (!allowPostingHandoffRoster) {
+        return res.status(403).json({
+          success: false,
+          message:
+            'You do not have permission to browse the full user directory. Use project team members or Posting assignee lookup.',
+        });
+      }
+    }
+
     logger.info('getUsers query:', JSON.stringify(query));
     
     // Optimized query with pagination and all necessary fields for display

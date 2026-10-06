@@ -1,6 +1,8 @@
 import workloadService from "../services/workloadService.js";
 import User from "../models/userModel.js";
 import WorkItem from "../models/workItemModel.js";
+import Project from "../models/projectModel.js";
+import { hasPermission } from "../authz/policyEngine.js";
 
 /**
  * Get workload for a single employee
@@ -13,12 +15,48 @@ export const getEmployeeWorkload = async (req, res) => {
     const userRole = req.user.role;
     
     // Authorization check
-    // Employees can only view their own workload
-    // HoP, HoD, Admin, Superadmin can view any employee's workload
+    // Employees can only view their own workload unless they assign work on a shared project
     if (userRole === "employee" && employeeId !== userId) {
-      return res.status(403).json({ 
-        message: "You can only view your own workload" 
-      });
+      const canAssignWork =
+        hasPermission(req.user, "work.item.create") ||
+        hasPermission(req.user, "work.item.update");
+
+      let mayViewAssigneeWorkload = false;
+      if (canAssignWork) {
+        const requesterOnProject = {
+          $or: [
+            { projectHead: userId },
+            { assignedUsers: userId },
+            {
+              teamMembers: {
+                $elemMatch: { user: userId, isActive: { $ne: false } },
+              },
+            },
+          ],
+        };
+        const assigneeOnProject = {
+          $or: [
+            { assignedUsers: employeeId },
+            {
+              teamMembers: {
+                $elemMatch: { user: employeeId, isActive: { $ne: false } },
+              },
+            },
+          ],
+        };
+        const sharedProject = await Project.findOne({
+          $and: [requesterOnProject, assigneeOnProject],
+        })
+          .select("_id")
+          .lean();
+        mayViewAssigneeWorkload = Boolean(sharedProject);
+      }
+
+      if (!mayViewAssigneeWorkload) {
+        return res.status(403).json({
+          message: "You can only view your own workload",
+        });
+      }
     }
     
     // Get employee details

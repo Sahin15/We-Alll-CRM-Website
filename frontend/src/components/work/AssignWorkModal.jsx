@@ -543,15 +543,11 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
             setSelectedProject(project);
           }
 
-          const [usersRes, postingList] = await Promise.all([
-            userApi.getAllUsers({ status: 'active', limit: 1000 }),
-            fetchPostingDepartmentUsers(),
-          ]);
-          const allFetchedUsers = normalizeUserList(usersRes);
-          setAllUsers(allFetchedUsers);
+          const postingList = await fetchPostingDepartmentUsers();
           setPostingUsers(postingList);
 
-          let teamMembers = buildAssignableTeamMembers(project, allFetchedUsers);
+          let teamMembers = buildAssignableTeamMembers(project, []);
+          setAllUsers(teamMembers);
           teamMembers = ensureAssigneeInTeamMembers(
             teamMembers,
             assigneeId || defaultAssignee,

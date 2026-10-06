@@ -50,11 +50,16 @@ export const optimizedProjectPopulate = () => [
   { path: 'department', select: 'name' }, // Legacy single department
   { path: 'departments', select: 'name' }, // New multiple departments
   { path: 'projectHead', select: 'name email status' },
-  { path: 'assignedUsers', select: 'name email role status' },
+  {
+    path: 'assignedUsers',
+    select: 'name email role status department',
+    populate: { path: 'department', select: 'name' },
+  },
   {
     path: 'teamMembers.user',
-    select: 'name email role status'
-  }
+    select: 'name email role status department',
+    populate: { path: 'department', select: 'name' },
+  },
 ];
 
 /**

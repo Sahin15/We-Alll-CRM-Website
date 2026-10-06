@@ -22,7 +22,10 @@ import {
 import { protect } from '../middleware/authMiddleware.js';
 
 
-import { requireModulePermission } from "../authz/authzMiddleware.js";
+import {
+  requireModulePermission,
+  requireModulePermissionAny,
+} from "../authz/authzMiddleware.js";
 import {
   isHoDOfDepartment,
   allowDeptViewOrHoDOfDepartment,
@@ -47,9 +50,11 @@ const DEPT_DIRECTORY_ROLES = [
   "client",
 ];
 
-const deptView = requireModulePermission("team", "team.department.view", {
-  legacyRoles: DEPT_VIEW_ROLES,
-});
+const deptView = requireModulePermissionAny(
+  "team",
+  ["team.department.view", "work.item.create", "work.item.update"],
+  { legacyRoles: DEPT_VIEW_ROLES }
+);
 
 const DEPT_MANAGE_ROLES = ["admin", "superadmin"];
 /** HR can add/remove members; create/update/delete dept stays admin-only */

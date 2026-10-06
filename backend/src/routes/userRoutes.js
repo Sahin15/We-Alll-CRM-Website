@@ -35,9 +35,15 @@ const USER_MANAGE_ROLES = ["admin", "superadmin", "hr", "manager"];
 const USER_LIST_ROLES = [...USER_MANAGE_ROLES, "hod"];
 const USER_ADMIN_ROLES = ["superadmin"];
 
+/** HoP / assigners need roster reads for Assign Work (Posting + enrichment). */
 const userView = requireModulePermissionAny(
   "team",
-  ["team.user.view", "projects.project.manage"],
+  [
+    "team.user.view",
+    "projects.project.manage",
+    "work.item.create",
+    "work.item.update",
+  ],
   { legacyRoles: USER_LIST_ROLES }
 );
 
