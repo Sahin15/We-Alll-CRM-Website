@@ -3,7 +3,12 @@ import User from "../models/userModel.js";
 import Client from "../models/clientModel.js";
 import Department from "../models/departmentModel.js";
 import logger from '../utils/logger.js';
-import { optimizedProjectPopulate, buildTextSearch } from '../utils/queryOptimizer.js';
+import {
+  optimizedProjectPopulate,
+  projectAssignedUsersPopulate,
+  projectTeamMemberUserPopulate,
+  buildTextSearch,
+} from '../utils/queryOptimizer.js';
 import NotificationService from "../services/notificationService.js";
 import {
   getPersonalProjectMembershipFilter,
@@ -518,8 +523,8 @@ export const getProjectById = async (req, res) => {
       .populate("department", "name")
       .populate("departments", "name")
       .populate("projectHead", "name email designation status")
-      .populate("assignedUsers", "name email role status")
-      .populate("teamMembers.user", "name email role designation status")
+      .populate(projectAssignedUsersPopulate)
+      .populate(projectTeamMemberUserPopulate)
       .populate("teamMembers.assignedBy", "name email")
       .populate("createdBy", "name email")
       .populate("tasks.assignedTo", "name email");

@@ -235,6 +235,29 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
     return names;
   };
 
+  const withResolvedDepartment = (user) => {
+    if (!user) return user;
+    if (user.department?.name) return user;
+    const fromDirectory = allUsers.find(
+      (u) => String(u._id) === String(user._id)
+    );
+    if (fromDirectory?.department?.name) {
+      return { ...user, department: fromDirectory.department };
+    }
+    const deptRef = user.department;
+    const deptId =
+      typeof deptRef === 'object' && deptRef !== null
+        ? deptRef._id
+        : deptRef;
+    if (deptId && departments.length > 0) {
+      const match = departments.find((d) => String(d._id) === String(deptId));
+      if (match?.name) {
+        return { ...user, department: { _id: deptId, name: match.name } };
+      }
+    }
+    return user;
+  };
+
   const findUserById = (userId) => {
     if (!userId) return null;
     const id = String(userId);
@@ -242,10 +265,7 @@ const AssignWorkModal = ({ show, onHide, onSuccess, defaultProject = null, defau
     const fromDirectory = allUsers.find((u) => String(u._id) === id);
     const user = fromTeam || fromDirectory || null;
     if (!user) return null;
-    if (!user.department?.name && fromDirectory?.department) {
-      return { ...user, department: fromDirectory.department };
-    }
-    return user;
+    return withResolvedDepartment(user);
   };
 
   const selectedAssigneeIds = useMemo(() => {
