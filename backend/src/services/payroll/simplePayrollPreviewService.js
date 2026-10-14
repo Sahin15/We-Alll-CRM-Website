@@ -4,7 +4,11 @@
  */
 
 import SalaryStructure from "../../models/salaryStructureModel.js";
+import SalarySlip from "../../models/salarySlipModel.js";
+import SalaryPreview from "../../models/salaryPreviewModel.js";
+import User from "../../models/userModel.js";
 import PayrollAdjustment from "../../models/payrollAdjustmentModel.js";
+import { mergeExcludePastMembersFilter } from "../../utils/employeeQueryUtils.js";
 import LeaveImpactCalculator from "../leaveImpactCalculator.js";
 import LeaveRequest from "../../models/leaveRequestModel.js";
 import {
@@ -353,6 +357,191 @@ export async function getSimplePayrollPreview({
   }
 
   return dto;
+}
+
+/**
+ * HR roster: all employees with pay figures for a month (structure, preview, or slip).
+ * @param {{ month: number, year: number }} params
+ */
+export async function getSimplePayrollRoster({ month, year }) {
+  const monthNum = parseInt(month, 10);
+  const yearNum = parseInt(year, 10);
+  if (!monthNum || !yearNum) {
+    throw new Error("month and year are required");
+  }
+
+  const employees = await User.find(
+    mergeExcludePastMembersFilter({ role: { $nin: ["superadmin", "client"] } })
+  )
+    .select("name employeeId designation department status role")
+    .populate("department", "name")
+    .sort({ name: 1 })
+    .lean();
+
+  const employeeIds = employees.map((e) => e._id);
+  if (!employeeIds.length) {
+    return {
+      month: monthNum,
+      year: yearNum,
+      rows: [],
+      summary: {
+        totalEmployees: 0,
+        withStructure: 0,
+        withSlip: 0,
+        withPreview: 0,
+        totalMonthlySalary: 0,
+        totalNetSalary: 0,
+      },
+    };
+  }
+
+  const [structures, adjustments, slips, previews] = await Promise.all([
+    SalaryStructure.find({
+      employee: { $in: employeeIds },
+      status: "active",
+    }).lean(),
+    PayrollAdjustment.find({
+      employee: { $in: employeeIds },
+      month: monthNum,
+      year: yearNum,
+      status: { $in: ["draft", "approved"] },
+    }).lean(),
+    SalarySlip.find({
+      employee: { $in: employeeIds },
+      month: monthNum,
+      year: yearNum,
+    })
+      .select(
+        "employee netSalary totalEarnings status payrollMode createdAt month year"
+      )
+      .sort({ createdAt: -1 })
+      .lean(),
+    SalaryPreview.find({
+      employee: { $in: employeeIds },
+      month: monthNum,
+      year: yearNum,
+    })
+      .select("employee status salaryBreakdown payrollMode")
+      .lean(),
+  ]);
+
+  const structureByEmployee = new Map();
+  structures.forEach((s) => {
+    structureByEmployee.set(String(s.employee), s);
+  });
+
+  const adjByEmployee = new Map();
+  adjustments.forEach((a) => {
+    const key = String(a.employee);
+    if (!adjByEmployee.has(key)) adjByEmployee.set(key, []);
+    adjByEmployee.get(key).push(a);
+  });
+
+  const slipByEmployee = new Map();
+  slips.forEach((slip) => {
+    const key = String(slip.employee);
+    if (!slipByEmployee.has(key)) slipByEmployee.set(key, slip);
+  });
+
+  const previewByEmployee = new Map();
+  previews.forEach((p) => {
+    previewByEmployee.set(String(p.employee), p);
+  });
+
+  const rows = employees.map((emp) => {
+    const key = String(emp._id);
+    const structure = structureByEmployee.get(key);
+    const slip = slipByEmployee.get(key);
+    const preview = previewByEmployee.get(key);
+    const empAdjustments = adjByEmployee.get(key) || [];
+
+    let monthlySalary = null;
+    let adjustmentsTotal = null;
+    let netSalary = null;
+    let payrollMode = structure?.payrollMode || preview?.payrollMode || null;
+    let payStatus = "no_structure";
+    let payStatusLabel = "No salary structure";
+
+    if (slip) {
+      netSalary = Number(slip.netSalary) || 0;
+      monthlySalary = Number(slip.totalEarnings) || null;
+      payStatus = "slip";
+      payStatusLabel = slip.status
+        ? `Slip: ${slip.status}`
+        : "Salary slip generated";
+    }
+
+    if (structure) {
+      const dto = buildSimplePreviewDto({
+        structure,
+        adjustments: empAdjustments,
+        automaticDeductions: 0,
+      });
+      if (dto.applicable) {
+        monthlySalary = dto.totals.monthlySalary;
+        adjustmentsTotal = dto.totals.adjustmentsTotal;
+        if (!slip && dto.totals.netSalary != null && !dto.totals.rejected) {
+          netSalary = dto.totals.netSalary;
+        }
+        payrollMode = "simple";
+        if (!slip) {
+          payStatus = preview ? "preview" : "payroll_ready";
+          payStatusLabel = preview
+            ? `Preview: ${preview.status}`
+            : "Payroll calculated";
+        }
+      } else if (!slip) {
+        monthlySalary =
+          Number(structure.grossSalary || structure.basicSalary) || 0;
+        payStatus = "legacy";
+        payStatusLabel = "Legacy salary structure";
+      }
+    }
+
+    if (preview?.salaryBreakdown?.netSalary != null && !slip) {
+      netSalary = Number(preview.salaryBreakdown.netSalary);
+    }
+
+    return {
+      employee: {
+        _id: emp._id,
+        name: emp.name,
+        employeeId: emp.employeeId,
+        designation: emp.designation,
+        department: emp.department,
+      },
+      month: monthNum,
+      year: yearNum,
+      payrollMode,
+      monthlySalary,
+      adjustmentsTotal,
+      netSalary,
+      payStatus,
+      payStatusLabel,
+      hasStructure: Boolean(structure),
+      hasSlip: Boolean(slip),
+      hasPreview: Boolean(preview),
+      previewStatus: preview?.status || null,
+      slipStatus: slip?.status || null,
+    };
+  });
+
+  const summary = {
+    totalEmployees: rows.length,
+    withStructure: rows.filter((r) => r.hasStructure).length,
+    withSlip: rows.filter((r) => r.hasSlip).length,
+    withPreview: rows.filter((r) => r.hasPreview).length,
+    totalMonthlySalary: rows.reduce(
+      (sum, r) => sum + (Number(r.monthlySalary) || 0),
+      0
+    ),
+    totalNetSalary: rows.reduce(
+      (sum, r) => sum + (Number(r.netSalary) || 0),
+      0
+    ),
+  };
+
+  return { month: monthNum, year: yearNum, rows, summary };
 }
 
 export { amountForDays };

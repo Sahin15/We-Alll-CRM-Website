@@ -96,6 +96,10 @@ const SimplePayrollTab = () => {
   const [attendanceSummary, setAttendanceSummary] = useState(null);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [rosterRows, setRosterRows] = useState([]);
+  const [rosterSummary, setRosterSummary] = useState(null);
+  const [rosterLoading, setRosterLoading] = useState(false);
+  const [rosterSearch, setRosterSearch] = useState("");
 
   const [showCreateStructure, setShowCreateStructure] = useState(false);
   const [structureForm, setStructureForm] = useState({
@@ -268,8 +272,26 @@ const SimplePayrollTab = () => {
     }
   }, [employeeId, month, year]);
 
+  const loadPayrollRoster = useCallback(async () => {
+    setRosterLoading(true);
+    try {
+      const res = await payrollSimplePreviewApi.getRoster({ month, year });
+      const payload = res.data?.data ?? res.data;
+      setRosterRows(payload?.rows || []);
+      setRosterSummary(payload?.summary || null);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load payroll list for this period");
+      setRosterRows([]);
+      setRosterSummary(null);
+    } finally {
+      setRosterLoading(false);
+    }
+  }, [month, year]);
+
   const refreshAll = useCallback(async () => {
     await Promise.all([
+      loadPayrollRoster(),
       loadStructure(),
       loadPreview(),
       loadAdjustments(),
@@ -277,6 +299,7 @@ const SimplePayrollTab = () => {
       loadAttendance(),
     ]);
   }, [
+    loadPayrollRoster,
     loadStructure,
     loadPreview,
     loadAdjustments,
@@ -287,6 +310,31 @@ const SimplePayrollTab = () => {
   useEffect(() => {
     loadEmployees();
   }, [loadEmployees]);
+
+  useEffect(() => {
+    loadPayrollRoster();
+  }, [loadPayrollRoster]);
+
+  const filteredRosterRows = useMemo(() => {
+    const q = rosterSearch.trim().toLowerCase();
+    if (!q) return rosterRows;
+    return rosterRows.filter((row) => {
+      const emp = row.employee || {};
+      return (
+        emp.name?.toLowerCase().includes(q) ||
+        emp.employeeId?.toLowerCase().includes(q) ||
+        emp.department?.name?.toLowerCase().includes(q) ||
+        emp.designation?.toLowerCase().includes(q)
+      );
+    });
+  }, [rosterRows, rosterSearch]);
+
+  const payStatusBadge = (row) => {
+    if (row.hasSlip) return <Badge bg="success">{row.slipStatus || "slip"}</Badge>;
+    if (row.hasPreview) return <Badge bg="info">{row.previewStatus || "preview"}</Badge>;
+    if (row.hasStructure) return <Badge bg="primary">Ready</Badge>;
+    return <Badge bg="secondary">No structure</Badge>;
+  };
 
   useEffect(() => {
     if (!employeeId) {
@@ -783,10 +831,93 @@ const SimplePayrollTab = () => {
         </Card.Body>
       </Card>
 
+      <Card className="mb-3 shadow-sm">
+        <Card.Header className="bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <div>
+            <strong>Payroll list — {MONTH_NAMES[month - 1]} {year}</strong>
+            {rosterSummary && (
+              <div className="small text-muted">
+                {rosterSummary.withStructure} with salary structure ·{" "}
+                {rosterSummary.withSlip} with slip · Total net{" "}
+                {formatInr(rosterSummary.totalNetSalary)}
+              </div>
+            )}
+          </div>
+          <Form.Control
+            size="sm"
+            style={{ maxWidth: 260 }}
+            placeholder="Search employee…"
+            value={rosterSearch}
+            onChange={(e) => setRosterSearch(e.target.value)}
+          />
+        </Card.Header>
+        <Card.Body className="p-0">
+          {rosterLoading ? (
+            <div className="text-center py-4">
+              <Spinner animation="border" size="sm" />
+            </div>
+          ) : filteredRosterRows.length === 0 ? (
+            <Alert variant="light" className="m-3 mb-0 border">
+              No employees found for this period.
+            </Alert>
+          ) : (
+            <Table responsive hover className="mb-0 align-middle">
+              <thead className="table-light">
+                <tr>
+                  <th>Employee</th>
+                  <th>Department</th>
+                  <th className="text-end">Monthly salary</th>
+                  <th className="text-end">Adjustments</th>
+                  <th className="text-end">Net pay</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRosterRows.map((row) => {
+                  const emp = row.employee || {};
+                  const isSelected = String(employeeId) === String(emp._id);
+                  return (
+                    <tr
+                      key={emp._id}
+                      className={isSelected ? "table-primary" : undefined}
+                      style={{ cursor: "pointer" }}
+                      onClick={() => setEmployeeId(String(emp._id))}
+                    >
+                      <td>
+                        <strong>{emp.name}</strong>
+                        <br />
+                        <small className="text-muted">
+                          {emp.employeeId || "—"}
+                        </small>
+                      </td>
+                      <td>{emp.department?.name || "—"}</td>
+                      <td className="text-end">
+                        {formatInr(row.monthlySalary)}
+                      </td>
+                      <td className="text-end">
+                        {row.adjustmentsTotal != null
+                          ? formatInr(row.adjustmentsTotal)
+                          : "—"}
+                      </td>
+                      <td className="text-end">
+                        <strong className="text-success">
+                          {formatInr(row.netSalary)}
+                        </strong>
+                      </td>
+                      <td>{payStatusBadge(row)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          )}
+        </Card.Body>
+      </Card>
+
       {!employeeId && (
         <Alert variant="light" className="border">
-          Select an employee to manage simple salary structure, preview, and
-          adjustments.
+          Select an employee from the payroll list above to manage structure,
+          preview, and adjustments.
         </Alert>
       )}
 

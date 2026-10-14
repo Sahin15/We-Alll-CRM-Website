@@ -25,6 +25,9 @@ import { salarySlipApi } from "../../api/salaryApi";
 import { payrollPeriodApi } from "../../api/payrollPeriodApi";
 import { getCompanyYearOptions } from "../../constants/branding";
 
+/** One page per filter — typical payroll month fits well under this cap. */
+const SALARY_SLIPS_LIST_LIMIT = 500;
+
 const SalarySlipList = () => {
   const [slips, setSlips] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,12 +46,7 @@ const SalarySlipList = () => {
     status: "",
     employee: "",
   });
-  const [pagination, setPagination] = useState({
-    current: 1,
-    pages: 1,
-    total: 0,
-    limit: 20,
-  });
+  const [totalSlips, setTotalSlips] = useState(0);
   const [selectedSlip, setSelectedSlip] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
@@ -56,14 +54,7 @@ const SalarySlipList = () => {
 
   useEffect(() => {
     fetchSalarySlips();
-  }, [
-    filters.month,
-    filters.year,
-    filters.status,
-    filters.employee,
-    pagination.current,
-    pagination.limit,
-  ]);
+  }, [filters.month, filters.year, filters.status, filters.employee]);
 
   useEffect(() => {
     let cancelled = false;
@@ -94,8 +85,8 @@ const SalarySlipList = () => {
       setLoading(true);
       const params = {
         ...filters,
-        page: pagination.current,
-        limit: pagination.limit,
+        page: 1,
+        limit: SALARY_SLIPS_LIST_LIMIT,
       };
 
       // Remove empty filters
@@ -107,13 +98,7 @@ const SalarySlipList = () => {
 
       const response = await salarySlipApi.getAll(params);
       setSlips(response.data.slips || []);
-      const nextPagination = response.data.pagination || pagination;
-      const pages = nextPagination.pages ?? 0;
-      const current = nextPagination.current ?? 1;
-      setPagination({
-        ...nextPagination,
-        current: pages > 0 && current > pages ? pages : current,
-      });
+      setTotalSlips(response.data.pagination?.total ?? 0);
     } catch (error) {
       console.error("Error fetching salary slips:", error);
       toast.error("Failed to load salary slips");
@@ -124,7 +109,6 @@ const SalarySlipList = () => {
 
   const handleFilterChange = (field, value) => {
     setFilters((prev) => ({ ...prev, [field]: value }));
-    setPagination((prev) => ({ ...prev, current: 1 }));
   };
 
   const handleSendEmail = async (slipId) => {
@@ -267,25 +251,15 @@ const SalarySlipList = () => {
         </Alert>
       )}
 
-      {/* Results Info */}
-      <div className="d-flex justify-content-between align-items-center mb-3">
+      <div className="mb-3">
         <small className="text-muted">
-          Showing {slips.length} of {pagination.total} salary slips
+          {totalSlips > 0
+            ? `Showing ${slips.length} salary slip${slips.length === 1 ? "" : "s"}`
+            : "No salary slips"}
+          {totalSlips > slips.length
+            ? ` (${totalSlips} total — narrow month/year or use Search)`
+            : ""}
         </small>
-        {pagination.pages > 1 && (
-          <div className="d-flex gap-1">
-            {Array.from({ length: pagination.pages }, (_, i) => i + 1).map((page) => (
-              <Button
-                key={page}
-                variant={page === pagination.current ? "primary" : "outline-primary"}
-                size="sm"
-                onClick={() => setPagination((prev) => ({ ...prev, current: page }))}
-              >
-                {page}
-              </Button>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Table */}

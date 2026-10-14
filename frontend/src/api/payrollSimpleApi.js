@@ -19,6 +19,7 @@ export const payrollAdjustmentApi = {
 
 export const payrollSimplePreviewApi = {
   get: (params) => api.get("/payroll/simple-preview", { params }),
+  getRoster: (params) => api.get("/payroll/simple-preview/roster", { params }),
 };
 
 export const ADJUSTMENT_TYPE_OPTIONS = [

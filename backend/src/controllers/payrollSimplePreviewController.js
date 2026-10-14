@@ -1,5 +1,6 @@
 import {
   getSimplePayrollPreview,
+  getSimplePayrollRoster,
 } from "../services/payroll/simplePayrollPreviewService.js";
 
 /**
@@ -46,6 +47,34 @@ export const getSimplePreview = async (req, res) => {
     res.status(500).json({
       success: false,
       error: "Failed to build simple payroll preview",
+    });
+  }
+};
+
+/**
+ * GET /api/payroll/simple-preview/roster?month=&year=
+ */
+export const getSimplePayrollRosterHandler = async (req, res) => {
+  try {
+    const { month, year } = req.query;
+    if (!month || !year) {
+      return res.status(400).json({
+        success: false,
+        error: "month and year are required",
+      });
+    }
+
+    const data = await getSimplePayrollRoster({
+      month: parseInt(month, 10),
+      year: parseInt(year, 10),
+    });
+
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    console.error("getSimplePayrollRoster:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Failed to load payroll roster",
     });
   }
 };

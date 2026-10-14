@@ -1,7 +1,10 @@
 import express from "express";
 import { protect } from "../middleware/authMiddleware.js";
 import { requireModulePermission } from "../authz/authzMiddleware.js";
-import { getSimplePreview } from "../controllers/payrollSimplePreviewController.js";
+import {
+  getSimplePreview,
+  getSimplePayrollRosterHandler,
+} from "../controllers/payrollSimplePreviewController.js";
 
 const router = express.Router();
 
@@ -46,6 +49,13 @@ function requireSimplePreviewAccess(req, res, next) {
   }
   return requireSlipManage(req, res, next);
 }
+
+router.get(
+  "/roster",
+  protect,
+  requireSlipManage,
+  getSimplePayrollRosterHandler
+);
 
 router.get("/", protect, requireSimplePreviewAccess, getSimplePreview);
 
