@@ -3,12 +3,15 @@ import { dedupeSlipsByEmployeePeriodStages } from "../src/services/payroll/salar
 describe("salarySlipListQuery", () => {
   test("dedupeSlipsByEmployeePeriodStages returns group by employee period", () => {
     const stages = dedupeSlipsByEmployeePeriodStages();
-    expect(stages.length).toBeGreaterThanOrEqual(3);
-    expect(stages[1].$group._id).toEqual({
-      employee: "$employee",
+    expect(stages.length).toBeGreaterThanOrEqual(4);
+
+    const groupStage = stages.find((s) => s.$group);
+    expect(groupStage).toBeDefined();
+    expect(groupStage.$group._id).toEqual({
+      employee: "$_employeeKey",
       month: "$month",
       year: "$year",
     });
-    expect(stages[1].$group.doc).toEqual({ $first: "$$ROOT" });
+    expect(groupStage.$group.doc).toEqual({ $first: "$$ROOT" });
   });
 });
