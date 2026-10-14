@@ -41,7 +41,7 @@ import { protect } from '../middleware/authMiddleware.js';
 
 
 import { requireModulePermission } from "../authz/authzMiddleware.js";
-import { canManageProject } from "../middleware/hopMiddleware.js";
+import { canManageProject, canViewProject } from "../middleware/hopMiddleware.js";
 import {
   enableSlotsForProject,
   getProjectSlots,
@@ -196,7 +196,7 @@ router.delete(
 router.get(
   "/:projectId/team",
   protect,
-  canManageProject,
+  canViewProject,
   getProjectTeam
 );
 

@@ -359,6 +359,25 @@ class SalaryPreviewService {
   }
 
   /**
+   * One-time repair for legacy previews: pending query + HR correction log.
+   * @param {number} month
+   * @param {number} year
+   */
+  async reconcilePendingQueriesForPeriod(month, year) {
+    const { reconcilePendingQueriesOnPreview } = await import(
+      "../utils/salaryPreviewQueries.js"
+    );
+    const previews = await SalaryPreview.find({ month, year }).select(
+      "employeeQueries status"
+    );
+    for (const preview of previews) {
+      if (reconcilePendingQueriesOnPreview(preview)) {
+        await preview.save();
+      }
+    }
+  }
+
+  /**
    * Get all previews for a month (HR view)
    * @param {number} month - Month (1-12)
    * @param {number} year - Year
@@ -367,6 +386,8 @@ class SalaryPreviewService {
    */
   async getPreviewsForMonth(month, year, filters = {}) {
     try {
+      await this.reconcilePendingQueriesForPeriod(month, year);
+
       const query = { month, year, ...filters };
       
       const previews = await SalaryPreview.find(query)
@@ -446,6 +467,8 @@ class SalaryPreviewService {
    */
   async getPreviewStatistics(month, year) {
     try {
+      await this.reconcilePendingQueriesForPeriod(month, year);
+
       const stats = await SalaryPreview.aggregate([
         {
           $match: { month, year }

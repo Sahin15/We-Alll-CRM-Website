@@ -63,3 +63,38 @@ export function employeeQueryLineMatch(extra = {}) {
     ...extra,
   };
 }
+
+/**
+ * Backfill: pending employee queries after an HR correction should read as resolved.
+ * @param {import('mongoose').Document} preview
+ * @returns {boolean} whether preview was mutated
+ */
+export function reconcilePendingQueriesOnPreview(preview) {
+  const queries = preview.employeeQueries || [];
+  if (!queries.length) return false;
+
+  const correctionTimes = queries
+    .filter(isHrCorrectionQuery)
+    .map((q) => new Date(q.submittedAt || 0).getTime());
+
+  let dirty = false;
+  for (const q of queries) {
+    if (!isEmployeeQueryEntry(q) || q.status !== "pending") continue;
+
+    const queryTime = new Date(q.submittedAt || 0).getTime();
+    const addressedByCorrection = correctionTimes.some((t) => t >= queryTime);
+
+    if (addressedByCorrection || correctionTimes.length > 0) {
+      q.status = "resolved";
+      q.hrResponse =
+        q.hrResponse || "Addressed via HR salary correction or review";
+      q.respondedAt = q.respondedAt || new Date();
+      dirty = true;
+    }
+  }
+
+  if (dirty) {
+    syncPreviewStatusAfterQueryChange(preview);
+  }
+  return dirty;
+}

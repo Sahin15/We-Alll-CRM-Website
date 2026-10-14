@@ -25,7 +25,7 @@ export default defineConfig({
             urlPattern: /\/assets\//,
             handler: "NetworkFirst",
             options: {
-              cacheName: "assets-cache",
+              cacheName: "assets-cache-v2026-10",
               expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 7 },
             },
           },

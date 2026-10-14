@@ -52,7 +52,12 @@ const DEPT_DIRECTORY_ROLES = [
 
 const deptView = requireModulePermissionAny(
   "team",
-  ["team.department.view", "work.item.create", "work.item.update"],
+  [
+    "team.department.view",
+    "projects.project.view",
+    "work.item.create",
+    "work.item.update",
+  ],
   { legacyRoles: DEPT_VIEW_ROLES }
 );
 

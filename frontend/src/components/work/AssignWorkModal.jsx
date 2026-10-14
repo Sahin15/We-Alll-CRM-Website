@@ -87,6 +87,16 @@ const buildTeamMembersFromProject = (project) => {
   (project.teamMembers || []).forEach((member) => {
     if (member?.isActive === false) return;
     addUser(member.user);
+    const userId = resolveEntityId(member.user);
+    if (userId && member.role) {
+      const existing = byId.get(userId);
+      if (existing) {
+        byId.set(userId, {
+          ...existing,
+          projectTeamRole: member.role,
+        });
+      }
+    }
   });
   addUser(project.projectHead);
 

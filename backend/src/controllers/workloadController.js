@@ -11,46 +11,40 @@ import { hasPermission } from "../authz/policyEngine.js";
 export const getEmployeeWorkload = async (req, res) => {
   try {
     const { employeeId } = req.params;
-    const userId = req.user.id;
+    const userId = String(req.user._id || req.user.id);
     const userRole = req.user.role;
     
     // Authorization check
     // Employees can only view their own workload unless they assign work on a shared project
     if (userRole === "employee" && employeeId !== userId) {
-      const canAssignWork =
-        hasPermission(req.user, "work.item.create") ||
-        hasPermission(req.user, "work.item.update");
+      const requesterOnProject = {
+        $or: [
+          { projectHead: userId },
+          { assignedUsers: userId },
+          {
+            teamMembers: {
+              $elemMatch: { user: userId, isActive: { $ne: false } },
+            },
+          },
+        ],
+      };
+      const assigneeOnProject = {
+        $or: [
+          { assignedUsers: employeeId },
+          {
+            teamMembers: {
+              $elemMatch: { user: employeeId, isActive: { $ne: false } },
+            },
+          },
+        ],
+      };
+      const sharedProject = await Project.findOne({
+        $and: [requesterOnProject, assigneeOnProject],
+      })
+        .select("_id")
+        .lean();
 
-      let mayViewAssigneeWorkload = false;
-      if (canAssignWork) {
-        const requesterOnProject = {
-          $or: [
-            { projectHead: userId },
-            { assignedUsers: userId },
-            {
-              teamMembers: {
-                $elemMatch: { user: userId, isActive: { $ne: false } },
-              },
-            },
-          ],
-        };
-        const assigneeOnProject = {
-          $or: [
-            { assignedUsers: employeeId },
-            {
-              teamMembers: {
-                $elemMatch: { user: employeeId, isActive: { $ne: false } },
-              },
-            },
-          ],
-        };
-        const sharedProject = await Project.findOne({
-          $and: [requesterOnProject, assigneeOnProject],
-        })
-          .select("_id")
-          .lean();
-        mayViewAssigneeWorkload = Boolean(sharedProject);
-      }
+      const mayViewAssigneeWorkload = Boolean(sharedProject);
 
       if (!mayViewAssigneeWorkload) {
         return res.status(403).json({

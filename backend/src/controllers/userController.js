@@ -27,7 +27,8 @@ import { resolveDepartmentIdForFilter } from '../utils/departmentLookup.js';
 function canLoadPostingHandoffRoster(user) {
   return (
     hasPermission(user, 'work.item.create') ||
-    hasPermission(user, 'work.item.update')
+    hasPermission(user, 'work.item.update') ||
+    hasPermission(user, 'projects.project.view')
   );
 }
 

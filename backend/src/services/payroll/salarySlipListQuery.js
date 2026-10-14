@@ -8,14 +8,30 @@
  */
 export function dedupeSlipsByEmployeePeriodStages() {
   return [
+    {
+      $addFields: {
+        _employeeKey: {
+          $cond: [
+            { $ifNull: ["$employee", false] },
+            { $toString: "$employee" },
+            null,
+          ],
+        },
+      },
+    },
     { $sort: { createdAt: -1, _id: -1 } },
     {
       $group: {
-        _id: { employee: "$employee", month: "$month", year: "$year" },
+        _id: {
+          employee: "$_employeeKey",
+          month: "$month",
+          year: "$year",
+        },
         doc: { $first: "$$ROOT" },
       },
     },
     { $replaceRoot: { newRoot: "$doc" } },
+    { $project: { _employeeKey: 0 } },
   ];
 }
 

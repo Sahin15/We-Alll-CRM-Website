@@ -522,7 +522,11 @@ export const getProjectById = async (req, res) => {
       .populate("client", "name email serviceCompany")
       .populate("department", "name")
       .populate("departments", "name")
-      .populate("projectHead", "name email designation status")
+      .populate({
+        path: "projectHead",
+        select: "name email designation status department",
+        populate: { path: "department", select: "name" },
+      })
       .populate(projectAssignedUsersPopulate)
       .populate(projectTeamMemberUserPopulate)
       .populate("teamMembers.assignedBy", "name email")
@@ -1473,10 +1477,14 @@ export const getProjectTeam = async (req, res) => {
     const { projectId } = req.params;
 
     const project = await Project.findById(projectId)
-      .populate("teamMembers.user", "name email designation employeeId status")
+      .populate(projectTeamMemberUserPopulate)
       .populate("teamMembers.assignedBy", "name email")
-      .populate("assignedUsers", "name email designation employeeId status")
-      .populate("projectHead", "name email designation status");
+      .populate(projectAssignedUsersPopulate)
+      .populate({
+        path: "projectHead",
+        select: "name email designation status department",
+        populate: { path: "department", select: "name" },
+      });
 
     if (!project) {
       return res.status(404).json({
@@ -1486,7 +1494,8 @@ export const getProjectTeam = async (req, res) => {
     }
 
     await healProjectTeamMembership(project, { assignedBy: req.user?._id });
-    await project.populate("teamMembers.user", "name email designation employeeId status");
+    await project.populate(projectTeamMemberUserPopulate);
+    await project.populate(projectAssignedUsersPopulate);
     await project.populate("teamMembers.assignedBy", "name email");
 
     const activeMembers = (project.teamMembers || []).filter(

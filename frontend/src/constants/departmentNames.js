@@ -109,7 +109,11 @@ export const CREATIVE_PROJECT_TEAM_ROLES = new Set([
 /** @param {string|null|undefined} role @returns {boolean} */
 export function isCreativeTeamRole(role) {
   if (!role || typeof role !== "string") return false;
-  return CREATIVE_PROJECT_TEAM_ROLES.has(role.trim().toLowerCase());
+  const normalized = role.trim().toLowerCase();
+  if (CREATIVE_PROJECT_TEAM_ROLES.has(normalized)) return true;
+  if (normalized.includes("graphic") && !normalized.includes("tele")) return true;
+  if (normalized.includes("video") && !normalized.includes("telecaller")) return true;
+  return false;
 }
 
 /**
@@ -134,6 +138,19 @@ export function getProjectTeamMemberRole(project, userId) {
  */
 export function assigneeQualifiesForCreativePosting({ user, project }) {
   if (user && isCreativeDepartmentName(user.department?.name)) {
+    return true;
+  }
+  if (user?.designation && isCreativeDepartmentName(user.designation)) {
+    return true;
+  }
+  const designation = String(user?.designation || "").toLowerCase();
+  if (
+    designation.includes("graphic") ||
+    (designation.includes("video") && !designation.includes("telecaller"))
+  ) {
+    return true;
+  }
+  if (user?.projectTeamRole && isCreativeTeamRole(user.projectTeamRole)) {
     return true;
   }
   const userId = user?._id || user;

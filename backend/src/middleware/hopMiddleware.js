@@ -1,6 +1,10 @@
 import Project from "../models/projectModel.js";
 import User from "../models/userModel.js";
 import { hasPermission } from "../authz/policyEngine.js";
+import {
+  canUserViewProject,
+  canViewAllCompanyProjects,
+} from "../services/resourceVisibilityService.js";
 
 /**
  * Check if user is Head of Project
@@ -172,6 +176,54 @@ export const canManageProject = async (req, res, next) => {
     res.status(500).json({
       success: false,
       message: "Error checking permissions",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Read-only project access (roster, workspace) for assigners and team.
+ */
+export const canViewProject = async (req, res, next) => {
+  try {
+    const projectId = req.params.projectId || req.params.id || req.body.project;
+    if (!projectId) {
+      return res.status(400).json({
+        success: false,
+        message: "Project ID is required",
+      });
+    }
+
+    const project = await Project.findById(projectId).select(
+      "projectHead assignedUsers teamMembers department client"
+    );
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
+      });
+    }
+
+    if (req.user.role === "client") {
+      return next();
+    }
+
+    if (
+      canViewAllCompanyProjects(req.user) ||
+      canUserViewProject(req.user, project)
+    ) {
+      req.projectForAccess = project;
+      return next();
+    }
+
+    return res.status(403).json({
+      success: false,
+      message: "Access denied. You cannot view this project.",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Error checking project access",
       error: error.message,
     });
   }

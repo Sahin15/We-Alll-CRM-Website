@@ -41,6 +41,7 @@ const userView = requireModulePermissionAny(
   [
     "team.user.view",
     "projects.project.manage",
+    "projects.project.view",
     "work.item.create",
     "work.item.update",
   ],
