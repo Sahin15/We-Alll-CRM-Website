@@ -202,7 +202,12 @@ salaryPreviewSchema.virtual("isReviewExpired").get(function() {
 
 // Virtual for checking if there are pending queries
 salaryPreviewSchema.virtual("hasPendingQueries").get(function() {
-  return this.employeeQueries.some(query => query.status === "pending");
+  return this.employeeQueries.some(
+    (query) =>
+      query.status === "pending" &&
+      query.query &&
+      !String(query.query).trim().toLowerCase().startsWith("hr correction:")
+  );
 });
 
 // Ensure virtuals are included in JSON output
@@ -442,21 +447,27 @@ salaryPreviewSchema.methods.submitQuery = async function(query, employeeId) {
 // Instance method to respond to employee query
 salaryPreviewSchema.methods.respondToQuery = async function(queryIndex, response, hrUserId) {
   try {
+    const { isEmployeeQueryEntry, isHrCorrectionQuery, syncPreviewStatusAfterQueryChange } =
+      await import("../utils/salaryPreviewQueries.js");
+
     if (queryIndex >= this.employeeQueries.length) {
       throw new Error("Query not found");
     }
 
     const query = this.employeeQueries[queryIndex];
+    if (isHrCorrectionQuery(query)) {
+      throw new Error("Cannot respond to a correction log entry");
+    }
+    if (!isEmployeeQueryEntry(query)) {
+      throw new Error("Query not found");
+    }
+
     query.hrResponse = response;
     query.respondedAt = new Date();
     query.respondedBy = hrUserId;
-    query.status = "responded";
+    query.status = "resolved";
 
-    // Check if all queries are responded
-    const allResponded = this.employeeQueries.every(q => q.status === "responded");
-    if (allResponded) {
-      this.status = "under_review";
-    }
+    syncPreviewStatusAfterQueryChange(this);
 
     await this.save();
     return this;
@@ -464,6 +475,40 @@ salaryPreviewSchema.methods.respondToQuery = async function(queryIndex, response
     
     throw error;
   }
+};
+
+// Resolve one or all open employee queries (HR)
+salaryPreviewSchema.methods.resolveEmployeeQueries = async function(
+  hrUserId,
+  { queryIndex = null, response = "Query marked as resolved by HR." } = {}
+) {
+  const { isEmployeeQueryEntry, syncPreviewStatusAfterQueryChange } = await import(
+    "../utils/salaryPreviewQueries.js"
+  );
+
+  const indices =
+    queryIndex != null && queryIndex !== ""
+      ? [Number(queryIndex)]
+      : this.employeeQueries.map((q, i) => i);
+
+  for (const i of indices) {
+    const query = this.employeeQueries[i];
+    if (!query || !isEmployeeQueryEntry(query)) continue;
+    if (query.status === "resolved") continue;
+    if (!query.hrResponse) {
+      query.hrResponse =
+        response || "Query marked as resolved by HR.";
+    } else if (response && response !== "Query marked as resolved by HR.") {
+      query.hrResponse = response;
+    }
+    query.respondedAt = query.respondedAt || new Date();
+    query.respondedBy = query.respondedBy || hrUserId;
+    query.status = "resolved";
+  }
+
+  syncPreviewStatusAfterQueryChange(this);
+  await this.save();
+  return this;
 };
 
 // Instance method to acknowledge preview

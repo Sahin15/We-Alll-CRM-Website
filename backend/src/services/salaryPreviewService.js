@@ -180,6 +180,28 @@ class SalaryPreviewService {
    * @param {string} hrUserId - HR user ID
    * @returns {Object} Updated preview
    */
+  /**
+   * Resolve employee query(s) without changing salary figures.
+   * @param {string} previewId
+   * @param {string} hrUserId
+   * @param {{ queryIndex?: number|null, response?: string }} options
+   */
+  async resolveEmployeeQueries(previewId, hrUserId, options = {}) {
+    try {
+      const preview = await SalaryPreview.findById(previewId);
+      if (!preview) {
+        throw new Error("Preview not found");
+      }
+
+      const updatedPreview = await preview.resolveEmployeeQueries(hrUserId, options);
+      await updatedPreview.populate("employee", "name email employeeId");
+      await updatedPreview.populate("employeeQueries.respondedBy", "name email");
+      return updatedPreview;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   async respondToQuery(previewId, queryIndex, response, hrUserId) {
     try {
       const preview = await SalaryPreview.findById(previewId);
@@ -438,19 +460,35 @@ class SalaryPreviewService {
       ]);
 
       const totalPreviews = await SalaryPreview.countDocuments({ month, year });
-      const queriesRaised = await SalaryPreview.countDocuments({
-        month,
-        year,
-        "employeeQueries.0": { $exists: true }
-      });
+      const employeeQueryStats = await SalaryPreview.aggregate([
+        { $match: { month, year } },
+        { $unwind: "$employeeQueries" },
+        {
+          $match: {
+            "employeeQueries.query": {
+              $exists: true,
+              $not: /^HR Correction:/i,
+            },
+          },
+        },
+        {
+          $group: {
+            _id: "$employeeQueries.status",
+            count: { $sum: 1 },
+          },
+        },
+      ]);
 
-      const pendingQueries = await SalaryPreview.countDocuments({
-        month,
-        year,
-        "employeeQueries": {
-          $elemMatch: { status: "pending" }
-        }
-      });
+      const statusCounts = Object.fromEntries(
+        employeeQueryStats.map((row) => [row._id, row.count])
+      );
+      const pendingQueries = statusCounts.pending || 0;
+      const resolvedQueries = statusCounts.resolved || 0;
+      const respondedLegacy = statusCounts.responded || 0;
+      const openQueries =
+        pendingQueries + respondedLegacy;
+      const queriesRaised =
+        pendingQueries + resolvedQueries + respondedLegacy;
 
       const expiredReviews = await SalaryPreview.countDocuments({
         month,
@@ -462,8 +500,14 @@ class SalaryPreviewService {
       return {
         totalPreviews,
         statusBreakdown: stats,
+        /** Total employee queries submitted this month (excludes HR correction log lines). */
         queriesRaised,
+        /** Awaiting HR action. */
         pendingQueries,
+        /** Resolved after response or salary correction. */
+        resolvedQueries,
+        /** Pending + legacy responded (not yet marked resolved). */
+        openQueries,
         expiredReviews,
         generatedAt: new Date()
       };
@@ -593,16 +637,32 @@ class SalaryPreviewService {
         preview.salaryBreakdown.netSalary = grossSalary - totalDeductions;
       }
 
-      // Add correction note
-      if (corrections.note) {
+      const { resolvePendingEmployeeQueries } = await import(
+        "../utils/salaryPreviewQueries.js"
+      );
+
+      const correctionNote = corrections.note?.trim();
+      if (correctionNote) {
+        resolvePendingEmployeeQueries(
+          preview,
+          hrUserId,
+          `Correction applied: ${correctionNote}`
+        );
+
         preview.employeeQueries.push({
-          query: `HR Correction: ${corrections.note}`,
+          query: `HR Correction: ${correctionNote}`,
           submittedAt: new Date(),
           hrResponse: "Correction applied to salary calculation",
           respondedAt: new Date(),
           respondedBy: hrUserId,
-          status: "responded"
+          status: "resolved",
         });
+      } else {
+        resolvePendingEmployeeQueries(
+          preview,
+          hrUserId,
+          "Correction applied to salary calculation"
+        );
       }
 
       await preview.save();

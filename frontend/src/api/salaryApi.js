@@ -109,6 +109,9 @@ export const salaryPreviewApi = {
   respondToQuery: (previewId, queryIndex, response) => 
     api.post(`/salary-preview/${previewId}/query/${queryIndex}/respond`, { response }),
 
+  resolveQueries: (previewId, payload = {}) =>
+    api.post(`/salary-preview/${previewId}/queries/resolve`, payload),
+
   // Acknowledge preview
   acknowledge: (previewId) => api.post(`/salary-preview/${previewId}/acknowledge`),
 

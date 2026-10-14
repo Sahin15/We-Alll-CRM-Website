@@ -454,6 +454,44 @@ router.post("/:previewId/query/:queryIndex/respond",
   }
 );
 
+// HR mark employee query(s) resolved (no salary change)
+router.post(
+  "/:previewId/queries/resolve",
+  protect,
+  requireModulePermission("finance", "payroll.slip.manage", {
+    legacyRoles: PAYROLL_MANAGE_ROLES,
+  }),
+  async (req, res) => {
+    try {
+      const { previewId } = req.params;
+      const { queryIndex, response } = req.body || {};
+      const hrUserId = req.user.id;
+
+      const updatedPreview = await previewService.resolveEmployeeQueries(
+        previewId,
+        hrUserId,
+        {
+          queryIndex:
+            queryIndex !== undefined && queryIndex !== null
+              ? parseInt(queryIndex, 10)
+              : null,
+          response: response?.trim() || undefined,
+        }
+      );
+
+      res.status(200).json({
+        message: "Query resolved successfully",
+        preview: updatedPreview,
+      });
+    } catch (error) {
+      res.status(500).json({
+        message: "Failed to resolve query",
+        error: error.message,
+      });
+    }
+  }
+);
+
 // Employee acknowledge preview
 router.post("/:previewId/acknowledge",
   protect,

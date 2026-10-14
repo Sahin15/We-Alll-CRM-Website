@@ -42,6 +42,28 @@ import {  isSimpleSalaryPreview,
   mapStoredPreviewToSimpleDto,
 } from "../../utils/simpleSalaryPreviewView";
 
+const isHrCorrectionLog = (q) =>
+  q?.query && String(q.query).trim().toLowerCase().startsWith("hr correction:");
+
+const isEmployeeQuery = (q) => q?.query && !isHrCorrectionLog(q);
+
+const countPendingEmployeeQueries = (preview) =>
+  (preview?.employeeQueries || []).filter(
+    (q) => isEmployeeQuery(q) && q.status === "pending"
+  ).length;
+
+const countOpenEmployeeQueries = (preview) =>
+  (preview?.employeeQueries || []).filter(
+    (q) =>
+      isEmployeeQuery(q) &&
+      (q.status === "pending" || q.status === "responded")
+  ).length;
+
+const findFirstPendingEmployeeQueryIndex = (preview) =>
+  (preview?.employeeQueries || []).findIndex(
+    (q) => isEmployeeQuery(q) && q.status === "pending"
+  );
+
 const HRSalaryPreviewManagement = () => {
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -241,6 +263,23 @@ const HRSalaryPreviewManagement = () => {
     } catch (error) {
       console.error("Error submitting response:", error);
       toast.error("Failed to submit response");
+    }
+  };
+
+  const handleResolveQueries = async (preview, queryIndex = null) => {
+    if (!preview?._id) return;
+    try {
+      await salaryPreviewApi.resolveQueries(
+        preview._id,
+        queryIndex != null && queryIndex >= 0 ? { queryIndex } : {}
+      );
+      toast.success("Query marked as resolved");
+      fetchData();
+    } catch (error) {
+      console.error("Error resolving query:", error);
+      toast.error(
+        error.response?.data?.message || "Failed to mark query as resolved"
+      );
     }
   };
 
@@ -764,15 +803,22 @@ const HRSalaryPreviewManagement = () => {
           <Col md={3}>
             <Card className="text-center">
               <Card.Body>
-                <h3 className="text-warning">{statistics.queriesRaised}</h3>
-                <p className="mb-0">Queries Raised</p>
+                <h3 className="text-warning">
+                  {statistics.openQueries ?? statistics.pendingQueries ?? 0}
+                </h3>
+                <p className="mb-0">Open Queries</p>
+                {(statistics.resolvedQueries ?? 0) > 0 && (
+                  <small className="text-muted">
+                    {statistics.resolvedQueries} resolved
+                  </small>
+                )}
               </Card.Body>
             </Card>
           </Col>
           <Col md={3}>
             <Card className="text-center">
               <Card.Body>
-                <h3 className="text-danger">{statistics.pendingQueries}</h3>
+                <h3 className="text-danger">{statistics.pendingQueries ?? 0}</h3>
                 <p className="mb-0">Pending Queries</p>
               </Card.Body>
             </Card>
@@ -824,8 +870,13 @@ const HRSalaryPreviewManagement = () => {
                         <td>{getStatusBadge(preview.status)}</td>
                         <td>{formatCurrency(preview.salaryBreakdown.netSalary)}</td>
                         <td>
-                          {preview.employeeQueries.length > 0 ? (
-                            <Badge bg="warning">{preview.employeeQueries.length}</Badge>
+                          {countOpenEmployeeQueries(preview) > 0 ? (
+                            <Badge bg="warning">
+                              {countOpenEmployeeQueries(preview)} open
+                            </Badge>
+                          ) : countPendingEmployeeQueries(preview) === 0 &&
+                            (preview.employeeQueries || []).some(isEmployeeQuery) ? (
+                            <Badge bg="success">Resolved</Badge>
                           ) : (
                             <span className="text-muted">None</span>
                           )}
@@ -848,16 +899,26 @@ const HRSalaryPreviewManagement = () => {
                                 <FaEye className="me-2" />
                                 View Details
                               </Dropdown.Item>
-                              {preview.employeeQueries.some(q => q.status === 'pending') && (
+                              {countPendingEmployeeQueries(preview) > 0 && (
                                 <Dropdown.Item 
                                   onClick={() => {
                                     setSelectedPreview(preview);
-                                    setSelectedQueryIndex(preview.employeeQueries.findIndex(q => q.status === 'pending'));
+                                    setSelectedQueryIndex(
+                                      findFirstPendingEmployeeQueryIndex(preview)
+                                    );
                                     setShowResponseModal(true);
                                   }}
                                 >
                                   <FaReply className="me-2" />
                                   Respond to Query
+                                </Dropdown.Item>
+                              )}
+                              {countOpenEmployeeQueries(preview) > 0 && (
+                                <Dropdown.Item
+                                  onClick={() => handleResolveQueries(preview)}
+                                >
+                                  <FaCheckCircle className="me-2" />
+                                  Mark Query Resolved
                                 </Dropdown.Item>
                               )}
                               <Dropdown.Item 
@@ -1093,9 +1154,53 @@ const HRSalaryPreviewManagement = () => {
               <div className="mt-3">
                 <h6 className="text-muted mb-2">Queries & Corrections Log</h6>
                 {selectedPreview.employeeQueries.map((q, i) => (
-                  <Alert key={i} variant={q.query.startsWith('HR Correction') ? 'warning' : 'info'} className="small py-2">
-                    <strong>{q.query.startsWith('HR Correction') ? 'Correction' : 'Query'}:</strong> {q.query}
-                    {q.hrResponse && <div className="mt-1"><strong>Response:</strong> {q.hrResponse}</div>}
+                  <Alert
+                    key={i}
+                    variant={isHrCorrectionLog(q) ? "warning" : "info"}
+                    className="small py-2"
+                  >
+                    <div className="d-flex justify-content-between align-items-start gap-2">
+                      <div>
+                        <strong>{isHrCorrectionLog(q) ? "Correction" : "Query"}:</strong>{" "}
+                        {isHrCorrectionLog(q)
+                          ? q.query.replace(/^HR Correction:\s*/i, "")
+                          : q.query}
+                        {q.hrResponse && (
+                          <div className="mt-1">
+                            <strong>Response:</strong> {q.hrResponse}
+                          </div>
+                        )}
+                      </div>
+                      {isEmployeeQuery(q) && (
+                        <Badge
+                          bg={
+                            q.status === "resolved"
+                              ? "success"
+                              : q.status === "pending"
+                                ? "danger"
+                                : "warning"
+                          }
+                        >
+                          {q.status === "resolved"
+                            ? "Resolved"
+                            : q.status === "pending"
+                              ? "Pending"
+                              : "Responded"}
+                        </Badge>
+                      )}
+                    </div>
+                    {isEmployeeQuery(q) && q.status !== "resolved" && (
+                      <Button
+                        variant="outline-success"
+                        size="sm"
+                        className="mt-2"
+                        onClick={() =>
+                          handleResolveQueries(selectedPreview, i)
+                        }
+                      >
+                        Mark Resolved
+                      </Button>
+                    )}
                   </Alert>
                 ))}
               </div>
