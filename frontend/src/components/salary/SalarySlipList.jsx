@@ -56,7 +56,14 @@ const SalarySlipList = () => {
 
   useEffect(() => {
     fetchSalarySlips();
-  }, [filters, pagination.current]);
+  }, [
+    filters.month,
+    filters.year,
+    filters.status,
+    filters.employee,
+    pagination.current,
+    pagination.limit,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,7 +107,13 @@ const SalarySlipList = () => {
 
       const response = await salarySlipApi.getAll(params);
       setSlips(response.data.slips || []);
-      setPagination(response.data.pagination || pagination);
+      const nextPagination = response.data.pagination || pagination;
+      const pages = nextPagination.pages ?? 0;
+      const current = nextPagination.current ?? 1;
+      setPagination({
+        ...nextPagination,
+        current: pages > 0 && current > pages ? pages : current,
+      });
     } catch (error) {
       console.error("Error fetching salary slips:", error);
       toast.error("Failed to load salary slips");

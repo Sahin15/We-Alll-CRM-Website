@@ -21,6 +21,10 @@ import {
   isSimplePayrollStructure,
   buildSimpleSlipPayload,
 } from "../services/payroll/simpleSlipPersist.js";
+import {
+  dedupeSlipsByEmployeePeriodStages,
+  resolveEmployeeIdsForSlipSearch,
+} from "../services/payroll/salarySlipListQuery.js";
 import path from "path";
 import fs from "fs";
 
@@ -730,31 +734,73 @@ export const getAllSalarySlips = async (req, res) => {
   try {
     const { month, year, status, employee, page = 1, limit = 20 } = req.query;
 
-    const filter = {};
-    if (month) filter.month = parseInt(month);
-    if (year) filter.year = parseInt(year);
-    if (status) filter.status = status;
-    if (employee) filter.employee = employee;
+    const match = {};
+    if (month) match.month = parseInt(month, 10);
+    if (year) match.year = parseInt(year, 10);
+    if (status) match.status = status;
 
-    const skip = (page - 1) * limit;
+    if (employee) {
+      const employeeIds = await resolveEmployeeIdsForSlipSearch(employee, User);
+      if (!employeeIds?.length) {
+        return res.status(200).json({
+          slips: [],
+          pagination: {
+            current: parseInt(page, 10) || 1,
+            pages: 0,
+            total: 0,
+            limit: parseInt(limit, 10) || 20,
+          },
+        });
+      }
+      match.employee = { $in: employeeIds };
+    }
 
-    const slips = await SalarySlip.find(filter)
-      .populate("employee", "name email employeeId designation department")
-      .populate("approvedBy", "name email")
-      .sort({ year: -1, month: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 20;
+    const skip = (pageNum - 1) * limitNum;
 
-    const total = await SalarySlip.countDocuments(filter);
+    const [facetResult] = await SalarySlip.aggregate([
+      { $match: match },
+      ...dedupeSlipsByEmployeePeriodStages(),
+      { $sort: { year: -1, month: -1, createdAt: -1 } },
+      {
+        $facet: {
+          data: [{ $skip: skip }, { $limit: limitNum }],
+          totalCount: [{ $count: "count" }],
+        },
+      },
+    ]);
+
+    const slipsRaw = facetResult?.data || [];
+    const total = facetResult?.totalCount?.[0]?.count ?? 0;
+    const slipIds = slipsRaw.map((s) => s._id);
+
+    let slips = [];
+    if (slipIds.length > 0) {
+      slips = await SalarySlip.find({ _id: { $in: slipIds } })
+        .populate("employee", "name email employeeId designation department")
+        .populate("approvedBy", "name email");
+
+      const orderMap = new Map(
+        slipIds.map((id, index) => [String(id), index])
+      );
+      slips.sort(
+        (a, b) =>
+          (orderMap.get(String(a._id)) ?? 0) -
+          (orderMap.get(String(b._id)) ?? 0)
+      );
+    }
+
+    const pages = limitNum > 0 ? Math.ceil(total / limitNum) : 0;
 
     res.status(200).json({
       slips,
       pagination: {
-        current: parseInt(page),
-        pages: Math.ceil(total / limit),
+        current: pageNum,
+        pages,
         total,
-        limit: parseInt(limit)
-      }
+        limit: limitNum,
+      },
     });
   } catch (error) {
     
@@ -1051,6 +1097,7 @@ export const getPayrollSummary = async (req, res) => {
           year: yearNum,
         },
       },
+      ...dedupeSlipsByEmployeePeriodStages(),
       {
         $lookup: {
           from: "users",

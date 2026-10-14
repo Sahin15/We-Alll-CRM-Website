@@ -646,6 +646,18 @@ class SalaryPreviewService {
       // Import SalarySlip model
       const SalarySlip = (await import("../models/salarySlipModel.js")).default;
 
+      const existingSlip = await SalarySlip.findOne({
+        employee: preview.employee._id,
+        month: preview.month,
+        year: preview.year,
+      });
+
+      if (existingSlip) {
+        preview.finalSalarySlip = existingSlip._id;
+        await preview.save();
+        return existingSlip;
+      }
+
       // Create salary slip from preview
       const salarySlip = new SalarySlip({
         employee: preview.employee._id,
