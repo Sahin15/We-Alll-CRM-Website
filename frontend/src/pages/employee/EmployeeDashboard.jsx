@@ -30,8 +30,8 @@ import {
 import { getLeaveRequestDays } from "../../utils/leaveDays";
 import {
   getEffectiveStatusForUser,
-  isPendingWorkItem,
-  isWorkItemAssignedToUser,
+  isTodoWorkItem,
+  isWorkItemForMyWork,
   isWorkItemOverdue,
 } from "../../utils/workItemUtils";
 import TodoWidget from "../../components/common/TodoWidget";
@@ -369,9 +369,9 @@ const EmployeeDashboard = () => {
       let pendingTasks = 0;
       if (tasksRes.status === 'fulfilled') {
         const allTasks = tasksRes.value.data || [];
-        pendingTasks = allTasks.filter((t) => isPendingWorkItem(t, user?._id)).length;
+        pendingTasks = allTasks.filter((t) => isTodoWorkItem(t, user?._id)).length;
         const topTasks = allTasks
-          .filter((t) => isPendingWorkItem(t, user?._id))
+          .filter((t) => isTodoWorkItem(t, user?._id))
           .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
           .slice(0, 3);
         setRecentTasks(topTasks);
@@ -963,9 +963,9 @@ const EmployeeDashboard = () => {
       // Match Pending Tasks card: only work assigned to me (exclude created-for-others / drafts)
       const allTasks = (response.data || []).filter(
         (t) =>
-          isWorkItemAssignedToUser(t, user?._id) &&
           !t.isDeleted &&
-          t.visibility !== 'draft'
+          t.visibility !== 'draft' &&
+          isWorkItemForMyWork(t, user?._id)
       );
 
       const pending = allTasks.filter((t) => getEffectiveStatusForUser(t, user?._id) === 'To Do');

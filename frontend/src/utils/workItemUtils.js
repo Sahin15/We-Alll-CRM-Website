@@ -141,6 +141,20 @@ export function isPendingWorkItem(workItem, userId) {
   return !TERMINAL_STATUSES.has(status);
 }
 
+/**
+ * Employee dashboard "Pending Tasks" — matches My Tasks modal (status To Do only).
+ *
+ * @param {object|null|undefined} workItem
+ * @param {string|object|null|undefined} userId
+ * @returns {boolean}
+ */
+export function isTodoWorkItem(workItem, userId) {
+  if (!workItem || workItem.isDeleted) return false;
+  if (workItem.visibility === 'draft') return false;
+  if (!isWorkItemForMyWork(workItem, userId)) return false;
+  return getEffectiveStatusForUser(workItem, userId) === 'To Do';
+}
+
 export function getDueDateLabel(workItem, userId, referenceDate = new Date()) {
   if (!workItem?.dueDate) return null;
 
