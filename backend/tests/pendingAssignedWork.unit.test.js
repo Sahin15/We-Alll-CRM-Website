@@ -1,5 +1,5 @@
 /**
- * Mirrors frontend isPendingWorkItem rules used by Employee Dashboard.
+ * Mirrors frontend work-item filters (My Work vs dashboard Pending Tasks).
  */
 
 const TERMINAL_STATUSES = new Set(['Done', 'Cancelled']);
@@ -52,6 +52,13 @@ function isPendingWorkItem(workItem, userId) {
   return !TERMINAL_STATUSES.has(getEffectiveStatusForUser(workItem, userId));
 }
 
+function isTodoWorkItem(workItem, userId) {
+  if (!workItem || workItem.isDeleted) return false;
+  if (workItem.visibility === 'draft') return false;
+  if (!isWorkItemForMyWork(workItem, userId)) return false;
+  return getEffectiveStatusForUser(workItem, userId) === 'To Do';
+}
+
 describe('Pending Tasks assignee filter', () => {
   const assignerId = 'assigner-1';
   const assigneeId = 'assignee-1';
@@ -90,6 +97,29 @@ describe('Pending Tasks assignee filter', () => {
         assigneeId
       )
     ).toBe(false);
+  });
+
+  test('dashboard pending counts To Do only, not Closed or In Progress', () => {
+    const closed = {
+      status: 'Closed',
+      visibility: 'active',
+      assignedTo: assigneeId,
+    };
+    const inProgress = {
+      status: 'In Progress',
+      visibility: 'active',
+      assignedTo: assigneeId,
+    };
+    const todo = {
+      status: 'To Do',
+      visibility: 'active',
+      assignedTo: assigneeId,
+    };
+    expect(isPendingWorkItem(closed, assigneeId)).toBe(true);
+    expect(isTodoWorkItem(closed, assigneeId)).toBe(false);
+    expect(isPendingWorkItem(inProgress, assigneeId)).toBe(true);
+    expect(isTodoWorkItem(inProgress, assigneeId)).toBe(false);
+    expect(isTodoWorkItem(todo, assigneeId)).toBe(true);
   });
 
   test('uses per-assignee status for multi-assignee items', () => {
