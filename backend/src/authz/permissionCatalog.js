@@ -89,6 +89,8 @@ export const PERMISSION_CATALOG = [
   // CRM
   { key: 'crm.lead.view', module: 'crm', description: 'Business Management — view Leads list and details' },
   { key: 'crm.lead.manage', module: 'crm', description: 'Business Management — create and edit leads' },
+  { key: 'crm.social.view', module: 'crm', description: 'Social Media — view clients, posts, calendar, and analytics' },
+  { key: 'crm.social.manage', module: 'crm', description: 'Social Media — manage accounts, posts, approvals, and settings' },
   { key: 'crm.client.view', module: 'crm', description: 'Business Management — view all clients' },
   { key: 'crm.client.view_assigned', module: 'crm', description: 'Business Management — view assigned clients only' },
   { key: 'crm.client.manage', module: 'crm', description: 'Business Management — manage clients' },

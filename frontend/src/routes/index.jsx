@@ -82,6 +82,7 @@ const {
   RawDataDashboard,
   LeadList,
   LeadDetails,
+  SocialWorkspace,
   ProjectList,
   ProjectListPage,
   ProjectDetails,
@@ -918,6 +919,19 @@ const AppRoutes = () => {
               fallbackRoles={["admin", "superadmin", "employee", "hod", "accounts", "manager"]}
             >
               <LeadList />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/social/*"
+          element={
+            <PermissionRoute
+              permission="crm.social.view"
+              module="crm"
+              fallbackRoles={["admin", "superadmin", "manager"]}
+              departments={["Social Media", "Digital Marketing", "Posting", "Social Media Marketing"]}
+            >
+              <SocialWorkspace />
             </PermissionRoute>
           }
         />

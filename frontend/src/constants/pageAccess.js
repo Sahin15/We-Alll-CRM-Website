@@ -43,6 +43,10 @@ export const PAGE_ACCESS = {
     permission: 'crm.lead.view',
     fallbackRoles: ['admin', 'superadmin', 'manager', 'employee', 'hod'],
   },
+  crmSocialView: {
+    permission: 'crm.social.view',
+    fallbackRoles: ['admin', 'superadmin', 'manager'],
+  },
   crmRawDataAnalyticsView: {
     permission: 'crm.rawdata.analytics.view',
     fallbackRoles: ['admin', 'superadmin', 'manager'],

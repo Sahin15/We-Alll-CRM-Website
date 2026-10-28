@@ -15,6 +15,7 @@ import { hasPermissionAccess } from "../utils/authzAccess";
  * @param {string[]} [props.fallbackRoles] - Legacy role fallback
  * @param {string[]} [props.menuAllowedRoles] - Roles allowed unless direct Permission Assignment grant
  * @param {boolean} [props.requiresDepartmentHead] - HoD-only routes (not managers with review permission)
+ * @param {string[]} [props.departments] - Department names that may open the page
  */
 const PermissionRoute = ({
   children,
@@ -24,6 +25,7 @@ const PermissionRoute = ({
   fallbackRoles,
   menuAllowedRoles,
   requiresDepartmentHead,
+  departments,
 }) => {
   const {
     user,
@@ -53,7 +55,10 @@ const PermissionRoute = ({
   }
 
   if (permission) {
-    const allowed = hasPermissionAccess({
+    const departmentName = user?.department?.name?.toLowerCase() || "";
+    const departmentAllowed = Array.isArray(departments)
+      && departments.some((dept) => dept.toLowerCase() === departmentName);
+    const allowed = departmentAllowed || hasPermissionAccess({
       user,
       canPermission,
       checkPermission,

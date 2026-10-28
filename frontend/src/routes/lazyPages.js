@@ -88,6 +88,7 @@ export const RawDataDashboard = lp(() => import("../pages/raw-data/RawDataDashbo
 // Leads
 export const LeadList = lp(() => import("../pages/leads/LeadList"));
 export const LeadDetails = lp(() => import("../pages/leads/LeadDetails"));
+export const SocialWorkspace = lp(() => import("../pages/social/SocialWorkspace"));
 
 // Projects
 export const ProjectList = lp(() => import("../pages/projects/ProjectList"));

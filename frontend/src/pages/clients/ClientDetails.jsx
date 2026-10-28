@@ -16,6 +16,7 @@ import {
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { PAGE_ACCESS, checkPageAccess } from "../../constants/pageAccess";
+import { SOCIAL_DEPARTMENTS } from "../../constants/socialAccess";
 import { canViewAllCompanyProjects } from "../../utils/resourceVisibility";
 import BusinessDocumentsTab from "../../components/documents/BusinessDocumentsTab";
 import {
@@ -44,6 +45,8 @@ const ClientDetails = () => {
   const { user, canAccess, authzEffective, canPermission } = useAuth();
   const visibilityParams = { user, authzEffective, canPermission };
   const canManageClients = checkPageAccess(canAccess, PAGE_ACCESS.crmClientManage);
+  const canOpenSocial = checkPageAccess(canAccess, PAGE_ACCESS.crmSocialView)
+    || SOCIAL_DEPARTMENTS.some((dept) => dept.toLowerCase() === user?.department?.name?.toLowerCase());
   const canEdit = canManageClients;
   const canViewAllProjects = canViewAllCompanyProjects(visibilityParams);
 
@@ -430,6 +433,15 @@ const ClientDetails = () => {
           </div>
         </Col>
         <Col className="text-end">
+          {canOpenSocial && (
+            <Button
+              variant="outline-primary"
+              className="me-2"
+              onClick={() => navigate(`/social/accounts?client=${client._id}`)}
+            >
+              Social media
+            </Button>
+          )}
           {canManageClients && (
             <Button variant="primary" onClick={() => setShowEditModal(true)}>
               <FaEdit className="me-2" />

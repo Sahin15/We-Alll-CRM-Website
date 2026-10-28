@@ -33,6 +33,7 @@ import attendanceRoutes from "./routes/attendanceRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import billRoutes from "./routes/billRoutes.js";
 import leadRoutes from "./routes/leadRoutes.js";
+import socialMediaRoutes from "./routes/socialMediaRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import planRoutes from "./routes/planRoutes.js";
 import addOnRoutes from "./routes/addOnRoutes.js";
@@ -308,6 +309,7 @@ app.use("/api/projects", apiLimiter, projectRoutes);
 // Mount /api/leads BEFORE any app.use("/api", ...) routers that call router.use(protect).
 // Those catch-alls otherwise intercept /api/leads/website and /api/leads/public and return 401.
 app.use("/api/leads", apiLimiter, leadRoutes);
+app.use("/api/social", apiLimiter, socialMediaRoutes);
 app.use("/api", apiLimiter, projectExpectationRoutes);
 app.use("/api", apiLimiter, projectCommitmentRoutes);
 app.use("/api", apiLimiter, projectMonthRoutes);

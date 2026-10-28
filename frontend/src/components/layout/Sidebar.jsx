@@ -32,9 +32,13 @@ import {
   FaCheckSquare,
   FaBoxOpen,
   FaUserPlus,
+  FaHashtag,
+  FaShareAlt,
+  FaCog,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import { PAGE_ACCESS } from "../../constants/pageAccess";
+import { SOCIAL_DEPARTMENTS, SOCIAL_MENU_ROLES } from "../../constants/socialAccess";
 import {
   hasPermissionAccess,
   hasExplicitPermissionGrant,
@@ -116,6 +120,12 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       setExpandedGroups(prev => ({
         ...prev,
         'business-management': true
+      }));
+    }
+    if (currentPath.startsWith('/social')) {
+      setExpandedGroups(prev => ({
+        ...prev,
+        'social-media': true
       }));
     }
   }, [location.pathname]);
@@ -210,6 +220,33 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           },
         },
       ],
+    },
+    {
+      id: "social-media",
+      icon: <FaHashtag />,
+      label: "Social Media",
+      permission: "crm.social.view",
+      fallbackRoles: SOCIAL_MENU_ROLES,
+      departments: SOCIAL_DEPARTMENTS,
+      isGroup: true,
+      children: [
+        ["/social", <FaChartBar key="overview" />, "Overview"],
+        ["/social/clients", <FaUsers key="clients" />, "Clients"],
+        ["/social/accounts", <FaShareAlt key="accounts" />, "Accounts"],
+        ["/social/calendar", <FaCalendarAlt key="calendar" />, "Content Calendar"],
+        ["/social/composer", <FaPlus key="composer" />, "Post Composer"],
+        ["/social/approvals", <FaCheck key="approvals" />, "Approvals"],
+        ["/social/published", <FaClipboardList key="published" />, "Published Posts"],
+        ["/social/analytics", <FaChartBar key="analytics" />, "Analytics"],
+        ["/social/settings", <FaCog key="settings" />, "Settings"],
+      ].map(([path, icon, label]) => ({
+        path,
+        icon,
+        label,
+        permission: "crm.social.view",
+        fallbackRoles: SOCIAL_MENU_ROLES,
+        departments: SOCIAL_DEPARTMENTS,
+      })),
     },
     {
       id: "billing",
