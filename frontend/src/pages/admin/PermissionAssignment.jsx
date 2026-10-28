@@ -1086,7 +1086,8 @@ const PermissionAssignment = () => {
                       <Alert variant="info" className="m-3 mb-0 small">
                         Grant or deny CRM access per user. HR no longer gets Leads or Raw Data Analytics
                         by default — use <strong>Grant</strong> on <code>crm.lead.view</code>,{" "}
-                        <code>crm.rawdata.manage</code>, <code>crm.rawdata.analytics.view</code>, or{" "}
+                        <code>crm.rawdata.manage</code>, <code>crm.rawdata.analytics.view</code>,{" "}
+                        <code>crm.meta.view</code>, <code>crm.meta.manage</code>, or{" "}
                         <strong>Deny</strong> to block
                         inherited access from another role.
                       </Alert>

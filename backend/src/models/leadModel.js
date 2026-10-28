@@ -294,6 +294,36 @@ const leadSchema = new mongoose.Schema(
         default: 'never-sent'
       }
     },
+    // Meta Lead Ads attribution. CRM status, notes, and assignment stay outside this object.
+    meta: {
+      companyScope: { type: String },
+      leadId: { type: String },
+      integrationId: { type: mongoose.Schema.Types.ObjectId, ref: "MetaIntegration" },
+      pageId: { type: String },
+      pageName: { type: String },
+      formId: { type: String },
+      formName: { type: String },
+      platform: { type: String },
+      sourcePlatform: { type: String },
+      campaignId: { type: String },
+      campaignName: { type: String },
+      adsetId: { type: String },
+      adsetName: { type: String },
+      adId: { type: String },
+      adName: { type: String },
+      createdTime: { type: Date },
+      isOrganic: { type: Boolean },
+      fieldData: [
+        {
+          name: { type: String },
+          values: [{ type: String }],
+        },
+      ],
+      city: { type: String },
+      rawPhone: { type: String },
+      importedAt: { type: Date },
+      lastSyncedAt: { type: Date },
+    },
   },
   { timestamps: true }
 );
@@ -320,6 +350,13 @@ leadSchema.index({ assignedTo: 1, createdAt: -1 }); // compound for myLeads sort
 leadSchema.index({ 'contacts.value': 1 });
 leadSchema.index({ 'followUps.scheduledDate': 1 });
 leadSchema.index({ 'meetings.scheduledDate': 1 });
+leadSchema.index(
+  { "meta.companyScope": 1, "meta.leadId": 1 },
+  { unique: true, partialFilterExpression: { "meta.leadId": { $type: "string" } } }
+);
+leadSchema.index({ "meta.companyScope": 1, "meta.createdTime": -1 });
+leadSchema.index({ "meta.formId": 1 });
+leadSchema.index({ "meta.campaignId": 1 });
 
 const Lead = mongoose.model("Lead", leadSchema);
 export default Lead;

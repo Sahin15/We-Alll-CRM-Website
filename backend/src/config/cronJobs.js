@@ -804,7 +804,17 @@ export const initializeCronJobs = () => {
     }
   });
 
-  
+  try {
+    cron.schedule(process.env.META_RECONCILE_CRON || "*/30 * * * *", () => {
+      import("../services/meta/metaSyncService.js")
+        .then(({ reconcileMetaLeads }) => reconcileMetaLeads())
+        .catch((error) => {
+          console.error("[CronJob] Meta lead reconciliation error:", error.message);
+        });
+    });
+  } catch (error) {
+    console.error("[CronJob] Meta reconciliation schedule failed:", error.message);
+  }
 };
 
 // Cron job: Auto-reactivate inactive employees whose reactivation date has passed

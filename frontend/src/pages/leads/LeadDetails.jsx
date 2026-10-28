@@ -140,6 +140,10 @@ const LeadDetails = () => {
         return "warning";
       case "Cold Call":
         return "danger";
+      case "Facebook":
+        return "primary";
+      case "Instagram":
+        return "danger";
       case "Kaustav Mukherjee":
         return "success"; // Green for personal referral
       case "Rahul Shaw":
@@ -599,6 +603,38 @@ const LeadDetails = () => {
               </ListGroup>
             </Card.Body>
           </Card>
+          {lead.meta?.leadId && (
+            <Card className="shadow-sm mt-3">
+              <Card.Header className="bg-white">
+                <h5 className="mb-0">Meta Lead Ads</h5>
+              </Card.Header>
+              <Card.Body>
+                <ListGroup variant="flush">
+                  <ListGroup.Item className="px-0"><strong>Meta lead ID:</strong> {lead.meta.leadId}</ListGroup.Item>
+                  <ListGroup.Item className="px-0"><strong>Page:</strong> {lead.meta.pageName || "—"} {lead.meta.pageId ? `(${lead.meta.pageId})` : ""}</ListGroup.Item>
+                  <ListGroup.Item className="px-0"><strong>Form:</strong> {lead.meta.formName || "—"} {lead.meta.formId ? `(${lead.meta.formId})` : ""}</ListGroup.Item>
+                  <ListGroup.Item className="px-0"><strong>Campaign:</strong> {lead.meta.campaignName || "—"}</ListGroup.Item>
+                  <ListGroup.Item className="px-0"><strong>Ad set:</strong> {lead.meta.adsetName || "—"}</ListGroup.Item>
+                  <ListGroup.Item className="px-0"><strong>Ad:</strong> {lead.meta.adName || "—"}</ListGroup.Item>
+                  <ListGroup.Item className="px-0"><strong>Submitted:</strong> {lead.meta.createdTime ? formatDate(lead.meta.createdTime) : "—"}</ListGroup.Item>
+                  <ListGroup.Item className="px-0"><strong>Platform:</strong> {lead.meta.platform || lead.source}</ListGroup.Item>
+                </ListGroup>
+                {!!lead.meta.fieldData?.length && (
+                  <div className="mt-3">
+                    <strong className="d-block mb-2">Original form answers</strong>
+                    <div style={{ maxHeight: 240, overflowY: "auto" }}>
+                      {lead.meta.fieldData.map((field) => (
+                        <div key={`${field.name}-${(field.values || []).join("|")}`} className="mb-2">
+                          <div className="text-muted small">{field.name}</div>
+                          <div>{(field.values || []).join(", ") || "—"}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </Card.Body>
+            </Card>
+          )}
         </Col>
 
         <Col lg={8}>

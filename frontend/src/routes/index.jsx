@@ -82,6 +82,7 @@ const {
   RawDataDashboard,
   LeadList,
   LeadDetails,
+  MetaAdsIntegration,
   ProjectList,
   ProjectListPage,
   ProjectDetails,
@@ -918,6 +919,18 @@ const AppRoutes = () => {
               fallbackRoles={["admin", "superadmin", "employee", "hod", "accounts", "manager"]}
             >
               <LeadList />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/leads/meta-ads"
+          element={
+            <PermissionRoute
+              permission="crm.meta.view"
+              module="crm"
+              fallbackRoles={["admin", "superadmin", "manager"]}
+            >
+              <MetaAdsIntegration />
             </PermissionRoute>
           }
         />

@@ -32,6 +32,7 @@ import "./LeadList.css";
 const LeadList = () => {
   const { user, token, canAccess } = useAuth();
   const canManageLeads = checkPageAccess(canAccess, PAGE_ACCESS.crmLeadManage);
+  const canViewMeta = checkPageAccess(canAccess, PAGE_ACCESS.crmMetaView);
   const { id } = useParams(); // For edit mode
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +60,9 @@ const LeadList = () => {
   const [formContacts, setFormContacts] = useState([]);
   const [filterStatus, setFilterStatus] = useState("");
   const [filterSource, setFilterSource] = useState("");
+  const [filterCampaign, setFilterCampaign] = useState("");
+  const [filterForm, setFilterForm] = useState("");
+  const [filterPage, setFilterPage] = useState("");
   const [filterHasEmail, setFilterHasEmail] = useState("");
   const [filterFollowUp, setFilterFollowUp] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -219,6 +223,8 @@ const LeadList = () => {
     "Social Media",
     "Advertisement",
     "Cold Call",
+    "Facebook",
+    "Instagram",
     "Vyapaar Expo",
     "Kaustav Mukherjee",
     "Rahul Shaw",
@@ -620,6 +626,9 @@ const LeadList = () => {
   const filteredLeads = leads.filter(lead => {
     const statusMatch = !filterStatus || lead.status === filterStatus;
     const sourceMatch = !filterSource || lead.source === filterSource;
+    const campaignMatch = !filterCampaign || lead.meta?.campaignName === filterCampaign;
+    const formMatch = !filterForm || lead.meta?.formName === filterForm;
+    const pageMatch = !filterPage || lead.meta?.pageName === filterPage;
     
     // Has email filter
     const hasEmailMatch = !filterHasEmail || 
@@ -662,7 +671,7 @@ const LeadList = () => {
       lead.phone?.toString().includes(searchQuery) ||
       lead.companyName?.toLowerCase().includes(searchQuery.toLowerCase());
     
-    return statusMatch && sourceMatch && hasEmailMatch && followUpMatch && searchMatch;
+    return statusMatch && sourceMatch && campaignMatch && formMatch && pageMatch && hasEmailMatch && followUpMatch && searchMatch;
   });
 
   const getStatusVariant = (status) => {
@@ -749,6 +758,10 @@ const LeadList = () => {
       case "Advertisement":
         return "warning";
       case "Cold Call":
+        return "danger";
+      case "Facebook":
+        return "primary";
+      case "Instagram":
         return "danger";
       case "Kaustav Mukherjee":
         return "success";
@@ -928,7 +941,7 @@ const LeadList = () => {
             <Badge bg={getStatusVariant(lead.status)} className="status-badge-sm">
               {lead.status}
             </Badge>
-            <Badge bg={getSourceVariant(lead.source)} className="source-badge-sm">
+            <Badge bg={getSourceVariant(lead.source)} className="source-badge-sm" title={lead.meta?.campaignName || lead.source}>
               {lead.source.length > 8 ? lead.source.substring(0, 8) + '...' : lead.source}
             </Badge>
           </div>
@@ -1049,6 +1062,11 @@ const LeadList = () => {
               </div>
             </div>
             <div className="d-flex align-items-center gap-2">
+              {canViewMeta && (
+                <Button variant="outline-primary" onClick={() => navigate("/leads/meta-ads")}>
+                  Meta Lead Ads
+                </Button>
+              )}
               <Button variant="primary" onClick={() => handleShowModal()}>
                 <FaPlus className="me-2" />
                 Add Lead
@@ -1125,6 +1143,27 @@ const LeadList = () => {
           {sourceOptions.map(s => <option key={s} value={s}>{s}</option>)}
         </Form.Select>
 
+        <Form.Select size="sm" value={filterCampaign} onChange={(e) => setFilterCampaign(e.target.value)} style={{ width: '150px' }}>
+          <option value="">All Campaigns</option>
+          {[...new Set(leads.map((lead) => lead.meta?.campaignName).filter(Boolean))].sort().map((name) => (
+            <option key={name} value={name}>{name}</option>
+          ))}
+        </Form.Select>
+
+        <Form.Select size="sm" value={filterForm} onChange={(e) => setFilterForm(e.target.value)} style={{ width: '140px' }}>
+          <option value="">All Forms</option>
+          {[...new Set(leads.map((lead) => lead.meta?.formName).filter(Boolean))].sort().map((name) => (
+            <option key={name} value={name}>{name}</option>
+          ))}
+        </Form.Select>
+
+        <Form.Select size="sm" value={filterPage} onChange={(e) => setFilterPage(e.target.value)} style={{ width: '140px' }}>
+          <option value="">All Connections</option>
+          {[...new Set(leads.map((lead) => lead.meta?.pageName).filter(Boolean))].sort().map((name) => (
+            <option key={name} value={name}>{name}</option>
+          ))}
+        </Form.Select>
+
         <Form.Select size="sm" value={filterFollowUp} onChange={(e) => setFilterFollowUp(e.target.value)} style={{ width: '155px' }}>
           <option value="">All Follow-Ups</option>
           <option value="overdue">🔴 Overdue</option>
@@ -1135,7 +1174,7 @@ const LeadList = () => {
 
         <Form.Control size="sm" type="text" placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ width: '160px' }} />
 
-        <Button size="sm" variant="outline-secondary" onClick={() => { setFilterStatus(""); setFilterSource(""); setFilterHasEmail(""); setFilterFollowUp(""); setSearchQuery(""); }}>Clear</Button>
+        <Button size="sm" variant="outline-secondary" onClick={() => { setFilterStatus(""); setFilterSource(""); setFilterCampaign(""); setFilterForm(""); setFilterPage(""); setFilterHasEmail(""); setFilterFollowUp(""); setSearchQuery(""); }}>Clear</Button>
 
         {filteredLeads.filter(l => l.email).length > 0 && (
           <Button size="sm" variant="outline-primary" onClick={handleSelectAllLeads}>
@@ -1288,10 +1327,13 @@ const LeadList = () => {
                               <Badge 
                                 bg={getSourceVariant(lead.source)}
                                 style={{ fontSize: '0.75rem', whiteSpace: 'normal', wordBreak: 'break-word' }}
-                                title={lead.source}
+                                title={lead.meta?.campaignName ? `${lead.source} · ${lead.meta.campaignName}` : lead.source}
                               >
                                 {lead.source}
                               </Badge>
+                              {lead.meta?.formName && (
+                                <div className="text-muted" style={{ fontSize: '0.7rem' }}>{lead.meta.formName}</div>
+                              )}
                             </td>
                             <td>
                               <Badge 

@@ -33,6 +33,7 @@ import attendanceRoutes from "./routes/attendanceRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import billRoutes from "./routes/billRoutes.js";
 import leadRoutes from "./routes/leadRoutes.js";
+import metaIntegrationRoutes from "./routes/metaIntegrationRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import planRoutes from "./routes/planRoutes.js";
 import addOnRoutes from "./routes/addOnRoutes.js";
@@ -156,7 +157,14 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json({ limit: "25mb" })); // Limit payload size
+app.use(express.json({
+  limit: "25mb",
+  verify: (req, _res, buf) => {
+    if (String(req.originalUrl || "").startsWith("/api/integrations/meta/webhook")) {
+      req.rawBody = Buffer.from(buf);
+    }
+  },
+}));
 app.use(sanitizeInput); // Sanitize MongoDB queries
 app.use(s3ProxyMiddleware); // Serve profile pictures via /api/upload/profile-picture/:fileName
 app.use(auditMiddleware); // Audit logging for authenticated requests
@@ -308,6 +316,7 @@ app.use("/api/projects", apiLimiter, projectRoutes);
 // Mount /api/leads BEFORE any app.use("/api", ...) routers that call router.use(protect).
 // Those catch-alls otherwise intercept /api/leads/website and /api/leads/public and return 401.
 app.use("/api/leads", apiLimiter, leadRoutes);
+app.use("/api/integrations/meta", metaIntegrationRoutes);
 app.use("/api", apiLimiter, projectExpectationRoutes);
 app.use("/api", apiLimiter, projectCommitmentRoutes);
 app.use("/api", apiLimiter, projectMonthRoutes);

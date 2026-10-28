@@ -2,6 +2,7 @@ import Lead from "../models/leadModel.js";
 import User from "../models/userModel.js";
 import { mergeExcludePastMembersFilter } from "../utils/employeeQueryUtils.js";
 import { normalizeLeadPhone } from "../utils/normalizeLeadPhone.js";
+import { getCompanyScope } from "../services/meta/metaConfig.js";
 
 /**
  * @param {object} payload
@@ -358,6 +359,17 @@ export const getAllLeads = async (req, res) => {
     if (status) filter.status = status;
     if (source) filter.source = source;
 
+    const metaId = (value) => (typeof value === "string" && /^[a-zA-Z0-9_.:-]{1,64}$/.test(value) ? value : "");
+    const metaFormId = metaId(req.query.metaFormId);
+    const metaCampaignId = metaId(req.query.metaCampaignId);
+    const metaPageId = metaId(req.query.metaPageId);
+    if (metaFormId) filter["meta.formId"] = metaFormId;
+    if (metaCampaignId) filter["meta.campaignId"] = metaCampaignId;
+    if (metaPageId) filter["meta.pageId"] = metaPageId;
+    if (metaFormId || metaCampaignId || metaPageId) {
+      filter["meta.companyScope"] = getCompanyScope();
+    }
+
     if (myLeads === 'true') {
       filter.assignedTo = req.user._id;
     } else if (assignedTo) {
@@ -366,7 +378,7 @@ export const getAllLeads = async (req, res) => {
 
     // Only select fields needed for the list view — skip heavy arrays
     const leads = await Lead.find(filter)
-      .select('fullName phone email companyName service budget source status assignedTo createdBy createdAt followUps.status followUps.scheduledDate emailStats temperature')
+      .select('fullName phone email companyName service budget source status assignedTo createdBy createdAt followUps.status followUps.scheduledDate emailStats temperature meta.leadId meta.pageId meta.pageName meta.formId meta.formName meta.campaignId meta.campaignName meta.platform meta.createdTime')
       .populate("assignedTo", "name email")
       .populate("createdBy", "name email")
       .sort({ createdAt: -1 })

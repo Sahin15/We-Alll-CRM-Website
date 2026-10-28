@@ -197,6 +197,13 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
           departments: ["Sales"],
         },
         {
+          path: "/leads/meta-ads",
+          icon: <FaBullhorn />,
+          label: "Meta Lead Ads",
+          permission: "crm.meta.view",
+          fallbackRoles: ["admin", "superadmin", "manager"],
+        },
+        {
           path: "/clients",
           icon: <FaUsers />,
           label: "Clients",
