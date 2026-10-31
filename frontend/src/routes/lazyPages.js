@@ -106,6 +106,7 @@ export const EnhancedAdminWorkCalendarOverview = lp(() => import("../pages/work-
 
 // Profile
 export const MyProfile = lp(() => import("../pages/profile/MyProfile"));
+export const EmailInbox = lp(() => import("../pages/email/EmailInbox"));
 
 // Admin billing
 export const AdminBillingDashboard = lp(() => import("../pages/admin/AdminBillingDashboard"));

@@ -92,6 +92,7 @@ const {
   AdminWorkCalendarOverview,
   EnhancedAdminWorkCalendarOverview,
   MyProfile,
+  EmailInbox,
   AdminBillingDashboard,
   ServiceManagement,
   PlanManagement,
@@ -1080,6 +1081,23 @@ const AppRoutes = () => {
         <Route path="/profile" element={
           <PermissionRoute permission="profile.view">
             <MyProfile />
+          </PermissionRoute>
+        } />
+        <Route path="/email" element={
+          <PermissionRoute
+            permission="profile.view"
+            fallbackRoles={[
+              "superadmin",
+              "admin",
+              "hr",
+              "accounts",
+              "employee",
+              "client",
+              "hod",
+              "manager",
+            ]}
+          >
+            <EmailInbox />
           </PermissionRoute>
         } />
         <Route path="/my-profile" element={

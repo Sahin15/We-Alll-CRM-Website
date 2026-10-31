@@ -32,6 +32,7 @@ import {
   FaCheckSquare,
   FaBoxOpen,
   FaUserPlus,
+  FaEnvelope,
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import { PAGE_ACCESS } from "../../constants/pageAccess";
@@ -713,6 +714,13 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
       label: "Reports & Analytics",
       permission: "reports.analytics.view",
       fallbackRoles: REPORTS_ROLES,
+    },
+    {
+      path: "/email",
+      icon: <FaEnvelope />,
+      label: "Email Inbox",
+      permission: "profile.view",
+      fallbackRoles: ALL_APP_ROLES,
     },
     {
       path: "/profile",
