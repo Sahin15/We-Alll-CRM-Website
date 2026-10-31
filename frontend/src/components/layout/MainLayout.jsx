@@ -3,6 +3,7 @@ import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
 import Footer from "./Footer";
 import { LazyRouteWrapper } from "../RouteWrapper";
+import AiraAssistant from "../aira/AiraAssistant";
 import { useState, useEffect } from "react";
 
 const MainLayout = () => {
@@ -63,8 +64,7 @@ const MainLayout = () => {
       </div>
       <Footer sidebarCollapsed={sidebarCollapsed} isMobile={isMobile} />
       
-      {/* Growth Summit 2026 Floating Button - Removed (event completed) */}
-      {/* <GrowthSummitFloatingButton /> */}
+      <AiraAssistant bottomOffset={24} />
       
       {/* Floating Sidebar Toggle Button - Shows on scroll for both mobile and desktop */}
       {showFloatingToggle && (

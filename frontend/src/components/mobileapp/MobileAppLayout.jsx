@@ -7,6 +7,7 @@ import { useNotifications } from '../../context/NotificationContext';
 import { toast } from 'react-toastify';
 import { playNotificationSound } from '../../utils/notificationSound';
 import { BRAND_LOGO_MINI } from '../../constants/branding';
+import AiraAssistant from '../aira/AiraAssistant';
 
 const HomeTab    = lazy(() => import('./HomeTab'));
 const TodoTab    = lazy(() => import('./TodoTab'));
@@ -106,6 +107,7 @@ export default function MobileAppLayout() {
         </Suspense>
       </main>
       <MobileAppBottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <AiraAssistant bottomOffset={88} />
     </div>
   );
 }

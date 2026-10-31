@@ -93,6 +93,7 @@ import procurementInvoiceRoutes from "./routes/procurementInvoiceRoutes.js";
 import procurementPaymentRoutes from "./routes/procurementPaymentRoutes.js";
 import procurementDashboardRoutes from "./routes/procurementDashboardRoutes.js";
 import authzRoutes from "./routes/authzRoutes.js";
+import aiRoutes from "./ai/aiRoutes.js";
 import { runStartupAuthzValidation } from "./authz/startupValidation.js";
 // Legacy routes removed - use workItemRoutes instead
 // Old: taskRoutes, slotRoutes, workRoutes → New: workItemRoutes
@@ -308,6 +309,7 @@ app.get(
 
 // API Routes (with rate limiting)
 app.use("/api/users", apiLimiter, userRoutes);
+app.use("/api/ai", apiLimiter, aiRoutes);
 app.use("/api/v1/authz", apiLimiter, authzRoutes);
 app.use("/api/admin", apiLimiter, adminRoutes);
 app.use("/api/clients", apiLimiter, clientRoutes);

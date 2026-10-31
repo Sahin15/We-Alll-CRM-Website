@@ -2,6 +2,7 @@ import { useState, lazy, Suspense, useEffect, useRef } from 'react';
 import AppHeader from './AppHeader';
 import BottomNav from './BottomNav';
 import UpdatePrompt from './UpdatePrompt';
+import AiraAssistant from '../aira/AiraAssistant';
 import { useNotifications } from '../../context/NotificationContext';
 import { playNotificationSound } from '../../utils/notificationSound';
 
@@ -64,6 +65,7 @@ export default function PWALayout() {
       </main>
 
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <AiraAssistant bottomOffset={96} />
       <UpdatePrompt />
     </div>
   );
