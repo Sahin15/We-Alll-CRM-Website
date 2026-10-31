@@ -24,6 +24,7 @@ import {
 } from "../src/services/meta/metaAnalytics.js";
 import { classifyDelivery, extractLeadgenChanges } from "../src/services/meta/metaWebhookParse.js";
 import { normalizeSelection, toPublicIntegration, webhookIntegrationQuery } from "../src/services/meta/metaIntegrationService.js";
+import { namesLikelySameClient, resolveAccountPageIds } from "../src/services/meta/metaLeadDashboardService.js";
 
 const mockFindOne = jest.fn();
 const mockCreate = jest.fn();
@@ -312,5 +313,19 @@ describe("Meta analytics", () => {
     expect(mixed.spend).toBeNull();
     expect(mixed.costPerLead).toBeNull();
     expect(mixed.impressions).toBe(15);
+  });
+});
+
+describe("Meta ad account page resolution", () => {
+  it("matches selected Pages by name when no explicit mapping exists", () => {
+    const pages = [
+      { pageId: "111", pageName: "Jayita Makeover", selected: true },
+      { pageId: "222", pageName: "Other Brand", selected: true },
+    ];
+    expect(resolveAccountPageIds({ name: "jayita makeover", pageIds: [] }, pages)).toEqual(["111"]);
+  });
+
+  it("matches when only a distinctive shared token overlaps (jayita vs jotyita)", () => {
+    expect(namesLikelySameClient("jayita makeover", "Jotyita Makeover Studio")).toBe(true);
   });
 });

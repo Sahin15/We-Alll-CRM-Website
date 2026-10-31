@@ -16,6 +16,12 @@ import {
   toPublicIntegration,
 } from "../services/meta/metaIntegrationService.js";
 import { getMetaAnalytics } from "../services/meta/metaAnalyticsService.js";
+import {
+  getMetaLeadDashboard,
+  listMetaLeads,
+  mapPageToClient,
+  updateAdAccountConfig,
+} from "../services/meta/metaLeadDashboardService.js";
 import { listSyncRuns, startSync } from "../services/meta/metaSyncService.js";
 import { processWebhookPayload } from "../services/meta/metaWebhookService.js";
 import { redactSecrets, verifyWebhookChallenge, verifyWebhookSignature } from "../services/meta/metaSecurity.js";
@@ -155,6 +161,57 @@ export const getAnalytics = async (req, res) => {
       to: typeof req.query.to === "string" ? req.query.to : "",
     });
     return res.json({ success: true, analytics });
+  } catch (error) {
+    return sendError(res, error);
+  }
+};
+
+export const getLeadDashboard = async (req, res) => {
+  try {
+    const dashboard = await getMetaLeadDashboard({
+      from: typeof req.query.from === "string" ? req.query.from : "",
+      to: typeof req.query.to === "string" ? req.query.to : "",
+    });
+    return res.json({ success: true, dashboard });
+  } catch (error) {
+    return sendError(res, error);
+  }
+};
+
+export const getMetaLeads = async (req, res) => {
+  try {
+    const result = await listMetaLeads({
+      pageId: typeof req.query.pageId === "string" ? req.query.pageId : "",
+      accountId: typeof req.query.accountId === "string" ? req.query.accountId : "",
+      status: typeof req.query.status === "string" ? req.query.status : "",
+      search: typeof req.query.search === "string" ? req.query.search : "",
+      from: typeof req.query.from === "string" ? req.query.from : "",
+      to: typeof req.query.to === "string" ? req.query.to : "",
+      page: typeof req.query.page === "string" ? req.query.page : "",
+      limit: typeof req.query.limit === "string" ? req.query.limit : "",
+    });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    return sendError(res, error);
+  }
+};
+
+export const updatePageClient = async (req, res) => {
+  try {
+    const pageId = typeof req.params.pageId === "string" ? req.params.pageId : "";
+    const clientId = req.body?.clientId ?? null;
+    const integration = await mapPageToClient(pageId, clientId, req.user._id);
+    return res.json({ success: true, integration });
+  } catch (error) {
+    return sendError(res, error);
+  }
+};
+
+export const configureAdAccount = async (req, res) => {
+  try {
+    const accountId = typeof req.params.accountId === "string" ? req.params.accountId : "";
+    const integration = await updateAdAccountConfig(accountId, req.body || {}, req.user._id);
+    return res.json({ success: true, integration });
   } catch (error) {
     return sendError(res, error);
   }

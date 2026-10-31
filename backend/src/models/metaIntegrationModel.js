@@ -11,6 +11,8 @@ const pageSchema = new mongoose.Schema(
     selected: { type: Boolean, default: false },
     leadSubscribed: { type: Boolean, default: false },
     subscriptionError: { type: String, default: "" },
+    /** Optional link to CRM Client for this Facebook Page. */
+    clientId: { type: mongoose.Schema.Types.ObjectId, ref: "Client", default: null },
   },
   { _id: false }
 );
@@ -33,6 +35,10 @@ const adAccountSchema = new mongoose.Schema(
     currency: { type: String, default: "" },
     accountStatus: { type: Number },
     selected: { type: Boolean, default: false },
+    /** CRM Client this ad account represents in the office. */
+    clientId: { type: mongoose.Schema.Types.ObjectId, ref: "Client", default: null },
+    /** Facebook Page ids whose imported leads appear under this ad account. */
+    pageIds: { type: [String], default: [] },
   },
   { _id: false }
 );

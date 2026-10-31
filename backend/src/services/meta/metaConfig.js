@@ -5,10 +5,11 @@
 
 export const DEFAULT_GRAPH_VERSION = "v26.0";
 
+/** Scopes valid for Marketing API / Lead Ads use-case apps (no pages_manage_metadata unless Pages use case is added). */
 export const DEFAULT_OAUTH_SCOPES = [
   "pages_show_list",
   "pages_read_engagement",
-  "pages_manage_metadata",
+  "pages_manage_ads",
   "leads_retrieval",
   "business_management",
   "ads_read",
@@ -19,6 +20,7 @@ export const LEAD_RETRIEVAL_SCOPES = [
   "leads_retrieval",
   "pages_show_list",
   "pages_read_engagement",
+  "pages_manage_ads",
 ];
 
 export const SUBSCRIPTION_SCOPES = ["pages_manage_metadata"];

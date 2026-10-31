@@ -6,8 +6,12 @@ import { attachDepartmentForAuthz } from "../authz/attachDepartmentContext.js";
 import {
   disconnect,
   getAnalytics,
+  getLeadDashboard,
+  getMetaLeads,
   getStatus,
   getSyncRuns,
+  configureAdAccount,
+  updatePageClient,
   oauthCallback,
   receiveWebhook,
   refreshMetaAssets,
@@ -52,6 +56,10 @@ router.put("/selection", metaManage, updateSelection);
 router.post("/sync", metaManage, syncNow);
 router.get("/sync-runs", metaView, getSyncRuns);
 router.get("/analytics", metaView, getAnalytics);
+router.get("/dashboard", metaView, getLeadDashboard);
+router.get("/leads", metaView, getMetaLeads);
+router.put("/pages/:pageId/client", metaManage, updatePageClient);
+router.put("/ad-accounts/:accountId/config", metaManage, configureAdAccount);
 router.post("/disconnect", metaManage, disconnect);
 
 export default router;

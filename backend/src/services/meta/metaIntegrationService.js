@@ -1,4 +1,6 @@
 import crypto from "crypto";
+import mongoose from "mongoose";
+import Client from "../../models/clientModel.js";
 import MetaIntegration from "../../models/metaIntegrationModel.js";
 import MetaOAuthState from "../../models/metaOAuthStateModel.js";
 import { graphGetAll, graphRequest, exchangeCodeForUserToken } from "./graphClient.js";
@@ -51,6 +53,7 @@ export function toPublicIntegration(doc) {
       leadSubscribed: Boolean(page.leadSubscribed),
       subscriptionError: page.subscriptionError || "",
       hasPageToken: Boolean(page.accessTokenEnc),
+      clientId: page.clientId ? String(page.clientId) : "",
     })),
     forms: (source.forms || []).map((form) => ({
       formId: form.formId,
@@ -65,6 +68,8 @@ export function toPublicIntegration(doc) {
       currency: account.currency || "",
       accountStatus: account.accountStatus,
       selected: Boolean(account.selected),
+      clientId: account.clientId ? String(account.clientId) : "",
+      pageIds: Array.isArray(account.pageIds) ? account.pageIds.map(String) : [],
     })),
     businessPortfolios: source.businessPortfolios || [],
     assetErrors: source.assetErrors || [],
@@ -109,6 +114,39 @@ export function normalizeSelection(integration, body) {
     }
   }
   return { pageIds, formIds, adAccountIds };
+}
+
+/**
+ * @param {object} integration
+ * @param {Array<{ pageId?: string, clientId?: string|null }>|undefined} rows
+ * @returns {Map<string, import("mongoose").Types.ObjectId|null>}
+ */
+async function normalizePageClients(integration, rows) {
+  const map = new Map();
+  if (!Array.isArray(rows)) return map;
+  const knownPages = new Set((integration.pages || []).map((page) => page.pageId));
+  for (const row of rows) {
+    const pageId = String(row?.pageId || "").trim();
+    if (!pageId || !ID_PATTERN.test(pageId)) continue;
+    if (!knownPages.has(pageId)) {
+      throw new MetaHttpError(400, "One or more Pages are not authorized for this connection", "unknown_asset");
+    }
+    const rawClient = row.clientId;
+    if (rawClient === null || rawClient === "" || rawClient === undefined) {
+      map.set(pageId, null);
+      continue;
+    }
+    const clientId = String(rawClient).trim();
+    if (!mongoose.Types.ObjectId.isValid(clientId)) {
+      throw new MetaHttpError(400, "Invalid CRM client id for Page mapping", "invalid_client");
+    }
+    const exists = await Client.exists({ _id: clientId });
+    if (!exists) {
+      throw new MetaHttpError(400, "CRM client not found for Page mapping", "invalid_client");
+    }
+    map.set(pageId, new mongoose.Types.ObjectId(clientId));
+  }
+  return map;
 }
 
 /**
@@ -372,16 +410,22 @@ function mergeAssets(existing, assets) {
         selected: Boolean(previous?.selected),
         leadSubscribed: Boolean(previous?.leadSubscribed),
         subscriptionError: previous?.subscriptionError || "",
+        clientId: previous?.clientId || null,
       };
     }),
     forms: assets.forms.map((form) => ({
       ...form,
       selected: Boolean(previousForms.get(form.formId)?.selected),
     })),
-    adAccounts: assets.adAccounts.map((account) => ({
-      ...account,
-      selected: Boolean(previousAccounts.get(account.accountId)?.selected),
-    })),
+    adAccounts: assets.adAccounts.map((account) => {
+      const previous = previousAccounts.get(account.accountId);
+      return {
+        ...account,
+        selected: Boolean(previous?.selected),
+        clientId: previous?.clientId || null,
+        pageIds: Array.isArray(previous?.pageIds) ? previous.pageIds : [],
+      };
+    }),
     businesses: assets.businesses,
   };
 }
@@ -426,8 +470,12 @@ export async function refreshAssets(userId) {
 export async function saveSelection(userId, body) {
   const integration = await requireConnected();
   const selection = normalizeSelection(integration, body);
+  const pageClients = await normalizePageClients(integration, body?.pageClients);
   integration.pages.forEach((page) => {
     page.selected = selection.pageIds.includes(page.pageId);
+    if (pageClients.has(page.pageId)) {
+      page.clientId = pageClients.get(page.pageId);
+    }
   });
   integration.forms.forEach((form) => {
     form.selected = selection.formIds.includes(form.formId);
