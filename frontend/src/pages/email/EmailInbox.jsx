@@ -46,17 +46,42 @@ function recipientLine(people) {
     .join(", ");
 }
 
+const ACCOUNT_CACHE_KEY = "wealll.gmail.accounts";
+
+function readAccountCache() {
+  try {
+    const parsed = JSON.parse(sessionStorage.getItem(ACCOUNT_CACHE_KEY) || "null");
+    if (!parsed || !Array.isArray(parsed.accounts)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeAccountCache(configured, accounts) {
+  try {
+    sessionStorage.setItem(ACCOUNT_CACHE_KEY, JSON.stringify({ configured, accounts }));
+  } catch {
+    // The inbox still works if the browser blocks session storage.
+  }
+}
+
+function isAbort(error) {
+  return error?.code === "ERR_CANCELED" || error?.name === "CanceledError" || error?.name === "AbortError";
+}
+
 export default function EmailInbox() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [accounts, setAccounts] = useState([]);
-  const [configured, setConfigured] = useState(true);
+  const cachedAccounts = useRef(readAccountCache());
+  const [accounts, setAccounts] = useState(() => cachedAccounts.current?.accounts || []);
+  const [configured, setConfigured] = useState(() => cachedAccounts.current?.configured !== false);
   const [messages, setMessages] = useState([]);
   const [selected, setSelected] = useState(null);
   const [thread, setThread] = useState([]);
   const [query, setQuery] = useState("");
   const [unreadOnly, setUnreadOnly] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [messagesLoading, setMessagesLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState("");
@@ -67,20 +92,23 @@ export default function EmailInbox() {
   const account = accounts[0] || null;
   const skipSearch = useRef(true);
 
-  const loadMessages = useCallback(async (nextQuery, nextUnread) => {
+  const loadMessages = useCallback(async (nextQuery, nextUnread, signal) => {
     const { data } = await gmailInboxApi.listMessages({
       q: nextQuery || undefined,
       unread: nextUnread ? "1" : undefined,
       limit: 40,
-    });
+    }, signal);
     setMessages(data.messages || []);
   }, []);
 
-  const loadAccounts = useCallback(async () => {
-    const { data } = await gmailInboxApi.listAccounts();
-    setConfigured(Boolean(data.configured));
-    setAccounts(data.accounts || []);
-    return data.accounts || [];
+  const loadAccounts = useCallback(async (signal) => {
+    const { data } = await gmailInboxApi.listAccounts(signal);
+    const nextAccounts = data.accounts || [];
+    const nextConfigured = Boolean(data.configured);
+    setConfigured(nextConfigured);
+    setAccounts(nextAccounts);
+    writeAccountCache(nextConfigured, nextAccounts);
+    return nextAccounts;
   }, []);
 
   useEffect(() => {
@@ -92,21 +120,26 @@ export default function EmailInbox() {
   }, [searchParams, setSearchParams]);
 
   useEffect(() => {
+    const controller = new AbortController();
     let active = true;
     (async () => {
-      setLoading(true);
       setError("");
       try {
-        const nextAccounts = await loadAccounts();
-        if (active && nextAccounts.length) await loadMessages("", false);
+        const nextAccounts = await loadAccounts(controller.signal);
+        if (!active || !nextAccounts.length) return;
+        setMessagesLoading(true);
+        try {
+          await loadMessages("", false, controller.signal);
+        } finally {
+          if (active) setMessagesLoading(false);
+        }
       } catch (err) {
-        if (active) setError(apiError(err, "Email inbox could not be loaded"));
-      } finally {
-        if (active) setLoading(false);
+        if (active && !isAbort(err)) setError(apiError(err, "Email inbox could not be loaded"));
       }
     })();
     return () => {
       active = false;
+      controller.abort();
     };
   }, [loadAccounts, loadMessages]);
 
@@ -172,6 +205,7 @@ export default function EmailInbox() {
     try {
       await gmailInboxApi.disconnect(account.id);
       setAccounts([]);
+      writeAccountCache(configured, []);
       setMessages([]);
       setSelected(null);
       setThread([]);
@@ -226,9 +260,7 @@ export default function EmailInbox() {
         </Alert>
       )}
 
-      {loading ? (
-        <div className="text-center py-5"><Spinner animation="border" /></div>
-      ) : !account ? (
+      {!account ? (
         <section className="email-connect-card">
           <div className="email-connect-icon" aria-hidden="true"><FaEnvelope /></div>
           <h2 className="h4 mb-2">Connect your email</h2>
@@ -274,7 +306,9 @@ export default function EmailInbox() {
               {account.lastSyncError && <div className="text-danger small mt-2">{account.lastSyncError}</div>}
             </div>
             <div className="email-list">
-              {messages.length === 0 ? (
+              {messagesLoading && messages.length === 0 ? (
+                <div className="text-center py-4"><Spinner animation="border" size="sm" /></div>
+              ) : messages.length === 0 ? (
                 <p className="text-muted p-3 mb-0">No emails match this view. Refresh the inbox to fetch recent messages.</p>
               ) : messages.map((item) => (
                 <button

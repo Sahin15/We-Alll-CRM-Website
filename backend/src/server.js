@@ -318,6 +318,10 @@ app.use("/api/projects", apiLimiter, projectRoutes);
 // Those catch-alls otherwise intercept /api/leads/website and /api/leads/public and return 401.
 app.use("/api/leads", apiLimiter, leadRoutes);
 app.use("/api/integrations/meta", metaIntegrationRoutes);
+// Mount Gmail before any app.use("/api", ...) router that calls router.use(protect).
+// Google redirects to /api/email/gmail/callback with no JWT. Those catch-alls
+// otherwise return {"message":"No token, authorization denied"}.
+app.use("/api/email", apiLimiter, gmailInboxRoutes);
 app.use("/api", apiLimiter, projectExpectationRoutes);
 app.use("/api", apiLimiter, projectCommitmentRoutes);
 app.use("/api", apiLimiter, projectMonthRoutes);
@@ -368,7 +372,6 @@ app.use("/api/payroll/jobs", apiLimiter, payrollJobRoutes);
 app.use("/api/payroll/adjustments", apiLimiter, payrollAdjustmentRoutes);
 app.use("/api/payroll/simple-preview", apiLimiter, payrollSimplePreviewRoutes);
 app.use("/api/emails", apiLimiter, emailRoutes);
-app.use("/api/email", apiLimiter, gmailInboxRoutes);
 app.use("/api/wfh", apiLimiter, wfhRoutes);
 app.use("/api/worklogs", apiLimiter, workLogRoutes);
 app.use("/api/work-on-leave-day", apiLimiter, workOnLeaveDayRoutes);
@@ -499,7 +502,8 @@ mongoose
       process.exit(1);
     });
 
-    server.listen(PORT, () => {
+    // 0.0.0.0 lets this process accept local and hosted traffic on PORT.
+    server.listen(PORT, "0.0.0.0", () => {
       console.log(`✅ Server is running on port ${PORT}`);
       console.log(`🔗 API Health Check: http://localhost:${PORT}/api/health`);
       console.log(`🔌 WebSocket Server: ws://localhost:${PORT}/ws/admin-work-updates`);

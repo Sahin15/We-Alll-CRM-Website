@@ -34,12 +34,17 @@ function sendError(res, error) {
 
 export const listAccounts = async (req, res) => {
   try {
-    const accounts = await EmailAccount.find({ user: req.user._id, provider: "gmail", isActive: true })
-      .sort({ createdAt: -1 });
+    const account = await EmailAccount.findOne({
+      user: req.user._id,
+      provider: "gmail",
+      isActive: true,
+    })
+      .select("provider email displayName syncStatus lastSyncedAt lastSyncError isActive createdAt")
+      .lean();
     return res.json({
       success: true,
       configured: gmailConfigStatus().configured,
-      accounts: accounts.map(toPublicAccount),
+      accounts: account ? [toPublicAccount(account)] : [],
     });
   } catch (error) {
     return sendError(res, error);
