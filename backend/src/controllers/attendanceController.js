@@ -19,6 +19,11 @@ import {
   getISTDayBounds,
   dedupeAttendanceByISTDay,
 } from '../utils/attendanceISTDay.js';
+import {
+  isHalfDayLeaveType,
+  shouldApplyFullDayLeaveOverlay,
+  repairHalfDayLeaveAttendanceDisplay,
+} from '../utils/approvedLeaveAttendance.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -92,8 +97,10 @@ export const clockIn = async (req, res) => {
       endDate: { $gte: todayStart },
     });
 
-    if (approvedLeave) {
-      
+    const halfDayLeaveToday =
+      approvedLeave && isHalfDayLeaveType(approvedLeave.leaveType);
+
+    if (approvedLeave && !halfDayLeaveToday) {
       // Check if there's already a pending or approved work on leave day request
       const existingWorkOnLeaveRequest = await WorkOnLeaveDayRequest.findOne({
         employee,
@@ -140,31 +147,63 @@ export const clockIn = async (req, res) => {
     }).sort({ clockIn: 1 }); // Get earliest clock-in if multiple exist
 
     if (existingAttendance) {
-      const clockInTimeStr = new Date(existingAttendance.clockIn).toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-      
-      // Clean up duplicates if race condition happened
-      const duplicateCount = await Attendance.countDocuments({
-        employee,
-        date: { $gte: todayStart, $lt: todayEnd },
-      });
-      
-      if (duplicateCount > 1) {
-        await Attendance.deleteMany({
-          employee,
-          date: { $gte: todayStart, $lt: todayEnd },
-          _id: { $ne: existingAttendance._id }
+      if (
+        halfDayLeaveToday &&
+        existingAttendance.status === "on-leave" &&
+        !existingAttendance.clockIn
+      ) {
+        existingAttendance.clockIn = clockInTime;
+        existingAttendance.location = location;
+        existingAttendance.isManuallyModified = false;
+        await existingAttendance.save();
+
+        let message;
+        if (existingAttendance.status === "half-day") {
+          message =
+            "Clocked in successfully (Half day — approved half-day leave + late arrival)";
+        } else if (existingAttendance.status === "late") {
+          message = "Clocked in successfully (Late entry — half-day leave day)";
+        } else {
+          message = "Clocked in successfully (Half-day leave approved for today)";
+        }
+
+        return res.status(200).json({
+          message,
+          attendance: existingAttendance,
+          isLate: existingAttendance.status === "late",
+          isHalfDay: existingAttendance.status === "half-day",
         });
       }
-      
-      return res.status(400).json({ 
-        message: `You've already clocked in today at ${clockInTimeStr}`,
-        type: 'already_clocked_in',
-        clockInTime: existingAttendance.clockIn,
-        recordId: existingAttendance._id
-      });
+
+      if (existingAttendance.clockIn) {
+        const clockInTimeStr = new Date(existingAttendance.clockIn).toLocaleTimeString(
+          "en-US",
+          {
+            hour: "2-digit",
+            minute: "2-digit",
+          }
+        );
+
+        const duplicateCount = await Attendance.countDocuments({
+          employee,
+          date: { $gte: todayStart, $lt: todayEnd },
+        });
+
+        if (duplicateCount > 1) {
+          await Attendance.deleteMany({
+            employee,
+            date: { $gte: todayStart, $lt: todayEnd },
+            _id: { $ne: existingAttendance._id },
+          });
+        }
+
+        return res.status(400).json({
+          message: `You've already clocked in today at ${clockInTimeStr}`,
+          type: "already_clocked_in",
+          clockInTime: existingAttendance.clockIn,
+          recordId: existingAttendance._id,
+        });
+      }
     }
 
     // Create attendance object WITHOUT explicit status - let the pre-save hook calculate it
@@ -365,6 +404,16 @@ const enrichAttendanceWithApprovedLeaves = async (attendanceRecords, filterEmplo
         if (recordMap.has(key)) {
           const idx = recordMap.get(key);
           const existing = resultRecords[idx];
+          if (isHalfDayLeaveType(leave.leaveType)) {
+            resultRecords[idx] = repairHalfDayLeaveAttendanceDisplay(
+              leave,
+              existing
+            );
+            continue;
+          }
+          if (!shouldApplyFullDayLeaveOverlay(leave, existing)) {
+            continue;
+          }
           if (existing.status === 'absent' || !existing.status) {
             resultRecords[idx] = {
               ...existing,
@@ -394,32 +443,47 @@ const enrichAttendanceWithApprovedLeaves = async (attendanceRecords, filterEmplo
         }).lean();
 
         if (existingDb) {
-          let merged = existingDb;
-          if (existingDb.status === 'absent' || !existingDb.status) {
-            merged = {
-              ...existingDb,
-              status: 'on-leave',
-              workHours: 0,
-              overtime: 0,
-              notes: existingDb.notes || `On ${leave.leaveType} leave`,
-              originalStatus: existingDb.status || 'absent',
-              employee: empObj || existingDb.employee,
-            };
-            Attendance.findByIdAndUpdate(existingDb._id, {
-              status: 'on-leave',
-              workHours: 0,
-              overtime: 0,
-              notes: `On ${leave.leaveType} leave`,
-              isManuallyModified: true,
-            }).catch((err) => console.error("Error updating DB record to on-leave:", err));
-          } else {
-            merged = {
-              ...existingDb,
-              employee: empObj || existingDb.employee,
-            };
+          if (isHalfDayLeaveType(leave.leaveType)) {
+            const repaired = repairHalfDayLeaveAttendanceDisplay(
+              leave,
+              { ...existingDb, employee: empObj || existingDb.employee }
+            );
+            resultRecords.push(repaired);
+            recordMap.set(key, resultRecords.length - 1);
+            continue;
           }
-          resultRecords.push(merged);
-          recordMap.set(key, resultRecords.length - 1);
+          let merged = existingDb;
+          if (shouldApplyFullDayLeaveOverlay(leave, existingDb)) {
+            if (existingDb.status === 'absent' || !existingDb.status) {
+              merged = {
+                ...existingDb,
+                status: 'on-leave',
+                workHours: 0,
+                overtime: 0,
+                notes: existingDb.notes || `On ${leave.leaveType} leave`,
+                originalStatus: existingDb.status || 'absent',
+                employee: empObj || existingDb.employee,
+              };
+              Attendance.findByIdAndUpdate(existingDb._id, {
+                status: 'on-leave',
+                workHours: 0,
+                overtime: 0,
+                notes: `On ${leave.leaveType} leave`,
+                isManuallyModified: true,
+              }).catch((err) => console.error("Error updating DB record to on-leave:", err));
+            } else {
+              merged = {
+                ...existingDb,
+                employee: empObj || existingDb.employee,
+              };
+            }
+            resultRecords.push(merged);
+            recordMap.set(key, resultRecords.length - 1);
+          }
+          continue;
+        }
+
+        if (isHalfDayLeaveType(leave.leaveType)) {
           continue;
         }
 

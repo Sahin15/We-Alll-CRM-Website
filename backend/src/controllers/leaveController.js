@@ -10,6 +10,7 @@ import { getCurrentLeaveYear } from "../utils/leaveAccrual.js";
 import { getISTDateKey, getISTMidnightForYmd } from "../utils/timezone.js";
 import { getISTDayBounds } from "../utils/attendanceISTDay.js";
 import { isHrDepartmentName } from "../constants/departmentNames.js";
+import { applyApprovedLeaveToAttendanceDay } from "../utils/approvedLeaveAttendance.js";
 
 // Create leave request
 export const createLeaveRequest = async (req, res) => {
@@ -439,40 +440,17 @@ export const approveLeaveRequest = async (req, res) => {
           }
         });
         
-        if (!existingRecord) {
-          await Attendance.create({
-            employee: leaveRequest.employee,
-            date: istMidnight,
-            status: 'on-leave',
-            workHours: 0,
-            overtime: 0,
-            notes: `On ${leaveRequest.leaveType} leave (Approved by ${approvedBy})`,
-            approvedBy: approvedBy,
-            isManuallyModified: true,
-            originalStatus: 'on-leave'
-          });
-          
-          recordsCreated++;
-        } else {
-          await Attendance.findByIdAndUpdate(
-            existingRecord._id,
-            {
-              status: 'on-leave',
-              clockIn: undefined,
-              clockOut: undefined,
-              workHours: 0,
-              overtime: 0,
-              breaks: [],
-              totalBreakTime: 0,
-              notes: `On ${leaveRequest.leaveType} leave (Approved by ${approvedBy})`,
-              approvedBy: approvedBy,
-              isManuallyModified: true,
-              originalStatus: existingRecord.status
-            },
-            { new: true }
-          );
-          
-          recordsUpdated++;
+        const outcome = await applyApprovedLeaveToAttendanceDay({
+          Attendance,
+          leaveRequest,
+          existingRecord,
+          istMidnight,
+          approvedBy,
+        });
+
+        if (outcome === "created") recordsCreated += 1;
+        else if (outcome === "updated" || outcome === "deleted_placeholder") {
+          recordsUpdated += 1;
         }
         
         currentDate.setTime(currentDate.getTime() + 24 * 60 * 60 * 1000);
