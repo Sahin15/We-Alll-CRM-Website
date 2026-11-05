@@ -53,7 +53,13 @@ const workItemSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    
+    /** User who last assigned this work to the current assignee(s) */
+    assignedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      index: true,
+    },
+
     // Status Management (legacy 4-stage + creative workflow + Cancelled)
     status: {
       type: String,

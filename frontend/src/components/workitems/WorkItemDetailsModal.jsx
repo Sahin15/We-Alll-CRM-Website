@@ -816,11 +816,29 @@ const WorkItemDetailsModal = ({
                     });
                   }
 
-                  // 5) Creation event
+                  // 5) Assignment / creation event (assignedBy = who gave the work)
+                  const assignerUser =
+                    workItem.assignedBy ||
+                    workItem.slotAssignment?.assignedBy ||
+                    workItem.createdBy;
+                  const creatorUser = workItem.createdBy;
+                  const assignerId =
+                    assignerUser?._id?.toString?.() || assignerUser?.toString?.();
+                  const creatorId =
+                    creatorUser?._id?.toString?.() || creatorUser?.toString?.();
                   activities.push({
                     type: 'created',
                     timestamp: workItem.createdAt,
-                    user: workItem.createdBy
+                    user: assignerUser,
+                    assigneeName:
+                      workItem.assignedTo?.name ||
+                      (workItem.assignedToMultiple?.length
+                        ? workItem.assignedToMultiple.map((u) => u.name).join(', ')
+                        : null),
+                    recordCreator:
+                      creatorId && assignerId && creatorId !== assignerId
+                        ? creatorUser
+                        : null,
                   });
 
                   // Drop status rows that duplicate structured creative events the same day
@@ -909,7 +927,7 @@ const WorkItemDetailsModal = ({
                       case 'comment':
                         return { label: 'Comment', Icon: FaComment, tone: 'comment' };
                       case 'created':
-                        return { label: 'Created', Icon: FaPlusCircle, tone: 'created' };
+                        return { label: 'Assigned', Icon: FaPlusCircle, tone: 'created' };
                       default:
                         return { label: 'Activity', Icon: FaClock, tone: 'default' };
                     }
@@ -1177,7 +1195,18 @@ const WorkItemDetailsModal = ({
                                 </div>
                               )}
                               {activity.type === 'created' && (
-                                <p className="timeline-summary mb-0">Work item created</p>
+                                <div className="timeline-summary mb-0">
+                                  <p className="mb-0">
+                                    {activity.assigneeName
+                                      ? `Work assigned to ${activity.assigneeName}`
+                                      : 'Work item created'}
+                                  </p>
+                                  {activity.recordCreator?.name && (
+                                    <small className="text-muted d-block mt-1">
+                                      Draft/record started by {activity.recordCreator.name}
+                                    </small>
+                                  )}
+                                </div>
                               )}
                             </div>
                             <div className="timeline-card-meta">{userName}</div>
@@ -1638,7 +1667,27 @@ const WorkItemDetailsModal = ({
               {/* Created Info */}
               <div className="mt-4 pt-3" style={{ borderTop: '2px solid #e9ecef' }}>
                 <div className="d-flex justify-content-between text-muted" style={{ fontSize: '0.85rem' }}>
-                  <span>Created by <strong>{workItem.createdBy?.name}</strong> on {formatDate(workItem.createdAt)}</span>
+                  <span>
+                    Assigned by{' '}
+                    <strong>
+                      {workItem.assignedBy?.name ||
+                        workItem.slotAssignment?.assignedBy?.name ||
+                        workItem.createdBy?.name ||
+                        '—'}
+                    </strong>
+                    {workItem.createdBy?.name &&
+                      (workItem.assignedBy?.name ||
+                        workItem.slotAssignment?.assignedBy?.name) &&
+                      workItem.createdBy.name !==
+                        (workItem.assignedBy?.name ||
+                          workItem.slotAssignment?.assignedBy?.name) && (
+                        <>
+                          {' '}
+                          · record by <strong>{workItem.createdBy.name}</strong>
+                        </>
+                      )}{' '}
+                    on {formatDate(workItem.createdAt)}
+                  </span>
                   {workItem.completedAt && (
                     <span className="text-success">✓ Completed on {formatDate(workItem.completedAt)}</span>
                   )}

@@ -99,7 +99,38 @@ export function isPostingAssigneeForMyWork(workItem, userId) {
 }
 
 /**
- * My Work page: work assigned to me, excluding items I created for others.
+ * Who assigned this work (matches backend getEffectiveAssignedById).
+ *
+ * @param {object|null|undefined} workItem
+ * @returns {string|null}
+ */
+export function getEffectiveAssignedById(workItem) {
+  if (!workItem) return null;
+  const assignedBy = normalizeId(workItem.assignedBy);
+  if (assignedBy) return assignedBy;
+  const slotAssigner = normalizeId(workItem.slotAssignment?.assignedBy);
+  if (slotAssigner) return slotAssigner;
+  return normalizeId(workItem.createdBy);
+}
+
+/**
+ * Display name for assigner on Assigned Work lists.
+ *
+ * @param {object|null|undefined} workItem
+ * @returns {string|null}
+ */
+export function getWorkItemAssignerName(workItem) {
+  if (!workItem) return null;
+  return (
+    workItem.assignedBy?.name ||
+    workItem.slotAssignment?.assignedBy?.name ||
+    workItem.createdBy?.name ||
+    null
+  );
+}
+
+/**
+ * My Work page: work assigned to me, excluding items I assigned to others.
  *
  * @param {object|null|undefined} workItem
  * @param {string|object|null|undefined} userId
@@ -116,8 +147,8 @@ export function isWorkItemForMyWork(workItem, userId) {
   const assigneeIds = getWorkItemAssigneeIds(workItem);
   if (!assigneeIds.includes(uid)) return false;
 
-  const creatorId = normalizeId(workItem.createdBy);
-  if (creatorId === uid && assigneeIds.some((id) => id !== uid)) {
+  const assignerId = getEffectiveAssignedById(workItem);
+  if (assignerId === uid && assigneeIds.some((id) => id !== uid)) {
     return false;
   }
 

@@ -30,6 +30,15 @@ function isWorkItemAssignedToUser(workItem, userId) {
   return getWorkItemAssigneeIds(workItem).includes(uid);
 }
 
+function getEffectiveAssignedById(workItem) {
+  if (!workItem) return null;
+  const assignedBy = normalizeId(workItem.assignedBy);
+  if (assignedBy) return assignedBy;
+  const slotAssigner = normalizeId(workItem.slotAssignment?.assignedBy);
+  if (slotAssigner) return slotAssigner;
+  return normalizeId(workItem.createdBy);
+}
+
 function isWorkItemForMyWork(workItem, userId) {
   const uid = normalizeId(userId);
   if (!workItem || !uid) return false;
@@ -37,8 +46,8 @@ function isWorkItemForMyWork(workItem, userId) {
   const assigneeIds = getWorkItemAssigneeIds(workItem);
   if (!assigneeIds.includes(uid)) return false;
 
-  const creatorId = normalizeId(workItem.createdBy);
-  if (creatorId === uid && assigneeIds.some((id) => id !== uid)) {
+  const assignerId = getEffectiveAssignedById(workItem);
+  if (assignerId === uid && assigneeIds.some((id) => id !== uid)) {
     return false;
   }
 
@@ -86,10 +95,21 @@ describe('My Work assignee scope', () => {
   test('includes work assigned to me by someone else', () => {
     const item = {
       createdBy: assignerId,
+      assignedBy: assignerId,
       assignedTo: assigneeId,
     };
     expect(isWorkItemForMyWork(item, assigneeId)).toBe(true);
     expect(isWorkItemForMyWork(item, assignerId)).toBe(false);
+  });
+
+  test('My Work includes assignee when assigner differs from stale createdBy', () => {
+    const item = {
+      createdBy: "stale-creator",
+      assignedBy: assignerId,
+      assignedTo: assigneeId,
+    };
+    expect(isWorkItemForMyWork(item, assigneeId)).toBe(true);
+    expect(isWorkItemForMyWork(item, "stale-creator")).toBe(false);
   });
 
   test('excludes work I created and assigned to another employee', () => {
@@ -190,5 +210,34 @@ describe('Assigned Work creator filter', () => {
 
   test('includes unassigned items I created', () => {
     expect(isAssignedWorkForCreator({ assignedTo: null }, me)).toBe(true);
+  });
+
+  test('effective assigner A with createdBy B — only A in Assigned Work scope', () => {
+    const item = {
+      createdBy: "user-b",
+      assignedBy: me,
+      assignedTo: other,
+    };
+    expect(getEffectiveAssignedById(item)).toBe(me);
+    expect(
+      getEffectiveAssignedById(item) === me && isAssignedWorkForCreator(item, me)
+    ).toBe(true);
+    expect(
+      getEffectiveAssignedById(item) === "user-b" &&
+        isAssignedWorkForCreator(item, "user-b")
+    ).toBe(false);
+  });
+});
+
+describe('Assigned Work query regression', () => {
+  test('getCreatedByMe keeps assigner filter when search is applied', () => {
+    const source = fs.readFileSync(controllerPath, "utf8");
+    const block = source.slice(
+      source.indexOf("export const getCreatedByMe"),
+      source.indexOf("export const getCreatedByMe") + 4500
+    );
+    expect(block).toMatch(/assignerVisibility/);
+    expect(block).toMatch(/query\.\$and\s*=\s*\[/);
+    expect(block).not.toMatch(/if \(search\)[\s\S]*query\.\$or\s*=\s*\[\s*\{ title:/);
   });
 });
