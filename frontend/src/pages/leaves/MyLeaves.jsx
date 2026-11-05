@@ -16,6 +16,11 @@ import { FaPlus, FaTimes, FaInfoCircle, FaExclamationTriangle, FaEye } from "rea
 import { toast } from "react-toastify";
 import { leaveApi } from "../../api/leaveApi";
 import { formatDate, getStatusVariant } from "../../utils/helpers";
+import {
+  formatPayrollLeavePeriod,
+  getPayrollLeaveTypeLabel,
+  isPayrollLedgerLeave,
+} from "../../utils/payrollLeaveDisplay";
 import { LEAVE_TYPE_DETAILS, getLeaveTypeLabel } from "../../utils/constants";
 import ApplyWFHModal from "../../components/wfh/ApplyWFHModal";
 import { useAuth } from "../../context/AuthContext";
@@ -240,19 +245,27 @@ const MyLeaves = () => {
                   </thead>
                   <tbody>
                     {leaves.length > 0 ? (
-                      leaves.map((leave) => (
+                      leaves.map((leave) => {
+                        const payrollLedger = isPayrollLedgerLeave(leave);
+                        const periodLabel = payrollLedger
+                          ? formatPayrollLeavePeriod(leave)
+                          : null;
+                        return (
                         <tr key={leave._id}>
                           <td>
                             <Badge bg={
+                              payrollLedger ? "info" :
                               leave.leaveType === 'casual' || leave.leaveType === 'personal' || leave.leaveType === 'vacation' ? 'primary' :
                               leave.leaveType === 'medical' ? 'danger' :
                               leave.leaveType === 'half_day' ? 'warning' : 'secondary'
                             } className="text-capitalize">
-                              {getLeaveTypeLabel(leave.leaveType)}
+                              {payrollLedger
+                                ? getPayrollLeaveTypeLabel()
+                                : getLeaveTypeLabel(leave.leaveType)}
                             </Badge>
                           </td>
-                          <td>{formatDate(leave.startDate)}</td>
-                          <td>{formatDate(leave.endDate)}</td>
+                          <td>{payrollLedger ? periodLabel : formatDate(leave.startDate)}</td>
+                          <td>{payrollLedger ? "—" : formatDate(leave.endDate)}</td>
                           <td>{leave.numberOfDays}</td>
                           <td>{leave.reason}</td>
                           <td>
@@ -282,7 +295,8 @@ const MyLeaves = () => {
                             </div>
                           </td>
                         </tr>
-                      ))
+                      );
+                      })
                     ) : (
                       <tr>
                         <td colSpan="7" className="text-center py-4">

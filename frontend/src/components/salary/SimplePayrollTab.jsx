@@ -79,9 +79,7 @@ const SimplePayrollTab = () => {
     };
   }, []);
 
-  const [employees, setEmployees] = useState([]);
   const [employeeId, setEmployeeId] = useState("");
-  const [search, setSearch] = useState("");
   const [month, setMonth] = useState(currentPeriod.month);
   const [year, setYear] = useState(currentPeriod.year);
 
@@ -99,7 +97,7 @@ const SimplePayrollTab = () => {
   const [rosterRows, setRosterRows] = useState([]);
   const [rosterSummary, setRosterSummary] = useState(null);
   const [rosterLoading, setRosterLoading] = useState(false);
-  const [rosterSearch, setRosterSearch] = useState("");
+  const [listSearch, setListSearch] = useState("");
 
   const [showCreateStructure, setShowCreateStructure] = useState(false);
   const [structureForm, setStructureForm] = useState({
@@ -140,29 +138,6 @@ const SimplePayrollTab = () => {
     weekends: 0,
   });
   const [previewGenBusy, setPreviewGenBusy] = useState(false);
-
-  const filteredEmployees = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return employees.slice(0, 80);
-    return employees
-      .filter(
-        (e) =>
-          e.name?.toLowerCase().includes(q) ||
-          e.employeeId?.toLowerCase().includes(q) ||
-          e.email?.toLowerCase().includes(q)
-      )
-      .slice(0, 80);
-  }, [employees, search]);
-
-  const loadEmployees = useCallback(async () => {
-    try {
-      const res = await api.get("/users/employees");
-      setEmployees(res.data || []);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to load employees");
-    }
-  }, []);
 
   const loadStructure = useCallback(async () => {
     if (!employeeId) {
@@ -308,17 +283,26 @@ const SimplePayrollTab = () => {
   ]);
 
   useEffect(() => {
-    loadEmployees();
-  }, [loadEmployees]);
-
-  useEffect(() => {
     loadPayrollRoster();
   }, [loadPayrollRoster]);
 
+  const selectedEmployeeRow = useMemo(() => {
+    if (!employeeId) return null;
+    return rosterRows.find(
+      (row) => String(row.employee?._id) === String(employeeId)
+    );
+  }, [rosterRows, employeeId]);
+
   const filteredRosterRows = useMemo(() => {
-    const q = rosterSearch.trim().toLowerCase();
-    if (!q) return rosterRows;
-    return rosterRows.filter((row) => {
+    let rows = rosterRows;
+    if (employeeId) {
+      rows = rows.filter(
+        (row) => String(row.employee?._id) === String(employeeId)
+      );
+    }
+    const q = listSearch.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((row) => {
       const emp = row.employee || {};
       return (
         emp.name?.toLowerCase().includes(q) ||
@@ -327,7 +311,12 @@ const SimplePayrollTab = () => {
         emp.designation?.toLowerCase().includes(q)
       );
     });
-  }, [rosterRows, rosterSearch]);
+  }, [rosterRows, listSearch, employeeId]);
+
+  const clearPayrollFilters = () => {
+    setEmployeeId("");
+    setListSearch("");
+  };
 
   const payStatusBadge = (row) => {
     if (row.hasSlip) return <Badge bg="success">{row.slipStatus || "slip"}</Badge>;
@@ -390,33 +379,42 @@ const SimplePayrollTab = () => {
   const buildDeductionReason = (method, days) => {
     const d = Math.max(1, Number(days) || 1);
     return method === "leave"
-      ? `Earned leave deducted for ${d} day(s) instead of salary`
+      ? `Earned leave deducted for ${d} day(s)`
       : `Salary deduction for ${d} day(s)`;
   };
 
-  /**
-   * Salary vs earned-leave cover for absences must be exclusive for the month.
-   * @returns {"salary"|"leave"|null}
-   */
-  const absenceCoverChoice = useMemo(() => {
+  const activeAbsenceAdjustments = useMemo(() => {
     const active = (adjustments || []).filter(
       (a) => a.status === "draft" || a.status === "approved"
     );
-    if (active.some((a) => a.type === "leave_balance_deduction")) {
-      return "leave";
-    }
-    if (active.some((a) => a.type === "absent_deduction")) {
-      return "salary";
-    }
-    return null;
+    const leaveRows = active.filter((a) => a.type === "leave_balance_deduction");
+    const salaryRows = active.filter((a) => a.type === "absent_deduction");
+    return {
+      hasLeaveBalanceDeduction: leaveRows.length > 0,
+      hasSalaryAbsentDeduction: salaryRows.length > 0,
+      leaveRows,
+      salaryRows,
+    };
   }, [adjustments]);
 
+  const absenceAdjustmentSummary = useMemo(() => {
+    const parts = [];
+    for (const adj of activeAbsenceAdjustments.leaveRows) {
+      const days = adj.leaveDays ?? adj.payrollMeta?.daysDeducted;
+      if (days != null) {
+        parts.push(`Leave: ${days} day(s)`);
+      }
+    }
+    for (const adj of activeAbsenceAdjustments.salaryRows) {
+      parts.push(`Salary: ${formatInr(adj.amount)}`);
+    }
+    return parts.join(" · ");
+  }, [activeAbsenceAdjustments]);
+
   const openDeductionModal = (method = "salary") => {
-    if (absenceCoverChoice && absenceCoverChoice !== method) {
+    if (method === "leave" && activeAbsenceAdjustments.hasLeaveBalanceDeduction) {
       toast.error(
-        absenceCoverChoice === "leave"
-          ? "Earned leave deduction already exists for this month. Void it before deducting from salary."
-          : "Salary deduction already exists for this month. Void it before deducting from earned leave."
+        "A leave balance deduction already exists for this month. Void it in Adjustments to change leave days."
       );
       return;
     }
@@ -474,7 +472,7 @@ const SimplePayrollTab = () => {
           reason: deductForm.reason.trim(),
         });
         toast.success(
-          `Earned leave deducted for ${days} day(s). Leave balance and attendance are updated.`
+          `Earned leave deducted for ${days} day(s). It appears in My Leaves with your reason and does not change attendance.`
         );
       } else {
         await payrollAdjustmentApi.create({
@@ -770,86 +768,110 @@ const SimplePayrollTab = () => {
       </div>
 
       <Card className="mb-3 border-0 shadow-sm">
-        <Card.Body>
-          <Row className="g-3">
-            <Col md={5}>
-              <Form.Label>Employee</Form.Label>
-              <Form.Control
-                className="mb-2"
-                placeholder="Search name / ID / email"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <Form.Select
-                value={employeeId}
-                onChange={(e) => setEmployeeId(e.target.value)}
-              >
-                <option value="">Select employee…</option>
-                {filteredEmployees.map((emp) => (
-                  <option key={emp._id} value={emp._id}>
-                    {emp.name}
-                    {emp.employeeId ? ` (${emp.employeeId})` : ""}
-                  </option>
-                ))}
-              </Form.Select>
-            </Col>
-            <Col md={3}>
-              <Form.Label>Month</Form.Label>
-              <Form.Select
-                value={month}
-                onChange={(e) => setMonth(Number(e.target.value))}
-              >
-                {MONTH_NAMES.map((name, i) => (
-                  <option key={name} value={i + 1}>
-                    {name}
-                  </option>
-                ))}
-              </Form.Select>
-            </Col>
-            <Col md={2}>
-              <Form.Label>Year</Form.Label>
-              <Form.Select
-                value={year}
-                onChange={(e) => setYear(Number(e.target.value))}
-              >
-                {yearOptions.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </Form.Select>
-            </Col>
-            <Col md={2} className="d-flex align-items-end">
-              <div className="small text-muted">
-                Period:{" "}
-                <strong>
-                  {MONTH_NAMES[month - 1]} {year}
-                </strong>
+        <Card.Body className="py-3">
+          <Row className="g-3 align-items-end">
+            <Col xs={12} md={5} lg={4}>
+              <Form.Label className="small text-muted mb-1">Pay period</Form.Label>
+              <div className="d-flex gap-2">
+                <Form.Select
+                  aria-label="Payroll month"
+                  value={month}
+                  onChange={(e) => setMonth(Number(e.target.value))}
+                >
+                  {MONTH_NAMES.map((name, i) => (
+                    <option key={name} value={i + 1}>
+                      {name}
+                    </option>
+                  ))}
+                </Form.Select>
+                <Form.Select
+                  aria-label="Payroll year"
+                  value={year}
+                  onChange={(e) => setYear(Number(e.target.value))}
+                  style={{ maxWidth: "6.5rem" }}
+                >
+                  {yearOptions.map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </Form.Select>
               </div>
             </Col>
+            <Col xs={12} md={5} lg={5}>
+              <Form.Label className="small text-muted mb-1">
+                Find employee in list
+              </Form.Label>
+              <Form.Control
+                placeholder="Name, employee ID, or department…"
+                value={listSearch}
+                onChange={(e) => setListSearch(e.target.value)}
+              />
+            </Col>
+            <Col xs={12} md={2} lg={3} className="d-grid">
+              <Button
+                variant="outline-secondary"
+                onClick={clearPayrollFilters}
+                disabled={!employeeId && !listSearch.trim()}
+              >
+                Clear filters
+              </Button>
+            </Col>
           </Row>
+          {employeeId && selectedEmployeeRow && (
+            <div className="mt-3 p-2 px-3 rounded bg-primary bg-opacity-10 border border-primary border-opacity-25 d-flex flex-wrap justify-content-between align-items-center gap-2">
+              <div className="small">
+                <span className="text-muted">Editing payroll for </span>
+                <strong>{selectedEmployeeRow.employee?.name}</strong>
+                {selectedEmployeeRow.employee?.employeeId && (
+                  <span className="text-muted">
+                    {" "}
+                    ({selectedEmployeeRow.employee.employeeId})
+                  </span>
+                )}
+                <span className="text-muted">
+                  {" "}
+                  · {MONTH_NAMES[month - 1]} {year}
+                </span>
+              </div>
+              <Button
+                size="sm"
+                variant="outline-primary"
+                onClick={() => setEmployeeId("")}
+              >
+                Show full team list
+              </Button>
+            </div>
+          )}
+          {!employeeId && (
+            <p className="small text-muted mb-0 mt-3">
+              Choose <strong>{MONTH_NAMES[month - 1]} {year}</strong>, then click
+              an employee in the table below to open structure, preview, and
+              adjustments.
+            </p>
+          )}
         </Card.Body>
       </Card>
 
       <Card className="mb-3 shadow-sm">
-        <Card.Header className="bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <Card.Header className="bg-white">
           <div>
-            <strong>Payroll list — {MONTH_NAMES[month - 1]} {year}</strong>
+            <strong>Team payroll — {MONTH_NAMES[month - 1]} {year}</strong>
             {rosterSummary && (
               <div className="small text-muted">
                 {rosterSummary.withStructure} with salary structure ·{" "}
                 {rosterSummary.withSlip} with slip · Total net{" "}
                 {formatInr(rosterSummary.totalNetSalary)}
+                {listSearch.trim() && (
+                  <>
+                    {" "}
+                    · Showing {filteredRosterRows.length} match
+                    {filteredRosterRows.length === 1 ? "" : "es"}
+                  </>
+                )}
               </div>
             )}
           </div>
-          <Form.Control
-            size="sm"
-            style={{ maxWidth: 260 }}
-            placeholder="Search employee…"
-            value={rosterSearch}
-            onChange={(e) => setRosterSearch(e.target.value)}
-          />
         </Card.Header>
         <Card.Body className="p-0">
           {rosterLoading ? (
@@ -914,12 +936,6 @@ const SimplePayrollTab = () => {
         </Card.Body>
       </Card>
 
-      {!employeeId && (
-        <Alert variant="light" className="border">
-          Select an employee from the payroll list above to manage structure,
-          preview, and adjustments.
-        </Alert>
-      )}
 
       {employeeId && (
         <>
@@ -1131,13 +1147,8 @@ const SimplePayrollTab = () => {
                         <Button
                           size="sm"
                           variant="outline-primary"
-                          disabled={busy || absenceCoverChoice === "leave"}
+                          disabled={busy}
                           onClick={() => openDeductionModal("salary")}
-                          title={
-                            absenceCoverChoice === "leave"
-                              ? "Void the earned leave deduction first"
-                              : undefined
-                          }
                         >
                           <FaPlus className="me-1" />
                           Deduct from salary using this report
@@ -1184,11 +1195,9 @@ const SimplePayrollTab = () => {
                           </p>
                         )}
 
-                        {absenceCoverChoice && (
+                        {absenceAdjustmentSummary && (
                           <Alert variant="info" className="small py-2">
-                            {absenceCoverChoice === "leave"
-                              ? "Earned leave deduction is already set for this month. Void it in Adjustments to switch to salary deduction."
-                              : "Salary deduction is already set for this month. Void it in Adjustments to switch to earned leave."}
+                            Active for this month: {absenceAdjustmentSummary}
                           </Alert>
                         )}
 
@@ -1196,59 +1205,55 @@ const SimplePayrollTab = () => {
                           <Col md={6}>
                             <div
                               className={`border rounded p-3 h-100${
-                                absenceCoverChoice === "salary"
+                                activeAbsenceAdjustments.hasSalaryAbsentDeduction
                                   ? " border-primary"
-                                  : absenceCoverChoice === "leave"
-                                    ? " opacity-50"
-                                    : ""
+                                  : ""
                               }`}
                             >
                               <div className="fw-semibold text-primary mb-2">
                                 Deduct from salary
-                                {absenceCoverChoice === "salary" && (
+                                {activeAbsenceAdjustments.hasSalaryAbsentDeduction && (
                                   <Badge bg="primary" className="ms-2">
-                                    Selected
+                                    Applied
                                   </Badge>
                                 )}
                               </div>
                               <p className="text-muted small mb-3">
                                 Reduces net salary by per-day rate × days chosen.
+                                Can be used together with earned leave deduction.
                               </p>
                               <Button
                                 size="sm"
                                 variant="primary"
-                                disabled={
-                                  busy || absenceCoverChoice === "leave"
-                                }
+                                disabled={busy}
                                 onClick={() => openDeductionModal("salary")}
                               >
-                                {absenceCoverChoice === "salary"
+                                {activeAbsenceAdjustments.hasSalaryAbsentDeduction
                                   ? "Add another salary deduction"
-                                  : "Choose salary deduction"}
+                                  : "Add salary deduction"}
                               </Button>
                             </div>
                           </Col>
                           <Col md={6}>
                             <div
                               className={`border rounded p-3 h-100${
-                                absenceCoverChoice === "leave"
+                                activeAbsenceAdjustments.hasLeaveBalanceDeduction
                                   ? " border-success"
-                                  : absenceCoverChoice === "salary"
-                                    ? " opacity-50"
-                                    : ""
+                                  : ""
                               }`}
                             >
                               <div className="fw-semibold text-success mb-2">
                                 Deduct from earned leave
-                                {absenceCoverChoice === "leave" && (
+                                {activeAbsenceAdjustments.hasLeaveBalanceDeduction && (
                                   <Badge bg="success" className="ms-2">
-                                    Selected
+                                    Applied
                                   </Badge>
                                 )}
                               </div>
                               <p className="text-muted small mb-3">
-                                Deducts from earned leave balance — full salary
-                                is paid.
+                                Reduces earned leave balance (does not change net
+                                pay by itself). Can be used together with salary
+                                deduction.
                               </p>
                               <Button
                                 size="sm"
@@ -1256,23 +1261,20 @@ const SimplePayrollTab = () => {
                                 disabled={
                                   busy ||
                                   !earnedLeaveInfo?.eligible ||
-                                  absenceCoverChoice === "salary" ||
-                                  absenceCoverChoice === "leave"
+                                  activeAbsenceAdjustments.hasLeaveBalanceDeduction
                                 }
                                 onClick={() => openDeductionModal("leave")}
                                 title={
-                                  absenceCoverChoice === "salary"
-                                    ? "Void the salary deduction first to use earned leave"
-                                    : absenceCoverChoice === "leave"
-                                      ? "Void the existing leave deduction to create a new one"
-                                      : earnedLeaveInfo?.eligible
-                                        ? `${earnedLeaveInfo.remaining} day(s) available`
-                                        : "Employee is not eligible for earned leave"
+                                  activeAbsenceAdjustments.hasLeaveBalanceDeduction
+                                    ? "Void the existing leave deduction to create a new one"
+                                    : earnedLeaveInfo?.eligible
+                                      ? `${earnedLeaveInfo.remaining} day(s) available`
+                                      : "Employee is not eligible for earned leave"
                                 }
                               >
-                                {absenceCoverChoice === "leave"
+                                {activeAbsenceAdjustments.hasLeaveBalanceDeduction
                                   ? "Leave deduction already set"
-                                  : "Choose leave deduction"}
+                                  : "Add leave deduction"}
                               </Button>
                             </div>
                           </Col>

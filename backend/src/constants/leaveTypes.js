@@ -12,6 +12,8 @@ export const ALL_STORED_LEAVE_TYPES = [
   ...ACTIVE_LEAVE_TYPES,
   ...LEGACY_LEAVE_TYPES,
   "work_from_home",
+  /** HR payroll earned-balance ledger — not a calendar leave */
+  "payroll_earned_deduction",
 ];
 
 export function normalizeLeaveTypeForCreate(leaveType) {
@@ -52,7 +54,16 @@ export function isPayrollEarnedLeaveDeduction(leave) {
   );
 }
 
-export function getLeaveDayCount(leaveType, startDate, endDate) {
+/**
+ * @param {string} leaveType
+ * @param {Date|string} startDate
+ * @param {Date|string} endDate
+ * @param {number} [explicitDays] - required for payroll_earned_deduction
+ */
+export function getLeaveDayCount(leaveType, startDate, endDate, explicitDays) {
+  if (leaveType === "payroll_earned_deduction") {
+    return Math.max(0, Number(explicitDays) || 0);
+  }
   if (leaveType === "half_day") {
     return 0.5;
   }
@@ -60,4 +71,10 @@ export function getLeaveDayCount(leaveType, startDate, endDate) {
   const start = new Date(startDate);
   const end = new Date(endDate);
   return Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+}
+
+/** @param {{ leaveType?: string, source?: string }} leave */
+export function isPayrollLedgerLeave(leave) {
+  if (leave?.leaveType === "payroll_earned_deduction") return true;
+  return leave?.source === "payroll";
 }

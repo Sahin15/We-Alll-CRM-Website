@@ -1,11 +1,18 @@
 import LeaveRequest from "../../models/leaveRequestModel.js";
 import SalaryStructure from "../../models/salaryStructureModel.js";
 import LeaveImpactCalculator from "../leaveImpactCalculator.js";
-import { getLeaveDayCount } from "../../constants/leaveTypes.js";
 import {
   getISTDateKey,
   getISTMidnightForYmd,
 } from "../../utils/timezone.js";
+
+/** IST anchor for ledger rows — not used for attendance or LOP calendar. */
+export function payrollPeriodAnchorDate(month, year) {
+  const periodMonth = parseInt(month, 10);
+  const periodYear = parseInt(year, 10);
+  const lastDay = new Date(Date.UTC(periodYear, periodMonth, 0)).getUTCDate();
+  return getISTMidnightForYmd(periodYear, periodMonth, lastDay);
+}
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -207,15 +214,13 @@ export async function markAttendanceOnLeaveForDates({
 }
 
 /**
- * Create approved casual leave records for payroll-covered absent days.
- * Deducts from earned leave balance via the normal leave approval path.
+ * Deduct earned leave balance for a payroll period (ledger row — no attendance changes).
  */
 export async function applyLeaveBalanceDeduction({
   employeeId,
   month,
   year,
   days,
-  absentDates = [],
   approvedBy,
   reason,
 }) {
@@ -238,55 +243,34 @@ export async function applyLeaveBalanceDeduction({
     );
   }
 
-  const datesToCover = resolveDatesForLeaveDeduction(
-    month,
-    year,
-    daysToDeduct,
-    absentDates
-  );
-
-  if (datesToCover.length < daysToDeduct) {
-    throw new Error(
-      `Could not assign ${daysToDeduct} day(s) in ${month}/${year}. Try fewer days.`
-    );
-  }
-
-  const groups = groupConsecutiveDates(datesToCover);
-  const createdLeaveIds = [];
-  const payrollTag = `[Payroll ${month}/${year}]`;
+  const periodMonth = parseInt(month, 10);
+  const periodYear = parseInt(year, 10);
+  const anchor = payrollPeriodAnchorDate(periodMonth, periodYear);
+  const payrollTag = `[Payroll ${periodMonth}/${periodYear}]`;
   const notes =
     reason ||
-    `${payrollTag} Earned leave balance deducted instead of salary for absent day(s)`;
+    `${payrollTag} Earned leave balance deducted for absent day(s)`;
 
-  for (const group of groups) {
-    const leave = await LeaveRequest.create({
-      employee: employeeId,
-      leaveType: "casual",
-      startDate: group.start,
-      endDate: group.end,
-      reason: notes,
-      status: "approved",
-      approvedBy,
-      approvedDate: new Date(),
-      leaveYear: year,
-      source: "payroll",
-      numberOfDays: getLeaveDayCount("casual", group.start, group.end),
-    });
-    createdLeaveIds.push(leave._id);
-  }
-
-  const attendanceSnapshots = await markAttendanceOnLeaveForDates({
-    employeeId,
-    dates: datesToCover,
-    leaveType: "casual",
+  const leave = await LeaveRequest.create({
+    employee: employeeId,
+    leaveType: "payroll_earned_deduction",
+    startDate: anchor,
+    endDate: anchor,
+    numberOfDays: daysToDeduct,
+    reason: notes,
+    status: "approved",
     approvedBy,
-    notes,
+    approvedDate: new Date(),
+    leaveYear: periodYear,
+    source: "payroll",
+    payrollPeriodMonth: periodMonth,
+    payrollPeriodYear: periodYear,
   });
 
   return {
-    createdLeaveIds,
-    daysDeducted: datesToCover.length,
-    attendanceSnapshots,
+    createdLeaveIds: [leave._id],
+    daysDeducted: daysToDeduct,
+    attendanceSnapshots: [],
   };
 }
 
