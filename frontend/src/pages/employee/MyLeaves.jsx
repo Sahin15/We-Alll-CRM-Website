@@ -14,6 +14,11 @@ import {
   isFullTimeEmployee,
 } from "../../utils/leaveEligibility";
 import { getLeaveRequestDays } from "../../utils/leaveDays";
+import {
+  formatPayrollLeavePeriod,
+  getPayrollLeaveTypeLabel,
+  isPayrollLedgerLeave,
+} from "../../utils/payrollLeaveDisplay";
 import ApplyWFHModal from "../../components/wfh/ApplyWFHModal";
 import { isHrDepartmentName } from "../../constants/departmentNames";
 import "../../styles/table-mobile.css";
@@ -484,15 +489,29 @@ const MyLeaves = () => {
                         </td>
                       </tr>
                     ) : (
-                      leaves.map((leave) => (
+                      leaves.map((leave) => {
+                        const payrollLedger = isPayrollLedgerLeave(leave);
+                        const periodLabel = payrollLedger
+                          ? formatPayrollLeavePeriod(leave)
+                          : null;
+                        return (
                         <tr key={leave._id}>
                           <td>
-                            <Badge bg={getLeaveTypeColor(leave.leaveType)} className="text-capitalize">
-                              {LEAVE_TYPE_DETAILS[leave.leaveType]?.name || leave.leaveType}
+                            <Badge
+                              bg={payrollLedger ? "info" : getLeaveTypeColor(leave.leaveType)}
+                              className="text-capitalize"
+                            >
+                              {payrollLedger
+                                ? getPayrollLeaveTypeLabel()
+                                : LEAVE_TYPE_DETAILS[leave.leaveType]?.name || leave.leaveType}
                             </Badge>
                           </td>
-                          <td className="date-cell">{formatDate(leave.startDate)}</td>
-                          <td className="date-cell">{formatDate(leave.endDate)}</td>
+                          <td className="date-cell">
+                            {payrollLedger ? periodLabel : formatDate(leave.startDate)}
+                          </td>
+                          <td className="date-cell">
+                            {payrollLedger ? "—" : formatDate(leave.endDate)}
+                          </td>
                           <td>{leave.numberOfDays}</td>
                           <td className="reason-cell hide-mobile">{leave.reason}</td>
                           <td>
@@ -522,7 +541,8 @@ const MyLeaves = () => {
                             </div>
                           </td>
                         </tr>
-                      ))
+                      );
+                      })
                     )}
                   </tbody>
                 </Table>
@@ -982,6 +1002,45 @@ const MyLeaves = () => {
                           <span className="fw-bold">Applied On</span>
                         </div>
                         <div className="detail-value">{formatDate(viewLeave.createdAt)}</div>
+                      </div>
+                    </Col>
+                  </>
+                ) : isPayrollLedgerLeave(viewLeave) ? (
+                  <>
+                    <Col md={6}>
+                      <div className="detail-card p-3 border rounded">
+                        <div className="d-flex align-items-center gap-2 mb-2">
+                          <FaCalendarAlt className="text-primary" />
+                          <span className="fw-bold">Pay period</span>
+                        </div>
+                        <div className="detail-value">
+                          {formatPayrollLeavePeriod(viewLeave)}
+                        </div>
+                      </div>
+                    </Col>
+                    <Col md={6}>
+                      <div className="detail-card p-3 border rounded">
+                        <div className="d-flex align-items-center gap-2 mb-2">
+                          <FaClock className="text-info" />
+                          <span className="fw-bold">Days deducted</span>
+                        </div>
+                        <div className="detail-value text-primary">
+                          {viewLeave.numberOfDays} day(s)
+                        </div>
+                      </div>
+                    </Col>
+                    <Col md={12}>
+                      <div className="detail-card p-3 border rounded">
+                        <div className="d-flex align-items-center gap-2 mb-2">
+                          <FaClock className="text-info" />
+                          <span className="fw-bold">Type</span>
+                        </div>
+                        <div className="detail-value">
+                          <Badge bg="info">{getPayrollLeaveTypeLabel()}</Badge>
+                        </div>
+                        <p className="small text-muted mb-0 mt-2">
+                          Payroll balance adjustment — does not mark attendance as on leave.
+                        </p>
                       </div>
                     </Col>
                   </>

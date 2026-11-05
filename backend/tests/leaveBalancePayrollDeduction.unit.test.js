@@ -30,6 +30,26 @@ describe("buildLeaveBalance payroll deduction", () => {
     expect(balance.earned.used).toBe(1);
   });
 
+  it("counts payroll_earned_deduction ledger rows via numberOfDays", () => {
+    const balance = LeaveRequest.buildLeaveBalance(
+      convertedIntern,
+      [
+        {
+          leaveType: "payroll_earned_deduction",
+          startDate: new Date("2026-10-30T18:30:00.000Z"),
+          endDate: new Date("2026-10-30T18:30:00.000Z"),
+          numberOfDays: 2,
+          reason: "Earned leave balance deducted for 2 day(s) (10/2026)",
+          source: "payroll",
+        },
+      ],
+      2026
+    );
+
+    expect(balance.earned.used).toBe(2);
+    expect(balance.casual.used).toBe(0);
+  });
+
   it("counts legacy payroll deduction reasons without source field", () => {
     const balance = LeaveRequest.buildLeaveBalance(
       convertedIntern,

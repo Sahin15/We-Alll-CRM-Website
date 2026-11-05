@@ -93,6 +93,18 @@ const leaveRequestSchema = new mongoose.Schema(
       enum: ["employee", "payroll"],
       default: "employee",
     },
+    /** Pay period for payroll_earned_deduction ledger rows (display only) */
+    payrollPeriodMonth: {
+      type: Number,
+      min: 1,
+      max: 12,
+      default: null,
+    },
+    payrollPeriodYear: {
+      type: Number,
+      min: 2000,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -101,8 +113,16 @@ const leaveRequestSchema = new mongoose.Schema(
 
 // Calculate number of days before saving
 leaveRequestSchema.pre("save", function (next) {
+  if (this.leaveType === "payroll_earned_deduction") {
+    return next();
+  }
   if (this.startDate && this.endDate) {
-    this.numberOfDays = getLeaveDayCount(this.leaveType, this.startDate, this.endDate);
+    this.numberOfDays = getLeaveDayCount(
+      this.leaveType,
+      this.startDate,
+      this.endDate,
+      this.numberOfDays
+    );
   }
   next();
 });
@@ -167,16 +187,25 @@ leaveRequestSchema.statics.buildLeaveBalance = function (
   let totalPaidLeavesUsed = 0;
 
   approvedLeaves.forEach((leave) => {
-    const days = getLeaveDayCount(leave.leaveType, leave.startDate, leave.endDate);
+    const days = getLeaveDayCount(
+      leave.leaveType,
+      leave.startDate,
+      leave.endDate,
+      leave.numberOfDays
+    );
     const balanceCategory = getLeaveBalanceCategory(leave.leaveType);
 
-    if (balanceCategory) {
+    if (balanceCategory && leave.leaveType !== "payroll_earned_deduction") {
       usedByCategory[balanceCategory] += days;
     } else if (leave.leaveType === "unpaid") {
       usedByCategory.unpaid += days;
     }
 
-    if (leave.leaveType !== "unpaid" && isPaidLeaveType(leave.leaveType)) {
+    const countsTowardEarnedPaid =
+      leave.leaveType !== "unpaid" &&
+      (isPaidLeaveType(leave.leaveType) || isPayrollEarnedLeaveDeduction(leave));
+
+    if (countsTowardEarnedPaid) {
       const countsTowardEarned =
         isFullTime &&
         (isPayrollEarnedLeaveDeduction(leave) ||

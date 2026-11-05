@@ -225,6 +225,8 @@ class LeaveImpactCalculator {
       const leaves = await LeaveRequest.find({
         employee: employeeId,
         status: "approved",
+        leaveType: { $ne: "payroll_earned_deduction" },
+        source: { $ne: "payroll" },
         $or: [
           // Leave starts in this month
           {

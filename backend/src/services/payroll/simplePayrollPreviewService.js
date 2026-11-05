@@ -272,9 +272,9 @@ export async function getSimplePayrollPreview({
           suggestedLopDays > 0
             ? `${suggestedLopDays} unpaid day(s) × ₹${dayRate} (suggestion only — not applied to net salary)`
             : absentDaysOnly > 0
-              ? `${absentDaysOnly} absent day(s) detected — choose salary deduction or earned leave below`
+              ? `${absentDaysOnly} absent day(s) detected — add earned leave and/or salary deductions in Adjustments below`
               : "No unpaid days suggested for this period",
-        note: "Choose one: deduct from salary (reduces net pay) or deduct from earned leave (no salary cut, reduces leave balance).",
+        note: "Use earned leave deduction (reduces leave balance) and/or salary deduction (reduces net pay) as needed for this month.",
         absentDates: (absentEntry?.absentDates || []).map((d) =>
           new Date(d).toISOString().slice(0, 10)
         ),

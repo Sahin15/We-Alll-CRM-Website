@@ -30,7 +30,7 @@ export const ADJUSTMENT_TYPE_OPTIONS = [
   { value: "penalty", label: "Penalty (−)" },
   { value: "late_deduction", label: "Late deduction (−)" },
   { value: "absent_deduction", label: "Absent deduction (−)" },
-  { value: "leave_balance_deduction", label: "Earned leave deduction (no salary cut)" },
+  { value: "leave_balance_deduction", label: "Earned leave deduction (days from balance)" },
   { value: "manual_salary_deduction", label: "Manual deduction (−)" },
   { value: "other", label: "Other" },
 ];

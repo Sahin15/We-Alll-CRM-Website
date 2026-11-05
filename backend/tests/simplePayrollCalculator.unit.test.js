@@ -24,6 +24,25 @@ describe("simplePayrollCalculator", () => {
     expect(total).toBe(4000);
   });
 
+  it("applies salary absent deduction but not leave_balance_deduction to net", () => {
+    const total = sumAdjustments([
+      { type: "leave_balance_deduction", amount: 0, status: "approved" },
+      { type: "absent_deduction", amount: 1200, status: "approved" },
+    ]);
+    expect(total).toBe(-1200);
+
+    const result = computeSimpleNet({
+      monthlySalary: 18000,
+      automaticDeductions: 0,
+      adjustments: [
+        { type: "leave_balance_deduction", amount: 0, status: "approved" },
+        { type: "absent_deduction", amount: 1200, status: "approved" },
+      ],
+      tdsAmount: 130,
+    });
+    expect(result.netSalary).toBe(16670);
+  });
+
   it("computes net = monthly − auto + adjustments − TDS", () => {
     const result = computeSimpleNet({
       monthlySalary: 30000,

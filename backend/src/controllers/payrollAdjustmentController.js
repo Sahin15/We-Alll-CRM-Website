@@ -8,7 +8,6 @@ import SalaryStructure from "../models/salaryStructureModel.js";
 import {
   applyLeaveBalanceDeduction,
   getPayrollAbsentContext,
-  resolveDatesForLeaveDeduction,
   reverseLeaveBalanceDeduction,
 } from "../services/payroll/payrollLeaveBalanceService.js";
 import { getISTDateKey } from "../utils/timezone.js";
@@ -77,23 +76,6 @@ export const createAdjustment = async (req, res) => {
     const periodMonth = parseInt(month, 10);
     const periodYear = parseInt(year, 10);
 
-    if (type === "absent_deduction") {
-      const leaveCover = await PayrollAdjustment.findOne({
-        employee,
-        month: periodMonth,
-        year: periodYear,
-        type: "leave_balance_deduction",
-        status: { $in: ["draft", "approved"] },
-      }).lean();
-      if (leaveCover) {
-        return res.status(400).json({
-          success: false,
-          error:
-            "Earned leave deduction already covers this month. Void it before creating a salary absence deduction.",
-        });
-      }
-    }
-
     const doc = await PayrollAdjustment.create({
       employee,
       month: periodMonth,
@@ -127,7 +109,7 @@ export const createAdjustment = async (req, res) => {
 
 /**
  * POST /api/payroll/adjustments/deduct-leave-balance
- * Cover absent days from earned leave instead of salary deduction.
+ * Deduct earned leave balance for payroll (can coexist with salary absent deductions).
  */
 export const createLeaveBalanceDeduction = async (req, res) => {
   try {
@@ -164,22 +146,6 @@ export const createLeaveBalanceDeduction = async (req, res) => {
       });
     }
 
-    const salaryCover = await PayrollAdjustment.findOne({
-      employee,
-      month: periodMonth,
-      year: periodYear,
-      type: "absent_deduction",
-      status: { $in: ["draft", "approved"] },
-    }).lean();
-
-    if (salaryCover) {
-      return res.status(400).json({
-        success: false,
-        error:
-          "A salary absence deduction already exists for this month. Void it before deducting from earned leave.",
-      });
-    }
-
     const context = await getPayrollAbsentContext(employee, periodMonth, periodYear);
 
     const requestedDays =
@@ -208,21 +174,11 @@ export const createLeaveBalanceDeduction = async (req, res) => {
       });
     }
 
-    const resolvedDates = resolveDatesForLeaveDeduction(
-      periodMonth,
-      periodYear,
-      requestedDays,
-      context.absentDates
-    ).map((d) => getISTDateKey(d));
+    const auditAbsentDates = (context.absentDates || [])
+      .slice(0, requestedDays)
+      .map((d) => getISTDateKey(d));
 
-    if (resolvedDates.length < requestedDays) {
-      return res.status(400).json({
-        success: false,
-        error: `Could not assign ${requestedDays} day(s) in this month. Try fewer days.`,
-      });
-    }
-
-    const defaultReason = `Earned leave balance deducted for ${requestedDays} day(s) instead of salary (${periodMonth}/${periodYear})`;
+    const defaultReason = `Earned leave balance deducted for ${requestedDays} day(s) (${periodMonth}/${periodYear})`;
     const finalReason = String(reason || defaultReason).trim();
 
     const result = await applyLeaveBalanceDeduction({
@@ -230,7 +186,6 @@ export const createLeaveBalanceDeduction = async (req, res) => {
       month: periodMonth,
       year: periodYear,
       days: requestedDays,
-      absentDates: resolvedDates,
       approvedBy: req.user.id,
       reason: finalReason,
     });
@@ -251,7 +206,7 @@ export const createLeaveBalanceDeduction = async (req, res) => {
       approvedBy: req.user.id,
       approvedAt: new Date(),
       payrollMeta: {
-        absentDates: resolvedDates,
+        absentDates: auditAbsentDates,
         perDaySalary: context.perDaySalary,
         salarySaved: context.perDaySalary * result.daysDeducted,
         createdLeaveIds: result.createdLeaveIds,
@@ -265,7 +220,7 @@ export const createLeaveBalanceDeduction = async (req, res) => {
           reason: finalReason,
           newValue: {
             leaveDays: result.daysDeducted,
-            absentDates: resolvedDates,
+            absentDates: auditAbsentDates,
             createdLeaveIds: result.createdLeaveIds,
           },
         },
@@ -390,7 +345,6 @@ export const approveAdjustment = async (req, res) => {
           month: doc.month,
           year: doc.year,
           days: doc.leaveDays,
-          absentDates: doc.payrollMeta?.absentDates || [],
           approvedBy: req.user.id,
           reason: doc.reason,
         });
