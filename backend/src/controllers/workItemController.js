@@ -15,6 +15,7 @@ import {
   isWorkItemForMyWork,
   syncGlobalStatusFromAssignees,
 } from "../utils/workItemStatusUtils.js";
+import { getEffectiveAssignedById } from "../utils/workItemAssignedBy.js";
 import {
   validatePostingHandoffInput,
   assertUserInPostingDepartment,
@@ -98,6 +99,8 @@ const getMyWorkItems = async (req, res) => {
       .populate("assignedToMultiple", "name email")
       .populate("postingAssignedTo", "name email designation")
       .populate("createdBy", "name email")
+      .populate("assignedBy", "name email")
+      .populate({ path: "slotAssignment.assignedBy", select: "name email" })
       .populate("assigneeStatuses.assigneeId", "name email")
       .select("-comments -statusHistory -attachments")
       .sort({ dueDate: 1, createdAt: -1 })
@@ -300,6 +303,8 @@ const getWorkItemById = async (req, res) => {
       })
       .populate("postingAssignedTo", "name email designation department")
       .populate("createdBy", "name email")
+      .populate("assignedBy", "name email")
+      .populate("slotAssignment.assignedBy", "name email")
       .populate("comments.user", "name email")
       .populate("attachments.uploadedBy", "name email")
       .populate("statusHistory.changedBy", "name email")
@@ -375,6 +380,13 @@ const getWorkItemById = async (req, res) => {
 // @access  Private (Project Head, Admin, HoD)
 const createWorkItem = async (req, res) => {
   try {
+    if (req.body && Object.prototype.hasOwnProperty.call(req.body, "createdBy")) {
+      delete req.body.createdBy;
+    }
+    if (req.body && Object.prototype.hasOwnProperty.call(req.body, "assignedBy")) {
+      delete req.body.assignedBy;
+    }
+
     const {
       type,
       title,
@@ -523,9 +535,11 @@ const createWorkItem = async (req, res) => {
       workItemData.assignedToMultiple = assignedToMultiple;
       // Also set the first assignee as primary for backward compatibility
       workItemData.assignedTo = assignedToMultiple[0];
+      workItemData.assignedBy = req.user._id;
     } else if (assignedTo) {
       // Single assignee mode
       workItemData.assignedTo = assignedTo;
+      workItemData.assignedBy = req.user._id;
     }
 
     // Add content-specific fields only if type is content
@@ -875,11 +889,19 @@ const updateWorkItem = async (req, res) => {
       workItem.delayedAt = new Date();
     }
     
+    const assigneeChanging =
+      Object.prototype.hasOwnProperty.call(req.body, "assignedTo") ||
+      Object.prototype.hasOwnProperty.call(req.body, "assignedToMultiple");
+
     Object.keys(req.body).forEach((key) => {
       if (allowedUpdates.includes(key)) {
         workItem[key] = req.body[key];
       }
     });
+
+    if (assigneeChanging && req.user?._id) {
+      workItem.assignedBy = req.user._id;
+    }
     
     // Track who modified it
     if (req.user?._id) {
@@ -2938,6 +2960,7 @@ const reassignWorkItem = async (req, res) => {
 
     // Update work item assignee
     workItem.assignedTo = newAssigneeId;
+    workItem.assignedBy = req.user._id;
     workItem.updatedAt = new Date();
     await workItem.save();
 
@@ -3443,6 +3466,13 @@ export const activateWorkItem = async (req, res) => {
     workItem.visibility = visibility || 'active';
     workItem.activatedAt = new Date();
 
+    const hasAssignee =
+      workItem.assignedTo ||
+      (workItem.assignedToMultiple && workItem.assignedToMultiple.length > 0);
+    if (hasAssignee && req.user?._id) {
+      workItem.assignedBy = req.user._id;
+    }
+
     // If activating from draft/scheduled to active, ensure assignees are set
     if (visibility === 'active' && !workItem.assignedTo && (!workItem.assignedToMultiple || workItem.assignedToMultiple.length === 0)) {
       return res.status(400).json({
@@ -3506,10 +3536,17 @@ export const getCreatedByMe = async (req, res) => {
     const userIdStr = String(userId);
     const userRef = { $in: [userId, userIdStr] };
 
-    // Assigned Work: items I created (assigned by me). Self-only assignments
-    // belong on My Work, not here — filtered after fetch for ObjectId safety.
+    // Assigned Work: items I assigned to others (not merely created as draft).
+    // Uses assignedBy when set; legacy rows fall back via getEffectiveAssignedById.
+    const assignerVisibility = {
+      $or: [
+        { assignedBy: userRef },
+        { createdBy: userRef },
+        { "slotAssignment.assignedBy": userRef },
+      ],
+    };
+
     const query = {
-      createdBy: userRef,
       isDeleted: { $ne: true },
     };
     
@@ -3535,15 +3572,21 @@ export const getCreatedByMe = async (req, res) => {
       };
     }
     
-    // Apply search
     if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-        { tags: { $regex: search, $options: "i" } },
+      query.$and = [
+        assignerVisibility,
+        {
+          $or: [
+            { title: { $regex: search, $options: "i" } },
+            { description: { $regex: search, $options: "i" } },
+            { tags: { $regex: search, $options: "i" } },
+          ],
+        },
       ];
+    } else {
+      query.$or = assignerVisibility.$or;
     }
-    
+
     // Optimized query with lean() for better performance
     const workItems = await WorkItem.find(query)
       .populate({
@@ -3566,13 +3609,17 @@ export const getCreatedByMe = async (req, res) => {
         populate: { path: "department", select: "name" },
       })
       .populate("createdBy", "name email")
+      .populate("assignedBy", "name email")
       .populate("assigneeStatuses.assigneeId", "name email")
+      .populate({ path: "slotAssignment.assignedBy", select: "name email" })
       .select("-comments -statusHistory -attachments")
       .sort({ dueDate: 1, createdAt: -1 })
       .lean();
 
-    const assignedToOthers = workItems.filter((item) =>
-      isAssignedWorkForCreator(item, userIdStr)
+    const assignedToOthers = workItems.filter(
+      (item) =>
+        getEffectiveAssignedById(item) === userIdStr &&
+        isAssignedWorkForCreator(item, userIdStr)
     );
     
     res.status(200).json({

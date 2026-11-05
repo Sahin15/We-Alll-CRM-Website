@@ -1,3 +1,5 @@
+import { getEffectiveAssignedById } from "./workItemAssignedBy.js";
+
 const TERMINAL_STATUSES = new Set(["Done", "Cancelled"]);
 const ACTIVE_STATUSES = new Set(["To Do", "In Progress", "Review"]);
 
@@ -127,7 +129,7 @@ export function isPostingAssigneeForMyWork(workItem, userId) {
 }
 
 /**
- * My Work: assigned to me AND not work I created for other team members.
+ * My Work: assigned to me AND not work I assigned to other team members.
  * @param {object|null|undefined} workItem
  * @param {import('mongoose').Types.ObjectId | string|null|undefined} userId
  * @returns {boolean}
@@ -143,8 +145,8 @@ export function isWorkItemForMyWork(workItem, userId) {
   const assigneeIds = getWorkItemAssigneeIds(workItem);
   if (!assigneeIds.includes(uid)) return false;
 
-  const creatorId = normalizeId(workItem.createdBy);
-  if (creatorId === uid && assigneeIds.some((id) => id !== uid)) {
+  const assignerId = getEffectiveAssignedById(workItem);
+  if (assignerId === uid && assigneeIds.some((id) => id !== uid)) {
     return false;
   }
 

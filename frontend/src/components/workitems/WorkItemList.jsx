@@ -8,6 +8,7 @@ import {
   getDueDateLabel,
   isWorkItemDueToday,
   isWorkItemOverdue,
+  getWorkItemAssignerName,
 } from '../../utils/workItemUtils';
 import AssigneeStatusDisplay from './AssigneeStatusDisplay';
 import {
@@ -265,7 +266,7 @@ const StatusSelector = ({ status, onStatusChange, getStatusColor }) => {
   );
 };
 
-const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, currentUser, emptyMessage, showAssigneeStatus = false, onEdit }) => {
+const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, currentUser, emptyMessage, showAssigneeStatus = false, showAssignedBy = false, onEdit }) => {
   const onView = onViewItem;
   
   const getUserStatus = (workItem) =>
@@ -396,6 +397,12 @@ const WorkItemList = React.memo(({ workItems, onViewItem, onStatusChange, curren
                           <span className="meta-tag">
                             <span className="meta-dot">•</span>
                             {item.assignedTo.name}
+                          </span>
+                        )}
+                        {showAssignedBy && getWorkItemAssignerName(item) && (
+                          <span className="meta-tag">
+                            <span className="meta-dot">•</span>
+                            Assigned by {getWorkItemAssignerName(item)}
                           </span>
                         )}
                       </div>

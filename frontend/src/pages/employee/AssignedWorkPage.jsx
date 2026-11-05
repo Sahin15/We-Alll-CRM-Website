@@ -11,7 +11,7 @@ import EditWorkItemModal from '../../components/workitems/EditWorkItemModal';
 
 /**
  * AssignedWorkPage Component
- * Shows all work items assigned by the current user
+ * Shows work items the current user assigned to others (assignedBy, not project name)
  */
 const AssignedWorkPage = () => {
   const { user } = useAuth();
@@ -174,7 +174,7 @@ const AssignedWorkPage = () => {
         <Col>
           <h2>Assigned Work</h2>
           <p className="text-muted">
-            View and track all work items you have assigned to your team
+            Tasks you assigned to others (not work assigned to you — see My Work)
           </p>
         </Col>
       </Row>
@@ -259,6 +259,7 @@ const AssignedWorkPage = () => {
             onStatusChange={handleStatusChangeRequest}
             currentUser={user}
             showAssigneeStatus={true}
+            showAssignedBy={true}
             onEdit={handleEdit}
             emptyMessage={
               workItems.length === 0
