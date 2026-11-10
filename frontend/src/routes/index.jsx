@@ -40,6 +40,8 @@ const {
   Policies,
   Settings,
   SalaryManagement,
+  EmployeeCompensationDetail,
+  PayrollLegacyPage,
   HRSalaryPreviewManagement,
   TemplateManagement,
   HRSettings,
@@ -457,6 +459,30 @@ const AppRoutes = () => {
               fallbackRoles={["admin", "superadmin", "hr", "accounts", "manager"]}
             >
               <SalaryManagement />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/salary-management/compensation/:employeeId"
+          element={
+            <PermissionRoute
+              permission="payroll.slip.manage"
+              module="finance"
+              fallbackRoles={["admin", "superadmin", "hr", "accounts", "manager"]}
+            >
+              <EmployeeCompensationDetail />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/salary-management/legacy"
+          element={
+            <PermissionRoute
+              permission="payroll.slip.manage"
+              module="finance"
+              fallbackRoles={["admin", "superadmin", "hr", "accounts", "manager"]}
+            >
+              <PayrollLegacyPage />
             </PermissionRoute>
           }
         />

@@ -159,6 +159,19 @@ const salaryStructureSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    changeReason: {
+      type: String,
+      enum: [
+        "internship",
+        "joining",
+        "increment",
+        "promotion",
+        "correction",
+        "other",
+        null,
+      ],
+      default: null,
+    },
 
     /**
      * SMB simplified mode (docs/PAYROLL_SIMPLIFIED_MODEL.md).

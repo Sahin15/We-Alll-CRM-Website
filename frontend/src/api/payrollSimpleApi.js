@@ -30,6 +30,12 @@ export const creditSalaryApi = {
   credit: (data) => api.post("/payroll/credit-salary", data),
 };
 
+export const payrollCompensationApi = {
+  getRoster: () => api.get("/payroll/compensation/roster"),
+  getTimeline: (employeeId) =>
+    api.get(`/payroll/compensation/employees/${employeeId}/timeline`),
+};
+
 export const ADJUSTMENT_TYPE_OPTIONS = [
   { value: "bonus", label: "Bonus (+)" },
   { value: "incentive", label: "Incentive (+)" },

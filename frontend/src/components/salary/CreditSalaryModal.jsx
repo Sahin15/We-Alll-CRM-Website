@@ -42,6 +42,7 @@ const formatDisplayDate = (value) => {
  * @param {string|Date|null} props.paymentDate
  * @param {string} props.periodLabel
  * @param {Array} props.rosterRows
+ * @param {boolean} [props.requirePreviewOnly] - SMB default: only rows with preview
  * @param {() => void} [props.onSuccess]
  */
 const CreditSalaryModal = ({
@@ -52,24 +53,29 @@ const CreditSalaryModal = ({
   paymentDate,
   periodLabel,
   rosterRows,
+  requirePreviewOnly = true,
   onSuccess,
 }) => {
   const [selected, setSelected] = useState(() => new Set());
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
+  const [regenerate, setRegenerate] = useState(false);
 
-  const eligibleRows = useMemo(
-    () =>
-      (rosterRows || []).filter(
-        (row) => row.hasStructure && row.employee?._id
-      ),
-    [rosterRows]
-  );
+  const eligibleRows = useMemo(() => {
+    let rows = (rosterRows || []).filter(
+      (row) => row.hasStructure && row.employee?._id
+    );
+    if (requirePreviewOnly) {
+      rows = rows.filter((row) => row.hasPreview !== false);
+    }
+    return rows;
+  }, [rosterRows, requirePreviewOnly]);
 
   useEffect(() => {
     if (!show) {
       setSelected(new Set());
       setResult(null);
+      setRegenerate(false);
       return;
     }
     const preselect = eligibleRows
@@ -127,6 +133,7 @@ const CreditSalaryModal = ({
           typeof paymentDate === "string"
             ? paymentDate
             : new Date(paymentDate).toISOString(),
+        regenerate,
       });
       const data = res.data?.data;
       setResult(data);
@@ -163,6 +170,12 @@ const CreditSalaryModal = ({
           This creates official payslips for selected employees only. Salary
           breakdown / preview alone does not pay employees.
         </Alert>
+        {!requirePreviewOnly && (
+          <Alert variant="warning" className="small py-2">
+            Employees without a saved preview may use live payroll numbers from
+            structure and adjustments.
+          </Alert>
+        )}
 
         {result ? (
           <div className="mb-3">
@@ -245,9 +258,11 @@ const CreditSalaryModal = ({
                           {row.hasSlip ? (
                             <Badge bg="success">Has slip</Badge>
                           ) : row.hasPreview ? (
-                            <Badge bg="info">Preview only</Badge>
+                            <Badge bg="info">Preview</Badge>
                           ) : (
-                            <Badge bg="secondary">No preview</Badge>
+                            <Badge bg="warning" text="dark">
+                              No preview
+                            </Badge>
                           )}
                         </td>
                       </tr>
@@ -256,6 +271,16 @@ const CreditSalaryModal = ({
                 )}
               </tbody>
             </Table>
+            {eligibleRows.some((r) => r.hasSlip) && (
+              <Form.Check
+                type="checkbox"
+                className="mt-2"
+                id="credit-regenerate"
+                label="Replace existing payslips for selected employees (regenerate)"
+                checked={regenerate}
+                onChange={(e) => setRegenerate(e.target.checked)}
+              />
+            )}
           </>
         )}
       </Modal.Body>

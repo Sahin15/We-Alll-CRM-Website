@@ -9,6 +9,8 @@ import {
 } from "react-bootstrap";
 import { FaEye, FaCalendarAlt } from "react-icons/fa";
 import SalaryPreview from "../../components/salary/SalaryPreview";
+import { PayrollEmployeeStatusStepper } from "../../components/payroll-ui";
+import "../../components/payroll-ui/payroll-ui.css";
 import { getCompanyYearOptions } from "../../constants/branding";
 
 const MySalaryPreview = () => {
@@ -104,6 +106,12 @@ const MySalaryPreview = () => {
               </p>
             </Card.Body>
           </Card>
+        </Col>
+      </Row>
+
+      <Row className="mb-3">
+        <Col>
+          <PayrollEmployeeStatusStepper phase="draft" />
         </Col>
       </Row>
 

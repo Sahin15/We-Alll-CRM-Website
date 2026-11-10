@@ -27,13 +27,15 @@ import PayrollPeriods from "../../components/salary/PayrollPeriods";
 import PayrollApprovals from "../../components/salary/PayrollApprovals";
 import PayrollExports from "../../components/salary/PayrollExports";
 import PayrollDualRun from "../../components/salary/PayrollDualRun";
-import SimplePayrollTab from "../../components/salary/SimplePayrollTab";
+import EmployeeCompensationPayroll from "../../components/salary/EmployeeCompensationPayroll";
 import { salarySlipApi } from "../../api/salaryApi";
 import api from "../../services/api";
 import {
   PayrollPeriodProvider,
   usePayrollPeriod,
 } from "../../context/PayrollPeriodContext.jsx";
+import { isPayrollHubV2 } from "../../utils/payrollFlags";
+import SalaryManagementHub from "./SalaryManagementHub";
 
 const MONTH_NAMES = [
   "January",
@@ -54,7 +56,6 @@ const MONTH_NAMES = [
 const PAYROLL_TABS = new Set([
   "simple-payroll",
   "previews",
-  "generate",
   "slips",
   "reports",
 ]);
@@ -67,6 +68,7 @@ const ADVANCED_TABS = new Set([
   "exports",
   "dual-run",
   "periods",
+  "generate",
 ]);
 
 const SalaryManagementContent = () => {
@@ -220,8 +222,8 @@ const SalaryManagementContent = () => {
                     </div>
                   </div>
                   <p className="salary-header-description mb-0">
-                    Adjust pay on the Payroll tab, share previews with
-                    employees, then credit salary to issue payslips.
+                    Payroll: compensation history. Salary Preview: this month,
+                    payment date, and credit. Salary Slips: official payslips.
                   </p>
                 </div>
               </div>
@@ -413,8 +415,8 @@ const SalaryManagementContent = () => {
         <Card.Header className="bg-white border-bottom-0 pt-3 pb-0">
           <h5 className="mb-1">Payroll</h5>
           <p className="text-muted small mb-0">
-            Day-to-day path: set pay period & payment date → adjustments &
-            breakdown → employee preview → credit salary (payslip)
+            Payroll = compensation records · Preview = this month + credit ·
+            Slips = payslips
             {periodLabel ? ` — ${periodLabel}` : ""}
           </p>
         </Card.Header>
@@ -425,13 +427,10 @@ const SalaryManagementContent = () => {
             className="mb-3"
           >
             <Tab eventKey="simple-payroll" title="Payroll">
-              {activeTab === "simple-payroll" && <SimplePayrollTab />}
+              {activeTab === "simple-payroll" && <EmployeeCompensationPayroll />}
             </Tab>
             <Tab eventKey="previews" title="Salary Preview">
               {activeTab === "previews" && <HRSalaryPreviewManagement />}
-            </Tab>
-            <Tab eventKey="generate" title="Generate Slips">
-              {activeTab === "generate" && <GenerateSalarySlips />}
             </Tab>
             <Tab eventKey="slips" title="Salary Slips">
               {activeTab === "slips" && <SalarySlipList />}
@@ -460,8 +459,8 @@ const SalaryManagementContent = () => {
             <div>
               <strong>Advanced / Legacy</strong>
               <div className="text-muted small fw-normal">
-                Pay periods, approval workflows, bank/NEFT exports, dual-run
-                validation, allowance structures, and templates — only when needed
+                Legacy generate slips, pay periods, approvals, exports,
+                dual-run, structures, and templates — only when needed
               </div>
             </div>
           </Accordion.Header>
@@ -471,6 +470,9 @@ const SalaryManagementContent = () => {
               onSelect={(k) => selectTab(k)}
               className="mb-3"
             >
+              <Tab eventKey="generate" title="Generate Slips (legacy)">
+                {activeTab === "generate" && <GenerateSalarySlips />}
+              </Tab>
               <Tab eventKey="structures" title="Salary Structures">
                 {activeTab === "structures" && <SalaryStructures />}
               </Tab>
@@ -683,7 +685,7 @@ const SalaryManagementContent = () => {
 
 const SalaryManagement = () => (
   <PayrollPeriodProvider>
-    <SalaryManagementContent />
+    {isPayrollHubV2() ? <SalaryManagementHub /> : <SalaryManagementContent />}
   </PayrollPeriodProvider>
 );
 

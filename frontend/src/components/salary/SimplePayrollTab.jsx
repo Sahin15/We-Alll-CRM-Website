@@ -26,11 +26,14 @@ import {
   payrollAdjustmentApi,
   payrollSimplePreviewApi,
 } from "../../api/payrollSimpleApi";
-import { payrollPeriodApi } from "../../api/payrollPeriodApi";
-import CreditSalaryModal from "./CreditSalaryModal.jsx";
 import { leaveApi } from "../../api/leaveApi";
 import { attendanceApi } from "../../api/attendanceApi";
 import { usePayrollPeriodWithFallback } from "../../context/PayrollPeriodContext.jsx";
+import {
+  formatAdjustmentLineValue,
+  formatAdjustmentTypeLabel,
+  resolveLeaveDays,
+} from "../../utils/payrollAdjustmentDisplay.js";
 
 const MONTH_NAMES = [
   "January",
@@ -69,8 +72,21 @@ const statusBadge = (status) => {
 
 /**
  * HR Simple Payroll tab (SP-05): structure + preview + adjustments for one employee/month.
+ *
+ * @param {object} [props]
+ * @param {boolean} [props.embedInRunPayroll] — mounted inside Payroll Hub Run payroll
+ * @param {string} [props.employeeId] — controlled selection (Run payroll embed)
+ * @param {(id: string) => void} [props.onEmployeeIdChange]
+ * @param {string} [props.initialEmployeeId] — legacy uncontrolled pre-select
+ * @param {() => void} [props.onPreviewSaved] — after save salary breakdown
  */
-const SimplePayrollTab = () => {
+const SimplePayrollTab = ({
+  embedInRunPayroll = false,
+  employeeId: employeeIdProp,
+  onEmployeeIdChange,
+  initialEmployeeId = "",
+  onPreviewSaved,
+}) => {
   // Default pay period to the previous calendar month (typical payroll cycle).
   const currentPeriod = useMemo(() => {
     const now = new Date();
@@ -86,10 +102,27 @@ const SimplePayrollTab = () => {
     year,
     setMonth,
     setYear,
-    setPaymentDateLabel,
   } = usePayrollPeriodWithFallback(currentPeriod);
 
-  const [employeeId, setEmployeeId] = useState("");
+  const isControlled = employeeIdProp !== undefined && employeeIdProp !== null;
+  const [employeeIdLocal, setEmployeeIdLocal] = useState(
+    isControlled ? employeeIdProp || "" : initialEmployeeId || ""
+  );
+  const employeeId = isControlled ? employeeIdProp || "" : employeeIdLocal;
+
+  const setEmployeeSelection = (id) => {
+    const next = id ? String(id) : "";
+    if (!isControlled) {
+      setEmployeeIdLocal(next);
+    }
+    onEmployeeIdChange?.(next);
+  };
+
+  useEffect(() => {
+    if (!isControlled && initialEmployeeId) {
+      setEmployeeIdLocal(String(initialEmployeeId));
+    }
+  }, [initialEmployeeId, isControlled]);
 
   const [structure, setStructure] = useState(null);
   const [structureLoading, setStructureLoading] = useState(false);
@@ -106,13 +139,6 @@ const SimplePayrollTab = () => {
   const [rosterSummary, setRosterSummary] = useState(null);
   const [rosterLoading, setRosterLoading] = useState(false);
   const [listSearch, setListSearch] = useState("");
-  const [salaryPaymentDate, setSalaryPaymentDate] = useState(null);
-  const [paymentDateLoading, setPaymentDateLoading] = useState(false);
-  const [showPaymentDateModal, setShowPaymentDateModal] = useState(false);
-  const [paymentDateDraft, setPaymentDateDraft] = useState("");
-  const [showCreditModal, setShowCreditModal] = useState(false);
-  const [savingPaymentDate, setSavingPaymentDate] = useState(false);
-
   const [showCreateStructure, setShowCreateStructure] = useState(false);
   const [structureForm, setStructureForm] = useState({
     monthlySalary: "",
@@ -296,46 +322,9 @@ const SimplePayrollTab = () => {
     loadAttendance,
   ]);
 
-  const loadSalaryPaymentDate = useCallback(async () => {
-    setPaymentDateLoading(true);
-    try {
-      const res = await payrollPeriodApi.getPaymentDate(year, month);
-      const iso = res.data?.data?.salaryPaymentDate;
-      setSalaryPaymentDate(iso || null);
-      if (typeof setPaymentDateLabel === "function") {
-        if (!iso) {
-          setPaymentDateLabel(null);
-        } else {
-          const d = new Date(iso);
-          setPaymentDateLabel(
-            Number.isNaN(d.getTime())
-              ? null
-              : d.toLocaleDateString("en-IN", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })
-          );
-        }
-      }
-    } catch (err) {
-      console.error(err);
-      setSalaryPaymentDate(null);
-      if (typeof setPaymentDateLabel === "function") {
-        setPaymentDateLabel(null);
-      }
-    } finally {
-      setPaymentDateLoading(false);
-    }
-  }, [month, year]);
-
   useEffect(() => {
     loadPayrollRoster();
   }, [loadPayrollRoster]);
-
-  useEffect(() => {
-    loadSalaryPaymentDate();
-  }, [loadSalaryPaymentDate]);
 
   const selectedEmployeeRow = useMemo(() => {
     if (!employeeId) return null;
@@ -346,7 +335,7 @@ const SimplePayrollTab = () => {
 
   const filteredRosterRows = useMemo(() => {
     let rows = rosterRows;
-    if (employeeId) {
+    if (employeeId && !embedInRunPayroll) {
       rows = rows.filter(
         (row) => String(row.employee?._id) === String(employeeId)
       );
@@ -362,10 +351,10 @@ const SimplePayrollTab = () => {
         emp.designation?.toLowerCase().includes(q)
       );
     });
-  }, [rosterRows, listSearch, employeeId]);
+  }, [rosterRows, listSearch, employeeId, embedInRunPayroll]);
 
   const clearPayrollFilters = () => {
-    setEmployeeId("");
+    setEmployeeSelection("");
     setListSearch("");
   };
 
@@ -551,14 +540,11 @@ const SimplePayrollTab = () => {
     }
   };
 
-  const formatAdjustmentType = (type) => {
-    if (type === "leave_balance_deduction") return "Earned leave deduction";
-    return type?.replace(/_/g, " ") || type;
-  };
+  const formatAdjustmentType = (type) => formatAdjustmentTypeLabel(type);
 
   const formatAdjustmentAmount = (adj) => {
     if (adj.type === "leave_balance_deduction") {
-      const days = adj.leaveDays ?? adj.payrollMeta?.daysDeducted;
+      const days = resolveLeaveDays(adj);
       return days != null ? `${days} day(s) from balance` : "Leave balance";
     }
     return formatInr(adj.amount);
@@ -583,6 +569,7 @@ const SimplePayrollTab = () => {
       toast.error("Active structure must be in simple mode");
       return;
     }
+    await loadPreview();
     const now = new Date();
     const isCurrentMonth =
       month === now.getMonth() + 1 && year === now.getFullYear();
@@ -640,6 +627,9 @@ const SimplePayrollTab = () => {
         "Salary preview saved from Payroll. Employee can review it under My Salary Preview."
       );
       setShowPreviewGenModal(false);
+      await loadPreview();
+      await loadPayrollRoster();
+      onPreviewSaved?.();
     } catch (err) {
       const msg =
         err.response?.data?.error ||
@@ -800,84 +790,32 @@ const SimplePayrollTab = () => {
 
   const periodLabel = `${MONTH_NAMES[month - 1]} ${year}`;
 
-  const formatPaymentDateBadge = (value) => {
-    if (!value) return "Not set";
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return "Not set";
-    return d.toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
-  const openEditPaymentDate = () => {
-    if (salaryPaymentDate) {
-      const d = new Date(salaryPaymentDate);
-      setPaymentDateDraft(d.toISOString().slice(0, 10));
-    } else {
-      const suggest = new Date(year, month, 10);
-      if (suggest.getMonth() !== month) {
-        suggest.setDate(0);
-      }
-      setPaymentDateDraft(suggest.toISOString().slice(0, 10));
-    }
-    setShowPaymentDateModal(true);
-  };
-
-  const savePaymentDate = async () => {
-    if (!paymentDateDraft) {
-      toast.error("Choose a payment date");
-      return;
-    }
-    setSavingPaymentDate(true);
-    try {
-      await payrollPeriodApi.setPaymentDate(year, month, {
-        salaryPaymentDate: new Date(paymentDateDraft).toISOString(),
-      });
-      toast.success("Salary payment date saved");
-      setShowPaymentDateModal(false);
-      await loadSalaryPaymentDate();
-    } catch (err) {
-      toast.error(
-        err.response?.data?.message || "Failed to save payment date"
-      );
-    } finally {
-      setSavingPaymentDate(false);
-    }
-  };
-
-  const handleCreditSuccess = () => {
-    loadPayrollRoster();
-    loadSalaryPaymentDate();
-    if (employeeId) {
-      refreshAll();
-    }
-  };
-
   return (
     <div>
-      <div className="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
-        <div>
-          <h5 className="mb-1">Payroll</h5>
-          <p className="text-muted small mb-0">
-            Monthly Salary ± manual adjustments − TDS = Net. Attendance is shown
-            for review; HR chooses whether to deduct.
-          </p>
+      {!embedInRunPayroll && (
+        <div className="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+          <div>
+            <h5 className="mb-1">Payroll</h5>
+            <p className="text-muted small mb-0">
+              Monthly salary ± adjustments − TDS = net. Review attendance and
+              add deductions as needed.
+            </p>
+          </div>
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            disabled={!employeeId || busy}
+            onClick={refreshAll}
+          >
+            <FaRedo className="me-1" /> Refresh
+          </Button>
         </div>
-        <Button
-          variant="outline-secondary"
-          size="sm"
-          disabled={!employeeId || busy}
-          onClick={refreshAll}
-        >
-          <FaRedo className="me-1" /> Refresh
-        </Button>
-      </div>
+      )}
 
       <Card className="mb-3 border-0 shadow-sm">
         <Card.Body className="py-3">
           <Row className="g-3 align-items-end">
+            {!embedInRunPayroll && (
             <Col xs={12} md={5} lg={4}>
               <Form.Label className="small text-muted mb-1">Pay period</Form.Label>
               <div className="d-flex gap-2">
@@ -906,7 +844,8 @@ const SimplePayrollTab = () => {
                 </Form.Select>
               </div>
             </Col>
-            <Col xs={12} md={5} lg={5}>
+            )}
+            <Col xs={12} md={embedInRunPayroll ? 12 : 5} lg={embedInRunPayroll ? 8 : 5}>
               <Form.Label className="small text-muted mb-1">
                 Find employee in list
               </Form.Label>
@@ -916,14 +855,30 @@ const SimplePayrollTab = () => {
                 onChange={(e) => setListSearch(e.target.value)}
               />
             </Col>
-            <Col xs={12} md={2} lg={3} className="d-grid">
+            <Col
+              xs={12}
+              md={embedInRunPayroll ? 4 : 2}
+              lg={embedInRunPayroll ? 4 : 3}
+              className="d-flex gap-2"
+            >
               <Button
                 variant="outline-secondary"
+                className="flex-grow-1"
                 onClick={clearPayrollFilters}
                 disabled={!employeeId && !listSearch.trim()}
               >
-                Clear filters
+                Clear
               </Button>
+              {embedInRunPayroll && (
+                <Button
+                  variant="outline-secondary"
+                  className="flex-grow-1"
+                  disabled={!employeeId || busy}
+                  onClick={refreshAll}
+                >
+                  <FaRedo className="me-1" /> Refresh
+                </Button>
+              )}
             </Col>
           </Row>
           {employeeId && selectedEmployeeRow && (
@@ -945,7 +900,7 @@ const SimplePayrollTab = () => {
               <Button
                 size="sm"
                 variant="outline-primary"
-                onClick={() => setEmployeeId("")}
+                onClick={() => setEmployeeSelection("")}
               >
                 Show full team list
               </Button>
@@ -953,54 +908,26 @@ const SimplePayrollTab = () => {
           )}
           {!employeeId && (
             <p className="small text-muted mb-0 mt-3">
-              Choose <strong>{MONTH_NAMES[month - 1]} {year}</strong>, then click
-              an employee in the table below to open structure, preview, and
-              adjustments.
+              {embedInRunPayroll
+                ? "Select an employee in the table below."
+                : (
+                  <>
+                    Choose <strong>{MONTH_NAMES[month - 1]} {year}</strong>, then
+                    click an employee in the table below.
+                  </>
+                  )}
             </p>
           )}
         </Card.Body>
       </Card>
 
-      <Card className="mb-3 border-0 shadow-sm bg-light">
-        <Card.Body className="py-3">
-          <Row className="g-2 align-items-center">
-            <Col xs={12} md={6}>
-              <span className="small text-muted mb-1 d-block">
-                Salary payment date
-              </span>
-              <div className="d-flex flex-wrap align-items-center gap-2">
-                {paymentDateLoading ? (
-                  <Spinner animation="border" size="sm" />
-                ) : (
-                  <Badge bg={salaryPaymentDate ? "primary" : "secondary"}>
-                    {formatPaymentDateBadge(salaryPaymentDate)}
-                  </Badge>
-                )}
-                <Button
-                  size="sm"
-                  variant="outline-primary"
-                  onClick={openEditPaymentDate}
-                >
-                  Edit date
-                </Button>
-              </div>
-              <p className="small text-muted mb-0 mt-1">
-                Shown on payslips after you credit salary. Breakdown / preview
-                alone does not create a payslip.
-              </p>
-            </Col>
-            <Col xs={12} md={6} className="text-md-end">
-              <Button
-                variant="success"
-                disabled={!salaryPaymentDate || paymentDateLoading}
-                onClick={() => setShowCreditModal(true)}
-              >
-                Credit salary &amp; generate slips
-              </Button>
-            </Col>
-          </Row>
-        </Card.Body>
-      </Card>
+      {!embedInRunPayroll && (
+      <Alert variant="info" className="small mb-3">
+        Set the payment date and credit salary on the{" "}
+        <strong>Salary Preview</strong> tab. Create or list payslips on{" "}
+        <strong>Salary Slips</strong>.
+      </Alert>
+      )}
 
       <Card className="mb-3 shadow-sm">
         <Card.Header className="bg-white">
@@ -1052,7 +979,7 @@ const SimplePayrollTab = () => {
                       key={emp._id}
                       className={isSelected ? "table-primary" : undefined}
                       style={{ cursor: "pointer" }}
-                      onClick={() => setEmployeeId(String(emp._id))}
+                      onClick={() => setEmployeeSelection(String(emp._id))}
                     >
                       <td>
                         <strong>{emp.name}</strong>
@@ -1475,7 +1402,8 @@ const SimplePayrollTab = () => {
                                     <td>
                                       {line.type === "leave_balance_deduction" ? (
                                         <span className="text-success">
-                                          {line.leaveDays ?? 0} day(s) — no salary cut
+                                          {resolveLeaveDays(line) ?? 0} day(s) — no
+                                          salary cut
                                         </span>
                                       ) : (
                                         <>
@@ -2124,9 +2052,28 @@ const SimplePayrollTab = () => {
                         </strong>
                       </td>
                     </tr>
+                    {(() => {
+                      const lines =
+                        preview?.sections?.manualAdjustments?.lines || [];
+                      const leaveDays = lines
+                        .filter((l) => l.type === "leave_balance_deduction")
+                        .reduce((sum, l) => sum + (resolveLeaveDays(l) || 0), 0);
+                      if (leaveDays <= 0) return null;
+                      return (
+                        <tr>
+                          <td className="text-muted">Earned leave used</td>
+                          <td className="text-end text-success">
+                            <strong>{leaveDays} day(s)</strong>
+                            <span className="text-muted fw-normal small d-block">
+                              Not included in ₹ adjustments
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })()}
                     <tr>
                       <td className="text-muted">± Adjustments total</td>
-                      <td className="text-end">
+                       <td className="text-end">
                         <strong>
                           {formatInr(preview?.totals?.adjustmentsTotal)}
                         </strong>
@@ -2164,9 +2111,8 @@ const SimplePayrollTab = () => {
                     {preview.sections.manualAdjustments.lines.map(
                       (line, idx) => (
                         <li key={line.id || idx}>
-                          {line.type}:{" "}
-                          {line.signedAmount >= 0 ? "+" : ""}
-                          {formatInr(line.signedAmount)}
+                          <strong>{formatAdjustmentTypeLabel(line.type)}:</strong>{" "}
+                          {formatAdjustmentLineValue(line, formatInr)}
                           {line.status !== "approved" ? (
                             <span className="text-muted">
                               {" "}
@@ -2268,57 +2214,6 @@ const SimplePayrollTab = () => {
         </Modal.Footer>
       </Modal>
 
-      <Modal
-        show={showPaymentDateModal}
-        onHide={() => setShowPaymentDateModal(false)}
-        centered
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>Salary payment date — {periodLabel}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form.Label>Date credited / paid (shown on payslips)</Form.Label>
-          <Form.Control
-            type="date"
-            value={paymentDateDraft}
-            onChange={(e) => setPaymentDateDraft(e.target.value)}
-          />
-          <p className="small text-muted mt-2 mb-0">
-            Suggested default is for convenience only — pick the actual bank
-            credit date.
-          </p>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button
-            variant="outline-secondary"
-            onClick={() => setShowPaymentDateModal(false)}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            disabled={savingPaymentDate || !paymentDateDraft}
-            onClick={savePaymentDate}
-          >
-            {savingPaymentDate ? (
-              <Spinner size="sm" animation="border" />
-            ) : (
-              "Save date"
-            )}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
-      <CreditSalaryModal
-        show={showCreditModal}
-        onHide={() => setShowCreditModal(false)}
-        month={month}
-        year={year}
-        paymentDate={salaryPaymentDate}
-        periodLabel={periodLabel}
-        rosterRows={rosterRows}
-        onSuccess={handleCreditSuccess}
-      />
     </div>
   );
 };

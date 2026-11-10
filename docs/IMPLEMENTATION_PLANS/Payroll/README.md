@@ -52,14 +52,26 @@ This folder is the **only** authorized Payroll V2 implementation workspace.
   → [Mark paid]
 ```
 
-### 1.1a Simple payroll (SMB — recommended day-to-day)
+### 1.1a Simple payroll (SMB — Payroll Hub V2)
 
-HR path on **Salary Management → Payroll**:
+With `VITE_PAYROLL_HUB_V2` enabled (default), HR uses **Payroll hub** workspaces:
 
-1. Pick the **pay period** (month/year) and set **salary payment date** on the period.
-2. Configure **simple salary structure**, **adjustments**, and **Save salary breakdown** (creates/updates `SalaryPreview`).
+| Workspace | Purpose |
+|-----------|---------|
+| **Compensation** | Long-term journey (roster → detail page). |
+| **Run payroll** | Monthly wizard: review previews → payment date → credit salary. |
+| **Payslips** | Issued / missing / unpaid slips. |
+| **Finance desk** | Summary, exports, approvals, period checklist. |
+| **Legacy tools** | `/salary-management/legacy` — structures, generate slips, periods. |
+
+Set `VITE_PAYROLL_HUB_V2=false` to restore the older tabbed Salary Management UI.
+
+UAT: [PAYROLL_HUB_V2_UAT.md](./PAYROLL_HUB_V2_UAT.md)
+
+1. Maintain long-term pay on **Payroll** (structures / promotions).
+2. On **Salary Preview** for the period: refresh breakdowns, set **salary payment date**, **credit salary**.
 3. Employee reviews **My Salary Preview** (optional ack/query).
-4. HR **Credit salary** on the Payroll tab → official `SalarySlip` + notification (links preview when present).
+4. Official payslips appear under **Salary Slips** with the chosen payment date.
 
 **Env flags**
 

@@ -44,6 +44,7 @@ export const createSalaryStructure = async (req, res) => {
     const salaryStructure = await SalaryStructure.create({
       employee,
       effectiveFrom,
+      changeReason: req.body.changeReason || null,
       ...synced,
       ...simpleFields,
       otherAllowances,

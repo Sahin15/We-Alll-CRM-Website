@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Modal, Button, Form, Alert } from "react-bootstrap";
 import { toast } from "react-toastify";
 import { workLogApi } from "../../api/workLogApi";

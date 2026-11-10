@@ -33,15 +33,19 @@ import { salaryPreviewApi } from "../../api/salaryApi";
 import {
   payrollSimplePreviewApi,
   payrollAdjustmentApi,
-  ADJUSTMENT_TYPE_OPTIONS,
 } from "../../api/payrollSimpleApi";
 import api from "../../services/api";
 import SimplePayrollPreviewPanels from "./SimplePayrollPreviewPanels";
+import SimpleSalaryCorrectionsForm from "./SimpleSalaryCorrectionsForm";
 import { getCompanyYearOptions } from "../../constants/branding";
 import {  isSimpleSalaryPreview,
   mapStoredPreviewToSimpleDto,
 } from "../../utils/simpleSalaryPreviewView";
 import { usePayrollPeriodWithFallback } from "../../context/PayrollPeriodContext.jsx";
+import SalaryPaymentDateCard from "./SalaryPaymentDateCard";
+import CreditSalaryModal from "./CreditSalaryModal";
+import { useSalaryCreditRoster } from "../../hooks/useSalaryCreditRoster";
+import { PayrollDropdownMenu } from "../payroll-ui";
 
 const isHrCorrectionLog = (q) =>
   q?.query && String(q.query).trim().toLowerCase().startsWith("hr correction:");
@@ -65,7 +69,25 @@ const findFirstPendingEmployeeQueryIndex = (preview) =>
     (q) => isEmployeeQuery(q) && q.status === "pending"
   );
 
-const HRSalaryPreviewManagement = () => {
+/**
+ * @param {object} [props]
+ * @param {boolean} [props.hubV2]
+ * @param {boolean} [props.hidePeriodControls]
+ * @param {boolean} [props.hidePageTitle]
+ * @param {number} [props.wizardStep]
+ * @param {(preview: object) => void} [props.onPreviewRowOpen]
+ * @param {(employeeId: string) => void} [props.onEditBreakdown]
+ * @param {() => void} [props.onPreviewSaved]
+ */
+const HRSalaryPreviewManagement = ({
+  hubV2 = false,
+  hidePeriodControls = false,
+  hidePageTitle = false,
+  wizardStep,
+  onPreviewRowOpen,
+  onEditBreakdown,
+  onPreviewSaved,
+}) => {
   const [activeTab, setActiveTab] = useState("overview");
 
   const getPreviousMonth = () => {
@@ -85,6 +107,11 @@ const HRSalaryPreviewManagement = () => {
   } = usePayrollPeriodWithFallback(prev);
 
   const [reconcileBusy, setReconcileBusy] = useState(false);
+  const [showCreditModal, setShowCreditModal] = useState(false);
+  const [creditPaymentDate, setCreditPaymentDate] = useState(null);
+  const [creditSelection, setCreditSelection] = useState(() => new Set());
+  const { paymentDate, rosterRows, refresh: refreshCreditRoster } =
+    useSalaryCreditRoster(selectedMonth, selectedYear);
   const [previews, setPreviews] = useState([]);
   const [statistics, setStatistics] = useState(null);
   const [attentionPreviews, setAttentionPreviews] = useState([]);
@@ -137,7 +164,10 @@ const HRSalaryPreviewManagement = () => {
     amountMode: "fixed",
     days: 1,
     removeAllAdjustments: false,
+    addKind: "none",
+    perDaySalary: 0,
   });
+  const [correctionAttendance, setCorrectionAttendance] = useState(null);
   const [correctionsIsSimple, setCorrectionsIsSimple] = useState(false);
   const [correctionsLoading, setCorrectionsLoading] = useState(false);
   const [savingCorrections, setSavingCorrections] = useState(false);
@@ -171,6 +201,7 @@ const HRSalaryPreviewManagement = () => {
       );
       setStatistics(payload?.statistics ?? null);
       setAttentionPreviews(payload?.attention || []);
+      refreshCreditRoster();
     } catch (error) {
       console.error("Error fetching preview dashboard:", error);
       toast.error("Failed to load salary previews");
@@ -273,8 +304,34 @@ const HRSalaryPreviewManagement = () => {
     setShowCorrectionsModal(true);
     setCorrectionsLoading(true);
     setCorrectionsIsSimple(false);
+    setCorrectionAttendance(null);
 
     const preferSimple = isSimpleSalaryPreview(preview);
+
+    const buildSimpleCorrectionState = (dto, mappedLines, monthly, tds, adj, net) => {
+      const att = dto?.attendanceReport || null;
+      const suggestedDays = Math.max(
+        1,
+        Number(att?.absentDaysOnly) || Number(att?.unpaidLeaveDays) || 1
+      );
+      const perDay =
+        Number(att?.perDaySalary) || Math.round(Number(monthly) / 30) || 0;
+      return {
+        monthlySalary: monthly,
+        tdsAmount: tds,
+        adjustmentsTotal: adj,
+        netSalary: net,
+        adjustmentLines: mappedLines,
+        note: "",
+        newCorrectionType: "manual_salary_deduction",
+        newCorrectionAmount: 0,
+        amountMode: "per_day",
+        days: suggestedDays,
+        removeAllAdjustments: false,
+        addKind: "none",
+        perDaySalary: perDay,
+      };
+    };
     try {
       const employeeId = preview.employee?._id || preview.employee;
       const res = await payrollSimplePreviewApi.get({
@@ -290,40 +347,37 @@ const HRSalaryPreviewManagement = () => {
         const monthly = Number(dto.totals?.monthlySalary) || 0;
         const tds = Number(dto.totals?.tdsAmount) || 0;
         const adj = Number(dto.totals?.adjustmentsTotal) || 0;
-        setSimpleCorrections({
-          monthlySalary: monthly,
-          tdsAmount: tds,
-          adjustmentsTotal: adj,
-          netSalary: dto.totals?.rejected
-            ? monthly + adj - tds
-            : Number(dto.totals?.netSalary) || monthly + adj - tds,
-          adjustmentLines: dto.sections?.manualAdjustments?.lines || [],
-          note: "",
-          newCorrectionType: "manual_salary_deduction",
-          newCorrectionAmount: 0,
-          amountMode: "fixed",
-          days: 1,
-          removeAllAdjustments: false,
-        });
+        const net = dto.totals?.rejected
+          ? monthly + adj - tds
+          : Number(dto.totals?.netSalary) || monthly + adj - tds;
+        setCorrectionAttendance(dto.attendanceReport || null);
+        setSimpleCorrections(
+          buildSimpleCorrectionState(
+            dto,
+            dto.sections?.manualAdjustments?.lines || [],
+            monthly,
+            tds,
+            adj,
+            net
+          )
+        );
         return;
       }
 
       if (preferSimple) {
         const mapped = mapStoredPreviewToSimpleDto(preview);
         setCorrectionsIsSimple(true);
-        setSimpleCorrections({
-          monthlySalary: mapped.totals.monthlySalary,
-          tdsAmount: mapped.totals.tdsAmount,
-          adjustmentsTotal: mapped.totals.adjustmentsTotal,
-          netSalary: mapped.totals.netSalary,
-          adjustmentLines: mapped.sections.manualAdjustments.lines || [],
-          note: "",
-          newCorrectionType: "manual_salary_deduction",
-          newCorrectionAmount: 0,
-          amountMode: "fixed",
-          days: 1,
-          removeAllAdjustments: false,
-        });
+        setCorrectionAttendance(null);
+        setSimpleCorrections(
+          buildSimpleCorrectionState(
+            null,
+            mapped.sections.manualAdjustments.lines || [],
+            mapped.totals.monthlySalary,
+            mapped.totals.tdsAmount,
+            mapped.totals.adjustmentsTotal,
+            mapped.totals.netSalary
+          )
+        );
         return;
       }
 
@@ -357,29 +411,34 @@ const HRSalaryPreviewManagement = () => {
       if (preferSimple) {
         const mapped = mapStoredPreviewToSimpleDto(preview);
         setCorrectionsIsSimple(true);
-        setSimpleCorrections({
-          monthlySalary: mapped.totals.monthlySalary,
-          tdsAmount: mapped.totals.tdsAmount,
-          adjustmentsTotal: mapped.totals.adjustmentsTotal,
-          netSalary: mapped.totals.netSalary,
-          adjustmentLines: mapped.sections.manualAdjustments.lines || [],
-          note: "",
-          newCorrectionType: "manual_salary_deduction",
-          newCorrectionAmount: 0,
-          amountMode: "fixed",
-          days: 1,
-          removeAllAdjustments: false,
-        });
+        setSimpleCorrections(
+          buildSimpleCorrectionState(
+            null,
+            mapped.sections.manualAdjustments.lines || [],
+            mapped.totals.monthlySalary,
+            mapped.totals.tdsAmount,
+            mapped.totals.adjustmentsTotal,
+            mapped.totals.netSalary
+          )
+        );
       }
     } finally {
       setCorrectionsLoading(false);
     }
   };
 
-  const correctionPerDayRate = () =>
-    Math.round(Number(simpleCorrections.monthlySalary || 0) / 30);
+  const patchSimpleCorrections = (patch) =>
+    setSimpleCorrections((s) => ({ ...s, ...patch }));
+
+  const correctionPerDayRate = () => {
+    const fromState = Number(simpleCorrections.perDaySalary);
+    if (fromState > 0) return Math.round(fromState);
+    return Math.round(Number(simpleCorrections.monthlySalary || 0) / 30);
+  };
 
   const effectiveNewCorrectionAmount = () => {
+    const kind = simpleCorrections.addKind || "none";
+    if (kind === "none" || kind === "earned_leave") return 0;
     if (simpleCorrections.amountMode === "per_day") {
       const days = Math.max(0, Number(simpleCorrections.days) || 0);
       return correctionPerDayRate() * days;
@@ -388,8 +447,11 @@ const HRSalaryPreviewManagement = () => {
   };
 
   const signedNewCorrectionAmount = () => {
+    const kind = simpleCorrections.addKind || "none";
+    if (kind === "none" || kind === "earned_leave") return 0;
     const amt = effectiveNewCorrectionAmount();
     if (!amt) return 0;
+    if (kind === "salary_deduction") return -amt;
     const debitTypes = new Set([
       "advance_recovery",
       "penalty",
@@ -399,6 +461,12 @@ const HRSalaryPreviewManagement = () => {
     ]);
     return debitTypes.has(simpleCorrections.newCorrectionType) ? -amt : amt;
   };
+
+  const previewNetAfterCorrections = () =>
+    Number(simpleCorrections.monthlySalary || 0) +
+    effectiveAdjustmentsTotal() +
+    signedNewCorrectionAmount() -
+    Number(simpleCorrections.tdsAmount || 0);
 
   const effectiveAdjustmentsTotal = () => {
     if (simpleCorrections.removeAllAdjustments) return 0;
@@ -442,19 +510,46 @@ const HRSalaryPreviewManagement = () => {
           }
         }
 
+        const addKind = simpleCorrections.addKind || "none";
+
+        if (addKind === "earned_leave") {
+          const leaveDays = Math.max(0, Number(simpleCorrections.days) || 0);
+          const leaveRemaining =
+            correctionAttendance?.earnedLeave?.remaining ?? 0;
+          if (leaveDays > 0 && leaveDays > leaveRemaining) {
+            toast.error(
+              `Only ${leaveRemaining} earned leave day(s) remaining`
+            );
+            return;
+          }
+          if (leaveDays > 0) {
+            await payrollAdjustmentApi.deductLeaveBalance({
+              employee: employeeId,
+              month: target.month,
+              year: target.year,
+              days: leaveDays,
+              reason: note.trim(),
+            });
+          }
+        }
+
         const newAmt = effectiveNewCorrectionAmount();
-        if (newAmt > 0) {
+        if (newAmt > 0 && (addKind === "salary_deduction" || addKind === "other")) {
           const daysNote =
             simpleCorrections.amountMode === "per_day"
               ? ` (${simpleCorrections.days} day(s) @ ${formatCurrency(
                   correctionPerDayRate()
                 )}/day)`
               : "";
+          const adjType =
+            addKind === "salary_deduction"
+              ? "absent_deduction"
+              : simpleCorrections.newCorrectionType;
           const created = await payrollAdjustmentApi.create({
             employee: employeeId,
             month: target.month,
             year: target.year,
-            type: simpleCorrections.newCorrectionType,
+            type: adjType,
             amount: newAmt,
             reason: `${note.trim()}${daysNote}`,
             remarks: "Added from Make Salary Corrections",
@@ -488,6 +583,7 @@ const HRSalaryPreviewManagement = () => {
       setCorrectionsTarget(null);
       setSelectedPreview(null);
       fetchData();
+      onPreviewSaved?.();
     } catch (error) {
       console.error("Error saving corrections:", error);
       toast.error(
@@ -532,7 +628,10 @@ const HRSalaryPreviewManagement = () => {
     }
 
     setMidMonthData({
-      monthName, totalDaysInMonth, isCurrentMonth,
+      monthName,
+      year: selectedYear,
+      totalDaysInMonth,
+      isCurrentMonth,
       todayDate: now.toLocaleDateString('en-GB'),
       todayDay,
       note: isCurrentMonth
@@ -700,6 +799,7 @@ const HRSalaryPreviewManagement = () => {
       <Row className="mb-4">
         <Col>
           <div className="d-flex justify-content-between align-items-center">
+            {!hidePageTitle && (
             <div>
               <h4>Salary Preview Management</h4>
               <p className="text-muted mb-0">
@@ -709,7 +809,10 @@ const HRSalaryPreviewManagement = () => {
                   : ""}
               </p>
             </div>
-            <div className="d-flex gap-2">
+            )}
+            <div className="d-flex gap-2 ms-auto">
+              {!hidePeriodControls && (
+              <>
               <Form.Select
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
@@ -724,6 +827,8 @@ const HRSalaryPreviewManagement = () => {
               >
                 {generateYearOptions()}
               </Form.Select>
+              </>
+              )}
               <Button
                 variant="outline-secondary"
                 size="sm"
@@ -740,11 +845,20 @@ const HRSalaryPreviewManagement = () => {
               
               {/* Generate Preview Options */}
               <Dropdown>
-                <Dropdown.Toggle variant="primary" id="generate-dropdown">
+                <Dropdown.Toggle
+                  variant={hubV2 ? "outline-primary" : "primary"}
+                  size="sm"
+                  id="generate-dropdown"
+                  title={
+                    hubV2
+                      ? "Bulk calendar-based preview — optional if you already used Build salary breakdown"
+                      : undefined
+                  }
+                >
                   <FaPlus className="me-2" />
-                  Generate Previews
+                  {hubV2 ? "Bulk generate (working days)" : "Generate Previews"}
                 </Dropdown.Toggle>
-                <Dropdown.Menu>
+                <PayrollDropdownMenu>
                   <Dropdown.Item onClick={handleBulkGenerate}>
                     <FaUsers className="me-2" />
                     All Employees (Bulk)
@@ -771,12 +885,117 @@ const HRSalaryPreviewManagement = () => {
                     <FaCheckSquare className="me-2" />
                     Selected Employees
                   </Dropdown.Item>
-                </Dropdown.Menu>
+                </PayrollDropdownMenu>
               </Dropdown>
             </div>
           </div>
         </Col>
       </Row>
+
+      {(!hubV2 || wizardStep === 3 || wizardStep == null) && (
+      <Card className="mb-4 border-0 shadow-sm bg-light">
+        <Card.Body className="py-3">
+          <Row className="align-items-center g-2">
+            <Col md={8}>
+              {!hubV2 && (
+              <SalaryPaymentDateCard
+                month={selectedMonth}
+                year={selectedYear}
+                onDateChange={setCreditPaymentDate}
+              />
+              )}
+              {hubV2 && wizardStep === 3 && (
+                <p className="small text-muted mb-0">
+                  Payment date is set in step 2. Credit below creates official
+                  payslips.
+                </p>
+              )}
+            </Col>
+            <Col md={4} className="text-md-end d-flex flex-wrap gap-2 justify-content-md-end">
+              <Button
+                variant="success"
+                disabled={!(creditPaymentDate || paymentDate)}
+                onClick={() => {
+                  setCreditSelection(new Set());
+                  setShowCreditModal(true);
+                }}
+              >
+                Credit salary &amp; generate slips
+              </Button>
+              {creditSelection.size > 0 && (
+                <Button
+                  variant="outline-success"
+                  onClick={() => setShowCreditModal(true)}
+                >
+                  Credit selected ({creditSelection.size})
+                </Button>
+              )}
+              {departments.length > 0 && (
+                <Dropdown align="end">
+                  <Dropdown.Toggle
+                    size="sm"
+                    variant="outline-secondary"
+                    disabled={!(creditPaymentDate || paymentDate)}
+                  >
+                    Credit department…
+                  </Dropdown.Toggle>
+                  <PayrollDropdownMenu>
+                    {departments.map((dept) => {
+                      const count = previews.filter(
+                        (p) =>
+                          String(p.employee?.department?._id) === String(dept._id)
+                      ).length;
+                      if (count === 0) return null;
+                      return (
+                        <Dropdown.Item
+                          key={dept._id}
+                          onClick={() => {
+                            const ids = new Set(
+                              previews
+                                .filter(
+                                  (p) =>
+                                    String(p.employee?.department?._id) ===
+                                    String(dept._id)
+                                )
+                                .map((p) => String(p.employee._id))
+                            );
+                            setCreditSelection(ids);
+                            setShowCreditModal(true);
+                          }}
+                        >
+                          {dept.name} ({count})
+                        </Dropdown.Item>
+                      );
+                    })}
+                  </PayrollDropdownMenu>
+                </Dropdown>
+              )}
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
+      )}
+
+      <CreditSalaryModal
+        show={showCreditModal}
+        onHide={() => setShowCreditModal(false)}
+        month={selectedMonth}
+        year={selectedYear}
+        paymentDate={creditPaymentDate || paymentDate}
+        periodLabel={`${selectedMonth}/${selectedYear}`}
+        rosterRows={
+          creditSelection.size > 0
+            ? rosterRows.filter((r) =>
+                creditSelection.has(String(r.employee?._id))
+              )
+            : rosterRows
+        }
+        onSuccess={() => {
+          fetchData();
+          setShowCreditModal(false);
+          setCreditSelection(new Set());
+        }}
+      />
 
       {/* Statistics Cards */}
       {statistics && (
@@ -825,12 +1044,33 @@ const HRSalaryPreviewManagement = () => {
                   <Spinner animation="border" />
                 </div>
               ) : (
-                <Table responsive hover>
+                <div className="payroll-preview-table-wrap">
+                <Table hover className="mb-0 payroll-preview-table">
                   <thead>
                     <tr>
+                      <th style={{ width: 40 }}>
+                        <Form.Check
+                          type="checkbox"
+                          title="Select all"
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setCreditSelection(
+                                new Set(
+                                  previews.map((p) =>
+                                    String(p.employee?._id || p.employee)
+                                  )
+                                )
+                              );
+                            } else {
+                              setCreditSelection(new Set());
+                            }
+                          }}
+                        />
+                      </th>
                       <th>Employee</th>
                       <th>Department</th>
                       <th>Status</th>
+                      <th>Payslip</th>
                       <th>Net Salary</th>
                       <th>Queries</th>
                       <th>Actions</th>
@@ -840,14 +1080,70 @@ const HRSalaryPreviewManagement = () => {
                     {previews.map((preview) => (
                       <tr key={preview._id}>
                         <td>
-                          <div>
+                          <Form.Check
+                            type="checkbox"
+                            checked={creditSelection.has(
+                              String(preview.employee?._id || preview.employee)
+                            )}
+                            onChange={(e) => {
+                              const id = String(
+                                preview.employee?._id || preview.employee
+                              );
+                              setCreditSelection((prev) => {
+                                const next = new Set(prev);
+                                if (e.target.checked) next.add(id);
+                                else next.delete(id);
+                                return next;
+                              });
+                            }}
+                          />
+                        </td>
+                        <td>
+                          <div
+                            role={hubV2 || onPreviewRowOpen ? "button" : undefined}
+                            tabIndex={hubV2 || onPreviewRowOpen ? 0 : undefined}
+                            style={
+                              hubV2 || onPreviewRowOpen
+                                ? { cursor: "pointer" }
+                                : undefined
+                            }
+                            onClick={() => {
+                              if (hubV2) {
+                                openPreviewDetails(preview);
+                              } else {
+                                onPreviewRowOpen?.(preview);
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (
+                                (hubV2 || onPreviewRowOpen) &&
+                                (e.key === "Enter" || e.key === " ")
+                              ) {
+                                e.preventDefault();
+                                if (hubV2) openPreviewDetails(preview);
+                                else onPreviewRowOpen?.(preview);
+                              }
+                            }}
+                          >
                             <strong>{preview.employee.name}</strong>
                             <br />
                             <small className="text-muted">{preview.employee.employeeId}</small>
+                            <small className="text-primary d-block">
+                              {hubV2 ? "View details" : "View breakdown"}
+                            </small>
                           </div>
                         </td>
                         <td>{preview.employee.department?.name || 'N/A'}</td>
                         <td>{getStatusBadge(preview.status)}</td>
+                        <td>
+                          {preview.hasSlip ? (
+                            <Badge bg="success">
+                              {preview.slipStatus || "credited"}
+                            </Badge>
+                          ) : (
+                            <Badge bg="secondary">None</Badge>
+                          )}
+                        </td>
                         <td>{formatCurrency(preview.salaryBreakdown.netSalary)}</td>
                         <td>
                           {countOpenEmployeeQueries(preview) > 0 ? (
@@ -866,11 +1162,23 @@ const HRSalaryPreviewManagement = () => {
                             <Dropdown.Toggle variant="outline-primary" size="sm">
                               Actions
                             </Dropdown.Toggle>
-                            <Dropdown.Menu style={{ zIndex: 2000 }}>
+                            <PayrollDropdownMenu>
                               <Dropdown.Item onClick={() => openPreviewDetails(preview)}>
                                 <FaEye className="me-2" />
                                 View Details
                               </Dropdown.Item>
+                              {onEditBreakdown && (
+                                <Dropdown.Item
+                                  onClick={() =>
+                                    onEditBreakdown(
+                                      preview.employee?._id || preview.employee
+                                    )
+                                  }
+                                >
+                                  <FaEdit className="me-2" />
+                                  Edit salary breakdown
+                                </Dropdown.Item>
+                              )}
                               {countPendingEmployeeQueries(preview) > 0 && (
                                 <Dropdown.Item 
                                   onClick={() => {
@@ -918,13 +1226,14 @@ const HRSalaryPreviewManagement = () => {
                                   Finalize
                                 </Dropdown.Item>
                               )}
-                            </Dropdown.Menu>
+                            </PayrollDropdownMenu>
                           </Dropdown>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </Table>
+                </div>
               )}
             </Card.Body>
           </Card>
@@ -1195,6 +1504,19 @@ const HRSalaryPreviewManagement = () => {
             }}>
               Make Corrections
             </Button>
+            {onEditBreakdown && selectedPreview?.employee?._id && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  const id = String(selectedPreview.employee._id);
+                  closePreviewDetails();
+                  onEditBreakdown(id);
+                }}
+              >
+                Full salary breakdown
+              </Button>
+            )}
           </Modal.Footer>
         </Modal>
       )}
@@ -1203,7 +1525,11 @@ const HRSalaryPreviewManagement = () => {
       <Modal show={showMidMonthModal} onHide={() => setShowMidMonthModal(false)} centered>
         <Modal.Header closeButton className={midMonthData?.isCurrentMonth ? 'bg-warning' : 'bg-primary text-white'}>
           <Modal.Title>
-            {midMonthData?.isCurrentMonth ? '⚠️ Mid-Month Preview' : '📋 Confirm Salary Preview Generation'}
+            {midMonthData?.isCurrentMonth
+              ? "Mid-month working days"
+              : hubV2
+              ? "Bulk generate — confirm working days"
+              : "Confirm salary preview generation"}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -1211,6 +1537,14 @@ const HRSalaryPreviewManagement = () => {
             <>
               <Alert variant={midMonthData.isCurrentMonth ? 'warning' : 'info'} className="small">
                 {midMonthData.note}
+                {hubV2 && (
+                  <p className="mb-0 mt-2">
+                    <strong>Simple payroll:</strong> prefer{" "}
+                    <em>Build salary breakdown</em> per employee (attendance, leave,
+                    adjustments). This dialog only sets calendar working days for
+                    bulk API generation.
+                  </p>
+                )}
               </Alert>
 
               <h6 className="mb-2">Month Summary</h6>
@@ -1292,10 +1626,11 @@ const HRSalaryPreviewManagement = () => {
           setCorrectionsTarget(null);
         }}
         size="xl"
+        dialogClassName="payroll-correction-modal"
       >
-        <Modal.Header closeButton>
-          <Modal.Title>
-            Make Salary Corrections —{" "}
+        <Modal.Header closeButton className="border-0 pb-0">
+          <Modal.Title className="h5">
+            Make salary corrections —{" "}
             {(correctionsTarget || selectedPreview)?.employee?.name}
           </Modal.Title>
         </Modal.Header>
@@ -1305,305 +1640,17 @@ const HRSalaryPreviewManagement = () => {
               <Spinner animation="border" />
             </div>
           ) : correctionsIsSimple ? (
-            <>
-              <Alert variant="info" className="small mb-3">
-                Correct pay here using the same Payroll rules: edit
-                Monthly Salary or TDS, and optionally add a new adjustment line
-                below. Existing adjustments are listed for reference.
-              </Alert>
-              <Row className="g-3">
-                <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Monthly Salary (₹)</Form.Label>
-                    <Form.Control
-                      type="number"
-                      min="0"
-                      value={simpleCorrections.monthlySalary}
-                      onChange={(e) =>
-                        setSimpleCorrections((s) => ({
-                          ...s,
-                          monthlySalary: Number(e.target.value),
-                        }))
-                      }
-                    />
-                  </Form.Group>
-                  <Form.Group className="mb-3">
-                    <Form.Label>TDS (₹)</Form.Label>
-                    <Form.Control
-                      type="number"
-                      min="0"
-                      value={simpleCorrections.tdsAmount}
-                      onChange={(e) =>
-                        setSimpleCorrections((s) => ({
-                          ...s,
-                          tdsAmount: Number(e.target.value),
-                        }))
-                      }
-                    />
-                  </Form.Group>
-
-                  <Card className="mb-3 border-primary">
-                    <Card.Header className="py-2 bg-primary text-white">
-                      <strong>Add correction (optional)</strong>
-                    </Card.Header>
-                    <Card.Body className="py-3">
-                      <Form.Group className="mb-2">
-                        <Form.Label className="small">Type</Form.Label>
-                        <Form.Select
-                          value={simpleCorrections.newCorrectionType}
-                          onChange={(e) =>
-                            setSimpleCorrections((s) => ({
-                              ...s,
-                              newCorrectionType: e.target.value,
-                            }))
-                          }
-                        >
-                          {ADJUSTMENT_TYPE_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </Form.Select>
-                      </Form.Group>
-
-                      <Form.Group className="mb-2">
-                        <Form.Label className="small d-block">
-                          Amount mode
-                        </Form.Label>
-                        <Form.Check
-                          inline
-                          type="radio"
-                          id="corr-amt-fixed"
-                          label="Fixed amount"
-                          name="corrAmountMode"
-                          checked={simpleCorrections.amountMode === "fixed"}
-                          onChange={() =>
-                            setSimpleCorrections((s) => ({
-                              ...s,
-                              amountMode: "fixed",
-                            }))
-                          }
-                        />
-                        <Form.Check
-                          inline
-                          type="radio"
-                          id="corr-amt-per-day"
-                          label="Per day (Monthly ÷ 30)"
-                          name="corrAmountMode"
-                          checked={simpleCorrections.amountMode === "per_day"}
-                          onChange={() =>
-                            setSimpleCorrections((s) => ({
-                              ...s,
-                              amountMode: "per_day",
-                              newCorrectionType:
-                                s.newCorrectionType === "manual_salary_addition" ||
-                                s.newCorrectionType === "bonus" ||
-                                s.newCorrectionType === "incentive"
-                                  ? "manual_salary_deduction"
-                                  : s.newCorrectionType,
-                            }))
-                          }
-                        />
-                      </Form.Group>
-
-                      {simpleCorrections.amountMode === "per_day" ? (
-                        <Form.Group className="mb-0">
-                          <Form.Label className="small">
-                            Days to deduct
-                          </Form.Label>
-                          <div className="d-flex gap-2 mb-2 flex-wrap">
-                            {[1, 2, 3].map((d) => (
-                              <Button
-                                key={d}
-                                size="sm"
-                                variant={
-                                  Number(simpleCorrections.days) === d
-                                    ? "primary"
-                                    : "outline-primary"
-                                }
-                                onClick={() =>
-                                  setSimpleCorrections((s) => ({
-                                    ...s,
-                                    days: d,
-                                  }))
-                                }
-                              >
-                                {d} day{d > 1 ? "s" : ""} (
-                                {formatCurrency(correctionPerDayRate() * d)})
-                              </Button>
-                            ))}
-                          </div>
-                          <Form.Control
-                            type="number"
-                            min="0"
-                            step="1"
-                            value={simpleCorrections.days}
-                            onChange={(e) =>
-                              setSimpleCorrections((s) => ({
-                                ...s,
-                                days: Number(e.target.value) || 0,
-                              }))
-                            }
-                          />
-                          <Form.Text muted>
-                            Per day = {formatCurrency(correctionPerDayRate())}{" "}
-                            (Monthly {formatCurrency(simpleCorrections.monthlySalary)}{" "}
-                            ÷ 30). Deduction amount:{" "}
-                            <strong>
-                              {formatCurrency(effectiveNewCorrectionAmount())}
-                            </strong>
-                          </Form.Text>
-                        </Form.Group>
-                      ) : (
-                        <Form.Group className="mb-0">
-                          <Form.Label className="small">Amount (₹)</Form.Label>
-                          <Form.Control
-                            type="number"
-                            min="0"
-                            placeholder="0 = no new adjustment"
-                            value={simpleCorrections.newCorrectionAmount || ""}
-                            onChange={(e) =>
-                              setSimpleCorrections((s) => ({
-                                ...s,
-                                newCorrectionAmount: Number(e.target.value) || 0,
-                              }))
-                            }
-                          />
-                          <Form.Text muted>
-                            Leave 0 if you only need to change Monthly Salary or
-                            TDS. Amount is saved as an approved Payroll
-                            adjustment when you click Save.
-                          </Form.Text>
-                        </Form.Group>
-                      )}
-                    </Card.Body>
-                  </Card>
-
-                  <div className="small text-muted mb-1">
-                    Existing adjustments (from Payroll)
-                  </div>
-                  <div className="fw-semibold mb-2">
-                    {simpleCorrections.removeAllAdjustments ? (
-                      <span className="text-decoration-line-through text-muted">
-                        {formatCurrency(simpleCorrections.adjustmentsTotal)}
-                      </span>
-                    ) : (
-                      formatCurrency(simpleCorrections.adjustmentsTotal)
-                    )}
-                    {simpleCorrections.removeAllAdjustments && (
-                      <span className="text-danger ms-2">→ ₹0 (will remove all)</span>
-                    )}
-                    {!simpleCorrections.removeAllAdjustments &&
-                      signedNewCorrectionAmount() !== 0 && (
-                        <span className="text-primary ms-2">
-                          → with new correction:{" "}
-                          {formatCurrency(
-                            effectiveAdjustmentsTotal() +
-                              signedNewCorrectionAmount()
-                          )}
-                        </span>
-                      )}
-                  </div>
-                  {(simpleCorrections.adjustmentLines || []).length > 0 && (
-                    <>
-                      <Table
-                        size="sm"
-                        bordered
-                        className={`mb-2${
-                          simpleCorrections.removeAllAdjustments
-                            ? " opacity-50"
-                            : ""
-                        }`}
-                      >
-                        <thead>
-                          <tr>
-                            <th>Type</th>
-                            <th className="text-end">Amount</th>
-                            <th>Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {simpleCorrections.adjustmentLines.map(
-                            (line, idx) => (
-                              <tr key={line.id || idx}>
-                                <td>{line.type}</td>
-                                <td className="text-end">
-                                  {line.signedAmount >= 0 ? "+" : ""}
-                                  {formatCurrency(line.signedAmount)}
-                                </td>
-                                <td>{line.status}</td>
-                              </tr>
-                            )
-                          )}
-                        </tbody>
-                      </Table>
-                      <Form.Check
-                        type="checkbox"
-                        id="remove-all-adjustments"
-                        className="mb-3"
-                        checked={Boolean(
-                          simpleCorrections.removeAllAdjustments
-                        )}
-                        onChange={(e) =>
-                          setSimpleCorrections((s) => ({
-                            ...s,
-                            removeAllAdjustments: e.target.checked,
-                          }))
-                        }
-                        label="Remove all existing adjustments"
-                      />
-                      {simpleCorrections.removeAllAdjustments && (
-                        <Alert variant="warning" className="small py-2">
-                          On Save, every non-void adjustment for this employee
-                          and month will be voided. Net will recalculate without
-                          them.
-                        </Alert>
-                      )}
-                    </>
-                  )}
-                </Col>
-                <Col md={6}>
-                  <Alert variant="success" className="text-center">
-                    <div className="small text-muted mb-1">
-                      Net Salary (after corrections)
-                    </div>
-                    <h4 className="mb-0">
-                      {formatCurrency(
-                        Number(simpleCorrections.monthlySalary || 0) +
-                          effectiveAdjustmentsTotal() +
-                          signedNewCorrectionAmount() -
-                          Number(simpleCorrections.tdsAmount || 0)
-                      )}
-                    </h4>
-                    <div className="small text-muted mt-2">
-                      {formatCurrency(simpleCorrections.monthlySalary)} ±{" "}
-                      {formatCurrency(
-                        effectiveAdjustmentsTotal() +
-                          signedNewCorrectionAmount()
-                      )}{" "}
-                      − {formatCurrency(simpleCorrections.tdsAmount)}
-                    </div>
-                  </Alert>
-                </Col>
-              </Row>
-              <Form.Group className="mt-3">
-                <Form.Label>
-                  Correction Note <span className="text-danger">*</span>
-                </Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={2}
-                  value={simpleCorrections.note}
-                  onChange={(e) =>
-                    setSimpleCorrections((s) => ({
-                      ...s,
-                      note: e.target.value,
-                    }))
-                  }
-                  placeholder="Explain why this correction is needed..."
-                />
-              </Form.Group>
-            </>
+            <SimpleSalaryCorrectionsForm
+              value={simpleCorrections}
+              onPatch={patchSimpleCorrections}
+              attendance={correctionAttendance}
+              formatCurrency={formatCurrency}
+              perDayRate={correctionPerDayRate}
+              effectiveNewAmount={effectiveNewCorrectionAmount}
+              signedNewAmount={signedNewCorrectionAmount}
+              effectiveAdjustmentsTotal={effectiveAdjustmentsTotal}
+              previewNet={previewNetAfterCorrections}
+            />
           ) : (
             <>
           <Alert variant="info" className="small mb-3">

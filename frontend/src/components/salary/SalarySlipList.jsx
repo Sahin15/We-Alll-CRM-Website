@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Row,
   Col,
@@ -10,7 +10,9 @@ import {
   Alert,
   Modal,
   Dropdown,
+  Nav,
 } from "react-bootstrap";
+import { PayrollPageHeader, PayrollDropdownMenu } from "../payroll-ui";
 import {
   FaEye,
   FaDownload,
@@ -26,11 +28,19 @@ import { payrollPeriodApi } from "../../api/payrollPeriodApi";
 import { getCompanyYearOptions } from "../../constants/branding";
 import { formatSlipPaymentDateDisplay } from "../../utils/slipPaymentDateDisplay.js";
 import { usePayrollPeriodWithFallback } from "../../context/PayrollPeriodContext.jsx";
+import SalaryPaymentDateCard from "./SalaryPaymentDateCard";
+import CreditSalaryModal from "./CreditSalaryModal";
+import { useSalaryCreditRoster } from "../../hooks/useSalaryCreditRoster";
+import { creditSalaryApi } from "../../api/payrollSimpleApi";
 
 /** One page per filter — typical payroll month fits well under this cap. */
 const SALARY_SLIPS_LIST_LIMIT = 500;
 
-const SalarySlipList = () => {
+/**
+ * @param {{ hubV2?: boolean, onHealthRefresh?: () => void }} props
+ */
+const SalarySlipList = ({ hubV2 = false, onHealthRefresh }) => {
+  const [viewTab, setViewTab] = useState("issued");
   const [slips, setSlips] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -63,6 +73,25 @@ const SalarySlipList = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
   const [gate, setGate] = useState(null);
+  const [showCreditModal, setShowCreditModal] = useState(false);
+  const [slipPaymentDate, setSlipPaymentDate] = useState(null);
+  const [missingSlipSelection, setMissingSlipSelection] = useState(
+    () => new Set()
+  );
+  const { paymentDate, rosterRows, refresh: refreshRoster } =
+    useSalaryCreditRoster(filters.month, filters.year);
+
+  const missingSlipRows = useMemo(
+    () =>
+      (rosterRows || []).filter(
+        (row) => row.hasStructure && row.employee?._id && !row.hasSlip
+      ),
+    [rosterRows]
+  );
+
+  useEffect(() => {
+    setMissingSlipSelection(new Set());
+  }, [filters.month, filters.year, rosterRows]);
 
   useEffect(() => {
     fetchSalarySlips();
@@ -91,6 +120,64 @@ const SalarySlipList = () => {
   }, [filters.month, filters.year]);
 
   const markPaidBlocked = Boolean(gate?.enabled && !gate?.allowed?.markPaid);
+
+  const effectivePaymentDate = slipPaymentDate || paymentDate;
+
+  const toggleMissingSlip = (employeeId, checked) => {
+    const id = String(employeeId);
+    setMissingSlipSelection((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const toggleAllMissingSlips = (checked) => {
+    if (!checked) {
+      setMissingSlipSelection(new Set());
+      return;
+    }
+    setMissingSlipSelection(
+      new Set(missingSlipRows.map((r) => String(r.employee._id)))
+    );
+  };
+
+  const handleCreateSinglePayslip = async (employeeId) => {
+    if (!effectivePaymentDate) {
+      toast.error("Set salary payment date first");
+      return;
+    }
+    try {
+      setActionLoading(`credit-${employeeId}`);
+      const res = await creditSalaryApi.credit({
+        month: filters.month,
+        year: filters.year,
+        employeeIds: [employeeId],
+        paymentDate:
+          typeof effectivePaymentDate === "string"
+            ? effectivePaymentDate
+            : new Date(effectivePaymentDate).toISOString(),
+      });
+      const summary = res.data?.data?.summary;
+      const ok = summary?.success ?? 0;
+      toast.success(
+        ok > 0 ? "Payslip created" : res.data?.message || "Credit completed"
+      );
+      await fetchSalarySlips();
+      refreshRoster();
+      onHealthRefresh?.();
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error.response?.data?.message ||
+          error.response?.data?.error ||
+          "Failed to create payslip"
+      );
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const fetchSalarySlips = async () => {
     try {
@@ -198,9 +285,54 @@ const SalarySlipList = () => {
 
   const years = getCompanyYearOptions();
 
+  const displaySlips = useMemo(() => {
+    if (viewTab === "unpaid") {
+      return slips.filter((s) => s.status !== "paid");
+    }
+    return slips;
+  }, [slips, viewTab]);
+
   return (
     <>
+      {hubV2 && (
+        <>
+          <PayrollPageHeader
+            title="Payslips"
+            description="Official slips for the selected pay period. Create missing slips or mark paid after bank transfer."
+          />
+          <Nav variant="tabs" className="mb-3">
+            <Nav.Item>
+              <Nav.Link
+                active={viewTab === "issued"}
+                onClick={() => setViewTab("issued")}
+                style={{ cursor: "pointer" }}
+              >
+                Issued
+              </Nav.Link>
+            </Nav.Item>
+            <Nav.Item>
+              <Nav.Link
+                active={viewTab === "missing"}
+                onClick={() => setViewTab("missing")}
+                style={{ cursor: "pointer" }}
+              >
+                Missing ({missingSlipRows.length})
+              </Nav.Link>
+            </Nav.Item>
+            <Nav.Item>
+              <Nav.Link
+                active={viewTab === "unpaid"}
+                onClick={() => setViewTab("unpaid")}
+                style={{ cursor: "pointer" }}
+              >
+                Unpaid
+              </Nav.Link>
+            </Nav.Item>
+          </Nav>
+        </>
+      )}
       {/* Filters */}
+      {!hubV2 && (
       <Row className="mb-3">
         <Col md={2}>
           <Form.Select
@@ -256,21 +388,168 @@ const SalarySlipList = () => {
           </Button>
         </Col>
       </Row>
+      )}
 
+      {(!hubV2 || viewTab === "missing" || viewTab === "issued") && (
+      <Row className="mb-3 align-items-center">
+        <Col md={8}>
+          <SalaryPaymentDateCard
+            compact
+            month={filters.month}
+            year={filters.year}
+            onDateChange={setSlipPaymentDate}
+          />
+        </Col>
+        <Col md={4} className="text-md-end d-flex flex-wrap gap-2 justify-content-md-end">
+          <Button
+            variant="success"
+            size="sm"
+            disabled={!effectivePaymentDate}
+            onClick={() => setShowCreditModal(true)}
+          >
+            Credit salary / create slips
+          </Button>
+          {missingSlipSelection.size > 0 && (
+            <Button
+              variant="outline-success"
+              size="sm"
+              disabled={!effectivePaymentDate}
+              onClick={() => setShowCreditModal(true)}
+            >
+              Credit selected ({missingSlipSelection.size})
+            </Button>
+          )}
+        </Col>
+      </Row>
+      )}
+
+      <CreditSalaryModal
+        show={showCreditModal}
+        onHide={() => setShowCreditModal(false)}
+        month={filters.month}
+        year={filters.year}
+        paymentDate={effectivePaymentDate}
+        periodLabel={`${filters.month}/${filters.year}`}
+        requirePreviewOnly={false}
+        rosterRows={
+          missingSlipSelection.size > 0
+            ? rosterRows.filter((r) =>
+                missingSlipSelection.has(String(r.employee?._id))
+              )
+            : rosterRows
+        }
+        onSuccess={() => {
+          fetchSalarySlips();
+          refreshRoster();
+          setShowCreditModal(false);
+          setMissingSlipSelection(new Set());
+          onHealthRefresh?.();
+        }}
+      />
+
+      {filters.month &&
+        filters.year &&
+        missingSlipRows.length > 0 &&
+        (!hubV2 || viewTab === "missing") && (
+        <div className="mb-4">
+          <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
+            <h6 className="mb-0">Employees without payslip this period</h6>
+            <Badge bg="secondary">{missingSlipRows.length}</Badge>
+          </div>
+          <Table responsive size="sm" bordered className="bg-white">
+            <thead>
+              <tr>
+                <th style={{ width: 40 }}>
+                  <Form.Check
+                    type="checkbox"
+                    aria-label="Select all without payslip"
+                    checked={
+                      missingSlipRows.length > 0 &&
+                      missingSlipSelection.size === missingSlipRows.length
+                    }
+                    onChange={(e) => toggleAllMissingSlips(e.target.checked)}
+                  />
+                </th>
+                <th>Employee</th>
+                <th>Net (est.)</th>
+                <th>Preview</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {missingSlipRows.map((row) => {
+                const eid = String(row.employee._id);
+                return (
+                  <tr key={eid}>
+                    <td>
+                      <Form.Check
+                        type="checkbox"
+                        checked={missingSlipSelection.has(eid)}
+                        onChange={(ev) =>
+                          toggleMissingSlip(eid, ev.target.checked)
+                        }
+                      />
+                    </td>
+                    <td>
+                      <strong>{row.employee.name}</strong>
+                      <br />
+                      <small className="text-muted">
+                        {row.employee.employeeId}
+                      </small>
+                    </td>
+                    <td>{formatCurrency(row.netSalary || 0)}</td>
+                    <td>
+                      {row.hasPreview ? (
+                        <Badge bg="info">Preview</Badge>
+                      ) : (
+                        <Badge bg="warning" text="dark">
+                          No preview
+                        </Badge>
+                      )}
+                    </td>
+                    <td>
+                      <Button
+                        size="sm"
+                        variant="outline-success"
+                        disabled={
+                          !effectivePaymentDate ||
+                          actionLoading === `credit-${eid}`
+                        }
+                        onClick={() => handleCreateSinglePayslip(eid)}
+                      >
+                        {actionLoading === `credit-${eid}` ? (
+                          <Spinner size="sm" animation="border" />
+                        ) : (
+                          "Create payslip"
+                        )}
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table>
+        </div>
+      )}
+
+      {(!hubV2 || viewTab !== "missing") && (
+        <>
       {markPaidBlocked && (
         <Alert variant="warning" className="py-2">
           Period gates are on
           {gate?.status ? ` (status: ${gate.status})` : " (period not opened)"}
-          . Mark as paid requires a <strong>locked</strong> pay period.
+          . Mark as paid requires a <strong>locked</strong> pay period (
+          <strong>Finance desk</strong> or Legacy → Pay periods).
         </Alert>
       )}
 
       <div className="mb-3">
         <small className="text-muted">
-          {totalSlips > 0
-            ? `Showing ${slips.length} salary slip${slips.length === 1 ? "" : "s"}`
+          {displaySlips.length > 0
+            ? `Showing ${displaySlips.length} salary slip${displaySlips.length === 1 ? "" : "s"}`
             : "No salary slips"}
-          {totalSlips > slips.length
+          {viewTab === "unpaid" && hubV2 ? " (not marked paid)" : ""}
+          {!hubV2 && totalSlips > displaySlips.length
             ? ` (${totalSlips} total — narrow month/year or use Search)`
             : ""}
         </small>
@@ -282,10 +561,11 @@ const SalarySlipList = () => {
           <Spinner animation="border" />
           <div className="mt-2">Loading salary slips...</div>
         </div>
-      ) : slips.length === 0 ? (
+      ) : displaySlips.length === 0 ? (
         <Alert variant="info">No salary slips found for the selected criteria.</Alert>
       ) : (
-        <Table responsive striped hover>
+        <div className="payroll-preview-table-wrap payroll-payslip-table-wrap">
+        <Table striped hover className="mb-0">
           <thead>
             <tr>
               <th>Employee</th>
@@ -298,7 +578,7 @@ const SalarySlipList = () => {
             </tr>
           </thead>
           <tbody>
-            {slips.map((slip) => (
+            {displaySlips.map((slip) => (
               <tr key={slip._id}>
                 <td>
                   <div>
@@ -323,7 +603,7 @@ const SalarySlipList = () => {
                     <Dropdown.Toggle variant="outline-secondary" size="sm">
                       Actions
                     </Dropdown.Toggle>
-                    <Dropdown.Menu style={{ zIndex: 2000 }}>
+                    <PayrollDropdownMenu>
                       <Dropdown.Item onClick={() => handleViewDetails(slip)}>
                         <FaEye className="me-1" />
                         View Details
@@ -351,13 +631,16 @@ const SalarySlipList = () => {
                           {markPaidBlocked ? " (period not locked)" : ""}
                         </Dropdown.Item>
                       )}
-                    </Dropdown.Menu>
+                    </PayrollDropdownMenu>
                   </Dropdown>
                 </td>
               </tr>
             ))}
           </tbody>
         </Table>
+        </div>
+      )}
+        </>
       )}
 
       {/* Detail Modal */}

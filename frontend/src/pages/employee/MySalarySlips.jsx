@@ -22,6 +22,8 @@ import { salarySlipApi } from "../../api/salaryApi";
 import { useAuth } from "../../context/AuthContext";
 import { getCompanyYearOptions } from "../../constants/branding";
 import { formatSlipPaymentDateDisplay } from "../../utils/slipPaymentDateDisplay.js";
+import { PayrollEmployeeStatusStepper } from "../../components/payroll-ui";
+import "../../components/payroll-ui/payroll-ui.css";
 
 const MySalarySlips = () => {
   const [slips, setSlips] = useState([]);
@@ -128,6 +130,20 @@ const MySalarySlips = () => {
             My Salary Slips
           </h2>
           <p className="text-muted">View and download your salary slips</p>
+        </Col>
+      </Row>
+
+      <Row className="mb-3">
+        <Col>
+          <PayrollEmployeeStatusStepper
+            phase={
+              slips.length === 0
+                ? "draft"
+                : slips.some((s) => s.status === "paid")
+                ? "paid"
+                : "issued"
+            }
+          />
         </Col>
       </Row>
 

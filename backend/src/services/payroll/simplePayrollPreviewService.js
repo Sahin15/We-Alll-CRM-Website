@@ -74,17 +74,29 @@ export function buildSimplePreviewDto({
     tdsAmount: tds,
   });
 
-  const adjustmentLines = (adjustments || []).map((a) => ({
+  const adjustmentLines = (adjustments || []).map((a) => {
+    let leaveDays = a.leaveDays != null ? Number(a.leaveDays) : null;
+    if (
+      a.type === "leave_balance_deduction" &&
+      !(leaveDays > 0) &&
+      a.payrollMeta?.daysDeducted != null
+    ) {
+      leaveDays = Number(a.payrollMeta.daysDeducted);
+    }
+    return {
     id: a._id?.toString?.() || a.id || null,
     type: a.type,
     amount: Math.abs(Number(a.amount) || 0),
-    leaveDays: a.leaveDays != null ? Number(a.leaveDays) : null,
+    leaveDays,
+    payrollMeta:
+      a.payrollMeta && typeof a.payrollMeta === "object" ? a.payrollMeta : null,
     signedAmount: signedAdjustmentAmount(a),
     status: a.status || "draft",
     reason: a.reason || "",
     remarks: a.remarks || "",
     includedInNet: a.status === "approved",
-  }));
+  };
+  });
 
   return {
     applicable: true,
@@ -613,6 +625,46 @@ export async function batchAttachLiveSimpleNets(previews, month, year) {
         ...base.salaryBreakdown,
         netSalary: dto.totals.netSalary,
       },
+    };
+  });
+}
+
+/**
+ * Attach hasSlip / slipId / slipStatus for HR preview dashboard (one query).
+ *
+ * @param {Array} previews
+ * @param {number} month
+ * @param {number} year
+ */
+export async function attachSlipFlagsToPreviews(previews, month, year) {
+  if (!previews?.length) return [];
+  const monthNum = parseInt(month, 10);
+  const yearNum = parseInt(year, 10);
+  const employeeIds = previews
+    .map((p) => p.employee?._id || p.employee)
+    .filter(Boolean);
+
+  const slips = await SalarySlip.find({
+    month: monthNum,
+    year: yearNum,
+    employee: { $in: employeeIds },
+  })
+    .select("employee status _id")
+    .lean();
+
+  const slipByEmp = new Map();
+  slips.forEach((s) => slipByEmp.set(String(s.employee), s));
+
+  return previews.map((preview) => {
+    const base =
+      typeof preview.toObject === "function" ? preview.toObject() : { ...preview };
+    const empId = String(preview.employee?._id || preview.employee);
+    const slip = slipByEmp.get(empId);
+    return {
+      ...base,
+      hasSlip: Boolean(slip),
+      slipId: slip?._id || null,
+      slipStatus: slip?.status || null,
     };
   });
 }

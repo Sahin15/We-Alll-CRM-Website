@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Row,
   Col,
@@ -48,6 +48,29 @@ const getPrevMonth = () => {
   };
 };
 
+/** Calendar month immediately before the selected period. */
+const getPreviousPeriod = (month, year) => {
+  const m = Number(month);
+  const y = Number(year);
+  if (m <= 1) return { month: 12, year: y - 1 };
+  return { month: m - 1, year: y };
+};
+
+const MONTH_SHORT = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
 /**
  * Normalize department API body to an array (array, or { data } / { departments }).
  * @param {unknown} body
@@ -65,6 +88,7 @@ const PayrollSummary = () => {
   const { month: periodMonth, year: periodYear, setMonth, setYear } =
     usePayrollPeriodWithFallback(prev);
   const [summary, setSummary] = useState(null);
+  const [previousNetPayout, setPreviousNetPayout] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     month: periodMonth,
@@ -75,22 +99,40 @@ const PayrollSummary = () => {
     setFilters({ month: periodMonth, year: periodYear });
   }, [periodMonth, periodYear]);
 
+  const previousPeriod = useMemo(
+    () => getPreviousPeriod(filters.month, filters.year),
+    [filters.month, filters.year]
+  );
+
+  const previousPeriodLabel = `${MONTH_SHORT[previousPeriod.month - 1]} ${
+    previousPeriod.year
+  }`;
+
   const fetchPayrollSummary = useCallback(async () => {
     try {
       setLoading(true);
-      const [payrollRes, departments] = await Promise.all([
+      const prev = getPreviousPeriod(filters.month, filters.year);
+      const [payrollRes, prevPayrollRes, departments] = await Promise.all([
         salarySlipApi.getPayrollSummary(filters),
+        salarySlipApi.getPayrollSummary({ month: prev.month, year: prev.year }),
         departmentApi.getAllDepartments().catch(() => []),
       ]);
 
       // salarySlipApi returns Axios response; departmentApi returns body
       const payload = payrollRes?.data ?? payrollRes;
+      const prevPayload = prevPayrollRes?.data ?? prevPayrollRes;
       const deptList = normalizeDepartmentList(departments);
       setSummary(mergeDepartmentsIntoSummary(payload, deptList));
+      setPreviousNetPayout(
+        prevPayload?.totalNetSalary != null
+          ? Number(prevPayload.totalNetSalary)
+          : 0
+      );
     } catch (error) {
       console.error("Error fetching payroll summary:", error);
       toast.error("Failed to load payroll summary");
       setSummary(null);
+      setPreviousNetPayout(null);
     } finally {
       setLoading(false);
     }
@@ -242,8 +284,16 @@ const PayrollSummary = () => {
               >
                 <FaFileInvoiceDollar className="text-warning" size={30} />
               </div>
-              <h3 className="mb-1 text-success">{formatCurrency(summary?.totalNetSalary || 0)}</h3>
+              <h3 className="mb-1 text-success">
+                {formatCurrency(summary?.totalNetSalary || 0)}
+              </h3>
               <p className="text-muted mb-0">Total Net Payout</p>
+              <p className="small text-muted mb-0 mt-2">
+                {previousPeriodLabel}:{" "}
+                <strong className="text-body">
+                  {formatCurrency(previousNetPayout ?? 0)}
+                </strong>
+              </p>
             </Card.Body>
           </Card>
         </Col>

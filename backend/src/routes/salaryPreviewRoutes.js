@@ -545,9 +545,10 @@ router.get(
     try {
       const month = parseInt(req.params.month, 10);
       const year = parseInt(req.params.year, 10);
-      const { batchAttachLiveSimpleNets } = await import(
-        "../services/payroll/simplePayrollPreviewService.js"
-      );
+      const {
+        batchAttachLiveSimpleNets,
+        attachSlipFlagsToPreviews,
+      } = await import("../services/payroll/simplePayrollPreviewService.js");
 
       const runReconcile =
         req.query.reconcile === "1" || req.query.reconcile === "true";
@@ -561,11 +562,16 @@ router.get(
 
       const liveNet =
         req.query.liveNet !== "0" && req.query.liveNet !== "false";
-      const previewPayload = liveNet
+      let previewPayload = liveNet
         ? await batchAttachLiveSimpleNets(previews, month, year)
         : previews.map((p) =>
             typeof p.toObject === "function" ? p.toObject() : p
           );
+      previewPayload = await attachSlipFlagsToPreviews(
+        previewPayload,
+        month,
+        year
+      );
 
       res.status(200).json({
         previews: previewPayload,

@@ -24,6 +24,12 @@ export const Settings = lp(() => import("../pages/employee/Settings"));
 
 // HR
 export const SalaryManagement = lp(() => import("../pages/hr/SalaryManagement"));
+export const EmployeeCompensationDetail = lp(() =>
+  import("../pages/hr/EmployeeCompensationDetail")
+);
+export const PayrollLegacyPage = lp(() =>
+  import("../pages/hr/PayrollLegacyPage")
+);
 export const HRSalaryPreviewManagement = lp(() => import("../components/salary/HRSalaryPreviewManagement"));
 export const TemplateManagement = lp(() => import("../components/salary/TemplateManagement"));
 export const HRSettings = lp(() => import("../pages/hr/HRSettings"));
