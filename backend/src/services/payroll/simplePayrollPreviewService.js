@@ -544,4 +544,77 @@ export async function getSimplePayrollRoster({ month, year }) {
   return { month: monthNum, year: yearNum, rows, summary };
 }
 
+/**
+ * Batch-compute live simple nets for HR preview list (no DB writes).
+ *
+ * @param {Array} previews - SalaryPreview docs or plain objects
+ * @param {number} month
+ * @param {number} year
+ * @returns {Promise<Array<object>>}
+ */
+export async function batchAttachLiveSimpleNets(previews, month, year) {
+  if (!previews?.length) return [];
+
+  const monthNum = parseInt(month, 10);
+  const yearNum = parseInt(year, 10);
+  const employeeIds = previews
+    .map((p) => p.employee?._id || p.employee)
+    .filter(Boolean);
+
+  if (!employeeIds.length) {
+    return previews.map((p) =>
+      typeof p.toObject === "function" ? p.toObject() : { ...p }
+    );
+  }
+
+  const [structures, adjustments] = await Promise.all([
+    SalaryStructure.find({
+      employee: { $in: employeeIds },
+      status: "active",
+    }).lean(),
+    PayrollAdjustment.find({
+      employee: { $in: employeeIds },
+      month: monthNum,
+      year: yearNum,
+      status: { $in: ["draft", "approved"] },
+    }).lean(),
+  ]);
+
+  const structureByEmployee = new Map();
+  structures.forEach((s) => structureByEmployee.set(String(s.employee), s));
+
+  const adjByEmployee = new Map();
+  adjustments.forEach((a) => {
+    const key = String(a.employee);
+    if (!adjByEmployee.has(key)) adjByEmployee.set(key, []);
+    adjByEmployee.get(key).push(a);
+  });
+
+  return previews.map((preview) => {
+    const base =
+      typeof preview.toObject === "function" ? preview.toObject() : { ...preview };
+    const empId = String(preview.employee?._id || preview.employee);
+    const structure = structureByEmployee.get(empId);
+    if (!structure) return base;
+
+    const dto = buildSimplePreviewDto({
+      structure,
+      adjustments: adjByEmployee.get(empId) || [],
+      automaticDeductions: 0,
+    });
+
+    if (!dto.applicable || dto.totals?.rejected) return base;
+
+    return {
+      ...base,
+      payrollMode: base.payrollMode || "simple",
+      liveNetSalary: dto.totals.netSalary,
+      salaryBreakdown: {
+        ...base.salaryBreakdown,
+        netSalary: dto.totals.netSalary,
+      },
+    };
+  });
+}
+
 export { amountForDays };

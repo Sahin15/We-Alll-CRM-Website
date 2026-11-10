@@ -14,6 +14,10 @@ export const payrollPeriodApi = {
   unlock: (id, data) => api.post(`/payroll/periods/${id}/unlock`, data),
   markPaid: (id) => api.post(`/payroll/periods/${id}/mark-paid`),
   gatesStatus: (params) => api.get("/payroll/periods/gates-status", { params }),
+  getPaymentDate: (year, month) =>
+    api.get(`/payroll/periods/${year}/${month}/payment-date`),
+  setPaymentDate: (year, month, data) =>
+    api.put(`/payroll/periods/${year}/${month}/payment-date`, data),
 };
 
 export default payrollPeriodApi;

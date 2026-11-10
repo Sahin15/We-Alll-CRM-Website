@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import pkg from "number-to-words";
 import { getCompanySettings } from "../config/companySettings.js";
+import { formatSlipPaymentDateDisplay } from "../services/payroll/slipPaymentDate.js";
 const { toWords } = pkg;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -130,7 +131,10 @@ export const generateSalarySlipPDF = async (salarySlip, outputPath) => {
         { label: "Designation", value: salarySlip.employee.designation || "N/A" },
         { label: "Department", value: salarySlip.employee.department?.name || salarySlip.employee.department || "N/A" },
         { label: "Pay Period", value: salarySlip.payPeriod },
-        { label: "Payment Date", value: new Date(salarySlip.paymentDate).toLocaleDateString("en-GB") },
+        {
+          label: "Payment Date",
+          value: formatSlipPaymentDateDisplay(salarySlip.paymentDate, "en-GB"),
+        },
         { label: "Bank Account", value: bankDisplay }
       ];
 

@@ -15,7 +15,6 @@ import {
 import { toast } from "react-toastify";
 import { FaEye, FaQuestionCircle, FaCheckCircle, FaClock, FaExclamationTriangle } from "react-icons/fa";
 import { salaryPreviewApi } from "../../api/salaryApi";
-import { payrollSimplePreviewApi } from "../../api/payrollSimpleApi";
 import SimplePayrollPreviewPanels from "./SimplePayrollPreviewPanels";
 import {
   isSimpleSalaryPreview,
@@ -26,6 +25,7 @@ const SalaryPreview = ({ month, year, onPreviewUpdate }) => {
   const [preview, setPreview] = useState(null);
   const [simpleViewDto, setSimpleViewDto] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [includeAttendanceDetails, setIncludeAttendanceDetails] = useState(false);
   const [showQueryModal, setShowQueryModal] = useState(false);
   const [queryText, setQueryText] = useState("");
   const [submittingQuery, setSubmittingQuery] = useState(false);
@@ -35,46 +35,43 @@ const SalaryPreview = ({ month, year, onPreviewUpdate }) => {
     if (month && year) {
       fetchPreview();
     }
-  }, [month, year]);
+  }, [month, year, includeAttendanceDetails]);
 
   const fetchPreview = async () => {
     try {
       setLoading(true);
       setSimpleViewDto(null);
-      const response = await salaryPreviewApi.getMyPreview(month, year);
+      const response = await salaryPreviewApi.getMyPreview(month, year, {
+        includeLeaveImpact: includeAttendanceDetails ? "true" : "0",
+      });
       const stored = response.data;
       if (stored?.notFound) {
         setPreview(null);
         setSimpleViewDto(null);
         return;
       }
+      if (
+        Number(stored.month) !== Number(month) ||
+        Number(stored.year) !== Number(year)
+      ) {
+        setPreview(null);
+        setSimpleViewDto(null);
+        return;
+      }
       setPreview(stored);
 
-      // Prefer live simple DTO from my-preview (or simple-preview API)
       if (stored?.simplePreview?.applicable) {
-        setSimpleViewDto(stored.simplePreview);
+        setSimpleViewDto({
+          ...stored.simplePreview,
+          month: stored.simplePreview.month ?? month,
+          year: stored.simplePreview.year ?? year,
+        });
         return;
       }
 
       const preferSimple = isSimpleSalaryPreview(stored);
-      try {
-        const employeeId = stored.employee?._id || stored.employee;
-        const res = await payrollSimplePreviewApi.get({
-          employee: employeeId,
-          month,
-          year,
-          automaticDeductions: 0,
-        });
-        const dto = res.data?.data ?? res.data;
-        if (dto?.applicable) {
-          setSimpleViewDto(dto);
-        } else if (preferSimple) {
-          setSimpleViewDto(mapStoredPreviewToSimpleDto(stored));
-        }
-      } catch {
-        if (preferSimple) {
-          setSimpleViewDto(mapStoredPreviewToSimpleDto(stored));
-        }
+      if (preferSimple) {
+        setSimpleViewDto(mapStoredPreviewToSimpleDto(stored));
       }
     } catch (error) {
       if (error.response?.status === 404) {
@@ -154,9 +151,8 @@ const SalaryPreview = ({ month, year, onPreviewUpdate }) => {
     );
   };
 
-  const isReviewExpired = preview && new Date() > new Date(preview.reviewDeadline);
-  const canRaiseQuery = preview && !isReviewExpired && preview.status !== 'finalized';
-  const canAcknowledge = preview && !preview.acknowledgedBy && !isReviewExpired;
+  const canRaiseQuery = preview && preview.status !== "finalized";
+  const canAcknowledge = preview && !preview.acknowledgedBy;
 
   if (loading) {
     return (
@@ -190,7 +186,11 @@ const SalaryPreview = ({ month, year, onPreviewUpdate }) => {
           <Row className="align-items-center">
             <Col>
               <h5 className="mb-0">
-                Salary Preview - {new Date(preview.year, preview.month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}
+                Salary Preview —{" "}
+                {new Date(year, month - 1).toLocaleString("default", {
+                  month: "long",
+                  year: "numeric",
+                })}
               </h5>
             </Col>
             <Col xs="auto">
@@ -200,25 +200,32 @@ const SalaryPreview = ({ month, year, onPreviewUpdate }) => {
         </Card.Header>
 
         <Card.Body>
-          {/* Review Deadline Alert */}
-          {!isReviewExpired && preview.status !== 'finalized' && (
+          {preview.status !== "finalized" && (
             <Alert variant="info" className="mb-4">
               <FaClock className="me-2" />
-              <strong>Review Deadline:</strong> {new Date(preview.reviewDeadline).toLocaleDateString()}
-              {canRaiseQuery && (
-                <span className="ms-2">
-                  - You can raise queries or concerns until this date.
-                </span>
-              )}
+              Review this breakdown and acknowledge when correct, or raise a query
+              for HR.
             </Alert>
           )}
 
-          {isReviewExpired && preview.status !== 'acknowledged' && preview.status !== 'finalized' && (
-            <Alert variant="warning" className="mb-4">
-              <FaExclamationTriangle className="me-2" />
-              <strong>Review Period Expired:</strong> The review deadline has passed. 
-              Your salary will be processed based on the current calculation.
-            </Alert>
+          {simpleViewDto && (
+            <div className="mb-3">
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                disabled={loading}
+                onClick={() =>
+                  setIncludeAttendanceDetails((on) => !on)
+                }
+              >
+                {includeAttendanceDetails
+                  ? "Hide attendance details"
+                  : "Show attendance details"}
+              </Button>
+              <span className="text-muted small ms-2">
+                Loads leave/attendance impact (may take a few seconds).
+              </span>
+            </div>
           )}
 
           {simpleViewDto ? (

@@ -3,6 +3,8 @@ import SalaryStructure from "../models/salaryStructureModel.js";
 import User from "../models/userModel.js";
 import WorkingDaysCalculator from "./workingDaysCalculator.js";
 import LeaveImpactCalculator from "./leaveImpactCalculator.js";
+import PayrollPeriod from "../models/payrollPeriodModel.js";
+import { resolveSlipPaymentDate } from "./payroll/slipPaymentDate.js";
 
 class SalaryPreviewService {
   constructor() {
@@ -128,15 +130,6 @@ class SalaryPreviewService {
 
       if (!preview) {
         throw new Error("Salary preview not found");
-      }
-
-      try {
-        await this.syncSimplePreviewIfNeeded(preview);
-      } catch (err) {
-        console.warn(
-          "[salaryPreview] sync on getPreview failed:",
-          err.message
-        );
       }
 
       return preview;
@@ -384,9 +377,12 @@ class SalaryPreviewService {
    * @param {Object} filters - Additional filters
    * @returns {Array} Array of previews
    */
-  async getPreviewsForMonth(month, year, filters = {}) {
+  async getPreviewsForMonth(month, year, filters = {}, options = {}) {
     try {
-      await this.reconcilePendingQueriesForPeriod(month, year);
+      const reconcile = options.reconcile === true;
+      if (reconcile) {
+        await this.reconcilePendingQueriesForPeriod(month, year);
+      }
 
       const query = { month, year, ...filters };
       
@@ -402,18 +398,6 @@ class SalaryPreviewService {
         .populate("acknowledgedBy", "name email")
         .populate("finalizedBy", "name email")
         .sort({ "employee.name": 1 });
-
-      for (const preview of previews) {
-        try {
-          await this.syncSimplePreviewIfNeeded(preview);
-        } catch (err) {
-          console.warn(
-            "[salaryPreview] syncSimplePreviewIfNeeded failed:",
-            preview._id?.toString?.(),
-            err.message
-          );
-        }
-      }
 
       return previews;
     } catch (error) {
@@ -433,13 +417,7 @@ class SalaryPreviewService {
       const previews = await SalaryPreview.find({
         month,
         year,
-        $or: [
-          { status: "query_raised" },
-          { 
-            status: "under_review",
-            reviewDeadline: { $lt: new Date() }
-          }
-        ]
+        $or: [{ status: "query_raised" }, { status: "under_review" }],
       })
       .populate({
         path: "employee",
@@ -467,8 +445,6 @@ class SalaryPreviewService {
    */
   async getPreviewStatistics(month, year) {
     try {
-      await this.reconcilePendingQueriesForPeriod(month, year);
-
       const stats = await SalaryPreview.aggregate([
         {
           $match: { month, year }
@@ -513,13 +489,6 @@ class SalaryPreviewService {
       const queriesRaised =
         pendingQueries + resolvedQueries + respondedLegacy;
 
-      const expiredReviews = await SalaryPreview.countDocuments({
-        month,
-        year,
-        status: { $in: ["generated", "under_review"] },
-        reviewDeadline: { $lt: new Date() }
-      });
-
       return {
         totalPreviews,
         statusBreakdown: stats,
@@ -531,7 +500,8 @@ class SalaryPreviewService {
         resolvedQueries,
         /** Pending + legacy responded (not yet marked resolved). */
         openQueries,
-        expiredReviews,
+        /** @deprecated Deadline removed — always 0 */
+        expiredReviews: 0,
         generatedAt: new Date()
       };
     } catch (error) {
@@ -741,12 +711,23 @@ class SalaryPreviewService {
         return existingSlip;
       }
 
+      const periodRow = await PayrollPeriod.findByYearMonth(
+        preview.year,
+        preview.month
+      ).lean();
+      const paymentDate = resolveSlipPaymentDate({
+        year: preview.year,
+        month: preview.month,
+        periodSalaryPaymentDate: periodRow?.salaryPaymentDate,
+      });
+
       // Create salary slip from preview
       const salarySlip = new SalarySlip({
         employee: preview.employee._id,
         month: preview.month,
         year: preview.year,
         payPeriod: `${new Date(preview.year, preview.month - 1).toLocaleString('default', { month: 'long' })} ${preview.year}`,
+        paymentDate,
         
         // Working days from preview
         workingDaysCalculation: preview.workingDaysBreakdown,

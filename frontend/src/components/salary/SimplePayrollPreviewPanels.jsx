@@ -35,9 +35,24 @@ export default function SimplePayrollPreviewPanels({
     return <Badge bg={map[status] || "secondary"}>{status || "—"}</Badge>;
   };
 
+  const periodLabel =
+    preview.month && preview.year
+      ? new Date(preview.year, preview.month - 1).toLocaleString("default", {
+          month: "long",
+          year: "numeric",
+        })
+      : null;
+
   return (
     <>
       <Alert variant="light" className="border small mb-3">
+        {periodLabel ? (
+          <>
+            <Badge bg="secondary" className="me-2">
+              Pay period: {periodLabel}
+            </Badge>
+          </>
+        ) : null}
         Simple payroll — Monthly Salary ± manual adjustments − Professional Tax = Net.
         Attendance is review-only unless a manual deduction was added.
       </Alert>

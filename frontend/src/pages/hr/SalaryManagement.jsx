@@ -30,6 +30,25 @@ import PayrollDualRun from "../../components/salary/PayrollDualRun";
 import SimplePayrollTab from "../../components/salary/SimplePayrollTab";
 import { salarySlipApi } from "../../api/salaryApi";
 import api from "../../services/api";
+import {
+  PayrollPeriodProvider,
+  usePayrollPeriod,
+} from "../../context/PayrollPeriodContext.jsx";
+
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
 /** Day-to-day SMB payroll path (Simple Payroll first). */
 const PAYROLL_TABS = new Set([
@@ -50,8 +69,9 @@ const ADVANCED_TABS = new Set([
   "periods",
 ]);
 
-const SalaryManagement = () => {
+const SalaryManagementContent = () => {
   const location = useLocation();
+  const payPeriod = usePayrollPeriod();
   const [activeTab, setActiveTab] = useState("simple-payroll");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [stats, setStats] = useState({
@@ -79,29 +99,38 @@ const SalaryManagement = () => {
     window.scrollTo(0, 0);
   }, []);
 
-  // Handle URL parameters for tab selection
+  // Handle URL parameters for tab selection and shared pay period
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
     const tab = urlParams.get("tab");
     if (tab) {
       selectTab(tab);
     }
+    const m = urlParams.get("month");
+    const y = urlParams.get("year");
+    if (payPeriod && m && y) {
+      const monthNum = parseInt(m, 10);
+      const yearNum = parseInt(y, 10);
+      if (
+        monthNum >= 1 &&
+        monthNum <= 12 &&
+        yearNum > 2000 &&
+        (monthNum !== payPeriod.month || yearNum !== payPeriod.year)
+      ) {
+        payPeriod.setPeriod(monthNum, yearNum);
+      }
+    }
   }, [location.search]);
 
-  // Fetch dashboard stats
+  // Fetch dashboard stats for the selected pay period (shared across tabs)
   useEffect(() => {
-    fetchDashboardStats();
-  }, []);
+    if (!payPeriod?.month || !payPeriod?.year) return;
+    fetchDashboardStats(payPeriod.month, payPeriod.year);
+  }, [payPeriod?.month, payPeriod?.year]);
 
-  const fetchDashboardStats = async () => {
+  const fetchDashboardStats = async (currentMonth, currentYear) => {
     try {
       setLoading(true);
-      
-      // Use previous month — current month's slips are typically not generated yet
-      const now = new Date();
-      const prevMonthNum = now.getMonth(); // 0-indexed = previous month as 1-indexed
-      const currentMonth = prevMonthNum === 0 ? 12 : prevMonthNum;
-      const currentYear = prevMonthNum === 0 ? now.getFullYear() - 1 : now.getFullYear();
 
       const [payrollResponse, employeesResponse, overallResponse] = await Promise.all([
         salarySlipApi.getPayrollSummary({ month: currentMonth, year: currentYear }),
@@ -115,7 +144,8 @@ const SalaryManagement = () => {
       
       setStats({
         totalEmployees,
-        slipsGenerated: payrollData?.totalEmployees || 0,
+        slipsGenerated:
+          payrollData?.slipsCredited ?? payrollData?.totalEmployees ?? 0,
         totalPayout: payrollData?.totalNetSalary || 0,
         totalSlips: overall?.totalSlips || 0,
         totalStructures: overall?.totalStructures || 0,
@@ -143,6 +173,11 @@ const SalaryManagement = () => {
       minimumFractionDigits: 0,
     }).format(amount);
   };
+
+  const periodLabel =
+    payPeriod?.month && payPeriod?.year
+      ? `${MONTH_NAMES[payPeriod.month - 1]} ${payPeriod.year}`
+      : null;
 
   const isPayrollTab = PAYROLL_TABS.has(activeTab);
   const isAdvancedTab = ADVANCED_TABS.has(activeTab);
@@ -185,8 +220,8 @@ const SalaryManagement = () => {
                     </div>
                   </div>
                   <p className="salary-header-description mb-0">
-                    Run payroll in one place: set monthly salary and
-                    adjustments, preview, then generate salary slips.
+                    Adjust pay on the Payroll tab, share previews with
+                    employees, then credit salary to issue payslips.
                   </p>
                 </div>
               </div>
@@ -243,7 +278,7 @@ const SalaryManagement = () => {
                 <FaFileInvoiceDollar className="text-success" size={30} />
               </div>
               <div className="flex-grow-1">
-                <h6 className="mb-1 text-muted">Slips Generated</h6>
+                <h6 className="mb-1 text-muted">Slips credited</h6>
                 <h3 className="mb-1">
                   {loading ? (
                     <Spinner animation="border" size="sm" />
@@ -251,7 +286,12 @@ const SalaryManagement = () => {
                     stats.slipsGenerated
                   )}
                 </h3>
-                <small className="text-muted">Last month</small>
+                <small className="text-muted">
+                  {periodLabel || "Selected period"}
+                  {payPeriod?.paymentDateLabel
+                    ? ` · Pay date ${payPeriod.paymentDateLabel}`
+                    : ""}
+                </small>
               </div>
             </Card.Body>
           </Card>
@@ -287,7 +327,9 @@ const SalaryManagement = () => {
                     formatCurrency(stats.totalPayout)
                   )}
                 </h3>
-                <small className="text-muted">Last month</small>
+                <small className="text-muted">
+                  {periodLabel || "Selected period"}
+                </small>
               </div>
             </Card.Body>
           </Card>
@@ -371,7 +413,9 @@ const SalaryManagement = () => {
         <Card.Header className="bg-white border-bottom-0 pt-3 pb-0">
           <h5 className="mb-1">Payroll</h5>
           <p className="text-muted small mb-0">
-            Day-to-day path: set pay → preview → generate slips
+            Day-to-day path: set pay period & payment date → adjustments &
+            breakdown → employee preview → credit salary (payslip)
+            {periodLabel ? ` — ${periodLabel}` : ""}
           </p>
         </Card.Header>
         <Card.Body className="salary-payroll-card-body">
@@ -636,5 +680,11 @@ const SalaryManagement = () => {
     </Container>
   );
 };
+
+const SalaryManagement = () => (
+  <PayrollPeriodProvider>
+    <SalaryManagementContent />
+  </PayrollPeriodProvider>
+);
 
 export default SalaryManagement;

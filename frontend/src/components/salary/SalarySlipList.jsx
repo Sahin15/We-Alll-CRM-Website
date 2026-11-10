@@ -24,6 +24,8 @@ import { toast } from "react-toastify";
 import { salarySlipApi } from "../../api/salaryApi";
 import { payrollPeriodApi } from "../../api/payrollPeriodApi";
 import { getCompanyYearOptions } from "../../constants/branding";
+import { formatSlipPaymentDateDisplay } from "../../utils/slipPaymentDateDisplay.js";
+import { usePayrollPeriodWithFallback } from "../../context/PayrollPeriodContext.jsx";
 
 /** One page per filter — typical payroll month fits well under this cap. */
 const SALARY_SLIPS_LIST_LIMIT = 500;
@@ -39,13 +41,23 @@ const SalarySlipList = () => {
     return { month: m === 0 ? 12 : m, year: m === 0 ? now.getFullYear() - 1 : now.getFullYear() };
   };
   const prev = getPrevMonth();
+  const { month: periodMonth, year: periodYear, setMonth, setYear } =
+    usePayrollPeriodWithFallback(prev);
   
   const [filters, setFilters] = useState({
-    month: prev.month,
-    year: prev.year,
+    month: periodMonth,
+    year: periodYear,
     status: "",
     employee: "",
   });
+
+  useEffect(() => {
+    setFilters((f) =>
+      f.month === periodMonth && f.year === periodYear
+        ? f
+        : { ...f, month: periodMonth, year: periodYear }
+    );
+  }, [periodMonth, periodYear]);
   const [totalSlips, setTotalSlips] = useState(0);
   const [selectedSlip, setSelectedSlip] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -109,6 +121,8 @@ const SalarySlipList = () => {
 
   const handleFilterChange = (field, value) => {
     setFilters((prev) => ({ ...prev, [field]: value }));
+    if (field === "month" && setMonth) setMonth(value);
+    if (field === "year" && setYear) setYear(value);
   };
 
   const handleSendEmail = async (slipId) => {
@@ -302,7 +316,7 @@ const SalarySlipList = () => {
                 </td>
                 <td>{getStatusBadge(slip.status)}</td>
                 <td>
-                  {new Date(slip.paymentDate).toLocaleDateString("en-IN")}
+                  {formatSlipPaymentDateDisplay(slip.paymentDate)}
                 </td>
                 <td>
                   <Dropdown align="end">
@@ -379,7 +393,7 @@ const SalarySlipList = () => {
                 </p>
                 <p className="mb-1">
                   <strong>Payment Date:</strong>{" "}
-                  {new Date(selectedSlip.paymentDate).toLocaleDateString("en-IN")}
+                  {formatSlipPaymentDateDisplay(selectedSlip.paymentDate)}
                 </p>
                 <p className="mb-3">
                   <strong>Downloads:</strong> {selectedSlip.downloadCount || 0}

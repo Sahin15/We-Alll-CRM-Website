@@ -18,6 +18,7 @@ import { toast } from "react-toastify";
 import { salarySlipApi } from "../../api/salaryApi";
 import { departmentApi } from "../../api/departmentApi";
 import { getCompanyYearOptions } from "../../constants/branding";
+import { usePayrollPeriodWithFallback } from "../../context/PayrollPeriodContext.jsx";
 
 /**
  * Ensure byDepartment always has every org department (zeros if no slips).
@@ -60,9 +61,19 @@ const normalizeDepartmentList = (body) => {
 };
 
 const PayrollSummary = () => {
+  const prev = getPrevMonth();
+  const { month: periodMonth, year: periodYear, setMonth, setYear } =
+    usePayrollPeriodWithFallback(prev);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState(() => getPrevMonth());
+  const [filters, setFilters] = useState({
+    month: periodMonth,
+    year: periodYear,
+  });
+
+  useEffect(() => {
+    setFilters({ month: periodMonth, year: periodYear });
+  }, [periodMonth, periodYear]);
 
   const fetchPayrollSummary = useCallback(async () => {
     try {
@@ -91,6 +102,8 @@ const PayrollSummary = () => {
 
   const handleFilterChange = (field, value) => {
     setFilters((prev) => ({ ...prev, [field]: value }));
+    if (field === "month" && setMonth) setMonth(value);
+    if (field === "year" && setYear) setYear(value);
   };
 
   const formatCurrency = (amount) => {

@@ -62,6 +62,16 @@ const payrollPeriodSchema = new mongoose.Schema(
     lockedAt: Date,
     unlockedAt: Date,
     paidAt: Date,
+  /** Official salary credit / payment date shown on payslips for this period */
+  salaryPaymentDate: {
+    type: Date,
+    default: null,
+  },
+  salaryCreditedAt: Date,
+  salaryCreditedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  },
   },
   {
     timestamps: true,

@@ -7,6 +7,8 @@ import {
   getPayrollPeriodById,
   getPayrollPeriodByYearMonth,
   getPeriodGatesStatus,
+  getPayrollPeriodPaymentDate,
+  setPayrollPeriodPaymentDate,
   freezePayrollPeriod,
   unfreezePayrollPeriod,
   lockPayrollPeriod,
@@ -46,6 +48,18 @@ router.get(
   protect,
   requirePeriodGateRead,
   getPeriodGatesStatus
+);
+router.get(
+  "/:year/:month/payment-date",
+  protect,
+  requirePeriodGateRead,
+  getPayrollPeriodPaymentDate
+);
+router.put(
+  "/:year/:month/payment-date",
+  protect,
+  requirePeriodManage,
+  setPayrollPeriodPaymentDate
 );
 router.get(
   "/:year/:month",

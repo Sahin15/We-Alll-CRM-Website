@@ -1,6 +1,10 @@
 import PayrollPeriod from "../models/payrollPeriodModel.js";
 import { getAllowedTransitions } from "../services/payroll/payrollPeriodTransitions.js";
 import { getPeriodGateSnapshot } from "../services/payroll/payrollPeriodGates.js";
+import {
+  ensurePayrollPeriod,
+  parseSalaryPaymentDate,
+} from "../services/payroll/payrollPeriodPaymentDate.js";
 
 const MONTH_NAMES = [
   "January",
@@ -251,6 +255,97 @@ const actionHandler = (action) => async (req, res) => {
  * GET /api/payroll/periods/gates-status?year=&month=
  * UI helper: whether period gates are on and which ops are allowed.
  */
+/**
+ * GET /api/payroll/periods/:year/:month/payment-date
+ */
+export const getPayrollPeriodPaymentDate = async (req, res) => {
+  try {
+    const year = Number(req.params.year);
+    const month = Number(req.params.month);
+
+    if (!year || !month || month < 1 || month > 12) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid year and month (1-12) are required",
+      });
+    }
+
+    const period = await PayrollPeriod.findByYearMonth(year, month).lean();
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        year,
+        month,
+        salaryPaymentDate: period?.salaryPaymentDate ?? null,
+        period: period || null,
+      },
+    });
+  } catch (error) {
+    console.error("Error in getPayrollPeriodPaymentDate:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error loading salary payment date",
+    });
+  }
+};
+
+/**
+ * PUT /api/payroll/periods/:year/:month/payment-date
+ * Body: { salaryPaymentDate: ISO string }
+ */
+export const setPayrollPeriodPaymentDate = async (req, res) => {
+  try {
+    const year = Number(req.params.year);
+    const month = Number(req.params.month);
+
+    if (!year || !month || month < 1 || month > 12) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid year and month (1-12) are required",
+      });
+    }
+
+    let paymentDate;
+    try {
+      paymentDate = parseSalaryPaymentDate(req.body?.salaryPaymentDate);
+    } catch (parseErr) {
+      return res.status(400).json({
+        success: false,
+        message: parseErr.message || "Invalid salary payment date",
+      });
+    }
+
+    if (!paymentDate) {
+      return res.status(400).json({
+        success: false,
+        message: "salaryPaymentDate is required",
+      });
+    }
+
+    const period = await ensurePayrollPeriod(year, month, req.user._id);
+    period.salaryPaymentDate = paymentDate;
+    await period.save();
+    await period.populate("openedBy", "name email");
+
+    return res.status(200).json({
+      success: true,
+      message: `Salary payment date saved for ${formatLabel(month, year)}`,
+      data: {
+        ...period.toObject(),
+        label: formatLabel(month, year),
+        allowedTransitions: getAllowedTransitions(period.status),
+      },
+    });
+  } catch (error) {
+    console.error("Error in setPayrollPeriodPaymentDate:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error saving salary payment date",
+    });
+  }
+};
+
 export const getPeriodGatesStatus = async (req, res) => {
   try {
     const year = Number(req.query.year);

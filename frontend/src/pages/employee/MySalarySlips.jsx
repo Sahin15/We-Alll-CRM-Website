@@ -21,6 +21,7 @@ import { toast } from "react-toastify";
 import { salarySlipApi } from "../../api/salaryApi";
 import { useAuth } from "../../context/AuthContext";
 import { getCompanyYearOptions } from "../../constants/branding";
+import { formatSlipPaymentDateDisplay } from "../../utils/slipPaymentDateDisplay.js";
 
 const MySalarySlips = () => {
   const [slips, setSlips] = useState([]);
@@ -163,7 +164,7 @@ const MySalarySlips = () => {
                       <h5 className="mb-1">{slip.payPeriod}</h5>
                       <small className="text-muted">
                         <FaCalendarAlt className="me-1" />
-                        {new Date(slip.paymentDate).toLocaleDateString("en-IN")}
+                        {formatSlipPaymentDateDisplay(slip.paymentDate)}
                       </small>
                     </div>
                     {getStatusBadge(slip.status)}
@@ -273,9 +274,7 @@ const MySalarySlips = () => {
                   <Col md={6}>
                     <p className="mb-1">
                       <strong>Payment Date:</strong>{" "}
-                      {new Date(selectedSlip.paymentDate).toLocaleDateString(
-                        "en-IN"
-                      )}
+                      {formatSlipPaymentDateDisplay(selectedSlip.paymentDate)}
                     </p>
                     <p className="mb-0">
                       <strong>Status:</strong>{" "}

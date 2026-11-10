@@ -21,6 +21,9 @@ import {
   isSimplePayrollStructure,
   buildSimpleSlipPayload,
 } from "../services/payroll/simpleSlipPersist.js";
+import { resolveSlipPaymentDate } from "../services/payroll/slipPaymentDate.js";
+import PayrollPeriod from "../models/payrollPeriodModel.js";
+import { assertSimpleSlipGenerateAllowed } from "../services/payroll/simplePayrollSlipGuard.js";
 import {
   dedupeSlipsByEmployeePeriodStages,
   resolveEmployeeIdsForSlipSearch,
@@ -304,6 +307,25 @@ export const generateSalarySlip = async (req, res) => {
 
     await assertPeriodAllows("generate", year, month);
 
+    const periodRow = await PayrollPeriod.findByYearMonth(year, month).lean();
+    let resolvedPaymentDate;
+    try {
+      resolvedPaymentDate = resolveSlipPaymentDate({
+        paymentDate,
+        year,
+        month,
+        periodSalaryPaymentDate: periodRow?.salaryPaymentDate,
+      });
+    } catch (dateErr) {
+      if (dateErr.code === "PAYMENT_DATE_REQUIRED") {
+        return res.status(400).json({
+          message: dateErr.message,
+          code: dateErr.code,
+        });
+      }
+      throw dateErr;
+    }
+
     // Check if slip already exists
     const existingSlip = await SalarySlip.findOne({
       employee: employeeId,
@@ -323,6 +345,18 @@ export const generateSalarySlip = async (req, res) => {
       return res.status(404).json({
         message: "No active salary structure found for this employee"
       });
+    }
+
+    try {
+      await assertSimpleSlipGenerateAllowed(employeeId);
+    } catch (guardErr) {
+      if (guardErr.code === "SIMPLE_PAYROLL_CREDIT_ONLY") {
+        return res.status(guardErr.httpStatus || 409).json({
+          message: guardErr.message,
+          code: guardErr.code,
+        });
+      }
+      throw guardErr;
     }
 
     // Check for mid-month salary changes (pro-rata calculation)
@@ -433,7 +467,7 @@ export const generateSalarySlip = async (req, res) => {
       month,
       year,
       payPeriod: `${getMonthName(month)} ${year}`,
-      paymentDate: paymentDate || new Date(year, month, 1),
+      paymentDate: resolvedPaymentDate,
       
       // Legacy fields for backward compatibility
       totalWorkingDays: attendance.totalWorkingDays,
@@ -523,6 +557,25 @@ export const bulkGenerateSalarySlips = async (req, res) => {
 
     await assertPeriodAllows("generate", year, month);
 
+    const periodRow = await PayrollPeriod.findByYearMonth(year, month).lean();
+    let bulkResolvedPaymentDate;
+    try {
+      bulkResolvedPaymentDate = resolveSlipPaymentDate({
+        paymentDate: req.body.paymentDate,
+        year,
+        month,
+        periodSalaryPaymentDate: periodRow?.salaryPaymentDate,
+      });
+    } catch (dateErr) {
+      if (dateErr.code === "PAYMENT_DATE_REQUIRED") {
+        return res.status(400).json({
+          message: dateErr.message,
+          code: dateErr.code,
+        });
+      }
+      throw dateErr;
+    }
+
     // Get all active employees
     const employees = await User.find({ 
       status: "active",
@@ -562,6 +615,20 @@ export const bulkGenerateSalarySlips = async (req, res) => {
             reason: "No active salary structure"
           });
           continue;
+        }
+
+        try {
+          await assertSimpleSlipGenerateAllowed(employee._id);
+        } catch (guardErr) {
+          if (guardErr.code === "SIMPLE_PAYROLL_CREDIT_ONLY") {
+            results.skipped.push({
+              employeeId: employee.employeeId,
+              name: employee.name,
+              reason: guardErr.message,
+            });
+            continue;
+          }
+          throw guardErr;
         }
 
         // Calculate attendance using enhanced calculator
@@ -655,7 +722,7 @@ export const bulkGenerateSalarySlips = async (req, res) => {
           month,
           year,
           payPeriod: `${getMonthName(month)} ${year}`,
-          paymentDate: paymentDate || new Date(year, month, 1),
+          paymentDate: bulkResolvedPaymentDate,
           
           // Legacy fields
           totalWorkingDays: attendance.totalWorkingDays,
@@ -1142,8 +1209,10 @@ export const getPayrollSummary = async (req, res) => {
       },
     ]);
 
+    const slipCount = slipsWithDepartments.length;
     const summary = {
-      totalEmployees: slipsWithDepartments.length,
+      totalEmployees: slipCount,
+      slipsCredited: slipCount,
       totalGrossSalary: 0,
       totalDeductions: 0,
       totalNetSalary: 0,

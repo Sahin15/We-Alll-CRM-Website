@@ -22,6 +22,14 @@ export const payrollSimplePreviewApi = {
   getRoster: (params) => api.get("/payroll/simple-preview/roster", { params }),
 };
 
+/** @param {object} params - pass includeLeaveImpact: false for pay-math-only */
+export const getSimplePreview = (params) =>
+  api.get("/payroll/simple-preview", { params });
+
+export const creditSalaryApi = {
+  credit: (data) => api.post("/payroll/credit-salary", data),
+};
+
 export const ADJUSTMENT_TYPE_OPTIONS = [
   { value: "bonus", label: "Bonus (+)" },
   { value: "incentive", label: "Incentive (+)" },

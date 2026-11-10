@@ -41,6 +41,7 @@ import { getCompanyYearOptions } from "../../constants/branding";
 import {  isSimpleSalaryPreview,
   mapStoredPreviewToSimpleDto,
 } from "../../utils/simpleSalaryPreviewView";
+import { usePayrollPeriodWithFallback } from "../../context/PayrollPeriodContext.jsx";
 
 const isHrCorrectionLog = (q) =>
   q?.query && String(q.query).trim().toLowerCase().startsWith("hr correction:");
@@ -67,17 +68,23 @@ const findFirstPendingEmployeeQueryIndex = (preview) =>
 const HRSalaryPreviewManagement = () => {
   const [activeTab, setActiveTab] = useState("overview");
 
-  // Default to previous month — current month's preview is typically not generated yet
   const getPreviousMonth = () => {
     const now = new Date();
-    const month = now.getMonth(); // getMonth() is 0-indexed, so this gives previous month (1-indexed)
+    const month = now.getMonth();
     const year = month === 0 ? now.getFullYear() - 1 : now.getFullYear();
     return { month: month === 0 ? 12 : month, year };
   };
   const prev = getPreviousMonth();
 
-  const [selectedMonth, setSelectedMonth] = useState(prev.month);
-  const [selectedYear, setSelectedYear] = useState(prev.year);
+  const {
+    month: selectedMonth,
+    year: selectedYear,
+    setMonth: setSelectedMonth,
+    setYear: setSelectedYear,
+    paymentDateLabel,
+  } = usePayrollPeriodWithFallback(prev);
+
+  const [reconcileBusy, setReconcileBusy] = useState(false);
   const [previews, setPreviews] = useState([]);
   const [statistics, setStatistics] = useState(null);
   const [attentionPreviews, setAttentionPreviews] = useState([]);
@@ -143,89 +150,35 @@ const HRSalaryPreviewManagement = () => {
     }
     fetchEmployees();
     fetchDepartments();
-  }, [selectedMonth, selectedYear, activeTab]);
+  }, [selectedMonth, selectedYear]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      await Promise.all([
-        fetchPreviews(),
-        fetchStatistics(),
-        fetchAttentionPreviews()
-      ]);
+      const response = await salaryPreviewApi.getHrDashboard(
+        selectedMonth,
+        selectedYear,
+        { reconcile: "0" }
+      );
+      const payload = response.data?.data ?? response.data;
+      const list = payload?.previews || [];
+      setPreviews(
+        list.filter(
+          (p) =>
+            Number(p.month) === Number(selectedMonth) &&
+            Number(p.year) === Number(selectedYear)
+        )
+      );
+      setStatistics(payload?.statistics ?? null);
+      setAttentionPreviews(payload?.attention || []);
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error("Error fetching preview dashboard:", error);
+      toast.error("Failed to load salary previews");
+      setPreviews([]);
+      setStatistics(null);
+      setAttentionPreviews([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchPreviews = async () => {
-    try {
-      const response = await salaryPreviewApi.getMonthPreviews(
-        selectedMonth,
-        selectedYear
-      );
-      const list = Array.isArray(response.data)
-        ? response.data
-        : response.data?.data || [];
-
-      // Overlay live Simple Payroll net so the table never shows a stale snapshot
-      const enriched = await Promise.all(
-        list.map(async (preview) => {
-          try {
-            const employeeId = preview.employee?._id || preview.employee;
-            if (!employeeId) return preview;
-            const res = await payrollSimplePreviewApi.get({
-              employee: employeeId,
-              month: preview.month || selectedMonth,
-              year: preview.year || selectedYear,
-              automaticDeductions: 0,
-            });
-            const dto = res.data?.data ?? res.data;
-            if (
-              dto?.applicable &&
-              dto.totals?.netSalary != null &&
-              !dto.totals?.rejected
-            ) {
-              return {
-                ...preview,
-                payrollMode: "simple",
-                salaryBreakdown: {
-                  ...preview.salaryBreakdown,
-                  netSalary: dto.totals.netSalary,
-                },
-              };
-            }
-          } catch {
-            /* keep stored preview */
-          }
-          return preview;
-        })
-      );
-
-      setPreviews(enriched);
-    } catch (error) {
-      console.error("Error fetching previews:", error);
-      toast.error("Failed to load previews");
-    }
-  };
-
-  const fetchStatistics = async () => {
-    try {
-      const response = await salaryPreviewApi.getStatistics(selectedMonth, selectedYear);
-      setStatistics(response.data);
-    } catch (error) {
-      console.error("Error fetching statistics:", error);
-    }
-  };
-
-  const fetchAttentionPreviews = async () => {
-    try {
-      const response = await salaryPreviewApi.getAttentionPreviews(selectedMonth, selectedYear);
-      setAttentionPreviews(response.data);
-    } catch (error) {
-      console.error("Error fetching attention previews:", error);
     }
   };
 
@@ -294,6 +247,22 @@ const HRSalaryPreviewManagement = () => {
     }
   };
 
+  const handleReconcilePeriod = async () => {
+    setReconcileBusy(true);
+    try {
+      await salaryPreviewApi.reconcilePeriod(selectedMonth, selectedYear);
+      toast.success("Pending queries reconciled for this period");
+      fetchData();
+    } catch (error) {
+      console.error("Reconcile failed:", error);
+      toast.error(
+        error.response?.data?.message || "Failed to reconcile queries"
+      );
+    } finally {
+      setReconcileBusy(false);
+    }
+  };
+
   const openCorrectionsModal = async (preview) => {
     if (!preview) {
       toast.error("No preview selected");
@@ -313,6 +282,7 @@ const HRSalaryPreviewManagement = () => {
         month: preview.month,
         year: preview.year,
         automaticDeductions: 0,
+        includeLeaveImpact: true,
       });
       const dto = res.data?.data ?? res.data;
       if (dto?.applicable) {
@@ -666,6 +636,7 @@ const HRSalaryPreviewManagement = () => {
         month: preview.month,
         year: preview.year,
         automaticDeductions: 0,
+        includeLeaveImpact: true,
       });
       const dto = res.data?.data ?? res.data;
       if (dto?.applicable) {
@@ -731,7 +702,12 @@ const HRSalaryPreviewManagement = () => {
           <div className="d-flex justify-content-between align-items-center">
             <div>
               <h4>Salary Preview Management</h4>
-              <p className="text-muted mb-0">Manage employee salary previews and queries</p>
+              <p className="text-muted mb-0">
+                Manage employee salary previews and queries
+                {paymentDateLabel
+                  ? ` · Payment date ${paymentDateLabel}`
+                  : ""}
+              </p>
             </div>
             <div className="d-flex gap-2">
               <Form.Select
@@ -748,6 +724,19 @@ const HRSalaryPreviewManagement = () => {
               >
                 {generateYearOptions()}
               </Form.Select>
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                disabled={reconcileBusy}
+                onClick={handleReconcilePeriod}
+                title="Repair legacy pending queries after HR corrections"
+              >
+                {reconcileBusy ? (
+                  <Spinner animation="border" size="sm" />
+                ) : (
+                  "Reconcile queries"
+                )}
+              </Button>
               
               {/* Generate Preview Options */}
               <Dropdown>
@@ -823,14 +812,6 @@ const HRSalaryPreviewManagement = () => {
               </Card.Body>
             </Card>
           </Col>
-          <Col md={3}>
-            <Card className="text-center">
-              <Card.Body>
-                <h3 className="text-info">{statistics.expiredReviews}</h3>
-                <p className="mb-0">Expired Reviews</p>
-              </Card.Body>
-            </Card>
-          </Col>
         </Row>
       )}
 
@@ -852,7 +833,6 @@ const HRSalaryPreviewManagement = () => {
                       <th>Status</th>
                       <th>Net Salary</th>
                       <th>Queries</th>
-                      <th>Deadline</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
@@ -880,14 +860,6 @@ const HRSalaryPreviewManagement = () => {
                           ) : (
                             <span className="text-muted">None</span>
                           )}
-                        </td>
-                        <td>
-                          <small>
-                            {new Date(preview.reviewDeadline).toLocaleDateString()}
-                            {preview.isReviewExpired && (
-                              <Badge bg="danger" className="ms-1">Expired</Badge>
-                            )}
-                          </small>
                         </td>
                         <td>
                           <Dropdown align="end">
@@ -933,9 +905,12 @@ const HRSalaryPreviewManagement = () => {
                                 className="text-success"
                               >
                                 <FaPlus className="me-2" />
-                                Regenerate Preview
+                                {isSimpleSalaryPreview(preview)
+                                  ? "Refresh breakdown numbers"
+                                  : "Regenerate Preview"}
                               </Dropdown.Item>
-                              {(preview.status === 'acknowledged' || preview.isReviewExpired) && (
+                              {preview.status === "acknowledged" &&
+                                !isSimpleSalaryPreview(preview) && (
                                 <Dropdown.Item 
                                   onClick={() => handleFinalizePreview(preview._id)}
                                 >
@@ -984,13 +959,18 @@ const HRSalaryPreviewManagement = () => {
                           <small className="text-muted">{preview.employee.employeeId}</small>
                         </td>
                         <td>
-                          {preview.status === 'query_raised' && 'Employee Query Pending'}
-                          {preview.isReviewExpired && 'Review Period Expired'}
+                          {preview.status === "query_raised"
+                            ? "Employee Query Pending"
+                            : "Under HR review"}
                         </td>
                         <td>{getStatusBadge(preview.status)}</td>
                         <td>
-                          <Badge bg={preview.status === 'query_raised' ? 'danger' : 'warning'}>
-                            {preview.status === 'query_raised' ? 'High' : 'Medium'}
+                          <Badge
+                            bg={
+                              preview.status === "query_raised" ? "danger" : "warning"
+                            }
+                          >
+                            {preview.status === "query_raised" ? "High" : "Medium"}
                           </Badge>
                         </td>
                         <td>

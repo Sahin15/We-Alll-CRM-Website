@@ -23,21 +23,34 @@ import { salarySlipApi } from "../../api/salaryApi";
 import { payrollPeriodApi } from "../../api/payrollPeriodApi";
 import api from "../../services/api";
 import { getCompanyYearOptions } from "../../constants/branding";
+import { usePayrollPeriodWithFallback } from "../../context/PayrollPeriodContext.jsx";
 
 const GenerateSalarySlips = () => {
-  // Default to previous month — current month's slips are typically not generated yet
   const getPrevMonth = () => {
     const now = new Date();
-    const m = now.getMonth(); // 0-indexed = previous month as 1-indexed
-    return { month: m === 0 ? 12 : m, year: m === 0 ? now.getFullYear() - 1 : now.getFullYear() };
+    const m = now.getMonth();
+    return {
+      month: m === 0 ? 12 : m,
+      year: m === 0 ? now.getFullYear() - 1 : now.getFullYear(),
+    };
   };
   const prev = getPrevMonth();
+  const { month: periodMonth, year: periodYear, setMonth, setYear } =
+    usePayrollPeriodWithFallback(prev);
 
   const [formData, setFormData] = useState({
-    month: prev.month,
-    year: prev.year,
+    month: periodMonth,
+    year: periodYear,
     paymentDate: "",
   });
+
+  useEffect(() => {
+    setFormData((f) =>
+      f.month === periodMonth && f.year === periodYear
+        ? f
+        : { ...f, month: periodMonth, year: periodYear }
+    );
+  }, [periodMonth, periodYear]);
   const [employees, setEmployees] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState("");
   const [employeeSearchTerm, setEmployeeSearchTerm] = useState("");
@@ -71,6 +84,9 @@ const GenerateSalarySlips = () => {
   }, [formData.month, formData.year]);
 
   const generateBlocked = Boolean(gate?.enabled && !gate?.allowed?.generate);
+  const simpleCreditOnly =
+    import.meta.env.VITE_PAYROLL_SIMPLE_CREDIT_ONLY === "true";
+  const slipGenerateDisabled = generateBlocked || simpleCreditOnly;
 
   const fetchEmployees = async () => {
     try {
@@ -85,12 +101,14 @@ const GenerateSalarySlips = () => {
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    if (field === "month" && setMonth) setMonth(value);
+    if (field === "year" && setYear) setYear(value);
   };
 
   const handleGenerateSingle = async (e) => {
     e.preventDefault();
 
-    if (generateBlocked) {
+    if (slipGenerateDisabled) {
       toast.error(
         "Payroll period gates block generate for this month. Open or unfreeze the period under Pay Periods."
       );
@@ -127,7 +145,7 @@ const GenerateSalarySlips = () => {
   };
 
   const handleGenerateBulk = async () => {
-    if (generateBlocked) {
+    if (slipGenerateDisabled) {
       toast.error(
         "Payroll period gates block generate for this month. Open or unfreeze the period under Pay Periods."
       );
@@ -201,6 +219,18 @@ const GenerateSalarySlips = () => {
 
   return (
     <>
+      <Alert variant="info" className="mb-3">
+        For day-to-day <strong>Simple Payroll</strong>, use{" "}
+        <strong>Credit salary &amp; generate slips</strong> on the Payroll tab
+        after setting the payment date. This tab remains for legacy / advanced
+        bulk generate.
+      </Alert>
+      {simpleCreditOnly && (
+        <Alert variant="warning" className="mb-3">
+          Bulk generate is disabled by configuration — use Payroll tab credit
+          flow only.
+        </Alert>
+      )}
       <Row>
         {/* Single Employee Generation */}
         <Col md={6}>
@@ -362,7 +392,7 @@ const GenerateSalarySlips = () => {
                   <Button
                     type="submit"
                     variant="primary"
-                    disabled={loading || generateBlocked}
+                    disabled={loading || slipGenerateDisabled}
                   >
                     {loading ? (
                       <>
@@ -456,7 +486,7 @@ const GenerateSalarySlips = () => {
                 <Button
                   variant="success"
                   onClick={handleGenerateBulk}
-                  disabled={bulkLoading || generateBlocked}
+                  disabled={bulkLoading || slipGenerateDisabled}
                 >
                   {bulkLoading ? (
                     <>

@@ -175,10 +175,10 @@ const salaryPreviewSchema = new mongoose.Schema({
     type: Date
   },
   
-  // Deadline tracking
+  /** @deprecated No longer enforced; kept for legacy documents */
   reviewDeadline: {
     type: Date,
-    required: true
+    default: null,
   },
   
   // Link to final salary slip
@@ -195,8 +195,9 @@ salaryPreviewSchema.index({ employee: 1, month: 1, year: 1 }, { unique: true });
 salaryPreviewSchema.index({ status: 1, reviewDeadline: 1 });
 salaryPreviewSchema.index({ month: 1, year: 1 });
 
-// Virtual for checking if review period is expired
+// Virtual for checking if review period is expired (deadline removed — always open)
 salaryPreviewSchema.virtual("isReviewExpired").get(function() {
+  if (!this.reviewDeadline) return false;
   return new Date() > this.reviewDeadline;
 });
 
@@ -359,10 +360,6 @@ salaryPreviewSchema.statics.generatePreview = async function(employeeId, month, 
       netSalary = grossSalary - totalDeductions;
     }
 
-    // Set review deadline (5 days from generation / refresh)
-    const reviewDeadline = new Date();
-    reviewDeadline.setDate(reviewDeadline.getDate() + 5);
-
     // Simple mode: leave deduction is informational only (manual adjustments)
     const leaveImpactForPreview = isSimple
       ? {
@@ -384,16 +381,43 @@ salaryPreviewSchema.statics.generatePreview = async function(employeeId, month, 
     // Upsert: refresh existing non-finalized preview so Simple Payroll and
     // Salary Preview stay on the same numbers after adjustments change.
     if (existingPreview) {
+      const prevNet = Number(existingPreview.salaryBreakdown?.netSalary);
+      const nextNet = Number(netSalary);
+      const netUnchanged =
+        !Number.isNaN(prevNet) &&
+        !Number.isNaN(nextNet) &&
+        prevNet === nextNet;
+
       existingPreview.payrollMode = isSimple ? "simple" : "legacy";
       existingPreview.workingDaysBreakdown = effectiveWorkingDaysResult;
       existingPreview.leaveImpact = leaveImpactForPreview;
       existingPreview.salaryBreakdown = breakdown;
-      existingPreview.reviewDeadline = reviewDeadline;
-      existingPreview.status = "generated";
-      existingPreview.employeeViewed = false;
-      existingPreview.employeeViewedAt = undefined;
-      existingPreview.acknowledgedBy = undefined;
-      existingPreview.acknowledgedAt = undefined;
+      existingPreview.reviewDeadline = null;
+
+      if (netUnchanged) {
+        if (existingPreview.status === "finalized") {
+          /* keep finalized */
+        } else if (existingPreview.acknowledgedBy) {
+          existingPreview.status = "acknowledged";
+        } else {
+          existingPreview.status = "generated";
+        }
+      } else {
+        if (existingPreview.acknowledgedBy) {
+          existingPreview.employeeQueries = existingPreview.employeeQueries || [];
+          existingPreview.employeeQueries.push({
+            query: `HR correction: Salary breakdown updated (${prevNet} → ${nextNet})`,
+            submittedAt: new Date(),
+            status: "resolved",
+          });
+        }
+        existingPreview.status = "generated";
+        existingPreview.employeeViewed = false;
+        existingPreview.employeeViewedAt = undefined;
+        existingPreview.acknowledgedBy = undefined;
+        existingPreview.acknowledgedAt = undefined;
+      }
+
       await existingPreview.save();
       return existingPreview;
     }
@@ -406,7 +430,7 @@ salaryPreviewSchema.statics.generatePreview = async function(employeeId, month, 
       workingDaysBreakdown: effectiveWorkingDaysResult,
       leaveImpact: leaveImpactForPreview,
       salaryBreakdown: breakdown,
-      reviewDeadline,
+      reviewDeadline: null,
     });
 
     await preview.save();
@@ -423,10 +447,6 @@ salaryPreviewSchema.methods.submitQuery = async function(query, employeeId) {
     // Verify employee can submit query
     if (this.employee.toString() !== employeeId.toString()) {
       throw new Error("Unauthorized to submit query for this preview");
-    }
-
-    if (this.isReviewExpired) {
-      throw new Error("Review period has expired");
     }
 
     this.employeeQueries.push({
@@ -534,8 +554,8 @@ salaryPreviewSchema.methods.acknowledge = async function(employeeId) {
 salaryPreviewSchema.methods.finalize = async function(hrUserId) {
   try {
     // Check if can be finalized
-    if (this.status !== "acknowledged" && !this.isReviewExpired) {
-      throw new Error("Preview cannot be finalized yet");
+    if (this.status !== "acknowledged") {
+      throw new Error("Preview must be acknowledged before finalization");
     }
 
     this.finalizedBy = hrUserId;

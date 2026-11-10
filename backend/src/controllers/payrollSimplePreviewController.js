@@ -9,8 +9,14 @@ import {
  */
 export const getSimplePreview = async (req, res) => {
   try {
-    const { employee, month, year, automaticDeductions, applyAutomatic } =
-      req.query;
+    const {
+      employee,
+      month,
+      year,
+      automaticDeductions,
+      applyAutomatic,
+      includeLeaveImpact,
+    } = req.query;
 
     if (!employee || !month || !year) {
       return res.status(400).json({
@@ -18,6 +24,11 @@ export const getSimplePreview = async (req, res) => {
         error: "employee, month, and year are required",
       });
     }
+
+    const leaveImpactOn =
+      includeLeaveImpact === undefined ||
+      includeLeaveImpact === "" ||
+      (includeLeaveImpact !== "0" && includeLeaveImpact !== "false");
 
     const data = await getSimplePayrollPreview({
       employeeId: employee,
@@ -31,6 +42,7 @@ export const getSimplePreview = async (req, res) => {
         applyAutomatic === "1" ||
         applyAutomatic === "true" ||
         applyAutomatic === true,
+      includeLeaveImpact: leaveImpactOn,
     });
 
     if (!data.applicable) {

@@ -52,6 +52,38 @@ This folder is the **only** authorized Payroll V2 implementation workspace.
   → [Mark paid]
 ```
 
+### 1.1a Simple payroll (SMB — recommended day-to-day)
+
+HR path on **Salary Management → Payroll**:
+
+1. Pick the **pay period** (month/year) and set **salary payment date** on the period.
+2. Configure **simple salary structure**, **adjustments**, and **Save salary breakdown** (creates/updates `SalaryPreview`).
+3. Employee reviews **My Salary Preview** (optional ack/query).
+4. HR **Credit salary** on the Payroll tab → official `SalarySlip` + notification (links preview when present).
+
+**Env flags**
+
+| Variable | Effect |
+|----------|--------|
+| `SIMPLE_PAYROLL_CREDIT_ONLY=true` | Blocks `POST` Generate Slips for simple-mode employees (use Credit salary). |
+| `VITE_PAYROLL_SIMPLE_CREDIT_ONLY=true` | Disables Generate Slips tab in the UI. |
+
+**Ops — payment dates on old slips**
+
+After saving period payment dates, run from `backend/`:
+
+```bash
+node scripts/backfillSlipPaymentDates.js --dry-run
+node scripts/backfillSlipPaymentDates.js
+```
+
+Only slips whose period has `PayrollPeriod.salaryPaymentDate` are updated.
+
+**HR Preview maintenance**
+
+- **Reconcile queries** (Salary Preview tab): `POST /api/salary-preview/reconcile/:month/:year` — not run on every dashboard load.
+- **Refresh breakdown numbers**: per-row action on simple previews when stored net may drift from live payroll.
+
 ### 1.2 Database (V1)
 
 | Collection / Model | Role |

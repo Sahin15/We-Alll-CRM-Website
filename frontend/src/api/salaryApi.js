@@ -91,10 +91,17 @@ export const salarySlipApi = {
 // Salary Preview APIs
 export const salaryPreviewApi = {
   // Get employee's own preview
-  getMyPreview: (month, year) => api.get(`/salary-preview/my-preview/${month}/${year}`),
+  getMyPreview: (month, year, params) =>
+    api.get(`/salary-preview/my-preview/${month}/${year}`, { params }),
 
   // Get all previews for a month (HR/Admin)
   getMonthPreviews: (month, year) => api.get(`/salary-preview/month/${month}/${year}`),
+
+  getHrDashboard: (month, year, params) =>
+    api.get(`/salary-preview/hr-dashboard/${month}/${year}`, { params }),
+
+  reconcilePeriod: (month, year) =>
+    api.post(`/salary-preview/reconcile/${month}/${year}`),
 
   // Get previews needing attention
   getAttentionPreviews: (month, year) => api.get(`/salary-preview/attention/${month}/${year}`),

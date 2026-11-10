@@ -165,26 +165,18 @@ router.get("/my-preview/:month/:year",
         const { getSimplePayrollPreview } = await import(
           "../services/payroll/simplePayrollPreviewService.js"
         );
+        const includeLeave =
+          req.query.includeLeaveImpact === "1" ||
+          req.query.includeLeaveImpact === "true";
         const dto = await getSimplePayrollPreview({
           employeeId,
           month: parseInt(month, 10),
           year: parseInt(year, 10),
           automaticDeductions: 0,
+          includeLeaveImpact: includeLeave,
         });
         if (dto?.applicable) {
           simplePreview = dto;
-          // Keep stored breakdown aligned with live simple net for acknowledge/PDF paths
-          if (
-            preview.payrollMode === "simple" ||
-            dto.payrollMode === "simple"
-          ) {
-            if (
-              Number(preview.salaryBreakdown?.netSalary) !==
-              Number(dto.totals?.netSalary)
-            ) {
-              await previewService.syncSimplePreviewIfNeeded(preview);
-            }
-          }
         }
       } catch (err) {
         console.warn(
@@ -542,6 +534,79 @@ router.post("/:previewId/finalize",
   }
 );
 
+// HR dashboard: one round-trip (previews + stats + attention)
+router.get(
+  "/hr-dashboard/:month/:year",
+  protect,
+  requireModulePermission("finance", "payroll.slip.manage", {
+    legacyRoles: PAYROLL_MANAGE_ROLES,
+  }),
+  async (req, res) => {
+    try {
+      const month = parseInt(req.params.month, 10);
+      const year = parseInt(req.params.year, 10);
+      const { batchAttachLiveSimpleNets } = await import(
+        "../services/payroll/simplePayrollPreviewService.js"
+      );
+
+      const runReconcile =
+        req.query.reconcile === "1" || req.query.reconcile === "true";
+      const listOptions = { reconcile: runReconcile };
+
+      const [previews, statistics, attention] = await Promise.all([
+        previewService.getPreviewsForMonth(month, year, {}, listOptions),
+        previewService.getPreviewStatistics(month, year),
+        previewService.getPreviewsRequiringAttention(month, year),
+      ]);
+
+      const liveNet =
+        req.query.liveNet !== "0" && req.query.liveNet !== "false";
+      const previewPayload = liveNet
+        ? await batchAttachLiveSimpleNets(previews, month, year)
+        : previews.map((p) =>
+            typeof p.toObject === "function" ? p.toObject() : p
+          );
+
+      res.status(200).json({
+        previews: previewPayload,
+        statistics,
+        attention,
+      });
+    } catch (error) {
+      res.status(500).json({
+        message: "Failed to load HR preview dashboard",
+        error: error.message,
+      });
+    }
+  }
+);
+
+// One-shot repair: pending employee queries when HR correction exists (not on every list load)
+router.post(
+  "/reconcile/:month/:year",
+  protect,
+  requireModulePermission("finance", "payroll.slip.manage", {
+    legacyRoles: PAYROLL_MANAGE_ROLES,
+  }),
+  async (req, res) => {
+    try {
+      const month = parseInt(req.params.month, 10);
+      const year = parseInt(req.params.year, 10);
+      await previewService.reconcilePendingQueriesForPeriod(month, year);
+      res.status(200).json({
+        message: "Pending queries reconciled for period",
+        month,
+        year,
+      });
+    } catch (error) {
+      res.status(500).json({
+        message: "Failed to reconcile previews",
+        error: error.message,
+      });
+    }
+  }
+);
+
 // Get all previews for a month (HR view)
 router.get("/month/:month/:year",
   protect,
@@ -555,13 +620,31 @@ router.get("/month/:month/:year",
       if (status) filters.status = status;
       if (department) filters["employee.department"] = department;
 
+      const monthNum = parseInt(month, 10);
+      const yearNum = parseInt(year, 10);
       const previews = await previewService.getPreviewsForMonth(
-        parseInt(month),
-        parseInt(year),
+        monthNum,
+        yearNum,
         filters
       );
 
-      res.status(200).json(previews);
+      const liveNet =
+        req.query.liveNet !== "0" && req.query.liveNet !== "false";
+      if (liveNet) {
+        const { batchAttachLiveSimpleNets } = await import(
+          "../services/payroll/simplePayrollPreviewService.js"
+        );
+        const enriched = await batchAttachLiveSimpleNets(
+          previews,
+          monthNum,
+          yearNum
+        );
+        return res.status(200).json(enriched);
+      }
+
+      res.status(200).json(
+        previews.map((p) => (typeof p.toObject === "function" ? p.toObject() : p))
+      );
     } catch (error) {
       
       res.status(500).json({
