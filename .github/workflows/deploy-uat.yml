@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy to uat.wealll.cloud
+    name: Deploy to uat.wealll.in
     runs-on: ubuntu-latest
     environment: uat
     steps:
@@ -32,6 +32,6 @@ jobs:
             git fetch origin staging
             git checkout staging 2>/dev/null || git checkout -B staging origin/staging
             git reset --hard origin/staging
-            cp deploy/nginx/uat.wealll.cloud.conf /etc/nginx/sites-enabled/crm-uat
+            cp deploy/nginx/uat.wealll.in.conf /etc/nginx/sites-enabled/crm-uat
             nginx -t
             SKIP_GIT_SYNC=1 bash deploy-uat.sh

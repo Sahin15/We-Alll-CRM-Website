@@ -49,11 +49,11 @@ echo "=== Step 10: Frontend build + publish (UAT mode) ==="
 bash "$APP_DIR/deploy-uat.sh"
 
 echo "=== Step 11: nginx + SSL ==="
-sudo cp "$APP_DIR/deploy/nginx/uat.wealll.cloud.conf" /etc/nginx/sites-enabled/crm-uat
-if [ ! -f /etc/letsencrypt/live/uat.wealll.cloud/fullchain.pem ]; then
-  echo "Running certbot for uat.wealll.cloud ..."
-  sudo certbot --nginx -d uat.wealll.cloud --non-interactive --agree-tos -m sahin@wealll.cloud || {
-    echo "certbot failed — run manually: sudo certbot --nginx -d uat.wealll.cloud"
+sudo cp "$APP_DIR/deploy/nginx/uat.wealll.in.conf" /etc/nginx/sites-enabled/crm-uat
+if [ ! -f /etc/letsencrypt/live/uat.wealll.in/fullchain.pem ]; then
+  echo "Running certbot for uat.wealll.in ..."
+  sudo certbot --nginx -d uat.wealll.in --non-interactive --agree-tos -m sahin@wealll.in || {
+    echo "certbot failed — run manually: sudo certbot --nginx -d uat.wealll.in"
   }
 fi
 sudo nginx -t && sudo systemctl reload nginx
@@ -64,5 +64,5 @@ npm run seed:uat
 
 echo ""
 echo "✅ UAT setup complete!"
-echo "🌍 https://uat.wealll.cloud"
+echo "🌍 https://uat.wealll.in"
 echo "   Demo logins: *@demo.wealll.local (password printed above by seed script)"

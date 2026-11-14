@@ -34,7 +34,7 @@ Last Updated: 2026-08-04
 
 * **CTO / owner:** Repo owner (chat approval)
 * **Date:** 2026-08-04
-* **Enable scope:** **production** (`wealll.cloud`)
+* **Enable scope:** **production** (`wealll.in`)
 * **Kill-switch owner:** Repo owner / on-call backend
 * **Git rule:** Do **not** commit `PAYROLL_V2_ENGINE=true`. Set only in server secrets / `.env`, then `pm2 restart all`.
 

@@ -12,7 +12,7 @@ export const getCompanySettings = () => ({
   phone: process.env.COMPANY_PHONE || "",
   signatoryName: process.env.COMPANY_SIGNATORY_NAME || "HR Manager",
   signatoryTitle: process.env.COMPANY_SIGNATORY_TITLE || "Human Resources",
-  website: process.env.COMPANY_WEBSITE || "https://wealll.cloud",
+  website: process.env.COMPANY_WEBSITE || "https://wealll.in",
 });
 
 export default getCompanySettings;

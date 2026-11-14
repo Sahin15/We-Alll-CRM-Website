@@ -1,6 +1,6 @@
 #!/bin/bash
 # Run on UAT VPS: bash deploy/diagnose-uat-vps.sh
-# Prints why uat.wealll.cloud may still serve an old frontend build.
+# Prints why uat.wealll.in may still serve an old frontend build.
 
 set -euo pipefail
 
@@ -10,9 +10,9 @@ EXPECTED_ROOT="/var/www/crm-uat/frontend/dist"
 echo "========== UAT deploy diagnostics =========="
 echo ""
 
-echo "1) nginx root for uat.wealll.cloud"
+echo "1) nginx root for uat.wealll.in"
 sudo nginx -T 2>/dev/null | awk '
-  /server_name/ && $0 ~ /uat\.wealll\.cloud/ { in_uat=1 }
+  /server_name/ && $0 ~ /uat\.wealll\.in/ { in_uat=1 }
   in_uat && /root / { print; in_uat=0 }
 ' || echo "   (could not read nginx -T)"
 

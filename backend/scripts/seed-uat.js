@@ -1,5 +1,5 @@
 /**
- * Idempotent UAT seed — dummy ERP data for uat.wealll.cloud demos.
+ * Idempotent UAT seed — dummy ERP data for uat.wealll.in demos.
  * Run: cd backend && node scripts/seed-uat.js
  * Requires MONGO_URI pointing at crm-uat database and APP_ENV=uat recommended.
  *

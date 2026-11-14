@@ -43,7 +43,7 @@ PAYROLL_V2_ENGINE=false
 # 7. If pilot OK and second approval exists, re-enable for cohort
 ```
 
-## C. Production (`wealll.cloud`) — separate approval required
+## C. Production (`wealll.in`) — separate approval required
 
 ```bash
 # After deploy.sh has main @ dd15c92+

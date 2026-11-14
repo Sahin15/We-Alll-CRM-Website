@@ -26,7 +26,7 @@ Approve **cutover prep (PH-12)**:
 
 1. Allow setting `PAYROLL_V2_ENGINE=true` on a **named** environment after kill-switch owner is assigned.
 2. Pilot: generate one slip and verify net vs dual-run V2.
-3. Production (`wealll.cloud`) only after a **second** explicit approval if staging/pilot is separate; if only prod exists, require explicit "enable production" wording.
+3. Production (`wealll.in`) only after a **second** explicit approval if staging/pilot is separate; if only prod exists, require explicit "enable production" wording.
 
 ## Reply template (paste into chat or ticket)
 

@@ -1,5 +1,5 @@
 // API Base URL - Production-first approach
-// In production, VITE_API_URL is set to https://wealll.cloud/api
+// In production, VITE_API_URL is set to https://wealll.in/api
 // For mobile compatibility, we use relative URLs when possible
 const getApiBaseUrl = () => {
   // If VITE_API_URL is explicitly set (production), use it

@@ -24,7 +24,7 @@ const createSuperAdmin = async () => {
     // Superadmin details - CHANGE THESE VALUES
     const superAdminData = {
       name: "Super Admin",
-      email: "admin@wealll.cloud",
+      email: "admin@wealll.in",
       password: "Admin@123456", // Change this to a strong password
       phone: "+91 9876543210",
       role: "superadmin",

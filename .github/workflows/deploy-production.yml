@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy to wealll.cloud
+    name: Deploy to wealll.in
     runs-on: ubuntu-latest
     environment: production
     steps:

@@ -5,8 +5,8 @@ Enterprise CRM and ERP for **We Alll** and **Kolkata Digital**: clients, project
 | | |
 |---|---|
 | **App version** | `5.4.0` (frontend + backend `package.json`) |
-| **Production** | [https://wealll.cloud](https://wealll.cloud) — branch `main` |
-| **UAT** | [https://uat.wealll.cloud](https://uat.wealll.cloud) — branch `staging` |
+| **Production** | [https://wealll.in](https://wealll.in) — branch `main` |
+| **UAT** | [https://uat.wealll.in](https://uat.wealll.in) — branch `staging` |
 | **Integration** | branch `develop` |
 
 ---

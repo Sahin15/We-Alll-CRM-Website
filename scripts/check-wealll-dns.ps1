@@ -1,7 +1,7 @@
-# Diagnose wealll.cloud DNS and WiFi reachability
+# Diagnose wealll.in DNS and WiFi reachability
 # Run: powershell -ExecutionPolicy Bypass -File scripts/check-wealll-dns.ps1
 
-$domain = "wealll.cloud"
+$domain = "wealll.in"
 Write-Host "`n=== DNS for $domain ===" -ForegroundColor Cyan
 try {
   $records = Resolve-DnsName $domain -Type A -ErrorAction Stop

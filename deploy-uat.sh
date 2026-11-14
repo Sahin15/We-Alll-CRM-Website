@@ -5,7 +5,7 @@
 #
 # Git + build:  /root/crm-website-uat
 # nginx root:  /var/www/crm-uat/frontend/dist
-# Branch:      staging → uat.wealll.cloud
+# Branch:      staging → uat.wealll.in
 # ============================================
 
 set -e
@@ -83,11 +83,11 @@ pm2 save
 
 echo "🌐 Updating nginx config..."
 rm -f "${NGINX_SITE}.bak"
-cp deploy/nginx/uat.wealll.cloud.conf "$NGINX_SITE"
+cp deploy/nginx/uat.wealll.in.conf "$NGINX_SITE"
 nginx -t
 systemctl reload nginx
 
 echo ""
 echo "✅ UAT deployment complete!"
 echo "📌 Commit: ${DEPLOY_COMMIT}"
-echo "🌍 UAT site: https://uat.wealll.cloud"
+echo "🌍 UAT site: https://uat.wealll.in"

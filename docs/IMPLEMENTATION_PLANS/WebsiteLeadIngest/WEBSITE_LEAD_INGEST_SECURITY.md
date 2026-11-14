@@ -37,8 +37,8 @@ REQUEST
 | Env | `CORS_ORIGIN` | `WEBSITE_LEAD_ALLOWED_ORIGINS` |
 |-----|---------------|--------------------------------|
 | Local | CRM local + optional wealll.com | defaults OK (includes localhost) |
-| UAT | `https://uat.wealll.cloud` + wealll.com | wealll.com + optional localhost |
-| Production | `https://wealll.cloud` + wealll.com | **`https://wealll.com,https://www.wealll.com` only** |
+| UAT | `https://uat.wealll.in` + wealll.com | wealll.com + optional localhost |
+| Production | `https://wealll.in` + wealll.com | **`https://wealll.com,https://www.wealll.com` only** |
 
 See `backend/.env.*.example` and [`docs/CORE/DEPLOYMENT.md`](../../CORE/DEPLOYMENT.md).
 

@@ -1,7 +1,7 @@
 # Git workflow — We Alll CRM
 
-Production (`wealll.cloud`) deploys from **`main`** with GitHub Actions approval.  
-UAT (`uat.wealll.cloud`) auto-deploys from **`staging`**.
+Production (`wealll.in`) deploys from **`main`** with GitHub Actions approval.  
+UAT (`uat.wealll.in`) auto-deploys from **`staging`**.
 
 Full deploy runbook: [`docs/CORE/DEPLOYMENT.md`](docs/CORE/DEPLOYMENT.md)
 
@@ -11,7 +11,7 @@ Full deploy runbook: [`docs/CORE/DEPLOYMENT.md`](docs/CORE/DEPLOYMENT.md)
 |--------|---------|
 | `main` | Production-ready code only |
 | `develop` | Integration branch for features |
-| `staging` | Pre-production / client UAT (deploys to uat.wealll.cloud) |
+| `staging` | Pre-production / client UAT (deploys to uat.wealll.in) |
 | `feature/*` | Feature work |
 | `fix/*` | Bug fixes |
 

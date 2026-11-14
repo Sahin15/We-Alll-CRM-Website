@@ -50,4 +50,4 @@ systemctl reload nginx
 
 echo ""
 echo "✅ Deployment complete!"
-echo "🌍 Site is live at https://wealll.cloud"
+echo "🌍 Site is live at https://wealll.in"

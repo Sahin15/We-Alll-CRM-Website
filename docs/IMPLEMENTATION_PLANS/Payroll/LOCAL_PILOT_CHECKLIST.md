@@ -19,7 +19,7 @@ PAYROLL_PERIOD_GATES=false
 
 Restart backend after changing env (`npm run dev` in `backend/`).
 
-Production `wealll.cloud` must stay `PAYROLL_V2_ENGINE=false` until you finish this list.
+Production `wealll.in` must stay `PAYROLL_V2_ENGINE=false` until you finish this list.
 
 ## 1. Start apps
 

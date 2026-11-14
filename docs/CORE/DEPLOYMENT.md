@@ -4,8 +4,8 @@
 
 | Environment | URL | Git branch | Git / build path | Static / nginx | PM2 process | Backend port | MongoDB db |
 |-------------|-----|------------|------------------|----------------|-------------|--------------|------------|
-| Production | https://wealll.cloud | `main` | `/root/crm-website` (`deploy.sh`) | Built into app tree; nginx serves site | `wealll-office-backend` | `5000` (or `PORT` in `.env`) | production DB name in `MONGO_URI` |
-| UAT | https://uat.wealll.cloud | `staging` | `/root/crm-website-uat` | `/var/www/crm-uat/frontend/dist` | `crm-uat-api` | `5001` | `crm-uat` |
+| Production | https://wealll.in | `main` | `/root/crm-website` (`deploy.sh`) | Built into app tree; nginx serves site | `wealll-office-backend` | `5000` (or `PORT` in `.env`) | production DB name in `MONGO_URI` |
+| UAT | https://uat.wealll.in | `staging` | `/root/crm-website-uat` | `/var/www/crm-uat/frontend/dist` | `crm-uat-api` | `5001` | `crm-uat` |
 
 > **Source of truth:** GitHub Actions + `deploy.sh` / `deploy-uat.sh`. Older docs that referenced `/var/www/crm-app` or PM2 `crm-api` are obsolete.
 
@@ -33,7 +33,7 @@ Enable branch protection per [`.github/BRANCH_PROTECTION.md`](../.github/BRANCH_
 
 ### First-time UAT VPS setup
 
-1. **DNS:** Add `A` record `uat.wealll.cloud` → same VPS IP as production.
+1. **DNS:** Add `A` record `uat.wealll.in` → same VPS IP as production.
 
 2. **Clone app:**
    ```bash
@@ -58,10 +58,10 @@ Enable branch protection per [`.github/BRANCH_PROTECTION.md`](../.github/BRANCH_
    pm2 save
    ```
 
-6. **nginx:** Use [`deploy/nginx/uat.wealll.cloud.conf`](../deploy/nginx/uat.wealll.cloud.conf):
+6. **nginx:** Use [`deploy/nginx/uat.wealll.in.conf`](../deploy/nginx/uat.wealll.in.conf):
    ```bash
-   sudo cp deploy/nginx/uat.wealll.cloud.conf /etc/nginx/sites-enabled/crm-uat
-   sudo certbot --nginx -d uat.wealll.cloud
+   sudo cp deploy/nginx/uat.wealll.in.conf /etc/nginx/sites-enabled/crm-uat
+   sudo certbot --nginx -d uat.wealll.in
    sudo nginx -t && sudo systemctl reload nginx
    ```
 
@@ -79,10 +79,10 @@ Enable branch protection per [`.github/BRANCH_PROTECTION.md`](../.github/BRANCH_
 - `APP_ENV=uat`
 - `PAYROLL_V2_ENGINE=false`
 - `PAYROLL_PERIOD_GATES=false`
-- `CORS_ORIGIN=https://uat.wealll.cloud,https://wealll.com,https://www.wealll.com`
+- `CORS_ORIGIN=https://uat.wealll.in,https://wealll.com,https://www.wealll.com`
 - `WEBSITE_LEAD_ALLOWED_ORIGINS=https://wealll.com,https://www.wealll.com,http://localhost`
 
-Frontend: `npm run build:uat` uses `frontend/.env.uat` → `VITE_API_URL=https://uat.wealll.cloud/api`.
+Frontend: `npm run build:uat` uses `frontend/.env.uat` → `VITE_API_URL=https://uat.wealll.in/api`.
 
 ---
 
@@ -101,18 +101,30 @@ Copy from `backend/.env.production.example`. Required for website leads:
 ```env
 APP_ENV=production
 NODE_ENV=production
-CORS_ORIGIN=https://wealll.cloud,https://wealll.com,https://www.wealll.com
+CORS_ORIGIN=https://wealll.in,https://wealll.com,https://www.wealll.com
 WEBSITE_LEAD_ALLOWED_ORIGINS=https://wealll.com,https://www.wealll.com
 ```
 
 **Do not** put `localhost` in production `WEBSITE_LEAD_ALLOWED_ORIGINS`. The API **refuses to start** in production if that variable is missing or contains localhost.
 
-Frontend production build (`npm run build`) uses `frontend/.env.production` → `VITE_API_URL=https://wealll.cloud/api`.
+Frontend production build (`npm run build`) uses `frontend/.env.production` → `VITE_API_URL=https://wealll.in/api`.
 
 ### GitHub Environment `production`
 
 - Required reviewers under **Settings → Environments → production**
 - Secrets: `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`
+
+### Production nginx (`wealll.in`)
+
+Template: [`deploy/nginx/wealll.in.conf`](../deploy/nginx/wealll.in.conf). On first cutover from `wealll.cloud`:
+
+```bash
+sudo cp deploy/nginx/wealll.in.conf /etc/nginx/sites-enabled/crm-production
+sudo certbot --nginx -d wealll.in
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Edit `root` in that file if your VPS uses a path other than `/root/crm-website/frontend/dist`.
 
 ### Manual deploy (fallback)
 
@@ -160,10 +172,10 @@ UAT rollback: same idea with `/root/crm-website-uat` and `bash deploy-uat.sh` on
 
 After deploy + PM2 online:
 
-1. `POST https://wealll.cloud/api/leads/website` + `Origin: https://wealll.com`, no JWT → **201**
+1. `POST https://wealll.in/api/leads/website` + `Origin: https://wealll.com`, no JWT → **201**
 2. Same phone again → **200** `duplicate: true`
 3. Bad Origin → **403**
-4. `GET` or `POST https://wealll.cloud/api/leads/` without JWT → **401**
+4. `GET` or `POST https://wealll.in/api/leads/` without JWT → **401**
 5. Optional: browser submit from wealll.com → lead in CRM Leads list
 6. `pm2 logs wealll-office-backend --lines 50`
 
