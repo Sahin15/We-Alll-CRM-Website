@@ -11,9 +11,14 @@ const PayrollDataTable = ({
   onToggleAll,
   responsive = true,
   size = "sm",
+  tableClassName = "",
 }) => {
   const table = (
-    <Table hover className="mb-0 align-middle" size={size}>
+    <Table
+      hover
+      className={`mb-0 align-middle ${tableClassName}`.trim()}
+      size={size}
+    >
       <thead className="table-light">
         <tr>
           {selectable && (

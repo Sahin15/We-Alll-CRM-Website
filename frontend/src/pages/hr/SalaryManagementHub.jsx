@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { Container, Nav, Button } from "react-bootstrap";
+import { Container, Nav } from "react-bootstrap";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import {
-  PayrollPageHeader,
-  PayrollPeriodBar,
-  PayrollKpiRow,
+  PayrollHubPageHeader,
+  PayrollHubDashboard,
 } from "../../components/payroll-ui";
 import { usePayrollPeriod } from "../../context/PayrollPeriodContext.jsx";
 import { usePayrollPeriodHealth } from "../../hooks/usePayrollPeriodHealth";
+import { usePayrollHubStats } from "../../hooks/usePayrollHubStats";
 import EmployeeCompensationPayroll from "../../components/salary/EmployeeCompensationPayroll";
 import RunPayrollWorkspace from "../../components/salary/RunPayrollWorkspace";
 import SalarySlipList from "../../components/salary/SalarySlipList";
@@ -20,13 +20,6 @@ const WORKSPACES = [
   { key: "payslips", label: "Payslips" },
   { key: "finance", label: "Finance desk" },
 ];
-
-const formatInr = (n) =>
-  new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(Number(n) || 0);
 
 const defaultWorkspaceForRole = (role) => {
   const r = String(role || "").toLowerCase();
@@ -54,8 +47,13 @@ const SalaryManagementHub = () => {
 
   const month = payPeriod?.month;
   const year = payPeriod?.year;
-  const { health, loading: healthLoading, refresh: refreshHealth } =
-    usePayrollPeriodHealth(month, year);
+  const { refresh: refreshHealth } = usePayrollPeriodHealth(month, year);
+  const hubStats = usePayrollHubStats(month, year);
+
+  const refreshAll = () => {
+    refreshHealth();
+    hubStats.refresh();
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -92,19 +90,16 @@ const SalaryManagementHub = () => {
     }
   }, [location.search]);
 
-  const kpiItems = useMemo(
-    () => [
-      { label: "Previews", value: health.previewCount },
-      { label: "Slips credited", value: health.creditedCount },
-      { label: "Open queries", value: health.openQueries },
-      { label: "Missing slips", value: health.missingSlipCount },
-      {
-        label: "Net payout",
-        value: formatInr(health.totalNet),
-        hint: "Selected period",
-      },
-    ],
-    [health]
+  const workspaceTabs = useMemo(
+    () =>
+      WORKSPACES.map((w) => ({
+        ...w,
+        badge:
+          w.key === "compensation" && hubStats.totalEmployees
+            ? hubStats.totalEmployees
+            : null,
+      })),
+    [hubStats.totalEmployees]
   );
 
   const selectWorkspace = (key) => {
@@ -116,41 +111,30 @@ const SalaryManagementHub = () => {
 
   return (
     <Container fluid className="mt-4 payroll-hub-page">
-      <PayrollPageHeader
-        title="Payroll hub"
-        description="Compensation history, monthly run, payslips, and finance close — in one place."
-        badge="Salary management"
-        actions={
-          <Button
-            size="sm"
-            variant="outline-secondary"
-            onClick={() => navigate("/salary-management/legacy")}
-          >
-            Legacy tools
-          </Button>
-        }
+      <PayrollHubPageHeader
+        onLegacyTools={() => navigate("/salary-management/legacy")}
       />
 
-      <PayrollPeriodBar
-        onViewSlips={() => selectWorkspace("payslips")}
-        onCredit={() => selectWorkspace("run-payroll")}
+      <PayrollHubDashboard
+        stats={hubStats}
+        loading={hubStats.loading}
+        onRunPayroll={() => selectWorkspace("run-payroll")}
+        onPayrollReports={() => selectWorkspace("finance")}
       />
 
-      {(workspace === "run-payroll" ||
-        workspace === "payslips" ||
-        workspace === "finance") && (
-        <PayrollKpiRow items={kpiItems} loading={healthLoading} />
-      )}
-
-      <Nav variant="pills" className="payroll-workspace-nav mb-3 flex-wrap gap-1">
-        {WORKSPACES.map((w) => (
+      <Nav className="payroll-workspace-tabs mb-3 flex-nowrap overflow-auto">
+        {workspaceTabs.map((w) => (
           <Nav.Item key={w.key}>
             <Nav.Link
               active={workspace === w.key}
               onClick={() => selectWorkspace(w.key)}
               style={{ cursor: "pointer" }}
+              className="d-flex align-items-center gap-2"
             >
-              {w.label}
+              <span>{w.label}</span>
+              {w.badge != null && (
+                <span className="payroll-tab-count">{w.badge}</span>
+              )}
             </Nav.Link>
           </Nav.Item>
         ))}
@@ -159,13 +143,13 @@ const SalaryManagementHub = () => {
       {workspace === "compensation" && <EmployeeCompensationPayroll />}
       {workspace === "run-payroll" && (
         <RunPayrollWorkspace
-          onHealthRefresh={refreshHealth}
+          onHealthRefresh={refreshAll}
           initialBreakdownEmployeeId={runPayrollDeepLink.employeeId}
           initialRunView={runPayrollDeepLink.runView}
         />
       )}
       {workspace === "payslips" && (
-        <SalarySlipList hubV2 onHealthRefresh={refreshHealth} />
+        <SalarySlipList hubV2 onHealthRefresh={refreshAll} />
       )}
       {workspace === "finance" && <FinanceDesk />}
     </Container>
